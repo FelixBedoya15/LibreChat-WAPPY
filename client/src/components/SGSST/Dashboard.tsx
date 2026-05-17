@@ -12,7 +12,8 @@ import {
     BrainCircuit,
     Activity,
     Box,
-    UserCircle
+    UserCircle,
+    ArrowLeft
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -31,7 +32,7 @@ const REQUIRED_FIELDS = [
 ] as const;
 
 // ─── Phase Definitions ────────────────────────────────────────────────────────
-const getPhases = () => [
+const getSuperPhases = () => [
     {
         id: 'bio_motor',
         title: 'MOTOR BIO-INDIVIDUAL',
@@ -56,6 +57,81 @@ const getPhases = () => [
     }
 ];
 
+const getSubPhases = (superId: string) => {
+    if (superId === 'bio_motor') {
+        return [
+            {
+                id: 'hito1', title: 'Huella Biocéntrica', subtitle: 'Origen', description: 'Perfil Sociodemográfico, Condiciones de Salud y Perfiles de Cargo.',
+                extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones únicas de edad, metabolismo y co-exposiciones.',
+                accent: 'text-[#10b981]', bgGlow: 'bg-[#10b981]/5', borderHover: 'hover:border-[#10b981]',
+                icon: <UserCircle className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 01'
+            },
+            {
+                id: 'hito2', title: 'Dinámica de Exposición', subtitle: 'Acción y Percepción', description: 'Reporte de Actos Inseguros, Capacitaciones, ATS, Permisos y Método OWAS.',
+                extendedPhilosophy: 'El riesgo se materializa en la fisiología de cada persona. Buscamos medir el contacto real con los peligros.',
+                accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
+                icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 02'
+            },
+            {
+                id: 'hito3', title: 'Núcleo Bio-Evaluativo', subtitle: 'Procesamiento', description: 'Matriz Bio-IPEVAR.',
+                extendedPhilosophy: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador.',
+                accent: 'text-[#059669]', bgGlow: 'bg-[#059669]/5', borderHover: 'hover:border-[#059669]',
+                icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 03'
+            },
+            {
+                id: 'hito4', title: 'Traumatismo y Curación', subtitle: 'Retroalimentación', description: 'Estadísticas ATEL e Investigación ATEL.',
+                extendedPhilosophy: 'Mapas cuantitativos y biométricos que muestran el sangrado o desequilibrio sistémico. Dónde perdimos salud.',
+                accent: 'text-[#14b8a6]', bgGlow: 'bg-[#14b8a6]/5', borderHover: 'hover:border-[#14b8a6]',
+                icon: <BarChart2 className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 04'
+            },
+            {
+                id: 'hito5', title: 'Oráculo Predictivo', subtitle: 'Inteligencia Artificial', description: 'Centro de Inteligencia Predictiva.',
+                extendedPhilosophy: 'Al cruzar la data fisiológica, las costumbres de vida y el riesgo del entorno, nuestros algoritmos probabilísticos detectan tendencias.',
+                accent: 'text-[#8b5cf6]', bgGlow: 'bg-[#8b5cf6]/5', borderHover: 'hover:border-[#8b5cf6]',
+                icon: <BrainCircuit className="w-8 h-8 text-[#8b5cf6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 05'
+            }
+        ];
+    }
+    if (superId === 'boveda_legal') {
+        return [
+            {
+                id: 'planear', title: 'Planear', subtitle: 'Diseño del Sistema', description: 'Diagnóstico, Política, Objetivos, Matriz Legal, Reglamentos y Responsable.',
+                extendedPhilosophy: 'El manifiesto ético y la alienación de nuestros estándares internos con las promesas de bienestar exigidas por la ley.',
+                accent: 'text-[#10b981]', bgGlow: 'bg-[#10b981]/5', borderHover: 'hover:border-[#10b981]',
+                icon: <FileText className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'FASE 01'
+            },
+            {
+                id: 'hacer', title: 'Hacer', subtitle: 'Implementación', description: 'Análisis de Vulnerabilidad.',
+                extendedPhilosophy: 'Ejecución de los planes de emergencia y preparación estructural.',
+                accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
+                icon: <Target className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'FASE 02'
+            },
+            {
+                id: 'verificar', title: 'Verificar', subtitle: 'Auditoría', description: 'Informe de Auditoría y Revisión por Alta Dirección.',
+                extendedPhilosophy: 'Meditación introspectiva de todo nuestro diseño organizativo. Un espejo para detectar fallas sistémicas a tiempo.',
+                accent: 'text-[#059669]', bgGlow: 'bg-[#059669]/5', borderHover: 'hover:border-[#059669]',
+                icon: <ClipboardCheck className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'FASE 03'
+            },
+            {
+                id: 'actuar', title: 'Actuar', subtitle: 'Mejora Continua', description: 'Matriz ACPM (Sanación).',
+                extendedPhilosophy: 'Acciones Correctivas y Preventivas reales. El testamento de que aprendimos de las heridas para evolucionar.',
+                accent: 'text-[#14b8a6]', bgGlow: 'bg-[#14b8a6]/5', borderHover: 'hover:border-[#14b8a6]',
+                icon: <GitMerge className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'FASE 04'
+            }
+        ];
+    }
+    return [];
+};
+
 const OrganicBlob = () => (
     <svg className="absolute top-0 right-0 w-64 h-64 opacity-20 transform translate-x-12 -translate-y-8 transition-transform duration-[1200ms] group-hover:scale-[1.35] group-hover:-rotate-[15deg] pointer-events-none" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path fill="#ffffff" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
@@ -68,12 +144,13 @@ export default function SGSSTDashboard() {
     const [searchParams, setSearchParams] = useSearchParams();
     
     // State
-    const [selectedPhase, setSelectedPhase] = useState<any>(null);
+    const [selectedSuperPhase, setSelectedSuperPhase] = useState<any>(null);
+    const [selectedSubPhase, setSelectedSubPhase] = useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
     const hasCheckedRef = React.useRef(false);
-    const phases = getPhases();
+    const superPhases = getSuperPhases();
 
     // ─── Fetch Company Info ────────────────────────────────────────────────
     useEffect(() => {
@@ -116,16 +193,16 @@ export default function SGSSTDashboard() {
 
     // ─── handle navigate-sgsst event (from notification panel) ───
     useEffect(() => {
-        const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
-            reporte_actos: 'bio_motor',
-            participacion_ipevar: 'bio_motor',
-            alta_direccion: 'boveda_legal',
+        const SGSST_MODULE_PHASE_MAP: Record<string, {super: string, sub: string}> = {
+            reporte_actos: {super: 'bio_motor', sub: 'hito2'},
+            participacion_ipevar: {super: 'bio_motor', sub: 'hito2'},
+            alta_direccion: {super: 'boveda_legal', sub: 'verificar'},
         };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (!module) return;
-            const phaseId = SGSST_MODULE_PHASE_MAP[module] || 'bio_motor';
-            setSearchParams({ phase: phaseId, module });
+            const mapping = SGSST_MODULE_PHASE_MAP[module] || {super: 'bio_motor', sub: 'hito3'};
+            setSearchParams({ super: mapping.super, sub: mapping.sub, module });
         };
         window.addEventListener('navigate-sgsst', handler);
         return () => window.removeEventListener('navigate-sgsst', handler);
@@ -133,12 +210,22 @@ export default function SGSSTDashboard() {
 
     // ─── URL Sync ──────────────────────────────────────────────────────────
     useEffect(() => {
-        const phaseId = searchParams.get('phase');
-        if (phaseId) {
-            const phase = phases.find(p => p.id === phaseId);
-            setSelectedPhase(phase || null);
+        const superId = searchParams.get('super');
+        const subId = searchParams.get('sub');
+        
+        if (superId) {
+            const superP = superPhases.find(p => p.id === superId);
+            setSelectedSuperPhase(superP || null);
+            
+            if (subId && superP) {
+                const subP = getSubPhases(superId).find(p => p.id === subId);
+                setSelectedSubPhase(subP || null);
+            } else {
+                setSelectedSubPhase(null);
+            }
         } else {
-            setSelectedPhase(null);
+            setSelectedSuperPhase(null);
+            setSelectedSubPhase(null);
         }
     }, [searchParams]);
 
@@ -147,21 +234,32 @@ export default function SGSSTDashboard() {
             setShowCompanyInfo(true);
             return;
         }
-        setSearchParams({ phase: phase.id });
+        
+        // If we are currently at Level 1, navigating to Level 2
+        if (!selectedSuperPhase) {
+            setSearchParams({ super: phase.id });
+        } 
+        // If we are at Level 2, navigating to Level 3 (SubPhase)
+        else {
+            setSearchParams({ super: selectedSuperPhase.id, sub: phase.id });
+        }
     };
 
-    if (selectedPhase) {
+    if (selectedSubPhase) {
         const moduleParam = searchParams.get('module') || undefined;
         return (
             <PhaseDetail
-                phase={selectedPhase}
-                onBack={() => setSearchParams({})}
+                phase={selectedSubPhase}
+                onBack={() => setSearchParams({ super: selectedSuperPhase.id })}
                 navVisible={navVisible}
                 setNavVisible={setNavVisible}
                 autoOpenModule={moduleParam}
             />
         );
     }
+
+    const isLevel2 = !!selectedSuperPhase;
+    const currentPhases = isLevel2 ? getSubPhases(selectedSuperPhase.id) : superPhases;
 
     return (
         <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary pb-20 scroll-smooth">
@@ -179,13 +277,39 @@ export default function SGSSTDashboard() {
                         </button>
                     )}
                     <div className="flex items-center gap-4">
-                        <div className="bg-[#10b981]/10 p-3.5 rounded-2xl dark:bg-[#10b981]/20">
-                            <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">SST Bio-Individual</h1>
-                            <p className="text-text-secondary mt-1 text-sm font-medium">Metodología centrada en el bio-monitoreo del individuo, donde la prevención se personaliza antes del daño.</p>
-                        </div>
+                        {isLevel2 ? (
+                            <>
+                                <button 
+                                    onClick={() => setSearchParams({})}
+                                    className="p-3 bg-surface-secondary border border-border-medium rounded-xl hover:bg-surface-hover hover:scale-105 transition-all"
+                                >
+                                    <ArrowLeft className="h-6 w-6 text-text-primary" />
+                                </button>
+                                <div className="bg-[#10b981]/10 p-3.5 rounded-2xl dark:bg-[#10b981]/20">
+                                    <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-bold text-text-primary tracking-tight">
+                                        {selectedSuperPhase.id === 'bio_motor' ? 'SST Bio-Individual' : 'Bóveda de Cumplimiento'}
+                                    </h1>
+                                    <p className="text-text-secondary mt-1 text-sm font-medium">
+                                        {selectedSuperPhase.id === 'bio_motor' 
+                                            ? 'Metodología centrada en el bio-monitoreo del individuo.' 
+                                            : 'Control estricto y auditoría del marco legal y el sistema P-H-V-A.'}
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-blue-500/10 p-3.5 rounded-2xl dark:bg-blue-500/20">
+                                    <ShieldAlert className="h-8 w-8 text-blue-500" strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-bold text-text-primary tracking-tight">Gestión Integral SGSST</h1>
+                                    <p className="text-text-secondary mt-1 text-sm font-medium">Seleccione el ecosistema para gestionar la prevención o la legalidad.</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -233,8 +357,14 @@ export default function SGSSTDashboard() {
                             <Box className="h-6 w-6 text-[#10b981] animate-pulse" />
                         </div>
                         <div>
-                            <h2 className="text-3xl md:text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">Ruta del Bienestar Integral</h2>
-                            <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">
+                                {isLevel2 ? 'Ruta del Bienestar Integral' : 'Arquitectura del Sistema'}
+                            </h2>
+                            <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">
+                                {isLevel2 
+                                    ? 'Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.'
+                                    : 'Navegue entre el motor orgánico de prevención individual y la bóveda estructurada de cumplimiento normativo.'}
+                            </p>
                         </div>
                     </div>
 
@@ -242,7 +372,7 @@ export default function SGSSTDashboard() {
                         {/* Línea Central Conectora */}
                         <div className="absolute top-0 bottom-0 left-[34px] lg:left-1/2 w-1 -translate-x-1/2 bg-gradient-to-b from-[#10b981] via-[#0d9488] to-[#14b8a6] opacity-30 dark:opacity-40 rounded-full" />
                         
-                        {phases.map((phase, i) => {
+                        {currentPhases.map((phase, i) => {
                             const isEven = i % 2 === 1;
                             return (
                                 <div 
@@ -281,11 +411,19 @@ export default function SGSSTDashboard() {
                                             </div>
 
                                             <div className="relative p-6 sm:p-8 flex flex-col flex-1 z-10 w-full">
-                                                <div className="mb-4">
-                                                    <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
-                                                        Hito 0{i+1}
+                                                {phase.label ? (
+                                                    <div className="mb-4">
+                                                        <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
+                                                            {phase.label}
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                ) : (
+                                                    <div className="mb-4">
+                                                        <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
+                                                            MÓDULO PRINCIPAL
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 
                                                 <div className="text-left flex flex-col flex-1">
                                                     <h2 className={cn("text-2xl sm:text-3xl font-black tracking-tight leading-none mb-3 text-text-primary transition-colors", `group-hover:${phase.accent}`)}>
