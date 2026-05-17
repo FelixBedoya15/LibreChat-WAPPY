@@ -5,7 +5,7 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit
+    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -38,6 +38,7 @@ import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
 import PerfilSociodemografico from './PerfilSociodemografico';
 import CondicionesSalud from './CondicionesSalud';
+import AppBuilder from './AppBuilder';
 import { UpgradeWall } from './UpgradeWall';
 
 // Manual Icon Map to avoid dynamic import issues
@@ -46,7 +47,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
-    BrainCircuit
+    BrainCircuit, Blocks
 };
 
 
@@ -573,6 +574,14 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  {category.id === 'predictivo' && (
                                                      <div className="mb-6">
                                                          <DashboardPredictivo />
+                                                     </div>
+                                                 )}
+
+
+                                                 {/* Show AppBuilder for app_builder category */}
+                                                 {category.id === 'app_builder' && (
+                                                     <div className="mb-6">
+                                                         <AppBuilder />
                                                      </div>
                                                  )}
 

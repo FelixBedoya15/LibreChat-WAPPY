@@ -112,6 +112,11 @@ export const PHASE_CATEGORIES = {
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
             bioRationale: 'El perfil del líder empático con la potestad moral para ser el principal guardián o avatar del bienestar dentro de la empresa.', 
             normativity: 'Resolución 0312 de 2019' 
+        },
+        { 
+            id: 'app_builder', title: 'Creador de Aplicativos', icon: 'Blocks',
+            bioRationale: 'Ensambla tus propios aplicativos a la medida usando Inteligencia Artificial y bloques de construcción estructurados.', 
+            normativity: 'WAPPY No-Code' 
         }
     ],
     hacer: [
