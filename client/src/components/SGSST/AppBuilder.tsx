@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Blocks, Save, FilePlus, Zap, Settings, RefreshCw, MessageSquare, ArrowLeft, Plus, X, Bot, Send, User, Trash2 } from 'lucide-react';
 import { Button } from '@librechat/client';
 import { cn } from '~/utils';
+import ChatView from '~/components/Chat/ChatView';
 
 const AVAILABLE_BLOCKS = [
     { id: 'chat', type: 'chat', name: 'Mini Chat IA', icon: MessageSquare, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
@@ -9,68 +10,6 @@ const AVAILABLE_BLOCKS = [
     { id: 'excel', type: 'excel', name: 'Live Editor Excel', icon: Blocks, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { id: 'whatsapp', type: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: 'text-green-500', bg: 'bg-green-500/10' },
 ];
-
-const MiniAgentChatMock = () => {
-    const [messages, setMessages] = useState<{role: string, text: string}[]>([
-        { role: 'assistant', text: '¡Hola! Soy tu asistente de este aplicativo. ¿En qué te puedo ayudar hoy?' }
-    ]);
-    const [input, setInput] = useState('');
-
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!input.trim()) return;
-        setMessages([...messages, { role: 'user', text: input }]);
-        setInput('');
-        setTimeout(() => {
-            setMessages(prev => [...prev, { role: 'assistant', text: 'Esta es una simulación del bloque Mini Chat IA. En la versión final, estaré conectado a tu API de Wappy.' }]);
-        }, 1000);
-    };
-
-    return (
-        <div className="flex flex-col h-[400px] w-full border border-border-light rounded-2xl bg-surface-primary shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-            {/* Chat Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border-light bg-surface-secondary/50">
-                <div className="p-2 bg-indigo-500/20 rounded-full">
-                    <Bot className="w-5 h-5 text-indigo-600" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-text-primary text-sm">WAPPY Agent</h4>
-                    <p className="text-[10px] text-text-secondary uppercase tracking-widest font-bold">GPT-4 Turbo</p>
-                </div>
-            </div>
-
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white/50 dark:bg-black/20">
-                {messages.map((msg, idx) => (
-                    <div key={idx} className={cn("flex gap-3", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                        <div className={cn("shrink-0 p-2 rounded-full h-fit", msg.role === 'user' ? "bg-surface-secondary" : "bg-indigo-500/20")}>
-                            {msg.role === 'user' ? <User className="w-4 h-4 text-text-primary" /> : <Bot className="w-4 h-4 text-indigo-600" />}
-                        </div>
-                        <div className={cn("max-w-[80%] rounded-2xl px-4 py-2.5 text-sm", msg.role === 'user' ? "bg-surface-secondary text-text-primary rounded-tr-sm" : "bg-white dark:bg-black border border-border-light text-text-primary shadow-sm rounded-tl-sm")}>
-                            {msg.text}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Input Area */}
-            <div className="p-4 bg-surface-primary border-t border-border-light">
-                <form onSubmit={handleSend} className="relative flex items-center">
-                    <input 
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Escribe un mensaje al agente..."
-                        className="w-full bg-surface-secondary border border-border-medium rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    />
-                    <button type="submit" disabled={!input.trim()} className="absolute right-2 p-2 bg-indigo-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-600 transition-colors">
-                        <Send className="w-4 h-4" />
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
 
 export default function AppBuilder() {
     const [isBuilding, setIsBuilding] = useState(false);
@@ -164,7 +103,11 @@ export default function AppBuilder() {
 
                                             {/* Render specific block content */}
                                             <div className="pt-3">
-                                                {block.type === 'chat' && <MiniAgentChatMock />}
+                                                {block.type === 'chat' && (
+                                                    <div className="flex flex-col h-[70vh] w-full border border-border-light rounded-2xl bg-surface-primary shadow-sm overflow-hidden relative">
+                                                        <ChatView />
+                                                    </div>
+                                                )}
                                                 {block.type === 'word' && (
                                                     <div className="w-full h-64 border-2 border-dashed border-blue-500/30 rounded-2xl bg-blue-500/5 flex items-center justify-center text-blue-500/60 font-bold">
                                                         <FilePlus className="w-6 h-6 mr-2" /> Área de Live Editor (Word)
