@@ -86,17 +86,8 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
 }) => {
     // Build effective button lists merging simplified props
     const effectiveHistory = [...historyButtons];
-    if (onHistory) {
-        effectiveHistory.push({
-            id: 'history-default',
-            onClick: onHistory,
-            title: "Historial",
-            label: "Historial",
-            icon: "history",
-            active: isHistoryOpen,
-            variant: "history"
-        });
-    }
+    // onHistory injection removed to prevent duplicate History button 
+    // since it is now natively included in the Live Editor panel across all apps.
 
     const effectiveAI = [...aiButtons];
     if (onAnalyze) {
