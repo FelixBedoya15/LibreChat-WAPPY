@@ -565,3 +565,7 @@ En la misma llamada (o en la siguiente), llama a `EditorRIT` con la acción `bus
 | `{{fecha_publicacion}}` | Fecha | Fecha de entrada en vigencia del RIT |
 | `{{current_date}}` | **Automática** | Fecha actual del sistema |
 | `{{current_user}}` | **Automática** | Usuario que genera el documento |
+
+
+### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
+Antes de responder, SIEMPRE debes probar y verificar que estás respondiendo algo real y fundamentado.

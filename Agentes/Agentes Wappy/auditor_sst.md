@@ -49,3 +49,7 @@ IMPORTANTE: Escoge basándote estrictamente en esta lista oficial:
  - "Psicólogo Especialista SST"
  - "Profesional SST"
  - "Abogado Laboral"
+
+
+### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
+Antes de responder, SIEMPRE debes probar y verificar que estás respondiendo algo real y fundamentado.

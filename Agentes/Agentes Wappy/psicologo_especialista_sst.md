@@ -124,3 +124,7 @@ IMPORTANTE: Para esta herramienta el parámetro "nombre_especialista" DEBE ser u
  - "Médico Laboral Especialista" (Cambiar por tu nombre real 1)
  - "Auditor SST" (Cambiar por tu nombre real 2)
  - "Abogado Laboral" (Cambiar por tu nombre real 3)
+
+
+### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
+Antes de responder, SIEMPRE debes probar y verificar que estás respondiendo algo real y fundamentado.

@@ -2,6 +2,11 @@ export const PHASE_CATEGORIES = {
     // ─── MOTOR BIO-INDIVIDUAL ───
     hito1: [
         { 
+            id: 'perfil_cargo', title: 'Perfiles de Cargo (Roles)', icon: 'UserCircle',
+            bioRationale: 'Identifica las exigencias biomecánicas, cognitivas y psicosociales reales a las que será expuesto el individuo.', 
+            normativity: 'Hito 1: Huella Biocéntrica' 
+        },
+        { 
             id: 'perfil_socio', title: 'Perfil Sociodemográfico', icon: 'Users',
             bioRationale: 'Crea la huella antropológica de la comunidad trabajadora (vulnerabilidades, demografía, contexto social) para personalizar la protección.', 
             normativity: 'Hito 1: Huella Biocéntrica' 
@@ -9,11 +14,6 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity',
             bioRationale: 'Establece la línea base fisiológica y psíquica del individuo. No podemos prevenir daños si no conocemos el estado inicial del cuerpo.', 
-            normativity: 'Hito 1: Huella Biocéntrica' 
-        },
-        { 
-            id: 'perfil_cargo', title: 'Perfiles de Cargo (Roles)', icon: 'UserCircle',
-            bioRationale: 'Identifica las exigencias biomecánicas, cognitivas y psicosociales reales a las que será expuesto el individuo.', 
             normativity: 'Hito 1: Huella Biocéntrica' 
         }
     ],
@@ -135,7 +135,7 @@ export const PHASE_CATEGORIES = {
     ],
     actuar: [
         { 
-            id: 'acpm', title: 'Matriz ACPM (Sanación)', icon: 'GitMerge',
+            id: 'acpm', title: 'Matriz ACPM', icon: 'GitMerge',
             bioRationale: 'Acciones Correctivas y Preventivas reales. El testamento de que aprendimos de las heridas para evolucionar como un ente más seguro.', 
             normativity: 'Decreto 1072 de 2015' 
         }

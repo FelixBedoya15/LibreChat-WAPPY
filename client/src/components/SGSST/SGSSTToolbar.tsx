@@ -160,17 +160,6 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             variant: "excel"
         });
     }
-    if (onExportExcel) {
-        effectiveExcel.push({
-            id: 'excel-export',
-            onClick: onExportExcel,
-            title: "Exportar a Excel",
-            label: "Exportar Excel",
-            icon: "download",
-            variant: "excel",
-            disabled: !hasData
-        });
-    }
 
     const allGroups = [
         { id: 'history', buttons: effectiveHistory },
@@ -178,14 +167,14 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             <ModelSelector selectedModel={selectedModel} onSelectModel={onSelectModel} disabled={isAnalyzing} />
         ) : null },
         { id: 'persistence', buttons: effectivePersistence },
-        { id: 'export', buttons: exportButtons, extra: exportContent ? (
+        { id: 'export', buttons: exportButtons, extra: (exportContent || onExportExcel) ? (
             <div>
-                <ExportDropdown content={exportContent} fileName={exportFileName || "Documento_SGSST"} />
+                <ExportDropdown content={exportContent || ''} fileName={exportFileName || "Documento_SGSST"} onExportExcel={onExportExcel} />
             </div>
-        ) : (!exportContent && (onSave || effectivePersistence.length > 0) ? (
-            <button disabled className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                <Download className="h-5 w-5" />
-                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+        ) : (!exportContent && !onExportExcel && (onSave || effectivePersistence.length > 0) ? (
+            <button disabled className="group flex items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
                     <span className="text-xs font-bold uppercase tracking-wider">Exportar</span>
                 </div>
             </button>
@@ -290,19 +279,19 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
             disabled={disabled}
             className={cn(
-                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
+                "group flex items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                 variantStyles[variant]
             )}
         >
             <div className="relative flex-shrink-0 flex items-center justify-center">
                 {isLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                 ) : (
                     <>
                         {typeof icon === 'string' ? (
-                            <AnimatedIcon name={icon as IconName} size={20} />
+                            <AnimatedIcon name={icon as IconName} size={18} className="sm:w-5 sm:h-5" />
                         ) : (
-                            React.createElement(icon as any, { size: 20 })
+                            React.createElement(icon as any, { className: "w-4 h-4 sm:w-5 sm:h-5" })
                         )}
                         {badge !== undefined && (
                             <span className="absolute -top-3 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white z-10">

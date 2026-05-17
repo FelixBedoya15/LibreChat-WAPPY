@@ -334,9 +334,6 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                         </div>
                                         <div>
                                             <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">{category.title}</h3>
-                                            <p className="text-xs text-text-secondary uppercase tracking-widest font-bold opacity-70">
-                                                {categoryFiles.length} {categoryFiles.length === 1 ? 'Anexo Documental' : 'Anexos Documentales'}
-                                            </p>
                                         </div>
                                     </div>
 

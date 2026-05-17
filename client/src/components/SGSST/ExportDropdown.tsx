@@ -4,6 +4,7 @@ import { Download, Globe, FileText, FileDown, ChevronDown, Loader2 } from 'lucid
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { cn } from '~/utils';
 
 interface ExportDropdownProps {
     content: string;
@@ -596,24 +597,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             icon: Globe,
             handler: handleExportHtml,
             description: 'Vista completa con estilos',
+            disabled: !content,
         },
         {
             label: 'Descargar HTML (.html)',
             icon: FileDown,
             handler: handleDownloadHtml,
             description: 'Archivo HTML independiente',
+            disabled: !content,
         },
         {
             label: 'Descargar Word (.doc)',
             icon: FileText,
             handler: handleExportWord,
             description: 'Editable con tablas y formato',
+            disabled: !content,
         },
         {
             label: 'Descargar PDF',
             icon: FileDown,
             handler: handleExportPdf,
             description: 'Imprimir / guardar como PDF',
+            disabled: !content,
         },
     ];
 
@@ -626,6 +631,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                 setIsOpen(false);
             },
             description: 'Datos crudos de la tabla en Excel',
+            disabled: false,
         });
     }
 
@@ -642,7 +648,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                         <button
                             key={option.label}
                             onClick={option.handler}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-hover transition-colors text-left"
+                            disabled={option.disabled}
+                            className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left",
+                                option.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-hover"
+                            )}
                         >
                             <div className="p-1.5 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                                 <Icon className="h-4 w-4" />
@@ -663,10 +673,10 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             <button
                 ref={buttonRef}
                 onClick={() => { calcPos(); setIsOpen(o => !o); }}
-                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                className="group flex flex-shrink-0 items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
             >
                 <div className="relative flex-shrink-0 flex items-center justify-center">
-                    <Download className="h-5 w-5" />
+                    <Download className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                     <span className="text-sm font-bold tracking-wide mr-1">

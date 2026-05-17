@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
+import { useToastContext } from '@librechat/client';
 import type { ContextType } from '~/common';
 
 import { PHASE_CATEGORIES } from './constants';
@@ -123,7 +124,7 @@ const getSubPhases = (superId: string) => {
                 label: 'FASE 03'
             },
             {
-                id: 'actuar', title: 'Actuar', subtitle: 'Mejora Continua', description: 'Matriz ACPM (Sanación).',
+                id: 'actuar', title: 'Actuar', subtitle: 'Mejora Continua', description: 'Matriz ACPM.',
                 extendedPhilosophy: 'Acciones Correctivas y Preventivas reales. El testamento de que aprendimos de las heridas para evolucionar.',
                 accent: 'text-[#14b8a6]', bgGlow: 'bg-[#14b8a6]/5', borderHover: 'hover:border-[#14b8a6]',
                 icon: <GitMerge className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
@@ -141,11 +142,14 @@ const OrganicBlob = () => (
 );
 
 export default function SGSSTDashboard() {
-    const { token } = useAuthContext();
+    const { user, token } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { showToast } = useToastContext();
     
     // State
+    const [disabledApps, setDisabledApps] = useState<string[]>([]);
+    const isAdmin = user?.role === 'ADMIN';
     const [selectedSuperPhase, setSelectedSuperPhase] = useState<any>(null);
     const [selectedSubPhase, setSelectedSubPhase] = useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = useState(false);
@@ -153,6 +157,50 @@ export default function SGSSTDashboard() {
     const [companyInfo, setCompanyInfo] = useState<any>(null);
     const hasCheckedRef = React.useRef(false);
     const superPhases = getSuperPhases();
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/config', { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => res.json())
+            .then(data => {
+                if (data && Array.isArray(data.disabledApps)) {
+                    setDisabledApps(data.disabledApps);
+                }
+            }).catch(console.error);
+    }, [token]);
+
+    const handleToggleApp = async (categoryId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isAdmin) return;
+
+        const currentlyDisabled = disabledApps.includes(categoryId);
+        const newDisabledStatus = !currentlyDisabled;
+
+        setDisabledApps(prev => 
+            newDisabledStatus 
+                ? [...prev, categoryId] 
+                : prev.filter(id => id !== categoryId)
+        );
+
+        try {
+            const res = await fetch('/api/sgsst/config/toggle', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ appId: categoryId, disabled: newDisabledStatus })
+            });
+            if (!res.ok) throw new Error('Request error');
+        } catch(err) {
+            console.error(err);
+            setDisabledApps(prev => 
+                !newDisabledStatus 
+                    ? [...prev, categoryId] 
+                    : prev.filter(id => id !== categoryId)
+            );
+        }
+    };
 
     // ─── Fetch Company Info ────────────────────────────────────────────────
     useEffect(() => {
@@ -234,6 +282,11 @@ export default function SGSSTDashboard() {
     const handlePhaseSelect = (phase: any) => {
         if (missingFields.length > 0) {
             setShowCompanyInfo(true);
+            return;
+        }
+
+        if (disabledApps.includes(phase.id) && !isAdmin) {
+            showToast({ message: 'Este módulo se encuentra desactivado', status: 'warning' });
             return;
         }
         
@@ -360,12 +413,18 @@ export default function SGSSTDashboard() {
                         </div>
                         <div>
                             <h2 className="text-3xl md:text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">
-                                {isLevel2 ? 'Ruta del Bienestar Integral' : 'Arquitectura del Sistema'}
+                                {!isLevel2 
+                                    ? 'Arquitectura del Sistema' 
+                                    : selectedSuperPhase.id === 'bio_motor' 
+                                        ? 'Ruta del Bienestar Integral'
+                                        : 'Ciclo de Mejora Continua PHVA'}
                             </h2>
                             <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">
-                                {isLevel2 
-                                    ? 'Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.'
-                                    : 'Navegue entre el motor orgánico de prevención individual y la bóveda estructurada de cumplimiento normativo.'}
+                                {!isLevel2 
+                                    ? 'Navegue entre el motor orgánico de prevención individual y la bóveda estructurada de cumplimiento normativo.'
+                                    : selectedSuperPhase.id === 'bio_motor'
+                                        ? 'Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.'
+                                        : 'Marco estructurado normativo e institucional para el cumplimiento de los estándares del Sistema de Gestión.'}
                             </p>
                         </div>
                     </div>
@@ -414,16 +473,31 @@ export default function SGSSTDashboard() {
 
                                             <div className="relative p-6 sm:p-8 flex flex-col flex-1 z-10 w-full">
                                                 {phase.label ? (
-                                                    <div className="mb-4">
+                                                    <div className="mb-4 flex items-center justify-between">
                                                         <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
                                                             {phase.label}
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="mb-4">
+                                                    <div className="mb-4 flex items-center justify-between">
                                                         <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
                                                             MÓDULO PRINCIPAL
                                                         </div>
+                                                        {isAdmin && phase.id === 'boveda_legal' && (
+                                                            <div 
+                                                                className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm z-20 cursor-pointer"
+                                                                onClick={(e) => handleToggleApp(phase.id, e)}
+                                                                title={disabledApps.includes(phase.id) ? "Módulo Oculto: Clic para mostrar" : "Módulo Visible: Clic para ocultar"}
+                                                            >
+                                                                <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
+                                                                    <div className={`w-9 h-5 rounded-full transition-colors ${!disabledApps.includes(phase.id) ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
+                                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!disabledApps.includes(phase.id) ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                                                </div>
+                                                                <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!disabledApps.includes(phase.id) ? 'text-teal-600 dark:text-teal-400' : 'text-text-secondary text-opacity-50'}`}>
+                                                                    {!disabledApps.includes(phase.id) ? 'ACTIVO' : 'INACT.'}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                                 

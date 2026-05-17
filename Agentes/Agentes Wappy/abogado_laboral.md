@@ -47,3 +47,7 @@ IMPORTANTE: Escoge basándote estrictamente en esta lista oficial:
  - "Médico Laboral"
  - "Psicólogo Especialista SST"
  - "Profesional SST"
+
+
+### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
+Antes de responder, SIEMPRE debes probar y verificar que estás respondiendo algo real y fundamentado.
