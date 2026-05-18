@@ -40,6 +40,7 @@ import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
 import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosDashboard';
+import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
@@ -289,6 +290,10 @@ export const router = createBrowserRouter(
             {
               path: 'editor-archivos',
               element: <EditorArchivosDashboard />,
+            },
+            {
+              path: 'auditoria',
+              element: <AuditoriaDashboard />,
             },
             {
               path: 'editor-archivos/:id',
