@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-    Shield, AlertTriangle, CheckCircle, User, Phone, Droplet,
+    Stethoscope, Shield, AlertTriangle, CheckCircle, User, Phone, Droplet,
     Activity, Heart, Car, Briefcase, Home, Users, Loader2, Send, Key
 } from 'lucide-react';
 import axios from 'axios';
@@ -25,6 +25,8 @@ interface WorkerData {
     deporte?: string; alimentacion?: string;
     peso?: string; talla?: string; imc?: string; presionArterial?: string; frecuenciaCardiaca?: string;
     diagnosticoMedico?: string; limitacionesBiomecanicas?: string; alergiasQuimicas?: string; riesgoCardiovascular?: string;
+    fechaExamenMedico?: string; recomendacionesMedicas?: string; fechaSeguimiento?: string;
+    fechaCursoAlturasAutorizado?: string; fechaCursoAlturasCoordinador?: string;
 }
 
 // ─── Section component ─────────────────────────────────────────────
@@ -126,7 +128,9 @@ export default function PublicPerfilUpdate() {
                 esCopasst: w.esCopasst, esComiteConvivencia: w.esComiteConvivencia, esBrigadista: w.esBrigadista, esComiteSeguridadVial: w.esComiteSeguridadVial,
                 deporte: w.deporte, alimentacion: w.alimentacion,
                 peso: w.peso, talla: w.talla, imc: w.imc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
-                diagnosticoMedico: w.diagnosticoMedico, limitacionesBiomecanicas: w.limitacionesBiomecanicas, alergiasQuimicas: w.alergiasQuimicas, riesgoCardiovascular: w.riesgoCardiovascular
+                diagnosticoMedico: w.diagnosticoMedico, limitacionesBiomecanicas: w.limitacionesBiomecanicas, alergiasQuimicas: w.alergiasQuimicas, riesgoCardiovascular: w.riesgoCardiovascular,
+                fechaExamenMedico: w.fechaExamenMedico, recomendacionesMedicas: w.recomendacionesMedicas, fechaSeguimiento: w.fechaSeguimiento,
+                fechaCursoAlturasAutorizado: w.fechaCursoAlturasAutorizado, fechaCursoAlturasCoordinador: w.fechaCursoAlturasCoordinador
             });
             setStep(2);
         } catch (err: any) {
@@ -384,7 +388,31 @@ export default function PublicPerfilUpdate() {
                             </div>
 
                             {/* Alertas médicas */}
-                            <SectionTitle icon={AlertTriangle} label="Alertas Médicas" />
+                                                        {/* Exámenes Médicos y Alturas */}
+                            <SectionTitle icon={Stethoscope} label="Exámenes Médicos Ocupacionales" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Fecha Último Examen">
+                                    <Input type="date" value={formData.fechaExamenMedico || ''} onChange={e => upd('fechaExamenMedico', e.target.value)} />
+                                </Field>
+                                <Field label="Fecha de Seguimiento">
+                                    <Input type="date" value={formData.fechaSeguimiento || ''} onChange={e => upd('fechaSeguimiento', e.target.value)} />
+                                </Field>
+                            </div>
+                            <Field label="Recomendaciones Médicas">
+                                <Input value={formData.recomendacionesMedicas || ''} onChange={e => upd('recomendacionesMedicas', e.target.value)} placeholder="Ej: Pausas activas visuales cada 2h" />
+                            </Field>
+
+                            <SectionTitle icon={Briefcase} label="Trabajo en Alturas" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Venc. Curso Autorizado">
+                                    <Input type="date" value={formData.fechaCursoAlturasAutorizado || ''} onChange={e => upd('fechaCursoAlturasAutorizado', e.target.value)} />
+                                </Field>
+                                <Field label="Venc. Curso Coordinador">
+                                    <Input type="date" value={formData.fechaCursoAlturasCoordinador || ''} onChange={e => upd('fechaCursoAlturasCoordinador', e.target.value)} />
+                                </Field>
+                            </div>
+
+<SectionTitle icon={AlertTriangle} label="Alertas Médicas" />
                             <Field label="Diagnóstico Médico">
                                 <Input value={formData.diagnosticoMedico || ''} onChange={e => upd('diagnosticoMedico', e.target.value)} placeholder="Ej: Hernia discal L4-L5" />
                             </Field>

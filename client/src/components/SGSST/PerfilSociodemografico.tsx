@@ -50,6 +50,15 @@ interface WorkerEntry {
     recomendacionesMedicas: string;
     fechaSeguimiento: string;
     // New Demographic / Medical Fields
+        // New Social/Biometric Fields
+    fechaNacimiento: string;
+    lugarNacimiento: string;
+    barrio: string;
+    municipioDomicilio: string;
+    correoElectronico: string;
+    deporte: string;
+    alimentacion: string;
+    riesgoCardiovascular: string;
     emergenciaContacto: string;
     tipoSangre: string;
     enfermedades: string;
@@ -105,6 +114,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
     diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
+        fechaNacimiento: '', lugarNacimiento: '', barrio: '', municipioDomicilio: '', correoElectronico: '', deporte: '', alimentacion: '', riesgoCardiovascular: '',
     emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
@@ -291,6 +301,14 @@ const PerfilSociodemografico = () => {
             'Dirección': w.direccion,
             'Teléfono': w.telefono,
             'Cargo': w.cargo,
+                        'Fecha de Nacimiento': w.fechaNacimiento,
+            'Lugar de Nacimiento': w.lugarNacimiento,
+            'Barrio': w.barrio,
+            'Municipio': w.municipioDomicilio,
+            'Correo Electrónico': w.correoElectronico,
+            'Deporte / Actividad Física': w.deporte,
+            'Calidad de Alimentación': w.alimentacion,
+            'Riesgo Cardiovascular': w.riesgoCardiovascular,
             'Contacto de Emergencia': w.emergenciaContacto,
             'Tipo de Sangre': w.tipoSangre,
             'Personas a Cargo': w.personasCargo,
@@ -371,6 +389,14 @@ const PerfilSociodemografico = () => {
                         diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
                         recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
                         fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
+                                                fechaNacimiento: row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
+                        lugarNacimiento: row['Lugar de Nacimiento'] || row.lugarNacimiento || '',
+                        barrio: row['Barrio'] || row.barrio || '',
+                        municipioDomicilio: row['Municipio'] || row.municipioDomicilio || '',
+                        correoElectronico: row['Correo Electrónico'] || row.correoElectronico || '',
+                        deporte: row['Deporte / Actividad Física'] || row.deporte || '',
+                        alimentacion: row['Calidad de Alimentación'] || row.alimentacion || '',
+                        riesgoCardiovascular: row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
                         emergenciaContacto: row['Contacto de Emergencia'] || row.emergenciaContacto || '',
                         tipoSangre: row['Tipo de Sangre'] || row.tipoSangre || '',
                         enfermedades: row['Enfermedades Actuales'] || row.enfermedades || '',
@@ -930,7 +956,32 @@ const PerfilSociodemografico = () => {
                                                         <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
                                                     </div>
 
-                                                    <div className="space-y-1 lg:col-span-2">
+                                                                                                        <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Fecha Nacimiento</label>
+                                                        <input type="date" value={w.fechaNacimiento} onChange={e => updateWorkerField(w.id, 'fechaNacimiento', e.target.value)}
+                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Lugar Nacimiento</label>
+                                                        <input type="text" value={w.lugarNacimiento} onChange={e => updateWorkerField(w.id, 'lugarNacimiento', e.target.value)}
+                                                            placeholder="Ej: Bogotá" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Correo Electrónico</label>
+                                                        <input type="email" value={w.correoElectronico} onChange={e => updateWorkerField(w.id, 'correoElectronico', e.target.value)}
+                                                            placeholder="Ej: correo@ejemplo.com" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Municipio Domicilio</label>
+                                                        <input type="text" value={w.municipioDomicilio} onChange={e => updateWorkerField(w.id, 'municipioDomicilio', e.target.value)}
+                                                            placeholder="Ej: Medellín" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Barrio</label>
+                                                        <input type="text" value={w.barrio} onChange={e => updateWorkerField(w.id, 'barrio', e.target.value)}
+                                                            placeholder="Ej: El Poblado" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+<div className="space-y-1 lg:col-span-2">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Dirección (Google Maps)</label>
                                                         <input type="text" value={w.direccion} onChange={e => updateWorkerField(w.id, 'direccion', e.target.value)}
                                                             placeholder="Ej: Calle 123 #45-67, Medellín"

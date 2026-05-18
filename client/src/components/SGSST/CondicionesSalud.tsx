@@ -55,6 +55,15 @@ interface WorkerEntry {
     recomendacionesMedicas: string;
     fechaSeguimiento: string;
     // New Demographic / Medical Fields
+        // New Social/Biometric Fields
+    fechaNacimiento: string;
+    lugarNacimiento: string;
+    barrio: string;
+    municipioDomicilio: string;
+    correoElectronico: string;
+    deporte: string;
+    alimentacion: string;
+    riesgoCardiovascular: string;
     emergenciaContacto: string;
     tipoSangre: string;
     enfermedades: string;
@@ -105,6 +114,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
     diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
+        fechaNacimiento: '', lugarNacimiento: '', barrio: '', municipioDomicilio: '', correoElectronico: '', deporte: '', alimentacion: '', riesgoCardiovascular: '',
     emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
@@ -297,6 +307,14 @@ const CondicionesSalud = () => {
             'Dirección': w.direccion,
             'Teléfono': w.telefono,
             'Cargo': w.cargo,
+                        'Fecha de Nacimiento': w.fechaNacimiento,
+            'Lugar de Nacimiento': w.lugarNacimiento,
+            'Barrio': w.barrio,
+            'Municipio': w.municipioDomicilio,
+            'Correo Electrónico': w.correoElectronico,
+            'Deporte / Actividad Física': w.deporte,
+            'Calidad de Alimentación': w.alimentacion,
+            'Riesgo Cardiovascular': w.riesgoCardiovascular,
             'Contacto de Emergencia': w.emergenciaContacto,
             'Tipo de Sangre': w.tipoSangre,
             'Personas a Cargo': w.personasCargo,
@@ -391,6 +409,14 @@ const CondicionesSalud = () => {
                         diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
                         recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
                         fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
+                                                fechaNacimiento: row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
+                        lugarNacimiento: row['Lugar de Nacimiento'] || row.lugarNacimiento || '',
+                        barrio: row['Barrio'] || row.barrio || '',
+                        municipioDomicilio: row['Municipio'] || row.municipioDomicilio || '',
+                        correoElectronico: row['Correo Electrónico'] || row.correoElectronico || '',
+                        deporte: row['Deporte / Actividad Física'] || row.deporte || '',
+                        alimentacion: row['Calidad de Alimentación'] || row.alimentacion || '',
+                        riesgoCardiovascular: row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
                         emergenciaContacto: row['Contacto de Emergencia'] || row.emergenciaContacto || '',
                         tipoSangre: row['Tipo de Sangre'] || row.tipoSangre || '',
                         enfermedades: row['Enfermedades Actuales'] || row.enfermedades || '',

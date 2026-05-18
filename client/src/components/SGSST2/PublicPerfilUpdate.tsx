@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-    Shield, AlertTriangle, CheckCircle, User, Phone, Droplet,
+    Stethoscope, Shield, AlertTriangle, CheckCircle, User, Phone, Droplet,
     Activity, Heart, Car, Briefcase, Home, Users, Loader2, Send, Key
 } from 'lucide-react';
 import axios from 'axios';
