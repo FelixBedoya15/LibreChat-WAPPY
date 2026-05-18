@@ -296,7 +296,9 @@ const Nav = memo(
                         </Suspense>
                         {/* Inspección MinTrabajo */}
                         <Suspense fallback={null}>
+                        {user?.role === 'ADMIN' && (
                           <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        )}
                         </Suspense>
                         {/* Aula Estudio */}
                         <Suspense fallback={null}>
@@ -350,7 +352,9 @@ const Nav = memo(
                                   <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
                                 <Suspense fallback={null}>
+                                {user?.role === 'ADMIN' && (
                                   <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                )}
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />

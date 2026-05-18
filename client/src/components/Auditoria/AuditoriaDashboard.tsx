@@ -9,7 +9,7 @@ const AuditoriaDashboard = () => {
                 <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold flex items-center gap-2 text-text-primary">
-                            <ClipboardCheck className="h-8 w-8 text-teal-600" /> Informe de Auditoría
+                            <ClipboardCheck className="h-8 w-8 text-teal-600" /> Auditoría SG-SST
                         </h1>
                         <p className="mt-2 text-text-secondary">
                             Módulo independiente para la generación y gestión de auditorías SST.

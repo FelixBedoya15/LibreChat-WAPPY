@@ -8,10 +8,10 @@ const InspeccionDashboard = () => (
       <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2 text-text-primary">
-            <Briefcase className="h-8 w-8 text-blue-600" /> Auditoría SG-SST
+            <Briefcase className="h-8 w-8 text-blue-600" /> Inspección MinTrabajo
           </h1>
           <p className="mt-2 text-text-secondary">
-            Acta de Inspección General MinTrabajo · Código: IVC-PD-54-F-01 · Versión 1.0
+            Acta de Inspección General · Código: IVC-PD-54-F-01 · Versión 1.0 · Ministerio del Trabajo
           </p>
         </div>
       </div>

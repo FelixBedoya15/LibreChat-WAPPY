@@ -30,7 +30,7 @@ const AuditoriaButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Informe de Auditoría"
+        description="Auditoría SG-SST"
         side="right"
         render={
           <motion.button
@@ -62,7 +62,7 @@ const AuditoriaButton = ({
       )}
     >
       <ClipboardCheck className="h-4 w-4 shrink-0" />
-      <span className="font-semibold text-text-primary text-[13px]">Informe de Auditoría</span>
+      <span className="font-semibold text-text-primary text-[13px]">Auditoría SG-SST</span>
     </motion.button>
   );
 };
