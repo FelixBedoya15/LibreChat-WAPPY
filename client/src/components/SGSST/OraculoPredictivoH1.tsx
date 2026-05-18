@@ -95,7 +95,7 @@ export default function OraculoPredictivoH1() {
 
             <div className="grid grid-cols-1 gap-6">
                 {workers.map(worker => {
-                    const profile = profiles.find(p => p.nombre.toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
+                    const profile = profiles.find(p => (p.nombre || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
                     const score = worker.biocentricScore || 100;
                     const alerts = worker.biocentricAlerts || [];
 
