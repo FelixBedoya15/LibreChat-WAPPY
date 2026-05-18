@@ -36,6 +36,8 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
+    storageKey?: string;
+    reportTag?: string;
 }
 
 
@@ -51,7 +53,7 @@ const STATUS_OPTIONS = [
     { value: 'no_aplica' as const, label: 'No Aplica', icon: MinusCircle, color: 'text-gray-400 bg-gray-400/10' },
 ];
 
-const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisComplete }) => {
+const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisComplete, storageKey = 'sgsst_auditoria_form', reportTag = 'sgsst-auditoria' }) => {
     const { t } = useTranslation();
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
@@ -85,7 +87,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const AUDIT_STORAGE_KEY = 'sgsst_auditoria_form';
+    const AUDIT_STORAGE_KEY = storageKey;
     const refreshData = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
 
     // Load draft from local storage
@@ -257,23 +259,22 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         try {
             // Prepare data for audit analysis
             const analysisData = {
-                type: 'auditoria', // Trigger audit prompt in backend
+                type: 'auditoria',
                 checklist: AUDITORIA_ITEMS.map(item => ({
                     ...item,
                     status: getItemStatus(item.id),
-                    // Ensure points are included for backend context if needed
                     points: item.points || 0
                 })),
                 score: compliantCount,
-                totalPoints: validStatuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length, // Total applicable items evaluated
-
-                // Use the Weighted Level (Res 0312) for consistency with UI
+                // Pass totalPoints as the full checklist length so backend computes % correctly
+                totalPoints: AUDITORIA_ITEMS.length,
+                totalItems: AUDITORIA_ITEMS.length,
+                evaluatedItems: validStatuses.filter(s => s.status !== 'pendiente').length,
+                // Real Dec-1072 compliance % over all items (same as UI progress bar)
+                compliancePercentage: parseFloat(compliancePercentage.toFixed(1)),
                 complianceLevel: { level: complianceLevel.label },
-
-                // New Fields for Dual Scoring
                 weightedScore: weightedScore || 0,
                 weightedPercentage: weightedPercentage || 0,
-
                 userName: user?.name || user?.username || 'Auditor',
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 observations,
@@ -356,7 +357,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const body = {
                 content: contentToSave,
                 title: `Auditoría SST - ${new Date().toLocaleDateString('es-CO')}`,
-                tags: ['sgsst-auditoria'],
+                tags: [reportTag],
                 ...(conversationId !== 'new' ? { conversationId, messageId: reportMessageId } : {})
             };
 
@@ -460,7 +461,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     useAutoLoadReport({
         token,
-        tags: ['sgsst-auditoria'],
+        tags: [reportTag],
         generatedReport: analysisReport,
         handleSelectReport
     });
@@ -737,7 +738,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 toggleOpen={() => setIsHistoryOpen(false)}
                 onSelectReport={handleSelectReport}
                 refreshTrigger={refreshTrigger}
-                tags={['sgsst-auditoria']}
+                tags={[reportTag]}
             />
         
             {/* Upgrade Modal (Freemium Teaser) */}

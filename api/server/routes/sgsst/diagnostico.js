@@ -96,7 +96,9 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         const pending = checklist.filter(item => item.status === 'pendiente');
 
         const safeTotal = totalPoints > 0 ? totalPoints : 1; // Prevent division by zero
-        const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : "0.0";
+        const percentage = req.body.compliancePercentage !== undefined 
+            ? req.body.compliancePercentage 
+            : (totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : "0.0");
 
         let promptText = '';
 
@@ -161,7 +163,7 @@ ${companyInfoBlock}
 
 **Resumen de Resultados (Doble Calificación):**
 1. **Auditoría de Cumplimiento (Dec 1072):**
-   - Porcentaje de Conformidad: ${percentage}%
+   - Porcentaje de Conformidad: ${percentage}% (IMPORTANTE: Muestra textualmente en el informe que este porcentaje es "(Sobre el total de estándares del sistema)" y NO uses la frase "sobre items auditados").
    - Conformidades (Cumple): ${completedItems.length}
    - No Conformidades (No Cumple): ${nonCompliantItems.length}
    - Observaciones (Parcial/No Aplica): ${partialItems.length + notApplicable.length}

@@ -17,7 +17,10 @@ const AuditoriaDashboard = () => {
                     </div>
                 </div>
                 
-                <AuditoriaChecklist />
+                <AuditoriaChecklist 
+                    storageKey="sgsst_auditoria_indep_form" 
+                    reportTag="sgsst-auditoria-indep" 
+                />
             </div>
         </div>
     );
