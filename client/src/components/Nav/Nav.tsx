@@ -30,6 +30,7 @@ const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
 const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
+const InspeccionButton = lazy(() => import('./InspeccionButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -293,6 +294,10 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
+                        {/* Inspección MinTrabajo */}
+                        <Suspense fallback={null}>
+                          <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* Aula Estudio */}
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -343,6 +348,9 @@ const Nav = memo(
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+                                <Suspense fallback={null}>
+                                  <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
