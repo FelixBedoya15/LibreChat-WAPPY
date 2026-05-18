@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, Activity, UserCircle, Save } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
+import { SGSSTToolbar } from './SGSSTToolbar';
 
 export default function OraculoPredictivoH1() {
     const { token } = useAuthContext();
@@ -294,42 +295,60 @@ export default function OraculoPredictivoH1() {
                             <div className="mt-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-900/10 rounded-xl border border-teal-100 dark:border-teal-900/50 p-5">
                                 {!aiConclusions[worker.id] ? (
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                        <div>
+                                        <div className="flex-1">
                                             <h5 className="font-bold text-teal-800 dark:text-teal-400 text-sm flex items-center gap-2">
                                                 <Sparkles className="w-4 h-4" /> Conclusión Predictiva H1
                                             </h5>
                                             <p className="text-xs text-teal-700/80 dark:text-teal-400/80 mt-1">Obtén un dictamen IA cruzando la salud del trabajador y las exigencias de su rol.</p>
                                         </div>
-                                        <button 
-                                            onClick={() => handleConsultOracle(worker, profile, liveFit)}
-                                            disabled={generatingId === worker.id}
-                                            className="shrink-0 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white text-sm font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
-                                        >
-                                            {generatingId === worker.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                            {generatingId === worker.id ? 'Analizando...' : 'Consultar Oráculo'}
-                                        </button>
+                                        <div className="shrink-0 -mt-4 -mb-4">
+                                            <SGSSTToolbar
+                                                aiButtons={[{
+                                                    id: 'eval',
+                                                    onClick: () => handleConsultOracle(worker, profile, liveFit),
+                                                    title: "Consultar Oráculo",
+                                                    label: "Consultar",
+                                                    icon: "sparkles",
+                                                    variant: "ai",
+                                                    isLoading: generatingId === worker.id,
+                                                    disabled: generatingId === worker.id
+                                                }]}
+                                            />
+                                        </div>
                                     </div>
                                 ) : (
                                     <div>
-                                        <div className="flex items-center justify-between mb-3 border-b border-teal-200/50 dark:border-teal-800/50 pb-3">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 border-b border-teal-200/50 dark:border-teal-800/50 pb-4 gap-4">
                                             <h5 className="font-bold text-teal-800 dark:text-teal-400 text-sm flex items-center gap-2">
                                                 <Sparkles className="w-4 h-4" /> Dictamen Predictivo (Oráculo H1)
                                             </h5>
-                                            <div className="flex items-center gap-3">
-                                                <button 
-                                                    onClick={() => handleSaveDictamen(worker)} 
-                                                    disabled={savingId === worker.id} 
-                                                    className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-md uppercase flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
-                                                >
-                                                    {savingId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Guardar Dictamen
-                                                </button>
-                                                <button onClick={() => handleConsultOracle(worker, profile, liveFit)} disabled={generatingId === worker.id} className="text-[10px] font-bold text-teal-600 hover:text-teal-800 uppercase flex items-center gap-1 transition-colors">
-                                                    {generatingId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />} Re-evaluar
-                                                </button>
+                                            <div className="-mt-8 -mb-6 md:transform md:scale-90 origin-right">
+                                                <SGSSTToolbar
+                                                    aiButtons={[{
+                                                        id: 'reeval',
+                                                        onClick: () => handleConsultOracle(worker, profile, liveFit),
+                                                        title: "Re-evaluar Dictamen",
+                                                        label: "Re-evaluar",
+                                                        icon: "brain",
+                                                        variant: "default",
+                                                        isLoading: generatingId === worker.id,
+                                                        disabled: generatingId === worker.id
+                                                    }]}
+                                                    persistenceButtons={[{
+                                                        id: 'save',
+                                                        onClick: () => handleSaveDictamen(worker),
+                                                        title: "Guardar Dictamen",
+                                                        label: "Guardar",
+                                                        icon: "database",
+                                                        variant: "database",
+                                                        isLoading: savingId === worker.id,
+                                                        disabled: savingId === worker.id
+                                                    }]}
+                                                />
                                             </div>
                                         </div>
                                         <div 
-                                            className="prose prose-sm max-w-none text-text-primary leading-relaxed text-xs space-y-2"
+                                            className="prose prose-sm max-w-none text-text-primary leading-relaxed text-xs space-y-2 mt-2 bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-teal-100/50 dark:border-teal-900/30"
                                             dangerouslySetInnerHTML={{ __html: aiConclusions[worker.id] }}
                                         />
                                     </div>
