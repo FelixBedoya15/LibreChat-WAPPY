@@ -15,6 +15,11 @@ export const PHASE_CATEGORIES = {
             id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity',
             bioRationale: 'Establece la línea base fisiológica y psíquica del individuo. No podemos prevenir daños si no conocemos el estado inicial del cuerpo.', 
             normativity: 'Hito 1: Huella Biocéntrica' 
+        },
+        { 
+            id: 'oraculo_predictivo', title: 'Oráculo Predictivo H1', icon: 'Sparkles',
+            bioRationale: 'Consolidación predictiva que cruza el diseño del trabajo con la salud humana para predecir incompatibilidades y emitir un dictamen de aptitud.', 
+            normativity: 'Hito 1: Huella Biocéntrica' 
         }
     ],
     hito2: [

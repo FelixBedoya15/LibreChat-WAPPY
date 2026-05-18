@@ -38,6 +38,7 @@ import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
 import PerfilSociodemografico from './PerfilSociodemografico';
 import CondicionesSalud from './CondicionesSalud';
+import OraculoPredictivoH1 from './OraculoPredictivoH1';
 import AppBuilder from './AppBuilder';
 import { UpgradeWall } from './UpgradeWall';
 
@@ -534,6 +535,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'condiciones_salud' && (
                                                     <div className="mb-6">
                                                         <CondicionesSalud />
+                                                    </div>
+                                                )}
+
+                                                {/* Show OraculoPredictivoH1 for oraculo_predictivo category */}
+                                                {category.id === 'oraculo_predictivo' && (
+                                                    <div className="mb-6">
+                                                        <OraculoPredictivoH1 />
                                                     </div>
                                                 )}
 
