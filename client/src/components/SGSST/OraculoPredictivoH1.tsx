@@ -179,8 +179,8 @@ export default function OraculoPredictivoH1() {
                                                 <p className="text-sm font-semibold text-text-primary">{profile.exigenciaMental || 'No definida'}</p>
                                             </div>
                                             <div className="bg-surface-secondary p-3 rounded-lg border border-border-light col-span-2">
-                                                <p className="text-[10px] text-text-secondary font-bold uppercase mb-1">Responsabilidad Principal</p>
-                                                <p className="text-xs text-text-secondary">{profile.mision || 'No definida'}</p>
+                                                <p className="text-[10px] text-text-secondary font-bold uppercase mb-1">Responsabilidad / Contexto</p>
+                                                <p className="text-xs text-text-secondary">{profile.contextoAdicional || 'No definida'}</p>
                                             </div>
                                         </div>
                                     )}
@@ -216,9 +216,10 @@ export default function OraculoPredictivoH1() {
                                                 {generatingId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />} Re-evaluar
                                             </button>
                                         </div>
-                                        <div className="prose prose-sm max-w-none text-text-primary leading-relaxed text-xs space-y-2 whitespace-pre-wrap">
-                                            {aiConclusions[worker.id]}
-                                        </div>
+                                        <div 
+                                            className="prose prose-sm max-w-none text-text-primary leading-relaxed text-xs space-y-2"
+                                            dangerouslySetInnerHTML={{ __html: aiConclusions[worker.id] }}
+                                        />
                                     </div>
                                 )}
                             </div>
