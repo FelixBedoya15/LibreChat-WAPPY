@@ -377,19 +377,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                         </p>
                                                     </div>
                                                     
-                                                    {/* Divisor en desktop */}
-                                                    <div className="hidden md:block w-px bg-border-medium/40 dark:bg-white/10 self-stretch mx-2" />
-                                                    {/* Divisor en mobile */}
-                                                    <div className="block md:hidden h-px bg-border-medium/40 dark:bg-white/10 w-full my-1" />
-                                                    
-                                                    <div className="flex-1 md:max-w-[280px]">
-                                                        <h4 className="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                                            <Scale className="w-3.5 h-3.5" /> Contexto Normativo
-                                                        </h4>
-                                                        <p className="text-xs font-bold text-text-secondary/90 leading-relaxed bg-surface-secondary/50 dark:bg-white/5 py-1.5 px-3 rounded-lg border border-border-light dark:border-white/5 inline-block">
-                                                            {(category as any).normativity || 'N/A'}
-                                                        </p>
-                                                    </div>
+
                                                 </div>
                                             </div>
                                         )}
