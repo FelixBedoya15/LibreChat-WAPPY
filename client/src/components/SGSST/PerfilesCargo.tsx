@@ -952,27 +952,43 @@ const PerfilesCargo = () => {
                     </button>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
-                    {perfiles.map(p => (
-                        <div key={p.id} className="group flex items-center gap-1">
-                            <button
-                                onClick={() => handleSelectPerfil(p.id)}
+                    {perfiles.map(p => {
+                        const isActive = activePerfilId === p.id;
+                        return (
+                            <div 
+                                key={p.id} 
                                 className={cn(
-                                    "px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[200px]",
-                                    activePerfilId === p.id 
-                                        ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
-                                        : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
+                                    "group relative flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer border select-none",
+                                    isActive 
+                                        ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-transparent shadow-[0_4px_12px_rgba(20,184,166,0.25)] ring-2 ring-teal-500/20 ring-offset-2 dark:ring-offset-[#111]" 
+                                        : "bg-surface-primary text-text-secondary border-border-medium hover:border-teal-400 hover:shadow-md hover:bg-surface-secondary/50"
                                 )}
+                                onClick={() => handleSelectPerfil(p.id)}
                             >
-                                {p.nombreCargo || 'Cargo sin nombre'}
-                            </button>
-                            <button
-                                onClick={() => handleDeletePerfil(p.id)}
-                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                        </div>
-                    ))}
+                                <div className={cn(
+                                    "flex items-center justify-center w-7 h-7 rounded-full shadow-inner transition-colors",
+                                    isActive ? "bg-white/25 text-white" : "bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
+                                )}>
+                                    <Briefcase className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="truncate max-w-[160px] tracking-tight">{p.nombreCargo || 'Cargo sin nombre'}</span>
+                                
+                                {/* Botón de eliminar integrado */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
+                                    className={cn(
+                                        "ml-1 p-1.5 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                        isActive 
+                                            ? "hover:bg-red-500 hover:text-white text-white/70" 
+                                            : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
+                                    )}
+                                    title="Eliminar cargo"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
