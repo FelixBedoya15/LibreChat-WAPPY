@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, History } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, Save, Loader2 } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface CollapsibleReportBoxProps {
@@ -16,6 +16,12 @@ interface CollapsibleReportBoxProps {
     onHistory?: () => void;
     /** Indica si el panel de historial está abierto (para resaltar el botón) */
     isHistoryOpen?: boolean;
+    /** Si se provee, muestra un botón "Guardar Informe" antes del Historial */
+    onSave?: () => void;
+    /** Indica si se está guardando actualmente */
+    isSaving?: boolean;
+    /** Si true, deshabilita el botón de guardar */
+    saveDisabled?: boolean;
 }
 
 const CollapsibleReportBox = ({
@@ -29,6 +35,9 @@ const CollapsibleReportBox = ({
     children,
     onHistory,
     isHistoryOpen = false,
+    onSave,
+    isSaving = false,
+    saveDisabled = false,
 }: CollapsibleReportBoxProps) => {
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
@@ -62,6 +71,24 @@ const CollapsibleReportBox = ({
                     className="flex flex-nowrap items-center gap-2 shrink-0 overflow-visible"
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Save button */}
+                    {onSave && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onSave(); }}
+                            disabled={saveDisabled || isSaving}
+                            aria-label="Guardar Informe"
+                            className={cn(
+                                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 border outline-none rounded-xl",
+                                saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 sm:hover:-rotate-3 sm:hover:scale-105"
+                            )}
+                        >
+                            {isSaving ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <Save className="h-5 w-5 shrink-0" />}
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-sm font-bold tracking-wide">Guardar Informe</span>
+                            </div>
+                        </button>
+                    )}
+
                     {/* History button — same style as SGSSTToolbar ToolbarButton */}
                     {onHistory && (
                         <button

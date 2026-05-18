@@ -1226,7 +1226,6 @@ export default function MatrizIPEVARTable({ conversationId, workerId }: { conver
                     initialContent={reportContent}
                     onUpdate={(html: string) => { reportContentRef.current = html; }}
                     reportSourceData={{ matrixRows, chartConclusions }}
-                    onSave={handleSaveReport}
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                   />
                 </div>

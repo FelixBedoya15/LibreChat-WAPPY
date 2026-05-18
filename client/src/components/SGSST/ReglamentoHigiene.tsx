@@ -265,7 +265,6 @@ const ReglamentoHigiene = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSave()}
-                onSave={handleSave}
                 hasContent={!!(editorContentRef.current || generatedDocument)}
                 exportContent={editorContentRef.current || generatedDocument || ''}
                 exportFileName="Reglamento_Higiene_Seguridad_Industrial"
@@ -349,7 +348,7 @@ const ReglamentoHigiene = () => {
                 )}
             </div>
 
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Reglamento de Higiene y Seguridad Industrial"
@@ -369,7 +368,6 @@ const ReglamentoHigiene = () => {
                                     ref={liveEditorRef}
                                     initialContent={generatedDocument}
                                     onUpdate={(html) => { editorContentRef.current = html; }}
-                                    onSave={handleSave}
                                     reportSourceData={{ identifiedRisks, workShifts, additionalRules }}
                                 />
                             </div>

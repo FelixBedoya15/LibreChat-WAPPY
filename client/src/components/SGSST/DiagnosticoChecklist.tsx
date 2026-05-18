@@ -619,7 +619,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(analysisReport || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Diagnostico_SST"
@@ -777,7 +776,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 </button>
             </div>
             {/* Analysis Report - Editable */}
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Diagnóstico SGSST"
@@ -797,7 +796,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                 reportType="checklist"
                                 initialContent={analysisReport}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
-                                onSave={handleSave}
                                 reportSourceData={{ statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel }}
                             />
                         </div>

@@ -372,7 +372,6 @@ const ReglamentoInterno = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSave()}
-                onSave={handleSave}
                 hasContent={!!(generatedDocument || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Reglamento_Interno_De_Trabajo"
@@ -458,7 +457,7 @@ const ReglamentoInterno = () => {
                 )}
             </div>
 
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Reglamento Interno de Trabajo"
@@ -478,7 +477,6 @@ const ReglamentoInterno = () => {
                                     ref={liveEditorRef}
                                     initialContent={generatedDocument}
                                     onUpdate={(html) => { editorContentRef.current = html; }}
-                                    onSave={handleSave}
                                     reportSourceData={chapters}
                                 />
                             </div>

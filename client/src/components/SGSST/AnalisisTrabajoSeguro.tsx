@@ -473,7 +473,6 @@ const AnalisisTrabajoSeguro = () => {
                     selectedModel={selectedModel}
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
-                    onSave={handleSave}
                     hasContent={!!(editorContentRef.current || generatedReport)}
                     exportContent={editorContentRef.current || generatedReport || ''}
                     exportFileName="Analisis_Trabajo_Seguro_ATS"
@@ -802,7 +801,7 @@ const AnalisisTrabajoSeguro = () => {
             </div>
 
             {/* Generated ATS Editor */}
-            <CollapsibleReportBox
+            <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Análisis de Trabajo Seguro (ATS)"
@@ -821,7 +820,6 @@ const AnalisisTrabajoSeguro = () => {
                                 ref={liveEditorRef}
                                 initialContent={generatedReport}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
-                                onSave={handleSave}
                                 reportSourceData={{ formData, trabajadoresList, responsablesList }}
                             />
                         </div>

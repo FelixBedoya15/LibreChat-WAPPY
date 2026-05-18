@@ -346,7 +346,6 @@ const ResponsableSGSST = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(generatedDoc || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Asignacion_Responsable_SGSST"
@@ -437,7 +436,7 @@ const ResponsableSGSST = () => {
                 )}
             </div>
 
-            <CollapsibleReportBox
+            <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Responsable SGSST"
@@ -455,7 +454,6 @@ const ResponsableSGSST = () => {
                                 ref={liveEditorRef}
                                 initialContent={generatedDoc}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
-                                onSave={handleSave}
                                 reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
                             />
                         </div>

@@ -319,7 +319,6 @@ const PoliticaSST = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(generatedPolicy || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Politica_SST"
@@ -411,7 +410,7 @@ const PoliticaSST = () => {
             </div>
 
             {/* Generated Policy - LiveEditor */}
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Política SST"
@@ -431,7 +430,6 @@ const PoliticaSST = () => {
                                     ref={liveEditorRef}
                                     initialContent={generatedPolicy}
                                     onUpdate={(html) => { editorContentRef.current = html; }}
-                                    onSave={handleSave}
                                     reportSourceData={{ hazards, scope, commitments, objectives, additionalNorms }}
                                 />
                             </div>

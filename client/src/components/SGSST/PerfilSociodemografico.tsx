@@ -737,7 +737,6 @@ const PerfilSociodemografico = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 isSavingLocal={isSaving}
-                onSave={handleSaveReport}
                 hasContent={!!generatedReport}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="Perfil_Sociodemografico"
@@ -1217,7 +1216,7 @@ const PerfilSociodemografico = () => {
 
              {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
              <div className="mt-8">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Perfil Sociodemográfico"
@@ -1235,7 +1234,6 @@ const PerfilSociodemografico = () => {
                                 ref={liveEditorRef} 
                                 initialContent={generatedReport} 
                                 onUpdate={(html) => { editorContentRef.current = html; }} 
-                                onSave={handleSaveReport} 
                                 reportSourceData={trabajadores} 
                             />
                         </div>

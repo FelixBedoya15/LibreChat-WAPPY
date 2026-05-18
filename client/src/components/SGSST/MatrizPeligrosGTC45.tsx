@@ -763,7 +763,6 @@ const MatrizPeligrosGTC45 = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSaveReport}
                 hasContent={!!(generatedReport || editorContentRef.current)}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="IPEVAR_Bio_Individual"
@@ -1236,7 +1235,7 @@ const MatrizPeligrosGTC45 = () => {
             </div>
 
             <div className="mt-8 space-y-4">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Matriz Resumen de Recomendaciones IPEVAR"
@@ -1251,7 +1250,7 @@ const MatrizPeligrosGTC45 = () => {
                 >
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={procesos} onSave={handleSaveReport} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
+                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={procesos} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
                             </div>
                         </div>
                         <style>{`

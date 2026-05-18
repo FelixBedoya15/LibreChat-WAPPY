@@ -575,7 +575,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(editorContentRef.current || analysisReport)}
                 exportContent={editorContentRef.current || analysisReport || ''}
                 exportFileName="Informe_Auditoria_SST"
@@ -695,7 +694,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
 
 
-            <CollapsibleReportBox
+            <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Auditoría Interna"
@@ -715,7 +714,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                     reportType="checklist"
                                     initialContent={analysisReport}
                                     onUpdate={(html) => { editorContentRef.current = html; }}
-                                    onSave={handleSave}
                                     reportSourceData={{ statuses: validStatuses, observations, weightedScore, weightedPercentage, complianceLevel }}
                                 />
                             </div>

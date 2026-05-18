@@ -921,7 +921,6 @@ const PerfilesCargo = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSaveData(false)}
-                onSave={handleSaveReport}
                 hasContent={!!generatedReport}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
@@ -1170,7 +1169,7 @@ const PerfilesCargo = () => {
             )}
 
             {/* Generated Report View */}
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Perfil de Cargos"
@@ -1189,7 +1188,6 @@ const PerfilesCargo = () => {
                                 ref={liveEditorRef}
                                 initialContent={generatedReport}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
-                                onSave={handleSaveReport}
                                 reportSourceData={{ formData, perfiles }}
                             />
                         </div>

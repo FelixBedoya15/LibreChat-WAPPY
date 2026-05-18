@@ -552,7 +552,6 @@ const PermisoAlturas = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(generatedObjectives || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Permiso_Alturas"
@@ -907,7 +906,7 @@ const PermisoAlturas = () => {
                 )}
             </div>
 
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Permiso de Trabajo en Alturas"
@@ -923,7 +922,7 @@ const PermisoAlturas = () => {
                         <div className="p-1 overflow-hidden">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
-                                    <LiveEditor ref={liveEditorRef} initialContent={generatedObjectives} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
+                                    <LiveEditor ref={liveEditorRef} initialContent={generatedObjectives} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
                                 </div>
                             </div>
                         </div>

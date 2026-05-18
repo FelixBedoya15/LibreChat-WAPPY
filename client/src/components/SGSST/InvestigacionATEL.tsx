@@ -636,7 +636,6 @@ const InvestigacionATEL = () => {
                     selectedModel={selectedModel}
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
-                    onSave={handleSave}
                     hasContent={!!(editorContentRef.current || generatedObjectives)}
                     exportContent={editorContentRef.current || generatedObjectives || ''}
                     exportFileName="Investigacion_ATEL"
@@ -1286,7 +1285,7 @@ const InvestigacionATEL = () => {
             {/* ── Report Viewer ── */}
             {generatedObjectives && (
                 <div className="mt-4">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Investigación ATEL"
@@ -1306,7 +1305,6 @@ const InvestigacionATEL = () => {
                                         ref={liveEditorRef}
                                         initialContent={generatedObjectives}
                                         onUpdate={(html) => { editorContentRef.current = html; }}
-                                        onSave={handleSave}
                                         reportSourceData={{ formData, testigosList, equipoList }}
                                     />
                                 </div>

@@ -529,7 +529,6 @@ export default function AltaDireccionChecklist() {
                     selectedModel={selectedModel}
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
-                    onSave={handleSave}
                     hasContent={!!(analysisReport || editorContentRef.current)}
                     exportContent={editorContentRef.current || ''}
                     exportFileName="Revision_Alta_Direccion"
@@ -859,7 +858,7 @@ export default function AltaDireccionChecklist() {
 
             {/* ─── Analysis Report ──────────────────────────────────────── */}
                 <div className="mt-4">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Revisión Alta Dirección"
@@ -879,7 +878,6 @@ export default function AltaDireccionChecklist() {
                                     reportType="checklist"
                                     initialContent={analysisReport}
                                     onUpdate={(html) => { editorContentRef.current = html; }}
-                                    onSave={handleSave}
                                     reportSourceData={{ statuses, observations }}
                                 />
                             </div>

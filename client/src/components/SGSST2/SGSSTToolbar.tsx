@@ -125,17 +125,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             disabled: isSavingLocal
         });
     }
-    if (onSave) {
-        effectivePersistence.push({
-            id: 'save-server-default',
-            onClick: onSave,
-            title: "Guardar en Servidor",
-            label: "Guardar Informe",
-            icon: "save",
-            variant: "save",
-            disabled: saveDisabled || !hasContent
-        });
-    }
+
 
     const effectiveTest = [...testButtons];
     if (onDummy) {

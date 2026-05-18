@@ -484,7 +484,6 @@ const MetodoOwas = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSaveData()}
-                onSave={handleSave}
                 hasContent={!!(editorContentRef.current || generatedReport)}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="Evaluacion_Ergonomica_OWAS"
@@ -774,7 +773,7 @@ const MetodoOwas = () => {
       </div>
 
       {/* Generated report editor */}
-        <CollapsibleReportBox
+        <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
             title="Método OWAS"
@@ -790,7 +789,7 @@ const MetodoOwas = () => {
           <div className="p-1 overflow-hidden">
             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
               <div style={{ minWidth: '900px', padding: '16px' }}>
-                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, observaciones }} />
+                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={{ formData, observaciones }} />
               </div>
             </div>
           </div>

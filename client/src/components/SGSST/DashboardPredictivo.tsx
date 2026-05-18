@@ -389,7 +389,6 @@ const DashboardPredictivo = () => {
                         ]}
                         selectedModel={selectedModel}
                         onSelectModel={setSelectedModel}
-                        onSave={handleSaveReport}
                         hasContent={!!(editorContentRef.current || generatedReport)}
                         exportContent={editorContentRef.current || generatedReport || ''}
                         exportFileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
@@ -579,7 +578,7 @@ const DashboardPredictivo = () => {
             </div>
             {/* ═══ Generated Report ═══ */}
             <div className="mt-4">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Gestión Predictiva SST"
@@ -597,7 +596,6 @@ const DashboardPredictivo = () => {
                                 ref={liveEditorRef}
                                 initialContent={generatedReport}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
-                                onSave={handleSaveReport}
                                 reportSourceData={forecast}
                             />
                         </div>

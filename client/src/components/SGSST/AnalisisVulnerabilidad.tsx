@@ -489,7 +489,6 @@ const AnalisisVulnerabilidad = () => {
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
             onSaveLocal={() => handleSaveData(false)}
-            onSave={handleSave}
             hasContent={!!(editorContentRef.current || generatedReport)}
             exportContent={editorContentRef.current || generatedReport || ''}
             exportFileName={`Analisis_Vulnerabilidad_${new Date().getTime()}`}
@@ -762,7 +761,7 @@ const AnalisisVulnerabilidad = () => {
 
       {/* Generated report editor */}
       <div className="mt-4">
-          <CollapsibleReportBox
+          <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
               title="Análisis de Vulnerabilidad"
@@ -782,7 +781,6 @@ const AnalisisVulnerabilidad = () => {
                     ref={liveEditorRef}
                     initialContent={generatedReport}
                     onUpdate={(html) => { editorContentRef.current = html; }}
-                    onSave={handleSave}
                     reportSourceData={amenazasList}
                   />
                 </div>

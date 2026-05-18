@@ -264,7 +264,6 @@ const InspeccionChecklist: React.FC = () => {
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
           onSaveLocal={handleSaveData}
-          onSave={handleSave}
           hasContent={!!(editorContentRef.current || analysisReport)}
           exportContent={editorContentRef.current || analysisReport || ''}
           exportFileName="Acta_Inspeccion_MinTrabajo"
@@ -337,10 +336,10 @@ const InspeccionChecklist: React.FC = () => {
         })}
       </div>
 
-      <CollapsibleReportBox onHistory={() => setIsHistoryOpen(!isHistoryOpen)} isHistoryOpen={isHistoryOpen} title="Acta de Inspección MinTrabajo" icon={<FileText className="h-5 w-5 text-blue-700" />} actions={<ExportDropdown content={editorContentRef.current || analysisReport || ''} fileName="Acta_Inspeccion_MinTrabajo" reportType="general" />}>
+      <CollapsibleReportBox onSave={handleSave} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} isHistoryOpen={isHistoryOpen} title="Acta de Inspección MinTrabajo" icon={<FileText className="h-5 w-5 text-blue-700" />} actions={<ExportDropdown content={editorContentRef.current || analysisReport || ''} fileName="Acta_Inspeccion_MinTrabajo" reportType="general" />}>
         <div style={{ minHeight: '400px', overflowX: 'auto' }}>
           <div style={{ minWidth: '900px' }}>
-            <LiveEditor ref={liveEditorRef} reportType="checklist" initialContent={analysisReport} onUpdate={html => { editorContentRef.current = html; }} onSave={handleSave} />
+            <LiveEditor ref={liveEditorRef} reportType="checklist" initialContent={analysisReport} onUpdate={html => { editorContentRef.current = html; }} />
           </div>
         </div>
       </CollapsibleReportBox>

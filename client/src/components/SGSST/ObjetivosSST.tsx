@@ -297,7 +297,6 @@ const ObjetivosSST = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
-                onSave={handleSave}
                 hasContent={!!(generatedObjectives || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Objetivos_SST"
@@ -385,7 +384,7 @@ const ObjetivosSST = () => {
             </div>
 
             {/* Generated Objectives - LiveEditor */}
-            <CollapsibleReportBox
+            <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Objetivos SST"
@@ -405,7 +404,6 @@ const ObjetivosSST = () => {
                                         ref={liveEditorRef}
                                         initialContent={generatedObjectives}
                                         onUpdate={(html) => { editorContentRef.current = html; }}
-                                        onSave={handleSave}
                                         reportSourceData={{ policySummary, diagnosticSummary, additionalNorms, previousObjectives, yearPlan }}
                                     />
                                 </div>

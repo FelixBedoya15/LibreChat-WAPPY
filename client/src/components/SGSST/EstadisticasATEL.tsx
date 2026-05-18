@@ -418,7 +418,6 @@ const EstadisticasATEL = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 isSavingLocal={isSavingData}
-                onSave={handleSaveReport}
                 hasContent={!!(editorContentRef.current || generatedReport)}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName={`Estadisticas_ATEL_${MONTHS[currentMonthIndex]}`}
@@ -568,7 +567,7 @@ const EstadisticasATEL = () => {
 
             {/* Generated Report - LiveEditor */}
             <div className="mt-4">
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title={`Estadísticas ATEL — ${MONTHS[currentMonthIndex]}`}
@@ -588,7 +587,6 @@ const EstadisticasATEL = () => {
                                         ref={liveEditorRef}
                                         initialContent={generatedReport}
                                         onUpdate={(html) => { editorContentRef.current = html; }}
-                                        onSave={handleSaveReport}
                                         reportSourceData={annualData}
                                     />
                                 </div>

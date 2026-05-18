@@ -426,7 +426,6 @@ const MatrizLegal = () => {
                     selectedModel={selectedModel}
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
-                    onSave={handleSaveReport}
                     hasContent={!!(editorContentRef.current || generatedMatrix)}
                     exportContent={editorContentRef.current || generatedMatrix || ''}
                     exportFileName="Matriz_Legal_SGSST"
@@ -603,7 +602,7 @@ const MatrizLegal = () => {
 
                 {/* Report Viewer Section */}
                 {generatedMatrix ? (
-                    <CollapsibleReportBox
+                    <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Matriz Legal SST"
@@ -623,7 +622,6 @@ const MatrizLegal = () => {
                                         ref={liveEditorRef}
                                         initialContent={generatedMatrix || ''}
                                         onUpdate={(html) => { editorContentRef.current = html; }}
-                                        onSave={handleSaveReport}
                                         reportSourceData={{ statuses: validStatuses, seguimientos, activity, location, entityType, compliancePercentage }}
                                     />
                                 </div>

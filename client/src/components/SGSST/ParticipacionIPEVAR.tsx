@@ -756,7 +756,6 @@ const ParticipacionIPEVAR = () => {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSaveData(false)}
-                onSave={handleSave}
                 hasContent={!!generatedReport}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Reporte_Actos_Condiciones"
@@ -1172,7 +1171,7 @@ const ParticipacionIPEVAR = () => {
             </div>
 
             {/* Generated Report Editor */}
-                <CollapsibleReportBox
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                     title="Participación IPEVAR"
@@ -1188,7 +1187,7 @@ const ParticipacionIPEVAR = () => {
                     <div className="p-1 overflow-hidden">
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
+                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
                             </div>
                         </div>
                     </div>
