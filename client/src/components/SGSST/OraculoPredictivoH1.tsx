@@ -95,7 +95,7 @@ export default function OraculoPredictivoH1() {
 
             <div className="grid grid-cols-1 gap-6">
                 {workers.map(worker => {
-                    const profile = profiles.find(p => (p.nombre || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
+                    const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
                     const score = worker.biocentricScore || 100;
                     const alerts = worker.biocentricAlerts || [];
 
@@ -140,12 +140,11 @@ export default function OraculoPredictivoH1() {
                                             {alerts.length === 0 ? (
                                                 <p className="text-sm text-green-600 font-medium">Compatibilidad clínica óptima. Sin alertas.</p>
                                             ) : (
-                                                alerts.slice(0,3).map((a:any, i:number) => (
+                                                alerts.slice(0,3).map((alertText:any, i:number) => (
                                                     <div key={i} className="flex items-start gap-2 text-xs bg-red-50/50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/50">
                                                         <ShieldAlert className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
                                                         <div>
-                                                            <strong className="text-red-700 dark:text-red-400 block">{a.title}</strong>
-                                                            <span className="text-red-600/80 dark:text-red-400/80">{a.description?.substring(0, 50)}...</span>
+                                                            <strong className="text-red-700 dark:text-red-400 block">{typeof alertText === 'string' ? alertText : alertText.title}</strong>
                                                         </div>
                                                     </div>
                                                 ))
