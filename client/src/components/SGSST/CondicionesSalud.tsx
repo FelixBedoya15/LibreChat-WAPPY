@@ -218,6 +218,9 @@ const CondicionesSalud = () => {
             }
         };
         loadData();
+
+        window.addEventListener('wappy-reload-sgsst-data', loadData);
+        return () => window.removeEventListener('wappy-reload-sgsst-data', loadData);
     }, [token]);
 
     useEffect(() => {
@@ -485,6 +488,7 @@ const CondicionesSalud = () => {
                 const data = await res.json();
                 // Update workers with IA tags returned from backend
                 if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', status: 'success', severity: 'success' });
             } else throw new Error('Error al guardar');
         } catch (err: any) {

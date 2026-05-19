@@ -59,6 +59,9 @@ export default function OraculoPredictivoH1() {
             }
         };
         fetchData();
+
+        window.addEventListener('wappy-reload-sgsst-data', fetchData);
+        return () => window.removeEventListener('wappy-reload-sgsst-data', fetchData);
     }, [token]);
 
     // ─── TAG → Score Map: Each IA tag maps to a score penalty ────────────────
@@ -248,6 +251,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
             const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', { headers: { Authorization: `Bearer ${token}` } });
             const socioData = await socioRes.json();
             setWorkers(socioData.trabajadores || []);
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             showToastRef.current({ message: 'Score IA actualizado ✅', status: 'success', severity: 'success' });
         } catch {
             showToastRef.current({ message: 'Error al evaluar con IA', status: 'error' });
