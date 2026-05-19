@@ -167,11 +167,16 @@ export default function OraculoPredictivoH1() {
         // NOTA: Para evitar sesgos discriminatorios (Ley y OIT), estos factores NO restan puntos al "Fit" (pts = 0).
         // Se mantienen únicamente como Alertas de Vigilancia Epidemiológica para el prevencionista SST.
         let vs = 0;
-        if (['1', '2'].includes(w.estrato)) vs++;
-        if (w.personasCargo && Number(w.personasCargo) >= 3) vs++;
-        if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) vs++;
-        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', 'Estrato bajo + carga de dependientes + inestabilidad habitacional. Sugerido apoyo psicosocial.', 0, 'info', 'Vigilancia Epidemiológica');
-        else if (vs >= 2) add('Factores Psicosociales Externos', 'Múltiples factores de presión externa acumulados.', 0, 'info', 'Vigilancia Epidemiológica');
+        let socialDesc: string[] = [];
+        if (['1', '2'].includes(w.estrato)) { vs++; socialDesc.push('estrato socioeconómico bajo'); }
+        if (w.personasCargo && Number(w.personasCargo) >= 3) { vs++; socialDesc.push('alta carga de dependientes'); }
+        if (w.estadoCivil?.toLowerCase().includes('solter') || w.estadoCivil?.toLowerCase().includes('viud') || w.estadoCivil?.toLowerCase().includes('divorciad')) {
+            if (w.personasCargo && Number(w.personasCargo) > 0) { vs++; socialDesc.push('monoparentalidad'); }
+        }
+        if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) { vs++; socialDesc.push('inestabilidad habitacional'); }
+
+        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido apoyo psicosocial.`, 0, 'info', 'Vigilancia Epidemiológica');
+        else if (vs >= 2) add('Factores Psicosociales Externos', `Factores detectados: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
         if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 0, 'info', 'Vigilancia Epidemiológica');
 
         // 5. CRUCE CARGO × DATOS FIJOS
@@ -190,7 +195,7 @@ export default function OraculoPredictivoH1() {
             const lethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
             if (!hasIATags && (lethal || w.alcohol === 'Sí (Frecuente)')) add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC incompatible con maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
         }
-        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cargo exige ${profile.entrenamientosSeleccionados.length} certificado(s) sin acreditar.`, 5, 'warning', 'Entrenamiento');
+        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${profile.entrenamientosSeleccionados.join(', ')}.`, 5, 'warning', 'Entrenamiento');
 
         return { score: Math.max(0, score), auditItems, hasIATags };
     }, [TAG_RULES]);

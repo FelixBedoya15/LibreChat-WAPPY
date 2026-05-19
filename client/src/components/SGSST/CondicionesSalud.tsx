@@ -765,7 +765,7 @@ const CondicionesSalud = () => {
         if (vulnerabilidadSocial >= 3) {
             addAudit('Vigilancia Epidemiológica', 'Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido apoyo psicosocial.`, 0, 'info');
         } else if (vulnerabilidadSocial >= 2) {
-            addAudit('Vigilancia Epidemiológica', 'Factores Psicosociales Externos', `Presencia de múltiples factores de presión externa.`, 0, 'info');
+            addAudit('Vigilancia Epidemiológica', 'Factores Psicosociales Externos', `Factores detectados: ${socialDesc.join(', ')}.`, 0, 'info');
         }
 
         if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) {
@@ -797,7 +797,7 @@ const CondicionesSalud = () => {
         if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
             const req = cargo.entrenamientosSeleccionados.length;
             if (req > 0 && !w.curso50h && !w.curso20h) {
-                addAudit('Entrenamiento', 'Brecha Formativa SST', 'Ausencia de certificados obligatorios exigidos por el perfil de cargo.', 5, 'warning');
+                addAudit('Entrenamiento', 'Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${cargo.entrenamientosSeleccionados.join(', ')}.`, 5, 'warning');
             }
         }
 
