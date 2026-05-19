@@ -311,29 +311,62 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
     // Dynamically retrieve models to avoid initialization timing issues
     const PerfilSocio = mongoose.models.PerfilSociodemograficoData || mongoose.model('PerfilSociodemograficoData');
     const PerfilCargo = mongoose.models.PerfilCargoData || mongoose.model('PerfilCargoData');
+    const SgsstWorker = mongoose.models.SgsstWorker || mongoose.model('SgsstWorker');
 
-    // Fetch all three collections in parallel
-    const [socioDoc, cargoDoc, programaDoc] = await Promise.all([
+    // Fetch all collections in parallel
+    const [socioDoc, cargoDoc, programaDoc, sgsstWorkers] = await Promise.all([
       PerfilSocio.findOne({ user: req.user.id, companyId }).lean(),
       PerfilCargo.findOne({ user: req.user.id, companyId }).lean(),
       ProgramaCapacitacionesData.findOne({ user: req.user.id, companyId }).lean(),
+      SgsstWorker.find({ user: req.user.id, companyId }).lean()
     ]);
 
-    const trabajadores = socioDoc?.trabajadores || [];
+    const legacyWorkers = socioDoc?.trabajadores || [];
     const perfilesCargo = cargoDoc?.perfilesList || [];
     const planPersonalizado = programaDoc?.planPersonalizado || [];
     
+    // Combine legacy workers and SgsstWorkers, preferring SgsstWorkers as the source of truth
+    const workerMap = new Map();
+    
+    // Add legacy workers first
+    legacyWorkers.forEach(w => {
+      workerMap.set(String(w.identificacion || w.id).trim(), { ...w, isLegacy: true });
+    });
+    
+    // Overwrite/add new SgsstWorkers
+    sgsstWorkers.forEach(w => {
+      const docId = String(w.documento || w._id).trim();
+      const existing = workerMap.get(docId) || {};
+      workerMap.set(docId, {
+        ...existing,
+        ...w,
+        id: w._id || w.id, // Ensure we have a valid ID for React
+        nombre: w.nombre || existing.nombre,
+        cargo: existing.cargo || '', // We will map perfilId later
+        perfilId: w.perfilId || existing.perfilId,
+        bioTagsIA: w.fitAlerts && w.fitAlerts.length > 0 ? w.fitAlerts : existing.bioTagsIA,
+        aptitud: existing.aptitud || 'Sin evaluar'
+      });
+    });
+
+    const trabajadores = Array.from(workerMap.values());
+
     console.log(`[DEBUG] GET /plan-trabajador -> userId: ${req.user.id}, companyId: ${companyId}`);
-    console.log(`[DEBUG] socioDoc exists: ${!!socioDoc}, trabajadores.length: ${trabajadores.length}`);
+    console.log(`[DEBUG] socioDoc exists: ${!!socioDoc}, SgsstWorkers: ${sgsstWorkers.length}, Total combined: ${trabajadores.length}`);
     console.log(`[DEBUG] cargoDoc exists: ${!!cargoDoc}, perfilesCargo.length: ${perfilesCargo.length}`);
 
     // Build enriched plan per worker
     const trabajadoresConPlan = trabajadores.map(worker => {
-      // Find matching cargo profile by cargo name
+      // Find matching cargo profile by cargo name OR perfilId
       const perfilCargo = perfilesCargo.find(
-        p => p.nombreCargo && worker.cargo &&
-          p.nombreCargo.toLowerCase().trim() === worker.cargo.toLowerCase().trim()
+        p => (worker.perfilId && String(p.id) === String(worker.perfilId)) || 
+             (p.nombreCargo && worker.cargo && p.nombreCargo.toLowerCase().trim() === worker.cargo.toLowerCase().trim())
       ) || null;
+
+      // Ensure worker.cargo is set for the frontend if we found it via perfilId
+      if (perfilCargo && !worker.cargo) {
+        worker.cargo = perfilCargo.nombreCargo;
+      }
 
       const temas = calcularTemasAplicables(worker, perfilCargo);
 
