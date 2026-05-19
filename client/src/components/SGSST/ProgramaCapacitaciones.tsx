@@ -326,12 +326,6 @@ export default function ProgramaCapacitaciones() {
               <tr>
                 <td colSpan={3} className="p-8 text-center text-text-secondary">
                   No hay trabajadores registrados con perfiles de cargo asociados.
-                  {debugData && (
-                    <div className="mt-4 p-4 bg-surface-primary text-left text-xs font-mono rounded overflow-auto border border-border-light">
-                      <p className="font-bold mb-2">Debug Info (Soporte Técnico):</p>
-                      <pre>{JSON.stringify(debugData, null, 2)}</pre>
-                    </div>
-                  )}
                 </td>
               </tr>
             ) : (

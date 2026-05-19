@@ -80,12 +80,16 @@ router.post('/', requireJwtAuth, async (req, res) => {
             });
             await worker.save();
         } else {
-            // Si ya existe pero sin perfilId o con uno diferente, actualizarlo
-            if (!worker.perfilId || worker.perfilId !== perfilId) {
-                worker.perfilId = perfilId;
-                if (companyId) worker.companyId = companyId;
-                await worker.save();
-            }
+            // Si ya existe, actualizar el companyId y perfilId para vincularlo a la empresa activa actual
+            worker.companyId = companyId;
+            worker.perfilId = perfilId;
+            if (nombre) worker.nombre = nombre;
+            if (fechaNacimiento) worker.fechaNacimiento = fechaNacimiento;
+            if (genero) worker.genero = genero;
+            if (fechaIngreso) worker.fechaIngreso = fechaIngreso;
+            if (condicionesSalud !== undefined) worker.condicionesSalud = condicionesSalud;
+            if (observaciones !== undefined) worker.observaciones = observaciones;
+            await worker.save();
         }
 
         res.json({ success: true, worker });
@@ -141,11 +145,21 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                                 riesgosIpevar: []
                             });
                             await newWorker.save();
-                        } else if (!existing.perfilId) {
-                            // If they exist but have no profile assigned, update them
-                            logger.debug(`[SGSST Workers] Updating existing bio-individual profile for: ${w.nombre}`);
-                            existing.perfilId = req.params.perfilId;
-                            await existing.save();
+                        } else {
+                            // Si existe, asegurar que el perfilId esté asignado y el companyId coincida con la empresa activa
+                            let updated = false;
+                            if (!existing.perfilId || existing.perfilId !== req.params.perfilId) {
+                                existing.perfilId = req.params.perfilId;
+                                updated = true;
+                            }
+                            if (String(existing.companyId) !== String(companyId)) {
+                                existing.companyId = companyId;
+                                updated = true;
+                            }
+                            if (updated) {
+                                logger.debug(`[SGSST Workers] Updating existing bio-individual (companyId/perfilId) for: ${w.nombre}`);
+                                await existing.save();
+                            }
                         }
                     }
                 } else {
