@@ -211,7 +211,7 @@ Alertas (${fit.auditItems.length}): ${fit.auditItems.map((a:any) => a.title).joi
 Enfermedades: ${worker.enfermedades||'Ninguna'} | Diagnóstico: ${worker.diagnosticoMedico||'Ninguno'}
 Hábitos: Fuma=${worker.fuma||'No'}, Alcohol=${worker.alcohol||'No'}, Terapia Psicológica=${worker.terapiaPsicologica||'No'}
 Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exigenciaMental||'N/A'}`;
-            const inst = `Eres el Oráculo Predictivo H1 de WAPPY. Genera un informe maestro en HTML (párrafos con <p>, <strong>, <h3>, <ul><li>) de más de 3000 palabras con: 1) Análisis exhaustivo de aptitud desglosando dimensiones biomecánica, cognitiva y psicosocial, 2) Riesgos de incompatibilidad inminentes y crónicos a largo plazo, 3) Plan de mejora inmediata y vigilancia epidemiológica a 5 años para este trabajador.`;
+            const inst = `Eres el Oráculo Predictivo H1 de WAPPY. Genera un informe maestro en HTML (párrafos con <p>, <strong>, <h3>, <ul><li>) de más de 3000 palabras con: 1) Análisis exhaustivo de aptitud desglosando dimensiones biomecánica, cognitiva y psicosocial, 2) Riesgos de incompatibilidad inminentes y crónicos a largo plazo, 3) Plan de mejora inmediata y vigilancia epidemiológica a 1 año para este trabajador.`;
             const res = await fetch('/api/live/ai-edit-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
