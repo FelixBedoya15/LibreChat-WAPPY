@@ -350,7 +350,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                         {/* Score ring */}
                                         <div className="shrink-0 flex flex-col items-center">
                                             <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center ${sc.ring} ${sc.text} shadow-lg`}>
-                                                <span className="text-xl font-black">{fit.score}%</span>
+                                                <span className="text-xl font-black">{score}%</span>
                                             </div>
                                             <span className="text-[10px] text-text-secondary font-bold mt-1.5 uppercase">Score</span>
                                         </div>
@@ -365,7 +365,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                     const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
                                                     return (
                                                         <div key={i} className={`flex items-start gap-3 p-2.5 rounded-xl border ${s.border} bg-surface-primary`}>
-                                                            <div className={`text-xs font-black w-7 shrink-0 text-right mt-0.5 ${s.pts}`}>-{item.pts}</div>
+                                                            <div className={`text-xs font-black w-7 shrink-0 text-right mt-0.5 ${s.pts}`}>-{Math.abs(item.pts)}</div>
                                                             <div className="shrink-0 mt-0.5">{s.icon}</div>
                                                             <div className="min-w-0 flex-1">
                                                                 <p className="text-xs font-bold text-text-primary">{item.title}</p>

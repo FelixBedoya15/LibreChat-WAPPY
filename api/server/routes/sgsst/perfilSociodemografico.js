@@ -461,6 +461,8 @@ REGLAS DE SCORING (puntuación base: 100):
 - Cargo mental "Alta" + terapia psicológica: -15 (Burnout)
 - Opera maquinaria + sedantes/SNC: -40 (BLOQUEO)
 
+IMPORTANTE: Debes evaluar TODAS y cada una de las reglas anteriores. Crea un objeto en el array 'alertas' por CADA regla que aplique al trabajador. NO las agrupes, NO omitas ninguna. Si el trabajador incumple 6 reglas, el array debe tener exactamente 6 elementos detallados.
+
 Responde ÚNICAMENTE con JSON válido, sin markdown, sin texto extra:
 {
   "score": <número 0-100>,
