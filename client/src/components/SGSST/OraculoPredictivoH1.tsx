@@ -164,24 +164,26 @@ export default function OraculoPredictivoH1() {
         }
 
         // 4. VULNERABILIDAD SOCIODEMOGRÁFICA (datos estructurados del formulario)
+        // NOTA: Para evitar sesgos discriminatorios (Ley y OIT), estos factores NO restan puntos al "Fit" (pts = 0).
+        // Se mantienen únicamente como Alertas de Vigilancia Epidemiológica para el prevencionista SST.
         let vs = 0;
         if (['1', '2'].includes(w.estrato)) vs++;
         if (w.personasCargo && Number(w.personasCargo) >= 3) vs++;
         if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) vs++;
-        if (vs >= 3) add('Alta Vulnerabilidad Sociodemográfica', 'Estrato bajo + carga de dependientes + inestabilidad habitacional. Resiliencia reducida.', 15, 'warning', 'Psicosocial');
-        else if (vs >= 2) add('Riesgo Psicosocial Moderado', 'Múltiples factores de presión externa acumulados.', 5, 'info', 'Psicosocial');
-        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 5, 'info', 'Sociodemográfico');
+        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', 'Estrato bajo + carga de dependientes + inestabilidad habitacional. Sugerido apoyo psicosocial.', 0, 'info', 'Vigilancia Epidemiológica');
+        else if (vs >= 2) add('Factores Psicosociales Externos', 'Múltiples factores de presión externa acumulados.', 0, 'info', 'Vigilancia Epidemiológica');
+        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 0, 'info', 'Vigilancia Epidemiológica');
 
         // 5. CRUCE CARGO × DATOS FIJOS
         const hasEnfFijo = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
         const hasDiagFijo = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
         if (profile.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) add('Desajuste Etario en Cargo Físico', `Edad ${w.edad} años con alta exigencia física. Factor de riesgo ergonómico.`, 10, 'warning', 'Operativo');
+            if (w.edad && Number(w.edad) > 55) add('Alerta Ergonómica por Edad', `Edad ${w.edad} años con alta exigencia física. Monitoreo preventivo requerido.`, 0, 'info', 'Preventivo');
             if (!hasIATags && (hasEnfFijo || hasDiagFijo)) add('Patología en Rol de Alta Exigencia', 'La carga física intensa puede agravar la condición clínica base.', 10, 'critical', 'Operativo');
         }
         if (profile.exigenciaMental === 'Alta') {
             if (w.terapiaPsicologica === 'Sí') add('Alerta de Burnout', 'Rol de alta tensión mental sumado a psicoterapia activa. Riesgo de agotamiento.', 15, 'critical', 'Psicosocial');
-            if (vs >= 2) add('Sobrecarga Cognitiva', 'Vulnerabilidad social severa + rol de alta exigencia mental. Aumenta riesgo de error humano.', 10, 'warning', 'Psicosocial');
+            if (vs >= 2) add('Contexto Psicosocial Estresante', 'Vulnerabilidad social + rol de alta exigencia mental. Requiere vigilancia activa de estrés.', 0, 'info', 'Vigilancia Epidemiológica');
         }
         if (profile.operaMaquinaria === 'Sí') {
             const medLower = (w.medicamentos || '').toLowerCase();

@@ -751,6 +751,8 @@ const CondicionesSalud = () => {
         const hasBiomecanica = !hasIATags && w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
 
         // 4. Vulnerabilidad Sociodemográfica y Psicosocial
+        // NOTA: Para evitar sesgos discriminatorios (Ley y OIT), estos factores NO restan puntos al "Fit" (pts = 0).
+        // Se mantienen únicamente como Alertas de Vigilancia Epidemiológica para el prevencionista SST.
         let vulnerabilidadSocial = 0;
         let socialDesc = [];
         if (['1', '2'].includes(w.estrato)) { vulnerabilidadSocial++; socialDesc.push('estrato socioeconómico bajo'); }
@@ -761,25 +763,25 @@ const CondicionesSalud = () => {
         if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) { vulnerabilidadSocial++; socialDesc.push('inestabilidad habitacional'); }
         
         if (vulnerabilidadSocial >= 3) {
-            addAudit('Psicosocial', 'Alta Vulnerabilidad Sociodemográfica', `Factores estresores crónicos: ${socialDesc.join(', ')}. Disminuye la resiliencia psicológica.`, 15, 'warning');
+            addAudit('Vigilancia Epidemiológica', 'Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido apoyo psicosocial.`, 0, 'info');
         } else if (vulnerabilidadSocial >= 2) {
-            addAudit('Psicosocial', 'Riesgo Psicosocial Moderado', `Presencia de múltiples factores de presión externa.`, 5, 'info');
+            addAudit('Vigilancia Epidemiológica', 'Factores Psicosociales Externos', `Presencia de múltiples factores de presión externa.`, 0, 'info');
         }
 
         if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) {
-            addAudit('Sociodemográfico', 'Escolaridad Básica', 'Puede requerir métodos de capacitación más visuales y acompañamiento cercano en SST.', 5, 'info');
+            addAudit('Vigilancia Epidemiológica', 'Escolaridad Básica', 'Puede requerir métodos de capacitación más visuales y acompañamiento cercano en SST.', 0, 'info');
         }
 
         // 5. Cruce vs. Exigencias del Cargo
         if (cargo.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) addAudit('Operativo', 'Desajuste Etario', 'La edad avanzada es factor de riesgo ante altas exigencias de carga física.', 10, 'warning');
+            if (w.edad && Number(w.edad) > 55) addAudit('Preventivo', 'Alerta Ergonómica por Edad', 'La edad avanzada requiere monitoreo preventivo ante altas exigencias físicas.', 0, 'info');
             if (hasEnfermedad || hasDiagnostico) addAudit('Operativo', 'Patología en Rol Exigente', 'La carga física intensa puede agravar la patología base.', 10, 'critical');
             if (hasBiomecanica) addAudit('Operativo', 'Restricción Biomecánica Crítica', 'Peligro inminente de lesión osteomuscular por incompatibilidad con el esfuerzo.', 20, 'critical');
         }
 
         if (cargo.exigenciaMental === 'Alta') {
             if (w.terapiaPsicologica === 'Sí') addAudit('Psicosocial', 'Alerta de Burnout', 'Rol de alta tensión mental sumado a necesidad clínica de psicoterapia.', 15, 'critical');
-            if (vulnerabilidadSocial >= 2) addAudit('Psicosocial', 'Sobrecarga Cognitiva', 'La vulnerabilidad social severa sumada al rol estresante aumenta el riesgo de error humano.', 10, 'warning');
+            if (vulnerabilidadSocial >= 2) addAudit('Vigilancia Epidemiológica', 'Contexto Psicosocial Estresante', 'La vulnerabilidad social sumada al rol estresante requiere vigilancia activa.', 0, 'info');
         }
 
         if (cargo.operaMaquinaria === 'Sí' && !hasIATags) {
