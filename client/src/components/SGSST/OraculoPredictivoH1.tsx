@@ -355,7 +355,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                     <CheckCircle className="w-4 h-4" /> Aptitud clínica óptima
                                                 </div>
                                             ) : (
-                                                displayAlerts.slice(0, 6).map((item: any, i: number) => {
+                                                displayAlerts.map((item: any, i: number) => {
                                                     const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
                                                     return (
                                                         <div key={i} className={`flex items-start gap-3 p-2.5 rounded-xl border ${s.border} bg-surface-primary`}>
@@ -369,9 +369,6 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                         </div>
                                                     );
                                                 })
-                                            )}
-                                            {displayAlerts.length > 6 && (
-                                                <p className="text-[10px] text-text-secondary text-center font-bold pt-1">+{displayAlerts.length - 6} alertas más</p>
                                             )}
                                             {!hasIATags && (
                                                 <button
