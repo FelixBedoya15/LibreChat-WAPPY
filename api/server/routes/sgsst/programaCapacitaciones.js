@@ -397,6 +397,9 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
       };
     });
 
+    // --- DEBUG: Find ALL workers for this user regardless of companyId
+    const allUserWorkers = await SgsstWorker.find({ user: req.user.id }).select('_id nombre companyId documento').lean();
+
     res.json({
       trabajadores: trabajadoresConPlan,
       catalogo: CATALOGO_CAPACITACIONES,
@@ -405,9 +408,11 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
         userId: req.user.id,
         companyId,
         socioDocExists: !!socioDoc,
-        rawTrabajadoresLength: trabajadores.length,
+        rawTrabajadoresLength: legacyWorkers.length,
         cargoDocExists: !!cargoDoc,
         rawPerfilesLength: perfilesCargo.length,
+        sgsstWorkersWithCompanyId: sgsstWorkers.length,
+        allUserWorkers: allUserWorkers
       }
     });
   } catch (error) {
