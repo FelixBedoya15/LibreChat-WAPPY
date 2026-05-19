@@ -328,7 +328,6 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
     // Dynamically retrieve models to avoid initialization timing issues
     const PerfilSocio = mongoose.models.PerfilSociodemograficoData || mongoose.model('PerfilSociodemograficoData');
     const PerfilCargo = mongoose.models.PerfilCargoData || mongoose.model('PerfilCargoData');
-    const SgsstWorker = mongoose.models.SgsstWorker || mongoose.model('SgsstWorker');
 
     // Fetch all collections in parallel
     const [socioDoc, cargoDoc, programaDoc, sgsstWorkers] = await Promise.all([
