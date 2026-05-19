@@ -476,25 +476,17 @@ const CondicionesSalud = () => {
         setIsSaving(true);
         try {
             syncWorkersSignaturesToStorage(trabajadores);
-
-            // Auto-calculate and inject Biocentric Score (Índice Biocéntrico Integral)
-            const trabajadoresConBio = trabajadores.map(w => {
-                const bio = calculateBiocentricFit(w);
-                return {
-                    ...w,
-                    biocentricScore: bio.score,
-                    biocentricAlerts: bio.alerts,
-                    biocentricIsLethal: bio.isLethal
-                };
-            });
-
             const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                body: JSON.stringify({ trabajadores }),
             });
-            if (res.ok) showToast({ message: 'Perfil sociodemográfico guardado', status: 'success', severity: 'success' });
-            else throw new Error('Error al guardar');
+            if (res.ok) {
+                const data = await res.json();
+                // Update workers with IA tags returned from backend
+                if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
+                showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', status: 'success', severity: 'success' });
+            } else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
@@ -834,6 +826,47 @@ const CondicionesSalud = () => {
     };
 
     return (
+        <>
+        {/* ── WAPPY IA Loading Overlay ── */}
+        {isSaving && (
+            <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 backdrop-blur-md">
+                <div className="flex flex-col items-center gap-6 px-8 py-10 rounded-3xl bg-surface-secondary border border-border-medium shadow-2xl max-w-sm w-full mx-4">
+                    {/* Logo animado */}
+                    <div className="relative flex items-center justify-center w-20 h-20">
+                        <div className="absolute inset-0 rounded-full bg-teal-500/20 animate-ping" />
+                        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-teal-500/40">
+                            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10">
+                                <path d="M8 10L14 28L20 14L26 28L32 10" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                <circle cx="20" cy="34" r="2.5" fill="white"/>
+                            </svg>
+                        </div>
+                    </div>
+                    {/* Texto */}
+                    <div className="text-center space-y-1.5">
+                        <p className="text-base font-black text-text-primary tracking-tight">Analizando perfil clínico</p>
+                        <p className="text-xs text-text-secondary leading-relaxed">
+                            El Oráculo H1 está procesando los hallazgos médicos con inteligencia semántica.<br/>
+                            Esto puede tomar unos segundos.
+                        </p>
+                    </div>
+                    {/* Barra de progreso animada */}
+                    <div className="w-full h-1.5 bg-border-light rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-teal-500 to-cyan-400 rounded-full animate-pulse" style={{ width: '75%' }} />
+                    </div>
+                    {/* Puntos animados */}
+                    <div className="flex items-center gap-1.5">
+                        {[0, 1, 2].map(i => (
+                            <div
+                                key={i}
+                                className="w-2 h-2 rounded-full bg-teal-500"
+                                style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-text-secondary/60 font-medium uppercase tracking-widest">Motor Bio-Fit WAPPY · IA Semántica</p>
+                </div>
+            </div>
+        )}
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             <SGSSTToolbar
@@ -1446,6 +1479,7 @@ const CondicionesSalud = () => {
                 </div>
             )}
         </div>
+    </>
     );
 };
 

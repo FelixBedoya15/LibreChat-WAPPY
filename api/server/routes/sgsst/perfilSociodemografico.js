@@ -90,12 +90,11 @@ const WorkerEntrySchema = new mongoose.Schema({
   // Oráculo Predictivo H1 — Dictamen IA persistido
   dictamenPredictivoH1: { type: String, default: '' },
 
-  // Score IA (Oráculo H1) — Fuente de verdad post-evaluación IA
-  bioScoreIA: { type: Number, default: null },
+  // Análisis Semántico IA (Opción B)
   bioScoreIAVersion: { type: String, default: '' },     // hash de campos clínicos al momento de evaluar
-  bioScoreIAReason: { type: String, default: '' },       // justificación corta del score
+  bioScoreIAReason: { type: String, default: '' },       // justificación corta
   bioScoreIADate: { type: Date, default: null },         // fecha de última evaluación IA
-  bioScoreIAAlerts: { type: Array, default: [] },        // alertas estructuradas devueltas por la IA
+  bioTagsIA: { type: Array, default: [] },               // etiquetas clínicas detectadas por la IA (ej: ['Lumbalgia', 'Estrés Moderado'])
   bioScoreIAAptitud: { type: String, default: '' },      // "Apto", "Apto con Restricciones", "No Apto"
 }, { _id: false });
 
@@ -408,17 +407,99 @@ router.get('/data', requireJwtAuth, async (req, res) => {
   }
 });
 
-// ─── Helper: Clinical Hash ────────────────────────────────────────────
+// ─── Helper: Clinical Hash — compares only the text fields the AI analyzes ────
 function buildClinicalHash(w) {
   const crypto = require('crypto');
   const fields = [
-    w.biocentricScore || 0,
-    JSON.stringify(w.biocentricAlerts || [])
-  ].join('|');
+    w.limitacionesBiomecanicas, w.recomendacionesMedicas, w.diagnosticoMedico,
+    w.enfermedades, w.alergiasQuimicas, w.medicamentos, w.cargo
+  ].map(v => String(v || '')).join('|');
   return crypto.createHash('md5').update(fields).digest('hex');
 }
 
-// ─── Helper: Fire-and-forget IA Worker Evaluation ─────────────────────
+/**
+ * ─── Semantic Tagging via IA ─────────────────────────────────────────────────
+ * The AI only reads complex medical text (restrictions, diagnoses, recommendations)
+ * and returns structured semantic tags. ALL math (scoring, multipliers) is done
+ * by the deterministic system in the frontend (calcFit).
+ */
+async function runIASemanticTagging(worker, userId) {
+  const textFields = [
+    worker.limitacionesBiomecanicas,
+    worker.recomendacionesMedicas,
+    worker.diagnosticoMedico,
+    worker.enfermedades,
+    worker.alergiasQuimicas,
+    worker.medicamentos
+  ].filter(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
+
+  // If all text fields are empty/null, no need to call IA
+  if (textFields.length === 0) {
+    return { tags: [], razon: 'Sin hallazgos clínicos complejos en texto libre.', aptitud: 'Apto' };
+  }
+
+  const prompt = `Eres un médico ocupacional experto del sistema WAPPY. Analiza el siguiente perfil clínico de un trabajador y extrae etiquetas clínicas estandarizadas.
+
+PERFIL DEL TRABAJADOR (${worker.nombre || 'Sin nombre'} — Cargo: ${worker.cargo || 'N/D'}):
+- Limitaciones Biomecánicas: "${worker.limitacionesBiomecanicas || 'Ninguna'}"
+- Recomendaciones Médicas: "${worker.recomendacionesMedicas || 'Ninguna'}"
+- Diagnóstico Médico: "${worker.diagnosticoMedico || 'Ninguno'}"
+- Enfermedades Actuales: "${worker.enfermedades || 'Ninguna'}"
+- Alergias/Sensibilidades Químicas: "${worker.alergiasQuimicas || 'Ninguna'}"
+- Medicamentos actuales: "${worker.medicamentos || 'Ninguno'}"
+
+TU TAREA:
+Lee el texto libre de cada campo (aunque no use términos médicos exactos, ej: "dolor en la parte baja" = Lumbalgia) y clasifica cada hallazgo usando el siguiente catálogo de etiquetas:
+
+ETIQUETAS DISPONIBLES (usa EXACTAMENTE estos nombres):
+- "Lumbalgia" — dolor lumbar, dolor en la espalda baja, parte baja de la espalda, zona lumbar
+- "Hernia_Discal" — hernia de disco, hernia discal, disco degenerado
+- "Cervicalgia" — dolor cervical, cuello, nuca, parte superior de la espalda
+- "Epicondilitis" — codo de tenista, dolor en el codo, epicondilo
+- "Tunel_Carpiano" — túnel carpiano, muñeca, hormigueo en mano
+- "Restriccion_Hombro" — manguito rotador, hombro, rotador
+- "Restriccion_Rodilla" — rodilla, menisco, ligamento
+- "No_Carga_Peso" — no levantar, no cargar, peso máximo, limitación de carga
+- "No_Bipedestacion" — no estar de pie, no bipedestación prolongada
+- "No_Sedestacion" — no sentarse mucho, no sedestación prolongada
+- "Hipoacusia" — pérdida auditiva, hipoacusia, no ruido, protección auditiva
+- "Vision_Reducida" — visión reducida, usa lentes, problema de visión
+- "HTA" — hipertensión, presión alta, tensión arterial elevada
+- "Cardiopatia" — cardiopatía, problema cardíaco, insuficiencia cardíaca, angina
+- "Diabetes" — diabetes, glucosa elevada, resistencia a la insulina
+- "Epilepsia" — epilepsia, convulsiones, crisis epiléptica
+- "Vertigo" — vértigo, mareo, pérdida de equilibrio, no alturas
+- "EPOC" — EPOC, bronquitis crónica, enfermedad pulmonar
+- "Asma" — asma, dificultad respiratoria, broncoespasmo
+- "Alergia_Quimica" — alergia a químicos, dermatitis química, sensibilidad química
+- "Medicamento_SNC" — medicamento psiquiátrico, sedante, pastillas para dormir, ansiolítico, antidepresivo
+- "Restriccion_Mental" — ansiedad, depresión, estrés severo, psicoterapia activa, no turno nocturno
+- "Patologia_Cronica" — enfermedad crónica declarada no clasificada arriba
+- "Diagnostico_Reciente" — diagnóstico reciente, nuevo diagnóstico, bajo seguimiento médico
+- "Recomendacion_Leve" — pausas activas, fisioterapia, ergonomía, control médico periódico
+- "Sin_Hallazgos" — todo normal, sin restricciones, ninguna, sin hallazgos
+
+INSTRUCCIONES ESTRICTAS:
+1. Incluye una etiqueta por CADA hallazgo real que encuentres en el texto.
+2. Si el texto dice "sin restricciones" o similar, devuelve solo ["Sin_Hallazgos"].
+3. Redacta una "razon" profesional de 2-3 líneas explicando los hallazgos clínicos.
+4. Determina la "aptitud" global: "Apto", "Apto con Restricciones" o "No Apto".
+
+Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
+{
+  "tags": ["Etiqueta1", "Etiqueta2"],
+  "razon": "<Texto médico-profesional aquí>",
+  "aptitud": "<Apto | Apto con Restricciones | No Apto>"
+}`;
+
+  const { generateWithKeyRotation } = require('./sgsstGemini');
+  const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+  const result = await generateWithKeyRotation(preferredModel, userId, prompt);
+  let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return JSON.parse(text);
+}
+
+// ─── Helper: Evaluate all workers in a doc using IA tagging ─────────────────
 async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
   try {
     const companyId = await getActiveCompanyId(userId);
@@ -427,72 +508,30 @@ async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
     const worker = (doc.trabajadores || []).find(w => w.id === workerId);
     if (!worker) return;
 
-    const profile = (perfilesList || []).find(p =>
-      (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim()
-    );
-
-    const prompt = `Eres el Motor Bio-Fit WAPPY (Oráculo H1). Tu tarea es redactar el dictamen clínico-ocupacional de un trabajador.
-El sistema matemático ya calculó su nivel de aptitud exacto y sus penalizaciones. NO debes alterar el score matemático ni las alertas.
-
-DATOS DEL TRABAJADOR:
-- Nombre: ${worker.nombre}, Cargo: ${worker.cargo}, Edad: ${worker.edad}
-- IMC: ${worker.imc || 'N/D'}, Presión Arterial: ${worker.presionArterial || 'N/D'}
-- Enfermedades: ${worker.enfermedades || 'Ninguna'}, Diagnóstico: ${worker.diagnosticoMedico || 'Ninguno'}
-- Restricciones: ${worker.limitacionesBiomecanicas || 'Ninguna'}
-- Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia=${worker.terapiaPsicologica || 'No'}
-
-PERFIL DEL CARGO:
-- Exigencia Física: ${profile?.exigenciaFisica || 'N/D'}, Mental: ${profile?.exigenciaMental || 'N/D'}
-- Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
-
-RESULTADO EXACTO DEL MOTOR MATEMÁTICO (NO MODIFICAR):
-- SCORE EXACTO: ${worker.biocentricScore ?? 100}%
-- ALERTAS EXACTAS A LISTAR: ${JSON.stringify(worker.biocentricAlerts || [])}
-
-INSTRUCCIONES:
-1. Devuelve EXACTAMENTE el mismo "score" numérico que se te dio arriba.
-2. Devuelve EXACTAMENTE las mismas "alertas" que se te pasaron en el JSON de arriba, adaptándolas al formato solicitado.
-3. Redacta el campo "aptitud" (Ej: "Apto", "Apto con Restricciones", "No Apto").
-4. Redacta el campo "razon": un párrafo médico-laboral justificando por qué tiene ese score, cruzando su salud con las exigencias de su cargo.
-
-Responde ÚNICAMENTE con JSON válido, sin markdown, sin texto extra:
-{
-  "score": <debe ser exactamente ${worker.biocentricScore ?? 100}>,
-  "aptitud": "<Apto | Apto con Restricciones | No Apto>",
-  "razon": "<Tu redacción profesional aquí>",
-  "alertas": [
-    { "titulo": "<titulo original>", "descripcion": "<descripción original>", "puntos": <puntos originales>, "severidad": "<severidad original>", "categoria": "<categoría original>" }
-  ]
-}`;
-
-    const { generateWithKeyRotation } = require('./sgsstGemini');
-    const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
-    const result = await generateWithKeyRotation(preferredModel, userId, prompt);
-    let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(text);
-
+    const parsed = await runIASemanticTagging(worker, userId);
     const newHash = buildClinicalHash(worker);
     const workerIndex = doc.trabajadores.findIndex(w => w.id === workerId);
     if (workerIndex !== -1) {
       const cur = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
       doc.trabajadores[workerIndex] = {
         ...cur,
-        bioScoreIA: parsed.score,
+        bioTagsIA: parsed.tags || [],
         bioScoreIAReason: parsed.razon || '',
         bioScoreIAAptitud: parsed.aptitud || '',
-        bioScoreIAAlerts: parsed.alertas || [],
         bioScoreIAVersion: newHash,
         bioScoreIADate: new Date()
       };
       await doc.save();
-      logger.info(`[OraculoH1] IA score calculado para ${worker.nombre}: ${parsed.score}%`);
+      logger.info(`[OraculoH1] IA tags generados para ${worker.nombre}: [${(parsed.tags || []).join(', ')}]`);
     }
+    return doc.trabajadores[workerIndex];
   } catch (err) {
-    logger.warn(`[OraculoH1] IA evaluation failed for worker ${workerId}: ${err.message}`);
+    logger.warn(`[OraculoH1] IA tagging failed for worker ${workerId}: ${err.message}`);
+    return null;
   }
 }
 
-// ─── POST /save — Save worker data ─────────────────────────────
+// ─── POST /save — Save worker data + run IA tagging synchronously ──────────
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
     const { trabajadores } = req.body;
@@ -502,25 +541,23 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
     const companyId = await getActiveCompanyId(req.user.id);
 
+    // First save the raw data
     await PerfilSociodemograficoData.findOneAndUpdate(
       { user: req.user.id, companyId: companyId },
       { $set: { trabajadores, companyId, updatedAt: new Date() } },
       { upsert: true, new: true }
     );
 
-    // Sync FIT Score and health data to the Master Profile (SgsstWorker)
+    // Sync basic health data to master SgsstWorker profile
     const SgsstWorker = require('../../../models/SgsstWorker');
     for (const w of trabajadores) {
       if (!w.identificacion) continue;
       const cleanDoc = String(w.identificacion).trim();
       if (!cleanDoc) continue;
-      
       await SgsstWorker.updateOne(
         { user: req.user.id, documento: cleanDoc },
         {
           $set: {
-            fitScore: w.biocentricScore || 0,
-            fitAlerts: w.biocentricAlerts || [],
             condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
             fechaNacimiento: w.fechaNacimiento || null,
             genero: w.genero || 'No especificado'
@@ -529,30 +566,59 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       );
     }
 
-    // Trigger async IA re-evaluation for workers whose clinical data changed
+    // ── IA Semantic Tagging (synchronous — awaited so frontend gets results) ──
+    // Only runs for workers whose complex text fields have changed
+    let updatedWorkers = [...trabajadores];
     try {
       const apiKey = await getApiKey(req.user.id);
       if (apiKey) {
-        // Fetch cargo profiles for cross-referencing
         const PerfilesCargo = mongoose.models.PerfilesCargoData;
         const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: req.user.id }).lean() : null;
         const perfilesList = cargoDoc?.perfilesList || [];
 
-        for (const w of trabajadores) {
-          if (!w.id) continue;
+        // Re-fetch the saved doc to get current IA version hashes
+        const savedDoc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId }).lean();
+        const savedWorkers = savedDoc?.trabajadores || [];
+
+        const evalPromises = trabajadores.map(async (w) => {
+          if (!w.id) return w;
           const currentHash = buildClinicalHash(w);
-          // Only trigger if data changed since last IA evaluation
-          if (currentHash !== w.bioScoreIAVersion) {
-            // Fire and forget — does not block response
-            triggerIAEvaluation(req.user.id, w.id, apiKey, perfilesList).catch(() => {});
+          const savedWorker = savedWorkers.find(sw => sw.id === w.id);
+          const savedHash = savedWorker?.bioScoreIAVersion || '';
+          // Only call IA if text fields changed
+          if (currentHash !== savedHash) {
+            const result = await runIASemanticTagging(w, req.user.id).catch(() => null);
+            if (result) {
+              const updated = {
+                ...w,
+                bioTagsIA: result.tags || [],
+                bioScoreIAReason: result.razon || '',
+                bioScoreIAAptitud: result.aptitud || '',
+                bioScoreIAVersion: currentHash,
+                bioScoreIADate: new Date()
+              };
+              logger.info(`[OraculoH1] IA tags generados para ${w.nombre}: [${(result.tags || []).join(', ')}]`);
+              return updated;
+            }
           }
-        }
+          return { ...w, ...(savedWorker ? { bioTagsIA: savedWorker.bioTagsIA, bioScoreIAReason: savedWorker.bioScoreIAReason, bioScoreIAAptitud: savedWorker.bioScoreIAAptitud, bioScoreIAVersion: savedWorker.bioScoreIAVersion, bioScoreIADate: savedWorker.bioScoreIADate } : {}) };
+        });
+
+        updatedWorkers = await Promise.all(evalPromises);
+
+        // Persist the IA tags back to DB
+        await PerfilSociodemograficoData.findOneAndUpdate(
+          { user: req.user.id, companyId },
+          { $set: { trabajadores: updatedWorkers, updatedAt: new Date() } },
+          { new: true }
+        );
       }
-    } catch (triggerErr) {
-      logger.warn('[OraculoH1] Could not trigger IA evaluation:', triggerErr.message);
+    } catch (iaErr) {
+      logger.warn('[OraculoH1] IA tagging error (continuing without IA):', iaErr.message);
     }
 
-    res.json({ success: true });
+    // Return the updated workers (with IA tags) so frontend can refresh immediately
+    res.json({ success: true, trabajadores: updatedWorkers });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });

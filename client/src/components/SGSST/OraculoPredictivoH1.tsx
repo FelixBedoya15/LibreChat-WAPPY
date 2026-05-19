@@ -61,40 +61,33 @@ export default function OraculoPredictivoH1() {
         fetchData();
     }, [token]);
 
-    // ─── Motor NLP Bio-Fit: Analiza severidad por keywords ──────────────
-    const analyzeTextSeverity = (text: string, fieldType: 'limitacion' | 'recomendacion'): { pts: number; level: string; category: string; detail: string } | null => {
-        if (!text || text.trim().length < 3) return null;
-        const t = text.toLowerCase();
-        if (['ningun', 'ninguna', 'no aplica', 'sin restriccion', 'no tiene', 'n/a'].some(x => t.includes(x))) return null;
-
-        // NIVEL 4 - Crítico (permanente, múltiples sistemas, bloqueo)
-        const lvl4 = ['permanente', 'definitiv', 'epilepsi', 'convulsion', 'parkinson', 'no puede trabajar', 'incapacitado', 'no apto'];
-        if (lvl4.some(k => t.includes(k))) {
-            return { pts: fieldType === 'limitacion' ? 25 : 18, level: 'critical', category: 'Restricción Crítica', detail: text };
-        }
-        // NIVEL 3 - Severo: restricciones que bloquean funciones del cargo
-        const lvl3Neuro = ['vértigo', 'vertigo', 'mareo', 'no alturas', 'no maquinaria', 'no conducir', 'no operar', 'ansiedad severa', 'depresion severa', 'no turno nocturno'];
-        const lvl3Cardio = ['insuficiencia cardiaca', 'infarto', 'arritmia', 'no esfuerzo', 'no ejercicio intenso', 'angina'];
-        const lvl3Resp = ['epoc', 'asma severo', 'fibrosis', 'no exposicion quimica', 'no polvo', 'no gases'];
-        if ([...lvl3Neuro, ...lvl3Cardio, ...lvl3Resp].some(k => t.includes(k))) {
-            const cat = lvl3Neuro.some(k => t.includes(k)) ? 'Neurológica/Mental' : lvl3Cardio.some(k => t.includes(k)) ? 'Cardiovascular' : 'Respiratoria';
-            return { pts: fieldType === 'limitacion' ? 18 : 12, level: 'critical', category: cat, detail: text };
-        }
-        // NIVEL 2 - Moderado: osteomusculares frecuentes, posturas, cargas
-        const lvl2Osteo = ['lumbalgia', 'lumbago', 'columna', 'espalda', 'hernia', 'disco', 'cervicalgia', 'tunel carpiano', 'manguito', 'epicondilitis', 'rodilla', 'no cargar', 'no levantar', 'peso maximo', 'no bipedestacion', 'no sedestacion prolongada', 'postura forzada', 'movimiento repetitivo'];
-        const lvl2Mental = ['estres laboral', 'ansiedad', 'depresion', 'burnout', 'agotamiento', 'pausas activas', 'carga laboral reducida', 'no jornada extendida'];
-        const lvl2Sensorial = ['hipoacusia', 'perdida auditiva', 'ruido', 'vision reducida', 'uso de lentes', 'no exposicion a ruido'];
-        if ([...lvl2Osteo, ...lvl2Mental, ...lvl2Sensorial].some(k => t.includes(k))) {
-            const cat = lvl2Osteo.some(k => t.includes(k)) ? 'Osteomuscular' : lvl2Mental.some(k => t.includes(k)) ? 'Salud Mental' : 'Sensorial';
-            return { pts: fieldType === 'limitacion' ? 10 : 6, level: 'warning', category: cat, detail: text };
-        }
-        // NIVEL 1 - Leve: recomendaciones ergonómicas generales
-        const lvl1 = ['ergonomia', 'ergonómica', 'pausa', 'hidratacion', 'protector solar', 'proteccion auditiva', 'epp', 'elemento de proteccion', 'seguimiento', 'control medico', 'vigilancia', 'fisioterapia'];
-        if (lvl1.some(k => t.includes(k))) {
-            return { pts: fieldType === 'limitacion' ? 5 : 3, level: 'info', category: 'Ergonómica/Preventiva', detail: text };
-        }
-        // Texto genérico (tiene algo pero no matchea keywords)
-        return { pts: fieldType === 'limitacion' ? 8 : 4, level: 'warning', category: 'Restricción Registrada', detail: text };
+    // ─── TAG → Score Map: Each IA tag maps to a score penalty ────────────────
+    const TAG_RULES: Record<string, { pts: number; sev: string; cat: string; label: string; desc: string }> = {
+        Lumbalgia:            { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Lumbalgia',             desc: 'Restricción lumbar detectada. Limita carga de peso y posturas prolongadas.' },
+        Hernia_Discal:        { pts: 15, sev: 'critical', cat: 'Osteomuscular',    label: 'Hernia Discal',         desc: 'Condición discal que puede agravarse con esfuerzo físico.' },
+        Cervicalgia:          { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Cervicalgia',           desc: 'Restricción cervical. Limita posiciones de cuello sostenidas.' },
+        Epicondilitis:        { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Epicondilitis',         desc: 'Inflamación en el codo. Limita movimientos repetitivos del antebrazo.' },
+        Tunel_Carpiano:       { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Túnel Carpiano',        desc: 'Compresión del nervio mediano. Limita trabajo manual repetitivo.' },
+        Restriccion_Hombro:   { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Hombro', desc: 'Limitación en el complejo del hombro. Limita levantamiento sobre la cabeza.' },
+        Restriccion_Rodilla:  { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Rodilla',desc: 'Limitación articular en rodilla. Limita escaleras, cargas y bipedestación.' },
+        No_Carga_Peso:        { pts: 8,  sev: 'warning',  cat: 'Restricción Física',label: 'No Carga de Peso',      desc: 'Restricción médica explícita de levantamiento o carga de objetos.' },
+        No_Bipedestacion:     { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Bipedestación Prolongada', desc: 'Limitación para permanecer de pie por períodos extendidos.' },
+        No_Sedestacion:       { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Sedestación Prolongada',   desc: 'Limitación para permanecer sentado por períodos extendidos.' },
+        Hipoacusia:           { pts: 8,  sev: 'warning',  cat: 'Sensorial',        label: 'Hipoacusia',            desc: 'Pérdida auditiva detectada. Requiere protección auditiva y evaluación.' },
+        Vision_Reducida:      { pts: 5,  sev: 'info',     cat: 'Sensorial',        label: 'Visión Reducida',       desc: 'Disminución visual. Requiere corrección óptica adecuada para el cargo.' },
+        HTA:                  { pts: 15, sev: 'warning',  cat: 'Clínico',          label: 'Hipertensión Arterial', desc: 'Tensión arterial elevada. Requiere seguimiento y control de estrés.' },
+        Cardiopatia:          { pts: 20, sev: 'critical', cat: 'Clínico',          label: 'Cardiopatía',           desc: 'Condición cardíaca declarada. Limita esfuerzos físicos intensos.' },
+        Diabetes:             { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Diabetes',              desc: 'Condición metabólica que requiere control glucémico y pausas.' },
+        Epilepsia:            { pts: 25, sev: 'critical', cat: 'Neurológico',      label: 'Epilepsia / Convulsiones','desc': 'Alto riesgo en operación de maquinaria y alturas. Bloqueo preventivo.' },
+        Vertigo:              { pts: 18, sev: 'critical', cat: 'Neurológico',      label: 'Vértigo / Mareo',       desc: 'Riesgo de caída en alturas o desequilibrio durante operación de equipos.' },
+        EPOC:                 { pts: 15, sev: 'warning',  cat: 'Respiratorio',     label: 'EPOC / Bronquitis',     desc: 'Enfermedad pulmonar obstructiva. Limita exposición a polvo y químicos.' },
+        Asma:                 { pts: 10, sev: 'warning',  cat: 'Respiratorio',     label: 'Asma',                  desc: 'Hipersensibilidad bronquial. Limita exposición a irritantes ambientales.' },
+        Alergia_Quimica:      { pts: 10, sev: 'warning',  cat: 'Inmunológico',     label: 'Alergia Química',       desc: 'Sensibilidad a agentes químicos. Requiere EPP específico y restricción de área.' },
+        Medicamento_SNC:      { pts: 15, sev: 'critical', cat: 'Farmacológico',    label: 'Medicamento Depresor SNC','desc': 'Uso de sedantes o psicotrópicos incompatible con maquinaria. Alerta de seguridad.' },
+        Restriccion_Mental:   { pts: 12, sev: 'warning',  cat: 'Psicosocial',      label: 'Restricción de Salud Mental','desc': 'Condición de salud mental que puede afectar concentración y toma de decisiones.' },
+        Patologia_Cronica:    { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Patología Crónica',     desc: 'Enfermedad crónica base que requiere vigilancia epidemiológica.' },
+        Diagnostico_Reciente: { pts: 5,  sev: 'info',     cat: 'Clínico',          label: 'Diagnóstico Reciente',  desc: 'Diagnóstico médico reciente. Amerita seguimiento y ajuste del puesto.' },
+        Recomendacion_Leve:   { pts: 3,  sev: 'info',     cat: 'Preventivo',       label: 'Recomendación Médica',  desc: 'Recomendación preventiva activa que debe ser gestionada por SST.' },
     };
 
     const calcFit = useCallback((w: any, profile: any) => {
@@ -105,7 +98,7 @@ export default function OraculoPredictivoH1() {
         };
         if (!profile) return { score: 0, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }] };
 
-        // 1. BIOMETRÍA
+        // 1. BIOMETRÍA (valores exactos, sin ambigüedad — sistema determinístico)
         if (w.imc) {
             const imc = parseFloat(w.imc);
             if (imc >= 30) add('Obesidad detectada', `IMC ${imc} indica obesidad. Riesgo cardiovascular elevado.`, 10, 'warning', 'Clínico');
@@ -121,54 +114,53 @@ export default function OraculoPredictivoH1() {
             else if (fc < 50) add('Bradicardia', `FC ${fc} lpm, valoración cardiológica recomendada.`, 5, 'info', 'Clínico');
         }
 
-        // 2. HÁBITOS
+        // 2. HÁBITOS (opciones fijas del formulario — sistema determinístico)
         if (w.fuma === 'Sí, diario') add('Tabaquismo Activo', 'Consumo diario impacta capacidad pulmonar y oxigenación celular.', 10, 'warning', 'Clínico');
         if (w.alcohol === 'Sí (Frecuente)') add('Etilismo Frecuente', 'Aumenta accidentabilidad y vulnerabilidad hepática.', 15, 'warning', 'Psicosocial');
 
-        // 3. PATOLOGÍAS
-        const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun');
-        if (hasEnf) add('Patología Base Declarada', `Condición: "${w.enfermedades}". Requiere matriz de compatibilidad con el cargo.`, 10, 'warning', 'Clínico');
-        const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ningun') && !w.diagnosticoMedico.toLowerCase().includes('apto');
-        if (hasDiag && !hasEnf) add('Diagnóstico Médico Reciente', `Diagnóstico: "${w.diagnosticoMedico}". Amerita vigilancia epidemiológica.`, 5, 'info', 'Clínico');
-        const hasAl = w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun');
-        if (hasAl) add('Sensibilidad Inmunológica', `Alergia reportada: "${w.alergiasQuimicas}". Peligro de anafilaxia o dermatitis.`, 10, 'warning', 'Clínico');
+        // 3. CAMPOS DE TEXTO LIBRE → IA SEMÁNTICA (usa bioTagsIA si disponible, fallback básico si no)
+        const iaTags: string[] = w.bioTagsIA || [];
+        const hasIATags = iaTags.length > 0 && !iaTags.includes('Sin_Hallazgos');
+        const hasAnyText = [
+            w.limitacionesBiomecanicas, w.recomendacionesMedicas,
+            w.diagnosticoMedico, w.enfermedades, w.alergiasQuimicas, w.medicamentos
+        ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
 
-        // 4. RESTRICCIONES BIOMECÁNICAS (NLP Motor - Opción C)
-        if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2) {
-            const analysis = analyzeTextSeverity(w.limitacionesBiomecanicas, 'limitacion');
-            if (analysis) {
-                // Multiplicador por cruce con cargo
-                let multiplier = 1.0;
-                if (profile.exigenciaFisica === 'Alta' && (analysis.category === 'Osteomuscular' || analysis.category === 'Restricción Crítica')) multiplier = 1.5;
-                if (profile.operaMaquinaria === 'Sí' && (analysis.category === 'Neurológica/Mental' || analysis.category === 'Restricción Crítica')) multiplier = 2.0;
-                const finalPts = Math.round(analysis.pts * multiplier);
-                const crossNote = multiplier > 1 ? ` ⚠️ AGRAVADO x${multiplier} por exigencias del cargo.` : '';
-                add(
-                    `Restricción ${analysis.category}`,
-                    `"${analysis.detail}"${crossNote}`,
-                    finalPts, analysis.level, 'Físico/Restricción'
-                );
+        if (hasAnyText) {
+            if (hasIATags) {
+                // IA semántica disponible: convertir etiquetas a penalizaciones
+                iaTags.forEach(tag => {
+                    const rule = TAG_RULES[tag];
+                    if (!rule) return;
+                    let pts = rule.pts;
+                    // Multiplicadores por exigencias del cargo
+                    if (tag === 'Lumbalgia' || tag === 'Hernia_Discal' || tag === 'Restriccion_Hombro' || tag === 'Restriccion_Rodilla') {
+                        if (profile.exigenciaFisica === 'Alta') pts = Math.round(pts * 1.5);
+                    }
+                    if ((tag === 'Epilepsia' || tag === 'Vertigo' || tag === 'Medicamento_SNC' || tag === 'Restriccion_Mental') && profile.operaMaquinaria === 'Sí') {
+                        pts = Math.round(pts * 2.0);
+                    }
+                    if (tag === 'Restriccion_Mental' && profile.exigenciaMental === 'Alta') {
+                        pts = Math.round(pts * 1.5);
+                    }
+                    add(rule.label, rule.desc + (pts !== rule.pts ? ` ⚠️ Penalización agravada por exigencias del cargo.` : ''), pts, rule.sev, rule.cat);
+                });
+            } else {
+                // Fallback básico mientras IA procesa (solo si no hay tags aún)
+                const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
+                const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
+                const hasRestr = w.limitacionesBiomecanicas?.trim() && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
+                const hasRec = w.recomendacionesMedicas?.trim() && !w.recomendacionesMedicas.toLowerCase().includes('ninguna');
+                const hasAl = w.alergiasQuimicas?.trim() && !w.alergiasQuimicas.toLowerCase().includes('ninguna');
+                if (hasEnf) add('Patología Base (pendiente análisis IA)', `"${w.enfermedades}" — Procesando con IA semántica.`, 10, 'warning', 'Clínico');
+                if (hasDiag && !hasEnf) add('Diagnóstico Médico (pendiente análisis IA)', `"${w.diagnosticoMedico}" — Procesando con IA semántica.`, 5, 'info', 'Clínico');
+                if (hasRestr) add('Restricción Biomecánica (pendiente análisis IA)', `"${w.limitacionesBiomecanicas}" — Procesando con IA semántica.`, 8, 'warning', 'Osteomuscular');
+                if (hasRec) add('Recomendación Médica (pendiente análisis IA)', `"${w.recomendacionesMedicas}" — Procesando con IA semántica.`, 3, 'info', 'Preventivo');
+                if (hasAl) add('Alergia Química (pendiente análisis IA)', `"${w.alergiasQuimicas}" — Procesando con IA semántica.`, 8, 'warning', 'Inmunológico');
             }
         }
 
-        // 5. RECOMENDACIONES MÉDICAS (NLP Motor - campo nuevo en scoring)
-        if (w.recomendacionesMedicas && w.recomendacionesMedicas.length > 2) {
-            const analysis = analyzeTextSeverity(w.recomendacionesMedicas, 'recomendacion');
-            if (analysis) {
-                let multiplier = 1.0;
-                if (profile.exigenciaFisica === 'Alta' && analysis.category === 'Osteomuscular') multiplier = 1.3;
-                if (profile.exigenciaMental === 'Alta' && analysis.category === 'Salud Mental') multiplier = 1.5;
-                const finalPts = Math.round(analysis.pts * multiplier);
-                const crossNote = multiplier > 1 ? ` ⚠️ Potenciado por exigencias del rol.` : '';
-                add(
-                    `Recomendación Médica: ${analysis.category}`,
-                    `"${analysis.detail}"${crossNote}`,
-                    finalPts, analysis.level, 'Clínico/Recomendación'
-                );
-            }
-        }
-
-        // 6. VULNERABILIDAD SOCIODEMOGRÁFICA
+        // 4. VULNERABILIDAD SOCIODEMOGRÁFICA (datos estructurados del formulario)
         let vs = 0;
         if (['1', '2'].includes(w.estrato)) vs++;
         if (w.personasCargo && Number(w.personasCargo) >= 3) vs++;
@@ -177,24 +169,28 @@ export default function OraculoPredictivoH1() {
         else if (vs >= 2) add('Riesgo Psicosocial Moderado', 'Múltiples factores de presión externa acumulados.', 5, 'info', 'Psicosocial');
         if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 5, 'info', 'Sociodemográfico');
 
-        // 7. CRUCE CARGO × SALUD (multiplicadores finales)
-        const hasBioAny = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun');
+        // 5. CRUCE CARGO × DATOS FIJOS
+        const hasEnfFijo = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
+        const hasDiagFijo = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
         if (profile.exigenciaFisica === 'Alta') {
             if (w.edad && Number(w.edad) > 55) add('Desajuste Etario en Cargo Físico', `Edad ${w.edad} años con alta exigencia física. Factor de riesgo ergonómico.`, 10, 'warning', 'Operativo');
-            if (hasEnf || hasDiag) add('Patología en Rol de Alta Exigencia', 'La carga física intensa puede agravar la condición clínica base.', 10, 'critical', 'Operativo');
+            if (!hasIATags && (hasEnfFijo || hasDiagFijo)) add('Patología en Rol de Alta Exigencia', 'La carga física intensa puede agravar la condición clínica base.', 10, 'critical', 'Operativo');
         }
         if (profile.exigenciaMental === 'Alta') {
             if (w.terapiaPsicologica === 'Sí') add('Alerta de Burnout', 'Rol de alta tensión mental sumado a psicoterapia activa. Riesgo de agotamiento.', 15, 'critical', 'Psicosocial');
             if (vs >= 2) add('Sobrecarga Cognitiva', 'Vulnerabilidad social severa + rol de alta exigencia mental. Aumenta riesgo de error humano.', 10, 'warning', 'Psicosocial');
         }
         if (profile.operaMaquinaria === 'Sí') {
-            const lethal = w.medicamentos?.toLowerCase().includes('psiquiátrico') || w.medicamentos?.toLowerCase().includes('dormir') || w.medicamentos?.toLowerCase().includes('sedante');
-            if (lethal || w.alcohol === 'Sí (Frecuente)') add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC es incompatible con operación de maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
+            const medLower = (w.medicamentos || '').toLowerCase();
+            const lethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
+            if (!hasIATags && (lethal || w.alcohol === 'Sí (Frecuente)')) add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC incompatible con maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
         }
-        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cargo exige ${profile.entrenamientosSeleccionados.length} certificado(s) pero el trabajador no reporta curso50h ni curso20h.`, 5, 'warning', 'Entrenamiento');
+        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cargo exige ${profile.entrenamientosSeleccionados.length} certificado(s) sin acreditar.`, 5, 'warning', 'Entrenamiento');
 
-        return { score: Math.max(0, score), auditItems };
-    }, [analyzeTextSeverity]);
+        return { score: Math.max(0, score), auditItems, hasIATags };
+    }, [TAG_RULES]);
+
+
 
     const handleConsultOracle = async (worker: any, profile: any, fit: any) => {
         setGeneratingId(worker.id);
@@ -291,19 +287,11 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                 {workers.map(worker => {
                     const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
                     const fit = calcFit(worker, profile);
-                    // Use IA score as source of truth if available
-                    const hasIAScore = worker.bioScoreIA !== null && worker.bioScoreIA !== undefined;
-                    const score = hasIAScore ? worker.bioScoreIA : fit.score;
+                    // Score is always computed by the deterministic system (calcFit)
+                    const score = fit.score;
                     const sc = SCORE_COLOR(score);
-                    const displayAlerts = hasIAScore && worker.bioScoreIAAlerts?.length > 0
-                        ? worker.bioScoreIAAlerts.map((a: any) => ({
-                            title: a.titulo || a.title || '',
-                            description: a.descripcion || a.description || '',
-                            pts: a.puntos || a.pts || 0,
-                            severity: a.severidad || a.severity || 'info',
-                            category: a.categoria || a.category || ''
-                          }))
-                        : fit.auditItems;
+                    const displayAlerts = fit.auditItems;
+                    const hasIATags = fit.hasIATags; // IA has processed this worker's text fields
                     const hasConclusion = !!aiConclusions[worker.id];
                     const isExpanded = expandedId === worker.id;
 
@@ -326,13 +314,13 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                     <div className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${sc.badge}`}>
                                         {score}% FIT
                                     </div>
-                                    {hasIAScore ? (
+                                    {hasIATags ? (
                                         <div className="flex items-center gap-1 text-[9px] text-teal-600 dark:text-teal-400 font-bold">
-                                            <Sparkles className="w-2.5 h-2.5" /> Score IA · {worker.bioScoreIAAptitud || 'Evaluado'}
+                                            <Sparkles className="w-2.5 h-2.5" /> Análisis IA · {worker.bioScoreIAAptitud || 'Evaluado'}
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-1 text-[9px] text-text-secondary font-bold">
-                                            <Clock className="w-2.5 h-2.5" /> Score Preliminar
+                                        <div className="flex items-center gap-1 text-[9px] text-amber-500 font-bold">
+                                            <Clock className="w-2.5 h-2.5" /> Procesando análisis IA…
                                         </div>
                                     )}
                                 </div>
