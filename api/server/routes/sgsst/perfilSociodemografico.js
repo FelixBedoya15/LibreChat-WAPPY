@@ -441,12 +441,14 @@ DATOS DEL TRABAJADOR:
 - Medicamentos: ${worker.medicamentos || 'Ninguno'}
 - Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia=${worker.terapiaPsicologica || 'No'}
 - Estrato: ${worker.estrato || 'N/D'}, Personas a cargo: ${worker.personasCargo || '0'}
+- Vivienda: ${worker.vivienda || 'N/D'}, Escolaridad: ${worker.nivelEscolaridad || 'N/D'}
+- Cursos SST: 50h=${worker.curso50h ? 'Sí' : 'No'}, 20h=${worker.curso20h ? 'Sí' : 'No'}
 
 PERFIL DEL CARGO (${worker.cargo}):
 - Exigencia Física: ${profile?.exigenciaFisica || 'N/D'}
 - Exigencia Mental: ${profile?.exigenciaMental || 'N/D'}
 - Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
-- Nivel: ${profile?.nivelCargo || 'N/D'}
+- Entrenamientos Exigidos: ${profile?.entrenamientosSeleccionados?.length || 0}
 
 REGLAS DE SCORING (puntuación base: 100):
 - IMC >= 30: -10, IMC < 18.5: -5
@@ -457,9 +459,14 @@ REGLAS DE SCORING (puntuación base: 100):
 - Recomendación médica leve: -3 a -6 (severa: -10 a -18)
 - Multiplicador x1.5 si cargo físico "Alta" + restricción osteomuscular
 - Multiplicador x2.0 si opera maquinaria + restricción neurológica/mental
-- Alta vulnerabilidad social (3+ factores): -15
+- Vulnerabilidad social (Estrato bajo, dependientes>=3, vivienda arrendada/invasión): Si tiene 3 factores: -15 (Alta). Si tiene 2 factores: -5 (Moderada).
+- Escolaridad básica (primaria): -5
+- Edad > 55 + cargo físico "Alta": -10 (Desajuste etario)
+- Patología o Diagnóstico + cargo físico "Alta": -10 (Patología en rol exigente)
+- Cargo mental "Alta" + vulnerabilidad social >= 2: -10 (Sobrecarga cognitiva)
 - Cargo mental "Alta" + terapia psicológica: -15 (Burnout)
-- Opera maquinaria + sedantes/SNC: -40 (BLOQUEO)
+- Cargo exige entrenamientos + no tiene curso 50h ni 20h: -5 (Brecha formativa)
+- Opera maquinaria + sedantes/SNC: -40 (BLOQUEO PREVENTIVO)
 
 IMPORTANTE: Debes evaluar TODAS y cada una de las reglas anteriores. Crea un objeto en el array 'alertas' por CADA regla que aplique al trabajador. NO las agrupes, NO omitas ninguna. Si el trabajador incumple 6 reglas, el array debe tener exactamente 6 elementos detallados.
 
