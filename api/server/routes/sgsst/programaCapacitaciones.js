@@ -322,6 +322,10 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
     const trabajadores = socioDoc?.trabajadores || [];
     const perfilesCargo = cargoDoc?.perfilesList || [];
     const planPersonalizado = programaDoc?.planPersonalizado || [];
+    
+    console.log(`[DEBUG] GET /plan-trabajador -> userId: ${req.user.id}, companyId: ${companyId}`);
+    console.log(`[DEBUG] socioDoc exists: ${!!socioDoc}, trabajadores.length: ${trabajadores.length}`);
+    console.log(`[DEBUG] cargoDoc exists: ${!!cargoDoc}, perfilesCargo.length: ${perfilesCargo.length}`);
 
     // Build enriched plan per worker
     const trabajadoresConPlan = trabajadores.map(worker => {
@@ -364,6 +368,14 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
       trabajadores: trabajadoresConPlan,
       catalogo: CATALOGO_CAPACITACIONES,
       totalTrabajadores: trabajadoresConPlan.length,
+      debugData: {
+        userId: req.user.id,
+        companyId,
+        socioDocExists: !!socioDoc,
+        rawTrabajadoresLength: trabajadores.length,
+        cargoDocExists: !!cargoDoc,
+        rawPerfilesLength: perfilesCargo.length,
+      }
     });
   } catch (error) {
     logger.error('[SGSST CapacitacionesPlan] plan-trabajador error:', error);
