@@ -308,10 +308,14 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
 
+    // Dynamically retrieve models to avoid initialization timing issues
+    const PerfilSocio = mongoose.models.PerfilSociodemograficoData || mongoose.model('PerfilSociodemograficoData');
+    const PerfilCargo = mongoose.models.PerfilCargoData || mongoose.model('PerfilCargoData');
+
     // Fetch all three collections in parallel
     const [socioDoc, cargoDoc, programaDoc] = await Promise.all([
-      mongoose.models.PerfilSociodemograficoData?.findOne({ user: req.user.id, companyId }).lean(),
-      mongoose.models.PerfilCargoData?.findOne({ user: req.user.id, companyId }).lean(),
+      PerfilSocio.findOne({ user: req.user.id, companyId }).lean(),
+      PerfilCargo.findOne({ user: req.user.id, companyId }).lean(),
       ProgramaCapacitacionesData.findOne({ user: req.user.id, companyId }).lean(),
     ]);
 
