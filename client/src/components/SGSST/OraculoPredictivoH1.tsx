@@ -367,14 +367,14 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             {displayAlerts.length > 6 && (
                                                 <p className="text-[10px] text-text-secondary text-center font-bold pt-1">+{displayAlerts.length - 6} alertas más</p>
                                             )}
-                                            {!hasIAScore && (
+                                            {!hasIATags && (
                                                 <button
                                                     onClick={() => handleForceIAEval(worker.id)}
                                                     disabled={evaluatingIAId === worker.id}
                                                     className="mt-2 w-full text-[10px] font-bold text-teal-600 hover:text-teal-800 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
                                                 >
                                                     {evaluatingIAId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                                                    {evaluatingIAId === worker.id ? 'Evaluando con IA...' : 'Evaluar score con IA'}
+                                                    {evaluatingIAId === worker.id ? 'Analizando con IA...' : 'Forzar análisis IA'}
                                                 </button>
                                             )}
                                         </div>
