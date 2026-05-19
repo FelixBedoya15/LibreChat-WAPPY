@@ -797,7 +797,12 @@ const CondicionesSalud = () => {
         if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
             const req = cargo.entrenamientosSeleccionados.length;
             if (req > 0 && !w.curso50h && !w.curso20h) {
-                addAudit('Entrenamiento', 'Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${cargo.entrenamientosSeleccionados.join(', ')}.`, 5, 'warning');
+                let penalty = 5; // Base
+                penalty += req; // +1 por cada curso
+                const criticalKeywords = ['alturas', 'confinado', '50 horas', '50h', '20 horas', '20h', 'licencia', 'emergencia', 'rescate', 'primeros auxilios', 'coordinador'];
+                const hasCritical = cargo.entrenamientosSeleccionados.some((c: string) => criticalKeywords.some(k => c.toLowerCase().includes(k)));
+                if (hasCritical) penalty += 5; // +5 adicional si falta un curso legal crítico
+                addAudit('Entrenamiento', 'Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${cargo.entrenamientosSeleccionados.join(', ')}.`, penalty, 'warning');
             }
         }
 

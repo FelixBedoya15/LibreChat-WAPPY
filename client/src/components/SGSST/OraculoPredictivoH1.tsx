@@ -195,7 +195,14 @@ export default function OraculoPredictivoH1() {
             const lethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
             if (!hasIATags && (lethal || w.alcohol === 'Sí (Frecuente)')) add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC incompatible con maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
         }
-        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${profile.entrenamientosSeleccionados.join(', ')}.`, 5, 'warning', 'Entrenamiento');
+        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) {
+            let penalty = 5; // Base
+            penalty += profile.entrenamientosSeleccionados.length; // +1 por cada curso
+            const criticalKeywords = ['alturas', 'confinado', '50 horas', '50h', '20 horas', '20h', 'licencia', 'emergencia', 'rescate', 'primeros auxilios', 'coordinador'];
+            const hasCritical = profile.entrenamientosSeleccionados.some((c: string) => criticalKeywords.some(k => c.toLowerCase().includes(k)));
+            if (hasCritical) penalty += 5; // +5 adicional si falta un curso legal crítico
+            add('Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${profile.entrenamientosSeleccionados.join(', ')}.`, penalty, 'warning', 'Entrenamiento');
+        }
 
         return { score: Math.max(0, score), auditItems, hasIATags };
     }, [TAG_RULES]);
