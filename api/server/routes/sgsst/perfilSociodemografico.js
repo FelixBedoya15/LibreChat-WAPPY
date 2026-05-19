@@ -411,7 +411,8 @@ function buildClinicalHash(w) {
     w.imc, w.presionArterial, w.frecuenciaCardiaca, w.enfermedades,
     w.diagnosticoMedico, w.limitacionesBiomecanicas, w.recomendacionesMedicas,
     w.alergiasQuimicas, w.medicamentos, w.fuma, w.alcohol, w.terapiaPsicologica,
-    w.cargo, w.edad, w.peso, w.talla
+    w.cargo, w.edad, w.peso, w.talla,
+    w.estrato, w.personasCargo, w.vivienda, w.nivelEscolaridad, w.curso50h, w.curso20h
   ].map(v => String(v || '')).join('|');
   return crypto.createHash('md5').update(fields).digest('hex');
 }
