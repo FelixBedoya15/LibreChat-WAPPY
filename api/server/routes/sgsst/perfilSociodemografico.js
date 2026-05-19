@@ -82,6 +82,9 @@ const WorkerEntrySchema = new mongoose.Schema({
 
   // Formación
   formacion: { type: Array, default: [] },
+
+  // Oráculo Predictivo H1 — Dictamen IA persistido
+  dictamenPredictivoH1: { type: String, default: '' },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
