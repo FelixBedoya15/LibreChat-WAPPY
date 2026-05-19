@@ -85,6 +85,14 @@ const WorkerEntrySchema = new mongoose.Schema({
 
   // Oráculo Predictivo H1 — Dictamen IA persistido
   dictamenPredictivoH1: { type: String, default: '' },
+
+  // Score IA (Oráculo H1) — Fuente de verdad post-evaluación IA
+  bioScoreIA: { type: Number, default: null },
+  bioScoreIAVersion: { type: String, default: '' },     // hash de campos clínicos al momento de evaluar
+  bioScoreIAReason: { type: String, default: '' },       // justificación corta del score
+  bioScoreIADate: { type: Date, default: null },         // fecha de última evaluación IA
+  bioScoreIAAlerts: { type: Array, default: [] },        // alertas estructuradas devueltas por la IA
+  bioScoreIAAptitud: { type: String, default: '' },      // "Apto", "Apto con Restricciones", "No Apto"
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
@@ -396,6 +404,100 @@ router.get('/data', requireJwtAuth, async (req, res) => {
   }
 });
 
+// ─── Helper: Clinical Hash ────────────────────────────────────────────
+function buildClinicalHash(w) {
+  const crypto = require('crypto');
+  const fields = [
+    w.imc, w.presionArterial, w.frecuenciaCardiaca, w.enfermedades,
+    w.diagnosticoMedico, w.limitacionesBiomecanicas, w.recomendacionesMedicas,
+    w.alergiasQuimicas, w.medicamentos, w.fuma, w.alcohol, w.terapiaPsicologica,
+    w.cargo, w.edad, w.peso, w.talla
+  ].map(v => String(v || '')).join('|');
+  return crypto.createHash('md5').update(fields).digest('hex');
+}
+
+// ─── Helper: Fire-and-forget IA Worker Evaluation ─────────────────────
+async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
+  try {
+    const companyId = await getActiveCompanyId(userId);
+    const doc = await PerfilSociodemograficoData.findOne({ user: userId, companyId });
+    if (!doc) return;
+    const worker = (doc.trabajadores || []).find(w => w.id === workerId);
+    if (!worker) return;
+
+    const profile = (perfilesList || []).find(p =>
+      (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim()
+    );
+
+    const prompt = `Eres el Motor Bio-Fit WAPPY (Oráculo H1). Evalúa la aptitud laboral del siguiente trabajador aplicando SOLO los datos proporcionados, sin inventar información.
+
+DATOS DEL TRABAJADOR:
+- Nombre: ${worker.nombre}, Cargo: ${worker.cargo}, Edad: ${worker.edad}
+- IMC: ${worker.imc || 'N/D'}, Presión Arterial: ${worker.presionArterial || 'N/D'}, FC: ${worker.frecuenciaCardiaca || 'N/D'}
+- Enfermedades: ${worker.enfermedades || 'Ninguna'}, Diagnóstico: ${worker.diagnosticoMedico || 'Ninguno'}
+- Restricciones Biomecánicas: ${worker.limitacionesBiomecanicas || 'Ninguna'}
+- Recomendaciones Médicas: ${worker.recomendacionesMedicas || 'Ninguna'}
+- Alergias Químicas: ${worker.alergiasQuimicas || 'Ninguna'}
+- Medicamentos: ${worker.medicamentos || 'Ninguno'}
+- Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia=${worker.terapiaPsicologica || 'No'}
+- Estrato: ${worker.estrato || 'N/D'}, Personas a cargo: ${worker.personasCargo || '0'}
+
+PERFIL DEL CARGO (${worker.cargo}):
+- Exigencia Física: ${profile?.exigenciaFisica || 'N/D'}
+- Exigencia Mental: ${profile?.exigenciaMental || 'N/D'}
+- Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
+- Nivel: ${profile?.nivelCargo || 'N/D'}
+
+REGLAS DE SCORING (puntuación base: 100):
+- IMC >= 30: -10, IMC < 18.5: -5
+- PA >= 135/90: -15, FC > 100: -10, FC < 50: -5
+- Tabaquismo diario: -10, Etilismo frecuente: -15
+- Patología base declarada: -10, Diagnóstico reciente: -5
+- Restricción osteomuscular leve: -5 a -10 (severa: -15 a -25)
+- Recomendación médica leve: -3 a -6 (severa: -10 a -18)
+- Multiplicador x1.5 si cargo físico "Alta" + restricción osteomuscular
+- Multiplicador x2.0 si opera maquinaria + restricción neurológica/mental
+- Alta vulnerabilidad social (3+ factores): -15
+- Cargo mental "Alta" + terapia psicológica: -15 (Burnout)
+- Opera maquinaria + sedantes/SNC: -40 (BLOQUEO)
+
+Responde ÚNICAMENTE con JSON válido, sin markdown, sin texto extra:
+{
+  "score": <número 0-100>,
+  "aptitud": "<Apto | Apto con Restricciones | No Apto>",
+  "razon": "<1-2 frases explicando el score>",
+  "alertas": [
+    { "titulo": "<nombre>", "descripcion": "<detalle>", "puntos": <número>, "severidad": "<info|warning|critical>", "categoria": "<categoría>" }
+  ]
+}`;
+
+    const { generateWithKeyRotation } = require('./sgsstGemini');
+    const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+    const result = await generateWithKeyRotation(preferredModel, userId, prompt);
+    let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(text);
+
+    const newHash = buildClinicalHash(worker);
+    const workerIndex = doc.trabajadores.findIndex(w => w.id === workerId);
+    if (workerIndex !== -1) {
+      const cur = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
+      doc.trabajadores[workerIndex] = {
+        ...cur,
+        bioScoreIA: parsed.score,
+        bioScoreIAReason: parsed.razon || '',
+        bioScoreIAAptitud: parsed.aptitud || '',
+        bioScoreIAAlerts: parsed.alertas || [],
+        bioScoreIAVersion: newHash,
+        bioScoreIADate: new Date()
+      };
+      await doc.save();
+      logger.info(`[OraculoH1] IA score calculado para ${worker.nombre}: ${parsed.score}%`);
+    }
+  } catch (err) {
+    logger.warn(`[OraculoH1] IA evaluation failed for worker ${workerId}: ${err.message}`);
+  }
+}
+
 // ─── POST /save — Save worker data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
@@ -433,10 +535,53 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       );
     }
 
+    // Trigger async IA re-evaluation for workers whose clinical data changed
+    try {
+      const apiKey = await getApiKey(req.user.id);
+      if (apiKey) {
+        // Fetch cargo profiles for cross-referencing
+        const PerfilesCargo = mongoose.models.PerfilesCargoData;
+        const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: req.user.id }).lean() : null;
+        const perfilesList = cargoDoc?.perfilesList || [];
+
+        for (const w of trabajadores) {
+          if (!w.id) continue;
+          const currentHash = buildClinicalHash(w);
+          // Only trigger if data changed since last IA evaluation
+          if (currentHash !== w.bioScoreIAVersion) {
+            // Fire and forget — does not block response
+            triggerIAEvaluation(req.user.id, w.id, apiKey, perfilesList).catch(() => {});
+          }
+        }
+      }
+    } catch (triggerErr) {
+      logger.warn('[OraculoH1] Could not trigger IA evaluation:', triggerErr.message);
+    }
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });
+  }
+});
+
+// ─── POST /evaluate-ia/:workerId — Force IA re-evaluation ───────────────
+router.post('/evaluate-ia/:workerId', requireJwtAuth, async (req, res) => {
+  try {
+    const { workerId } = req.params;
+    const apiKey = await getApiKey(req.user.id);
+    if (!apiKey) return res.status(400).json({ error: 'No API Key configurada' });
+
+    const PerfilesCargo = mongoose.models.PerfilesCargoData;
+    const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: req.user.id }).lean() : null;
+    const perfilesList = cargoDoc?.perfilesList || [];
+
+    // Run async but wait for it in this case (manual trigger)
+    await triggerIAEvaluation(req.user.id, workerId, apiKey, perfilesList);
+    res.json({ success: true, message: 'Evaluación IA completada' });
+  } catch (error) {
+    logger.error('[OraculoH1] evaluate-ia error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

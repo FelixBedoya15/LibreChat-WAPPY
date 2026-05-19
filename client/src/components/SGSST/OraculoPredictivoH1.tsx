@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, CheckCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, CheckCircle, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar } from './SGSSTToolbar';
@@ -29,6 +29,7 @@ export default function OraculoPredictivoH1() {
     const [generatingId, setGeneratingId] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [evaluatingIAId, setEvaluatingIAId] = useState<string | null>(null);
 
     // Store workers in ref to avoid stale closure in save
     const workersRef = useRef<any[]>([]);
@@ -60,6 +61,42 @@ export default function OraculoPredictivoH1() {
         fetchData();
     }, [token]);
 
+    // ─── Motor NLP Bio-Fit: Analiza severidad por keywords ──────────────
+    const analyzeTextSeverity = (text: string, fieldType: 'limitacion' | 'recomendacion'): { pts: number; level: string; category: string; detail: string } | null => {
+        if (!text || text.trim().length < 3) return null;
+        const t = text.toLowerCase();
+        if (['ningun', 'ninguna', 'no aplica', 'sin restriccion', 'no tiene', 'n/a'].some(x => t.includes(x))) return null;
+
+        // NIVEL 4 - Crítico (permanente, múltiples sistemas, bloqueo)
+        const lvl4 = ['permanente', 'definitiv', 'epilepsi', 'convulsion', 'parkinson', 'no puede trabajar', 'incapacitado', 'no apto'];
+        if (lvl4.some(k => t.includes(k))) {
+            return { pts: fieldType === 'limitacion' ? 25 : 18, level: 'critical', category: 'Restricción Crítica', detail: text };
+        }
+        // NIVEL 3 - Severo: restricciones que bloquean funciones del cargo
+        const lvl3Neuro = ['vértigo', 'vertigo', 'mareo', 'no alturas', 'no maquinaria', 'no conducir', 'no operar', 'ansiedad severa', 'depresion severa', 'no turno nocturno'];
+        const lvl3Cardio = ['insuficiencia cardiaca', 'infarto', 'arritmia', 'no esfuerzo', 'no ejercicio intenso', 'angina'];
+        const lvl3Resp = ['epoc', 'asma severo', 'fibrosis', 'no exposicion quimica', 'no polvo', 'no gases'];
+        if ([...lvl3Neuro, ...lvl3Cardio, ...lvl3Resp].some(k => t.includes(k))) {
+            const cat = lvl3Neuro.some(k => t.includes(k)) ? 'Neurológica/Mental' : lvl3Cardio.some(k => t.includes(k)) ? 'Cardiovascular' : 'Respiratoria';
+            return { pts: fieldType === 'limitacion' ? 18 : 12, level: 'critical', category: cat, detail: text };
+        }
+        // NIVEL 2 - Moderado: osteomusculares frecuentes, posturas, cargas
+        const lvl2Osteo = ['lumbalgia', 'lumbago', 'columna', 'espalda', 'hernia', 'disco', 'cervicalgia', 'tunel carpiano', 'manguito', 'epicondilitis', 'rodilla', 'no cargar', 'no levantar', 'peso maximo', 'no bipedestacion', 'no sedestacion prolongada', 'postura forzada', 'movimiento repetitivo'];
+        const lvl2Mental = ['estres laboral', 'ansiedad', 'depresion', 'burnout', 'agotamiento', 'pausas activas', 'carga laboral reducida', 'no jornada extendida'];
+        const lvl2Sensorial = ['hipoacusia', 'perdida auditiva', 'ruido', 'vision reducida', 'uso de lentes', 'no exposicion a ruido'];
+        if ([...lvl2Osteo, ...lvl2Mental, ...lvl2Sensorial].some(k => t.includes(k))) {
+            const cat = lvl2Osteo.some(k => t.includes(k)) ? 'Osteomuscular' : lvl2Mental.some(k => t.includes(k)) ? 'Salud Mental' : 'Sensorial';
+            return { pts: fieldType === 'limitacion' ? 10 : 6, level: 'warning', category: cat, detail: text };
+        }
+        // NIVEL 1 - Leve: recomendaciones ergonómicas generales
+        const lvl1 = ['ergonomia', 'ergonómica', 'pausa', 'hidratacion', 'protector solar', 'proteccion auditiva', 'epp', 'elemento de proteccion', 'seguimiento', 'control medico', 'vigilancia', 'fisioterapia'];
+        if (lvl1.some(k => t.includes(k))) {
+            return { pts: fieldType === 'limitacion' ? 5 : 3, level: 'info', category: 'Ergonómica/Preventiva', detail: text };
+        }
+        // Texto genérico (tiene algo pero no matchea keywords)
+        return { pts: fieldType === 'limitacion' ? 8 : 4, level: 'warning', category: 'Restricción Registrada', detail: text };
+    };
+
     const calcFit = useCallback((w: any, profile: any) => {
         let score = 100;
         const auditItems: { title: string; description: string; pts: number; severity: string; category: string }[] = [];
@@ -68,6 +105,7 @@ export default function OraculoPredictivoH1() {
         };
         if (!profile) return { score: 0, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }] };
 
+        // 1. BIOMETRÍA
         if (w.imc) {
             const imc = parseFloat(w.imc);
             if (imc >= 30) add('Obesidad detectada', `IMC ${imc} indica obesidad. Riesgo cardiovascular elevado.`, 10, 'warning', 'Clínico');
@@ -82,42 +120,81 @@ export default function OraculoPredictivoH1() {
             if (fc > 100) add('Taquicardia en reposo', `FC ${fc} lpm, posible estrés cardiovascular.`, 10, 'warning', 'Clínico');
             else if (fc < 50) add('Bradicardia', `FC ${fc} lpm, valoración cardiológica recomendada.`, 5, 'info', 'Clínico');
         }
-        if (w.fuma === 'Sí, diario') add('Tabaquismo Activo', 'Consumo diario impacta capacidad pulmonar.', 10, 'warning', 'Clínico');
-        if (w.alcohol === 'Sí (Frecuente)') add('Etilismo Frecuente', 'Aumenta accidentabilidad y vulnerabilidad hepática.', 15, 'warning', 'Psicosocial');
-        const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun');
-        if (hasEnf) add('Patología Base', `Condición: ${w.enfermedades}.`, 10, 'warning', 'Clínico');
-        const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ningun');
-        if (hasDiag && !hasEnf) add('Diagnóstico Médico Reciente', 'Diagnóstico que amerita vigilancia médica.', 5, 'info', 'Clínico');
-        const hasBio = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun');
-        if (hasBio) add('Limitación Biomecánica', `Restricción: ${w.limitacionesBiomecanicas}.`, 10, 'warning', 'Físico');
-        const hasAl = w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun');
-        if (hasAl) add('Sensibilidad Inmunológica', 'Alergia química detectada. Peligro de anafilaxia.', 10, 'warning', 'Clínico');
 
+        // 2. HÁBITOS
+        if (w.fuma === 'Sí, diario') add('Tabaquismo Activo', 'Consumo diario impacta capacidad pulmonar y oxigenación celular.', 10, 'warning', 'Clínico');
+        if (w.alcohol === 'Sí (Frecuente)') add('Etilismo Frecuente', 'Aumenta accidentabilidad y vulnerabilidad hepática.', 15, 'warning', 'Psicosocial');
+
+        // 3. PATOLOGÍAS
+        const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun');
+        if (hasEnf) add('Patología Base Declarada', `Condición: "${w.enfermedades}". Requiere matriz de compatibilidad con el cargo.`, 10, 'warning', 'Clínico');
+        const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ningun') && !w.diagnosticoMedico.toLowerCase().includes('apto');
+        if (hasDiag && !hasEnf) add('Diagnóstico Médico Reciente', `Diagnóstico: "${w.diagnosticoMedico}". Amerita vigilancia epidemiológica.`, 5, 'info', 'Clínico');
+        const hasAl = w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun');
+        if (hasAl) add('Sensibilidad Inmunológica', `Alergia reportada: "${w.alergiasQuimicas}". Peligro de anafilaxia o dermatitis.`, 10, 'warning', 'Clínico');
+
+        // 4. RESTRICCIONES BIOMECÁNICAS (NLP Motor - Opción C)
+        if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2) {
+            const analysis = analyzeTextSeverity(w.limitacionesBiomecanicas, 'limitacion');
+            if (analysis) {
+                // Multiplicador por cruce con cargo
+                let multiplier = 1.0;
+                if (profile.exigenciaFisica === 'Alta' && (analysis.category === 'Osteomuscular' || analysis.category === 'Restricción Crítica')) multiplier = 1.5;
+                if (profile.operaMaquinaria === 'Sí' && (analysis.category === 'Neurológica/Mental' || analysis.category === 'Restricción Crítica')) multiplier = 2.0;
+                const finalPts = Math.round(analysis.pts * multiplier);
+                const crossNote = multiplier > 1 ? ` ⚠️ AGRAVADO x${multiplier} por exigencias del cargo.` : '';
+                add(
+                    `Restricción ${analysis.category}`,
+                    `"${analysis.detail}"${crossNote}`,
+                    finalPts, analysis.level, 'Físico/Restricción'
+                );
+            }
+        }
+
+        // 5. RECOMENDACIONES MÉDICAS (NLP Motor - campo nuevo en scoring)
+        if (w.recomendacionesMedicas && w.recomendacionesMedicas.length > 2) {
+            const analysis = analyzeTextSeverity(w.recomendacionesMedicas, 'recomendacion');
+            if (analysis) {
+                let multiplier = 1.0;
+                if (profile.exigenciaFisica === 'Alta' && analysis.category === 'Osteomuscular') multiplier = 1.3;
+                if (profile.exigenciaMental === 'Alta' && analysis.category === 'Salud Mental') multiplier = 1.5;
+                const finalPts = Math.round(analysis.pts * multiplier);
+                const crossNote = multiplier > 1 ? ` ⚠️ Potenciado por exigencias del rol.` : '';
+                add(
+                    `Recomendación Médica: ${analysis.category}`,
+                    `"${analysis.detail}"${crossNote}`,
+                    finalPts, analysis.level, 'Clínico/Recomendación'
+                );
+            }
+        }
+
+        // 6. VULNERABILIDAD SOCIODEMOGRÁFICA
         let vs = 0;
         if (['1', '2'].includes(w.estrato)) vs++;
         if (w.personasCargo && Number(w.personasCargo) >= 3) vs++;
         if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) vs++;
-        if (vs >= 3) add('Alta Vulnerabilidad Sociodemográfica', 'Múltiples factores estresores crónicos activos.', 15, 'warning', 'Psicosocial');
-        else if (vs >= 2) add('Riesgo Psicosocial Moderado', 'Factores de presión externa acumulados.', 5, 'info', 'Psicosocial');
-        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere capacitación más visual en SST.', 5, 'info', 'Sociodemográfico');
+        if (vs >= 3) add('Alta Vulnerabilidad Sociodemográfica', 'Estrato bajo + carga de dependientes + inestabilidad habitacional. Resiliencia reducida.', 15, 'warning', 'Psicosocial');
+        else if (vs >= 2) add('Riesgo Psicosocial Moderado', 'Múltiples factores de presión externa acumulados.', 5, 'info', 'Psicosocial');
+        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 5, 'info', 'Sociodemográfico');
 
+        // 7. CRUCE CARGO × SALUD (multiplicadores finales)
+        const hasBioAny = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun');
         if (profile.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) add('Desajuste Etario', 'Edad avanzada con alta exigencia física.', 10, 'warning', 'Operativo');
-            if (hasEnf || hasDiag) add('Patología en Rol Exigente', 'Carga física puede agravar patología base.', 10, 'critical', 'Operativo');
-            if (hasBio) add('Restricción Biomecánica Crítica', 'Peligro inminente de lesión osteomuscular.', 20, 'critical', 'Operativo');
+            if (w.edad && Number(w.edad) > 55) add('Desajuste Etario en Cargo Físico', `Edad ${w.edad} años con alta exigencia física. Factor de riesgo ergonómico.`, 10, 'warning', 'Operativo');
+            if (hasEnf || hasDiag) add('Patología en Rol de Alta Exigencia', 'La carga física intensa puede agravar la condición clínica base.', 10, 'critical', 'Operativo');
         }
         if (profile.exigenciaMental === 'Alta') {
-            if (w.terapiaPsicologica === 'Sí') add('Alerta de Burnout', 'Alta tensión mental + psicoterapia activa.', 15, 'critical', 'Psicosocial');
-            if (vs >= 2) add('Sobrecarga Cognitiva', 'Vulnerabilidad social + rol estresante.', 10, 'warning', 'Psicosocial');
+            if (w.terapiaPsicologica === 'Sí') add('Alerta de Burnout', 'Rol de alta tensión mental sumado a psicoterapia activa. Riesgo de agotamiento.', 15, 'critical', 'Psicosocial');
+            if (vs >= 2) add('Sobrecarga Cognitiva', 'Vulnerabilidad social severa + rol de alta exigencia mental. Aumenta riesgo de error humano.', 10, 'warning', 'Psicosocial');
         }
         if (profile.operaMaquinaria === 'Sí') {
-            const lethal = w.medicamentos?.toLowerCase().includes('psiquiátrico') || w.medicamentos?.toLowerCase().includes('dormir');
-            if (lethal || w.alcohol === 'Sí (Frecuente)') add('🛑 BLOQUEO PREVENTIVO', 'SNC deprimido incompatible con maquinaria.', 40, 'critical', 'Operativo');
+            const lethal = w.medicamentos?.toLowerCase().includes('psiquiátrico') || w.medicamentos?.toLowerCase().includes('dormir') || w.medicamentos?.toLowerCase().includes('sedante');
+            if (lethal || w.alcohol === 'Sí (Frecuente)') add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC es incompatible con operación de maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
         }
-        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', 'Ausencia de certificados obligatorios del perfil.', 5, 'warning', 'Entrenamiento');
+        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) add('Brecha Formativa SST', `Cargo exige ${profile.entrenamientosSeleccionados.length} certificado(s) pero el trabajador no reporta curso50h ni curso20h.`, 5, 'warning', 'Entrenamiento');
 
         return { score: Math.max(0, score), auditItems };
-    }, []);
+    }, [analyzeTextSeverity]);
 
     const handleConsultOracle = async (worker: any, profile: any, fit: any) => {
         setGeneratingId(worker.id);
@@ -163,6 +240,26 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
         finally { setSavingId(null); }
     };
 
+    const handleForceIAEval = async (workerId: string) => {
+        setEvaluatingIAId(workerId);
+        try {
+            const res = await fetch(`/api/sgsst/perfil-sociodemografico/evaluate-ia/${workerId}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error();
+            // Reload workers to get fresh IA score
+            const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', { headers: { Authorization: `Bearer ${token}` } });
+            const socioData = await socioRes.json();
+            setWorkers(socioData.trabajadores || []);
+            showToastRef.current({ message: 'Score IA actualizado ✅', status: 'success', severity: 'success' });
+        } catch {
+            showToastRef.current({ message: 'Error al evaluar con IA', status: 'error' });
+        } finally {
+            setEvaluatingIAId(null);
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center p-16">
             <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
@@ -194,9 +291,22 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                 {workers.map(worker => {
                     const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
                     const fit = calcFit(worker, profile);
-                    const sc = SCORE_COLOR(fit.score);
+                    // Use IA score as source of truth if available
+                    const hasIAScore = worker.bioScoreIA !== null && worker.bioScoreIA !== undefined;
+                    const score = hasIAScore ? worker.bioScoreIA : fit.score;
+                    const sc = SCORE_COLOR(score);
+                    const displayAlerts = hasIAScore && worker.bioScoreIAAlerts?.length > 0
+                        ? worker.bioScoreIAAlerts.map((a: any) => ({
+                            title: a.titulo || a.title || '',
+                            description: a.descripcion || a.description || '',
+                            pts: a.puntos || a.pts || 0,
+                            severity: a.severidad || a.severity || 'info',
+                            category: a.categoria || a.category || ''
+                          }))
+                        : fit.auditItems;
                     const hasConclusion = !!aiConclusions[worker.id];
                     const isExpanded = expandedId === worker.id;
+
 
                     return (
                         <div key={worker.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
@@ -212,8 +322,19 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                         {worker.cargo || 'Sin cargo'} · {worker.edad || '?'} años
                                     </p>
                                 </div>
-                                <div className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${sc.badge}`}>
-                                    {fit.score}% FIT
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${sc.badge}`}>
+                                        {score}% FIT
+                                    </div>
+                                    {hasIAScore ? (
+                                        <div className="flex items-center gap-1 text-[9px] text-teal-600 dark:text-teal-400 font-bold">
+                                            <Sparkles className="w-2.5 h-2.5" /> Score IA · {worker.bioScoreIAAptitud || 'Evaluado'}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1 text-[9px] text-text-secondary font-bold">
+                                            <Clock className="w-2.5 h-2.5" /> Score Preliminar
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -235,27 +356,38 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                         </div>
                                         {/* Audit Items */}
                                         <div className="flex-1 space-y-2">
-                                            {fit.auditItems.length === 0 ? (
+                                            {displayAlerts.length === 0 ? (
                                                 <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
                                                     <CheckCircle className="w-4 h-4" /> Aptitud clínica óptima
                                                 </div>
                                             ) : (
-                                                fit.auditItems.slice(0, 4).map((item: any, i: number) => {
+                                                displayAlerts.slice(0, 6).map((item: any, i: number) => {
                                                     const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
                                                     return (
-                                                        <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl border ${s.border} bg-surface-primary`}>
-                                                            <div className={`text-xs font-black w-7 shrink-0 text-right ${s.pts}`}>-{item.pts}</div>
-                                                            <div className="shrink-0">{s.icon}</div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-xs font-bold text-text-primary truncate">{item.title}</p>
-                                                                <p className="text-[10px] text-text-secondary truncate">{item.category}</p>
+                                                        <div key={i} className={`flex items-start gap-3 p-2.5 rounded-xl border ${s.border} bg-surface-primary`}>
+                                                            <div className={`text-xs font-black w-7 shrink-0 text-right mt-0.5 ${s.pts}`}>-{item.pts}</div>
+                                                            <div className="shrink-0 mt-0.5">{s.icon}</div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-xs font-bold text-text-primary">{item.title}</p>
+                                                                <p className="text-[10px] text-text-secondary leading-tight mt-0.5 line-clamp-2">{item.description}</p>
+                                                                <span className={`inline-block mt-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${s.pts} bg-current/10`} style={{opacity: 0.85}}>{item.category}</span>
                                                             </div>
                                                         </div>
                                                     );
                                                 })
                                             )}
-                                            {fit.auditItems.length > 4 && (
-                                                <p className="text-[10px] text-text-secondary text-center font-bold pt-1">+{fit.auditItems.length - 4} alertas más</p>
+                                            {displayAlerts.length > 6 && (
+                                                <p className="text-[10px] text-text-secondary text-center font-bold pt-1">+{displayAlerts.length - 6} alertas más</p>
+                                            )}
+                                            {!hasIAScore && (
+                                                <button
+                                                    onClick={() => handleForceIAEval(worker.id)}
+                                                    disabled={evaluatingIAId === worker.id}
+                                                    className="mt-2 w-full text-[10px] font-bold text-teal-600 hover:text-teal-800 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                                                >
+                                                    {evaluatingIAId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                                    {evaluatingIAId === worker.id ? 'Evaluando con IA...' : 'Evaluar score con IA'}
+                                                </button>
                                             )}
                                         </div>
                                     </div>
