@@ -83,6 +83,10 @@ const WorkerEntrySchema = new mongoose.Schema({
   // Formación
   formacion: { type: Array, default: [] },
 
+  // Deterministic Frontend Calculations
+  biocentricScore: { type: Number, default: null },
+  biocentricAlerts: { type: Array, default: [] },
+
   // Oráculo Predictivo H1 — Dictamen IA persistido
   dictamenPredictivoH1: { type: String, default: '' },
 
@@ -408,12 +412,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 function buildClinicalHash(w) {
   const crypto = require('crypto');
   const fields = [
-    w.imc, w.presionArterial, w.frecuenciaCardiaca, w.enfermedades,
-    w.diagnosticoMedico, w.limitacionesBiomecanicas, w.recomendacionesMedicas,
-    w.alergiasQuimicas, w.medicamentos, w.fuma, w.alcohol, w.terapiaPsicologica,
-    w.cargo, w.edad, w.peso, w.talla,
-    w.estrato, w.personasCargo, w.vivienda, w.nivelEscolaridad, w.curso50h, w.curso20h
-  ].map(v => String(v || '')).join('|');
+    w.biocentricScore || 0,
+    JSON.stringify(w.biocentricAlerts || [])
+  ].join('|');
   return crypto.createHash('md5').update(fields).digest('hex');
 }
 
@@ -430,54 +431,37 @@ async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
       (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim()
     );
 
-    const prompt = `Eres el Motor Bio-Fit WAPPY (Oráculo H1). Evalúa la aptitud laboral del siguiente trabajador aplicando SOLO los datos proporcionados, sin inventar información.
+    const prompt = `Eres el Motor Bio-Fit WAPPY (Oráculo H1). Tu tarea es redactar el dictamen clínico-ocupacional de un trabajador.
+El sistema matemático ya calculó su nivel de aptitud exacto y sus penalizaciones. NO debes alterar el score matemático ni las alertas.
 
 DATOS DEL TRABAJADOR:
 - Nombre: ${worker.nombre}, Cargo: ${worker.cargo}, Edad: ${worker.edad}
-- IMC: ${worker.imc || 'N/D'}, Presión Arterial: ${worker.presionArterial || 'N/D'}, FC: ${worker.frecuenciaCardiaca || 'N/D'}
+- IMC: ${worker.imc || 'N/D'}, Presión Arterial: ${worker.presionArterial || 'N/D'}
 - Enfermedades: ${worker.enfermedades || 'Ninguna'}, Diagnóstico: ${worker.diagnosticoMedico || 'Ninguno'}
-- Restricciones Biomecánicas: ${worker.limitacionesBiomecanicas || 'Ninguna'}
-- Recomendaciones Médicas: ${worker.recomendacionesMedicas || 'Ninguna'}
-- Alergias Químicas: ${worker.alergiasQuimicas || 'Ninguna'}
-- Medicamentos: ${worker.medicamentos || 'Ninguno'}
+- Restricciones: ${worker.limitacionesBiomecanicas || 'Ninguna'}
 - Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia=${worker.terapiaPsicologica || 'No'}
-- Estrato: ${worker.estrato || 'N/D'}, Personas a cargo: ${worker.personasCargo || '0'}
-- Vivienda: ${worker.vivienda || 'N/D'}, Escolaridad: ${worker.nivelEscolaridad || 'N/D'}
-- Cursos SST: 50h=${worker.curso50h ? 'Sí' : 'No'}, 20h=${worker.curso20h ? 'Sí' : 'No'}
 
-PERFIL DEL CARGO (${worker.cargo}):
-- Exigencia Física: ${profile?.exigenciaFisica || 'N/D'}
-- Exigencia Mental: ${profile?.exigenciaMental || 'N/D'}
+PERFIL DEL CARGO:
+- Exigencia Física: ${profile?.exigenciaFisica || 'N/D'}, Mental: ${profile?.exigenciaMental || 'N/D'}
 - Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
-- Entrenamientos Exigidos: ${profile?.entrenamientosSeleccionados?.length || 0}
 
-REGLAS DE SCORING (puntuación base: 100):
-- IMC >= 30: -10, IMC < 18.5: -5
-- PA >= 135/90: -15, FC > 100: -10, FC < 50: -5
-- Tabaquismo diario: -10, Etilismo frecuente: -15
-- Patología base declarada: -10, Diagnóstico reciente: -5
-- Restricción osteomuscular leve: -5 a -10 (severa: -15 a -25)
-- Recomendación médica leve: -3 a -6 (severa: -10 a -18)
-- Multiplicador x1.5 si cargo físico "Alta" + restricción osteomuscular
-- Multiplicador x2.0 si opera maquinaria + restricción neurológica/mental
-- Vulnerabilidad social (Estrato bajo, dependientes>=3, vivienda arrendada/invasión): Si tiene 3 factores: -15 (Alta). Si tiene 2 factores: -5 (Moderada).
-- Escolaridad básica (primaria): -5
-- Edad > 55 + cargo físico "Alta": -10 (Desajuste etario)
-- Patología o Diagnóstico + cargo físico "Alta": -10 (Patología en rol exigente)
-- Cargo mental "Alta" + vulnerabilidad social >= 2: -10 (Sobrecarga cognitiva)
-- Cargo mental "Alta" + terapia psicológica: -15 (Burnout)
-- Cargo exige entrenamientos + no tiene curso 50h ni 20h: -5 (Brecha formativa)
-- Opera maquinaria + sedantes/SNC: -40 (BLOQUEO PREVENTIVO)
+RESULTADO EXACTO DEL MOTOR MATEMÁTICO (NO MODIFICAR):
+- SCORE EXACTO: ${worker.biocentricScore ?? 100}%
+- ALERTAS EXACTAS A LISTAR: ${JSON.stringify(worker.biocentricAlerts || [])}
 
-IMPORTANTE: Debes evaluar TODAS y cada una de las reglas anteriores. Crea un objeto en el array 'alertas' por CADA regla que aplique al trabajador. NO las agrupes, NO omitas ninguna. Si el trabajador incumple 6 reglas, el array debe tener exactamente 6 elementos detallados.
+INSTRUCCIONES:
+1. Devuelve EXACTAMENTE el mismo "score" numérico que se te dio arriba.
+2. Devuelve EXACTAMENTE las mismas "alertas" que se te pasaron en el JSON de arriba, adaptándolas al formato solicitado.
+3. Redacta el campo "aptitud" (Ej: "Apto", "Apto con Restricciones", "No Apto").
+4. Redacta el campo "razon": un párrafo médico-laboral justificando por qué tiene ese score, cruzando su salud con las exigencias de su cargo.
 
 Responde ÚNICAMENTE con JSON válido, sin markdown, sin texto extra:
 {
-  "score": <número 0-100>,
+  "score": <debe ser exactamente ${worker.biocentricScore ?? 100}>,
   "aptitud": "<Apto | Apto con Restricciones | No Apto>",
-  "razon": "<1-2 frases explicando el score>",
+  "razon": "<Tu redacción profesional aquí>",
   "alertas": [
-    { "titulo": "<nombre>", "descripcion": "<detalle>", "puntos": <número>, "severidad": "<info|warning|critical>", "categoria": "<categoría>" }
+    { "titulo": "<titulo original>", "descripcion": "<descripción original>", "puntos": <puntos originales>, "severidad": "<severidad original>", "categoria": "<categoría original>" }
   ]
 }`;
 
