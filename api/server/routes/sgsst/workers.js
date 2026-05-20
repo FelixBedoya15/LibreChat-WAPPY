@@ -668,10 +668,10 @@ REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
 1. Queda TERMINANTEMENTE PROHIBIDO usar "No aplica" de forma perezosa en los campos de controles propuestos. Para cada riesgo identificado, debes formular medidas de intervención reales y técnicamente viables.
 2. "medida_eliminacion" y "medida_sustitucion" deben argumentar técnicamente la viabilidad de eliminar o sustituir la fuente o material peligroso. Si no es viable tras el análisis, explica brevemente por qué.
 3. "medida_ingenieria", "medida_administrativa" y "medida_eppu" DEBEN contener propuestas concretas y detalladas con especificaciones técnicas adecuadas (ej. extractores, rediseño de puesto, capacitaciones específicas, tipo de EPP certificado).
-4. El campo "factores_reduccion_texto" (Justificación Anexo E de la GTC-45) es OBLIGATORIO. Debes escribir un párrafo analítico de MÍNIMO 3 oraciones completas que:
-   - Explique técnica y específicamente cómo los controles propuestos reducirán el riesgo (mecanismo biomecánico, toxicológico, etc.).
-   - Sustente la viabilidad técnica y financiera de su implementación (costo de la medida vs costo de enfermedad o ausentismo).
-   - Justifique la relación costo-beneficio para la productividad y cumplimiento legal.
+4. El campo "factores_reduccion_texto" (Justificación Reducción) es OBLIGATORIO. Debes escribir un párrafo analítico y estructurado de MÍNIMO 3 oraciones completas y técnicas que:
+   - Identifique y nombre explícitamente cuál de las 5 medidas de control propuestas (Eliminación, Sustitución, Ingeniería, Administrativa o EPP) representa la mejor alternativa en términos de relación costo-beneficio para la organización y por qué.
+   - Detalle una escala priorizada (de mejor a menos efectivo) de los demás controles propuestos, explicando brevemente el nivel de efectividad relativa de cada uno para mitigar el riesgo.
+   - Sustente la viabilidad financiera e impacto técnico preventivo (reducción de ausentismo frente a costo de inversión).
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
@@ -690,7 +690,7 @@ METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 4. Calcula el Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25).
 5. Factor Reducción = min(percepcion_pts / 500, 0.40).
 6. Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción). Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo.
-7. Diseña la Jerarquía de Controles (Dec. 1072): Fuente, Medio e Individuo. Incluye análisis de costo-beneficio (Anexo E de GTC-45) para el control más recomendado.
+7. Diseña la Jerarquía de Controles (Dec. 1072): Fuente, Medio e Individuo. Incluye análisis de costo-beneficio para el control más recomendado.
 
 Genera los riesgos bio-individuales relevantes y necesarios en formato JSON array (devuelve la lista completa, incluyendo los que ya existían).
 Cada objeto DEBE tener estos campos exactos:
@@ -720,7 +720,7 @@ Cada objeto DEBE tener estos campos exactos:
   "medida_ingenieria": string, // Medida de Ingeniería propuesta (ej. rediseño ergonómico, ventilación localizada). DEBE ser detallada y técnicamente viable.
   "medida_administrativa": string, // Medida Administrativa propuesta (ej. rotación de turnos, procedimientos específicos, entrenamientos).
   "medida_eppu": string, // Medida de EPP propuesto (especificando tipo, material, o norma de certificación). Para riesgos psicosociales: "No aplica - el riesgo psicosocial no se mitiga con EPP. La intervención debe ser organizacional."
-  "factores_reduccion_texto": string, // Justificación analítica de Anexo E. MÍNIMO 3 oraciones completas y técnicas.
+  "factores_reduccion_texto": string, // Justificación analítica detallando cuál control propuesto es el óptimo en relación costo-beneficio y por qué, seguido de la escala jerarquizada de los demás controles (de mejor a menos efectivo) con su respectiva justificación de prioridad.
   "plan_accion_bio": string, // Resumen general
   "restricciones_laborales": string,
   "seguimiento_medico": "Mensual"|"Trimestral"|"Semestral"|"Anual"
@@ -923,10 +923,10 @@ REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
 1. Queda TERMINANTEMENTE PROHIBIDO usar "No aplica" de forma perezosa en los campos de controles propuestos. Formula medidas de intervención reales y técnicamente viables.
 2. "medida_eliminacion" y "medida_sustitucion" deben argumentar técnicamente la viabilidad de eliminar o sustituir la fuente o material peligroso. Si no es viable, describe por qué. NUNCA dejes vacío ni pongas "No aplica" genérico sin justificar.
 3. "medida_ingenieria", "medida_administrativa" y "medida_eppu" DEBEN contener propuestas concretas y detalladas con especificaciones técnicas adecuadas (ej. extractores, rediseño de puesto, capacitaciones específicas, tipo de EPP certificado).
-4. El campo "factores_reduccion_texto" (Justificación Anexo E de la GTC-45) es OBLIGATORIO. Debes escribir un párrafo analítico de MÍNIMO 3 oraciones completas y técnicas que:
-   - Explique técnica y específicamente cómo los controles propuestos reducirán el riesgo (mecanismo biomecánico, toxicológico, etc.).
-   - Sustente la viabilidad técnica y financiera de su implementación (costo de la medida vs costo de enfermedad o ausentismo).
-   - Justifique la relación costo-beneficio para la productividad y cumplimiento legal.
+4. El campo "factores_reduccion_texto" (Justificación Reducción) es OBLIGATORIO. Debes escribir un párrafo analítico y estructurado de MÍNIMO 3 oraciones completas y técnicas que:
+   - Identifique y nombre explícitamente cuál de las 5 medidas de control propuestas (Eliminación, Sustitución, Ingeniería, Administrativa o EPP) representa la mejor alternativa en relación costo-beneficio y por qué.
+   - Detalle una escala priorizada (de mejor a menos efectivo) de los demás controles propuestos, explicando brevemente la efectividad de cada uno para mitigar el riesgo.
+   - Sustente la viabilidad financiera e impacto técnico preventivo (reducción de ausentismo frente a costo de inversión).
 
 FILA ACTUAL:
 ${JSON.stringify(row, null, 2)}

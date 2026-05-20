@@ -769,9 +769,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                             <div className="col-span-2">
                               <p className="font-bold text-text-primary uppercase text-[10px] mb-1 flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" /> Justificación Reducción (Anexo E)
+                                <TrendingUp className="h-3 w-3" /> Justificación Reducción
                               </p>
-                              <AITextarea value={row.factores_reduccion_texto || ''} onChange={v => handleChange(row.id, 'factores_reduccion_texto', v)} fieldLabel="Justificación Anexo E" row={row} token={token} selectedModel={selectedModel} className="bg-surface-primary" />
+                              <AITextarea value={row.factores_reduccion_texto || ''} onChange={v => handleChange(row.id, 'factores_reduccion_texto', v)} fieldLabel="Justificación Reducción" row={row} token={token} selectedModel={selectedModel} className="bg-surface-primary" />
                             </div>
                             <div>
                               <p className="font-bold text-text-primary uppercase text-[10px] mb-1 flex items-center gap-1">Plan de Acción (Resumen)</p>
@@ -793,7 +793,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       )}
 
-      {/* Modal Metodología (Centrado) */}
+      {/* Modal Metodología (Centrado y Detallado) */}
       {showMethodology && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 sm:p-6">
           {/* Backdrop con blur */}
@@ -803,7 +803,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
           />
           
           {/* Contenedor del Modal */}
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-surface-primary shadow-[0_0_50px_rgba(0,0,0,0.3)] rounded-2xl flex flex-col animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-5xl max-h-[90vh] bg-surface-primary shadow-[0_0_50px_rgba(0,0,0,0.3)] rounded-2xl flex flex-col animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
             <div className="flex items-center justify-between p-6 border-b border-border-medium bg-surface-secondary/50 rounded-t-2xl">
               <div className="flex items-center gap-4">
@@ -811,8 +811,8 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                   <Activity className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-text-primary">Metodología Bio-Individual IPEVAR</h3>
-                  <p className="text-sm text-text-secondary mt-1">Manual de Procedimiento • GTC-45 • Decreto 1072</p>
+                  <h3 className="text-xl font-bold text-text-primary">Guía Metodológica: Matriz Bio-IPEVAR Wappy</h3>
+                  <p className="text-sm text-text-secondary mt-1">Manual de Procedimiento de Identificación de Peligros y Evaluación de Riesgos Bio-Individuales</p>
                 </div>
               </div>
               <button 
@@ -826,82 +826,241 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             {/* Contenido con Scroll */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-8 text-sm text-text-secondary bg-surface-primary">
               
-              {/* Sección 1: Fórmula */}
-              <section className="space-y-4">
-                <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">1. La Fórmula Biocéntrica</h4>
-                <p className="leading-relaxed text-base">
-                  A diferencia de la evaluación tradicional, la metodología <strong>IPEVAR WAPPY</strong> humaniza la matriz de riesgos cruzando la susceptibilidad clínica y la exposición real con el comportamiento y participación del trabajador (Factor de Percepción).
+              {/* Sección Introducción */}
+              <section className="space-y-3">
+                <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">Introducción y Filosofía</h4>
+                <p className="leading-relaxed text-text-secondary">
+                  La **Matriz Bio-IPEVAR** (Identificación de Peligros, Evaluación y Valoración de Riesgos Bio-Individuales) es un sistema patentado que revoluciona la salud ocupacional. A diferencia de las matrices estáticas tradicionales basadas únicamente en el puesto de trabajo (como la GTC-45 estándar), esta metodología **cruza de forma dinámica el peligro operacional con las condiciones clínicas y la susceptibilidad fisiológica específica de cada trabajador individual**.
                 </p>
+              </section>
+
+              {/* Sección Proceso Paso a Paso */}
+              <section className="space-y-4">
+                <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">Desarrollo Paso a Paso de la Matriz</h4>
+                <div className="space-y-4">
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">1</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Identificación del Peligro y Actividad</strong>
+                      <p className="text-text-secondary">Se desglosan las actividades del cargo en el perfil de puesto y se identifican las tareas operativas expuestas a peligros que puedan generar accidentes o enfermedades laborales.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">2</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Asignación Fisiológica (Dominios y Dimensiones)</strong>
+                      <p className="text-text-secondary">Cada peligro se clasifica bajo uno de los **9 Dominios Fisiológicos** de Wappy y se le asigna su **Dimensión exacta de la GTC-45**, estableciendo de inmediato qué sistema del cuerpo humano se ve afectado (ver listado de taxonomía abajo).</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">3</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Determinación del Origen y Modulador</strong>
+                      <p className="text-text-secondary">Se define si el origen del riesgo es una **Condición Insegura** (infraestructura/medio), un **Acto Inseguro** (comportamiento) o es **Inherente a la Tarea**. Adicionalmente, se identifica el *Factor Individual* (la condición clínica preexistente del trabajador que amplifica la vulnerabilidad a dicho peligro).</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">4</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Cálculo del Nivel de Susceptibilidad (NS) y Exposición (NE)</strong>
+                      <p className="text-text-secondary">Se evalúan y asignan valores en escala de **1 a 5** basados en la severidad clínica del trabajador y la duración diaria de la exposición operacional (ver tablas de criterios a continuación).</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">5</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Cruce con la Percepción del Riesgo del Individuo</strong>
+                      <p className="text-text-secondary">El sistema toma los puntos de la encuesta de Percepción del Riesgo del trabajador. Esto calcula un **Factor de Reducción** de hasta el 40% (0.40). La implicación matemática es que a mayor percepción del riesgo, menor es la probabilidad de que el riesgo bruto se materialice.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 p-4 bg-surface-secondary/50 rounded-xl border border-border-light">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">6</span>
+                    <div>
+                      <strong className="text-text-primary block text-base mb-1">Jerarquía de Controles y Justificación de Reducción</strong>
+                      <p className="text-text-secondary">Se diseña la intervención (Eliminación, Sustitución, Ingeniería, Administrativa, EPP) según el Dec. 1072. Finalmente, se detalla en la *Justificación Reducción* cuál es el control óptimo (costo-beneficio) y se priorizan las demás medidas en una escala de mayor a menor efectividad.</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Sección Criterios Matemáticos y Escalas */}
+              <section className="space-y-4">
+                <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">El Algoritmo de Cálculo y Clasificación</h4>
+                
                 <div className="bg-teal-50 dark:bg-teal-900/10 p-6 rounded-2xl border border-teal-100 dark:border-teal-800/30 text-center shadow-inner mx-auto max-w-2xl">
                   <div className="font-mono font-bold text-2xl text-teal-700 dark:text-teal-300">
                     Efectivo = (NS × NE) × (1 - F. Percepción)
                   </div>
-                  <p className="text-xs text-teal-600/80 dark:text-teal-400/80 mt-3">
-                    *El Factor de Percepción máximo es del 40% (0.40) y se deriva automáticamente de los puntos de gamificación y reportes del trabajador en la plataforma.
+                  <p className="text-xs text-teal-600/80 dark:text-teal-400/80 mt-3 font-semibold">
+                    *El Factor de Percepción se deriva como: F. Percepción = min(Puntos Percepción / 500, 0.40)
                   </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  {/* Criterios NS */}
+                  <div className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
+                    <h5 className="font-bold text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2 text-base">
+                      <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-xs">NS</span>
+                      Nivel de Susceptibilidad (Clínico)
+                    </h5>
+                    <ul className="space-y-2 text-xs leading-relaxed">
+                      <li className="flex gap-2"><strong>1:</strong> <span>Fisiología óptima, sin patologías preexistentes ni moduladores clínicos de riesgo.</span></li>
+                      <li className="flex gap-2"><strong>2:</strong> <span>Condición leve o controlada con hábitos de vida y autocuidado.</span></li>
+                      <li className="flex gap-2"><strong>3:</strong> <span>Sensibilidad moderada, requiere monitoreo y vigilancia preventiva continua.</span></li>
+                      <li className="flex gap-2"><strong>4:</strong> <span>Vulnerabilidad alta, historia clínica con patologías crónicas o incidentes de salud.</span></li>
+                      <li className="flex gap-2 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Condición crítica o embarazo, riesgo inminente ante la mínima exposición al peligro.</span></li>
+                    </ul>
+                  </div>
+
+                  {/* Criterios NE */}
+                  <div className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
+                    <h5 className="font-bold text-orange-600 dark:text-orange-400 mb-3 flex items-center gap-2 text-base">
+                      <span className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-xs">NE</span>
+                      Nivel de Exposición (Operacional)
+                    </h5>
+                    <ul className="space-y-2 text-xs leading-relaxed">
+                      <li className="flex gap-2"><strong>1:</strong> <span>Esporádica (exposición menor a 1 hora acumulada al mes).</span></li>
+                      <li className="flex gap-2"><strong>2:</strong> <span>Ocasional (algunas horas a la semana, actividades auxiliares).</span></li>
+                      <li className="flex gap-2"><strong>3:</strong> <span>Frecuente (varias horas todos los días dentro de la jornada estándar).</span></li>
+                      <li className="flex gap-2"><strong>4:</strong> <span>Continua (toda la jornada laboral de forma sostenida).</span></li>
+                      <li className="flex gap-2 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Permanente y Crítica (exposición en turnos extendidos a intensidades elevadas).</span></li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Tabla de Clasificación de Riesgo */}
+                <div className="p-4 bg-surface-secondary rounded-xl border border-border-light space-y-3">
+                  <h5 className="font-bold text-text-primary text-sm">Escala de Valoración del Riesgo Efectivo</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center font-bold">
+                    <div className="p-3 bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 rounded-xl border border-red-200">
+                      Crítico (≥ 20)
+                      <span className="block text-[10px] font-normal text-text-secondary mt-1">Intervención prioritaria inmediata. Rediseño o cese de actividad.</span>
+                    </div>
+                    <div className="p-3 bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 rounded-xl border border-orange-200">
+                      Alto (12 a 19.99)
+                      <span className="block text-[10px] font-normal text-text-secondary mt-1">Intervención prioritaria. Seguimiento médico trimestral/semestral.</span>
+                    </div>
+                    <div className="p-3 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-400 rounded-xl border border-yellow-200">
+                      Moderado (6 a 11.99)
+                      <span className="block text-[10px] font-normal text-text-secondary mt-1">Vigilancia preventiva. Monitoreo semestral.</span>
+                    </div>
+                    <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-xl border border-emerald-200">
+                      Bajo (&lt; 6)
+                      <span className="block text-[10px] font-normal text-text-secondary mt-1">Riesgo aceptable y controlado. Control médico general anual.</span>
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              {/* Grid para Criterios */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Sección 2: Criterios NS */}
-                <section className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
-                  <h5 className="font-bold text-blue-600 dark:text-blue-400 mb-4 flex items-center gap-2 text-base">
-                    <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-xs">NS</span>
-                    Nivel de Susceptibilidad
-                  </h5>
-                  <ul className="space-y-3 text-sm leading-relaxed">
-                    <li className="flex gap-3"><strong>1:</strong> <span>Fisiología óptima, sin patologías preexistentes para el cargo.</span></li>
-                    <li className="flex gap-3"><strong>2:</strong> <span>Condición leve, controlada con estilo de vida saludable.</span></li>
-                    <li className="flex gap-3"><strong>3:</strong> <span>Sensibilidad moderada, requiere vigilancia médica preventiva.</span></li>
-                    <li className="flex gap-3"><strong>4:</strong> <span>Vulnerabilidad alta, historia clínica con eventos recientes o crónicos.</span></li>
-                    <li className="flex gap-3 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Condición crítica o embarazo, riesgo inminente ante exposición.</span></li>
-                  </ul>
-                </section>
-
-                {/* Sección 2: Criterios NE */}
-                <section className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
-                  <h5 className="font-bold text-orange-600 dark:text-orange-400 mb-4 flex items-center gap-2 text-base">
-                    <span className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-xs">NE</span>
-                    Nivel de Exposición
-                  </h5>
-                  <ul className="space-y-3 text-sm leading-relaxed">
-                    <li className="flex gap-3"><strong>1:</strong> <span>Exposición esporádica (menos de 1 hora al mes).</span></li>
-                    <li className="flex gap-3"><strong>2:</strong> <span>Exposición ocasional (algunas horas a la semana).</span></li>
-                    <li className="flex gap-3"><strong>3:</strong> <span>Exposición frecuente (varias horas todos los días).</span></li>
-                    <li className="flex gap-3"><strong>4:</strong> <span>Exposición continua (toda la jornada laboral, intensidad media).</span></li>
-                    <li className="flex gap-3 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Exposición permanente y crítica (toda la jornada a intensidad máxima).</span></li>
-                  </ul>
-                </section>
-              </div>
-
-              {/* Sección 3: Taxonomía */}
+              {/* Sección Taxonomía de Dominios y Dimensiones */}
               <section className="space-y-4 pt-4 border-t border-border-light">
-                <h4 className="text-lg font-bold text-text-primary mb-2">3. Taxonomía de Dominios Fisiológicos (GTC-45)</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-teal-500/50 transition-colors">
-                    <strong className="text-teal-600 block mb-1">Sensorial</strong>
-                    <span className="text-text-tertiary">Ruido, Iluminación, Radiaciones.</span>
+                <h4 className="text-lg font-bold text-text-primary mb-2">Estructura Fisiológica Completa: Dominios y Dimensiones (GTC-45)</h4>
+                <p className="text-text-secondary leading-relaxed mb-4">
+                  El sistema valida que cada riesgo sea mapeado con exactitud en su dominio fisiológico correspondiente y que use una dimensión estandarizada de peligro de acuerdo con la clasificación oficial colombiana:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
+                  {/* Sensorial */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-teal-600 block text-sm mb-2">👁️ SENSORIAL</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Ruido (impacto, intermitente, continuo)</li>
+                      <li>• Iluminación (exceso o deficiencia)</li>
+                      <li>• Radiaciones no ionizantes / ionizantes</li>
+                      <li>• Afectación táctil/olfativa</li>
+                    </ul>
                   </div>
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-cyan-500/50 transition-colors">
-                    <strong className="text-cyan-600 block mb-1">Respiratorio</strong>
-                    <span className="text-text-tertiary">Polvos, Humos, Gases, Vapores.</span>
+
+                  {/* Respiratorio */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-cyan-600 block text-sm mb-2">🫁 RESPIRATORIO</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Polvos orgánicos/inorgánicos</li>
+                      <li>• Fibras y material particulado</li>
+                      <li>• Gases, vapores y neblinas</li>
+                      <li>• Humos metálicos/no metálicos</li>
+                    </ul>
                   </div>
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-orange-500/50 transition-colors">
-                    <strong className="text-orange-600 block mb-1">Osteomuscular</strong>
-                    <span className="text-text-tertiary">Postura, Esfuerzo, Movimiento, Cargas.</span>
+
+                  {/* Osteomuscular */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-orange-600 block text-sm mb-2">🦴 OSTEOMUSCULAR (Biomecánico)</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Postura (mantenida, forzada, antigravitacional)</li>
+                      <li>• Esfuerzo muscular acumulado</li>
+                      <li>• Movimientos repetitivos</li>
+                      <li>• Manipulación manual de cargas</li>
+                    </ul>
                   </div>
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-blue-500/50 transition-colors">
-                    <strong className="text-blue-600 block mb-1">Psicoemocional</strong>
-                    <span className="text-text-tertiary">Gestión organizacional, Tarea, Jornada.</span>
+
+                  {/* Psicoemocional */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-blue-600 block text-sm mb-2">🧠 PSICOEMOCIONAL (Psicosocial)</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Gestión organizacional y jornada</li>
+                      <li>• Condiciones de la tarea e interfase</li>
+                      <li>• Características del grupo social y organización</li>
+                    </ul>
                   </div>
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-lime-500/50 transition-colors">
-                    <strong className="text-lime-600 block mb-1">Inmunológico</strong>
-                    <span className="text-text-tertiary">Virus, Bacterias, Hongos, Fluidos.</span>
+
+                  {/* Inmunológico */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-lime-600 block text-sm mb-2">🦠 INMUNOLÓGICO (Biológico)</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Virus, bacterias y hongos</li>
+                      <li>• Ricketsias y parásitos</li>
+                      <li>• Fluidos corporales o excrementos</li>
+                      <li>• Picaduras y mordeduras</li>
+                    </ul>
                   </div>
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-gray-500/50 transition-colors">
-                    <strong className="text-gray-600 block mb-1">Seguridad Integral</strong>
-                    <span className="text-text-tertiary">Mecánico, Eléctrico, Locativo, Alturas.</span>
+
+                  {/* Cardiovascular */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-red-500 block text-sm mb-2">❤️ CARDIOVASCULAR</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Temperaturas extremas (calor/frío)</li>
+                      <li>• Presión atmosférica extrema</li>
+                      <li>• Exigencia cardiovascular alta / Sobrecarga</li>
+                      <li>• Trabajo sedentario prolongado</li>
+                    </ul>
+                  </div>
+
+                  {/* Metabólico */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-yellow-600 block text-sm mb-2">🧪 METABÓLICO (Químico/Digestivo)</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Líquidos (nieblas y rocíos químicos)</li>
+                      <li>• Alteración nutricional / digestiva asociada</li>
+                      <li>• Desbalance térmico extremo / fatiga metabólica</li>
+                      <li>• Sedentarismo metabólico prolongado</li>
+                    </ul>
+                  </div>
+
+                  {/* Neurológico */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-indigo-600 block text-sm mb-2">⚡ NEUROLÓGICO</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Vibración (cuerpo entero o segmentaria)</li>
+                      <li>• Fatiga del sistema nervioso central</li>
+                      <li>• Alteración del ciclo circadiano (turnos nocturnos)</li>
+                      <li>• Sobrecarga sensorial / fatiga cognitiva</li>
+                    </ul>
+                  </div>
+
+                  {/* Seguridad Integral */}
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
+                    <strong className="text-gray-600 dark:text-gray-400 block text-sm mb-2">🛡️ SEGURIDAD INTEGRAL (Condiciones de Seguridad)</strong>
+                    <ul className="space-y-1 text-text-tertiary">
+                      <li>• Mecánico (máquinas y herramientas)</li>
+                      <li>• Eléctrico (alta y baja tensión)</li>
+                      <li>• Locativo (superficies de trabajo, caídas)</li>
+                      <li>• Trabajo en alturas y espacios confinados</li>
+                      <li>• Tecnológico, tránsito, públicos e incendios</li>
+                    </ul>
                   </div>
                 </div>
               </section>
