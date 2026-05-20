@@ -78,7 +78,13 @@ router.post('/generate-acta', requireJwtAuth, async (req, res) => {
 
     let loadedCompanyInfo = null;
     try {
-      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+      const activeCompanyId = await getActiveCompanyId(req.user.id);
+      if (activeCompanyId) {
+        loadedCompanyInfo = await CompanyInfo.findOne({ _id: activeCompanyId, user: req.user.id }).lean();
+      }
+      if (!loadedCompanyInfo) {
+        loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+      }
     } catch (e) {
       logger.warn('Failed to load company info for Acta');
     }
@@ -371,9 +377,14 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
              (p.nombreCargo && worker.cargo && p.nombreCargo.toLowerCase().trim() === worker.cargo.toLowerCase().trim())
       ) || null;
 
-      // Ensure worker.cargo is set for the frontend if we found it via perfilId
-      if (perfilCargo && !worker.cargo) {
-        worker.cargo = perfilCargo.nombreCargo;
+      // Ensure worker.cargo and perfilId are cross-resolved and set for the frontend
+      if (perfilCargo) {
+        if (!worker.cargo || worker.cargo === 'Sin cargo' || worker.cargo === 'Sin cargo asignado') {
+          worker.cargo = perfilCargo.nombreCargo;
+        }
+        if (!worker.perfilId) {
+          worker.perfilId = perfilCargo.id;
+        }
       }
 
       const temas = calcularTemasAplicables(worker, perfilCargo);
@@ -453,7 +464,14 @@ router.post('/generate-programa', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(req.user.id);
 
     let companyInfo = null;
-    try { companyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean(); } catch (e) {}
+    try {
+      if (companyId) {
+        companyInfo = await CompanyInfo.findOne({ _id: companyId, user: req.user.id }).lean();
+      }
+      if (!companyInfo) {
+        companyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+      }
+    } catch (e) {}
 
     const [socioDoc, cargoDoc, programaDoc] = await Promise.all([
       mongoose.models.PerfilSociodemograficoData?.findOne({ user: req.user.id, companyId }).lean(),

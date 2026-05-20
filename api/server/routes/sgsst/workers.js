@@ -36,7 +36,7 @@ async function runIndexAndCompanyMigration() {
             await SgsstWorker.collection.dropIndex('user_1_documento_1');
         }
 
-        // Restore companyId for workers based on PerfilSociodemograficoData mapping
+        // Restore companyId for workers based on PerfilSociodemograficoData mapping (legacy workers without companyId)
         const PerfilSocioModel = getPerfilSociodemograficoDataModel();
         if (PerfilSocioModel) {
             logger.info('[SGSST Workers Migration] Starting companyId restoration...');
@@ -51,9 +51,16 @@ async function runIndexAndCompanyMigration() {
                     if (!worker.identificacion) continue;
                     const cleanDoc = String(worker.identificacion).trim();
                     
-                    // Update SgsstWorker with matching user and documento
+                    // Only update workers who don't have a companyId set yet
                     const result = await SgsstWorker.updateMany(
-                        { user, documento: cleanDoc, companyId: { $ne: companyId } },
+                        { 
+                            user, 
+                            documento: cleanDoc, 
+                            $or: [
+                                { companyId: null }, 
+                                { companyId: { $exists: false } }
+                            ] 
+                        },
                         { $set: { companyId } }
                     );
                     restoredCount += result.modifiedCount || 0;
@@ -61,6 +68,61 @@ async function runIndexAndCompanyMigration() {
             }
             if (restoredCount > 0) {
                 logger.info(`[SGSST Workers Migration] Successfully restored companyId for ${restoredCount} workers.`);
+            }
+
+            // --- SELF-HEALING REPAIR & CLONING ---
+            logger.info('[SGSST Workers Migration] Running companyId repair and worker cloning verification...');
+            const allWorkers = await SgsstWorker.find({}).lean();
+            for (const worker of allWorkers) {
+                if (!worker.documento || !worker.user) continue;
+                const cleanDoc = String(worker.documento).trim();
+                
+                // Find all profiles containing this worker
+                const matchingProfiles = await PerfilSocioModel.find({
+                    user: worker.user,
+                    'trabajadores.identificacion': cleanDoc
+                }).lean();
+                
+                if (matchingProfiles.length === 0) continue;
+                
+                const companyIds = matchingProfiles.map(p => String(p.companyId));
+                
+                // If worker's current companyId is not in the list of profiles they belong to, fix it
+                if (!worker.companyId || !companyIds.includes(String(worker.companyId))) {
+                    const firstCompanyId = matchingProfiles[0].companyId;
+                    await SgsstWorker.updateOne({ _id: worker._id }, { $set: { companyId: firstCompanyId } });
+                    logger.info(`[SGSST Workers Repair] Corrected worker ${worker.nombre} (${cleanDoc}) companyId to ${firstCompanyId}`);
+                    worker.companyId = firstCompanyId; // update local ref
+                }
+                
+                // Clone worker if they belong to other companies but don't have a record there
+                for (const profile of matchingProfiles) {
+                    const pCompanyId = profile.companyId;
+                    if (String(pCompanyId) === String(worker.companyId)) continue;
+                    
+                    const otherExist = await SgsstWorker.findOne({
+                        user: worker.user,
+                        companyId: pCompanyId,
+                        documento: cleanDoc
+                    });
+                    
+                    if (!otherExist) {
+                        const clonedWorker = new SgsstWorker({
+                            ...worker,
+                            _id: new mongoose.Types.ObjectId(),
+                            companyId: pCompanyId,
+                            riesgosBioIndividual: worker.riesgosBioIndividual || [],
+                            fitAlerts: worker.fitAlerts || [],
+                            atel: worker.atel || [],
+                            actos_inseguros: worker.actos_inseguros || [],
+                            participaciones_ipevar: worker.participaciones_ipevar || [],
+                            capacitaciones: worker.capacitaciones || [],
+                            ats: worker.ats || [],
+                        });
+                        await clonedWorker.save();
+                        logger.info(`[SGSST Workers Repair] Cloned worker ${worker.nombre} (${cleanDoc}) for company ${pCompanyId}`);
+                    }
+                }
             }
         }
 

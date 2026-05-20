@@ -26,7 +26,12 @@ import {
   Check,
   Clock,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  Eye,
+  Download,
+  X,
+  Printer
 } from 'lucide-react';
 import SGSSTToolbar from './SGSSTToolbar';
 
@@ -99,6 +104,9 @@ export default function ProgramaCapacitaciones() {
 
   // AI Compiler Terminal logs
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [isCargoDropdownOpen, setIsCargoDropdownOpen] = useState(false);
+  const [compiledReport, setCompiledReport] = useState<string | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -261,6 +269,7 @@ export default function ProgramaCapacitaciones() {
       const data = await res.json();
 
       if (res.ok && data.report) {
+        setCompiledReport(data.report);
         setConsoleLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [SUCCESS] ¡Programa de capacitación generado con éxito! Cargado en bandeja.`]);
         window.dispatchEvent(
           new CustomEvent('generate-sgsst-document', {
@@ -281,6 +290,27 @@ export default function ProgramaCapacitaciones() {
       showToast({ message: error.message || 'Error al compilar el programa', status: 'error' });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const downloadHtml = () => {
+    if (!compiledReport) return;
+    const blob = new Blob([compiledReport], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Programa_Anual_Capacitaciones_${new Date().getFullYear()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const printReport = () => {
+    const iframe = document.getElementById('compiled-report-iframe') as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
     }
   };
 
@@ -542,17 +572,54 @@ export default function ProgramaCapacitaciones() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 bg-surface-secondary/20 rounded-xl px-3 py-1.5 border border-border-light dark:border-white/5">
-            <Filter className="h-3.5 w-3.5 text-text-secondary" />
-            <select
-              value={selectedCargo}
-              onChange={(e) => setSelectedCargo(e.target.value)}
-              className="cursor-pointer bg-transparent text-xs font-black text-text-primary outline-none"
+          {/* Redesigned Premium Cargo Filter Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsCargoDropdownOpen(!isCargoDropdownOpen)}
+              className="flex items-center gap-2 bg-gradient-to-r from-teal-500/5 to-teal-500/10 hover:from-teal-500/10 hover:to-teal-500/20 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 rounded-xl px-4 py-2 border border-teal-500/20 shadow-sm transition-all text-xs font-black uppercase tracking-wider focus:outline-none"
             >
-              {uniqueCargos.map((cargo) => (
-                <option key={cargo} value={cargo} className="bg-surface-primary">{cargo}</option>
-              ))}
-            </select>
+              <Briefcase className="h-3.5 w-3.5 text-teal-500" />
+              <span>{selectedCargo === 'Todos' ? 'Filtrar por Cargo' : selectedCargo}</span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${isCargoDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isCargoDropdownOpen && (
+              <>
+                {/* Click outside backdrop overlay */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsCargoDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-border-light bg-surface-primary/95 backdrop-blur-md p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200 dark:border-white/5">
+                  <div className="px-3 py-2 border-b border-border-light dark:border-white/5 mb-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary">Cargos Disponibles</span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-0.5">
+                    {uniqueCargos.map((cargo) => {
+                      const count = trabajadoresPlan.filter(w => cargo === 'Todos' || w.cargo === cargo).length;
+                      const isSelected = selectedCargo === cargo;
+                      return (
+                        <button
+                          key={cargo}
+                          onClick={() => {
+                            setSelectedCargo(cargo);
+                            setIsCargoDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-bold transition-all ${isSelected ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400' : 'text-text-primary hover:bg-surface-secondary/50'}`}
+                        >
+                          <span className="truncate">{cargo}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${isSelected ? 'bg-teal-500/20 text-teal-600 dark:text-teal-400' : 'bg-surface-secondary text-text-secondary'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -590,10 +657,12 @@ export default function ProgramaCapacitaciones() {
             return (
               <div 
                 key={worker.id}
-                className="group relative overflow-hidden rounded-2xl border border-border-light bg-surface-secondary/10 p-5 transition-all duration-300 hover:bg-surface-secondary/20 hover:-translate-y-1 hover:shadow-xl dark:border-white/5"
+                className="group relative rounded-2xl border border-border-light bg-surface-secondary/10 p-5 transition-all duration-300 hover:bg-surface-secondary/20 hover:-translate-y-1 hover:shadow-xl dark:border-white/5 hover:z-20"
               >
-                {/* Glowing Aura on Hover */}
-                <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-teal-500/[0.02] blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-teal-500/[0.04]" />
+                {/* Background/Aura container (handles overflow isolation) */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-teal-500/[0.02] blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-teal-500/[0.04]" />
+                </div>
                 
                 <div className="flex flex-col gap-4">
                   {/* Row 1: Worker Identity & Health Status */}
@@ -1153,10 +1222,96 @@ export default function ProgramaCapacitaciones() {
         </div>
       )}
 
+      {/* Compiled Report Download/View Section */}
+      {compiledReport && (
+        <div className="mb-6 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/[0.03] to-transparent p-5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in zoom-in duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-text-primary uppercase tracking-wide">
+                ¡Programa Anual Compilado!
+              </h4>
+              <p className="text-xs text-text-secondary mt-0.5">
+                El documento técnico del programa anual de capacitación está listo para descarga y visualización.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-black text-white hover:bg-teal-700 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/10"
+            >
+              <Eye className="h-3.5 w-3.5" /> Vista Previa
+            </button>
+            <button
+              onClick={downloadHtml}
+              className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-primary px-4 py-2 text-xs font-black text-text-primary hover:bg-surface-hover transition-all hover:scale-102"
+            >
+              <Download className="h-3.5 w-3.5" /> Descargar HTML
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Compilation Trigger */}
       <div className="flex justify-center">
         <SGSSTToolbar onAnalyze={handleGeneratePrograma} isAnalyzing={isAnalyzing} />
       </div>
+
+      {/* Document Preview Modal */}
+      {isPreviewModalOpen && compiledReport && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-6 animate-in fade-in duration-200">
+          <div className="relative flex h-full w-full max-w-5xl flex-col rounded-3xl border border-border-light bg-surface-primary shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 dark:border-white/5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border-light px-6 py-4 dark:border-white/5 bg-surface-secondary/20">
+              <div>
+                <h3 className="text-sm font-black text-text-primary uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-teal-500" />
+                  Programa Anual de Capacitación y Entrenamiento
+                </h3>
+                <p className="text-[10px] text-text-secondary uppercase tracking-widest mt-0.5">
+                  Vista previa del documento técnico compilado por WAPPY
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={printReport}
+                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-teal-500/50 transition-colors"
+                  title="Imprimir / Guardar PDF"
+                >
+                  <Printer className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={downloadHtml}
+                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-teal-500/50 transition-colors"
+                  title="Descargar HTML"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-rose-500/50 transition-colors ml-2"
+                  title="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Sandbox Iframe */}
+            <div className="flex-1 bg-slate-100 p-4 dark:bg-slate-900/50">
+              <iframe
+                id="compiled-report-iframe"
+                srcDoc={compiledReport}
+                className="h-full w-full rounded-2xl border border-border-light bg-white shadow-sm dark:border-white/5"
+                title="Programa Anual de Capacitaciones Compilado"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
