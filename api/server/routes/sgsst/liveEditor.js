@@ -6,6 +6,7 @@ const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const LiveEditorSession = require('~/models/LiveEditorSession');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { syncLiveEditorToCanvas } = require('./syncBridge');
 
 
 async function getActiveCompanyId(userId) {
@@ -120,6 +121,9 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true },
     );
 
+    // Sincronizar hacia el Canvas
+    await syncLiveEditorToCanvas(conversationId, session.content, session.fileName, userId);
+
     res.json({ success: true, contentUpdatedAt: session.contentUpdatedAt, fileName: session.fileName });
   } catch (error) {
     logger.error('[LiveEditor PUT] Error:', error);
@@ -136,6 +140,11 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
     const { conversationId } = req.params;
     const companyId = await getActiveCompanyId(req.user.id);
     await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id, companyId: companyId });
+
+    // También eliminamos la sesión de Canvas de tipo 'text' si corresponde
+    const CanvasSession = require('~/models/CanvasSession');
+    await CanvasSession.findOneAndDelete({ conversationId, fileType: 'text' });
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[LiveEditor DELETE] Error:', error);

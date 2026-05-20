@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const LiveEditorSession = require('~/models/LiveEditorSession');
+const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
 const ritTemplateTradicional = require('./rit_template_tradicional');
 const ritTemplateHumanista = require('./rit_template_humanista');
 
@@ -136,6 +137,7 @@ class EditorRIT extends Tool {
           },
           { upsert: true, new: true },
         );
+        await syncLiveEditorToCanvas(conversationId, templateToUse, fileName, userId);
         return JSON.stringify({
           success: true,
           mensaje: `Plantilla del Reglamento Interno de Trabajo (${input.tono || 'tradicional'}) cargada exitosamente. Contiene la estructura completa. Ahora usa "buscar_reemplazar" para sustituir variables como {{empresa_nombre}}, etc.`,
@@ -182,6 +184,7 @@ class EditorRIT extends Tool {
           },
           { upsert: true, new: true },
         );
+        await syncLiveEditorToCanvas(conversationId, input.content, input.fileName || 'Reglamento Interno de Trabajo', userId);
         return JSON.stringify({
           success: true,
           mensaje: `Documento actualizado correctamente.`,
@@ -224,6 +227,7 @@ class EditorRIT extends Tool {
           { conversationId },
           { $set: { content: updatedContent, contentUpdatedAt: new Date() } },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session.fileName, userId);
 
         return JSON.stringify({
           success: true,
@@ -266,6 +270,7 @@ class EditorRIT extends Tool {
           { conversationId },
           { $set: { content: updatedContent, contentUpdatedAt: new Date() } },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session.fileName, userId);
 
         return JSON.stringify({
           success: true,
@@ -309,6 +314,7 @@ class EditorRIT extends Tool {
           },
           { upsert: true, new: true },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session?.fileName, userId);
 
         return JSON.stringify({
           success: true,

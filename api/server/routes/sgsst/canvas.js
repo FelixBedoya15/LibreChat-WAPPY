@@ -7,6 +7,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CanvasSession = require('~/models/CanvasSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
+const { syncCanvasToLiveEditor } = require('./syncBridge');
 
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });
@@ -155,6 +156,11 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       }
     }
 
+    // Sincronizar de vuelta a LiveEditor si es un documento de texto
+    if (session.fileType === 'text') {
+      await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+    }
+
     res.json({
       success: true,
       version: session.version,
@@ -176,6 +182,11 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
     await CanvasSession.findOneAndDelete({ conversationId });
+
+    // También eliminamos la sesión de LiveEditor relacionada
+    const LiveEditorSession = require('~/models/LiveEditorSession');
+    await LiveEditorSession.findOneAndDelete({ conversationId });
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[Canvas DELETE] Error:', error);

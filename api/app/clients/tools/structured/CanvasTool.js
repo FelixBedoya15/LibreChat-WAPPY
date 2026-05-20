@@ -3,6 +3,7 @@ const { Tool } = require('@langchain/core/tools');
 const CanvasSession = require('~/models/CanvasSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/sgsst/reportHeader');
+const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
 
 /**
  * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
@@ -142,74 +143,170 @@ class CanvasTool extends Tool {
       }
 
       if (accion === 'crear') {
-        if (fileType === 'text') {
-          parsedContent = await processTextDocument(parsedContent, fileType, title, userId);
-        }
+        if (session) {
+          // Si ya existe, nos comportamos como actualizar para no destruir el historial del usuario
+          const activeFileType = fileType || session.fileType;
+          if (activeFileType === 'text') {
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
+          }
 
-        session = await CanvasSession.findOneAndUpdate(
-          { conversationId },
-          {
-            $set: {
+          const nextVersion = session.version + 1;
+          const newHistoryItem = {
+            version: nextVersion,
+            content: parsedContent ?? session.content,
+            title: title || session.title,
+            updatedAt: new Date()
+          };
+
+          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+
+          session.content = parsedContent ?? session.content;
+          session.title = title || session.title;
+          session.fileType = activeFileType;
+          session.version = nextVersion;
+          session.history = updatedHistory;
+
+          await session.save();
+
+          // Sincronizar a LiveEditor si es tipo text
+          if (activeFileType === 'text') {
+            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+          }
+
+          return JSON.stringify({
+            success: true,
+            mensaje: `La sesión de Canvas ya existía. Se actualizó el archivo a la versión ${session.version} (preservando el historial).`,
+            title: session.title,
+            version: session.version,
+          });
+        } else {
+          // Si no existe, crear de cero con versión 1
+          if (fileType === 'text') {
+            parsedContent = await processTextDocument(parsedContent, fileType, title, userId);
+          }
+
+          session = new CanvasSession({
+            user: userId,
+            conversationId,
+            content: parsedContent ?? '',
+            title: title || 'Archivo sin título',
+            fileType,
+            version: 1,
+            history: [{
+              version: 1,
               content: parsedContent ?? '',
               title: title || 'Archivo sin título',
-              fileType,
-              version: 1,
-              history: [{
-                version: 1,
-                content: parsedContent ?? '',
-                title: title || 'Archivo sin título',
-                updatedAt: new Date()
-              }]
-            },
-            $setOnInsert: { user: userId }
-          },
-          { upsert: true, new: true }
-        );
+              updatedAt: new Date()
+            }]
+          });
 
-        return JSON.stringify({
-          success: true,
-          mensaje: `Archivo Canvas de tipo "${fileType}" creado exitosamente. El usuario puede verlo y descargarlo en la barra lateral derecha.`,
-          title: session.title,
-          version: session.version,
-        });
+          let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
+          if (!companyInfo) {
+            companyInfo = await CompanyInfo.findOne({ user: userId });
+          }
+          if (companyInfo) {
+            session.companyId = companyInfo._id;
+          }
+
+          await session.save();
+
+          // Sincronizar a LiveEditor si es tipo text
+          if (fileType === 'text') {
+            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+          }
+
+          return JSON.stringify({
+            success: true,
+            mensaje: `Archivo Canvas de tipo "${fileType}" creado exitosamente. El usuario puede verlo y descargarlo en la barra lateral derecha.`,
+            title: session.title,
+            version: session.version,
+          });
+        }
       }
 
       if (accion === 'actualizar') {
         if (!session) {
+          // Si no existe, lo creamos automáticamente con versión 1
+          const activeFileType = fileType || 'text';
+          const activeTitle = title || 'Archivo sin título';
+
+          if (activeFileType === 'text') {
+            parsedContent = await processTextDocument(parsedContent, activeFileType, activeTitle, userId);
+          }
+
+          session = new CanvasSession({
+            user: userId,
+            conversationId,
+            content: parsedContent ?? '',
+            title: activeTitle,
+            fileType: activeFileType,
+            version: 1,
+            history: [{
+              version: 1,
+              content: parsedContent ?? '',
+              title: activeTitle,
+              updatedAt: new Date()
+            }]
+          });
+
+          let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
+          if (!companyInfo) {
+            companyInfo = await CompanyInfo.findOne({ user: userId });
+          }
+          if (companyInfo) {
+            session.companyId = companyInfo._id;
+          }
+
+          await session.save();
+
+          // Sincronizar a LiveEditor si es tipo text
+          if (activeFileType === 'text') {
+            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+          }
+
           return JSON.stringify({
-            error: 'No existe una sesión de Canvas activa en este chat. Primero crea el archivo usando accion="crear".'
+            success: true,
+            mensaje: `La sesión de Canvas no existía. Se creó automáticamente con versión 1.`,
+            title: session.title,
+            version: session.version,
+          });
+        } else {
+          // Si existe, lo actualizamos normalmente
+          const activeFileType = fileType || session.fileType;
+          if (activeFileType === 'text') {
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
+          }
+
+          const nextVersion = session.version + 1;
+          const newHistoryItem = {
+            version: nextVersion,
+            content: parsedContent ?? session.content,
+            title: title || session.title,
+            updatedAt: new Date()
+          };
+
+          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+
+          session.content = parsedContent ?? session.content;
+          session.title = title || session.title;
+          session.fileType = activeFileType;
+          session.version = nextVersion;
+          session.history = updatedHistory;
+
+          await session.save();
+
+          // Sincronizar a LiveEditor si es tipo text
+          if (activeFileType === 'text') {
+            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+          }
+
+          return JSON.stringify({
+            success: true,
+            mensaje: `Archivo Canvas actualizado correctamente a la versión ${session.version}.`,
+            title: session.title,
+            version: session.version,
           });
         }
-
-        const activeFileType = fileType || session.fileType;
-        if (activeFileType === 'text') {
-          parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
-        }
-
-        const nextVersion = session.version + 1;
-        const newHistoryItem = {
-          version: nextVersion,
-          content: parsedContent ?? session.content,
-          title: title || session.title,
-          updatedAt: new Date()
-        };
-
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
-
-        session.content = parsedContent ?? session.content;
-        session.title = title || session.title;
-        session.fileType = fileType || session.fileType;
-        session.version = nextVersion;
-        session.history = updatedHistory;
-
-        await session.save();
-
-        return JSON.stringify({
-          success: true,
-          mensaje: `Archivo Canvas actualizado correctamente a la versión ${session.version}.`,
-          title: session.title,
-          version: session.version,
-        });
       }
 
       return JSON.stringify({ error: `Acción desconocida: "${accion}".` });

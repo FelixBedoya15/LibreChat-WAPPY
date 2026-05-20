@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const LiveEditorSession = require('~/models/LiveEditorSession');
+const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
 
 /**
  * EditorLive Tool
@@ -138,6 +139,7 @@ class EditorLive extends Tool {
           },
           { upsert: true, new: true },
         );
+        await syncLiveEditorToCanvas(conversationId, input.content, input.fileName, userId);
         return JSON.stringify({
           success: true,
           mensaje: `Documento creado/actualizado correctamente. El usuario puede verlo en el panel lateral.`,
@@ -182,6 +184,7 @@ class EditorLive extends Tool {
           { conversationId },
           { $set: { content: updatedContent, contentUpdatedAt: new Date() } },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session.fileName, userId);
 
         return JSON.stringify({
           success: true,
@@ -213,6 +216,7 @@ class EditorLive extends Tool {
           { conversationId },
           { $set: { content: updatedContent, contentUpdatedAt: new Date() } },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session.fileName, userId);
 
         return JSON.stringify({
           success: true,
@@ -256,6 +260,7 @@ class EditorLive extends Tool {
           },
           { upsert: true, new: true },
         );
+        await syncLiveEditorToCanvas(conversationId, updatedContent, session?.fileName, userId);
 
         return JSON.stringify({
           success: true,
