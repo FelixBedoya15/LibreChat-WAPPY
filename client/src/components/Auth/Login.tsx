@@ -88,7 +88,7 @@ function Login() {
     );
   }
 
-  if (!isFetching && (!startupConfig || startupConfigError)) {
+  if (!isFetching && startupConfigError) {
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center">
         <div className="mb-4 rounded-full bg-red-500/10 p-3 text-red-500 dark:bg-red-500/20 animate-pulse">
