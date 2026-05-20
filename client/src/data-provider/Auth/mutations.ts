@@ -60,7 +60,13 @@ export const useRefreshTokenMutation = (
     mutationFn: () => request.refreshToken(),
     ...(options || {}),
     onMutate: (vars) => {
-      queryClient.removeQueries();
+      // Preserve startup config: it is not user-session-specific and has
+      // refetchOnMount:false, so removing it here would leave the login page
+      // blank on reload (the query would never re-trigger after removal).
+      queryClient.removeQueries({
+        predicate: (query) =>
+          !query.queryKey.includes(QueryKeys.startupConfig),
+      });
       options?.onMutate?.(vars);
     },
   });
