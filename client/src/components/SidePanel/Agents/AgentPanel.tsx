@@ -281,19 +281,19 @@ export default function AgentPanel() {
   const handleSyncPrompts = useCallback(async () => {
     try {
       showToast({
-        message: 'Iniciando sincronización de agentes...',
+        message: 'Limpiando y sincronizando agentes con MongoDB...',
         status: 'info',
       });
-      const response = await axios.post('/api/sgsst/sync-agents/sync');
-      
+      const response = await axios.post('/api/sgsst/sync-agents/cleanup-and-sync');
+
       showToast({
-        message: response.data.summary || 'Sincronización de agentes completada con éxito.',
+        message: response.data.summary || 'Sincronización completada con éxito.',
         status: 'success',
       });
     } catch (err) {
       console.error('Failed to sync agents:', err);
       showToast({
-        message: 'Error al sincronizar agentes: ' + (err.response?.data?.error || err.message),
+        message: 'Error al sincronizar agentes: ' + ((err as any).response?.data?.error || (err as Error).message),
         status: 'error',
       });
     }
