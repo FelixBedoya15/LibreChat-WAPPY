@@ -28,7 +28,8 @@ async function migrateLegacyData(userId, firstCompanyId) {
         mongoose.models.ATELAnnualData,
         mongoose.models.InvestigacionAtelData,
         mongoose.models.LiveEditorSession,
-        mongoose.models.GTC45WorkspaceSession
+        mongoose.models.GTC45WorkspaceSession,
+        mongoose.models.SgsstWorker
     ];
     
     for (const model of models) {

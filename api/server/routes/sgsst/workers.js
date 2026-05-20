@@ -70,6 +70,21 @@ async function runIndexAndCompanyMigration() {
                 logger.info(`[SGSST Workers Migration] Successfully restored companyId for ${restoredCount} workers.`);
             }
 
+            // --- DEDUPLICATION OF SGSSTWORKERS BEFORE REPAIR & CLONING ---
+            logger.info('[SGSST Workers Migration] Deduplicating SgsstWorker collection...');
+            const allWorkersBefore = await SgsstWorker.find({}).lean();
+            const seenBefore = new Set();
+            for (const worker of allWorkersBefore) {
+                if (!worker.documento || !worker.user || !worker.companyId) continue;
+                const key = `${worker.user}_${worker.companyId}_${String(worker.documento).trim()}`;
+                if (seenBefore.has(key)) {
+                    logger.warn(`[SGSST Workers Repair] Deleting duplicate SgsstWorker record: ${worker.nombre} (${worker.documento}) for company ${worker.companyId}`);
+                    await SgsstWorker.deleteOne({ _id: worker._id });
+                } else {
+                    seenBefore.add(key);
+                }
+            }
+
             // --- SELF-HEALING REPAIR & CLONING ---
             logger.info('[SGSST Workers Migration] Running companyId repair and worker cloning verification...');
             const allWorkers = await SgsstWorker.find({}).lean();
@@ -77,10 +92,20 @@ async function runIndexAndCompanyMigration() {
                 if (!worker.documento || !worker.user) continue;
                 const cleanDoc = String(worker.documento).trim();
                 
+                // Support both String and Number representation of identificacion in PerfilSociodemograficoData
+                const isNumeric = /^\d+$/.test(cleanDoc);
+                const queryConditions = [
+                    { 'trabajadores.identificacion': cleanDoc }
+                ];
+                if (isNumeric) {
+                    queryConditions.push({ 'trabajadores.identificacion': Number(cleanDoc) });
+                    queryConditions.push({ 'trabajadores.identificacion': String(Number(cleanDoc)) });
+                }
+                
                 // Find all profiles containing this worker
                 const matchingProfiles = await PerfilSocioModel.find({
                     user: worker.user,
-                    'trabajadores.identificacion': cleanDoc
+                    $or: queryConditions
                 }).lean();
                 
                 if (matchingProfiles.length === 0) continue;
@@ -137,8 +162,14 @@ async function runIndexAndCompanyMigration() {
     }
 }
 
-// Execute migration async
-runIndexAndCompanyMigration();
+// Execute migration when connection is ready
+if (mongoose.connection.readyState === 1) {
+    runIndexAndCompanyMigration();
+} else {
+    mongoose.connection.once('connected', () => {
+        runIndexAndCompanyMigration();
+    });
+}
 
 // Helper: Obtener Empresa Activa
 async function getActiveCompanyId(userId) {

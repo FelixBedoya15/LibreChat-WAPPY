@@ -88,7 +88,7 @@ router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
 
     let workerContext = '';
     if (workerId) {
-        const worker = await SgsstWorker.findById(workerId);
+        const worker = await SgsstWorker.findOne({ _id: workerId, user: req.user.id });
         if (worker) {
             workerContext = `
 ═══ CONTEXTO BIO-INDIVIDUAL (TRABAJADOR ESPECÍFICO) ═══
@@ -310,7 +310,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
     let workerContext = '';
     let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45';
     if (workerId) {
-        const worker = await SgsstWorker.findById(workerId);
+        const worker = await SgsstWorker.findOne({ _id: workerId, user: req.user.id });
         if (worker) {
             reportTitle = `INFORME IPEVAR BIO-INDIVIDUAL - ${worker.nombre.toUpperCase()}`;
             workerContext = `
