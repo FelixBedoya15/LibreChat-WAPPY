@@ -1,6 +1,47 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const CanvasSession = require('~/models/CanvasSession');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/sgsst/reportHeader');
+
+/**
+ * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
+ * Safe against consecutive duplicates by inspecting content substrings.
+ */
+async function processTextDocument(content, fileType, title, userId) {
+  if (fileType !== 'text') {
+    return content;
+  }
+
+  let stringContent = content || '';
+
+  const hasHeader = stringContent.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD');
+  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST');
+
+  if (hasHeader && hasSignature) {
+    return stringContent;
+  }
+
+  let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
+  if (!companyInfo) {
+    companyInfo = await CompanyInfo.findOne({ user: userId });
+  }
+
+  if (!hasHeader) {
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO DE TRABAJO',
+      companyInfo
+    });
+    stringContent = headerHtml + '\n\n' + stringContent;
+  }
+
+  if (!hasSignature && companyInfo) {
+    const signatureHtml = buildSignatureSection(companyInfo);
+    stringContent = stringContent + '\n\n' + signatureHtml;
+  }
+
+  return stringContent;
+}
 
 /**
  * Canvas Tool
@@ -101,6 +142,10 @@ class CanvasTool extends Tool {
       }
 
       if (accion === 'crear') {
+        if (fileType === 'text') {
+          parsedContent = await processTextDocument(parsedContent, fileType, title, userId);
+        }
+
         session = await CanvasSession.findOneAndUpdate(
           { conversationId },
           {
@@ -134,6 +179,11 @@ class CanvasTool extends Tool {
           return JSON.stringify({
             error: 'No existe una sesión de Canvas activa en este chat. Primero crea el archivo usando accion="crear".'
           });
+        }
+
+        const activeFileType = fileType || session.fileType;
+        if (activeFileType === 'text') {
+          parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
         }
 
         const nextVersion = session.version + 1;

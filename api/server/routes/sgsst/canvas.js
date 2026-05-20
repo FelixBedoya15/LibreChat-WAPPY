@@ -6,11 +6,51 @@ const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CanvasSession = require('~/models/CanvasSession');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });
   if (!active) active = await CompanyInfo.findOne({ user: userId });
   return active ? active._id : null;
+}
+
+/**
+ * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
+ * Safe against consecutive duplicates by inspecting content substrings.
+ */
+async function processTextDocument(content, fileType, title, userId) {
+  if (fileType !== 'text') {
+    return content;
+  }
+
+  let stringContent = content || '';
+
+  const hasHeader = stringContent.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD');
+  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST');
+
+  if (hasHeader && hasSignature) {
+    return stringContent;
+  }
+
+  let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
+  if (!companyInfo) {
+    companyInfo = await CompanyInfo.findOne({ user: userId });
+  }
+
+  if (!hasHeader) {
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO DE TRABAJO',
+      companyInfo
+    });
+    stringContent = headerHtml + '\n\n' + stringContent;
+  }
+
+  if (!hasSignature && companyInfo) {
+    const signatureHtml = buildSignatureSection(companyInfo);
+    stringContent = stringContent + '\n\n' + signatureHtml;
+  }
+
+  return stringContent;
 }
 
 /**
@@ -65,6 +105,8 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'El campo "fileType" es requerido.' });
     }
 
+    const processedContent = await processTextDocument(content, fileType, title, userId);
+
     let session = await CanvasSession.findOne({ conversationId });
 
     if (!session) {
@@ -75,11 +117,11 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         conversationId,
         title: title || 'Archivo sin título',
         fileType,
-        content: content ?? '',
+        content: processedContent ?? '',
         version: 1,
         history: [{
           version: 1,
-          content: content ?? '',
+          content: processedContent ?? '',
           title: title || 'Archivo sin título',
           updatedAt: new Date()
         }]
@@ -87,7 +129,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       await session.save();
     } else {
       // Comprobar si el contenido realmente cambió
-      const contentChanged = JSON.stringify(session.content) !== JSON.stringify(content);
+      const contentChanged = JSON.stringify(session.content) !== JSON.stringify(processedContent);
       const titleChanged = session.title !== title && title !== undefined;
 
       if (contentChanged || titleChanged) {
@@ -96,14 +138,14 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         // Agregar al historial limitando a los últimos 20 cambios
         const newHistoryItem = {
           version: nextVersion,
-          content: content ?? session.content,
+          content: processedContent ?? session.content,
           title: title || session.title,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
-        session.content = content ?? session.content;
+        session.content = processedContent ?? session.content;
         session.title = title || session.title;
         if (fileType) session.fileType = fileType;
         session.version = nextVersion;

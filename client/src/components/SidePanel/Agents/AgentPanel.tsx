@@ -1,4 +1,4 @@
-import { Plus, Copy, Download } from 'lucide-react';
+import { Plus, Copy, Download, RefreshCw } from 'lucide-react';
 import React, { useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Button, useToastContext } from '@librechat/client';
@@ -278,6 +278,27 @@ export default function AgentPanel() {
     }
   }, [showToast]);
 
+  const handleSyncPrompts = useCallback(async () => {
+    try {
+      showToast({
+        message: 'Iniciando sincronización de agentes...',
+        status: 'info',
+      });
+      const response = await axios.post('/api/sgsst/sync-agents/sync');
+      
+      showToast({
+        message: response.data.summary || 'Sincronización de agentes completada con éxito.',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to sync agents:', err);
+      showToast({
+        message: 'Error al sincronizar agentes: ' + (err.response?.data?.error || err.message),
+        status: 'error',
+      });
+    }
+  }, [showToast]);
+
   const isCreationBlocked = useMemo(() => {
     if (user?.role === SystemRoles.ADMIN || user?.role === 'USER_PRO') {
       return false;
@@ -372,17 +393,30 @@ export default function AgentPanel() {
                 Duplicar Agente
               </Button>
               {user?.role === SystemRoles.ADMIN && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-center border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-in-out shadow-sm"
-                  onClick={handleExportBackup}
-                  disabled={agentQuery.isInitialLoading}
-                  aria-label="Exportar Copia de Seguridad"
-                >
-                  <Download className="mr-1 h-4 w-4 animate-bounce" style={{ animationDuration: '2s' }} />
-                  Exportar Agentes
-                </Button>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-in-out shadow-sm"
+                    onClick={handleExportBackup}
+                    disabled={agentQuery.isInitialLoading}
+                    aria-label="Exportar Copia de Seguridad"
+                  >
+                    <Download className="mr-1 h-4 w-4 animate-bounce" style={{ animationDuration: '2s' }} />
+                    Exportar Agentes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center border-cyan-500/30 hover:border-cyan-500/50 hover:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 transition-all duration-300 ease-in-out shadow-sm"
+                    onClick={handleSyncPrompts}
+                    disabled={agentQuery.isInitialLoading}
+                    aria-label="Sincronizar Prompts Locales"
+                  >
+                    <RefreshCw className="mr-1 h-4 w-4" />
+                    Sincronizar Prompts
+                  </Button>
+                </div>
               )}
               <Button
                 variant="submit"
