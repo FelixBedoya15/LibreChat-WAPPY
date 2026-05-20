@@ -16,27 +16,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
   <link rel="apple-touch-icon" href="assets/apple-touch-icon-180x180.png" />
-  <script>
-    // Emergency SW Kill-Switch: unregister any broken/stuck service workers once and reload
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        if (registrations.length > 0) {
-          var unregPromises = registrations.map(function(r) { return r.unregister(); });
-          Promise.all(unregPromises).then(function() {
-            if ('caches' in window) {
-              caches.keys().then(function(names) {
-                return Promise.all(names.map(function(n) { return caches.delete(n); }));
-              }).then(function() {
-                window.location.replace(window.location.href);
-              });
-            } else {
-              window.location.replace(window.location.href);
-            }
-          });
-        }
-      });
-    }
-  </script>
+
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <style>
     html,
