@@ -37,7 +37,7 @@ export default defineConfig(({ command }) => ({
     nodePolyfills(),
     VitePWA({
       selfDestroying: true,
-      injectRegister: null, // null = don't inject registration code; SW deployed but not auto-registered
+      injectRegister: 'auto', // 'auto' = inject registration code so the self-destroying SW actually replaces the old one
       registerType: 'autoUpdate', // 'prompt' | 'autoUpdate'
       devOptions: {
         enabled: false, // disable service worker registration in development mode
