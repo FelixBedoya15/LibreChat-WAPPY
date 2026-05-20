@@ -190,8 +190,8 @@ const AuthContextProvider = ({
           navigate('/login');
         }
       },
-    });
-  }, [isPublicRoute, navigate, refreshToken, setUserContext, authConfig]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (userQuery.data) {
