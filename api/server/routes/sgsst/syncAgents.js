@@ -82,7 +82,8 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
     logger.info(`[SyncAgents] Prompt synchronization started by ADMIN: ${req.user?.id}`);
     
     // Resolve absolute path to the Agentes Wappy folder
-    const agentsDir = path.resolve(process.cwd(), 'Agentes/Agentes Wappy');
+    // __dirname = /app/api/server/routes/sgsst  →  4 levels up = /app
+    const agentsDir = path.resolve(__dirname, '../../../..', 'Agentes/Agentes Wappy');
     if (!fs.existsSync(agentsDir)) {
       logger.error(`[SyncAgents] Directory not found: ${agentsDir}`);
       return res.status(404).json({ error: `La carpeta de agentes no fue encontrada en: ${agentsDir}` });
@@ -207,7 +208,8 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
 
     logger.info(`[CleanupSync] Started by ADMIN: ${req.user?.id}`);
 
-    const agentsDir = path.resolve(process.cwd(), 'Agentes/Agentes Wappy');
+    // __dirname = /app/api/server/routes/sgsst  →  4 levels up = /app
+    const agentsDir = path.resolve(__dirname, '../../../..', 'Agentes/Agentes Wappy');
     if (!fs.existsSync(agentsDir)) {
       return res.status(404).json({ error: `Carpeta de agentes no encontrada: ${agentsDir}` });
     }
