@@ -1,5 +1,6 @@
-import { Plus, Copy } from 'lucide-react';
+import { Plus, Copy, Download } from 'lucide-react';
 import React, { useMemo, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { Button, useToastContext } from '@librechat/client';
 import { useWatch, useForm, FormProvider } from 'react-hook-form';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
@@ -244,6 +245,39 @@ export default function AgentPanel() {
     }
   }, [agent_id, onSelectAgent]);
 
+  const handleExportBackup = useCallback(async () => {
+    try {
+      showToast({
+        message: 'Iniciando exportación de agentes...',
+        status: 'info',
+      });
+      const response = await axios.get('/api/sgsst/sync-agents/export-agents', {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wappy_agents_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast({
+        message: 'Copia de seguridad descargada exitosamente.',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to export agents:', err);
+      showToast({
+        message: 'Error al exportar agentes: ' + (err instanceof Error ? err.message : String(err)),
+        status: 'error',
+      });
+    }
+  }, [showToast]);
+
   const isCreationBlocked = useMemo(() => {
     if (user?.role === SystemRoles.ADMIN || user?.role === 'USER_PRO') {
       return false;
@@ -337,6 +371,19 @@ export default function AgentPanel() {
                 <Copy className="mr-1 h-4 w-4" />
                 Duplicar Agente
               </Button>
+              {user?.role === SystemRoles.ADMIN && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-center border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-in-out shadow-sm"
+                  onClick={handleExportBackup}
+                  disabled={agentQuery.isInitialLoading}
+                  aria-label="Exportar Copia de Seguridad"
+                >
+                  <Download className="mr-1 h-4 w-4 animate-bounce" style={{ animationDuration: '2s' }} />
+                  Exportar Agentes
+                </Button>
+              )}
               <Button
                 variant="submit"
                 className="w-full justify-center"
