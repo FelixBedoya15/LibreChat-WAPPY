@@ -14,6 +14,7 @@ const BioRiskSchema = new mongoose.Schema({
   dimension_bio: String,       // Mapeo directo a Descripción GTC-45 (ej. Ruido, Virus, Movimiento repetitivo)
   peligro_cargo: String,
   actividad_expuesta: String,
+  efectos_posibles: String,
 
   // Moduladores individuales
   factor_individual: String,   // Condición del trabajador que amplifica el riesgo
@@ -35,6 +36,12 @@ const BioRiskSchema = new mongoose.Schema({
   controles_fuente: String,
   controles_medio: String,
   controles_individuo: String,
+  medida_eliminacion: String,
+  medida_sustitucion: String,
+  medida_ingenieria: String,
+  medida_administrativa: String,
+  medida_eppu: String,
+  factores_reduccion_texto: String,
   plan_accion_bio: String, // Legado o general
   restricciones_laborales: String,
   seguimiento_medico: { type: String, enum: ['Mensual', 'Trimestral', 'Semestral', 'Anual'], default: 'Anual' },
