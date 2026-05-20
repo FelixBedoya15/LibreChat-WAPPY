@@ -178,6 +178,75 @@ async function getActiveCompanyId(userId) {
     return active ? active._id : null;
 }
 
+// Helper: Sync a worker with Oráculo H1 data from PerfilSociodemograficoData
+async function syncWorkerWithOraculoH1(worker, userId) {
+    try {
+        const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+        if (PerfilSocioModel && worker.companyId) {
+            const socioDoc = await PerfilSocioModel.findOne({ user: userId, companyId: worker.companyId });
+            if (socioDoc && socioDoc.trabajadores) {
+                const liveSocioWorker = socioDoc.trabajadores.find(t => 
+                    String(t.identificacion || t.documento || '').trim() === String(worker.documento || '').trim()
+                );
+                if (liveSocioWorker) {
+                    let updated = false;
+
+                    const liveScore = liveSocioWorker.biocentricScore !== undefined && liveSocioWorker.biocentricScore !== null 
+                        ? liveSocioWorker.biocentricScore 
+                        : worker.fitScore;
+                    
+                    if (worker.fitScore !== liveScore) {
+                        worker.fitScore = liveScore;
+                        updated = true;
+                    }
+
+                    // Compare fitAlerts or assign if different
+                    if (JSON.stringify(worker.fitAlerts) !== JSON.stringify(liveSocioWorker.biocentricAlerts || [])) {
+                        worker.fitAlerts = liveSocioWorker.biocentricAlerts || [];
+                        updated = true;
+                    }
+
+                    // Build a highly rich clinical profile from live sociodemographic details
+                    const clinicalDetails = [];
+                    if (liveSocioWorker.diagnosticoMedico) clinicalDetails.push(`Diagnóstico Médico: ${liveSocioWorker.diagnosticoMedico}`);
+                    if (liveSocioWorker.recomendacionesMedicas) clinicalDetails.push(`Recomendaciones Médicas: ${liveSocioWorker.recomendacionesMedicas}`);
+                    if (liveSocioWorker.enfermedades) clinicalDetails.push(`Enfermedades/Antecedentes: ${liveSocioWorker.enfermedades}`);
+                    if (liveSocioWorker.medicamentos) clinicalDetails.push(`Medicamentos: ${liveSocioWorker.medicamentos}`);
+                    if (liveSocioWorker.limitacionesBiomecanicas) clinicalDetails.push(`Limitaciones Biomecánicas: ${liveSocioWorker.limitacionesBiomecanicas}`);
+                    if (liveSocioWorker.alergiasQuimicas) clinicalDetails.push(`Alergias Químicas/Físicas: ${liveSocioWorker.alergiasQuimicas}`);
+                    if (liveSocioWorker.fuma) clinicalDetails.push(`Fuma: ${liveSocioWorker.fuma}`);
+                    if (liveSocioWorker.alcohol) clinicalDetails.push(`Alcohol: ${liveSocioWorker.alcohol}`);
+                    
+                    const conditionsStr = clinicalDetails.length > 0 ? clinicalDetails.join('; ') : worker.condicionesSalud || '';
+                    if (worker.condicionesSalud !== conditionsStr) {
+                        worker.condicionesSalud = conditionsStr;
+                        updated = true;
+                    }
+
+                    // Sync basic profile data if changed
+                    if (liveSocioWorker.nombre && worker.nombre !== liveSocioWorker.nombre) {
+                        worker.nombre = liveSocioWorker.nombre;
+                        updated = true;
+                    }
+                    if (liveSocioWorker.genero && worker.genero !== liveSocioWorker.genero) {
+                        worker.genero = liveSocioWorker.genero;
+                        updated = true;
+                    }
+
+                    if (updated) {
+                        worker.updatedAt = Date.now();
+                        await worker.save();
+                        logger.debug(`[SGSST Workers] Synced worker ${worker.nombre} (${worker.documento}) with latest Oráculo H1 data.`);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        logger.error('[SGSST Workers] Error in syncWorkerWithOraculoH1 helper:', e);
+    }
+    return worker;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IMPORTANT: Specific routes MUST come before wildcard /:perfilId to avoid
 // Express matching them incorrectly.
@@ -186,7 +255,7 @@ async function getActiveCompanyId(userId) {
 // GET: Obtener un trabajador por ID (Bio-Individuo 360)
 router.get('/worker/:id', requireJwtAuth, async (req, res) => {
     try {
-        const worker = await SgsstWorker.findOne({
+        let worker = await SgsstWorker.findOne({
             _id: req.params.id,
             user: req.user.id
         });
@@ -194,6 +263,9 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
         if (!worker) {
             return res.status(404).json({ error: 'Trabajador no encontrado' });
         }
+
+        // Hot-sync with latest Oráculo H1 data
+        worker = await syncWorkerWithOraculoH1(worker, req.user.id);
 
         res.json({ worker });
     } catch (error) {
@@ -320,7 +392,12 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
             perfilId: req.params.perfilId
         }).sort({ fechaIngreso: -1 });
 
-        res.json({ workers });
+        // Hot-sync each worker in the list with the latest Oráculo H1 data
+        const syncedWorkers = await Promise.all(
+            workers.map(worker => syncWorkerWithOraculoH1(worker, req.user.id))
+        );
+
+        res.json({ workers: syncedWorkers });
     } catch (error) {
         logger.error('[SGSST Workers] Load error:', error);
         res.status(500).json({ error: 'Error al cargar trabajadores' });
@@ -421,18 +498,25 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
+        // ─── SYNC ORÁCULO H1 DATA FROM PERFIL SOCIODEMOGRAFICO ─────────────────
+        await syncWorkerWithOraculoH1(worker, req.user.id);
+        const fitScore = worker.fitScore || 0;
+        const fitAlerts = worker.fitAlerts || [];
+        const condicionesSaludStr = worker.condicionesSalud || '';
+
         // Fetch cargo profile for context
         let cargoContext = '';
         let cargoNombre = '';
+        let perfil = null;
         try {
             const getPerfilCargoDataModel = () => {
                 if (!mongoose.models.PerfilCargoData) require('./perfilesCargo');
                 return mongoose.models.PerfilCargoData;
             };
             const PerfilCargoData = getPerfilCargoDataModel();
-            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id });
+            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id, companyId: worker.companyId });
             if (cargoDoc && cargoDoc.perfilesList) {
-                const perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
+                perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
                 if (perfil) {
                     cargoNombre = perfil.nombreCargo || 'No especificado';
                     cargoContext = `
@@ -447,7 +531,79 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
             }
         } catch (e) { /* ignore */ }
 
-        const fitScore = worker.fitScore || 0;
+        // Gather all actual verified controls from PerfilCargo and MatrizPeligros
+        let realControlesFuente = new Set();
+        let realControlesMedio = new Set();
+        let realControlesIndividuo = new Set();
+
+        if (perfil) {
+            if (perfil.eppSeleccionados && Array.isArray(perfil.eppSeleccionados)) {
+                perfil.eppSeleccionados.forEach(c => {
+                    if (c && c.trim()) realControlesIndividuo.add(c.trim());
+                });
+            }
+            if (perfil.entrenamientosSeleccionados && Array.isArray(perfil.entrenamientosSeleccionados)) {
+                perfil.entrenamientosSeleccionados.forEach(c => {
+                    if (c && c.trim()) realControlesIndividuo.add(`Capacitación: ${c.trim()}`);
+                });
+            }
+        }
+
+        try {
+            const getMatrizPeligrosDataModel = () => {
+                if (!mongoose.models.MatrizPeligrosData) require('./matrizPeligros');
+                return mongoose.models.MatrizPeligrosData;
+            };
+            const MatrizPeligrosData = getMatrizPeligrosDataModel();
+            const peligrosDoc = await MatrizPeligrosData.findOne({ user: req.user.id, companyId: worker.companyId });
+            if (peligrosDoc && peligrosDoc.procesos) {
+                peligrosDoc.procesos.forEach(p => {
+                    if (p.controlesExistentes && p.controlesExistentes.trim()) {
+                        realControlesMedio.add(p.controlesExistentes.trim());
+                    }
+                    if (p.peligros && Array.isArray(p.peligros)) {
+                        p.peligros.forEach(pel => {
+                            if (pel.fuenteGeneradora && pel.fuenteGeneradora.trim() && pel.fuenteGeneradora.toLowerCase() !== 'ninguno') {
+                                realControlesFuente.add(pel.fuenteGeneradora.trim());
+                            }
+                            if (pel.medioExistente && pel.medioExistente.trim() && pel.medioExistente.toLowerCase() !== 'ninguno') {
+                                realControlesMedio.add(pel.medioExistente.trim());
+                            }
+                            if (pel.individuoControl && pel.individuoControl.trim() && pel.individuoControl.toLowerCase() !== 'ninguno') {
+                                realControlesIndividuo.add(pel.individuoControl.trim());
+                            }
+                        });
+                    }
+                });
+            }
+        } catch (e) {
+            logger.error('[SGSST Workers] Error loading real company controls from MatrizPeligros:', e);
+        }
+
+        const fuenteListStr = realControlesFuente.size > 0 
+            ? Array.from(realControlesFuente).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en la fuente en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+        const medioListStr = realControlesMedio.size > 0 
+            ? Array.from(realControlesMedio).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en el medio en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+        const individuoListStr = realControlesIndividuo.size > 0 
+            ? Array.from(realControlesIndividuo).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en el individuo en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+
+        const verdaderosControlesContext = `
+=========================================
+VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA (Extraídos estrictamente de la base de datos y perfiles de cargo):
+
+CONTROLES EN LA FUENTE:
+${fuenteListStr}
+
+CONTROLES EN EL MEDIO:
+${medioListStr}
+
+CONTROLES EN EL INDIVIDUO:
+${individuoListStr}
+=========================================`;
+
         const percepcionPts = worker.percepcionRiesgoScore || 0;
         const factorReduccion = Math.min(percepcionPts / 500, 0.40);
 
@@ -465,11 +621,19 @@ ${instruccionesExtra
 DATOS DEL TRABAJADOR:
 - Nombre: ${worker.nombre}
 - Género: ${worker.genero || 'No especificado'}
-- Condiciones de Salud / Antecedentes: ${worker.condicionesSalud || 'Ninguno registrado'}
+- Condiciones de Salud / Antecedentes: ${condicionesSaludStr || 'Ninguno registrado'}
 - FIT - Índice Biocéntrico Integral: ${fitScore}%
 - Puntos Percepción del Riesgo: ${percepcionPts} pts
 - Factor de Reducción por Buena Percepción: ${(factorReduccion * 100).toFixed(0)}%
 ${cargoContext}
+
+${verdaderosControlesContext}
+
+REGLAS DE OBLIGATORIO CUMPLIMIENTO PARA CONTROLES EXISTENTES:
+1. Queda ABSOLUTAMENTE PROHIBIDO inventar o alucinar controles existentes.
+2. Para los campos "controles_fuente", "controles_medio", y "controles_individuo", debes seleccionar y mapear ÚNICAMENTE los controles que aparezcan en la sección "VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA" que correspondan al peligro analizado.
+3. Si para algún peligro o celda no existe un control registrado en dicha lista que aplique, debes colocar exactamente la frase: "No registrado en Perfil de Cargo" o "Ninguno". NUNCA te inventes controles como "Uso de tapabocas" o "Pausas activas" a menos que estén explícitamente en la lista provista.
+4. Para el control del individuo, prioriza mapear los EPP Requeridos y Capacitaciones de la lista de controles en el individuo que correspondan al cargo del trabajador.
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
@@ -501,9 +665,9 @@ Cada objeto DEBE tener estos campos exactos:
   "actividad_expuesta": string,
   "efectos_posibles": string, // Posibles enfermedades o lesiones (ej. Hipoacusia, Lumbalgia)
   "factor_individual": string, // condición del trabajador que amplifica el riesgo
-  "controles_fuente": string, // Controles existentes en la fuente
-  "controles_medio": string, // Controles existentes en el medio
-  "controles_individuo": string, // Controles existentes en el individuo
+  "controles_fuente": string, // Controles existentes en la fuente (DEBE ser del listado VERDADEROS CONTROLES o "Ninguno"/"No registrado en Perfil de Cargo")
+  "controles_medio": string, // Controles existentes en el medio (DEBE ser del listado VERDADEROS CONTROLES o "Ninguno"/"No registrado en Perfil de Cargo")
+  "controles_individuo": string, // Controles existentes en el individuo (DEBE ser del listado VERDADEROS CONTROLES o "Ninguno"/"No registrado en Perfil de Cargo")
   "fit_score": ${fitScore},
   "percepcion_riesgo_pts": ${percepcionPts},
   "nivel_susceptibilidad": number (1-5),
@@ -574,10 +738,124 @@ router.post('/worker/:id/ai-update-bio-row', requireJwtAuth, async (req, res) =>
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
+        // Fetch cargo profile for context
+        let cargoContext = '';
+        let cargoNombre = '';
+        let perfil = null;
+        try {
+            const getPerfilCargoDataModel = () => {
+                if (!mongoose.models.PerfilCargoData) require('./perfilesCargo');
+                return mongoose.models.PerfilCargoData;
+            };
+            const PerfilCargoData = getPerfilCargoDataModel();
+            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id, companyId: worker.companyId });
+            if (cargoDoc && cargoDoc.perfilesList) {
+                perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
+                if (perfil) {
+                    cargoNombre = perfil.nombreCargo || 'No especificado';
+                    cargoContext = `
+- Cargo: ${perfil.nombreCargo || 'No especificado'}
+- Área: ${perfil.area || ''}
+- Exigencia Física: ${perfil.exigenciaFisica || ''}
+- Exigencia Mental: ${perfil.exigenciaMental || ''}
+- Opera Maquinaria: ${perfil.operaMaquinaria || ''}
+- EPP Requerido: ${(perfil.eppSeleccionados || []).join(', ')}
+- Contexto adicional del cargo: ${perfil.contextoAdicional || ''}`;
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        // Gather all actual verified controls from PerfilCargo and MatrizPeligros
+        let realControlesFuente = new Set();
+        let realControlesMedio = new Set();
+        let realControlesIndividuo = new Set();
+
+        if (perfil) {
+            if (perfil.eppSeleccionados && Array.isArray(perfil.eppSeleccionados)) {
+                perfil.eppSeleccionados.forEach(c => {
+                    if (c && c.trim()) realControlesIndividuo.add(c.trim());
+                });
+            }
+            if (perfil.entrenamientosSeleccionados && Array.isArray(perfil.entrenamientosSeleccionados)) {
+                perfil.entrenamientosSeleccionados.forEach(c => {
+                    if (c && c.trim()) realControlesIndividuo.add(`Capacitación: ${c.trim()}`);
+                });
+            }
+        }
+
+        try {
+            const getMatrizPeligrosDataModel = () => {
+                if (!mongoose.models.MatrizPeligrosData) require('./matrizPeligros');
+                return mongoose.models.MatrizPeligrosData;
+            };
+            const MatrizPeligrosData = getMatrizPeligrosDataModel();
+            const peligrosDoc = await MatrizPeligrosData.findOne({ user: req.user.id, companyId: worker.companyId });
+            if (peligrosDoc && peligrosDoc.procesos) {
+                peligrosDoc.procesos.forEach(p => {
+                    if (p.controlesExistentes && p.controlesExistentes.trim()) {
+                        realControlesMedio.add(p.controlesExistentes.trim());
+                    }
+                    if (p.peligros && Array.isArray(p.peligros)) {
+                        p.peligros.forEach(pel => {
+                            if (pel.fuenteGeneradora && pel.fuenteGeneradora.trim() && pel.fuenteGeneradora.toLowerCase() !== 'ninguno') {
+                                realControlesFuente.add(pel.fuenteGeneradora.trim());
+                            }
+                            if (pel.medioExistente && pel.medioExistente.trim() && pel.medioExistente.toLowerCase() !== 'ninguno') {
+                                realControlesMedio.add(pel.medioExistente.trim());
+                            }
+                            if (pel.individuoControl && pel.individuoControl.trim() && pel.individuoControl.toLowerCase() !== 'ninguno') {
+                                realControlesIndividuo.add(pel.individuoControl.trim());
+                            }
+                        });
+                    }
+                });
+            }
+        } catch (e) {
+            logger.error('[SGSST Workers] Error loading real company controls in update-row:', e);
+        }
+
+        const fuenteListStr = realControlesFuente.size > 0 
+            ? Array.from(realControlesFuente).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en la fuente en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+        const medioListStr = realControlesMedio.size > 0 
+            ? Array.from(realControlesMedio).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en el medio en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+        const individuoListStr = realControlesIndividuo.size > 0 
+            ? Array.from(realControlesIndividuo).map(c => `- ${c}`).join('\n') 
+            : '- No se registran controles específicos en el individuo en la base de datos de la empresa. Utiliza "Ninguno" o "No registrado en Perfil de Cargo"';
+
+        const verdaderosControlesContext = `
+=========================================
+VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA (Extraídos estrictamente de la base de datos y perfiles de cargo):
+
+CONTROLES EN LA FUENTE:
+${fuenteListStr}
+
+CONTROLES EN EL MEDIO:
+${medioListStr}
+
+CONTROLES EN EL INDIVIDUO:
+${individuoListStr}
+=========================================`;
+
         const prompt = `Eres un experto en SST y jerarquía de controles biocéntricos.
 Se te proporciona una fila de una Matriz IPEVAR Bio-Individual.
 Tu tarea es analizar el peligro y generar una recomendación MEJORADA para todos los campos de controles propuestos, controles existentes, efectos y clasificación. NO modifiques el Dominio, Dimensión, u Origen.
 ${instruction ? `\nINSTRUCCIONES ESPECÍFICAS DEL USUARIO:\n"${instruction}"\n` : ''}
+
+DATOS DEL TRABAJADOR:
+- Nombre: ${worker.nombre}
+- Condiciones de Salud: ${worker.condicionesSalud || 'Ninguno registrado'}
+- FIT Score: ${worker.fitScore || 0}%
+${cargoContext}
+
+${verdaderosControlesContext}
+
+REGLAS DE OBLIGATORIO CUMPLIMIENTO PARA CONTROLES EXISTENTES:
+1. Queda ABSOLUTAMENTE PROHIBIDO inventar o alucinar controles existentes.
+2. Para los campos "controles_fuente", "controles_medio", y "controles_individuo", debes seleccionar y mapear ÚNICAMENTE los controles que aparezcan en la sección "VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA" que correspondan al peligro analizado.
+3. Si para algún peligro o celda no existe un control registrado en dicha lista que aplique, debes colocar exactamente la frase: "No registrado en Perfil de Cargo" o "Ninguno". NUNCA te inventes controles como "Uso de tapabocas" o "Pausas activas" a menos que estén explícitamente en la lista provista.
+4. Para el control del individuo, prioriza mapear los EPP Requeridos y Capacitaciones de la lista de controles en el individuo que correspondan al cargo del trabajador.
 
 FILA ACTUAL:
 ${JSON.stringify(row, null, 2)}
