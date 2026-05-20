@@ -295,6 +295,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const [aiInstruction, setAiInstruction] = useState('');
   const [showMethodology, setShowMethodology] = useState(false);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
+  const [generateCount, setGenerateCount] = useState(5);
 
   // ─── Cargar datos ─────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -386,7 +387,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-bio-risks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ instruccionesExtra: aiInstruction, riesgosActuales: rows, modelName: selectedModel }),
+        body: JSON.stringify({ instruccionesExtra: aiInstruction, riesgosActuales: rows, modelName: selectedModel, cantidad: generateCount }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
@@ -398,9 +399,10 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         };
         return calcularRiesgo(baseRow, percepcionPts);
       });
+      const diffCount = generated.length - rows.length;
       setRows(generated);
-      setHasUnsaved(true);
-      showToast({ message: `✅ ${generated.length} riesgos bio-individuales generados`, status: 'success' });
+      setHasUnsaved(false);
+      showToast({ message: `✅ ${diffCount > 0 ? diffCount : generated.length} nuevos riesgos bio-individuales generados e incorporados`, status: 'success' });
     } catch (e: any) {
       showToast({ message: e.message || 'Error al generar', status: 'error' });
     } finally {
@@ -609,9 +611,21 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
               value={aiInstruction}
               onChange={e => setAiInstruction(e.target.value)}
               placeholder="Instrucciones para la IA (ej. Enfócate en riesgos...)"
-              className="bg-transparent border-0 outline-none text-xs text-text-primary w-56 placeholder-text-tertiary"
+              className="bg-transparent border-0 outline-none text-xs text-text-primary w-40 placeholder-text-tertiary"
               disabled={isGenerating}
             />
+            <div className="flex items-center gap-1 border-l border-border-medium px-2 h-6 select-none">
+              <span className="text-[10px] text-text-secondary font-bold uppercase whitespace-nowrap">Cant:</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={generateCount}
+                onChange={e => setGenerateCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                className="w-8 bg-transparent border-0 outline-none text-xs font-bold text-text-primary text-center focus:ring-0 p-0"
+                disabled={isGenerating}
+              />
+            </div>
             <button onClick={generateWithAI} disabled={isGenerating}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 ml-1 h-8">
               {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}

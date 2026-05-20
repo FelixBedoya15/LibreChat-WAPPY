@@ -523,7 +523,7 @@ router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
 // POST: Generar riesgos Bio-Individuales con IA
 router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) => {
     try {
-        const { instruccionesExtra, riesgosActuales, modelName } = req.body || {};
+        const { instruccionesExtra, riesgosActuales, modelName, cantidad } = req.body || {};
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
@@ -635,21 +635,19 @@ ${individuoListStr}
 
         const percepcionPts = worker.percepcionRiesgoScore || 0;
         const factorReduccion = Math.min(percepcionPts / 500, 0.40);
+        const cantidadAGenerar = Number(cantidad) || 5;
 
         const prompt = `Eres un experto en Salud y Seguridad en el Trabajo con enfoque BIO-INDIVIDUAL.
-Tu tarea es generar una evaluación de riesgos personalizada bajo la METODOLOGÍA BIO-INDIVIDUAL WAPPY, que evalúa la interacción entre el peligro del cargo y el organismo específico del trabajador.
+Tu tarea es generar exactamente ${cantidadAGenerar} nuevos riesgos bio-individuales personalizados bajo la METODOLOGÍA BIO-INDIVIDUAL WAPPY, que evalúa la interacción entre el peligro del cargo y el organismo específico del trabajador.
 
-RIESGOS ACTUALES EN LA MATRIZ:
-${riesgosActuales && riesgosActuales.length > 0 ? JSON.stringify(riesgosActuales, null, 2) : 'Ninguno. La matriz está vacía.'}
+RIESGOS YA EXISTENTES EN LA MATRIZ DEL TRABAJADOR (NO los repitas ni modifiques en tu respuesta, genera riesgos complementarios y totalmente nuevos):
+${riesgosActuales && riesgosActuales.length > 0 
+    ? JSON.stringify(riesgosActuales.map(r => ({ dominio_bio: r.dominio_bio, dimension_bio: r.dimension_bio, peligro_cargo: r.peligro_cargo, efectos_posibles: r.efectos_posibles })), null, 2) 
+    : 'Ninguno. La matriz está vacía.'}
 
-${riesgosActuales && riesgosActuales.length > 0
-    ? (instruccionesExtra 
-        ? `\nINSTRUCCIONES DEL USUARIO:\n"${instruccionesExtra}"\nModifica la matriz actual según esta instrucción (puedes agregar nuevos, eliminar o editar los riesgos actuales). Devuelve la matriz COMPLETA actualizada.\n` 
-        : `\nINSTRUCCIÓN: La matriz ya tiene riesgos registrados. Tu tarea es analizar el perfil del trabajador y AGREGAR nuevos riesgos relevantes que falten a la lista actual. Devuelve la lista COMPLETA combinando los riesgos actuales (mantén su ID si no los modificas) junto con los nuevos que generes.\n`)
-    : (instruccionesExtra
-        ? `\nINSTRUCCIÓN: La matriz está vacía. Genera una nueva evaluación de riesgos para el trabajador basada en la siguiente instrucción: "${instruccionesExtra}". Debes generar un análisis exhaustivo con MÍNIMO 8 y MÁXIMO 12 riesgos diferentes que cubran múltiples dominios fisiológicos (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico, Seguridad).\n`
-        : `\nINSTRUCCIÓN: Como la matriz está vacía (primera carga), es obligatorio identificar de manera exhaustiva MÍNIMO 8 y MÁXIMO 12 riesgos diferentes para el trabajador, cubriendo múltiples dominios fisiológicos (por ejemplo: Sensorial, Osteomuscular, Psicoemocional, Respiratorio, Inmunológico, Seguridad, etc.). No limites el análisis a sólo 2 o 3 riesgos; debes estructurar la matriz de forma completa y robusta.\n`)
-}
+INSTRUCCIÓN: Genera exactamente ${cantidadAGenerar} nuevos riesgos bio-individuales relevantes para este trabajador.
+${instruccionesExtra ? `Toma en cuenta la siguiente instrucción adicional del usuario para guiar la generación: "${instruccionesExtra}".` : ''}
+Asegúrate de que estos nuevos riesgos cubran dominios fisiológicos relevantes que no estén suficientemente representados en la matriz actual o que correspondan al perfil del trabajador.
 
 DATOS DEL TRABAJADOR:
 - Nombre: ${worker.nombre}
@@ -696,10 +694,10 @@ METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 6. Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción). Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo.
 7. Diseña la Jerarquía de Controles (Dec. 1072): Fuente, Medio e Individuo. Incluye análisis de costo-beneficio para el control más recomendado.
 
-Genera los riesgos bio-individuales relevantes y necesarios en formato JSON array (devuelve la lista completa, incluyendo los que ya existían).
+Genera exactamente ${cantidadAGenerar} riesgos bio-individuales NUEVOS en formato JSON array. NO devuelvas ni repitas los riesgos ya existentes.
 Cada objeto DEBE tener estos campos exactos:
 {
-  "id": "uuid-único", // Conserva el ID original si estás devolviendo un riesgo existente. Genera uno nuevo si es un riesgo nuevo.
+  "id": "uuid-nuevo", // Genera un ID único para cada uno de los nuevos riesgos
   "origen_riesgo": "Condición Insegura"|"Acto Inseguro"|"Inherente a la Tarea",
   "dominio_bio": string, // Usa SOLO uno de estos: Sensorial|Respiratorio|Osteomuscular|Psicoemocional|Inmunológico|Cardiovascular|Metabólico|Neurológico|Seguridad
   "dimension_bio": string, // OBLIGATORIO: Debe ser EXACTAMENTE una de las opciones válidas listadas arriba para el dominio_bio seleccionado. Copia el texto idéntico.
@@ -784,11 +782,12 @@ Devuelve SOLO el array JSON, sin formato markdown adicional ni bloques delimitad
             };
         });
 
-        worker.riesgosBioIndividual = riesgosBioIndividual;
+        const todosLosRiesgos = [...(riesgosActuales || []), ...riesgosBioIndividual];
+        worker.riesgosBioIndividual = todosLosRiesgos;
         worker.updatedAt = Date.now();
         await worker.save();
 
-        res.json({ success: true, riesgosBioIndividual, worker });
+        res.json({ success: true, riesgosBioIndividual: todosLosRiesgos, worker });
     } catch (error) {
         logger.error('[SGSST Workers] Generate bio-risks error:', error);
         res.status(500).json({ error: 'Error al generar riesgos bio-individuales con IA' });
@@ -991,15 +990,112 @@ router.post('/worker/:id/ai-chart-conclusion-bio', requireJwtAuth, async (req, r
             return res.json({ success: true, conclusion: manualText });
         }
 
-        const prompt = `Eres un auditor SST analizando métricas de la Matriz Bio-Individual IPEVAR.
-Gráfico analizado: ${chartType}
-Estadísticas del gráfico: ${JSON.stringify(chartStats)}
-Total de riesgos evaluados: ${matrixRows.length}
+        let specificPrompt = '';
+        if (chartType === 'dominio_bio') {
+            specificPrompt = `
+GRÁFICO ANALIZADO: Índice Bio-Efectivo Promedio por Dominio Fisiológico.
+DATOS: ${JSON.stringify(chartStats)}
 
-Genera una conclusión gerencial corta (2-3 oraciones) sobre estos datos. 
-- Identifica el punto más crítico o la tendencia principal.
-- Proporciona una recomendación de alto nivel.
-Devuelve ÚNICAMENTE el texto de la conclusión.`;
+CONCEPTO CLAVE DE INTERPRETACIÓN:
+- La métrica principal es el "Índice de Riesgo Bio-Efectivo Promedio" para cada dominio.
+- ¡CUIDADO! Un índice de riesgo ALTO (por ejemplo, 12 o superior) es DESFAVORABLE (indica alto peligro, requiere intervención inmediata).
+- Un índice de riesgo BAJO (por ejemplo, 1.7 o inferior) es FAVORABLE (indica que el riesgo es bajo o está sumamente controlado). ¡NUNCA interpretes un valor bajo como "efectividad baja" o "deficiencia"! Al contrario, significa que el riesgo es seguro y la mitigación es óptima.
+- Rangos de Clasificación:
+  * >= 20: Crítico (Riesgo muy alto, intervención urgente)
+  * 12 - 19.9: Alto (Riesgo alto, requiere controles)
+  * 6 - 11.9: Moderado (Riesgo moderado, requiere monitoreo)
+  * < 6: Bajo (Riesgo bajo/seguro, controles satisfactorios)
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+1. Identifica qué dominios tienen los índices más altos (los peores, que requieren mayor atención) y menciona su clasificación (ej. "Sensorial es Alto con 12.5").
+2. Menciona y resalta positivamente los dominios con índices muy bajos (los mejores, más seguros, ej. "Seguridad con un promedio de 1.7, clasificado como Bajo").
+3. Escribe de 2 a 3 oraciones gerenciales, sumamente profesionales y técnicas en salud ocupacional.
+4. Habla de TODAS las clasificaciones encontradas en los dominios principales.
+5. Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        } else if (chartType === 'clasificacion_bio') {
+            specificPrompt = `
+GRÁFICO ANALIZADO: Distribución por Clasificación de Bio-Riesgo (Crítico, Alto, Moderado, Bajo).
+DATOS: ${JSON.stringify(chartStats)}
+
+CONCEPTO CLAVE DE INTERPRETACIÓN:
+- Muestra el número de riesgos identificados en cada una de las 4 categorías: Crítico (>=20), Alto (12-19.9), Moderado (6-11.9) y Bajo (<6).
+- Es importante hacer un recuento detallado de todas las clasificaciones presentes en los datos.
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+1. Menciona explícitamente cuántos riesgos hay en cada clasificación encontrada (ej. "se encontraron X riesgos Altos, Y Moderados y Z Bajos"). Debes hablar de TODAS las clasificaciones que tengan al menos 1 riesgo.
+2. Identifica si hay riesgos Críticos o Altos (los de mayor cuidado) y qué proporción representan.
+3. Propón una estrategia basada en la prioridad de intervención (intervenir primero los Críticos/Altos, monitorear los Moderados y mantener controles para los Bajos).
+4. Escribe de 2 a 3 oraciones gerenciales, técnicas y claras.
+5. Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        } else if (chartType === 'controles_existentes') {
+            specificPrompt = `
+GRÁFICO ANALIZADO: Cobertura de Controles Existentes (en la Fuente, en el Medio, en el Individuo o Sin control existente).
+DATOS: ${JSON.stringify(chartStats)}
+
+CONCEPTO CLAVE DE INTERPRETACIÓN:
+- GTC-45 y la normativa SST dictan que los controles deben aplicarse prioritariamente en la Fuente (lo ideal) o en el Medio, y dejar el Individuo (EPP, capacitación) como última barrera.
+- "Sin control existente" representa vulnerabilidad inmediata y alta exposición.
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+1. Analiza los porcentajes de cobertura actuales. ¿Se están aplicando controles en la Fuente y Medio, o hay una dependencia excesiva del Individuo?
+2. Comenta explícitamente sobre el porcentaje de "Sin control existente" si es superior a 0%.
+3. Recomienda el fortalecimiento de controles de ingeniería (Fuente/Medio) para reducir la dependencia de EPP en el Individuo.
+4. Escribe de 2 a 3 oraciones gerenciales, técnicas y claras.
+5. Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        } else if (chartType === 'jerarquia_controles_propuestos' || chartType === 'controles_propuestos') {
+            specificPrompt = `
+GRÁFICO ANALIZADO: Jerarquía de Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativo, EPP).
+DATOS: ${JSON.stringify(chartStats)}
+
+CONCEPTO CLAVE DE INTERPRETACIÓN:
+- Según el Decreto 1072, la jerarquía de controles va de lo más efectivo (Eliminación, Sustitución) a lo menos efectivo (EPP).
+- Si hay más controles de EPP propuestos que de Eliminación/Sustitución/Ingeniería, se considera una "jerarquía invertida" (deficiente preventivamente).
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+1. Comenta sobre la distribución de las medidas propuestas. ¿Priorizan la Eliminación/Ingeniería o hay exceso de EPP/Administrativos?
+2. Menciona la importancia de estructurar controles duros (Ingeniería/Sustitución) en lugar de trasladar toda la responsabilidad de protección al trabajador a través de EPP.
+3. Escribe de 2 a 3 oraciones gerenciales, técnicas y claras.
+4. Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        } else if (chartType === 'efectos_salud') {
+            specificPrompt = `
+GRÁFICO ANALIZADO: Efectos Posibles a la Salud Reportados (Top 5 de patologías o síntomas).
+DATOS: ${JSON.stringify(chartStats)}
+
+CONCEPTO CLAVE DE INTERPRETACIÓN:
+- Muestra los efectos o lesiones a la salud más recurrentes del trabajador en base a las tareas expuestas (ej. Lumbalgia, fatiga mental, hipoacusia).
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+1. Identifica las 2 o 3 patologías/síntomas más frecuentes según la estadística.
+2. Recomienda la implementación o refuerzo de Programas de Vigilancia Epidemiológica (PVE) específicos para esos efectos (ej. PVE Osteomuscular, PVE Conservación Auditiva) y la periodicidad de exámenes médicos ocupacionales.
+3. Escribe de 2 a 3 oraciones gerenciales, técnicas y claras.
+4. Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        } else {
+            specificPrompt = `
+GRÁFICO ANALIZADO: ${chartType}
+DATOS: ${JSON.stringify(chartStats)}
+
+INSTRUCCIONES PARA LA CONCLUSIÓN:
+Genera una conclusión gerencial corta (2-3 oraciones) sobre estos datos. Identifica el punto más crítico o la tendencia principal. Proporciona una recomendación de alto nivel.
+Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
+`;
+        }
+
+        const prompt = `Eres un auditor experto de primer nivel en Seguridad y Salud en el Trabajo (SST) con conocimientos profundos en higiene industrial y ergonomía.
+Analiza la siguiente información de la Matriz Bio-Individual IPEVAR (GTC 45) de un trabajador:
+
+${specificPrompt}
+
+REGLAS DE OBLIGATORIO CUMPLIMIENTO:
+- ¡NO confundas la escala del Índice de Riesgo! Un valor bajo es favorable (poco riesgo), un valor alto es desfavorable (alto riesgo).
+- Debes hablar de TODAS las categorías o clasificaciones relevantes de riesgo que aparezcan en los datos para evitar omisiones.
+- Escribe con un tono formal, técnico, objetivo y gerencial.
+- Evita redundancias o explicaciones metodológicas largas. Ve directo al grano con los números y la recomendación técnica.
+- Devuelve SOLO el texto plano de la conclusión. No agregues comillas alrededor de la conclusión, no agregues formato Markdown ni introducciones como "Conclusión:".`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
         const selectedModel = modelName || 'gemini-2.5-flash';
