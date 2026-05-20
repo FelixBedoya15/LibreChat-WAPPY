@@ -47,44 +47,20 @@ export default defineConfig(({ command }) => ({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-
-        // ─── PRECACHE ─────────────────────────────────────────────────────────
-        // index.html MUST be in the precache so that createHandlerBoundToURL()
-        // works in every SW version (old and new). Without it every deploy causes
-        // the 'non-precached-url: index.html' error while the old SW is still in
-        // control of the page. Workbox auto-busts it per deployment via content hash.
         globPatterns: [
-          '**/*.{js,css,html}',    // includes index.html ← key fix
+          '**/*.{js,css}',
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
           'assets/maskable-icon.png',
           'manifest.webmanifest',
         ],
-        globIgnores: ['**/*.map'], // index.html REMOVED from ignore list
-
+        globIgnores: ['**/*.map', '**/*.html'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-
-        // ─── NAVIGATION FALLBACK ──────────────────────────────────────────────
-        // Use index.html as fallback for SPA navigation — it IS in the precache now.
-        // Deny API/OAuth so the SW never intercepts backend requests.
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/oauth\//],
-
-        // ─── RUNTIME CACHING ──────────────────────────────────────────────────
-        // Navigation requests: NetworkFirst (always try server, fallback to cache).
-        // This ensures fresh content after every deploy.
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst' as const,
-            options: {
-              cacheName: 'navigation-cache',
-              networkTimeoutSeconds: 3,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // navigateFallback: null evita que Workbox llame createHandlerBoundToURL
+        // El servidor maneja el routing del SPA — no necesitamos SW para navegación
+        navigateFallback: null,
+        navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
       },
       includeAssets: [],
 
