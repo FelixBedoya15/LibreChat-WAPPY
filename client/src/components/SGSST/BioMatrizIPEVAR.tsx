@@ -326,7 +326,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         body: JSON.stringify({ riesgosBioIndividual: updatedRows }),
       });
       setHasUnsaved(false);
-      showToast({ message: 'Matriz bio-individual guardada ✅', status: 'success', severity: 'success' });
+      showToast({ message: 'Matriz bio-individual guardada ✅', status: 'success' });
     } catch {
       showToast({ message: 'Error al guardar', status: 'error' });
     } finally {

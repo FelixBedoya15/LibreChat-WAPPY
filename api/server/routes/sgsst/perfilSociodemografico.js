@@ -390,6 +390,40 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(req.user.id);
     const data = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
+      // Recalculate scores for all workers to ensure perfect parity with the Matriz
+      // This is the canonical source of truth — any view that reads from here gets the same score
+      let needsSave = false;
+      if (data.trabajadores && data.trabajadores.length > 0) {
+        try {
+          const updatedWorkers = await recalculateAndSyncAllWorkers(req.user.id, companyId, data.trabajadores);
+          // Check if any score changed — if so, persist the updated scores
+          for (let i = 0; i < updatedWorkers.length; i++) {
+            const orig = data.trabajadores[i];
+            const updated = updatedWorkers[i];
+            if (orig && updated && (orig.biocentricScore !== updated.biocentricScore ||
+                JSON.stringify(orig.biocentricAlerts) !== JSON.stringify(updated.biocentricAlerts))) {
+              needsSave = true;
+              break;
+            }
+          }
+          if (needsSave) {
+            data.trabajadores = updatedWorkers;
+            data.updatedAt = Date.now();
+            await data.save();
+          }
+          // Siempre devolver updatedWorkers: tienen los scores recalculados frescos
+          // aunque no haya habido cambio en BD (evita que se devuelvan scores obsoletos)
+          return res.json({
+            trabajadores: updatedWorkers,
+            actualizacionesPendientes: data.actualizacionesPendientes || [],
+            actualizacionesPendientesSalud: data.actualizacionesPendientesSalud || []
+          });
+
+        } catch (recalcErr) {
+          logger.error('[SGSST PerfilSociodemografico] Error recalculating scores on GET /data:', recalcErr);
+          // Fall through to return data without recalc
+        }
+      }
       return res.json({
         trabajadores: data.trabajadores || [],
         actualizacionesPendientes: data.actualizacionesPendientes || [],
@@ -403,6 +437,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     res.status(500).json({ error: 'Error al cargar datos' });
   }
 });
+
 
 // ─── Helper: Clinical Hash — compares only the text fields the AI analyzes ────
 function buildClinicalHash(w) {

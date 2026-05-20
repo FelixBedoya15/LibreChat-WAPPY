@@ -248,7 +248,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
             if (!res.ok) throw new Error();
             // Update workers but do NOT touch aiConclusions
             setWorkers(updatedWorkers);
-            showToastRef.current({ message: 'Dictamen guardado permanentemente ✅', status: 'success', severity: 'success' });
+            showToastRef.current({ message: 'Dictamen guardado permanentemente ✅', status: 'success' });
         } catch { showToastRef.current({ message: 'Error guardando el dictamen', status: 'error' }); }
         finally { setSavingId(null); }
     };
@@ -266,7 +266,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
             const socioData = await socioRes.json();
             setWorkers(socioData.trabajadores || []);
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-            showToastRef.current({ message: 'Score IA actualizado ✅', status: 'success', severity: 'success' });
+            showToastRef.current({ message: 'Score IA actualizado ✅', status: 'success' });
         } catch {
             showToastRef.current({ message: 'Error al evaluar con IA', status: 'error' });
         } finally {
@@ -305,13 +305,19 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                 {workers.map(worker => {
                     const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
                     const fit = calcFit(worker, profile);
-                    // Score is always computed by the deterministic system (calcFit)
-                    const score = fit.score;
+                    // ─── FUENTE ÚNICA DE VERDAD: El score canónico es el calculado por el backend
+                    // y guardado en la BD (biocentricScore). El calcFit() del frontend se usa
+                    // únicamente para generar los auditItems (alertas) de display. Esto garantiza
+                    // paridad matemática absoluta con la Matriz Bio-IPEVAR que también lee biocentricScore.
+                    const score = (worker.biocentricScore !== undefined && worker.biocentricScore !== null)
+                        ? worker.biocentricScore
+                        : fit.score;
                     const sc = SCORE_COLOR(score);
                     const displayAlerts = fit.auditItems;
                     const hasIATags = fit.hasIATags; // IA has processed this worker's text fields
                     const hasConclusion = !!aiConclusions[worker.id];
                     const isExpanded = expandedId === worker.id;
+
 
 
                     return (
