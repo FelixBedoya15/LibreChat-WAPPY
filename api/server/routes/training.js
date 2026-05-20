@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const requireJwtAuth = require('../middleware/requireJwtAuth');
+const { requireJwtAuth, checkJwtAuth } = require('../middleware');
 const { getCourses, getCourseById, markLessonComplete } = require('../controllers/TrainingController');
 const {
     getAllCoursesAdmin,
@@ -15,8 +15,8 @@ const {
 } = require('../controllers/AdminTrainingController');
 
 // All endpoints require authentication
-router.get('/courses', requireJwtAuth, getCourses);
-router.get('/courses/:id', requireJwtAuth, getCourseById);
+router.get('/courses', checkJwtAuth, getCourses);
+router.get('/courses/:id', checkJwtAuth, getCourseById);
 router.post('/progress', requireJwtAuth, markLessonComplete);
 
 // --- Admin Endpoints (Role checks handled in controller) ---

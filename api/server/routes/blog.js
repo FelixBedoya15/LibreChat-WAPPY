@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireJwtAuth } = require('../middleware');
+const { requireJwtAuth, checkJwtAuth } = require('../middleware');
 const {
     getBlogPosts,
     getBlogPostById,
@@ -13,7 +13,7 @@ const {
 const router = express.Router();
 
 // Public routes (or authenticated only, up to user)
-router.get('/', requireJwtAuth, getBlogPosts);
+router.get('/', checkJwtAuth, getBlogPosts);
 router.get('/:id', getBlogPostById);
 
 // Admin / Write routes

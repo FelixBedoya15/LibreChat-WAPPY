@@ -347,7 +347,7 @@ export default function BlogDashboard() {
                     </div>
                 </div>
 
-                {isAdmin && (
+                {isAdmin ? (
                     <button
                         onClick={() => navigate('/blog/admin')}
                         className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
@@ -355,7 +355,14 @@ export default function BlogDashboard() {
                         <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
                         <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
                     </button>
-                )}
+                ) : !user ? (
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-6 py-1.5 sm:py-2.5 rounded-full transition-all duration-300 shadow-xl shadow-[#10b981]/10 hover:scale-105"
+                    >
+                        <span className="font-bold text-xs sm:text-sm uppercase tracking-wider">Iniciar Sesión</span>
+                    </button>
+                ) : null}
             </div>
 
             {/* Scrollable Content */}

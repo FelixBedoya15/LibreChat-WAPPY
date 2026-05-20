@@ -147,6 +147,20 @@ const AuthContextProvider = ({
     loginUser.mutate(data);
   };
 
+  const isPublicRoute = useCallback((pathname: string) => {
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login'];
+    if (publicPaths.includes(pathname)) {
+      return true;
+    }
+    if ((pathname === '/blog' || pathname.startsWith('/blog/')) && !pathname.startsWith('/blog/admin')) {
+      return true;
+    }
+    if ((pathname === '/training' || pathname.startsWith('/training/')) && !pathname.startsWith('/training/admin')) {
+      return true;
+    }
+    return false;
+  }, []);
+
   const silentRefresh = useCallback(() => {
     if (authConfig?.test === true) {
       console.log('Test mode. Skipping silent refresh.');
@@ -162,8 +176,7 @@ const AuthContextProvider = ({
           if (authConfig?.test === true) {
             return;
           }
-          const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register'];
-          if (!publicPaths.includes(window.location.pathname) && !window.location.pathname.startsWith('/blog/')) {
+          if (!isPublicRoute(window.location.pathname)) {
             navigate('/login');
           }
         }
@@ -173,13 +186,12 @@ const AuthContextProvider = ({
         if (authConfig?.test === true) {
           return;
         }
-        const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register'];
-        if (!publicPaths.includes(window.location.pathname) && !window.location.pathname.startsWith('/blog/')) {
+        if (!isPublicRoute(window.location.pathname)) {
           navigate('/login');
         }
       },
     });
-  }, []);
+  }, [isPublicRoute, navigate, refreshToken, setUserContext, authConfig]);
 
   useEffect(() => {
     if (userQuery.data) {

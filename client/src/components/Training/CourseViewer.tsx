@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
+import { useAuthContext } from '~/hooks/AuthContext';
 import {
     ChevronLeft,
     CheckCircle,
@@ -19,6 +20,7 @@ export default function CourseViewer() {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
+    const { user } = useAuthContext();
     const [course, setCourse] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
@@ -67,6 +69,10 @@ export default function CourseViewer() {
     }, [courseId, navigate, showToast]);
 
     const markCurrentComplete = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
         if (!activeLessonId || !courseId) return;
 
         try {
@@ -145,15 +151,24 @@ export default function CourseViewer() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="hidden md:flex items-center gap-2 text-xs font-medium text-secondary">
-                        <span>{progressPercentage}% Completado</span>
-                        <div className="w-24 h-2 bg-surface-tertiary rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-green-500 transition-all duration-500"
-                                style={{ width: `${progressPercentage}%` }}
-                            ></div>
+                    {user ? (
+                        <div className="hidden md:flex items-center gap-2 text-xs font-medium text-secondary">
+                            <span>{progressPercentage}% Completado</span>
+                            <div className="w-24 h-2 bg-surface-tertiary rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-green-500 transition-all duration-500"
+                                    style={{ width: `${progressPercentage}%` }}
+                                ></div>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold px-4 py-1.5 rounded-full transition-all duration-300"
+                        >
+                            Iniciar Sesión
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -305,13 +320,21 @@ export default function CourseViewer() {
                                     <button
                                         onClick={markCurrentComplete}
                                         className={`group flex items-center px-4 py-3 rounded-full transition-all duration-300 shadow-sm font-medium text-sm
-                                            ${isCurrentCompleted
-                                                ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-default shadow-none'
-                                                : 'bg-green-500 hover:bg-green-600 text-white'}
+                                            ${!user
+                                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                : isCurrentCompleted
+                                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-default shadow-none'
+                                                    : 'bg-green-500 hover:bg-green-600 text-white'}
                                         `}
-                                        disabled={isCurrentCompleted}
+                                        disabled={!!user && isCurrentCompleted}
                                     >
-                                        {isCurrentCompleted ? (
+                                        {!user ? (
+                                            <>
+                                                <span className="whitespace-nowrap">
+                                                    Iniciar Sesión para Completar
+                                                </span>
+                                            </>
+                                        ) : isCurrentCompleted ? (
                                             <>
                                                 <CheckCircle className="w-5 h-5 flex-shrink-0" />
                                                 <span className="ml-2 whitespace-nowrap">

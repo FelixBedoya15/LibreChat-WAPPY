@@ -123,7 +123,30 @@ export default function Root() {
     logout('/login?redirect=false');
   };
 
+  const isPublicRoute = (pathname: string) => {
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login'];
+    if (publicPaths.includes(pathname)) {
+      return true;
+    }
+    if ((pathname === '/blog' || pathname.startsWith('/blog/')) && !pathname.startsWith('/blog/admin')) {
+      return true;
+    }
+    if ((pathname === '/training' || pathname.startsWith('/training/')) && !pathname.startsWith('/training/admin')) {
+      return true;
+    }
+    return false;
+  };
+
   if (!isAuthenticated) {
+    if (isPublicRoute(window.location.pathname)) {
+      return (
+        <div className="flex h-screen w-screen bg-surface-primary text-text-primary">
+          <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
+            <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />
+          </div>
+        </div>
+      );
+    }
     return null;
   }
 
