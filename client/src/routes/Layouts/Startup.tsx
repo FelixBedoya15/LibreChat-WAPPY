@@ -46,13 +46,19 @@ export default function StartupLayout({ isAuthenticated }: { isAuthenticated?: b
     setHeaderText(null);
   }, [location.pathname]);
 
+  // Use `data` directly from React Query to avoid a one-render race condition:
+  // `startupConfig` local state only updates via useEffect (one cycle after isFetching
+  // becomes false). During that gap, Login.tsx sees startupConfig=null and renders
+  // nothing. Registration.tsx is unaffected because it only checks !isFetching.
+  const resolvedConfig = data ?? null;
+
   const contextValue = {
     error,
     setError,
     headerText,
     setHeaderText,
     startupConfigError,
-    startupConfig,
+    startupConfig: resolvedConfig,
     isFetching,
   };
 
@@ -60,7 +66,7 @@ export default function StartupLayout({ isAuthenticated }: { isAuthenticated?: b
     <AuthLayout
       header={headerText ? localize(headerText) : localize(headerMap[location.pathname])}
       isFetching={isFetching}
-      startupConfig={startupConfig}
+      startupConfig={resolvedConfig}
       startupConfigError={startupConfigError}
       pathname={location.pathname}
       error={error}
