@@ -47,22 +47,44 @@ export default defineConfig(({ command }) => ({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+
+        // ─── PRECACHE ─────────────────────────────────────────────────────────
+        // index.html MUST be in the precache so that createHandlerBoundToURL()
+        // works in every SW version (old and new). Without it every deploy causes
+        // the 'non-precached-url: index.html' error while the old SW is still in
+        // control of the page. Workbox auto-busts it per deployment via content hash.
         globPatterns: [
-          '**/*.{js,css,html}',
+          '**/*.{js,css,html}',    // includes index.html ← key fix
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
           'assets/maskable-icon.png',
           'manifest.webmanifest',
         ],
-        globIgnores: ['**/*.map', 'index.html'],
+        globIgnores: ['**/*.map'], // index.html REMOVED from ignore list
+
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        // Disable navigation fallback to prevent the 'non-precached-url: index.html' error.
-        // Without this, Workbox tries to serve all navigations with index.html via
-        // createHandlerBoundToURL(), but index.html is excluded from the precache (globIgnores),
-        // causing an uncaught promise error that breaks the login page for unauthenticated users.
-        navigateFallback: null,
-        navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
+
+        // ─── NAVIGATION FALLBACK ──────────────────────────────────────────────
+        // Use index.html as fallback for SPA navigation — it IS in the precache now.
+        // Deny API/OAuth so the SW never intercepts backend requests.
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/oauth\//],
+
+        // ─── RUNTIME CACHING ──────────────────────────────────────────────────
+        // Navigation requests: NetworkFirst (always try server, fallback to cache).
+        // This ensures fresh content after every deploy.
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst' as const,
+            options: {
+              cacheName: 'navigation-cache',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       includeAssets: [],
 
