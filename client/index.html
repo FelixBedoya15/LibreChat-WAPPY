@@ -17,13 +17,23 @@
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
   <link rel="apple-touch-icon" href="assets/apple-touch-icon-180x180.png" />
   <script>
-    // Automatically reload the page when a new Service Worker takes over
+    // Emergency SW Kill-Switch: unregister any broken/stuck service workers once and reload
     if ('serviceWorker' in navigator) {
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        if (registrations.length > 0) {
+          var unregPromises = registrations.map(function(r) { return r.unregister(); });
+          Promise.all(unregPromises).then(function() {
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                return Promise.all(names.map(function(n) { return caches.delete(n); }));
+              }).then(function() {
+                window.location.replace(window.location.href);
+              });
+            } else {
+              window.location.replace(window.location.href);
+            }
+          });
+        }
       });
     }
   </script>

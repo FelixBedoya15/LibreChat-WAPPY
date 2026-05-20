@@ -44,22 +44,16 @@ export default defineConfig(({ command }) => ({
       useCredentials: true,
       includeManifestIcons: false,
       workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
         globPatterns: [
-          '**/*.{js,css}',
+          '**/*.{js,css,html}',
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
           'assets/maskable-icon.png',
           'manifest.webmanifest',
         ],
-        globIgnores: ['**/*.map', '**/*.html'],
+        globIgnores: ['images/**/*', '**/*.map', 'index.html'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        // navigateFallback: null evita que Workbox llame createHandlerBoundToURL
-        // El servidor maneja el routing del SPA — no necesitamos SW para navegación
-        navigateFallback: null,
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
       },
       includeAssets: [],
