@@ -69,8 +69,8 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /inbox/dismiss — Remove an item from the public inbox ───
 router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
-        const { reportId } = req.body;
-        const doc = await ParticipacionIpevarData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
             await doc.save();
@@ -85,8 +85,8 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
 // ─── POST /inbox/mark-processed — Mark an item as processed  ───
 router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
     try {
-        const { reportId } = req.body;
-        const doc = await ParticipacionIpevarData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.map(item => {
                 if (String(item.id) === String(reportId)) {
@@ -237,9 +237,11 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
             fullReport += buildSignatureSection(loadedCompanyInfo);
         }
 
+        const companyId = await getActiveCompanyId(req.user.id);
+
         // Auto-save the generated report
         await ParticipacionIpevarData.findOneAndUpdate(
-            { user: req.user.id },
+            { user: req.user.id, companyId },
             { $set: { consolidadoReport: fullReport, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );

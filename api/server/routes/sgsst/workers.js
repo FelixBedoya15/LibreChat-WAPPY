@@ -19,6 +19,65 @@ const getPerfilSociodemograficoDataModel = () => {
 
 const router = express.Router();
 
+// Migration: Drop old unique index and restore correct companyId based on PerfilSociodemograficoData
+async function runIndexAndCompanyMigration() {
+    try {
+        logger.debug('[SGSST Workers Migration] Checking indexes on SgsstWorker...');
+        const collections = await mongoose.connection.db.listCollections({ name: 'sgsstworkers' }).toArray();
+        if (collections.length === 0) {
+            logger.debug('[SGSST Workers Migration] SgsstWorker collection does not exist yet. Skipping index manipulation.');
+            return;
+        }
+
+        const indexes = await SgsstWorker.collection.indexes();
+        const hasOldIndex = indexes.some(idx => idx.name === 'user_1_documento_1');
+        if (hasOldIndex) {
+            logger.info('[SGSST Workers Migration] Dropping old index: user_1_documento_1');
+            await SgsstWorker.collection.dropIndex('user_1_documento_1');
+        }
+
+        // Restore companyId for workers based on PerfilSociodemograficoData mapping
+        const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+        if (PerfilSocioModel) {
+            logger.info('[SGSST Workers Migration] Starting companyId restoration...');
+            const profiles = await PerfilSocioModel.find({}).lean();
+            let restoredCount = 0;
+            
+            for (const profile of profiles) {
+                const { user, companyId, trabajadores } = profile;
+                if (!user || !companyId || !trabajadores || trabajadores.length === 0) continue;
+
+                for (const worker of trabajadores) {
+                    if (!worker.identificacion) continue;
+                    const cleanDoc = String(worker.identificacion).trim();
+                    
+                    // Update SgsstWorker with matching user and documento
+                    const result = await SgsstWorker.updateMany(
+                        { user, documento: cleanDoc, companyId: { $ne: companyId } },
+                        { $set: { companyId } }
+                    );
+                    restoredCount += result.modifiedCount || 0;
+                }
+            }
+            if (restoredCount > 0) {
+                logger.info(`[SGSST Workers Migration] Successfully restored companyId for ${restoredCount} workers.`);
+            }
+        }
+
+        // Ensure the new index is built
+        logger.info('[SGSST Workers Migration] Ensuring new unique index: user_1_companyId_1_documento_1');
+        await SgsstWorker.collection.createIndex(
+            { user: 1, companyId: 1, documento: 1 },
+            { unique: true, sparse: true }
+        );
+    } catch (e) {
+        logger.error('[SGSST Workers Migration] Error during migration:', e);
+    }
+}
+
+// Execute migration async
+runIndexAndCompanyMigration();
+
 // Helper: Obtener Empresa Activa
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
@@ -62,7 +121,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
         }
 
         // Find-or-create: buscar por documento del usuario para evitar duplicados
-        let worker = await SgsstWorker.findOne({ user: req.user.id, documento: cleanDoc });
+        let worker = await SgsstWorker.findOne({ user: req.user.id, companyId, documento: cleanDoc });
 
         if (!worker) {
             worker = new SgsstWorker({
@@ -80,8 +139,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
             });
             await worker.save();
         } else {
-            // Si ya existe, actualizar el companyId y perfilId para vincularlo a la empresa activa actual
-            worker.companyId = companyId;
+            // Si ya existe en esta empresa, actualizar sus datos
             worker.perfilId = perfilId;
             if (nombre) worker.nombre = nombre;
             if (fechaNacimiento) worker.fechaNacimiento = fechaNacimiento;
@@ -112,7 +170,7 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
             
             const PerfilSocioModel = getPerfilSociodemograficoDataModel();
             if (PerfilSocioModel) {
-                const socioData = await PerfilSocioModel.findOne({ user: req.user.id });
+                const socioData = await PerfilSocioModel.findOne({ user: req.user.id, companyId });
                 if (socioData && socioData.trabajadores && socioData.trabajadores.length > 0) {
                     const matchingWorkers = socioData.trabajadores.filter(w => w.cargo && w.cargo.trim().toLowerCase() === cleanPerfilNombre);
                     logger.debug(`[SGSST Workers] Found ${matchingWorkers.length} matching workers in Sociodemografico.`);
@@ -121,9 +179,10 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                         if (!w.identificacion || !w.nombre) continue;
                         
                         const cleanDoc = String(w.identificacion).trim();
-                        // Check if it already exists in SgsstWorker by identification and user
+                        // Check if it already exists in SgsstWorker by identification, companyId, and user
                         const existing = await SgsstWorker.findOne({ 
                             user: req.user.id, 
+                            companyId,
                             documento: cleanDoc
                         });
                         
@@ -146,18 +205,10 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                             });
                             await newWorker.save();
                         } else {
-                            // Si existe, asegurar que el perfilId esté asignado y el companyId coincida con la empresa activa
-                            let updated = false;
+                            // Si existe, asegurar que el perfilId esté asignado
                             if (!existing.perfilId || existing.perfilId !== req.params.perfilId) {
                                 existing.perfilId = req.params.perfilId;
-                                updated = true;
-                            }
-                            if (String(existing.companyId) !== String(companyId)) {
-                                existing.companyId = companyId;
-                                updated = true;
-                            }
-                            if (updated) {
-                                logger.debug(`[SGSST Workers] Updating existing bio-individual (companyId/perfilId) for: ${w.nombre}`);
+                                logger.debug(`[SGSST Workers] Updating existing bio-individual (perfilId) for: ${w.nombre}`);
                                 await existing.save();
                             }
                         }
@@ -539,7 +590,8 @@ router.post('/feed-hoja-vida', requireJwtAuth, async (req, res) => {
         const { documento, tipo_modulo, descripcion, puntos, referencia } = req.body;
         if (!documento || !tipo_modulo) return res.status(400).json({ error: 'documento y tipo_modulo requeridos' });
 
-        const worker = await SgsstWorker.findOne({ user: req.user.id, documento: String(documento).trim() });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const worker = await SgsstWorker.findOne({ user: req.user.id, companyId, documento: String(documento).trim() });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado con ese documento' });
 
         const pts = Number(puntos) || 0;

@@ -1,8 +1,17 @@
 const SgsstWorker = require('../../../models/SgsstWorker');
+const CompanyInfo = require('../../../models/CompanyInfo');
+
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, puntos, referencia = null) {
     try {
         if (!documento || !tipo_modulo) return;
-        const worker = await SgsstWorker.findOne({ user: userId, documento: String(documento).trim() });
+        const companyId = await getActiveCompanyId(userId);
+        const worker = await SgsstWorker.findOne({ user: userId, companyId, documento: String(documento).trim() });
         if (!worker) return;
 
         const pts = Number(puntos) || 0;

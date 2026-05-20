@@ -308,14 +308,6 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
     const SgsstWorker = mongoose.models.SgsstWorker || mongoose.model('SgsstWorker');
-
-    // One-off data fix: Move any workers under the old company ID to the current active company ID
-    if (companyId && String(companyId) === '698bae93c6a366a7ec702b81') {
-      await SgsstWorker.updateMany(
-        { user: req.user.id, companyId: '69fbb2360a402c010cbc575f' },
-        { $set: { companyId } }
-      );
-    }
     
     // --- DIAGNOSTIC: Log all companies for the user ---
     const allCompanies = await CompanyInfo.find({ user: req.user.id }).lean();

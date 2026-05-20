@@ -42,14 +42,21 @@ function cleanHtmlOutput(text) {
         .trim();
 }
 
-// ──// ─── HELPER: Aggregate All SST Context from DB  ──────────────────────────────
-async function getFullSSTContext(userId) {
+// ──// Helper: Obtener Empresa Activa
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
+// ─── HELPER: Aggregate All SST Context from DB  ──────────────────────────────
+async function getFullSSTContext(userId, companyId) {
     let fullContext = '\n═══════════════════════════════════════\n   DATOS COMPLETOS DEL ECOSISTEMA SST\n═══════════════════════════════════════\n';
     try {
         // 1. Perfil Sociodemográfico
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
-            const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
+            const psd = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
             if (psd?.trabajadores?.length) {
                 fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO]\nTotal trabajadores: ${psd.trabajadores.length}\n`;
                 psd.trabajadores.forEach(t => {
@@ -61,7 +68,7 @@ async function getFullSSTContext(userId) {
         // 2. Estadísticas ATEL
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
-            const ad = await ATELAnnualData.findOne({ user: userId }).lean();
+            const ad = await ATELAnnualData.findOne({ user: userId, companyId }).lean();
             if (ad?.years) {
                 const years = Object.keys(ad.years).sort().reverse();
                 fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL]\n`;
@@ -81,7 +88,7 @@ async function getFullSSTContext(userId) {
         // 3. Investigación ATEL
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
         if (InvestigacionAtelData) {
-            const investigations = await InvestigacionAtelData.find({ user: userId }).lean();
+            const investigations = await InvestigacionAtelData.find({ user: userId, companyId }).lean();
             if (investigations?.length) {
                 fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] ${investigations.length} invest:\n`;
                 investigations.slice(0, 5).forEach(inv => {
@@ -94,7 +101,7 @@ async function getFullSSTContext(userId) {
         // 4. Actos y Condiciones
         const ReporteActosData = mongoose.models.ReporteActosData;
         if (ReporteActosData) {
-            const rad = await ReporteActosData.findOne({ user: userId }).lean();
+            const rad = await ReporteActosData.findOne({ user: userId, companyId }).lean();
             if (rad?.reportesList?.length) {
                 fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] ${rad.reportesList.length} reportes.\n`;
                 rad.reportesList.slice(-15).forEach(r => {
@@ -106,7 +113,7 @@ async function getFullSSTContext(userId) {
         // 5. Ergonomía OWAS
         const MetodoOwasData = mongoose.models.MetodoOwasData;
         if (MetodoOwasData) {
-            const owas = await MetodoOwasData.findOne({ user: userId }).lean();
+            const owas = await MetodoOwasData.findOne({ user: userId, companyId }).lean();
             if (owas?.resultados?.length) {
                 fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS]\n`;
                 owas.resultados.forEach(r => {
@@ -118,7 +125,7 @@ async function getFullSSTContext(userId) {
         // 6. ATS
         const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
         if (AnalisisTrabajoSeguroData) {
-            const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
+            const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId, companyId }).lean();
             if (ats?.pasos) {
                 fullContext += `\n[MÓDULO 6 - ATS] Actividad: "${ats.actividad || 'N'}"\n`;
                 ats.pasos.slice(0, 8).forEach(p => {
@@ -130,7 +137,7 @@ async function getFullSSTContext(userId) {
         // 7. Vulnerabilidad
         const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
         if (AnalisisVulnerabilidadData) {
-            const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
+            const avd = await AnalisisVulnerabilidadData.findOne({ user: userId, companyId }).lean();
             const amenazas = avd?.formData?.amenazasList || avd?.amenazasList || [];
             if (amenazas.length) {
                 fullContext += `\n[MÓDULO 7 - VULNERABILIDAD]\n`;
@@ -143,7 +150,7 @@ async function getFullSSTContext(userId) {
         // 8. Matriz GTC 45
         const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
         if (MatrizPeligrosData) {
-            const mpd = await MatrizPeligrosData.findOne({ user: userId }).lean();
+            const mpd = await MatrizPeligrosData.findOne({ user: userId, companyId }).lean();
             if (mpd?.procesos?.length) {
                 fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45]\n`;
                 let tP = 0, rI = 0, rII = 0;
@@ -171,6 +178,7 @@ async function getFullSSTContext(userId) {
 router.get('/forecast', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
+        const companyId = await getActiveCompanyId(userId);
         
         let totalWorkers = 0, sickWorkers = 0;
         let totalHazardsI_II = 0, totalHazards = 0;
@@ -184,7 +192,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         try {
             const pData = mongoose.models.PerfilSociodemograficoData;
             if (pData) {
-                const doc = await pData.findOne({ user: userId }).lean();
+                const doc = await pData.findOne({ user: userId, companyId }).lean();
                 if (doc?.trabajadores?.length) {
                     totalWorkers = doc.trabajadores.length;
                     doc.trabajadores.forEach(t => {
@@ -198,7 +206,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             
             const mData = mongoose.models.MatrizPeligrosData;
             if (mData) {
-                const doc = await mData.findOne({ user: userId }).lean();
+                const doc = await mData.findOne({ user: userId, companyId }).lean();
                 if (doc?.procesos?.length) {
                     doc.procesos.forEach(p => {
                         (p.peligros || []).forEach(h => {
@@ -214,7 +222,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             
             const oData = mongoose.models.MetodoOwasData;
             if (oData) {
-                const doc = await oData.findOne({ user: userId }).lean();
+                const doc = await oData.findOne({ user: userId, companyId }).lean();
                 if (doc?.resultados?.length) {
                     doc.resultados.forEach(r => {
                         totalOwas++;
@@ -225,7 +233,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             
             const rData = mongoose.models.ReporteActosData;
             if (rData) {
-                const doc = await rData.findOne({ user: userId }).lean();
+                const doc = await rData.findOne({ user: userId, companyId }).lean();
                 if (doc?.reportesList) {
                     totalActsConds = doc.reportesList.filter(r => r.estado !== 'Cerrado').length;
                 }
@@ -233,7 +241,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
 
             const atelData = mongoose.models.InvestigacionAtelData;
             if (atelData) {
-                const docs = await atelData.find({ user: userId }).lean();
+                const docs = await atelData.find({ user: userId, companyId }).lean();
                 if (docs && docs.length > 0) {
                     totalATEL = docs.length;
                     docs.forEach(doc => {
@@ -247,7 +255,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
 
             const atsData = mongoose.models.AnalisisTrabajoSeguroData;
             if (atsData) {
-                const doc = await atsData.findOne({ user: userId }).lean();
+                const doc = await atsData.findOne({ user: userId, companyId }).lean();
                 if (doc?.pasos?.length) {
                     totalATS = doc.pasos.length;
                 }
@@ -255,7 +263,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
 
             const vulData = mongoose.models.AnalisisVulnerabilidadData;
             if (vulData) {
-                const doc = await vulData.findOne({ user: userId }).lean();
+                const doc = await vulData.findOne({ user: userId, companyId }).lean();
                 const amenazas = doc?.formData?.amenazasList || doc?.amenazasList || [];
                 if (amenazas.length) {
                     totalVulnerabilidades = amenazas.length;
@@ -346,8 +354,10 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
         const apiKey = await getApiKey(userId);
         if (!apiKey) return res.status(400).json({ error: 'Falta configurar la API Key de Google en su perfil.' });
 
+        const companyId = await getActiveCompanyId(userId);
+
         // Get company info (same as other apps)
-        const ci = await CompanyInfo.findOne({ user: userId }).lean();
+        const ci = await CompanyInfo.findOne({ user: userId, _id: companyId }).lean();
         const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
         // Build header HTML (same as estadisticas, diagnostico, etc.)
@@ -359,7 +369,7 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
         });
 
         // Use the newly shared deep context block
-        const fullContext = await getFullSSTContext(userId);
+        const fullContext = await getFullSSTContext(userId, companyId);
 
         const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia. Dominas la GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019 y el análisis predictivo de riesgo laboral.
 

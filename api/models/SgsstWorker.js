@@ -118,7 +118,7 @@ const SgsstWorkerSchema = new mongoose.Schema({
 });
 
 SgsstWorkerSchema.index({ user: 1, companyId: 1, perfilId: 1 });
-SgsstWorkerSchema.index({ user: 1, documento: 1 }, { unique: true, sparse: true });
+SgsstWorkerSchema.index({ user: 1, companyId: 1, documento: 1 }, { unique: true, sparse: true });
 
 const SgsstWorker = mongoose.models.SgsstWorker || mongoose.model('SgsstWorker', SgsstWorkerSchema);
 

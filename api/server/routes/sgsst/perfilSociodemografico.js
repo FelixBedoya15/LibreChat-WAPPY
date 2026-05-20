@@ -555,7 +555,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       const cleanDoc = String(w.identificacion).trim();
       if (!cleanDoc) continue;
       await SgsstWorker.updateOne(
-        { user: req.user.id, documento: cleanDoc },
+        { user: req.user.id, companyId, documento: cleanDoc },
         {
           $set: {
             condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
