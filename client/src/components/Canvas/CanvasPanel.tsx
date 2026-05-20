@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   FileEdit,
   Maximize2,
@@ -63,6 +64,35 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   useEffect(() => { fileTypeRef.current = fileType; }, [fileType]);
   useEffect(() => { titleRef.current = title; }, [title]);
 
+  // ── Markdown → HTML conversion (for agent-created content) ─────────────
+  // The CanvasTool sends markdown; the LiveEditor renders HTML.
+  // This lightweight converter handles the common cases produced by LLMs.
+  const markdownToHtml = useCallback((md: string): string => {
+    if (!md || md.trim().startsWith('<')) return md; // Already HTML
+    return md
+      .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
+      .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
+      .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
+      .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
+      .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
+      .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^---+$/gm, '<hr/>')
+      .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
+      .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br/>')
+      .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
+      .replace(/<p><\/p>/g, '')
+      .replace(/<p>(<h[1-6]>)/g, '$1')
+      .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+      .replace(/<p>(<ul>)/g, '$1')
+      .replace(/(<\/ul>)<\/p>/g, '$1')
+      .replace(/<p>(<hr\/>)<\/p>/g, '$1');
+  }, []);
+
   // ── Fetch session from database ──────────────────────────────────────────
   const fetchSession = useCallback(async (isInitial = false) => {
     if (!conversationId || conversationId === 'new') return;
@@ -76,16 +106,22 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       if (!res.ok) return;
       const data = await res.json();
 
-      if (data.updatedAt !== lastUpdatedAtRef.current) {
-        lastUpdatedAtRef.current = data.updatedAt;
+      // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
+      if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
+        lastUpdatedAtRef.current = data.updatedAt || null;
         setFileType(data.fileType || 'text');
         setTitle(data.title || 'Archivo sin título');
         setVersion(data.version || 1);
         setHistory(data.history || []);
-        
-        // Prevent local edits overwriting if the user is typing/editing in a focused sheet
-        if (JSON.stringify(contentRef.current) !== JSON.stringify(data.content)) {
-          setContent(data.content || '');
+
+        // Convert markdown → HTML for text documents written by the agent
+        const rawContent = data.content || '';
+        const htmlContent = (data.fileType === 'text' || !data.fileType)
+          ? markdownToHtml(rawContent)
+          : rawContent;
+
+        if (JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
+          setContent(htmlContent);
         }
       }
     } catch (e) {
@@ -93,7 +129,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     } finally {
       if (isInitial) setIsLoading(false);
     }
-  }, [conversationId, token]);
+  }, [conversationId, token, markdownToHtml]);
 
   // ── Polling implementation ───────────────────────────────────────────────
   useEffect(() => {
@@ -293,8 +329,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   const hasActiveSession = !!content || fileType !== 'text';
 
-  return (
-    <div className="flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden relative">
+  const panelContent = (
+    <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden relative ${
+      isMaximized ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl' : ''
+    }`}>
       {/* Upper Glassmorphic Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-medium bg-surface-secondary/70 backdrop-blur-md">
         <div className="flex-1 min-w-0 mr-4">
@@ -480,6 +518,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       </div>
     </div>
   );
+
+  return isMaximized
+    ? ReactDOM.createPortal(panelContent, document.body)
+    : panelContent;
 };
 
 export default CanvasPanel;
