@@ -51,6 +51,7 @@ interface SGSSTToolbarProps {
     // Export (Special item)
     exportContent?: string;
     exportFileName?: string;
+    onlyExcel?: boolean;
 
     // Custom sections
     customSections?: React.ReactNode[];
@@ -82,6 +83,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
     onSelectModel,
     exportContent,
     exportFileName,
+    onlyExcel,
     customSections = []
 }) => {
     // Build effective button lists merging simplified props
@@ -150,7 +152,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         { id: 'persistence', buttons: effectivePersistence },
         { id: 'export', buttons: exportButtons, extra: (exportContent || onExportExcel) ? (
             <div>
-                <ExportDropdown content={exportContent || ''} fileName={exportFileName || "Documento_SGSST"} onExportExcel={onExportExcel} />
+                <ExportDropdown content={exportContent || ''} fileName={exportFileName || "Documento_SGSST"} onExportExcel={onExportExcel} onlyExcel={onlyExcel} />
             </div>
         ) : (!exportContent && !onExportExcel && (onSave || effectivePersistence.length > 0) ? (
             <button disabled className="group flex items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">

@@ -121,6 +121,8 @@ const SgsstWorkerSchema = new mongoose.Schema({
   capacitaciones: { type: [CapacitacionSchema], default: [] },
   ats: { type: [ATSSchema], default: [] },
 
+  bioChartConclusions: { type: Object, default: {} },
+
   updatedAt: { type: Date, default: Date.now },
 });
 

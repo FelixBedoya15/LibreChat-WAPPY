@@ -9,6 +9,7 @@ import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
+import { exportBioIPEVARToExcel } from './exportBioIPEVAR';
 
 // ─── Tipos propios — Metodología Bio-Individual WAPPY ────────────────────────
 export interface BioRiskRow {
@@ -285,6 +286,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const [rows, setRows] = useState<BioRiskRow[]>([]);
   const [percepcionPts, setPercepcionPts] = useState(0);
   const [fitScore, setFitScore] = useState(0);
+  const [conclusions, setConclusions] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -307,6 +309,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       setRows(worker?.riesgosBioIndividual || []);
       setPercepcionPts(worker?.percepcionRiesgoScore || 0);
       setFitScore(worker?.fitScore || 0);
+      setConclusions(worker?.bioChartConclusions || {});
     } catch (e) {
       showToast({ message: 'Error cargando la matriz bio-individual', status: 'error' });
     } finally {
@@ -315,6 +318,19 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   }, [workerId, token]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleExportExcel = async () => {
+    try {
+      setIsSaving(true);
+      await exportBioIPEVARToExcel(rows, fitScore, conclusions);
+      showToast({ message: 'Matriz exportada a Excel exitosamente 📊', status: 'success' });
+    } catch (e) {
+      console.error('[Bio-IPEVAR] Excel export error:', e);
+      showToast({ message: `Error al exportar a Excel: ${e instanceof Error ? e.message : 'Error desconocido'}`, status: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // ─── Guardar ──────────────────────────────────────────────────────────────
   const saveRisks = async (updatedRows: BioRiskRow[]) => {
@@ -572,8 +588,8 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         onSaveLocal={() => saveRisks(rows)}
         isSavingLocal={isSaving}
         saveDisabled={!hasUnsaved || isSaving}
-        exportContent={exportHtml}
-        exportFileName="IPEVAR_Bio_Individual"
+        onExportExcel={handleExportExcel}
+        onlyExcel={true}
         customSections={[
           <ToolbarButton 
             key="methodology" 

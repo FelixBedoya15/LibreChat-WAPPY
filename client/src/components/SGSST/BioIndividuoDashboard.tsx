@@ -402,6 +402,8 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                 rows={worker?.riesgosBioIndividual || []}
                 workerId={workerId}
                 token={token || ''}
+                conclusions={worker?.bioChartConclusions || {}}
+                onConclusionSaved={fetchWorker}
               />
               {(!worker?.riesgosBioIndividual || worker.riesgosBioIndividual.length === 0) && (
                 <div className="text-center py-16 text-text-tertiary text-sm">

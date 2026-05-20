@@ -502,10 +502,14 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
 // PUT: Guardar riesgos Bio-Individuales (nueva metodología)
 router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
     try {
-        const { riesgosBioIndividual } = req.body;
+        const { riesgosBioIndividual, bioChartConclusions } = req.body;
+        const update = { riesgosBioIndividual, updatedAt: Date.now() };
+        if (bioChartConclusions !== undefined) {
+            update.bioChartConclusions = bioChartConclusions;
+        }
         const worker = await SgsstWorker.findOneAndUpdate(
             { _id: req.params.id, user: req.user.id },
-            { $set: { riesgosBioIndividual, updatedAt: Date.now() } },
+            { $set: update },
             { new: true }
         );
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
@@ -977,8 +981,13 @@ router.post('/worker/:id/ai-chart-conclusion-bio', requireJwtAuth, async (req, r
         const { chartType, matrixRows, chartStats, manualText, modelName } = req.body;
         
         if (manualText !== undefined) {
-            // Guardar texto manual si se provee la funcionalidad en base de datos.
-            // Para simplificar, devolvemos success.
+            const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+            if (worker) {
+                if (!worker.bioChartConclusions) worker.bioChartConclusions = {};
+                worker.bioChartConclusions[chartType] = manualText;
+                worker.markModified('bioChartConclusions');
+                await worker.save();
+            }
             return res.json({ success: true, conclusion: manualText });
         }
 
@@ -997,6 +1006,15 @@ Devuelve ÚNICAMENTE el texto de la conclusión.`;
         const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
         const response = await result.response;
         const conclusion = response.text().trim();
+
+        // Guardar la conclusión en el trabajador
+        const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+        if (worker) {
+            if (!worker.bioChartConclusions) worker.bioChartConclusions = {};
+            worker.bioChartConclusions[chartType] = conclusion;
+            worker.markModified('bioChartConclusions');
+            await worker.save();
+        }
 
         res.json({ success: true, conclusion });
     } catch (error) {

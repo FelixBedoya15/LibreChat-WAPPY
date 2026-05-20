@@ -13,6 +13,8 @@ interface BioDashboardProps {
   workerId: string;
   token: string;
   modelName?: string;
+  conclusions?: Record<string, string>;
+  onConclusionSaved?: () => void;
 }
 
 // ── Barra animada reutilizable ────────────────────────────────────────────────
@@ -27,7 +29,7 @@ const Bar = ({
     <div className="flex items-center gap-3">
       <div className={`${labelWidth} shrink-0 text-right`}>
         <span className="text-[11px] font-semibold text-text-secondary leading-tight block">
-          {label.length > 22 ? label.slice(0, 22) + '…' : label}
+          {label.length > 30 ? label.slice(0, 30) + '…' : label}
         </span>
         {subLabel && <span className="text-[9px] text-text-tertiary">{subLabel}</span>}
       </div>
@@ -60,13 +62,18 @@ const ClasificacionPill = ({ clas }: { clas: string }) => {
 
 // ── Campo de conclusión con botón IA ─────────────────────────────────────────
 const ConclusionField = ({
-  chartType, chartStats, rows, workerId, token, modelName,
+  chartType, chartStats, rows, workerId, token, modelName, initialValue, onConclusionSaved,
 }: {
   chartType: string; chartStats: any; rows: BioRiskRow[];
   workerId: string; token: string; modelName?: string;
+  initialValue: string; onConclusionSaved?: () => void;
 }) => {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialValue || '');
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    setText(initialValue || '');
+  }, [initialValue]);
 
   const generate = async () => {
     setLoading(true);
@@ -77,9 +84,24 @@ const ConclusionField = ({
         body: JSON.stringify({ chartType, matrixRows: rows, chartStats, modelName }),
       });
       const data = await res.json();
-      if (data.conclusion) setText(data.conclusion);
+      if (data.conclusion) {
+        setText(data.conclusion);
+        if (onConclusionSaved) onConclusionSaved();
+      }
     } catch { /* silent */ }
     finally { setLoading(false); }
+  };
+
+  const handleBlur = async () => {
+    if (text === initialValue) return;
+    try {
+      await fetch(`/api/sgsst/workers/worker/${workerId}/ai-chart-conclusion-bio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ chartType, manualText: text }),
+      });
+      if (onConclusionSaved) onConclusionSaved();
+    } catch { /* silent */ }
   };
 
   return (
@@ -89,26 +111,34 @@ const ConclusionField = ({
         placeholder="Conclusión técnica… presiona ✨ para generarla con IA"
         value={text}
         onChange={e => setText(e.target.value)}
+        onBlur={handleBlur}
         rows={3}
       />
-      <button
-        onClick={generate}
-        disabled={loading}
-        className="group flex items-center justify-center p-2 h-[36px] bg-surface-secondary border border-border-medium rounded-[16px] text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50"
-      >
-        {loading
-          ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-          : <Sparkles className="h-4 w-4 shrink-0" />}
-        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs font-bold">
-          {loading ? 'Generando…' : 'Generar conclusión con IA'}
-        </span>
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="group flex items-center justify-center p-2 h-[36px] bg-surface-secondary border border-border-medium rounded-[16px] text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50"
+        >
+          {loading
+            ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+            : <Sparkles className="h-4 w-4 shrink-0" />}
+          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs font-bold">
+            {loading ? 'Generando…' : 'Generar conclusión con IA'}
+          </span>
+        </button>
+        {text !== initialValue && (
+          <span className="text-[10px] text-text-tertiary italic">Editado - guardado al salir del campo</span>
+        )}
+      </div>
     </div>
   );
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelName }: BioDashboardProps) {
+export default function BioMatrizIPEVARDashboard({
+  rows, workerId, token, modelName, conclusions = {}, onConclusionSaved
+}: BioDashboardProps) {
 
   // ── Chart A: Riesgos por Dominio Bio ──────────────────────────────────────
   const chartA = useMemo(() => {
@@ -180,6 +210,26 @@ export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelN
     ];
   }, [rows]);
 
+  // ── Chart E: Efectos Posibles a la Salud ──────────────────────────────────
+  const chartE = useMemo(() => {
+    const map: Record<string, number> = {};
+    rows.forEach(r => {
+      if (!r.efectos_posibles) return;
+      const terms = r.efectos_posibles
+        .split(/[,,;,.]/)
+        .map(t => t.trim())
+        .filter(t => t.length > 2 && t.toLowerCase() !== 'ninguno' && t.toLowerCase() !== 'ninguna' && t.toLowerCase() !== 'no aplica');
+      terms.forEach(t => {
+        const cap = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+        map[cap] = (map[cap] || 0) + 1;
+      });
+    });
+    return Object.entries(map)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [rows]);
+
   if (rows.length === 0) return null;
 
   const maxChartA = Math.max(...chartA.map(d => d.avgEfectivo), 1);
@@ -226,7 +276,7 @@ export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelN
               );
             })}
           </div>
-          <ConclusionField chartType="dominio_bio" chartStats={chartA} rows={rows} workerId={workerId} token={token} modelName={modelName} />
+          <ConclusionField chartType="dominio_bio" chartStats={chartA} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.dominio_bio || ''} onConclusionSaved={onConclusionSaved} />
         </div>
 
         {/* ── Gráfico B: Distribución por Clasificación ── */}
@@ -267,7 +317,7 @@ export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelN
             </div>
           )}
 
-          <ConclusionField chartType="clasificacion_bio" chartStats={chartB} rows={rows} workerId={workerId} token={token} modelName={modelName} />
+          <ConclusionField chartType="clasificacion_bio" chartStats={chartB} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.clasificacion_bio || ''} onConclusionSaved={onConclusionSaved} />
         </div>
 
         {/* ── Gráfico C: Cobertura de Controles Existentes ── */}
@@ -294,7 +344,7 @@ export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelN
               ? '✅ Los controles priorizan la fuente, alineado con la jerarquía GTC-45.'
               : '⚠️ Más controles en el individuo que en la fuente. Revisar estrategia de prevención.'}
           </div>
-          <ConclusionField chartType="controles_existentes" chartStats={chartC} rows={rows} workerId={workerId} token={token} modelName={modelName} />
+          <ConclusionField chartType="controles_existentes" chartStats={chartC} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.controles_existentes || ''} onConclusionSaved={onConclusionSaved} />
         </div>
 
         {/* ── Gráfico D: Jerarquía de Controles Propuestos ── */}
@@ -331,7 +381,33 @@ export default function BioMatrizIPEVARDashboard({ rows, workerId, token, modelN
             </div>
           )}
 
-          <ConclusionField chartType="jerarquia_controles_propuestos" chartStats={chartD} rows={rows} workerId={workerId} token={token} modelName={modelName} />
+          <ConclusionField chartType="jerarquia_controles_propuestos" chartStats={chartD} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.jerarquia_controles_propuestos || ''} onConclusionSaved={onConclusionSaved} />
+        </div>
+
+        {/* ── Gráfico E: Efectos Posibles a la Salud ── */}
+        <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm xl:col-span-2">
+          <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Heart className="h-4 w-4 text-rose-500 animate-pulse" />
+            Efectos Posibles a la Salud Reportados (Top 5)
+          </h4>
+          {chartE.length === 0 ? (
+            <p className="text-xs text-text-secondary italic">No se han registrado efectos a la salud específicos en los riesgos.</p>
+          ) : (
+            <div className="space-y-3">
+              {chartE.map(d => (
+                <Bar
+                  key={d.label}
+                  label={d.label}
+                  value={d.value}
+                  max={Math.max(...chartE.map(x => x.value), 1)}
+                  colorClass="bg-rose-500"
+                  subLabel={`${d.value} caso${d.value !== 1 ? 's' : ''} reportado${d.value !== 1 ? 's' : ''}`}
+                  labelWidth="w-52"
+                />
+              ))}
+            </div>
+          )}
+          <ConclusionField chartType="efectos_salud" chartStats={chartE} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.efectos_salud || ''} onConclusionSaved={onConclusionSaved} />
         </div>
 
       </div>
