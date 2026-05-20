@@ -42,6 +42,16 @@ const isEditorLiveActive = atom<boolean>({
   default: false,
 });
 
+const isCanvasActive = atom<boolean>({
+  key: 'isCanvasActive',
+  default: false,
+});
+
+const canvasMaximized = atom<boolean>({
+  key: 'canvasMaximized',
+  default: false,
+});
+
 export default {
   hideBannerHint,
   messageAttachmentsMap,
@@ -51,4 +61,6 @@ export default {
   ipevarMaximized,
   isIPEVARActive,
   isEditorLiveActive,
+  isCanvasActive,
+  canvasMaximized,
 };

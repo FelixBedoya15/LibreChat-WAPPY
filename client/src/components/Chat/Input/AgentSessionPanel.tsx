@@ -275,7 +275,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 somos_sst: 'Somos SST',
                                 matriz_ipevar: 'Matriz IPEVAR',
                                 editor_live: 'Editor Live',
-                                editor_rit: 'Editor RIT'
+                                editor_rit: 'Editor RIT',
+                                canvas: 'Canvas'
                             };
                             const displayName = toolTranslations[toolId] ?? toolId
                                 .split('_')

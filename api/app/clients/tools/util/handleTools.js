@@ -40,6 +40,7 @@ const {
   MatrizIPEVAR,
   EditorLive,
   EditorRIT,
+  CanvasTool,
   SomosSST,
   ConsultarAgenteEspecializado,
 } = require('../');
@@ -240,6 +241,9 @@ const loadTools = async ({
     editor_rit: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
       return new EditorRIT({ req: options.req });
+    },
+    canvas: async (_toolContextMap) => {
+      return new CanvasTool({ req: options.req });
     },
     somos_sst: async (_toolContextMap) => {
       return new SomosSST({ req: options.req });

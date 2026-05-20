@@ -235,5 +235,12 @@
     "description": "Herramienta de enrutamiento inteligente: Permite al Agente Recepcionista (Profesional SST) delegar consultas técnicas a Agentes Especialistas del sistema (ej. Médico Laboral) que tengan habilitado el acceso desde WhatsApp.",
     "icon": "https://cdn-icons-png.flaticon.com/512/1247/1247670.png",
     "authConfig": []
+  },
+  {
+    "name": "Canvas",
+    "pluginKey": "canvas",
+    "description": "Permite al agente crear, editar, leer e interactuar con archivos en pantalla dividida en tiempo real: documentos de texto (Word), hojas de cálculo (Excel), presentaciones (Slides) y código prototipo (HTML). La herramienta abre automáticamente un editor lateral en la pantalla del usuario.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/3749/3749784.png",
+    "authConfig": []
   }
 ]

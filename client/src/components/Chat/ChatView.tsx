@@ -21,6 +21,7 @@ import { cn } from '~/utils';
 import store from '~/store';
 import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
 import LiveEditorPanel from '../SGSST/LiveEditorPanel';
+import CanvasPanel from '../Canvas/CanvasPanel';
 const isMobileScreen = () => window.innerWidth <= 768;
 
 function LoadingSpinner() {
@@ -93,22 +94,32 @@ function ChatView({ index = 0 }: { index?: number }) {
     return tools.includes('editor_rit');
   }, [ephemeralAgent]);
 
+  // ── CANVAS: open only when user explicitly toggles it ON ─────────────────
+  const isCanvasActive = React.useMemo(() => {
+    const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
+    return tools.includes('canvas');
+  }, [ephemeralAgent]);
+
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
   const setIsEditorLiveActive = useSetRecoilState(store.isEditorLiveActive);
+  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
 
   useEffect(() => {
     setIsIPEVARActive(isIPEVARActive);
     setIsEditorLiveActive(isEditorLiveActive);
+    setIsCanvasActive(isCanvasActive);
     return () => {
       setIsIPEVARActive(false);
       setIsEditorLiveActive(false);
+      setIsCanvasActive(false);
     };
-  }, [isIPEVARActive, isEditorLiveActive, conversationId, setIsIPEVARActive, setIsEditorLiveActive]);
+  }, [isIPEVARActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsEditorLiveActive, setIsCanvasActive]);
 
-  // ── Mobile: track whether IPEVAR panel is expanded via global state ──────
+  // ── Mobile/Maximize: track whether panels are expanded via global state ──
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);
+  const [canvasMaximized] = useRecoilState(store.canvasMaximized);
 
   let content: JSX.Element | null | undefined;
   const isLandingPage =
@@ -184,6 +195,20 @@ function ChatView({ index = 0 }: { index?: number }) {
                           <>Pídele al agente que proceda a <span className="font-bold text-blue-600">cargar la plantilla del RIT</span> para comenzar a editarlo.</>
                         ) : undefined}
                       />
+                    </div>
+                  )}
+                  {isCanvasActive && !isIPEVARActive && !isEditorLiveActive && (
+                    <div className={cn(
+                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary transition-all duration-300',
+                      isMobileScreen()
+                        ? mobileExpanded || canvasMaximized
+                          ? 'fixed inset-0 z-[9990] w-full'
+                          : 'hidden'
+                        : canvasMaximized
+                          ? 'w-full'
+                          : 'w-1/2',
+                    )}>
+                      <CanvasPanel key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
                     </div>
                   )}
                 </div>

@@ -22,6 +22,7 @@ const participacionIpevar = require('./participacionIpevar');
 const altaDireccion = require('./altaDireccion');
 const gtc45Workspace = require('./gtc45Workspace');
 const liveEditor = require('./liveEditor');
+const canvas = require('./canvas');
 const patchAgentPrompt = require('./patchAgentPrompt');
 const programaCapacitaciones = require('./programaCapacitaciones');
 const workers = require('./workers');
@@ -55,6 +56,7 @@ module.exports = {
     signatures: require('./signatures'),
     gtc45Workspace,
     liveEditor,
+    canvas,
     patchAgentPrompt,
     programaCapacitaciones,
     workers,
