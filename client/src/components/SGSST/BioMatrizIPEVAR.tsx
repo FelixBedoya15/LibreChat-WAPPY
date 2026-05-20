@@ -374,10 +374,14 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
-      const generated: BioRiskRow[] = (data.riesgosBioIndividual || []).map((r: any) => ({
-        ...createEmptyRow(), ...r,
-        id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      }));
+      const generated: BioRiskRow[] = (data.riesgosBioIndividual || []).map((r: any) => {
+        const baseRow = {
+          ...createEmptyRow(),
+          ...r,
+          id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        };
+        return calcularRiesgo(baseRow, percepcionPts);
+      });
       setRows(generated);
       setHasUnsaved(true);
       showToast({ message: `✅ ${generated.length} riesgos bio-individuales generados`, status: 'success' });

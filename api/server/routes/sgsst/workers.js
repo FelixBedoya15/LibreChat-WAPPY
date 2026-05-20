@@ -638,9 +638,13 @@ Tu tarea es generar una evaluación de riesgos personalizada bajo la METODOLOGÍ
 RIESGOS ACTUALES EN LA MATRIZ:
 ${riesgosActuales && riesgosActuales.length > 0 ? JSON.stringify(riesgosActuales, null, 2) : 'Ninguno. La matriz está vacía.'}
 
-${instruccionesExtra 
-    ? `\nINSTRUCCIONES DEL USUARIO:\n"${instruccionesExtra}"\nModifica la matriz actual según esta instrucción (puedes agregar nuevos, eliminar o editar los riesgos actuales). Devuelve la matriz COMPLETA actualizada.\n` 
-    : `\nINSTRUCCIÓN: La matriz ya tiene riesgos registrados. Tu tarea es analizar el perfil del trabajador y AGREGAR nuevos riesgos relevantes que falten a la lista actual. Devuelve la lista COMPLETA combinando los riesgos actuales (mantén su ID si no los modificas) junto con los nuevos que generes.\n`
+${riesgosActuales && riesgosActuales.length > 0
+    ? (instruccionesExtra 
+        ? `\nINSTRUCCIONES DEL USUARIO:\n"${instruccionesExtra}"\nModifica la matriz actual según esta instrucción (puedes agregar nuevos, eliminar o editar los riesgos actuales). Devuelve la matriz COMPLETA actualizada.\n` 
+        : `\nINSTRUCCIÓN: La matriz ya tiene riesgos registrados. Tu tarea es analizar el perfil del trabajador y AGREGAR nuevos riesgos relevantes que falten a la lista actual. Devuelve la lista COMPLETA combinando los riesgos actuales (mantén su ID si no los modificas) junto con los nuevos que generes.\n`)
+    : (instruccionesExtra
+        ? `\nINSTRUCCIÓN: La matriz está vacía. Genera una nueva evaluación de riesgos para el trabajador basada en la siguiente instrucción: "${instruccionesExtra}". Debes generar un análisis exhaustivo con MÍNIMO 8 y MÁXIMO 12 riesgos diferentes que cubran múltiples dominios fisiológicos (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico, Seguridad).\n`
+        : `\nINSTRUCCIÓN: Como la matriz está vacía (primera carga), es obligatorio identificar de manera exhaustiva MÍNIMO 8 y MÁXIMO 12 riesgos diferentes para el trabajador, cubriendo múltiples dominios fisiológicos (por ejemplo: Sensorial, Osteomuscular, Psicoemocional, Respiratorio, Inmunológico, Seguridad, etc.). No limites el análisis a sólo 2 o 3 riesgos; debes estructurar la matriz de forma completa y robusta.\n`)
 }
 
 DATOS DEL TRABAJADOR:
@@ -659,6 +663,15 @@ REGLAS DE OBLIGATORIO CUMPLIMIENTO PARA CONTROLES EXISTENTES:
 2. Para los campos "controles_fuente", "controles_medio", y "controles_individuo", debes seleccionar y mapear ÚNICAMENTE los controles que aparezcan en la sección "VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA" que correspondan al peligro analizado.
 3. Si para algún peligro o celda no existe un control registrado en dicha lista que aplique, debes colocar exactamente la frase: "No registrado en Perfil de Cargo" o "Ninguno". NUNCA te inventes controles como "Uso de tapabocas" o "Pausas activas" a menos que estén explícitamente en la lista provista.
 4. Para el control del individuo, prioriza mapear los EPP Requeridos y Capacitaciones de la lista de controles en el individuo que correspondan al cargo del trabajador.
+
+REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
+1. Queda TERMINANTEMENTE PROHIBIDO usar "No aplica" de forma perezosa en los campos de controles propuestos. Para cada riesgo identificado, debes formular medidas de intervención reales y técnicamente viables.
+2. "medida_eliminacion" y "medida_sustitucion" deben argumentar técnicamente la viabilidad de eliminar o sustituir la fuente o material peligroso. Si no es viable tras el análisis, explica brevemente por qué.
+3. "medida_ingenieria", "medida_administrativa" y "medida_eppu" DEBEN contener propuestas concretas y detalladas con especificaciones técnicas adecuadas (ej. extractores, rediseño de puesto, capacitaciones específicas, tipo de EPP certificado).
+4. El campo "factores_reduccion_texto" (Justificación Anexo E de la GTC-45) es OBLIGATORIO. Debes escribir un párrafo analítico de MÍNIMO 3 oraciones completas que:
+   - Explique técnica y específicamente cómo los controles propuestos reducirán el riesgo (mecanismo biomecánico, toxicológico, etc.).
+   - Sustente la viabilidad técnica y financiera de su implementación (costo de la medida vs costo de enfermedad o ausentismo).
+   - Justifique la relación costo-beneficio para la productividad y cumplimiento legal.
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
@@ -702,12 +715,12 @@ Cada objeto DEBE tener estos campos exactos:
   "indice_bio_riesgo_efectivo": number,
   "clasificacion_bio": "Crítico"|"Alto"|"Moderado"|"Bajo",
   "intervencion_prioritaria": boolean,
-  "medida_eliminacion": string, // Control propuesto de Eliminación o "No aplica"
-  "medida_sustitucion": string, // Control propuesto de Sustitución o "No aplica"
-  "medida_ingenieria": string, // Control propuesto de Ingeniería o "No aplica"
-  "medida_administrativa": string, // Control propuesto Administrativo o "No aplica"
-  "medida_eppu": string, // Control propuesto EPP o "No aplica"
-  "factores_reduccion_texto": string, // Justificación de Anexo E o "No aplica"
+  "medida_eliminacion": string, // Medida de Eliminación propuesta (ej. automatización, eliminar tarea peligrosa). NUNCA dejes vacío ni pongas "No aplica" genérico sin justificar.
+  "medida_sustitucion": string, // Medida de Sustitución propuesta (ej. cambiar herramienta o químico por uno menos nocivo). Si no aplica, describe por qué.
+  "medida_ingenieria": string, // Medida de Ingeniería propuesta (ej. rediseño ergonómico, ventilación localizada). DEBE ser detallada y técnicamente viable.
+  "medida_administrativa": string, // Medida Administrativa propuesta (ej. rotación de turnos, procedimientos específicos, entrenamientos).
+  "medida_eppu": string, // Medida de EPP propuesto (especificando tipo, material, o norma de certificación). Para riesgos psicosociales: "No aplica - el riesgo psicosocial no se mitiga con EPP. La intervención debe ser organizacional."
+  "factores_reduccion_texto": string, // Justificación analítica de Anexo E. MÍNIMO 3 oraciones completas y técnicas.
   "plan_accion_bio": string, // Resumen general
   "restricciones_laborales": string,
   "seguimiento_medico": "Mensual"|"Trimestral"|"Semestral"|"Anual"
@@ -737,11 +750,35 @@ Devuelve SOLO el array JSON, sin formato markdown adicional ni bloques delimitad
             }
         }
 
-        riesgosBioIndividual = riesgosBioIndividual.map((r, i) => ({
-            ...r,
-            id: r.id || `bio-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
-            fecha_registro: new Date(),
-        }));
+        const clasificarBioRiesgo = (val) => {
+            if (val >= 20) return 'Crítico';
+            if (val >= 12) return 'Alto';
+            if (val >= 6) return 'Moderado';
+            return 'Bajo';
+        };
+
+        riesgosBioIndividual = riesgosBioIndividual.map((r, i) => {
+            const nd = Number(r.nivel_susceptibilidad) || 1;
+            const ne = Number(r.nivel_exposicion) || 1;
+            const bruto = nd * ne;
+            const factor = Math.min(percepcionPts / 500, 0.40);
+            const efectivo = parseFloat((bruto * (1 - factor)).toFixed(2));
+
+            return {
+                ...r,
+                id: r.id || `bio-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+                fit_score: fitScore,
+                percepcion_riesgo_pts: percepcionPts,
+                nivel_susceptibilidad: nd,
+                nivel_exposicion: ne,
+                indice_bio_riesgo_bruto: bruto,
+                factor_reduccion_percepcion: parseFloat(factor.toFixed(3)),
+                indice_bio_riesgo_efectivo: efectivo,
+                clasificacion_bio: clasificarBioRiesgo(efectivo),
+                intervencion_prioritaria: efectivo >= 12,
+                fecha_registro: r.fecha_registro || new Date(),
+            };
+        });
 
         worker.riesgosBioIndividual = riesgosBioIndividual;
         worker.updatedAt = Date.now();
@@ -881,6 +918,15 @@ REGLAS DE OBLIGATORIO CUMPLIMIENTO PARA CONTROLES EXISTENTES:
 2. Para los campos "controles_fuente", "controles_medio", y "controles_individuo", debes seleccionar y mapear ÚNICAMENTE los controles que aparezcan en la sección "VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA" que correspondan al peligro analizado.
 3. Si para algún peligro o celda no existe un control registrado en dicha lista que aplique, debes colocar exactamente la frase: "No registrado en Perfil de Cargo" o "Ninguno". NUNCA te inventes controles como "Uso de tapabocas" o "Pausas activas" a menos que estén explícitamente en la lista provista.
 4. Para el control del individuo, prioriza mapear los EPP Requeridos y Capacitaciones de la lista de controles en el individuo que correspondan al cargo del trabajador.
+
+REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
+1. Queda TERMINANTEMENTE PROHIBIDO usar "No aplica" de forma perezosa en los campos de controles propuestos. Formula medidas de intervención reales y técnicamente viables.
+2. "medida_eliminacion" y "medida_sustitucion" deben argumentar técnicamente la viabilidad de eliminar o sustituir la fuente o material peligroso. Si no es viable, describe por qué. NUNCA dejes vacío ni pongas "No aplica" genérico sin justificar.
+3. "medida_ingenieria", "medida_administrativa" y "medida_eppu" DEBEN contener propuestas concretas y detalladas con especificaciones técnicas adecuadas (ej. extractores, rediseño de puesto, capacitaciones específicas, tipo de EPP certificado).
+4. El campo "factores_reduccion_texto" (Justificación Anexo E de la GTC-45) es OBLIGATORIO. Debes escribir un párrafo analítico de MÍNIMO 3 oraciones completas y técnicas que:
+   - Explique técnica y específicamente cómo los controles propuestos reducirán el riesgo (mecanismo biomecánico, toxicológico, etc.).
+   - Sustente la viabilidad técnica y financiera de su implementación (costo de la medida vs costo de enfermedad o ausentismo).
+   - Justifique la relación costo-beneficio para la productividad y cumplimiento legal.
 
 FILA ACTUAL:
 ${JSON.stringify(row, null, 2)}
