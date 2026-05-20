@@ -1,4 +1,5 @@
 /* eslint-disable i18next/no-literal-string */
+import { useEffect } from 'react';
 import { Button } from '@librechat/client';
 import { useRouteError } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
@@ -167,6 +168,23 @@ export default function RouteErrorBoundary() {
     statusText: typedError.statusText,
     data: typedError.data,
   };
+
+  useEffect(() => {
+    const isChunkError =
+      errorDetails.message.includes('Failed to fetch dynamically imported module') ||
+      (errorDetails.stack && errorDetails.stack.includes('Failed to fetch dynamically imported module'));
+
+    if (isChunkError) {
+      const lastReload = sessionStorage.getItem('auto_reload_chunk_error');
+      const now = Date.now();
+
+      // Si no hemos reintentado en los últimos 10 segundos, recargamos
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem('auto_reload_chunk_error', now.toString());
+        window.location.reload();
+      }
+    }
+  }, [errorDetails.message, errorDetails.stack]);
 
   const handleDownloadLogs = async () => {
     try {
