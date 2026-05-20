@@ -57,6 +57,11 @@ export default defineConfig(({ command }) => ({
         ],
         globIgnores: ['**/*.map', 'index.html'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        // Disable navigation fallback to prevent the 'non-precached-url: index.html' error.
+        // Without this, Workbox tries to serve all navigations with index.html via
+        // createHandlerBoundToURL(), but index.html is excluded from the precache (globIgnores),
+        // causing an uncaught promise error that breaks the login page for unauthenticated users.
+        navigateFallback: null,
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
       },
       includeAssets: [],
