@@ -14,7 +14,7 @@ function Login() {
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const { error, setError, login } = useAuthContext();
-  const { startupConfig } = useOutletContext<TLoginLayoutContext>();
+  const { startupConfig, startupConfigError, isFetching } = useOutletContext<TLoginLayoutContext>();
 
   const [searchParams, setSearchParams] = useSearchParams();
   // Determine if auto-redirect should be disabled based on the URL parameter
@@ -84,6 +84,41 @@ function Login() {
             id="openid"
           />
         </div>
+      </div>
+    );
+  }
+
+  if (!isFetching && (!startupConfig || startupConfigError)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 text-center">
+        <div className="mb-4 rounded-full bg-red-500/10 p-3 text-red-500 dark:bg-red-500/20 animate-pulse">
+          <svg
+            className="h-8 w-8"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+          Error de Conexión
+        </h2>
+        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400 max-w-xs px-2">
+          No pudimos conectar con el servidor de WAPPY IA. Por favor, revisa tu conexión o intenta recargar.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#22c55e] px-4 py-3 font-bold text-white hover:bg-[#16a34a] transition-all hover:scale-[1.02] shadow-lg shadow-green-500/20 active:scale-95"
+        >
+          Recargar Página
+        </button>
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronR
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
+import { sanitizeSlug } from '~/utils/slug';
 
 // --- Sub-components ---
 
@@ -62,7 +63,7 @@ const CourseModal = ({ course, onClose, navigate }: { course: any, onClose: () =
 
                     <div className="mt-auto pt-5 border-t border-border-light dark:border-white/5 flex items-center justify-between shrink-0">
                         <button 
-                            onClick={() => { onClose(); navigate(`/training/${course._id}`); }}
+                            onClick={() => { onClose(); navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`); }}
                             className="flex items-center gap-2 bg-[#10b981] text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#059669] transition-all hover:scale-105 shadow-lg shadow-[#10b981]/20"
                         >
                             <Play size={18} className="fill-white" /> Iniciar Curso
@@ -87,7 +88,7 @@ const CourseCard = ({ course, navigate, onMoreInfo }: { course: any, navigate: a
     
     return (
         <div 
-            onClick={() => navigate(`/training/${course._id}`)}
+            onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
             className="group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border border-border-light dark:border-white/5"
         >
             {/* Thumbnail */}
@@ -238,7 +239,7 @@ const FeaturedHero = ({ course, navigate, onMoreInfo }: { course: any, navigate:
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                     <button 
-                        onClick={() => navigate(`/training/${course._id}`)}
+                        onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
                         className="flex items-center justify-center gap-2 sm:gap-3 bg-white text-black px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-200 transition-all transform active:scale-95 shadow-xl"
                     >
                         <Play size={18} className="fill-black" /> Iniciar Ahora

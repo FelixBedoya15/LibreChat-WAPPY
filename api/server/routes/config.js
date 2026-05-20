@@ -31,24 +31,32 @@ const sharePointFilePickerEnabled = isEnabled(process.env.ENABLE_SHAREPOINT_FILE
 const openidReuseTokens = isEnabled(process.env.OPENID_REUSE_TOKENS);
 
 router.get('/', async function (req, res) {
-  const cache = getLogStores(CacheKeys.CONFIG_STORE);
-
-  const cachedStartupConfig = await cache.get(CacheKeys.STARTUP_CONFIG);
-  if (cachedStartupConfig) {
-    res.send(cachedStartupConfig);
-    return;
-  }
-
-  const isBirthday = () => {
-    const today = new Date();
-    return today.getMonth() === 1 && today.getDate() === 11;
-  };
-
-  const instanceProject = await getProjectByName(Constants.GLOBAL_PROJECT_NAME, '_id');
-
-  const ldap = getLdapConfig();
-
   try {
+    const cache = getLogStores(CacheKeys.CONFIG_STORE);
+
+    const cachedStartupConfig = await cache.get(CacheKeys.STARTUP_CONFIG);
+    if (cachedStartupConfig) {
+      res.send(cachedStartupConfig);
+      return;
+    }
+
+    const isBirthday = () => {
+      const today = new Date();
+      return today.getMonth() === 1 && today.getDate() === 11;
+    };
+
+    let instanceProjectId = '';
+    try {
+      const instanceProject = await getProjectByName(Constants.GLOBAL_PROJECT_NAME, '_id');
+      if (instanceProject && instanceProject._id) {
+        instanceProjectId = instanceProject._id.toString();
+      }
+    } catch (projectErr) {
+      logger.error('Error getting project by name in startup config', projectErr);
+    }
+
+    const ldap = getLdapConfig();
+
     const appConfig = await getAppConfig({ role: req.user?.role });
 
     const isOpenIdEnabled =
@@ -108,7 +116,7 @@ router.get('/', async function (req, res) {
       sharedLinksEnabled,
       publicSharedLinksEnabled,
       analyticsGtmId: process.env.ANALYTICS_GTM_ID,
-      instanceProjectId: instanceProject._id.toString(),
+      instanceProjectId,
       bundlerURL: process.env.SANDPACK_BUNDLER_URL,
       staticBundlerURL: process.env.SANDPACK_STATIC_BUNDLER_URL,
       sharePointFilePickerEnabled,

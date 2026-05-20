@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, Eye, Star } from 'lucide-react';
+import { sanitizeSlug } from '~/utils/slug';
 
 export default function TrainingAdminDashboard() {
     const [courses, setCourses] = useState([]);
@@ -200,8 +201,8 @@ export default function TrainingAdminDashboard() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <button
-                                                            onClick={() => navigate(`/training/${course._id}`)}
+                                                        <button 
+                                                            onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
                                                             className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-300"
                                                         >
                                                             <Eye className="w-4 h-4 flex-shrink-0" />

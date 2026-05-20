@@ -185,7 +185,7 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'blog/:postId',
+      path: 'blog/:postId/:slug?',
       element: (
         <AuthContextProvider>
           <BlogPostViewer />
@@ -269,7 +269,7 @@ export const router = createBrowserRouter(
               element: <CourseEditor />,
             },
             {
-              path: 'training/:courseId',
+              path: 'training/:courseId/:slug?',
               element: <CourseViewer />,
             },
             {

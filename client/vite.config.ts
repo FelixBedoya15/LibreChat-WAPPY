@@ -36,6 +36,7 @@ export default defineConfig(({ command }) => ({
     react(),
     nodePolyfills(),
     VitePWA({
+      selfDestroying: true,
       injectRegister: 'auto', // 'auto' | 'manual' | 'disabled'
       registerType: 'autoUpdate', // 'prompt' | 'autoUpdate'
       devOptions: {
