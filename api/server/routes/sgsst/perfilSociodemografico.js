@@ -83,9 +83,6 @@ const WorkerEntrySchema = new mongoose.Schema({
   // Formación
   formacion: { type: Array, default: [] },
 
-  // Deterministic Frontend Calculations
-  biocentricScore: { type: Number, default: null },
-  biocentricAlerts: { type: Array, default: [] },
 
   // Oráculo Predictivo H1 — Dictamen IA persistido
   dictamenPredictivoH1: { type: String, default: '' },
@@ -541,16 +538,18 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
     const companyId = await getActiveCompanyId(req.user.id);
 
-    // First save the raw data
+    // First save the raw data with recalculated bio-fit values
+    const updatedWithBio = await recalculateAndSyncAllWorkers(req.user.id, companyId, trabajadores);
+
     await PerfilSociodemograficoData.findOneAndUpdate(
       { user: req.user.id, companyId: companyId },
-      { $set: { trabajadores, companyId, updatedAt: new Date() } },
+      { $set: { trabajadores: updatedWithBio, companyId, updatedAt: new Date() } },
       { upsert: true, new: true }
     );
 
     // Sync basic health data to master SgsstWorker profile
     const SgsstWorker = require('../../../models/SgsstWorker');
-    for (const w of trabajadores) {
+    for (const w of updatedWithBio) {
       if (!w.identificacion) continue;
       const cleanDoc = String(w.identificacion).trim();
       if (!cleanDoc) continue;
@@ -568,7 +567,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
     // ── IA Semantic Tagging (synchronous — awaited so frontend gets results) ──
     // Only runs for workers whose complex text fields have changed
-    let updatedWorkers = [...trabajadores];
+    let updatedWorkers = [...updatedWithBio];
     try {
       const apiKey = await getApiKey(req.user.id);
       if (apiKey) {
@@ -580,7 +579,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const savedDoc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId }).lean();
         const savedWorkers = savedDoc?.trabajadores || [];
 
-        const evalPromises = trabajadores.map(async (w) => {
+        const evalPromises = updatedWithBio.map(async (w) => {
           if (!w.id) return w;
           const currentHash = buildClinicalHash(w);
           const savedWorker = savedWorkers.find(sw => sw.id === w.id);
@@ -606,7 +605,10 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
         updatedWorkers = await Promise.all(evalPromises);
 
-        // Persist the IA tags back to DB
+        // Recalculate bio score again to reflect any newly generated IA tags
+        updatedWorkers = await recalculateAndSyncAllWorkers(req.user.id, companyId, updatedWorkers);
+
+        // Persist the IA tags and updated scores back to DB
         await PerfilSociodemograficoData.findOneAndUpdate(
           { user: req.user.id, companyId },
           { $set: { trabajadores: updatedWorkers, updatedAt: new Date() } },
@@ -617,7 +619,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       logger.warn('[OraculoH1] IA tagging error (continuing without IA):', iaErr.message);
     }
 
-    // Return the updated workers (with IA tags) so frontend can refresh immediately
+    // Return the updated workers (with IA tags and biocentric scores) so frontend can refresh immediately
     res.json({ success: true, trabajadores: updatedWorkers });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
@@ -669,6 +671,9 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     } else if (inboxType === 'health') {
       doc.actualizacionesPendientesSalud = (doc.actualizacionesPendientesSalud || []).filter(u => u.id !== updateId);
     }
+
+    // Recalculate and sync with SgsstWorker on inbox approval
+    doc.trabajadores = await recalculateAndSyncAllWorkers(req.user.id, companyId, doc.trabajadores);
 
     await doc.save();
     res.json({ success: true, actualizacionesPendientes: doc.actualizacionesPendientes, actualizacionesPendientesSalud: doc.actualizacionesPendientesSalud });
@@ -916,5 +921,272 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
     res.status(500).json({ error: error.message });
   }
 });
+
+
+// ─── Bio-Fit Engine Backend ──────────────────────────────────────────────────
+function calculateBiocentricFitBackend(w, perfilesList) {
+  let score = 100;
+  let alerts = [];
+  let isLethal = false;
+  const auditItems = [];
+
+  const addAudit = (cat, title, desc, pts, sev) => {
+    score -= pts;
+    alerts.push(title);
+    auditItems.push({ category: cat, title, description: desc, pointsDeducted: pts, severity: sev });
+  };
+
+  const cargo = perfilesList.find(c => c.nombreCargo === w.cargo);
+  if (!cargo) {
+    return { score: 0, alerts: ['No hay rol asignado'], auditItems: [], isLethal: false };
+  }
+
+  // 1. Biometría y Signos Vitales
+  if (w.imc) {
+    const imc = parseFloat(w.imc);
+    if (!isNaN(imc)) {
+      if (imc >= 30) {
+        addAudit('Clínico', 'Obesidad detectada', `El IMC de ${imc} indica obesidad, aumentando el riesgo cardiovascular y metabólico.`, 10, 'warning');
+      } else if (imc < 18.5) {
+        addAudit('Clínico', 'Bajo peso', `El IMC de ${imc} sugiere déficit nutricional o patología subyacente.`, 5, 'info');
+      }
+    }
+  }
+
+  if (w.presionArterial) {
+    const [sisStr, diaStr] = w.presionArterial.split('/');
+    const sis = parseInt(sisStr || '0', 10);
+    const dia = parseInt(diaStr || '0', 10);
+    if (!isNaN(sis) && !isNaN(dia)) {
+      if (sis >= 135 || dia >= 90) {
+        addAudit('Clínico', 'Riesgo de Hipertensión', `Presión de ${w.presionArterial} por encima de rangos óptimos. Requiere seguimiento médico.`, 15, 'warning');
+      }
+    }
+  }
+
+  if (w.frecuenciaCardiaca) {
+    const fc = parseInt(w.frecuenciaCardiaca, 10);
+    if (!isNaN(fc)) {
+      if (fc > 100) {
+        addAudit('Clínico', 'Taquicardia en reposo', `Frecuencia cardíaca de ${fc} lpm indica posible estrés cardiovascular o metabólico.`, 10, 'warning');
+      } else if (fc < 50) {
+        addAudit('Clínico', 'Bradicardia', `Frecuencia inusualmente baja (${fc} lpm), puede requerir valoración cardiológica.`, 5, 'info');
+      }
+    }
+  }
+
+  // 2. Hábitos
+  if (w.fuma === 'Sí, diario') {
+    addAudit('Clínico', 'Tabaquismo Activo', 'Consumo diario de tabaco impacta la capacidad pulmonar y oxigenación celular.', 10, 'warning');
+  }
+  if (w.alcohol === 'Sí (Frecuente)') {
+    addAudit('Psicosocial', 'Etilismo Frecuente', 'Aumenta significativamente la accidentabilidad y vulnerabilidad hepática.', 15, 'warning');
+  }
+
+  // 3. CAMPOS DE TEXTO LIBRE → IA SEMÁNTICA
+  const TAG_RULES_CS = {
+    Lumbalgia:            { pts: 10, sev: 'warning',  cat: 'Osteomuscular',      label: 'Lumbalgia',                   desc: 'Restricción lumbar. Limita carga de peso y posturas prolongadas.' },
+    Hernia_Discal:        { pts: 15, sev: 'critical', cat: 'Osteomuscular',      label: 'Hernia Discal',               desc: 'Condición discal que puede agravarse con esfuerzo físico.' },
+    Cervicalgia:          { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',      label: 'Cervicalgia',                 desc: 'Restricción cervical. Limita posiciones de cuello sostenidas.' },
+    Epicondilitis:        { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',      label: 'Epicondilitis',               desc: 'Inflamación en el codo. Limita movimientos repetitivos del antebrazo.' },
+    Tunel_Carpiano:       { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',      label: 'Túnel Carpiano',              desc: 'Compresión del nervio mediano. Limita trabajo manual repetitivo.' },
+    Restriccion_Hombro:   { pts: 10, sev: 'warning',  cat: 'Osteomuscular',      label: 'Restricción de Hombro',       desc: 'Limitación en el complejo del hombro.' },
+    Restriccion_Rodilla:  { pts: 10, sev: 'warning',  cat: 'Osteomuscular',      label: 'Restricción de Rodilla',      desc: 'Limitación articular en rodilla.' },
+    No_Carga_Peso:        { pts: 8,  sev: 'warning',  cat: 'Restricción Física', label: 'No Carga de Peso',            desc: 'Restricción médica explícita de levantamiento o carga.' },
+    No_Bipedestacion:     { pts: 5,  sev: 'info',     cat: 'Restricción Física', label: 'No Bipedestación',            desc: 'Limitación para permanecer de pie por períodos extendidos.' },
+    No_Sedestacion:       { pts: 5,  sev: 'info',     cat: 'Restricción Física', label: 'No Sedestación',              desc: 'Limitación para permanecer sentado por períodos extendidos.' },
+    Hipoacusia:           { pts: 8,  sev: 'warning',  cat: 'Sensorial',          label: 'Hipoacusia',                  desc: 'Pérdida auditiva. Requiere protección auditiva y evaluación.' },
+    Vision_Reducida:      { pts: 5,  sev: 'info',     cat: 'Sensorial',          label: 'Visión Reducida',             desc: 'Disminución visual. Requiere corrección óptica adecuada.' },
+    HTA:                  { pts: 15, sev: 'warning',  cat: 'Clínico',            label: 'Hipertensión Arterial',       desc: 'Tensión arterial elevada. Requiere seguimiento médico.' },
+    Cardiopatia:          { pts: 20, sev: 'critical', cat: 'Clínico',            label: 'Cardiopatía',                 desc: 'Condición cardíaca. Limita esfuerzos físicos intensos.' },
+    Diabetes:             { pts: 10, sev: 'warning',  cat: 'Clínico',            label: 'Diabetes',                    desc: 'Condición metabólica que requiere control glucémico.' },
+    Epilepsia:            { pts: 25, sev: 'critical', cat: 'Neurológico',        label: 'Epilepsia / Convulsiones',    desc: 'Alto riesgo en maquinaria y alturas.' },
+    Vertigo:              { pts: 18, sev: 'critical', cat: 'Neurológico',        label: 'Vértigo / Mareo',             desc: 'Riesgo de caída o desequilibrio durante operación de equipos.' },
+    EPOC:                 { pts: 15, sev: 'warning',  cat: 'Respiratorio',       label: 'EPOC / Bronquitis',           desc: 'Enfermedad pulmonar. Limita exposición a polvo y químicos.' },
+    Asma:                 { pts: 10, sev: 'warning',  cat: 'Respiratorio',       label: 'Asma',                        desc: 'Hipersensibilidad bronquial. Limita exposición a irritantes.' },
+    Alergia_Quimica:      { pts: 10, sev: 'warning',  cat: 'Inmunológico',       label: 'Alergia Química',             desc: 'Sensibilidad a químicos. Requiere EPP específico.' },
+    Medicamento_SNC:      { pts: 15, sev: 'critical', cat: 'Farmacológico',      label: 'Medicamento Depresor SNC',    desc: 'Sedantes incompatibles con maquinaria. Alerta de seguridad.' },
+    Restriccion_Mental:   { pts: 12, sev: 'warning',  cat: 'Psicosocial',        label: 'Restricción de Salud Mental', desc: 'Condición mental que puede afectar concentración y decisiones.' },
+    Patologia_Cronica:    { pts: 10, sev: 'warning',  cat: 'Clínico',            label: 'Patología Crónica',           desc: 'Enfermedad crónica base que requiere vigilancia epidemiológica.' },
+    Diagnostico_Reciente: { pts: 5,  sev: 'info',     cat: 'Clínico',            label: 'Diagnóstico Reciente',        desc: 'Diagnóstico médico reciente. Amerita seguimiento.' },
+    Recomendacion_Leve:   { pts: 3,  sev: 'info',     cat: 'Preventivo',         label: 'Recomendación Médica',        desc: 'Recomendación preventiva activa que debe gestionarse por SST.' },
+  };
+
+  const iaTags = w.bioTagsIA || [];
+  const hasIATags = iaTags.length > 0 && !iaTags.includes('Sin_Hallazgos');
+  const hasAnyText = [
+    w.limitacionesBiomecanicas, w.recomendacionesMedicas,
+    w.diagnosticoMedico, w.enfermedades, w.alergiasQuimicas, w.medicamentos
+  ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
+
+  if (hasAnyText) {
+    if (hasIATags) {
+      iaTags.forEach(tag => {
+        const rule = TAG_RULES_CS[tag];
+        if (!rule) return;
+        let pts = rule.pts;
+        if ((tag === 'Lumbalgia' || tag === 'Hernia_Discal' || tag === 'Restriccion_Hombro' || tag === 'Restriccion_Rodilla') && cargo.exigenciaFisica === 'Alta') {
+          pts = Math.round(pts * 1.5);
+        }
+        if ((tag === 'Epilepsia' || tag === 'Vertigo' || tag === 'Medicamento_SNC' || tag === 'Restriccion_Mental') && cargo.operaMaquinaria === 'Sí') {
+          pts = Math.round(pts * 2.0);
+        }
+        if (tag === 'Restriccion_Mental' && cargo.exigenciaMental === 'Alta') {
+          pts = Math.round(pts * 1.5);
+        }
+        addAudit(rule.cat, rule.label, rule.desc + (pts !== rule.pts ? ' ⚠️ Agravado por exigencias del cargo.' : ''), pts, rule.sev);
+      });
+    } else {
+      const hasEnf = w.enfermedades && w.enfermedades.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
+      const hasDiag = w.diagnosticoMedico && w.diagnosticoMedico.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
+      const hasRestr = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.trim() && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
+      const hasRec = w.recomendacionesMedicas && w.recomendacionesMedicas.trim() && !w.recomendacionesMedicas.toLowerCase().includes('ninguna');
+      const hasAl = w.alergiasQuimicas && w.alergiasQuimicas.trim() && !w.alergiasQuimicas.toLowerCase().includes('ninguna');
+      if (hasEnf) addAudit('Clínico', 'Patología Base (pendiente IA)', `${w.enfermedades}`, 10, 'warning');
+      if (hasDiag && !hasEnf) addAudit('Clínico', 'Diagnóstico Médico (pendiente IA)', `${w.diagnosticoMedico}`, 5, 'info');
+      if (hasRestr) addAudit('Físico', 'Restricción Biomecánica (pendiente IA)', `${w.limitacionesBiomecanicas}`, 8, 'warning');
+      if (hasRec) addAudit('Preventivo', 'Recomendación Médica (pendiente IA)', `${w.recomendacionesMedicas}`, 3, 'info');
+      if (hasAl) addAudit('Clínico', 'Alergia Química (pendiente IA)', `${w.alergiasQuimicas}`, 8, 'warning');
+    }
+  }
+
+  const hasEnfermedad = !hasIATags && w.enfermedades && w.enfermedades.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
+  const hasDiagnostico = !hasIATags && w.diagnosticoMedico && w.diagnosticoMedico.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
+  const hasBiomecanica = !hasIATags && w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
+
+  // 4. Vulnerabilidad Sociodemográfica y Psicosocial
+  let vulnerabilidadSocial = 0;
+  let socialDesc = [];
+  if (['1', '2'].includes(String(w.estrato || ''))) {
+    vulnerabilidadSocial++;
+    socialDesc.push('estrato socioeconómico bajo');
+  }
+  if (w.personasCargo && Number(w.personasCargo) >= 3) {
+    vulnerabilidadSocial++;
+    socialDesc.push('alta carga de dependientes');
+  }
+  if (w.estadoCivil && (w.estadoCivil.toLowerCase().includes('solter') || w.estadoCivil.toLowerCase().includes('viud') || w.estadoCivil.toLowerCase().includes('divorciad'))) {
+    if (w.personasCargo && Number(w.personasCargo) > 0) {
+      vulnerabilidadSocial++;
+      socialDesc.push('monoparentalidad');
+    }
+  }
+  if (w.vivienda && (w.vivienda.toLowerCase().includes('arrendada') || w.vivienda.toLowerCase().includes('invasión'))) {
+    vulnerabilidadSocial++;
+    socialDesc.push('inestabilidad habitacional');
+  }
+
+  if (vulnerabilidadSocial >= 3) {
+    addAudit('Vigilancia Epidemiológica', 'Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido apoyo psicosocial.`, 0, 'info');
+  } else if (vulnerabilidadSocial >= 2) {
+    addAudit('Vigilancia Epidemiológica', 'Factores Psicosociales Externos', `Factores detectados: ${socialDesc.join(', ')}.`, 0, 'info');
+  }
+
+  if (w.nivelEscolaridad && w.nivelEscolaridad.toLowerCase().includes('primaria')) {
+    addAudit('Vigilancia Epidemiológica', 'Escolaridad Básica', 'Puede requerir métodos de capacitación más visuales y acompañamiento cercano en SST.', 0, 'info');
+  }
+
+  // 5. Cruce vs. Exigencias del Cargo
+  if (cargo.exigenciaFisica === 'Alta') {
+    if (w.edad && Number(w.edad) > 55) {
+      addAudit('Preventivo', 'Alerta Ergonómica por Edad', 'La edad avanzada requiere monitoreo preventivo ante altas exigencias físicas.', 0, 'info');
+    }
+    if (hasEnfermedad || hasDiagnostico) {
+      addAudit('Operativo', 'Patología en Rol Exigente', 'La carga física intensa puede agravar la patología base.', 10, 'critical');
+    }
+    if (hasBiomecanica) {
+      addAudit('Operativo', 'Restricción Biomecánica Crítica', 'Peligro inminente de lesión osteomuscular por incompatibilidad con el esfuerzo.', 20, 'critical');
+    }
+  }
+
+  if (cargo.exigenciaMental === 'Alta') {
+    if (w.terapiaPsicologica === 'Sí') {
+      addAudit('Psicosocial', 'Alerta de Burnout', 'Rol de alta tensión mental sumado a necesidad clínica de psicoterapia.', 15, 'critical');
+    }
+    if (vulnerabilidadSocial >= 2) {
+      addAudit('Vigilancia Epidemiológica', 'Contexto Psicosocial Estresante', 'La vulnerabilidad social sumada al rol estresante requiere vigilancia activa.', 0, 'info');
+    }
+  }
+
+  if (cargo.operaMaquinaria === 'Sí' && !hasIATags) {
+    const medLower = (w.medicamentos || '').toLowerCase();
+    const hasMedsLethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
+    if (hasMedsLethal || w.alcohol === 'Sí (Frecuente)') {
+      isLethal = true;
+      addAudit('Operativo', '🛑 BLOQUEO PREVENTIVO', 'Uso de sustancias depresoras del SNC es incompatible con operación de maquinaria.', 40, 'critical');
+    }
+  }
+
+  // 6. Entrenamiento y Formación Legal
+  if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
+    const req = cargo.entrenamientosSeleccionados.length;
+    if (req > 0 && !w.curso50h && !w.curso20h) {
+      let penalty = 5;
+      penalty += req;
+      const criticalKeywords = ['alturas', 'confinado', '50 horas', '50h', '20 horas', '20h', 'licencia', 'emergencia', 'rescate', 'primeros auxilios', 'coordinador'];
+      const hasCritical = cargo.entrenamientosSeleccionados.some(c => criticalKeywords.some(k => String(c).toLowerCase().includes(k)));
+      if (hasCritical) penalty += 5;
+      addAudit('Entrenamiento', 'Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${cargo.entrenamientosSeleccionados.join(', ')}.`, penalty, 'warning');
+    }
+  }
+
+  return { score: Math.max(0, score), alerts: Array.from(new Set(alerts)), auditItems, isLethal };
+}
+
+async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList) {
+  try {
+    const PerfilesCargo = mongoose.models.PerfilCargoData;
+    const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: userId, companyId }).lean() : null;
+    const perfilesList = cargoDoc?.perfilesList || [];
+
+    const SgsstWorker = require('../../../models/SgsstWorker');
+
+    const updatedWorkers = trabajadoresList.map(w => {
+      const rawWorker = w._doc || w;
+      
+      const fitResult = calculateBiocentricFitBackend(rawWorker, perfilesList);
+      
+      return {
+        ...rawWorker,
+        biocentricScore: fitResult.score,
+        biocentricAlerts: fitResult.alerts,
+        biocentricIsLethal: fitResult.isLethal
+      };
+    });
+
+    // Sincronizar en lote a SgsstWorker
+    for (const w of updatedWorkers) {
+      if (!w.identificacion) continue;
+      const cleanDoc = String(w.identificacion).trim();
+      if (!cleanDoc) continue;
+
+      const conditionsStr = [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas]
+        .filter(Boolean)
+        .join('; ') || '';
+
+      await SgsstWorker.updateOne(
+        { user: userId, companyId, documento: cleanDoc },
+        {
+          $set: {
+            nombre: w.nombre,
+            genero: w.genero || 'No especificado',
+            fechaNacimiento: w.fechaNacimiento || null,
+            condicionesSalud: conditionsStr,
+            fitScore: w.biocentricScore,
+            fitAlerts: w.biocentricAlerts,
+            updatedAt: Date.now()
+          }
+        }
+      );
+    }
+
+    return updatedWorkers;
+  } catch (err) {
+    logger.error('[SGSST BioFit Backend] recalculateAndSyncAllWorkers error:', err);
+    return trabajadoresList;
+  }
+}
+
+router.recalculateAndSyncAllWorkers = recalculateAndSyncAllWorkers;
 
 module.exports = router;

@@ -185,10 +185,35 @@ async function syncWorkerWithOraculoH1(worker, userId) {
         if (PerfilSocioModel && worker.companyId) {
             const socioDoc = await PerfilSocioModel.findOne({ user: userId, companyId: worker.companyId });
             if (socioDoc && socioDoc.trabajadores) {
-                const liveSocioWorker = socioDoc.trabajadores.find(t => 
+                let liveSocioWorker = socioDoc.trabajadores.find(t => 
                     String(t.identificacion || t.documento || '').trim() === String(worker.documento || '').trim()
                 );
                 if (liveSocioWorker) {
+                    // Self-healing: if score is missing or default (100) but has clinical conditions, force recalculate
+                    const hasClinicalText = [
+                        liveSocioWorker.limitacionesBiomecanicas, liveSocioWorker.recomendacionesMedicas,
+                        liveSocioWorker.diagnosticoMedico, liveSocioWorker.enfermedades,
+                        liveSocioWorker.alergiasQuimicas, liveSocioWorker.medicamentos
+                    ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
+
+                    if (liveSocioWorker.biocentricScore === undefined || liveSocioWorker.biocentricScore === null || (liveSocioWorker.biocentricScore === 100 && hasClinicalText)) {
+                        const getRecalculateHelper = () => {
+                            const router = require('./perfilSociodemografico');
+                            return router.recalculateAndSyncAllWorkers;
+                        };
+                        const recalculateAndSyncAllWorkers = getRecalculateHelper();
+                        if (typeof recalculateAndSyncAllWorkers === 'function') {
+                            const updatedList = await recalculateAndSyncAllWorkers(userId, worker.companyId, socioDoc.trabajadores);
+                            socioDoc.trabajadores = updatedList;
+                            socioDoc.updatedAt = Date.now();
+                            await socioDoc.save();
+                            // Refresh local pointer
+                            liveSocioWorker = socioDoc.trabajadores.find(t => 
+                                String(t.identificacion || t.documento || '').trim() === String(worker.documento || '').trim()
+                            ) || liveSocioWorker;
+                        }
+                    }
+
                     let updated = false;
 
                     const liveScore = liveSocioWorker.biocentricScore !== undefined && liveSocioWorker.biocentricScore !== null 
