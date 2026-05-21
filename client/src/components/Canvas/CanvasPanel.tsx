@@ -223,8 +223,43 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         return part; // Return HTML blocks as-is
       }
       
-      // Parse markdown
-      return part
+      let parsed = part;
+
+      // Parse markdown tables first
+      const tableRegex = /((?:^|\n)\|[^\n]+\|[^\n]*\n\|[ \t]*:?-+:?[ \t]*\|[^\n]*\n(?:\|[^\n]+\|[^\n]*(?:\n|$))+)/g;
+      parsed = parsed.replace(tableRegex, (match) => {
+        const lines = match.trim().split('\n').map(l => l.trim());
+        if (lines.length < 2) return match;
+        
+        const headerCols = lines[0].split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+        const separatorCols = lines[1].split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+        
+        const alignments = separatorCols.map(col => {
+          if (col.startsWith(':') && col.endsWith(':')) return 'center';
+          if (col.endsWith(':')) return 'right';
+          if (col.startsWith(':')) return 'left';
+          return '';
+        });
+
+        const headersHtml = headerCols.map((col, idx) => {
+          const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
+          return `<th${align} style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; font-weight: bold; text-align: ${alignments[idx] || 'left'};">${col}</th>`;
+        }).join('');
+
+        const dataRowsHtml = lines.slice(2).map(line => {
+          const cols = line.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+          const cellsHtml = cols.map((col, idx) => {
+            const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
+            return `<td${align} style="border: 1px solid #ddd; padding: 8px; text-align: ${alignments[idx] || 'left'};">${col}</td>`;
+          }).join('');
+          return `<tr>${cellsHtml}</tr>`;
+        }).join('');
+
+        return `<div style="overflow-x:auto; margin: 15px 0;"><table style="border-collapse: collapse; width: 100%; border: 1px solid #ddd; font-family: sans-serif; font-size: 13px;"><thead><tr>${headersHtml}</tr></thead><tbody>${dataRowsHtml}</tbody></table></div>`.replace(/\n/g, '');
+      });
+
+      // Parse remaining markdown
+      return parsed
         .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
         .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
         .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')

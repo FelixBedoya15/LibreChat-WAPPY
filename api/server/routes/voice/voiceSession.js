@@ -5,7 +5,7 @@ const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
 const { saveMessage, saveConvo, getMessages } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildSignatureSection } = require('../sgsst/reportHeader');
@@ -34,7 +34,7 @@ class VoiceSession {
         // Verify/Set defaults if missing (for DB saving)
         if (!this.dbModel) {
             // Fallback to voice model if no chat model provided
-            this.dbModel = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025';
+            this.dbModel = process.env.GEMINI_LIVE_MODEL || 'gemini-3.5-flash';
         }
 
         // Voice Configuration: Separate from DB Config
@@ -52,7 +52,7 @@ class VoiceSession {
         
         const isSupported = (name) => {
             if (!name) return false;
-            return ['gemini-2.0-flash-exp', 'native-audio', 'gemini-exp-1206'].some(
+            return ['gemini-2.0-flash-exp', 'native-audio', 'gemini-exp-1206', 'live-preview'].some(
                 validModel => name.toLowerCase().includes(validModel)
             );
         };
@@ -136,35 +136,55 @@ class VoiceSession {
                 }
             }
 
-            // Try connecting with API key rotation
+            // Try connecting with API key AND model rotation
             let success = false;
             let lastError = null;
 
-            for (let i = 0; i < this.apiKeys.length; i++) {
-                const key = this.apiKeys[i];
-                logger.info(`[VoiceSession] Attempting Gemini Live connection with API Key ${i + 1}/${this.apiKeys.length}`);
-                
-                try {
-                    // Create Gemini Live client
-                    this.geminiClient = new GeminiLiveClient(key, this.liveConfig);
+            // Determinar los modelos a intentar en orden de preferencia
+            const preferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+            const liveFallbacks = LIVE_FALLBACK_MODELS.filter(m => m !== preferredLiveModel);
+            const liveModelsToTry = [preferredLiveModel, ...liveFallbacks];
 
-                    // Connect to Gemini
-                    await this.geminiClient.connect();
+            logger.info(`[VoiceSession] Modelos Live a intentar en la sesión: ${liveModelsToTry.join(', ')}`);
+
+            // Bucle Externo: Recorre los modelos consecutivos
+            for (let m = 0; m < liveModelsToTry.length; m++) {
+                const currentLiveModel = liveModelsToTry[m];
+                this.liveConfig.model = currentLiveModel; // Asignar el modelo de turno a la configuración
+
+                // Bucle Interno: Recorre las API keys consecutivamente para el modelo actual
+                for (let i = 0; i < this.apiKeys.length; i++) {
+                    const key = this.apiKeys[i];
+                    logger.info(`[VoiceSession] Intentando conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}/${this.apiKeys.length}`);
                     
-                    success = true;
-                    break;
-                } catch (error) {
-                    logger.warn(`[VoiceSession] Connection failed with API key ${i + 1}: ${error.message}`);
-                    lastError = error;
-                    if (this.geminiClient && typeof this.geminiClient.disconnect === 'function') {
-                        this.geminiClient.disconnect();
+                    try {
+                        // Create Gemini Live client
+                        this.geminiClient = new GeminiLiveClient(key, this.liveConfig);
+
+                        // Connect to Gemini WebSocket
+                        await this.geminiClient.connect();
+                        
+                        success = true;
+                        break; // ✅ Éxito en la conexión con la clave actual
+                    } catch (error) {
+                        logger.warn(`[VoiceSession] Falló conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}: ${error.message}`);
+                        lastError = error;
+                        if (this.geminiClient && typeof this.geminiClient.disconnect === 'function') {
+                            this.geminiClient.disconnect();
+                        }
+                        this.geminiClient = null;
                     }
-                    this.geminiClient = null;
                 }
+
+                if (success) {
+                    break; // ✅ Conectado con éxito a un modelo compatible
+                }
+
+                logger.warn(`[VoiceSession] Todas las claves agotadas para el modelo "${currentLiveModel}". Probando siguiente modelo de respaldo en la lista...`);
             }
 
             if (!success) {
-                throw new Error(lastError?.message || 'Failed to connect to Gemini Live with any available API key');
+                throw new Error(lastError?.message || 'No se pudo conectar a Gemini Live con ningún modelo o clave API disponible');
             }
 
             // Setup message handlers for Gemini
@@ -756,8 +776,8 @@ class VoiceSession {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
-            // Use the same first model as SGSST apps, with full key+model rotation
-            const correctionModelName = SGSST_FALLBACK_MODELS[0]; // gemini-3.1-flash-lite
+            // Use Gemini 3.5 Flash for high performance voice transcription corrections
+            const correctionModelName = 'gemini-3.5-flash';
             logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
@@ -843,9 +863,8 @@ class VoiceSession {
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
 
-            // Use first SGSST model with full key+model rotation (matches sgsstGemini.js pattern)
-            // Priority: SGSST_FALLBACK_MODELS[0] = gemini-3.1-flash-lite (per user's model list order)
-            const reportModelName = SGSST_FALLBACK_MODELS[0];
+            // Use Gemini 3.5 Flash as the default model accompanying Live reports
+            const reportModelName = 'gemini-3.5-flash';
             logger.info(`[VoiceSession] Report model (with key+model rotation): ${reportModelName}`);
 
             const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });

@@ -71,7 +71,7 @@ const getAgents = async (searchParameter) => await Agent.find(searchParameter).l
 const loadEphemeralAgent = async ({ req, spec, agent_id, endpoint, model_parameters: _m }) => {
   let { model, ...model_parameters } = _m;
   if (!model) {
-    model = 'gemini-3.1-flash-lite';
+    model = 'gemini-3.5-flash';
   }
   const modelSpecs = req.config?.modelSpecs?.list;
   /** @type {TModelSpec | null} */

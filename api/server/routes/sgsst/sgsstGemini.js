@@ -26,17 +26,18 @@ const { logger } = require('~/config');
 
 // Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
+  'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
-  'gemini-3-flash-preview',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
 const LIVE_FALLBACK_MODELS = [
-  'gemini-2.5-flash-lite-preview-12-2025',
-  'gemini-2.5-flash-lite-preview-09-2025',
+  'gemini-3.1-flash-live-preview',
+  'gemini-2.5-flash-native-audio-preview-12-2025',
+  'gemini-2.5-flash-native-audio-preview-09-2025',
 ];
+
 
 /**
  * Resolves all API keys for a user.

@@ -69,22 +69,22 @@ export default function Personalization({
   useEffect(() => {
     if (user?.personalization?.geminiModels) {
       setGeminiModels({
-        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.1-flash-lite',
-        agents: user.personalization.geminiModels.agents || 'gemini-3.1-flash-lite',
-        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.1-flash-lite',
-        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-2.5-flash-native-audio-preview-09-2025',
-        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-2.5-flash',
-        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.1-flash-lite',
+        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.5-flash',
+        agents: user.personalization.geminiModels.agents || 'gemini-3.5-flash',
+        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.5-flash',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.1-flash-live-preview',
+        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.5-flash',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.5-flash',
       });
     } else {
       // Set defaults if no data exists
       setGeminiModels({
-        generalChat: 'gemini-3.1-flash-lite',
-        agents: 'gemini-3.1-flash-lite',
-        sstManagement: 'gemini-3.1-flash-lite',
-        liveAnalysis: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        textCorrection: 'gemini-2.5-flash',
-        reportGeneration: 'gemini-3.1-flash-lite',
+        generalChat: 'gemini-3.5-flash',
+        agents: 'gemini-3.5-flash',
+        sstManagement: 'gemini-3.5-flash',
+        liveAnalysis: 'gemini-3.1-flash-live-preview',
+        textCorrection: 'gemini-3.5-flash',
+        reportGeneration: 'gemini-3.5-flash',
       });
     }
   }, [user?.personalization?.geminiModels]);
@@ -107,10 +107,10 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
+        'gemini-3.5-flash',
         'gemini-3.1-flash-lite',
-        'gemini-3-flash-preview',
+        'gemini-3.1-flash-live-preview',
         'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
         'gemini-2.5-flash-native-audio-preview-12-2025',
         'gemini-2.5-flash-native-audio-preview-09-2025'
       ];

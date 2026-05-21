@@ -5,10 +5,11 @@ import { cn } from '~/utils';
 
 // Fallback model list (used only when query hasn't loaded yet)
 export const AI_MODELS = [
+    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
     { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+    { id: 'gemini-2.5-flash-native-audio-preview-12-2025', name: 'Gemini 2.5 Audio (Dic)' },
+    { id: 'gemini-2.5-flash-native-audio-preview-09-2025', name: 'Gemini 2.5 Audio (Sep)' },
 ];
 
 interface ModelSelectorProps {

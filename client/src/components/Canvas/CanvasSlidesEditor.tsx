@@ -267,6 +267,45 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const activeSlide = slides[activeIndex];
   const activeTheme = activeSlide ? THEMES[activeSlide.theme || 'cobalt'] : THEMES.cobalt;
 
+  if (!isMaximized) {
+    return (
+      <div className="flex-1 flex flex-col h-full bg-surface-secondary/40 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
+        <div className="flex flex-col gap-4 max-w-md mx-auto w-full pb-8">
+          {slides.map((slide, idx) => {
+            const slideTheme = THEMES[slide.theme || 'cobalt'];
+            const isActive = idx === activeIndex;
+            return (
+              <button
+                key={idx}
+                onClick={() => setActiveIndex(idx)}
+                className={`w-full text-left rounded-2xl border p-3 transition-all relative overflow-hidden group bg-surface-primary shadow-sm ${
+                  isActive 
+                    ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md scale-[1.01]' 
+                    : 'border-border-medium hover:border-border-hover hover:scale-[1.01]'
+                }`}
+              >
+                {/* Visual mini-slide representation */}
+                <div className={`h-28 w-full rounded-xl ${slideTheme.bg} p-4 flex flex-col justify-between overflow-hidden shadow-inner`}>
+                  <div className={`text-xs font-bold ${slideTheme.text} leading-snug`}>{slide.title}</div>
+                  <div className="space-y-1.5 my-auto pt-2">
+                    {slide.bullets.slice(0, 2).map((_, bIdx) => (
+                      <div key={bIdx} className="h-1 w-2/3 bg-white/20 rounded-full" />
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs font-semibold text-text-secondary px-0.5">
+                  <span>Slide {idx + 1}</span>
+                  <span className="capitalize opacity-60">{slide.theme}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full bg-surface-primary text-text-primary overflow-hidden">
       {/* Slides Thumbnail Sidebar - ONLY visible when maximized (expanded) */}
