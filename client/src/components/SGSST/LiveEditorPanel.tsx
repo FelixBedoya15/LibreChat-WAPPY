@@ -163,7 +163,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useRecoilState(store.isEditorMaximized);
+  const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
   
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
