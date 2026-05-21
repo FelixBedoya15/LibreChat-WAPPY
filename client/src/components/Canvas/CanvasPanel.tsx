@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   FileEdit,
   Maximize2,
@@ -14,7 +15,10 @@ import {
   Download,
   Upload,
   ArrowLeft,
-  RotateCcw
+  RotateCcw,
+  MoreVertical,
+  Trash,
+  Edit
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -26,6 +30,102 @@ import CanvasHtmlEditor from './CanvasHtmlEditor';
 import ExportDropdown from '../SGSST/ExportDropdown';
 import { useNavigate } from 'react-router-dom';
 import ReportHistory from '~/components/Liva/ReportHistory';
+
+const DROPDOWN_Z = 100_000_000;
+
+const VersionMenuDropdown = ({
+  version,
+  title,
+  onRename,
+  onDelete,
+}: {
+  version: number;
+  title: string;
+  onRename: (newName: string) => void;
+  onDelete: () => Promise<void>;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const calcMenuStyle = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+      zIndex: DROPDOWN_Z,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!buttonRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [isOpen]);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    if (!window.confirm(`¿Eliminar la versión ${version} del historial?\nEsta acción no se puede deshacer.`)) return;
+    setIsDeleting(true);
+    await onDelete();
+    setIsDeleting(false);
+  };
+
+  const menu = isOpen ? (
+    <div
+      ref={dropdownRef}
+      style={menuStyle}
+      className="w-36 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-xl rounded-lg py-1"
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          const n = prompt('Nuevo nombre para esta versión:', title);
+          if (n && n !== title) onRename(n);
+          setIsOpen(false);
+        }}
+        className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
+      >
+        <Edit className="w-3 h-3 text-teal-600" /> Renombrar
+      </button>
+      <button
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 disabled:opacity-50"
+      >
+        <Trash className="w-3.5 h-3.5" /> Eliminar
+      </button>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          calcMenuStyle();
+          setIsOpen(o => !o);
+        }}
+        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors shrink-0"
+      >
+        <MoreVertical className="w-4 h-4 text-text-secondary" />
+      </button>
+      {ReactDOM.createPortal(menu, document.body)}
+    </>
+  );
+};
 
 interface CanvasPanelProps {
   conversationId: string | null;
@@ -368,6 +468,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           <CanvasTextEditor
             initialContent={content}
             onUpdate={handleContentUpdate}
+            isMaximized={isMaximized}
           />
         );
     }
@@ -609,17 +710,62 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                           }`}
                         >
                           <div className="flex items-center justify-between mb-3 border-b border-border-light pb-2">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-text-primary">Versión {hItem.version}</span>
-                              <span className="text-xs text-text-tertiary">
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-text-primary shrink-0">Versión {hItem.version}</span>
+                                {isCurrent && (
+                                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 shrink-0">
+                                    Actual
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-text-tertiary truncate">
                                 {new Date(hItem.updatedAt).toLocaleString('es-ES')}
                               </span>
                             </div>
-                            {isCurrent && (
-                              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
-                                Actual
-                              </span>
-                            )}
+
+                            <VersionMenuDropdown
+                              version={hItem.version}
+                              title={hItem.title || title}
+                              onRename={async (newName) => {
+                                try {
+                                  const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ title: newName }),
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setHistory(data.history || []);
+                                    if (isCurrent) {
+                                      setTitle(newName);
+                                      titleRef.current = newName;
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error('[Version History Rename] Error:', e);
+                                }
+                              }}
+                              onDelete={async () => {
+                                try {
+                                  const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setHistory(data.history || []);
+                                  }
+                                } catch (e) {
+                                  console.error('[Version History Delete] Error:', e);
+                                }
+                              }}
+                            />
                           </div>
                           <div className="flex-1 text-sm text-text-secondary line-clamp-3 mb-4 italic opacity-80">
                             "{hItem.title || title}"
@@ -645,9 +791,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     </div>
   );
 
-  // Pure CSS maximize — no portal to avoid flash/z-index issues.
-  // The inner panel div already applies `fixed inset-0 z-[999999]` when isMaximized.
-  return panelContent;
+  // Use Portal when maximized to escape any relative/absolute parent boundaries and overflow hidden contexts
+  return isMaximized
+    ? ReactDOM.createPortal(panelContent, document.body)
+    : panelContent;
 };
 
 export default CanvasPanel;

@@ -221,4 +221,68 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/sgsst/canvas/:conversationId/versions/:version/rename
+ * Renombra una versión específica en el historial de canvas de la conversación.
+ */
+router.post('/:conversationId/versions/:version/rename', requireJwtAuth, async (req, res) => {
+  try {
+    const { conversationId, version } = req.params;
+    const { title } = req.body;
+    const versionNum = parseInt(version, 10);
+
+    let session = await CanvasSession.findOne({ conversationId });
+    if (!session) {
+      return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
+    }
+
+    let updated = false;
+    session.history = session.history.map(item => {
+      if (item.version === versionNum) {
+        item.title = title;
+        updated = true;
+      }
+      return item;
+    });
+
+    if (updated) {
+      if (session.version === versionNum) {
+        session.title = title;
+      }
+      session.markModified('history');
+      await session.save();
+    }
+
+    res.json({ success: true, history: session.history });
+  } catch (error) {
+    logger.error('[Canvas Version Rename] Error:', error);
+    res.status(500).json({ error: 'Error al renombrar la versión' });
+  }
+});
+
+/**
+ * DELETE /api/sgsst/canvas/:conversationId/versions/:version
+ * Elimina una versión específica en el historial de canvas de la conversación.
+ */
+router.delete('/:conversationId/versions/:version', requireJwtAuth, async (req, res) => {
+  try {
+    const { conversationId, version } = req.params;
+    const versionNum = parseInt(version, 10);
+
+    let session = await CanvasSession.findOne({ conversationId });
+    if (!session) {
+      return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
+    }
+
+    session.history = session.history.filter(item => item.version !== versionNum);
+    session.markModified('history');
+    await session.save();
+
+    res.json({ success: true, history: session.history });
+  } catch (error) {
+    logger.error('[Canvas Version Delete] Error:', error);
+    res.status(500).json({ error: 'Error al eliminar la versión' });
+  }
+});
+
 module.exports = router;
