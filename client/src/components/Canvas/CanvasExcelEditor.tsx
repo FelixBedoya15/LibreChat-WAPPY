@@ -7,6 +7,7 @@ interface CanvasExcelEditorProps {
   initialContent: string;
   onUpdate: (content: string) => void;
   title: string;
+  onRegisterDownload?: (fn: () => void) => void;
 }
 
 function refToCoords(ref: string): { row: number; col: number } | null {
@@ -128,7 +129,7 @@ function evaluateFormula(formula: string, gridData: string[][], visited: Set<str
   }
 }
 
-const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title }) => {
+const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title, onRegisterDownload }) => {
   const [data, setData] = useState<string[][]>([['', '', ''], ['', '', ''], ['', '', '']]);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [formulaValue, setFormulaValue] = useState<string>('');
@@ -294,6 +295,12 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, `${title}.xlsx`);
   };
+
+  useEffect(() => {
+    if (onRegisterDownload) {
+      onRegisterDownload(handleExportExcel);
+    }
+  }, [onRegisterDownload, data, title]);
 
   return (
     <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">

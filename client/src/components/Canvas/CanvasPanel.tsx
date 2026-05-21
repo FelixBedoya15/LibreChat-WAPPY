@@ -181,6 +181,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
+  const hasActiveSession = !!content || fileType !== 'text';
+
   // References to handle syncing correctly without stale closures
   const contentRef = useRef<string>('');
   const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html'>('text');
@@ -189,6 +191,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const isSavingRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSubmittingRef = useRef<boolean>(false);
+  const downloadRef = useRef<(() => void) | null>(null);
 
   const navigate = useNavigate();
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState<boolean>(false);
@@ -382,6 +385,42 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     saveSession();
   };
 
+  const handleResetSession = async () => {
+    if (!window.confirm("¿Deseas volver a la selección de lienzos? Los cambios no guardados en la versión actual podrían perderse.")) return;
+    
+    setIsSaving(true);
+    try {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+      const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: '',
+          title: 'Archivo sin título',
+          fileType: 'text',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setContent('');
+        setFileType('text');
+        setTitle('Archivo sin título');
+        setVersion(1);
+        setHistory([]);
+        lastUpdatedAtRef.current = data.updatedAt;
+        downloadRef.current = null;
+      }
+    } catch (e) {
+      console.error('[CanvasPanel] Reset error:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // ── Document Title Header (matches LiveEditor) ───────────────────────────
   const DocumentTitleHeader: React.FC = () => {
     const [editing, setEditing] = useState(false);
@@ -420,6 +459,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     return (
       <div className="w-full px-4 pt-4 pb-2 shrink-0">
         <div className="flex items-center gap-3 group">
+          {hasActiveSession && (
+            <button
+              onClick={handleResetSession}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover hover:scale-105 shadow-sm transition-all duration-300 cursor-pointer"
+              aria-label="Volver a la selección de lienzos"
+              title="Volver a la selección de lienzos"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${theme.bg} ${theme.border} ${theme.text}`}>
             {getIcon()}
           </div>
@@ -479,6 +529,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             initialContent={content}
             onUpdate={handleContentUpdate}
             title={title}
+            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
           />
         );
       case 'presentation':
@@ -488,6 +539,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             onUpdate={handleContentUpdate}
             title={title}
             isMaximized={isMaximized}
+            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
           />
         );
       case 'html':
@@ -497,6 +549,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             onUpdate={handleContentUpdate}
             title={title}
             isMaximized={isMaximized}
+            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
           />
         );
       default:
@@ -519,8 +572,6 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       </div>
     );
   }
-
-  const hasActiveSession = !!content || fileType !== 'text';
 
   const panelContent = (
     <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden ${
@@ -550,6 +601,31 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
           {hasActiveSession && fileType === 'text' && (
             <ExportDropdown content={content} fileName={title} />
+          )}
+
+          {hasActiveSession && fileType !== 'text' && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (downloadRef.current) {
+                  downloadRef.current();
+                } else {
+                  console.warn('[CanvasPanel] No download function registered for fileType:', fileType);
+                }
+              }}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-teal-600 hover:bg-teal-700 hover:-rotate-3 hover:scale-105 border-teal-600 hover:border-teal-700 text-white"
+              aria-label="Descargar archivo"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Download className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex items-center ml-2 whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-white">
+                  Descargar
+                </span>
+              </div>
+            </button>
           )}
 
           {hasActiveSession && (

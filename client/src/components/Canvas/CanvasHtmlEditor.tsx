@@ -6,9 +6,10 @@ interface CanvasHtmlEditorProps {
   onUpdate: (content: string) => void;
   title: string;
   isMaximized?: boolean;
+  onRegisterDownload?: (fn: () => void) => void;
 }
 
-const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false }) => {
+const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false, onRegisterDownload }) => {
   const [code, setCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'code');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -105,6 +106,12 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  useEffect(() => {
+    if (onRegisterDownload) {
+      onRegisterDownload(handleDownloadHtml);
+    }
+  }, [onRegisterDownload, code, title]);
 
   return (
     <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">

@@ -12,6 +12,53 @@ interface CanvasSlidesEditorProps {
   onUpdate: (content: string) => void;
   title: string;
   isMaximized?: boolean;
+  onRegisterDownload?: (fn: () => void) => void;
+}
+
+/**
+ * Extracts and parses a JSON array from noisy/conversational strings.
+ * Deals with markdown wrapping (e.g. ```json ... ```) and trailing commas/comments.
+ */
+function extractJsonArray(str: string): any[] | null {
+  if (!str) return null;
+  
+  try {
+    const parsed = JSON.parse(str);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    // Continue to extract
+  }
+
+  const startIdx = str.indexOf('[');
+  const endIdx = str.lastIndexOf(']');
+  
+  if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) {
+    return null;
+  }
+  
+  const candidate = str.slice(startIdx, endIdx + 1);
+  
+  try {
+    const parsed = JSON.parse(candidate);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    try {
+      let cleaned = candidate
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(?:^|\s)\/\/.*$/gm, '');
+      
+      cleaned = cleaned
+        .replace(/,\s*\]/g, ']')
+        .replace(/,\s*\}/g, '}');
+        
+      const parsedCleaned = JSON.parse(cleaned);
+      if (Array.isArray(parsedCleaned)) return parsedCleaned;
+    } catch (err) {
+      console.error('Failed both standard and cleaned JSON extraction for slides:', err);
+    }
+  }
+  
+  return null;
 }
 
 const THEMES = {
@@ -45,21 +92,20 @@ const THEMES = {
   },
 };
 
-const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false }) => {
+const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false, onRegisterDownload }) => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [showSettings, setShowSettings] = useState<boolean>(true);
 
   // Load content
   useEffect(() => {
     if (initialContent) {
-      try {
-        const parsed = JSON.parse(initialContent);
-        if (Array.isArray(parsed)) {
-          setSlides(parsed);
-          return;
-        }
-      } catch (e) {
-        console.warn('Failed to parse slides content JSON, using fallback', e);
+      const parsed = extractJsonArray(initialContent);
+      if (parsed && Array.isArray(parsed)) {
+        setSlides(parsed);
+        return;
+      } else {
+        console.warn('Failed to parse slides content JSON via robust extractor');
       }
     }
     // Fallback default slides
@@ -212,92 +258,100 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
     }
   };
 
+  useEffect(() => {
+    if (onRegisterDownload) {
+      onRegisterDownload(handleDownloadPdf);
+    }
+  }, [onRegisterDownload, slides, title]);
+
   const activeSlide = slides[activeIndex];
   const activeTheme = activeSlide ? THEMES[activeSlide.theme || 'cobalt'] : THEMES.cobalt;
 
   return (
     <div className="flex h-full bg-surface-primary text-text-primary overflow-hidden">
-      {/* Slides Thumbnail Sidebar */}
-      <div className={`${isMaximized ? 'w-48 sm:w-56 md:w-64 border-r' : 'w-full'} flex-shrink-0 border-border-medium bg-surface-secondary flex flex-col justify-between`}>
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
-          {slides.map((slide, idx) => {
-            const slideTheme = THEMES[slide.theme || 'cobalt'];
-            const isActive = idx === activeIndex;
-            return (
-              <button
-                key={idx}
-                onClick={() => setActiveIndex(idx)}
-                className={`w-full text-left rounded-xl border p-2 transition-all relative overflow-hidden group ${
-                  isActive 
-                    ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md' 
-                    : 'border-border-medium hover:border-border-hover bg-surface-primary'
-                }`}
-              >
-                {/* Visual mini-slide representation */}
-                <div className={`h-16 w-full rounded-lg ${slideTheme.bg} p-2 flex flex-col justify-between overflow-hidden shadow-inner`}>
-                  <div className={`text-[8px] font-bold ${slideTheme.text} truncate`}>{slide.title}</div>
-                  <div className="space-y-0.5">
-                    {slide.bullets.slice(0, 2).map((_, bIdx) => (
-                      <div key={bIdx} className="h-1 w-2/3 bg-white/20 rounded-full" />
-                    ))}
+      {/* Slides Thumbnail Sidebar - ONLY visible when maximized (expanded) */}
+      {isMaximized && (
+        <div className="w-48 sm:w-56 md:w-64 border-r flex-shrink-0 border-border-medium bg-surface-secondary flex flex-col justify-between">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
+            {slides.map((slide, idx) => {
+              const slideTheme = THEMES[slide.theme || 'cobalt'];
+              const isActive = idx === activeIndex;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`w-full text-left rounded-xl border p-2 transition-all relative overflow-hidden group ${
+                    isActive 
+                      ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md' 
+                      : 'border-border-medium hover:border-border-hover bg-surface-primary'
+                  }`}
+                >
+                  {/* Visual mini-slide representation */}
+                  <div className={`h-16 w-full rounded-lg ${slideTheme.bg} p-2 flex flex-col justify-between overflow-hidden shadow-inner`}>
+                    <div className={`text-[8px] font-bold ${slideTheme.text} truncate`}>{slide.title}</div>
+                    <div className="space-y-0.5">
+                      {slide.bullets.slice(0, 2).map((_, bIdx) => (
+                        <div key={bIdx} className="h-1 w-2/3 bg-white/20 rounded-full" />
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-text-secondary px-0.5">
-                  <span>Slide {idx + 1}</span>
-                  <span className="capitalize opacity-60">{slide.theme}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-text-secondary px-0.5">
+                    <span>Slide {idx + 1}</span>
+                    <span className="capitalize opacity-60">{slide.theme}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Sidebar Actions */}
-        <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2">
-          <button
-            onClick={addSlide}
-            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nueva Diapositiva</span>
-          </button>
-          <button
-            onClick={deleteSlide}
-            disabled={slides.length <= 1}
-            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold border border-border-medium hover:bg-surface-hover disabled:opacity-40 rounded-xl transition-colors"
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-            <span>Eliminar Activa</span>
-          </button>
+          {/* Sidebar Actions */}
+          <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2">
+            <button
+              onClick={addSlide}
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nueva Diapositiva</span>
+            </button>
+            <button
+              onClick={deleteSlide}
+              disabled={slides.length <= 1}
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold border border-border-medium hover:bg-surface-hover disabled:opacity-40 rounded-xl transition-colors"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+              <span>Eliminar Activa</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Slide Editor */}
-      {isMaximized && (
-        <div className="flex-1 flex flex-col bg-surface-secondary/40 overflow-hidden">
-          {activeSlide ? (
-            <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6">
-              {/* Live Interactive Slide Preview */}
-              <div className={`aspect-[16/9] w-full rounded-2xl shadow-xl border ${activeTheme.bg} ${activeTheme.border} p-8 flex flex-col justify-between relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Layout className="h-24 w-24" />
-                </div>
-                <div className="flex items-center justify-between z-10">
-                  <span className="text-xs font-mono font-bold tracking-widest text-white/50 uppercase">Diapositiva {activeIndex + 1} / {slides.length}</span>
-                  <span className="text-xs font-mono font-bold tracking-widest text-white/50 uppercase">{title}</span>
-                </div>
-                
-                <div className="my-auto space-y-6 z-10">
-                  {/* Inline Editable Title */}
-                  <input
-                    type="text"
-                    value={activeSlide.title}
-                    onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                    className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${activeTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
-                    placeholder="Introduce el título de la diapositiva..."
-                  />
+      <div className="flex-1 flex flex-col bg-surface-secondary/40 overflow-hidden">
+        {activeSlide ? (
+          <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6">
+            {/* Live Interactive Slide Preview */}
+            <div className={`aspect-[16/9] w-full rounded-2xl shadow-xl border ${activeTheme.bg} ${activeTheme.border} p-8 flex flex-col justify-between relative overflow-hidden`}>
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Layout className="h-24 w-24" />
+              </div>
+              <div className="flex items-center justify-between z-10">
+                <span className="text-xs font-mono font-bold tracking-widest text-white/50 uppercase">Diapositiva {activeIndex + 1} / {slides.length}</span>
+                <span className="text-xs font-mono font-bold tracking-widest text-white/50 uppercase">{title}</span>
+              </div>
+              
+              <div className="my-auto space-y-6 z-10">
+                {/* Inline Editable Title */}
+                <input
+                  type="text"
+                  value={activeSlide.title}
+                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                  className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${activeTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                  placeholder="Introduce el título de la diapositiva..."
+                />
 
-                  {/* Bullets presentation list */}
+                {/* Bullets presentation list with elegant custom scrollbar */}
+                <div className="max-h-[16rem] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                   <ul className={`list-disc pl-6 space-y-3 text-lg md:text-xl font-medium ${activeTheme.text}/90`}>
                     {activeSlide.bullets.map((bullet, bIdx) => (
                       <li key={bIdx}>
@@ -312,94 +366,112 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                     ))}
                   </ul>
                 </div>
-
-                <div className="flex justify-between items-center text-xs font-semibold text-white/40 z-10 border-t border-white/5 pt-4">
-                  <span>Wappy Canvas Presentation</span>
-                  <span>SST Pro</span>
-                </div>
               </div>
 
-              {/* Slide Configuration Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-primary border border-border-medium rounded-2xl p-4 shadow-sm">
-                {/* Bullet points editor list */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
-                    <button
-                      onClick={addBullet}
-                      className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
-                    >
-                      <Plus className="h-3 w-3" />
-                      <span>Agregar punto</span>
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {activeSlide.bullets.map((bullet, bIdx) => (
-                      <div key={bIdx} className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                        <input
-                          type="text"
-                          value={bullet}
-                          onChange={(e) => updateBullet(bIdx, e.target.value)}
-                          className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-blue-500 transition-colors"
-                        />
+              <div className="flex justify-between items-center text-xs font-semibold text-white/40 z-10 border-t border-white/5 pt-4">
+                <span>Wappy Canvas Presentation</span>
+                <span>SST Pro</span>
+              </div>
+            </div>
+
+            {/* Collapsible toggle pill & Settings - ONLY visible when maximized (expanded) */}
+            {isMaximized && (
+              <>
+                {/* Collapsible toggle pill/button */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-secondary text-xs font-semibold shadow-sm transition-all transform hover:scale-105 active:scale-95"
+                  >
+                    <Layout className="h-3.5 w-3.5 text-blue-500" />
+                    <span>{showSettings ? 'Ocultar Opciones de Edición' : 'Mostrar Opciones de Edición'}</span>
+                  </button>
+                </div>
+
+                {/* Slide Configuration Settings */}
+                {showSettings && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-primary border border-border-medium rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Bullet points editor list */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
                         <button
-                          onClick={() => deleteBullet(bIdx)}
-                          disabled={activeSlide.bullets.length <= 1}
-                          className="p-2 text-text-tertiary hover:text-red-500 disabled:opacity-40 transition-colors"
-                          title="Eliminar punto"
+                          onClick={addBullet}
+                          className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Plus className="h-3 w-3" />
+                          <span>Agregar punto</span>
                         </button>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                        {activeSlide.bullets.map((bullet, bIdx) => (
+                          <div key={bIdx} className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                            <input
+                              type="text"
+                              value={bullet}
+                              onChange={(e) => updateBullet(bIdx, e.target.value)}
+                              className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-blue-500 transition-colors"
+                            />
+                            <button
+                              onClick={() => deleteBullet(bIdx)}
+                              disabled={activeSlide.bullets.length <= 1}
+                              className="p-2 text-text-tertiary hover:text-red-500 disabled:opacity-40 transition-colors"
+                              title="Eliminar punto"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                {/* Slide Custom Theme Color Picker */}
-                <div className="space-y-4">
-                  <span className="text-xs font-bold text-text-secondary uppercase block">Estilos y Temas de Color</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(Object.keys(THEMES) as Array<keyof typeof THEMES>).map((tKey) => {
-                      const themeObj = THEMES[tKey];
-                      const isSelected = activeSlide.theme === tKey;
-                      return (
+                    {/* Slide Custom Theme Color Picker */}
+                    <div className="space-y-4">
+                      <span className="text-xs font-bold text-text-secondary uppercase block">Estilos y Temas de Color</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(Object.keys(THEMES) as Array<keyof typeof THEMES>).map((tKey) => {
+                          const themeObj = THEMES[tKey];
+                          const isSelected = activeSlide.theme === tKey;
+                          return (
+                            <button
+                              key={tKey}
+                              onClick={() => updateSlide(activeIndex, { theme: tKey })}
+                              className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                isSelected 
+                                  ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' 
+                                  : 'border-border-medium hover:bg-surface-hover'
+                              }`}
+                            >
+                              <div className={`h-4 w-4 rounded-full ${themeObj.bg} border border-white/20`} />
+                              <span className="capitalize">{tKey}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-2 border-t border-border-medium/60 flex items-center justify-between">
+                        <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Preservación de formato landscape</span>
                         <button
-                          key={tKey}
-                          onClick={() => updateSlide(activeIndex, { theme: tKey })}
-                          className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' 
-                              : 'border-border-medium hover:bg-surface-hover'
-                          }`}
+                          onClick={handleDownloadPdf}
+                          className="flex items-center gap-1.5 py-1.5 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
                         >
-                          <div className={`h-4 w-4 rounded-full ${themeObj.bg} border border-white/20`} />
-                          <span className="capitalize">{tKey}</span>
+                          <Download className="h-3.5 w-3.5" />
+                          <span>Descargar Diapositivas</span>
                         </button>
-                      );
-                    })}
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="pt-2 border-t border-border-medium/60 flex items-center justify-between">
-                    <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Preservación de formato landscape</span>
-                    <button
-                      onClick={handleDownloadPdf}
-                      className="flex items-center gap-1.5 py-1.5 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Descargar Diapositivas</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <span className="text-sm text-text-tertiary font-medium">Cargando diapositiva activa...</span>
-            </div>
-          )}
-        </div>
-      )}
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-sm text-text-tertiary font-medium">Cargando diapositiva activa...</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

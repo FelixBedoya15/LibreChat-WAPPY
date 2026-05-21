@@ -177,6 +177,83 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
      */
     const buildWordHtml = (): string => {
         /**
+         * Mapping from Tailwind utility classes to inline style definitions.
+         * Ensures that Microsoft Word preserves the visual styling (colors, alignment, fonts).
+         */
+        const classStyleMap: Record<string, Record<string, string>> = {
+            // Background colors
+            'bg-teal-900': { 'background-color': '#115e59' },
+            'bg-teal-800': { 'background-color': '#115e59' },
+            'bg-teal-700': { 'background-color': '#0f766e' },
+            'bg-teal-600': { 'background-color': '#0d9488' },
+            'bg-teal-500': { 'background-color': '#14b8a6' },
+            'bg-teal-100': { 'background-color': '#ccfbf1' },
+            'bg-teal-50': { 'background-color': '#f0fdfa' },
+            'bg-slate-900': { 'background-color': '#0f172a' },
+            'bg-slate-800': { 'background-color': '#1e293b' },
+            'bg-slate-100': { 'background-color': '#f1f5f9' },
+            'bg-slate-50': { 'background-color': '#f8fafc' },
+            'bg-emerald-700': { 'background-color': '#047857' },
+            'bg-emerald-600': { 'background-color': '#059669' },
+            'bg-emerald-500': { 'background-color': '#10b981' },
+            'bg-emerald-100': { 'background-color': '#d1fae5' },
+            'bg-emerald-50': { 'background-color': '#ecfdf5' },
+            'bg-amber-700': { 'background-color': '#b45309' },
+            'bg-amber-600': { 'background-color': '#d97706' },
+            'bg-amber-500': { 'background-color': '#f59e0b' },
+            'bg-amber-100': { 'background-color': '#fef3c7' },
+            'bg-amber-50': { 'background-color': '#fffbeb' },
+            'bg-red-700': { 'background-color': '#b91c1c' },
+            'bg-red-600': { 'background-color': '#dc2626' },
+            'bg-red-500': { 'background-color': '#ef4444' },
+            'bg-red-100': { 'background-color': '#fee2e2' },
+            'bg-red-50': { 'background-color': '#fef2f2' },
+            'bg-gray-100': { 'background-color': '#f3f4f6' },
+            'bg-gray-50': { 'background-color': '#f9fafb' },
+            'bg-zinc-100': { 'background-color': '#f4f4f5' },
+            'bg-zinc-50': { 'background-color': '#fafafa' },
+            // Text colors
+            'text-white': { 'color': '#ffffff' },
+            'text-teal-900': { 'color': '#115e59' },
+            'text-teal-800': { 'color': '#115e59' },
+            'text-teal-700': { 'color': '#0f766e' },
+            'text-teal-600': { 'color': '#0d9488' },
+            'text-teal-505': { 'color': '#14b8a6' },
+            'text-slate-900': { 'color': '#0f172a' },
+            'text-slate-800': { 'color': '#1e293b' },
+            'text-slate-700': { 'color': '#334155' },
+            'text-slate-600': { 'color': '#475569' },
+            'text-emerald-800': { 'color': '#065f46' },
+            'text-emerald-700': { 'color': '#047857' },
+            'text-emerald-600': { 'color': '#059669' },
+            'text-amber-800': { 'color': '#92400e' },
+            'text-amber-700': { 'color': '#b45309' },
+            'text-amber-600': { 'color': '#d97706' },
+            'text-red-800': { 'color': '#991b1b' },
+            'text-red-700': { 'color': '#b91c1c' },
+            'text-red-600': { 'color': '#dc2626' },
+            'text-gray-900': { 'color': '#111827' },
+            'text-gray-800': { 'color': '#1f2937' },
+            'text-gray-700': { 'color': '#374151' },
+            'text-gray-600': { 'color': '#4b5563' },
+            // Typography / Formatting
+            'font-bold': { 'font-weight': 'bold' },
+            'font-semibold': { 'font-weight': '600' },
+            'font-medium': { 'font-weight': '500' },
+            'text-center': { 'text-align': 'center' },
+            'text-right': { 'text-align': 'right' },
+            'text-left': { 'text-align': 'left' },
+            // Borders
+            'border-teal-700': { 'border-color': '#0f766e' },
+            'border-teal-600': { 'border-color': '#0d9488' },
+            'border-teal-500': { 'border-color': '#14b8a6' },
+            'border-slate-300': { 'border-color': '#cbd5e1' },
+            'border-slate-200': { 'border-color': '#e2e8f0' },
+            'border-gray-300': { 'border-color': '#d1d5db' },
+            'border-gray-200': { 'border-color': '#e5e7eb' },
+        };
+
+        /**
          * Parse a CSS inline-style string into a key→value map.
          * Returns an object like { 'background-color': '#0f766e', color: 'white', ... }
          */
@@ -210,6 +287,31 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
         const parser = new DOMParser();
         const doc = parser.parseFromString(`<div>${content}</div>`, 'text/html');
         const root = doc.body.firstElementChild!;
+
+        /**
+         * Recursively parses all CSS classes on elements and converts them into inline styles,
+         * ensuring visual consistency when Microsoft Word opens the file.
+         */
+        const mapClassesToStyles = (element: Element) => {
+            const classes = element.getAttribute('class')?.split(/\s+/) || [];
+            let styleObj = parseStyle(element.getAttribute('style') || '');
+            
+            classes.forEach(cls => {
+                const mapped = classStyleMap[cls];
+                if (mapped) {
+                    styleObj = { ...styleObj, ...mapped };
+                }
+            });
+            
+            if (Object.keys(styleObj).length > 0) {
+                element.setAttribute('style', serializeStyle(styleObj));
+            }
+            
+            Array.from(element.children).forEach(child => mapClassesToStyles(child));
+        };
+
+        // Recursively convert classes to inline styles first
+        mapClassesToStyles(root);
 
         // --- Headings: use editor color if present, fallback to our defaults ---
         root.querySelectorAll('h1').forEach(el => {
@@ -296,9 +398,17 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             const merged = mergeStyles(wordAdditions, existing);
             // Always ensure a font-family is set
             if (!merged['font-family']) merged['font-family'] = 'Calibri,Arial,sans-serif';
-            // Add mso-* only if missing
-            if (!merged['mso-background-source']) merged['mso-background-source'] = 'auto';
-            if (!merged['mso-pattern']) merged['mso-pattern'] = 'auto';
+            
+            // If background color is customized, ensure we overwrite MS automatic background behavior
+            if (merged['background-color']) {
+                delete merged['mso-background-source'];
+                delete merged['mso-pattern'];
+                merged['background'] = merged['background-color'];
+            } else {
+                if (!merged['mso-background-source']) merged['mso-background-source'] = 'auto';
+                if (!merged['mso-pattern']) merged['mso-pattern'] = 'auto';
+            }
+
             // Remove unsupported properties
             delete merged['border-radius'];
             delete merged['box-shadow'];
@@ -318,6 +428,14 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             };
             // Editor styles win (background-color, color, width, etc.)
             const merged = mergeStyles(wordAdditions, existing);
+            
+            // Overwrite MS background pattern for custom colored cells
+            if (merged['background-color']) {
+                delete merged['mso-background-source'];
+                delete merged['mso-pattern'];
+                merged['background'] = merged['background-color'];
+            }
+
             // Remove unsupported properties
             delete merged['border-radius'];
             delete merged['box-shadow'];
