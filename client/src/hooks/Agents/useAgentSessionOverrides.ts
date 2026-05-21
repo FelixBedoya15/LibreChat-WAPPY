@@ -112,7 +112,7 @@ export default function useAgentSessionOverrides({
             // NOTE: 'editor_live' and 'matriz_ipevar' are intentionally excluded
             // from auto-activation so their panels start closed and the user
             // controls them via the toggle in the chat input.
-            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst', 'editor_rit']);
+            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst', 'editor_rit', 'canvas']);
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
             // ALWAYS preserve previously active tools when switching agents!
