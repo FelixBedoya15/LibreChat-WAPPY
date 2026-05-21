@@ -55,6 +55,33 @@ async function processTextDocument(content, fileType, title, userId) {
 }
 
 /**
+ * GET /api/sgsst/canvas/history
+ * Obtiene el historial de todos los documentos canvas de la empresa.
+ */
+router.get('/history', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+
+    const sessions = await CanvasSession.find({ companyId })
+      .sort({ updatedAt: -1 })
+      .limit(50);
+
+    const conversations = sessions.map((session) => ({
+      conversationId: session.conversationId,
+      title: session.title || 'Archivo sin título',
+      updatedAt: session.updatedAt,
+      fileType: session.fileType
+    }));
+
+    res.json({ conversations });
+  } catch (error) {
+    logger.error('[Canvas History GET] Error:', error);
+    res.status(500).json({ error: 'Error al obtener el historial de Canvas' });
+  }
+});
+
+/**
  * GET /api/sgsst/canvas/:conversationId
  * Obtiene la sesión de canvas activa de una conversación.
  */

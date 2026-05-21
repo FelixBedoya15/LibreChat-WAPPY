@@ -24,6 +24,8 @@ import CanvasExcelEditor from './CanvasExcelEditor';
 import CanvasSlidesEditor from './CanvasSlidesEditor';
 import CanvasHtmlEditor from './CanvasHtmlEditor';
 import ExportDropdown from '../SGSST/ExportDropdown';
+import { useNavigate } from 'react-router-dom';
+import ReportHistory from '~/components/Liva/ReportHistory';
 
 interface CanvasPanelProps {
   conversationId: string | null;
@@ -59,6 +61,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSubmittingRef = useRef<boolean>(false);
 
+  const navigate = useNavigate();
+  const [isReportHistoryOpen, setIsReportHistoryOpen] = useState<boolean>(false);
+
   // Sync state refs on change
   useEffect(() => { contentRef.current = content; }, [content]);
   useEffect(() => { fileTypeRef.current = fileType; }, [fileType]);
@@ -68,29 +73,48 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   // The CanvasTool sends markdown; the LiveEditor renders HTML.
   // This lightweight converter handles the common cases produced by LLMs.
   const markdownToHtml = useCallback((md: string): string => {
-    if (!md || md.trim().startsWith('<')) return md; // Already HTML
-    return md
-      .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
-      .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
-      .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
-      .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
-      .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
-      .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^---+$/gm, '<hr/>')
-      .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
-      .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
-      .replace(/\n{2,}/g, '</p><p>')
-      .replace(/\n/g, '<br/>')
-      .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
-      .replace(/<p><\/p>/g, '')
-      .replace(/<p>(<h[1-6]>)/g, '$1')
-      .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-      .replace(/<p>(<ul>)/g, '$1')
-      .replace(/(<\/ul>)<\/p>/g, '$1')
-      .replace(/<p>(<hr\/>)<\/p>/g, '$1');
+    if (!md) return md;
+    
+    // Check if it's purely HTML (like from an old session or already parsed)
+    // If it has markdown headers (#) or bold (**), we should parse it.
+    // The regex below might break if we parse HTML, so let's protect HTML blocks.
+    // A simple heuristic: if it contains # or **, it's probably markdown mixed with HTML.
+    if (md.trim().startsWith('<') && !md.includes('#') && !md.includes('**')) {
+      return md; 
+    }
+
+    // Split the content into HTML blocks and Markdown blocks to avoid parsing inside HTML
+    const parts = md.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>)/i);
+    
+    return parts.map(part => {
+      if (part.trim().startsWith('<')) {
+        return part; // Return HTML blocks as-is
+      }
+      
+      // Parse markdown
+      return part
+        .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
+        .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
+        .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
+        .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
+        .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
+        .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---+$/gm, '<hr/>')
+        .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
+        .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br/>')
+        .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
+        .replace(/<p><\/p>/g, '')
+        .replace(/<p>(<h[1-6]>)/g, '$1')
+        .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+        .replace(/<p>(<ul>)/g, '$1')
+        .replace(/(<\/ul>)<\/p>/g, '$1')
+        .replace(/<p>(<hr\/>)<\/p>/g, '$1');
+    }).join('');
   }, []);
 
   // ── Fetch session from database ──────────────────────────────────────────
@@ -388,13 +412,25 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           {hasActiveSession && (
             <button
+              onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
+              className={`p-2 rounded-xl border border-border-medium bg-surface-primary transition-all hover:bg-surface-hover text-text-secondary ${
+                isReportHistoryOpen ? 'bg-teal-500/10 border-teal-500/30 text-teal-600' : ''
+              }`}
+              title="Historial de Documentos"
+            >
+              <History className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+          )}
+
+          {hasActiveSession && (
+            <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
               className={`p-2 rounded-xl border border-border-medium bg-surface-primary transition-all hover:bg-surface-hover text-text-secondary ${
                 isHistoryOpen ? 'bg-teal-500/10 border-teal-500/30 text-teal-600' : ''
               }`}
-              title="Historial de cambios"
+              title="Versiones de este documento"
             >
-              <History className="h-4 w-4 sm:h-5 sm:w-5" />
+              <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           )}
 
@@ -409,6 +445,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       </div>
 
       {/* Main Workspace Frame */}
+      <ReportHistory
+        onSelectReport={(convoId) => {
+          setIsReportHistoryOpen(false);
+          navigate(`/c/${convoId}`);
+        }}
+        isOpen={isReportHistoryOpen}
+        toggleOpen={() => setIsReportHistoryOpen(h => !h)}
+        historyEndpoint="/api/sgsst/canvas/history"
+        tags={[]}
+      />
+
       <div className="flex-1 flex overflow-hidden relative">
         {hasActiveSession ? (
           <div className="flex-1 h-full flex flex-col overflow-hidden">

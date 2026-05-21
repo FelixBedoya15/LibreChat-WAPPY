@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '~/hooks/AuthContext';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
@@ -149,22 +150,22 @@ const DocumentTitleHeader: React.FC<{ fileName: string; onRename: (name: string)
   );
 };
 
-const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
-  conversationId,
+const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ 
+  conversationId, 
   title = 'Editor Live',
   emptyStateTitle = 'Sin documento activo',
-  emptyStateMessage = (
-    <>Pídele al agente que <span className="font-bold text-blue-600">cree un documento</span> (ej: "Crea la Política SST de mi empresa"), o sube un archivo Word o PDF.</>
-  )
+  emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.'
 }) => {
   const { token } = useAuthContext();
-
   const [content, setContent] = useState<string>('');
-  const [fileName, setFileName] = useState<string>('Documento sin título');
-  const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.ipevarMaximized);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [fileName, setFileName] = useState<string>('Documento_Live');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useRecoilState(store.isEditorMaximized);
+  
+  const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   // Imperative handle to push content into the editor without remounting
@@ -423,11 +424,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           />
 
 
-          {/* History — ReportHistory handles its own portal at z-[99999999] */}
+          {/* Report History */}
           <button
-            onClick={() => setIsHistoryOpen(h => !h)}
+            onClick={() => setIsReportHistoryOpen(h => !h)}
             className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
-              isHistoryOpen
+              isReportHistoryOpen
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
                 : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
             } hover:-rotate-3 hover:scale-105`}
@@ -436,6 +437,22 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
             <History className="h-4 w-4 shrink-0" />
             <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
               <span className="text-[9px] font-bold uppercase tracking-wider">Historial</span>
+            </div>
+          </button>
+
+          {/* Versions (formerly History) */}
+          <button
+            onClick={() => setIsHistoryOpen(h => !h)}
+            className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+              isHistoryOpen
+                ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
+                : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+            } hover:-rotate-3 hover:scale-105`}
+            aria-label="Versiones de documento"
+          >
+            <RefreshCw className="h-4 w-4 shrink-0" />
+            <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
+              <span className="text-[9px] font-bold uppercase tracking-wider">Versiones</span>
             </div>
           </button>
 
@@ -474,8 +491,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       {/* ── ReportHistory — filters to this conversation's docs only ─────── */}
       <ReportHistory
         onSelectReport={handleSelectReport}
-        isOpen={isHistoryOpen}
-        toggleOpen={() => setIsHistoryOpen(h => !h)}
+        isOpen={isReportHistoryOpen}
+        toggleOpen={() => setIsReportHistoryOpen(h => !h)}
         refreshTrigger={refreshTrigger}
         historyEndpoint="/api/live-editor/history"
         tags={conversationId && conversationId !== 'new'
@@ -507,7 +524,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
                 Subir DOCX o PDF
               </button>
               <button
-                onClick={() => setIsHistoryOpen(true)}
+                onClick={() => setIsReportHistoryOpen(true)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-teal-500/10 text-teal-600 border border-teal-500/20 rounded-xl font-bold shadow-sm hover:bg-teal-500 hover:text-white transition-all transform hover:-translate-y-0.5"
               >
                 <History className="h-4 w-4" />

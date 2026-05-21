@@ -214,7 +214,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                   )}
                   {isCanvasActive && !isIPEVARActive && !isEditorLiveActive && (
                     <div className={cn(
-                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary transition-all duration-300',
+                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary',
                       isMobileScreen()
                         ? (mobileExpanded || canvasMaximized)
                           ? 'fixed inset-0 z-[9990] w-full'
