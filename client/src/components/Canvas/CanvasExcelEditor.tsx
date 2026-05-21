@@ -334,42 +334,42 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           <div className="flex items-center gap-1.5">
             <button
               onClick={addRow}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary border border-border-medium hover:bg-surface-hover transition-colors"
+              className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
             >
-              <Plus className="h-3.5 w-3.5 text-green-500" />
+              <Plus className="h-4 w-4 text-green-500" />
               <span>Fila</span>
             </button>
             <button
               onClick={deleteRow}
               disabled={data.length <= 1}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary border border-border-medium hover:bg-surface-hover disabled:opacity-40 transition-colors"
+              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <Trash2 className="h-4 w-4 text-red-500" />
               <span>Quitar Fila</span>
             </button>
-            <div className="h-4 w-px bg-border-medium" />
+            <div className="h-6 w-px bg-border-medium" />
             <button
               onClick={addColumn}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary border border-border-medium hover:bg-surface-hover transition-colors"
+              className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
             >
-              <Plus className="h-3.5 w-3.5 text-green-500" />
+              <Plus className="h-4 w-4 text-green-500" />
               <span>Columna</span>
             </button>
             <button
               onClick={deleteColumn}
               disabled={data[0]?.length <= 1}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary border border-border-medium hover:bg-surface-hover disabled:opacity-40 transition-colors"
+              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <Trash2 className="h-4 w-4 text-red-500" />
               <span>Quitar Col</span>
             </button>
           </div>
 
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors"
+            className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-4 w-4" />
             <span>Descargar Excel</span>
           </button>
         </div>

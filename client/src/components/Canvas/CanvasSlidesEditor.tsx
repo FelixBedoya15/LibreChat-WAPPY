@@ -352,7 +352,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2">
             <button
               onClick={addSlide}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors"
+              className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm w-full"
             >
               <Plus className="h-4 w-4" />
               <span>Nueva Diapositiva</span>
@@ -360,7 +360,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             <button
               onClick={deleteSlide}
               disabled={slides.length <= 1}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold border border-border-medium hover:bg-surface-hover disabled:opacity-40 rounded-xl transition-colors"
+              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm w-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Trash2 className="h-4 w-4 text-red-500" />
               <span>Eliminar Activa</span>
@@ -424,9 +424,9 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-secondary text-xs font-semibold shadow-sm transition-all transform hover:scale-105 active:scale-95"
+                    className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
                   >
-                    <Layout className="h-3.5 w-3.5 text-blue-500" />
+                    <Layout className="h-4 w-4 text-teal-600" />
                     <span>{showSettings ? 'Ocultar Opciones de Edición' : 'Mostrar Opciones de Edición'}</span>
                   </button>
                 </div>
@@ -440,7 +440,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
                         <button
                           onClick={addBullet}
-                          className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+                          className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline"
                         >
                           <Plus className="h-3 w-3" />
                           <span>Agregar punto</span>
@@ -449,12 +449,12 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
                         {activeSlide.bullets.map((bullet, bIdx) => (
                           <div key={bIdx} className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                            <div className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
                             <input
                               type="text"
                               value={bullet}
                               onChange={(e) => updateBullet(bIdx, e.target.value)}
-                              className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-blue-500 transition-colors"
+                              className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-teal-500 transition-colors"
                             />
                             <button
                               onClick={() => deleteBullet(bIdx)}
@@ -482,7 +482,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                               onClick={() => updateSlide(activeIndex, { theme: tKey })}
                               className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                                 isSelected 
-                                  ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' 
+                                  ? 'border-teal-500 bg-teal-500/5 ring-1 ring-teal-500/20' 
                                   : 'border-border-medium hover:bg-surface-hover'
                               }`}
                             >
@@ -497,9 +497,9 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Preservación de formato landscape</span>
                         <button
                           onClick={handleDownloadPdf}
-                          className="flex items-center gap-1.5 py-1.5 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                          className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          <Download className="h-4 w-4" />
                           <span>Descargar Diapositivas</span>
                         </button>
                       </div>

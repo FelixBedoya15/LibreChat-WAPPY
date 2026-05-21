@@ -107,8 +107,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
           {isMaximized && (
             <button
               onClick={() => setActiveTab('split')}
-              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-bold' : 'text-text-secondary hover:bg-surface-hover'
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
+                activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
               }`}
             >
               <Split className="h-3.5 w-3.5" />
@@ -117,8 +117,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
           )}
           <button
             onClick={() => setActiveTab('code')}
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'code' ? 'bg-surface-secondary text-text-primary shadow-inner font-bold' : 'text-text-secondary hover:bg-surface-hover'
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
+              activeTab === 'code' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
             }`}
           >
             <Code2 className="h-3.5 w-3.5" />
@@ -126,8 +126,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
           </button>
           <button
             onClick={() => setActiveTab('preview')}
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'preview' ? 'bg-surface-secondary text-text-primary shadow-inner font-bold' : 'text-text-secondary hover:bg-surface-hover'
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
+              activeTab === 'preview' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
             }`}
           >
             <Eye className="h-3.5 w-3.5" />
@@ -137,9 +137,9 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
 
         <button
           onClick={handleDownloadHtml}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors"
+          className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-4 w-4" />
           <span>Descargar HTML</span>
         </button>
       </div>

@@ -18,7 +18,8 @@ import {
   RotateCcw,
   MoreVertical,
   Trash,
-  Edit
+  Edit,
+  Save
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -634,6 +635,32 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         </div>
 
         <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
+          {hasActiveSession && (
+            <button
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await saveSession();
+              }}
+              disabled={isSaving}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-teal-600 hover:bg-teal-700 hover:-rotate-3 hover:scale-105 border-teal-600 hover:border-teal-700 text-white disabled:opacity-75 disabled:cursor-not-allowed"
+              aria-label="Guardar cambios"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                {isSaving ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white" />
+                ) : (
+                  <Save className="h-4 w-4 text-white" />
+                )}
+              </div>
+              <div className="flex items-center ml-2 whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-white">
+                  {isSaving ? 'Guardando...' : 'Guardar'}
+                </span>
+              </div>
+            </button>
+          )}
+
           {hasActiveSession && fileType === 'text' && (
             <ExportDropdown content={content} fileName={title} />
           )}
