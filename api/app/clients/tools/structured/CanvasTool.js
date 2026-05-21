@@ -75,8 +75,9 @@ class CanvasTool extends Tool {
         .string()
         .optional()
         .describe(
-          'Contenido principal del archivo:\n' +
-          '- Para "text" y "html": una cadena de texto (HTML enriquecido o código HTML/CSS plano).\n' +
+          'Contenido principal del archivo. MUY IMPORTANTE: ES OBLIGATORIO CUANDO accion="crear" O accion="actualizar".\n' +
+          'NUNCA escribas el contenido del documento en el chat normal, DEBES enviarlo a través de este parámetro "content" en formato Markdown o HTML.\n' +
+          '- Para "text" y "html": una cadena de texto (Markdown, HTML enriquecido o código HTML/CSS plano).\n' +
           '- Para "excel": un JSON stringificado representando la grilla bidimensional, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
           '- Para "presentation": un JSON stringificado representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].'
         ),
