@@ -35,7 +35,9 @@ function LoadingSpinner() {
 }
 
 function ChatView({ index = 0 }: { index?: number }) {
-  const { conversationId } = useParams();
+  const { conversationId: urlConversationId } = useParams();
+  // Use URL param as alias so legacy code still works
+  const conversationId = urlConversationId;
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
   const addedSubmission = useRecoilValue(store.submissionByIndex(index + 1));
   const centerFormOnLanding = useRecoilValue(store.centerFormOnLanding);
@@ -94,11 +96,24 @@ function ChatView({ index = 0 }: { index?: number }) {
     return tools.includes('editor_rit');
   }, [ephemeralAgent]);
 
-  // ── CANVAS: open only when user explicitly toggles it ON ─────────────────
+  // ── CANVAS: open only when user explicitly toggles it ON ────────────────────
   const isCanvasActive = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
     return tools.includes('canvas');
   }, [ephemeralAgent]);
+
+  // ── Effective conversationId: Recoil atom → fallback to URL param ─────────
+  // conversation?.conversationId from Recoil is the most reactive source.
+  // URL param is used as fallback if Recoil hasn’t received the ID yet.
+  const effectiveConvoId = React.useMemo(() => {
+    if (conversation?.conversationId && conversation.conversationId !== 'new') {
+      return conversation.conversationId;
+    }
+    if (urlConversationId && urlConversationId !== 'new' && urlConversationId !== 'NEW_CONVO') {
+      return urlConversationId;
+    }
+    return null;
+  }, [conversation?.conversationId, urlConversationId]);
 
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
@@ -174,7 +189,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizIPEVARTable key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
+                      <MatrizIPEVARTable key={conversation?.conversationId ?? 'new'} conversationId={conversation?.conversationId ?? null} />
                     </div>
                   )}
                   {isEditorLiveActive && !isIPEVARActive && (
@@ -187,8 +202,8 @@ function ChatView({ index = 0 }: { index?: number }) {
                         : 'w-1/2',
                     )}>
                       <LiveEditorPanel 
-                        key={conversationId ?? 'new'} 
-                        conversationId={conversationId ?? null}
+                        key={conversation?.conversationId ?? 'new'} 
+                        conversationId={conversation?.conversationId ?? null}
                         title={isEditorRITActive ? 'Editor RIT' : 'Editor Live'}
                         emptyStateTitle={isEditorRITActive ? 'Editor RIT en espera' : 'Sin documento activo'}
                         emptyStateMessage={isEditorRITActive ? (
@@ -201,14 +216,15 @@ function ChatView({ index = 0 }: { index?: number }) {
                     <div className={cn(
                       'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary transition-all duration-300',
                       isMobileScreen()
-                        ? mobileExpanded || canvasMaximized
+                        ? (mobileExpanded || canvasMaximized)
                           ? 'fixed inset-0 z-[9990] w-full'
                           : 'hidden'
-                        : canvasMaximized
-                          ? 'w-full'
-                          : 'w-1/2',
+                        : 'w-1/2',
+                        // On desktop: always w-1/2; the inner panel div uses
+                        // `fixed inset-0 z-[999999]` CSS for full-screen maximize.
+                        // Using w-full here was collapsing the chat panel to 0 width.
                     )}>
-                      <CanvasPanel key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
+                      <CanvasPanel key={effectiveConvoId ?? 'new'} conversationId={effectiveConvoId} />
                     </div>
                   )}
                 </div>

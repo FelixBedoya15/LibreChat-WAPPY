@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import ReactDOM from 'react-dom';
 import {
   FileEdit,
   Maximize2,
@@ -58,6 +57,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevIsSubmittingRef = useRef<boolean>(false);
 
   // Sync state refs on change
   useEffect(() => { contentRef.current = content; }, [content]);
@@ -140,12 +140,31 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     if (!conversationId || conversationId === 'new') return;
     
     // Set periodic polling to retrieve agent changes in real-time
+    // isSubmitting in deps resets the interval when agent state changes
     const interval = setInterval(() => {
       fetchSession(false);
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [conversationId, fetchSession]);
+  }, [conversationId, fetchSession, isSubmitting]);
+
+  // ── Agent finish listener: force immediate re-fetch when agent stops ──────
+  // This is the primary mechanism for showing canvas content after tool execution.
+  // When isSubmitting transitions true→false, the agent has finished and
+  // the CanvasSession is already in the database — fetch it immediately.
+  useEffect(() => {
+    if (prevIsSubmittingRef.current === true && isSubmitting === false) {
+      if (conversationId && conversationId !== 'new') {
+        // Small delay to ensure MongoDB write is fully committed
+        const timer = setTimeout(() => {
+          lastUpdatedAtRef.current = null; // Force content refresh
+          fetchSession(true);
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+    prevIsSubmittingRef.current = isSubmitting;
+  }, [isSubmitting, fetchSession, conversationId]);
 
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
   const saveSession = useCallback(async () => {
@@ -519,9 +538,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     </div>
   );
 
-  return isMaximized
-    ? ReactDOM.createPortal(panelContent, document.body)
-    : panelContent;
+  // Pure CSS maximize — no portal to avoid flash/z-index issues.
+  // The inner panel div already applies `fixed inset-0 z-[999999]` when isMaximized.
+  return panelContent;
 };
 
 export default CanvasPanel;
