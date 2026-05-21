@@ -5,12 +5,20 @@ interface CanvasHtmlEditorProps {
   initialContent: string;
   onUpdate: (content: string) => void;
   title: string;
+  isMaximized?: boolean;
 }
 
-const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onUpdate, title }) => {
+const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false }) => {
   const [code, setCode] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>('split');
+  const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'code');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Safely fallback activeTab to "code" if not maximized and currently in "split"
+  useEffect(() => {
+    if (!isMaximized && activeTab === 'split') {
+      setActiveTab('code');
+    }
+  }, [isMaximized, activeTab]);
 
   // Load content
   useEffect(() => {
@@ -104,15 +112,17 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
       <div className="flex items-center justify-between p-3 border-b border-border-medium bg-surface-secondary">
         {/* Split/Code/Preview tabs switcher */}
         <div className="flex items-center gap-1 bg-surface-primary border border-border-medium rounded-xl p-1 shadow-sm">
-          <button
-            onClick={() => setActiveTab('split')}
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-bold' : 'text-text-secondary hover:bg-surface-hover'
-            }`}
-          >
-            <Split className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Dividido</span>
-          </button>
+          {isMaximized && (
+            <button
+              onClick={() => setActiveTab('split')}
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-bold' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+            >
+              <Split className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Dividido</span>
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('code')}
             className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${

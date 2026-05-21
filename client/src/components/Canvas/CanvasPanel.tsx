@@ -31,6 +31,35 @@ import ExportDropdown from '../SGSST/ExportDropdown';
 import { useNavigate } from 'react-router-dom';
 import ReportHistory from '~/components/Liva/ReportHistory';
 
+const DEFAULT_SIGNATURE_BLOCK = `
+<div style="margin-top:60px; page-break-inside:avoid;">
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td style="width:48%; text-align:center; padding:8px;">
+        <div class="signature-placeholder" style="border-bottom:2px solid #333; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f9f9f9; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+          <span style="font-size:11px; opacity:0.6;">Clic para firmar</span>
+        </div>
+        <p style="font-size:12px; font-weight:bold; margin:4px 0 2px;">RESPONSABLE SST</p>
+        <p style="font-size:11px; margin:0; color:#555;">Firma y Sello</p>
+      </td>
+      <td style="width:4%;"></td>
+      <td style="width:48%; text-align:center; padding:8px;">
+        <div class="signature-placeholder" style="border-bottom:2px solid #333; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f9f9f9; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+          <span style="font-size:11px; opacity:0.6;">Clic para firmar</span>
+        </div>
+        <p style="font-size:12px; font-weight:bold; margin:4px 0 2px;">REPRESENTANTE LEGAL</p>
+        <p style="font-size:11px; margin:0; color:#555;">Firma y Sello</p>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+function appendSignatureIfMissing(html: string): string {
+  if (!html) return html;
+  if (html.includes('signature-placeholder') || html.includes('RESPONSABLE SST')) return html;
+  return html + DEFAULT_SIGNATURE_BLOCK;
+}
+
 const DROPDOWN_Z = 100_000_000;
 
 const VersionMenuDropdown = ({
@@ -245,9 +274,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
         // Convert markdown → HTML for text documents written by the agent
         const rawContent = data.content || '';
-        const htmlContent = (data.fileType === 'text' || !data.fileType)
+        let htmlContent = (data.fileType === 'text' || !data.fileType)
           ? markdownToHtml(rawContent)
           : rawContent;
+
+        if (data.fileType === 'text' || !data.fileType) {
+          htmlContent = appendSignatureIfMissing(htmlContent);
+        }
 
         // On initial load always update (even if refs match — avoids stale-ref false-negative).
         // On subsequent polls only update if content actually changed.
@@ -311,7 +344,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          content: contentRef.current,
+          content: fileTypeRef.current === 'text' ? appendSignatureIfMissing(contentRef.current) : contentRef.current,
           title: titleRef.current,
           fileType: fileTypeRef.current,
         }),
@@ -338,7 +371,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Handle local content updates from the child editors
   const handleContentUpdate = (newContent: string) => {
-    setContent(newContent);
+    const updated = fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+    setContent(updated);
     queueSave();
   };
 
@@ -453,6 +487,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             initialContent={content}
             onUpdate={handleContentUpdate}
             title={title}
+            isMaximized={isMaximized}
           />
         );
       case 'html':
@@ -461,6 +496,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             initialContent={content}
             onUpdate={handleContentUpdate}
             title={title}
+            isMaximized={isMaximized}
           />
         );
       default:
@@ -487,8 +523,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const hasActiveSession = !!content || fileType !== 'text';
 
   const panelContent = (
-    <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden relative ${
-      isMaximized ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl' : ''
+    <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden ${
+      isMaximized ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl' : 'relative'
     }`}>
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div

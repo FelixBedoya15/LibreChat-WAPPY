@@ -9,6 +9,125 @@ interface CanvasExcelEditorProps {
   title: string;
 }
 
+function refToCoords(ref: string): { row: number; col: number } | null {
+  const match = ref.toUpperCase().match(/^([A-Z]+)([0-9]+)$/);
+  if (!match) return null;
+  const colStr = match[1];
+  const rowStr = match[2];
+  
+  let col = 0;
+  for (let i = 0; i < colStr.length; i++) {
+    col = col * 26 + (colStr.charCodeAt(i) - 64);
+  }
+  col = col - 1; // 0-indexed
+  const row = parseInt(rowStr, 10) - 1; // 0-indexed
+  return { row, col };
+}
+
+function getCellValue(row: number, col: number, gridData: string[][], visited: Set<string> = new Set()): number {
+  const cellKey = `${row},${col}`;
+  if (visited.has(cellKey)) {
+    return 0; // circular dependency protection
+  }
+  visited.add(cellKey);
+  
+  const rawVal = gridData[row]?.[col] || '';
+  if (rawVal.startsWith('=')) {
+    const evaluated = evaluateFormula(rawVal, gridData, visited);
+    const parsed = parseFloat(evaluated);
+    visited.delete(cellKey);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  visited.delete(cellKey);
+  const parsed = parseFloat(rawVal);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function evaluateFormula(formula: string, gridData: string[][], visited: Set<string> = new Set()): string {
+  if (!formula || !formula.startsWith('=')) return formula;
+
+  const upperFormula = formula.toUpperCase().trim();
+  
+  // 1. Check for functions: SUM, SUMA, AVERAGE, PROMEDIO
+  const funcMatch = upperFormula.match(/^=(SUM|SUMA|AVERAGE|PROMEDIO)\((.+?)\)$/);
+  if (funcMatch) {
+    const funcName = funcMatch[1];
+    const argsStr = funcMatch[2];
+    
+    // Split arguments by commas or semicolons
+    const args = argsStr.split(/[,;]/);
+    const values: number[] = [];
+    
+    for (const arg of args) {
+      const trimmedArg = arg.trim();
+      
+      // Check if argument is a range like A1:B3
+      const rangeMatch = trimmedArg.match(/^([A-Z]+[0-9]+):([A-Z]+[0-9]+)$/);
+      if (rangeMatch) {
+        const start = refToCoords(rangeMatch[1]);
+        const end = refToCoords(rangeMatch[2]);
+        if (start && end) {
+          const minRow = Math.min(start.row, end.row);
+          const maxRow = Math.max(start.row, end.row);
+          const minCol = Math.min(start.col, end.col);
+          const maxCol = Math.max(start.col, end.col);
+          
+          for (let r = minRow; r <= maxRow; r++) {
+            for (let c = minCol; c <= maxCol; c++) {
+              values.push(getCellValue(r, c, gridData, visited));
+            }
+          }
+        }
+      } else {
+        // Individual cell reference or numeric literal
+        const coords = refToCoords(trimmedArg);
+        if (coords) {
+          values.push(getCellValue(coords.row, coords.col, gridData, visited));
+        } else {
+          const num = parseFloat(trimmedArg);
+          if (!isNaN(num)) {
+            values.push(num);
+          }
+        }
+      }
+    }
+    
+    if (funcName === 'SUM' || funcName === 'SUMA') {
+      const sum = values.reduce((acc, v) => acc + v, 0);
+      return sum.toString();
+    } else if (funcName === 'AVERAGE' || funcName === 'PROMEDIO') {
+      if (values.length === 0) return '0';
+      const sum = values.reduce((acc, v) => acc + v, 0);
+      const avg = sum / values.length;
+      return (Math.round(avg * 10000) / 10000).toString();
+    }
+  }
+  
+  // 2. Regular math expression / cell reference arithmetic (e.g. =A1+B2)
+  let expr = upperFormula.slice(1); // remove '='
+  
+  // Replace cell references (like A1, B2) with their evaluated values
+  expr = expr.replace(/([A-Z]+[0-9]+)/g, (ref) => {
+    const coords = refToCoords(ref);
+    if (coords) {
+      return getCellValue(coords.row, coords.col, gridData, visited).toString();
+    }
+    return ref;
+  });
+  
+  // Sanitize the expression to keep only safe math characters
+  const clean = expr.replace(/[^0-9+\-*/().\s]/g, '');
+  try {
+    const result = new Function(`return (${clean})`)();
+    if (typeof result === 'number' && !isNaN(result)) {
+      return (Math.round(result * 10000) / 10000).toString();
+    }
+    return '0';
+  } catch (e) {
+    return '0';
+  }
+}
+
 const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title }) => {
   const [data, setData] = useState<string[][]>([['', '', ''], ['', '', ''], ['', '', '']]);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
@@ -108,13 +227,24 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
 
     // Populate data
     data.forEach((row, rowIndex) => {
-      worksheet.addRow(row);
       const wsRow = worksheet.getRow(rowIndex + 1);
 
       // Styling: alternate row backgrounds, headers, border styles
-      row.forEach((_, colIndex) => {
+      row.forEach((cellVal, colIndex) => {
         const cell = wsRow.getCell(colIndex + 1);
         
+        if (cellVal && String(cellVal).startsWith('=')) {
+          const formulaStr = String(cellVal).slice(1).trim().toUpperCase();
+          cell.value = { formula: formulaStr };
+        } else {
+          const num = Number(cellVal);
+          if (cellVal !== '' && !isNaN(num)) {
+            cell.value = num;
+          } else {
+            cell.value = cellVal;
+          }
+        }
+
         // Borders
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
@@ -261,6 +391,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                   </td>
                   {row.map((cellVal, colIdx) => {
                     const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
+                    const displayVal = isSelected ? cellVal : evaluateFormula(cellVal, data);
                     return (
                       <td
                         key={colIdx}
@@ -273,8 +404,11 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                       >
                         <input
                           type="text"
-                          value={cellVal}
-                          onChange={(e) => updateCell(rowIdx, colIdx, e.target.value)}
+                          value={displayVal}
+                          onChange={(e) => {
+                            updateCell(rowIdx, colIdx, e.target.value);
+                            setFormulaValue(e.target.value);
+                          }}
                           className="w-full bg-transparent border-none outline-none text-text-primary cursor-pointer focus:cursor-text"
                         />
                       </td>
