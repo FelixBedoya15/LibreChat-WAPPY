@@ -248,17 +248,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     saveSession();
   };
 
-  const handleRestoreVersion = async (vItem: any) => {
-    setContent(vItem.content);
-    contentRef.current = vItem.content;
-    setTitle(vItem.title);
-    titleRef.current = vItem.title;
-    setIsHistoryOpen(false);
-    await saveSession();
-  };
-
-  // ── Title Header Component ───────────────────────────────────────────────
-  const EditableTitle: React.FC = () => {
+  // ── Document Title Header (matches LiveEditor) ───────────────────────────
+  const DocumentTitleHeader: React.FC = () => {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(title);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -274,60 +265,75 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
     const getIcon = () => {
       switch (fileType) {
-        case 'excel': return <FileSpreadsheet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
-        case 'presentation': return <MonitorPlay className="h-5 w-5 text-amber-600 dark:text-amber-400" />;
-        case 'html': return <Code2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
-        default: return <FileEdit className="h-5 w-5 text-teal-600 dark:text-teal-400" />;
+        case 'excel': return <FileSpreadsheet className="h-5 w-5" />;
+        case 'presentation': return <MonitorPlay className="h-5 w-5" />;
+        case 'html': return <Code2 className="h-5 w-5" />;
+        default: return <FileEdit className="h-5 w-5" />;
       }
     };
 
-    const getBgColor = () => {
+    const getThemeColors = () => {
       switch (fileType) {
-        case 'excel': return 'bg-emerald-500/10 border-emerald-500/20';
-        case 'presentation': return 'bg-amber-500/10 border-amber-500/20';
-        case 'html': return 'bg-blue-500/10 border-blue-500/20';
-        default: return 'bg-teal-500/10 border-teal-500/20';
+        case 'excel': return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', grad: 'from-emerald-500/40 via-emerald-300/20' };
+        case 'presentation': return { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400', grad: 'from-amber-500/40 via-amber-300/20' };
+        case 'html': return { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-600 dark:text-blue-400', grad: 'from-blue-500/40 via-blue-300/20' };
+        default: return { bg: 'bg-teal-500/10', border: 'border-teal-500/20', text: 'text-teal-600 dark:text-teal-400', grad: 'from-teal-500/40 via-teal-300/20' };
       }
     };
+
+    const theme = getThemeColors();
 
     return (
-      <div className="flex items-center gap-3 group">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${getBgColor()}`}>
-          {getIcon()}
-        </div>
+      <div className="w-full px-4 pt-4 pb-2 shrink-0">
+        <div className="flex items-center gap-3 group">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${theme.bg} ${theme.border} ${theme.text}`}>
+            {getIcon()}
+          </div>
 
-        {editing ? (
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-              className="flex-1 text-lg font-bold text-text-primary bg-transparent border-b-2 border-teal-500 outline-none py-0.5"
-              autoFocus
-            />
-            <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
-              <Check className="h-4 w-4" />
-            </button>
-            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-1 items-center gap-2 min-w-0">
-            <h2 className="text-lg font-bold text-text-primary truncate leading-tight">
-              {title}
-            </h2>
-            <button
-              onClick={() => setEditing(true)}
-              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-tertiary hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all shrink-0"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
+          {editing ? (
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+                className={`flex-1 text-xl font-bold text-text-primary bg-transparent border-b-2 outline-none py-0.5 ${theme.border.replace('/20', '')}`}
+                autoFocus
+              />
+              <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" aria-label="Confirmar">
+                <Check className="h-4 w-4" />
+              </button>
+              <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors" aria-label="Cancelar">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center gap-2 min-w-0">
+              <h2 className="text-xl font-bold text-text-primary truncate leading-tight">
+                {title}
+              </h2>
+              <button
+                onClick={() => setEditing(true)}
+                className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-tertiary hover:${theme.text.split(' ')[0]} ${theme.bg.replace('/10', '/5')} transition-all shrink-0`}
+                aria-label="Renombrar documento"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+        <div className={`mt-3 h-px bg-gradient-to-r ${theme.grad} to-transparent`} />
       </div>
     );
+  };
+
+  const handleRestoreVersion = async (vItem: any) => {
+    setContent(vItem.content);
+    contentRef.current = vItem.content;
+    setTitle(vItem.title);
+    titleRef.current = vItem.title;
+    setIsHistoryOpen(false);
+    await saveSession();
   };
 
   // Render correct editor depending on active session state
@@ -383,29 +389,28 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden relative ${
       isMaximized ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl' : ''
     }`}>
-      {/* Upper Glassmorphic Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border-medium bg-surface-secondary/70 backdrop-blur-md">
-        <div className="flex-1 min-w-0 mr-4">
-          {hasActiveSession ? (
-            <EditableTitle />
-          ) : (
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-teal-500 animate-pulse" />
-              <span className="font-bold text-base text-text-primary">Canvas de Wappy</span>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 relative z-[300] overflow-visible"
+        style={{ minHeight: '4rem' }}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 overflow-hidden">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm shrink-0">
+            <FileEdit className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 overflow-hidden">
+            <h2 className="text-sm font-semibold text-text-primary truncate">Canvas</h2>
+            <div className="flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSubmitting ? 'bg-teal-500 animate-pulse' : 'bg-green-500'}`} />
+              <span className="text-xs text-text-secondary truncate">{title}</span>
+              {isSaving && (
+                <span className="text-[10px] text-text-tertiary italic">Guardando...</span>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Global Toolbar Controls */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Status Indicator */}
-          {isSaving && (
-            <span className="text-[10px] text-text-tertiary italic flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-ping" />
-              Guardando...
-            </span>
-          )}
-
+        <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
           {hasActiveSession && fileType === 'text' && (
             <ExportDropdown content={content} fileName={title} />
           )}
@@ -413,33 +418,41 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`p-2 rounded-xl border border-border-medium bg-surface-primary transition-all hover:bg-surface-hover text-text-secondary ${
-                isReportHistoryOpen ? 'bg-teal-500/10 border-teal-500/30 text-teal-600' : ''
-              }`}
-              title="Historial de Documentos"
+              className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+                isReportHistoryOpen
+                  ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
+                  : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+              } hover:-rotate-3 hover:scale-105`}
+              aria-label="Historial de reportes"
             >
-              <History className="h-4 w-4 sm:h-5 sm:w-5" />
+              <History className="h-4 w-4 shrink-0" />
             </button>
           )}
 
           {hasActiveSession && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`p-2 rounded-xl border border-border-medium bg-surface-primary transition-all hover:bg-surface-hover text-text-secondary ${
-                isHistoryOpen ? 'bg-teal-500/10 border-teal-500/30 text-teal-600' : ''
-              }`}
-              title="Versiones de este documento"
+              className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+                isHistoryOpen
+                  ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
+                  : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+              } hover:-rotate-3 hover:scale-105`}
+              aria-label="Versiones de documento"
             >
-              <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
+              <RotateCcw className="h-4 w-4 shrink-0" />
             </button>
           )}
 
           <button
-            onClick={() => setIsMaximized(!isMaximized)}
-            className="p-2 rounded-xl border border-border-medium bg-surface-primary transition-all hover:bg-surface-hover text-text-secondary"
-            title={isMaximized ? 'Restaurar pantalla dividida' : 'Maximizar panel lateral'}
+            onClick={() => setIsMaximized((m) => !m)}
+            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
-            {isMaximized ? <Minimize2 className="h-4 w-4 sm:h-5 sm:w-5" /> : <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+            {isMaximized ? (
+              <Minimize2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <Maximize2 className="h-4 w-4 shrink-0" />
+            )}
           </button>
         </div>
       </div>
@@ -456,11 +469,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         tags={[]}
       />
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {hasActiveSession ? (
-          <div className="flex-1 h-full flex flex-col overflow-hidden">
-            {renderEditor()}
-          </div>
+          <>
+            <DocumentTitleHeader />
+            <div className="flex-1 h-full flex flex-col overflow-hidden relative">
+              {renderEditor()}
+            </div>
+          </>
         ) : (
           /* Premium Empty State Guide */
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto space-y-6">
@@ -530,61 +546,98 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 <span className="text-[10px] text-text-tertiary text-center">Páginas web y dashboards</span>
               </button>
             </div>
+            
+            <div className="flex w-full pt-2">
+              <button
+                onClick={() => setIsReportHistoryOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 text-teal-600 font-semibold text-sm transition-all"
+              >
+                <History className="h-4 w-4" />
+                Explorar el Historial de Documentos Canvas
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Floating Version History Sidebar Drawer */}
+        {/* ── Version History Modal ─────────────────────────────────────────── */}
         {isHistoryOpen && (
-          <div className="absolute inset-y-0 right-0 w-80 bg-surface-primary border-l border-border-medium shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-border-medium bg-surface-secondary">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-teal-600" />
-                <span className="text-sm font-bold text-text-primary">Historial de Versiones</span>
-              </div>
-              <button
-                onClick={() => setIsHistoryOpen(false)}
-                className="p-1 rounded-lg hover:bg-surface-hover text-text-tertiary"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {history.length === 0 ? (
-                <div className="text-center py-8 text-xs text-text-tertiary">
-                  No hay versiones previas guardadas aún.
-                </div>
-              ) : (
-                history.map((hItem, idx) => {
-                  const isCurrent = hItem.version === version;
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl border transition-all ${
-                        isCurrent 
-                          ? 'border-teal-500 bg-teal-500/5 ring-1 ring-teal-500/20' 
-                          : 'border-border-medium hover:bg-surface-hover'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-text-primary">Versión {hItem.version}</span>
-                        {isCurrent && <span className="text-[9px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full">Actual</span>}
-                      </div>
-                      <div className="text-[10px] text-text-tertiary mb-2">
-                        {new Date(hItem.updatedAt).toLocaleString('es-ES')}
-                      </div>
-                      <button
-                        onClick={() => handleRestoreVersion(hItem)}
-                        disabled={isCurrent}
-                        className="w-full flex items-center justify-center gap-1 py-1.5 px-3 text-[11px] font-bold text-text-secondary hover:text-teal-600 bg-surface-secondary hover:bg-surface-hover border border-border-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        <span>Restaurar versión</span>
-                      </button>
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsHistoryOpen(false)}
+            />
+            <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col rounded-2xl bg-surface-primary shadow-2xl border border-border-light overflow-hidden animate-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
+                      <History className="h-5 w-5" />
                     </div>
-                  );
-                })
-              )}
+                    <h2 className="text-lg font-bold text-text-primary">Versiones</h2>
+                  </div>
+                  <p className="mt-1 text-sm text-text-secondary">Historial de versiones de {title}</p>
+                </div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="rounded-lg p-2 text-text-tertiary hover:bg-surface-hover hover:text-text-primary transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6 bg-surface-primary">
+                {history.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center gap-4">
+                    <div className="h-16 w-16 rounded-full bg-surface-secondary flex items-center justify-center border border-border-light">
+                      <History className="h-8 w-8 text-text-tertiary" />
+                    </div>
+                    <p className="text-text-secondary font-medium">No hay versiones previas guardadas aún.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {history.map((hItem, idx) => {
+                      const isCurrent = hItem.version === version;
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex flex-col rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
+                            isCurrent 
+                              ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10' 
+                              : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3 border-b border-border-light pb-2">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-text-primary">Versión {hItem.version}</span>
+                              <span className="text-xs text-text-tertiary">
+                                {new Date(hItem.updatedAt).toLocaleString('es-ES')}
+                              </span>
+                            </div>
+                            {isCurrent && (
+                              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                                Actual
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-sm text-text-secondary line-clamp-3 mb-4 italic opacity-80">
+                            "{hItem.title || title}"
+                          </div>
+                          <button
+                            onClick={() => handleRestoreVersion(hItem)}
+                            disabled={isCurrent}
+                            className="mt-auto w-full flex items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-teal-900/20"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            Restaurar
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
