@@ -8,7 +8,7 @@ interface Slide {
 }
 
 interface CanvasSlidesEditorProps {
-  initialContent: string;
+  initialContent: string | Slide[];
   onUpdate: (content: string) => void;
   title: string;
   isMaximized?: boolean;
@@ -100,6 +100,10 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   // Load content
   useEffect(() => {
     if (initialContent) {
+      if (Array.isArray(initialContent)) {
+        setSlides(initialContent);
+        return;
+      }
       const parsed = extractJsonArray(initialContent);
       if (parsed && Array.isArray(parsed)) {
         setSlides(parsed);

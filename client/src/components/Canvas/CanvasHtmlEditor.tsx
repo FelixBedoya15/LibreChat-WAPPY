@@ -12,7 +12,6 @@ interface CanvasHtmlEditorProps {
 const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false, onRegisterDownload }) => {
   const [code, setCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'code');
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Safely fallback activeTab to "code" if not maximized and currently in "split"
   useEffect(() => {
@@ -73,21 +72,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
     }
   }, [initialContent]);
 
-  // Update Iframe content
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (iframeRef.current) {
-        const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
-        if (iframeDoc) {
-          iframeDoc.open();
-          iframeDoc.write(code);
-          iframeDoc.close();
-        }
-      }
-    }, 300); // Debounce updates to iframe
 
-    return () => clearTimeout(timeout);
-  }, [code, activeTab]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -182,10 +167,10 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
         {(activeTab === 'split' || activeTab === 'preview') && (
           <div className="flex-1 h-full bg-white relative">
             <iframe
-              ref={iframeRef}
               title="Canvas Live View"
               className="w-full h-full border-none bg-white"
               sandbox="allow-scripts"
+              srcDoc={code}
             />
           </div>
         )}

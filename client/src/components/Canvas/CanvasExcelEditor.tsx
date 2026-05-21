@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
 interface CanvasExcelEditorProps {
-  initialContent: string;
+  initialContent: string | any[][];
   onUpdate: (content: string) => void;
   title: string;
   onRegisterDownload?: (fn: () => void) => void;
@@ -138,6 +138,10 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
   // Load initial content
   useEffect(() => {
     if (initialContent) {
+      if (Array.isArray(initialContent)) {
+        setData(initialContent);
+        return;
+      }
       try {
         const parsed = JSON.parse(initialContent);
         if (Array.isArray(parsed) && parsed.every(row => Array.isArray(row))) {
