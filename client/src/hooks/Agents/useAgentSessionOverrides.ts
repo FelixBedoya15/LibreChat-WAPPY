@@ -116,8 +116,18 @@ export default function useAgentSessionOverrides({
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
             // ALWAYS preserve previously active tools when switching agents!
-            // This guarantees the new agent inherits the session's active tools (like Matriz IPEVAR)
-            const prevTools = prevExt?.tools ?? [];
+            // BUT: panel tools (editor_live, editor_rit, canvas, matriz_ipevar, etc.)
+            // must only be preserved if the NEW agent explicitly supports them.
+            // Without this filter, stale editor_live/editor_rit from a previous
+            // session block the Canvas panel even when the agent only has canvas.
+            const newAgentToolSet = new Set(agent.tools ?? []);
+            const PANEL_TOOLS_SET = new Set([
+              'editor_live', 'editor_rit', 'canvas', 'matriz_ipevar', 'somos_sst',
+            ]);
+            const prevTools = (prevExt?.tools ?? []).filter((t) => {
+              if (!PANEL_TOOLS_SET.has(t)) return true; // Always keep non-panel tools
+              return newAgentToolSet.has(t); // Panel tools: only if new agent supports them
+            });
             const merged = Array.from(new Set([...prevTools, ...autoActivateExt]));
             updates.tools = merged;
 
