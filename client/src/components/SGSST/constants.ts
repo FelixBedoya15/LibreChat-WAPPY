@@ -24,41 +24,41 @@ export const PHASE_CATEGORIES = {
     ],
     hito2: [
         { 
-            id: 'peligros', title: 'Matriz Bio-IPEVAR', icon: 'AlertTriangle',
-            bioRationale: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador.', 
-            normativity: 'Hito 2: Núcleo Bio-Evaluativo' 
-        }
-    ],
-    hito3: [
-        { 
             id: 'participacion_ipevar', title: 'Participación IPEVAR Bio-Individual', icon: 'Users',
             bioRationale: 'Empodera la voz del empleado sobre los miedos y riesgos que percibe en su cotidianidad vital. Suma puntos de percepción.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
         },
         { 
             id: 'reporte_actos', title: 'Reporte de Actos Inseguros', icon: 'AlertTriangle',
             bioRationale: 'Canal de comunicación seguro donde se activa la protección mutua comunitaria (te cuido, me cuidas) sin miedo al castigo.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
         },
         { 
             id: 'capacitaciones', title: 'Programa de Capacitación SG-SST', icon: 'UserCheck',
             bioRationale: 'Entrenamiento técnico y conductual adaptativo para que el trabajador se defienda inteligentemente de su entorno.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
         },
         { 
             id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert',
             bioRationale: 'Induce a un estado de consciencia plena antes de ejecutar una tarea riesgosa, evitando el daño inmediato.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
         },
         { 
             id: 'permiso_alturas', title: 'Permiso de Trabajo en Alturas', icon: 'Briefcase',
             bioRationale: 'Protección absoluta y protocolo de rescate ante condiciones que sobrepasan las capacidades evolutivas de supervivencia.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
         },
         { 
             id: 'metodo_owas', title: 'Método OWAS (Evaluación Física)', icon: 'Activity',
             bioRationale: 'Garantiza la armonía postural, protegiendo al esqueleto y musculatura humana de sobreesfuerzos crónicos.', 
-            normativity: 'Hito 3: Dinámica de Exposición' 
+            normativity: 'Hito 2: Dinámica de Exposición' 
+        }
+    ],
+    hito3: [
+        { 
+            id: 'peligros', title: 'Matriz Bio-IPEVAR', icon: 'AlertTriangle',
+            bioRationale: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador.', 
+            normativity: 'Hito 3: Núcleo Bio-Evaluativo' 
         }
     ],
     hito4: [

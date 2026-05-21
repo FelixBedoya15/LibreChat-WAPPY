@@ -297,4 +297,131 @@ router.delete('/:conversationId/versions/:version', requireJwtAuth, async (req, 
   }
 });
 
+/**
+ * POST /api/sgsst/canvas/app-builder/generate
+ * Unified generation endpoint for all custom App Builder canvas modules & IA Soul.
+ */
+router.post('/app-builder/generate', requireJwtAuth, async (req, res) => {
+  try {
+    const { taskType, systemPrompt, userInput, history, excelCols } = req.body;
+    const { generateWithKeyRotation } = require('./sgsstGemini');
+    const { buildCompanyContextString } = require('./reportHeader');
+
+    // Load active company context if available
+    let companyContext = '';
+    try {
+      const ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }) || await CompanyInfo.findOne({ user: req.user.id });
+      if (ci && ci.companyName) {
+        companyContext = buildCompanyContextString(ci);
+      }
+    } catch (e) {
+      logger.warn('[AppBuilder Generate] Error loading company context:', e.message);
+    }
+
+    let promptText = '';
+
+    if (taskType === 'chat') {
+      const prevMsgs = (history || []).map(m => `${m.sender === 'user' ? 'Usuario' : 'Agente'}: ${m.text}`).join('\n');
+      promptText = `Eres un agente de Inteligencia Artificial especializado creado a la medida en el ecosistema WAPPY.
+      
+## PERSONALIDAD / INSTRUCCIONES DEL SISTEMA
+${systemPrompt || 'Eres un asesor empático de seguridad y salud en el trabajo.'}
+
+## CONTEXTO DE LA EMPRESA
+${companyContext || 'No hay información de la empresa registrada.'}
+
+## HISTORIAL DE LA CONVERSACIÓN
+${prevMsgs || 'Inicio de conversación.'}
+
+## NUEVO MENSAJE DEL USUARIO
+Usuario: ${userInput}
+
+Responde de forma concisa, profesional y de acuerdo a tu personalidad. Usa formato markdown para dar estructura si es necesario.`;
+    } else if (taskType === 'word') {
+      promptText = `Genera un DOCUMENTO técnico completo de Seguridad y Salud en el Trabajo (SG-SST) basado en las siguientes especificaciones:
+      
+## NOMBRE O PROPÓSITO DEL DOCUMENTO
+${userInput || 'Documento Técnico de SST'}
+
+## INSTRUCCIONES DE COMPORTAMIENTO (ALMA DE IA DEL APLICATIVO)
+${systemPrompt || 'Generar un informe formal y profesional.'}
+
+## CONTEXTO DE LA EMPRESA
+${companyContext || 'No hay información de la empresa registrada.'}
+
+## INSTRUCCIONES DE FORMATO:
+- Genera un contenido elegante y estructurado usando directamente etiquetas HTML del cuerpo (body). NO incluyas <html>, <head>, <body>, ni <style>.
+- Usa títulos elegantes <h2>, <h3>, párrafos estructurados y tablas de ser necesario con estilos inline elegantes.
+- Agrega secciones profesionales: Introducción, Objetivos, Desarrollo, Recomendaciones y Conclusiones.
+- Al final, NO incluyas tablas de firmas ni nombres, ya que el sistema los añade automáticamente.`;
+    } else if (taskType === 'excel') {
+      promptText = `Genera una MATRIZ O TABLA DE EXCEL (Hoja de cálculo) en formato JSON para un caso de Seguridad y Salud en el Trabajo (SG-SST):
+      
+## CASO / PROPÓSITO
+${userInput || 'Matriz de Riesgos o Seguimiento'}
+
+## ESTRUCTURA DE COLUMNAS DESEADA
+${(excelCols || []).join(', ') || 'Riesgo, Descripción, Nivel, Control Propuesto, Responsable'}
+
+## INSTRUCCIONES DE COMPORTAMIENTO (ALMA DE IA DEL APLICATIVO)
+${systemPrompt || 'Generar una matriz organizada.'}
+
+## CONTEXTO DE LA EMPRESA
+${companyContext || 'No hay información de la empresa registrada.'}
+
+## REQUISITO DE RESPUESTA:
+Debes responder ÚNICAMENTE con un arreglo JSON válido conteniendo 5 filas de datos. Cada fila debe ser un objeto cuyas llaves sean EXACTAMENTE los nombres de las columnas indicadas.
+NO incluyas explicaciones, introducciones, ni bloques de código de markdown. Responde solo con el JSON crudo. Ejemplo:
+[
+  {"Riesgo": "...", "Descripción": "...", "Nivel": "...", "Control Propuesto": "...", "Responsable": "..."},
+  ...
+]`;
+    } else if (taskType === 'slides') {
+      promptText = `Genera la estructura de una PRESENTACIÓN DE DIAPOSITIVAS de capacitación de SST:
+      
+## PROPÓSITO DE LA CAPACITACIÓN
+${userInput || 'Capacitación en Higiene Postural y Pausas Activas'}
+
+## INSTRUCCIONES DE COMPORTAMIENTO (ALMA DE IA DEL APLICATIVO)
+${systemPrompt || 'Presentación profesional.'}
+
+## CONTEXTO DE LA EMPRESA
+${companyContext || 'No hay información de la empresa registrada.'}
+
+## REQUISITO DE RESPUESTA:
+Debes responder ÚNICAMENTE con un arreglo JSON válido conteniendo exactamente 5 diapositivas. Cada diapositiva debe tener un "title" y un "content" (un párrafo corto explicativo).
+NO incluyas explicaciones ni bloques de código de markdown. Responde solo con el JSON crudo. Ejemplo:
+[
+  {"title": "...", "content": "..."},
+  ...
+]`;
+    } else if (taskType === 'html') {
+      promptText = `Diseña una interfaz web o componente interactivo elegante usando HTML y TailwindCSS (si aplica) o estilos inline:
+      
+## PROPÓSITO / DESCRIPCIÓN DEL PROTOTIPO
+${userInput || 'Dashboard de Indicadores de SST'}
+
+## INSTRUCCIONES DE COMPORTAMIENTO (ALMA DE IA DEL APLICATIVO)
+${systemPrompt || 'Interfaz limpia.'}
+
+## CONTEXTO DE LA EMPRESA
+${companyContext || 'No hay información de la empresa registrada.'}
+
+## REQUISITO DE RESPUESTA:
+Genera el código HTML interactivo autocontenido. Puedes usar Tailwind CSS (clases cargadas por CDN en el visor) y estilos inline. Utiliza colores de WAPPY (verdes, esmeralda, cyan) para que se vea súper tecnológico y moderno.
+Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de markdown de tres comillas.`;
+    }
+
+    const preferredModel = 'gemini-2.5-flash';
+    const result = await generateWithKeyRotation(preferredModel, req.user.id, promptText);
+    const response = await result.response;
+    const outputText = response.text();
+
+    res.json({ result: outputText.trim() });
+  } catch (error) {
+    logger.error('[AppBuilder Generate API] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al procesar la solicitud con IA' });
+  }
+});
+
 module.exports = router;

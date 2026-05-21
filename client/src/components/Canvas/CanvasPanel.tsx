@@ -697,41 +697,62 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+              className={`group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
                 isReportHistoryOpen
                   ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
                   : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
-              } hover:-rotate-3 hover:scale-105`}
+              }`}
               aria-label="Historial de reportes"
             >
-              <History className="h-4 w-4 shrink-0" />
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <History className="h-4 w-4" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">
+                  Historial
+                </span>
+              </div>
             </button>
           )}
 
           {hasActiveSession && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+              className={`group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
                 isHistoryOpen
                   ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
                   : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
-              } hover:-rotate-3 hover:scale-105`}
+              }`}
               aria-label="Versiones de documento"
             >
-              <RotateCcw className="h-4 w-4 shrink-0" />
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <RotateCcw className="h-4 w-4" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">
+                  Versiones
+                </span>
+              </div>
             </button>
           )}
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
-            {isMaximized ? (
-              <Minimize2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <Maximize2 className="h-4 w-4 shrink-0" />
-            )}
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              {isMaximized ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </div>
+            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-sm font-bold tracking-wide">
+                {isMaximized ? 'Contraer' : 'Expandir'}
+              </span>
+            </div>
           </button>
         </div>
       </div>
