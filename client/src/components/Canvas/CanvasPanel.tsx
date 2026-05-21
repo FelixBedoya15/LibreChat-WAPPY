@@ -103,8 +103,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`[CanvasPanel] fetch failed: ${res.status} for convoId=${conversationId}`);
+        return;
+      }
       const data = await res.json();
+
+      console.log(`[CanvasPanel] fetch ok | convoId=${conversationId} | updatedAt=${data.updatedAt} | prevRef=${lastUpdatedAtRef.current} | contentLen=${String(data.content || '').length}`);
 
       // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
       if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
@@ -120,7 +125,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           ? markdownToHtml(rawContent)
           : rawContent;
 
-        if (JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
+        // On initial load always update (even if refs match — avoids stale-ref false-negative).
+        // On subsequent polls only update if content actually changed.
+        if (isInitial || JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
           setContent(htmlContent);
         }
       }
