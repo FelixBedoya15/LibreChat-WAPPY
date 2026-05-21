@@ -55,6 +55,8 @@ interface PerfilCargoData {
     contextoAdicional: string;
     eppSeleccionados: string[];
     entrenamientosSeleccionados: string[];
+    controlesFuenteSeleccionados?: string[];
+    controlesMedioSeleccionados?: string[];
     images?: {
         foto1?: string | null;
         foto2?: string | null;
@@ -112,6 +114,29 @@ const EPP_OPTIONS = [
     'Capas impermeables',
 ];
 
+const CONTROLES_FUENTE_OPTIONS = [
+    'Mantenimiento preventivo periódico de maquinaria',
+    'Aislamiento de la fuente generadora (Cabinas/Encerramientos)',
+    'Sustitución de herramientas convencionales por ergonómicas/aisladas',
+    'Automatización de procesos críticos o peligrosos',
+    'Rediseño del puesto de trabajo o ergonomía física',
+    'Protecciones mecánicas fijas o móviles en poleas y partes móviles',
+    'Sistemas de parada de emergencia activa',
+    'Voltaje extra bajo de seguridad (SELV / VRD en soldadura)',
+];
+
+const CONTROLES_MEDIO_OPTIONS = [
+    'Sistemas de ventilación mecánica localizada o extracción',
+    'Aislamiento acústico de áreas ruidosas',
+    'Barandas, delimitación y demarcación de zonas de peligro',
+    'Instalación de mamparas, pantallas térmicas o pantallas de soldadura',
+    'Sistemas de iluminación artificial focalizada y antideslumbrante',
+    'Limpieza profunda y control de polvo en el ambiente de trabajo',
+    'Señalización de seguridad fotoluminiscente y advertencia de riesgos',
+    'Diseño de rutas de evacuación y pasillos despejados',
+    'Monitoreo ambiental periódico de contaminantes (Aire/Vibración/Ruido)',
+];
+
 const ENTRENAMIENTO_OPTIONS = [
     'Inducción y Reinducción en SST',
     'Identificación de Peligros y Riesgos (GTC 45)',
@@ -153,6 +178,8 @@ const createInitialPerfil = (): PerfilCargoData => ({
     contextoAdicional: '',
     eppSeleccionados: [],
     entrenamientosSeleccionados: [],
+    controlesFuenteSeleccionados: [],
+    controlesMedioSeleccionados: [],
     images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
     video: null,
     exigenciaFisica: 'Media',
@@ -1022,6 +1049,20 @@ const PerfilesCargo = () => {
                             <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">Equipos y Entrenamiento Especializado</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <MultiSelect
+                                label="Controles en la Fuente (Ingeniería / Diseño)"
+                                placeholder="Seleccionar controles en la fuente..."
+                                options={CONTROLES_FUENTE_OPTIONS}
+                                selected={formData.controlesFuenteSeleccionados || []}
+                                onChange={(val) => handleInput('controlesFuenteSeleccionados', val)}
+                            />
+                            <MultiSelect
+                                label="Controles en el Medio (Organización / Entorno)"
+                                placeholder="Seleccionar controles en el medio..."
+                                options={CONTROLES_MEDIO_OPTIONS}
+                                selected={formData.controlesMedioSeleccionados || []}
+                                onChange={(val) => handleInput('controlesMedioSeleccionados', val)}
+                            />
                             <MultiSelect
                                 label="EPP Requeridos (GTC 45 / Res. 4272)"
                                 placeholder="Seleccionar EPP..."

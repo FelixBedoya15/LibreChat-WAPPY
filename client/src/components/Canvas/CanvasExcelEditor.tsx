@@ -334,43 +334,70 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           <div className="flex items-center gap-1.5">
             <button
               onClick={addRow}
-              className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              aria-label="Agregar Fila"
             >
-              <Plus className="h-4 w-4 text-green-500" />
-              <span>Fila</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Plus className="h-4 w-4 text-green-500" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">Fila</span>
+              </div>
             </button>
             <button
               onClick={deleteRow}
               disabled={data.length <= 1}
-              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-red-500/20 hover:bg-red-50 text-red-600 disabled:hover:bg-surface-primary disabled:border-red-500/20 disabled:text-red-600"
+              aria-label="Quitar Fila"
             >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <span>Quitar Fila</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">Quitar Fila</span>
+              </div>
             </button>
             <div className="h-6 w-px bg-border-medium" />
             <button
               onClick={addColumn}
-              className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              aria-label="Agregar Columna"
             >
-              <Plus className="h-4 w-4 text-green-500" />
-              <span>Columna</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Plus className="h-4 w-4 text-green-500" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">Columna</span>
+              </div>
             </button>
             <button
               onClick={deleteColumn}
               disabled={data[0]?.length <= 1}
-              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-red-500/20 hover:bg-red-50 text-red-600 disabled:hover:bg-surface-primary disabled:border-red-500/20 disabled:text-red-600"
+              aria-label="Quitar Columna"
             >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <span>Quitar Col</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">Quitar Col</span>
+              </div>
             </button>
           </div>
 
           <button
             onClick={handleExportExcel}
-            className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+            aria-label="Descargar Excel"
           >
-            <Download className="h-4 w-4" />
-            <span>Descargar Excel</span>
+            <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+              <Download className="h-4 w-4 text-text-primary" />
+            </div>
+            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-sm font-bold tracking-wide text-text-primary">
+                Descargar Excel
+              </span>
+            </div>
           </button>
         </div>
       </div>

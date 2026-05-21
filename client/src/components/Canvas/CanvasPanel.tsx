@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { useToastContext } from '@librechat/client';
 import store from '~/store';
 import CanvasTextEditor from './CanvasTextEditor';
 import CanvasExcelEditor from './CanvasExcelEditor';
@@ -166,6 +167,7 @@ const DEBOUNCE_SAVE_MS = 1200;
 
 const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const { token } = useAuthContext();
+  const { showToast } = useToastContext();
   const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.canvasMaximized);
   
   // Ephemeral agent state to check which tools are active
@@ -392,9 +394,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       if (data.success) {
         setVersion(data.version);
         lastUpdatedAtRef.current = data.updatedAt;
+        showToast({ status: 'success', message: '¡Cambios guardados con éxito!' });
       }
     } catch (e) {
       console.error('[CanvasPanel] Save error:', e);
+      showToast({ status: 'error', message: 'Error al guardar los cambios.' });
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -643,18 +647,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession();
               }}
               disabled={isSaving}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-teal-600 hover:bg-teal-700 hover:-rotate-3 hover:scale-105 border-teal-600 hover:border-teal-700 text-white disabled:opacity-75 disabled:cursor-not-allowed"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Guardar cambios"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
+              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                 {isSaving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-text-primary" />
                 ) : (
-                  <Save className="h-4 w-4 text-white" />
+                  <Save className="h-4 w-4 text-text-primary" />
                 )}
               </div>
-              <div className="flex items-center ml-2 whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-white">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-text-primary">
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </span>
               </div>
@@ -676,14 +680,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   console.warn('[CanvasPanel] No download function registered for fileType:', fileType);
                 }
               }}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-teal-600 hover:bg-teal-700 hover:-rotate-3 hover:scale-105 border-teal-600 hover:border-teal-700 text-white"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Descargar archivo"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Download className="h-4 w-4 text-white" />
+              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                <Download className="h-4 w-4 text-text-primary" />
               </div>
-              <div className="flex items-center ml-2 whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-white">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-text-primary">
                   Descargar
                 </span>
               </div>

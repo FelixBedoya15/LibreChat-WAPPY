@@ -113,7 +113,9 @@ class SomosSST extends Tool {
                          responsabilidadesSST: bestProfileMatch.responsabilidadesSST,
                          restricciones: bestProfileMatch.restricciones,
                          examenesMedicos: bestProfileMatch.examenesMedicos,
-                         elementosProteccion: bestProfileMatch.elementosProteccion
+                         elementosProteccion: bestProfileMatch.elementosProteccion,
+                         controlesFuente: bestProfileMatch.controlesFuenteSeleccionados || [],
+                         controlesMedio: bestProfileMatch.controlesMedioSeleccionados || []
                      };
                      matchedCargoStr = bestProfileMatch.nombreCargo;
                  } else {

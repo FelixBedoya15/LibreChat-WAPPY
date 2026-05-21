@@ -132,6 +132,14 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
       ? perfilData.entrenamientosSeleccionados.join(', ')
       : 'SST Básico';
 
+    const controlesFuenteText = perfilData.controlesFuenteSeleccionados?.length > 0
+      ? perfilData.controlesFuenteSeleccionados.join(', ')
+      : 'Por definir según inspección de ingeniería';
+
+    const controlesMedioText = perfilData.controlesMedioSeleccionados?.length > 0
+      ? perfilData.controlesMedioSeleccionados.join(', ')
+      : 'Por definir según monitoreo de higiene industrial';
+
     const promptText = `
 Eres un Experto Senior en Gestión Humana, Seguridad y Salud en el Trabajo (SG-SST) y Psicología Organizacional con 20 años de experiencia. Tu especialidad es el diseño técnico de perfiles de cargo altamente detallados según la normativa colombiana actual, integrando rigurosamente la **Guía Técnica Colombiana GTC 45 (2012)** y la **Resolución 1843 de 2025 (Art. 16)**.
 
@@ -149,6 +157,8 @@ ${companyContext}
 - Cargo del Jefe Inmediato: ${perfilData.jefeInmediato || '[PENDIENTE]'}
 - Escala Salarial / Rango: ${perfilData.escalasSalarial || 'No especificado'}
 - Número de Vacantes: ${perfilData.numVacantes || '1'}
+- Controles sugeridos en la Fuente (Ingeniería/Diseño): ${controlesFuenteText}
+- Controles sugeridos en el Medio (Entorno/Organización): ${controlesMedioText}
 - EPP Seleccionados por el usuario: ${eppText}
 - Entrenamientos Seleccionados por el usuario: ${entrenamientoText}
 - Contexto Adicional proporcionado: ${perfilData.contextoAdicional || 'No proporcionado'}
@@ -185,7 +195,9 @@ ${companyContext}
    Tabla con columnas: Clasificación del Peligro | Peligro Específico | Descripción de la Actividad de Riesgo | **Controles Existentes (Fuente, Medio, Persona)** | Efectos Posibles en la Salud.
    *Debe ser la sección más larga del informe.*
 
-8️⃣ **VI. PLAN DE ENTRENAMIENTO Y ELEMENTOS DE PROTECCIÓN (EPP)**
+8️⃣ **VI. PLAN DE ENTRENAMIENTO, ELEMENTOS DE PROTECCIÓN (EPP) Y MEDIDAS COLECTIVAS**
+   - Tabla de Controles sugeridos en la Fuente (Ingeniería/Diseño) para mitigar el peligro en el origen. Integra: ${controlesFuenteText}.
+   - Tabla de Controles sugeridos en el Medio (Físico/Ambiental) para mitigar el peligro en el entorno de propagación. Integra: ${controlesMedioText}.
    - Tabla de EPP detallando el tipo de protección (ej. Gafas con filtro UV y antiempañante Z87+). Integra los EPP seleccionados: ${eppText}.
    - Tabla de formación continua y entrenamientos. Integra: ${entrenamientoText}.
 

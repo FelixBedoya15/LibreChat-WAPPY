@@ -137,10 +137,17 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({ initialContent, onU
 
         <button
           onClick={handleDownloadHtml}
-          className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+          aria-label="Descargar HTML"
         >
-          <Download className="h-4 w-4" />
-          <span>Descargar HTML</span>
+          <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+            <Download className="h-4 w-4 text-text-primary" />
+          </div>
+          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+            <span className="text-sm font-bold tracking-wide text-text-primary">
+              Descargar HTML
+            </span>
+          </div>
         </button>
       </div>
 

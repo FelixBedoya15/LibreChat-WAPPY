@@ -158,7 +158,18 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
     } else {
       // Comprobar si el contenido realmente cambió
       const contentChanged = JSON.stringify(session.content) !== JSON.stringify(processedContent);
-      const titleChanged = session.title !== title && title !== undefined;
+      
+      // Smart title checking: avoid overwriting a custom title with the default "Archivo sin título" placeholder
+      const isDefaultTitle = (t) => !t || t === 'Archivo sin título' || t === 'Archivo de Canvas sin título';
+      const existingIsDefault = isDefaultTitle(session.title);
+      const newIsDefault = isDefaultTitle(title);
+
+      let finalTitle = title || session.title;
+      if (newIsDefault && !existingIsDefault) {
+        finalTitle = session.title;
+      }
+
+      const titleChanged = session.title !== finalTitle && finalTitle !== undefined;
 
       if (contentChanged || titleChanged) {
         const nextVersion = session.version + 1;
@@ -167,15 +178,16 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         const newHistoryItem = {
           version: nextVersion,
           content: processedContent ?? session.content,
-          title: title || session.title,
+          title: finalTitle,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
         session.content = processedContent ?? session.content;
-        session.title = title || session.title;
+        session.title = finalTitle;
         if (fileType) session.fileType = fileType;
+        if (companyId) session.companyId = companyId; // Sync active company ID
         session.version = nextVersion;
         session.history = updatedHistory;
         

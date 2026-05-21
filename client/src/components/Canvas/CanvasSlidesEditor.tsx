@@ -352,18 +352,32 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2">
             <button
               onClick={addSlide}
-              className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
+              aria-label="Nueva Diapositiva"
             >
-              <Plus className="h-4 w-4" />
-              <span>Nueva Diapositiva</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                <Plus className="h-4 w-4 text-text-primary" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-text-primary">
+                  Nueva Diapositiva
+                </span>
+              </div>
             </button>
             <button
               onClick={deleteSlide}
               disabled={slides.length <= 1}
-              className="bg-surface-primary border-red-500/20 hover:bg-red-50 hover:-rotate-3 hover:scale-105 text-red-600 font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm w-full disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-red-500/20 hover:bg-red-50 text-red-600 disabled:hover:bg-surface-primary disabled:border-red-500/20 disabled:text-red-600 w-full"
+              aria-label="Eliminar Activa"
             >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <span>Eliminar Activa</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide">
+                  Eliminar Activa
+                </span>
+              </div>
             </button>
           </div>
         </div>
@@ -424,10 +438,17 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="bg-surface-primary border-border-medium hover:bg-surface-hover hover:-rotate-3 hover:scale-105 text-text-primary font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                    aria-label={showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
                   >
-                    <Layout className="h-4 w-4 text-teal-600" />
-                    <span>{showSettings ? 'Ocultar Opciones de Edición' : 'Mostrar Opciones de Edición'}</span>
+                    <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                      <Layout className="h-4 w-4 text-text-primary" />
+                    </div>
+                    <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[250px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-sm font-bold tracking-wide text-text-primary">
+                        {showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
+                      </span>
+                    </div>
                   </button>
                 </div>
 
@@ -497,10 +518,17 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Preservación de formato landscape</span>
                         <button
                           onClick={handleDownloadPdf}
-                          className="bg-teal-600 border-teal-600 hover:bg-teal-700 hover:border-teal-700 hover:-rotate-3 hover:scale-105 text-white font-bold h-10 px-3.5 rounded-xl shadow-sm border flex items-center justify-center gap-1.5 transition-all duration-300 text-sm"
+                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                          aria-label="Descargar Diapositivas"
                         >
-                          <Download className="h-4 w-4" />
-                          <span>Descargar Diapositivas</span>
+                          <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                            <Download className="h-4 w-4 text-text-primary" />
+                          </div>
+                          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                            <span className="text-sm font-bold tracking-wide text-text-primary">
+                              Descargar Diapositivas
+                            </span>
+                          </div>
                         </button>
                       </div>
                     </div>

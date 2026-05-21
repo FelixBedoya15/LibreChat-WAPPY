@@ -59,6 +59,8 @@ interface PerfilCargoData {
     contextoAdicional: string;
     eppSeleccionados: string[];
     entrenamientosSeleccionados: string[];
+    controlesFuenteSeleccionados?: string[];
+    controlesMedioSeleccionados?: string[];
     report?: string;
 }
 
@@ -104,6 +106,29 @@ const EPP_OPTIONS = [
     'Capas impermeables',
 ];
 
+const CONTROLES_FUENTE_OPTIONS = [
+    'Mantenimiento preventivo periódico de maquinaria',
+    'Aislamiento de la fuente generadora (Cabinas/Encerramientos)',
+    'Sustitución de herramientas convencionales por ergonómicas/aisladas',
+    'Automatización de procesos críticos o peligrosos',
+    'Rediseño del puesto de trabajo o ergonomía física',
+    'Protecciones mecánicas fijas o móviles en poleas y partes móviles',
+    'Sistemas de parada de emergencia activa',
+    'Voltaje extra bajo de seguridad (SELV / VRD en soldadura)',
+];
+
+const CONTROLES_MEDIO_OPTIONS = [
+    'Sistemas de ventilación mecánica localizada o extracción',
+    'Aislamiento acústico de áreas ruidosas',
+    'Barandas, delimitación y demarcación de zonas de peligro',
+    'Instalación de mamparas, pantallas térmicas o pantallas de soldadura',
+    'Sistemas de iluminación artificial focalizada y antideslumbrante',
+    'Limpieza profunda y control de polvo en el ambiente de trabajo',
+    'Señalización de seguridad fotoluminiscente y advertencia de riesgos',
+    'Diseño de rutas de evacuación y pasillos despejados',
+    'Monitoreo ambiental periódico de contaminantes (Aire/Vibración/Ruido)',
+];
+
 const ENTRENAMIENTO_OPTIONS = [
     'Inducción y Reinducción en SST',
     'Identificación de Peligros y Riesgos (GTC 45)',
@@ -145,6 +170,8 @@ const createInitialPerfil = (): PerfilCargoData => ({
     contextoAdicional: '',
     eppSeleccionados: [],
     entrenamientosSeleccionados: [],
+    controlesFuenteSeleccionados: [],
+    controlesMedioSeleccionados: [],
 });
 
 // ─── Field config for rendering ─────────────────────────────────────────────
@@ -560,7 +587,9 @@ const PerfilesCargo = () => {
                         escalasSalarial: '3.5 - 4.5 SMMLV',
                         contextoAdicional: 'Liderar el programa de alturas, coordinar capacitación de espacios confinados y supervisar brigadas de emergencia.',
                         eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)'],
-                        entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
+                        entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST'],
+                        controlesFuenteSeleccionados: ['Sustitución de herramientas convencionales por ergonómicas/aisladas'],
+                        controlesMedioSeleccionados: ['Aislamiento acústico de áreas ruidosas', 'Señalización de seguridad fotoluminiscente y advertencia de riesgos']
                     };
                     setFormData(dummy);
                     showToast({ message: 'Ejemplo cargado', status: 'success' });
@@ -659,6 +688,20 @@ const PerfilesCargo = () => {
                             <h4 className="font-pixel text-[12px] text-white uppercase tracking-wider">SKILL TREE & INVENTORY</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <MultiSelect
+                                label="Controles en la Fuente (Ingeniería / Diseño)"
+                                placeholder="Seleccionar controles en la fuente..."
+                                options={CONTROLES_FUENTE_OPTIONS}
+                                selected={formData.controlesFuenteSeleccionados || []}
+                                onChange={(val) => handleInput('controlesFuenteSeleccionados', val)}
+                            />
+                            <MultiSelect
+                                label="Controles en el Medio (Organización / Entorno)"
+                                placeholder="Seleccionar controles en el medio..."
+                                options={CONTROLES_MEDIO_OPTIONS}
+                                selected={formData.controlesMedioSeleccionados || []}
+                                onChange={(val) => handleInput('controlesMedioSeleccionados', val)}
+                            />
                             <MultiSelect
                                 label="EPP Requeridos (GTC 45 / Res. 4272)"
                                 placeholder="Seleccionar EPP..."
