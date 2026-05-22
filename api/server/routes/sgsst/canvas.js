@@ -15,16 +15,48 @@ async function getActiveCompanyId(userId) {
   return active ? active._id : null;
 }
 
+function hasHeader(html) {
+  if (!html) return false;
+  const lower = html.toLowerCase();
+  return (
+    lower.includes('información resumida de la entidad') ||
+    lower.includes('linear-gradient') ||
+    lower.includes('empresa / razón social:') ||
+    lower.includes('empresa/razón social:') ||
+    lower.includes('datos generales') ||
+    lower.includes('registro de inducción') ||
+    lower.includes('formato de inspección') ||
+    lower.includes('proceso: sg-sst') ||
+    lower.includes('proceso:sg-sst') ||
+    (lower.includes('empresa:') && lower.includes('nit:'))
+  );
+}
+
+function hasSignature(html) {
+  if (!html) return false;
+  const lower = html.toLowerCase();
+  return (
+    lower.includes('signature-placeholder') ||
+    lower.includes('responsable sg-sst') ||
+    lower.includes('responsable sst') ||
+    lower.includes('trabajador inducido') ||
+    lower.includes('representante legal')
+  );
+}
+
 /**
  * Busca y extrae el bloque del encabezado corporativo (contenedor con degradado linear-gradient y tabla resumen de la entidad)
  * existente en el contenido previo para evitar sobrescribir las ediciones manuales.
  */
 function extractExistingHeader(html) {
-  if (!html || !html.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) {
+  if (!html || !hasHeader(html)) {
     return null;
   }
   
-  const tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
+  let tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
+  if (!tableEndMatch) {
+    tableEndMatch = html.match(/<\/table>/i);
+  }
   if (!tableEndMatch) return null;
   
   const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
@@ -47,16 +79,22 @@ function extractExistingHeader(html) {
  * del contenido previo para conservar las firmas digitales y ediciones manuales.
  */
 function extractExistingSignature(html) {
-  if (!html) return null;
-  const hasSignature = html.includes('signature-placeholder') || html.includes('RESPONSABLE SG-SST') || html.includes('Responsable SG-SST') || html.includes('RESPONSABLE SST');
-  if (!hasSignature) return null;
+  if (!html || !hasSignature(html)) return null;
 
-  const sigIndex = html.lastIndexOf('<div style="margin-top: 50px;');
-  const sigAlternativeIndex = html.lastIndexOf('<div style="margin-top:50px;');
-  const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
+  const variations = [
+    '<div style="margin-top: 60px;',
+    '<div style="margin-top:60px;',
+    '<div style="margin-top: 50px;',
+    '<div style="margin-top:50px;',
+    '<div style="page-break-inside:avoid;',
+    '<div class="signature-placeholder'
+  ];
 
-  if (index !== -1) {
-    return html.substring(index);
+  for (const variation of variations) {
+    const index = html.lastIndexOf(variation);
+    if (index !== -1) {
+      return html.substring(index);
+    }
   }
   return null;
 }
@@ -72,10 +110,10 @@ async function processTextDocument(content, fileType, title, userId, existingCon
 
   let stringContent = (content || '').trim();
 
-  const hasHeader = stringContent.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD');
-  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST') || stringContent.includes('RESPONSABLE SST');
+  const currentHasHeader = hasHeader(stringContent);
+  const currentHasSignature = hasSignature(stringContent);
 
-  if (hasHeader && hasSignature) {
+  if (currentHasHeader && currentHasSignature) {
     return stringContent;
   }
 
@@ -83,20 +121,20 @@ async function processTextDocument(content, fileType, title, userId, existingCon
   let signatureHtml = null;
 
   if (existingContent) {
-    if (!hasHeader) {
+    if (!currentHasHeader) {
       headerHtml = extractExistingHeader(existingContent);
     }
-    if (!hasSignature) {
+    if (!currentHasSignature) {
       signatureHtml = extractExistingSignature(existingContent);
     }
   }
 
   let companyInfo = null;
-  if ((!hasHeader && !headerHtml) || (!hasSignature && !signatureHtml)) {
+  if ((!currentHasHeader && !headerHtml) || (!currentHasSignature && !signatureHtml)) {
     companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
   }
 
-  if (!hasHeader) {
+  if (!currentHasHeader) {
     if (!headerHtml) {
       headerHtml = buildStandardHeader({
         title: title || 'DOCUMENTO DE TRABAJO',
@@ -106,7 +144,7 @@ async function processTextDocument(content, fileType, title, userId, existingCon
     stringContent = headerHtml + '\n\n' + stringContent;
   }
 
-  if (!hasSignature) {
+  if (!currentHasSignature) {
     if (!signatureHtml && companyInfo) {
       signatureHtml = buildSignatureSection(companyInfo);
     }
@@ -127,7 +165,18 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
+    // Cruzar con conversaciones activas de LibreChat (no archivadas ni expiradas/eliminadas)
+    const { Conversation } = require('~/db/models');
+    const activeConvos = await Conversation.find({
+      user: userId,
+      $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+      $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }]
+    }).select('conversationId').lean();
+    const activeConvoIds = activeConvos.map(c => c.conversationId);
+
     const query = companyId ? { companyId } : { user: userId };
+    query.conversationId = { $in: activeConvoIds };
+
     const sessions = await CanvasSession.find(query)
       .sort({ updatedAt: -1 })
       .limit(50);

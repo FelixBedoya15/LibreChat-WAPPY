@@ -203,6 +203,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMutingAutoSaveRef = useRef<boolean>(false);
+  const muteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const muteAutoSave = (durationMs: number) => {
+    if (muteTimeoutRef.current) clearTimeout(muteTimeoutRef.current);
+    isMutingAutoSaveRef.current = true;
+    muteTimeoutRef.current = setTimeout(() => {
+      isMutingAutoSaveRef.current = false;
+      muteTimeoutRef.current = null;
+    }, durationMs);
+  };
   const prevIsSubmittingRef = useRef<boolean>(false);
   const downloadRef = useRef<(() => void) | null>(null);
 
@@ -385,6 +396,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           // On initial load always update (even if refs match — avoids stale-ref false-negative).
           // On subsequent polls only update if content actually changed.
           if (isInitial || JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
+            if (!isInitial) {
+              muteAutoSave(1500);
+            }
             setContent(htmlContent);
           }
         }
@@ -439,6 +453,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     initialTitle: string,
   ) => {
     const newConvoId = v4();
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    muteAutoSave(2500);
 
     await copyEphemeralAgent(newConvoId);
 
@@ -518,6 +535,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const handleContentUpdate = (newContent: string) => {
     const updated =
       fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+    if (isMutingAutoSaveRef.current) {
+      setContent(updated);
+      contentRef.current = updated;
+      return;
+    }
     setContent(updated);
     queueSave();
   };
@@ -530,6 +552,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   const handleApplyTemplate = async (newContent: string, newTitle: string) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    muteAutoSave(2000);
     const updated =
       fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
 
@@ -568,6 +591,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     setIsSaving(true);
     try {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      muteAutoSave(1500);
 
       const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
         method: 'POST',
@@ -734,6 +758,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   };
 
   const handleRestoreVersion = async (vItem: any) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    muteAutoSave(1500);
     setContent(vItem.content);
     contentRef.current = vItem.content;
     setTitle(vItem.title);
@@ -990,13 +1016,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('text', initialContent, 'Nuevo Documento');
                   } else {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    muteAutoSave(1500);
                     setFileType('text');
                     setContent(initialContent);
                     setTitle('Nuevo Documento');
                     fileTypeRef.current = 'text';
                     contentRef.current = initialContent;
                     titleRef.current = 'Nuevo Documento';
-                    queueSave();
+                    saveSession();
                   }
                 }}
                 className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-teal-500/40 hover:bg-surface-hover"
@@ -1018,13 +1046,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('excel', initialContent, 'Hoja de Cálculo');
                   } else {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    muteAutoSave(1500);
                     setFileType('excel');
                     setContent(initialContent);
                     setTitle('Hoja de Cálculo');
                     fileTypeRef.current = 'excel';
                     contentRef.current = initialContent;
                     titleRef.current = 'Hoja de Cálculo';
-                    queueSave();
+                    saveSession();
                   }
                 }}
                 className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-emerald-500/40 hover:bg-surface-hover"
@@ -1047,13 +1077,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('presentation', initialContent, 'Presentación');
                   } else {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    muteAutoSave(1500);
                     setFileType('presentation');
                     setContent(initialContent);
                     setTitle('Presentación');
                     fileTypeRef.current = 'presentation';
                     contentRef.current = initialContent;
                     titleRef.current = 'Presentación';
-                    queueSave();
+                    saveSession();
                   }
                 }}
                 className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-amber-500/40 hover:bg-surface-hover"
@@ -1111,13 +1143,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('html', initialContent, 'Prototipo de Código');
                   } else {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    muteAutoSave(1500);
                     setFileType('html');
                     setContent(initialContent);
                     setTitle('Prototipo de Código');
                     fileTypeRef.current = 'html';
                     contentRef.current = initialContent;
                     titleRef.current = 'Prototipo de Código';
-                    queueSave();
+                    saveSession();
                   }
                 }}
                 className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-blue-500/40 hover:bg-surface-hover"
