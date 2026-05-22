@@ -15,9 +15,13 @@ import {
   ChevronDown,
   Scale,
   Heart,
-  ShieldAlert
+  ShieldAlert,
+  Link2
 } from 'lucide-react';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import { ritTemplateTradicional } from './rit_template_tradicional';
+import { ritTemplateHumanista } from './rit_template_humanista';
+import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
 
 interface CanvasTextEditorProps {
   initialContent: string;
@@ -270,129 +274,14 @@ const TEMPLATES = [
     title: 'RIT - Modelo Tradicional',
     description: 'Reglamento Interno de Trabajo con enfoque legal estricto y de autoridad',
     icon: <Scale className="h-4 w-4 text-slate-500" />,
-    html: `
-      <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #1e293b; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">REGLAMENTO INTERNO DE TRABAJO (RIT)</h1>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9; text-transform: uppercase; font-weight: 600;">Estructura Corporativa y Legal Tradicional</p>
-          <p style="margin: 2px 0 0; font-size: 11px; opacity: 0.7;">Conforme al Código Sustantivo del Trabajo (Arts. 104 al 125)</p>
-        </div>
-        
-        <p style="font-size: 13px; color: #64748b; font-style: italic; margin-bottom: 20px;">
-          Este documento regula las condiciones de trabajo, deberes, prohibiciones, escala de faltas y el procedimiento disciplinario correspondiente aplicable a todos los colaboradores de la empresa.
-        </p>
-
-        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">CAPÍTULO I: Condiciones de Admisión y Período de Prueba</h3>
-        <p>Toda persona que aspire a ingresar a la empresa debe presentar los documentos de ley y someterse a los exámenes médicos de ingreso. El período de prueba será el estipulado por escrito en el contrato individual de trabajo, el cual no podrá exceder de dos (2) meses.</p>
-
-        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">CAPÍTULO II: Horario de Trabajo y Jornada Laboral</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-          <thead>
-            <tr style="background-color: #f1f5f9; color: #1e293b; font-weight: bold; text-align: left;">
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Días</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Hora de Ingreso</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Descanso / Almuerzo</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Hora de Salida</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Lunes a Viernes</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">08:00 AM</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">12:00 PM - 01:00 PM</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">05:30 PM</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Sábado</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">08:00 AM</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">N/A</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">01:30 PM</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">CAPÍTULO III: Obligaciones y Prohibiciones de los Trabajadores</h3>
-        <p><strong>Obligaciones Especiales:</strong></p>
-        <ul style="padding-left: 20px; margin-bottom: 15px; list-style-type: square;">
-          <li>Cumplir rigurosamente las normas del SG-SST y el uso de los Elementos de Protección Personal (EPP).</li>
-          <li>Guardar rigurosa reserva sobre los secretos comerciales, técnicos o industriales de la empresa.</li>
-          <li>Observar la mayor diligencia y cuidado en la conservación de los equipos y herramientas asignados.</li>
-        </ul>
-        <p><strong>Prohibiciones Especiales:</strong></p>
-        <ul style="padding-left: 20px; margin-bottom: 20px; list-style-type: circle;">
-          <li>Retirarse del sitio de trabajo sin autorización previa de su superior inmediato.</li>
-          <li>Utilizar las herramientas, equipos de cómputo y redes para fines ajenos al desarrollo de sus labores.</li>
-          <li>Presentarse al trabajo bajo los efectos del alcohol o sustancias psicoactivas.</li>
-        </ul>
-
-        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">CAPÍTULO IV: Escala de Faltas y Sanciones Disciplinarias</h3>
-        <p>Las faltas se clasificarán en leves, graves y gravísimas, dando lugar a amonestaciones verbales, escritas, suspensión del trabajo de hasta ocho (8) días por primera vez, o la terminación del contrato con justa causa en casos de faltas graves.</p>
-        
-        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">CAPÍTULO V: Procedimiento para Descargos Disciplinarios</h3>
-        <div style="background-color: #f8fafc; border-left: 4px solid #1e293b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 13px; color: #334155;"><strong>Garantía de Debido Proceso:</strong> Antes de aplicar cualquier sanción disciplinaria, el empleador deberá citar por escrito al trabajador a una diligencia de descargos, en la cual se le darán a conocer los hechos imputados y podrá presentar sus pruebas y ser asistido por dos (2) compañeros de trabajo.</p>
-        </div>
-        
-        ${DEFAULT_SIGNATURE_BLOCK}
-      </div>
-    `.trim()
+    html: ritTemplateTradicional
   },
   {
     id: 'rit_humanista',
     title: 'RIT - Modelo Humanista',
     description: 'Reglamento de convivencia enfocado en bio-individualidad, salud mental y bienestar',
     icon: <Heart className="h-4 w-4 text-rose-500" />,
-    html: `
-      <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #4f46e5; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">REGLAMENTO DE CONVIVENCIA Y TRABAJO</h1>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9; text-transform: uppercase; font-weight: 600;">Modelo Humanista, Bienestar y Acuerdos de Valor</p>
-          <p style="margin: 2px 0 0; font-size: 11px; opacity: 0.7;">Enfoque en Salud Mental, Bio-individualidad e Integridad Psicosocial</p>
-        </div>
-
-        <p style="font-size: 13px; color: #4f46e5; font-style: italic; font-weight: 600; margin-bottom: 20px; text-align: center;">
-          "Entendemos que el talento prospera en entornos de respeto mutuo, flexibilidad responsable y seguridad psicológica. Este reglamento es un acuerdo mutuo de convivencia y crecimiento."
-        </p>
-
-        <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. Propósito y Cultura Organizacional</h3>
-        <p>Nuestra cultura se basa en la confianza mutua, el aprendizaje continuo y el bienestar. Promovemos la bio-individualidad, reconociendo que cada colaborador tiene necesidades biológicas, de concentración y familiares únicas que armonizamos con los objetivos corporativos.</p>
-
-        <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. Gestión de Tiempos y Flexibilidad Consciente</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #e0e7ff; border-radius: 8px; overflow: hidden;">
-          <thead>
-            <tr style="background-color: #f5f3ff; color: #4f46e5; font-weight: bold; text-align: left;">
-              <th style="padding: 10px; border: 1px solid #e0e7ff; width: 40%;">Modalidad</th>
-              <th style="padding: 10px; border: 1px solid #e0e7ff; width: 60%;">Acuerdo de Funcionamiento</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e0e7ff; font-weight: bold; color: #4f46e5;">Franjas de Enfoque Común</td>
-              <td style="padding: 10px; border: 1px solid #e0e7ff;">Priorizamos reuniones sincronizadas de Lunes a Jueves entre las 09:00 AM y 04:00 PM. El tiempo restante es autónomo para trabajo de concentración profunda.</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e0e7ff; font-weight: bold; color: #4f46e5;">Desconexión Digital</td>
-              <td style="padding: 10px; border: 1px solid #e0e7ff;">Garantizamos el derecho a la desconexión total. No se requiere responder correos o chats después de las 06:00 PM ni durante los fines de semana.</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. Entorno Seguro y Cuidado Psicosocial</h3>
-        <p><strong>Compromisos Colectivos de Respeto:</strong></p>
-        <ul style="padding-left: 20px; margin-bottom: 15px; list-style-type: square;">
-          <li><strong>Cero Tolerancia al Acoso:</strong> Se previene y sanciona toda forma de acoso laboral, discriminación por género, orientación sexual, raza o religión a través del Comité de Convivencia Laboral.</li>
-          <li><strong>Protección de la Salud Mental:</strong> Facilitamos espacios y herramientas que promueven la reducción del estrés laboral y el síndrome de Burnout.</li>
-          <li><strong>Comunicación Asertiva y Constructiva:</strong> Los desacuerdos se abordan con empatía, buscando el desarrollo y no la culpabilización de las partes.</li>
-        </ul>
-
-        <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">4. Resolución Conciliatoria de Conflictos</h3>
-        <div style="background-color: #f5f3ff; border-left: 4px solid #4f46e5; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 13px; color: #3538cd;"><strong>Enfoque en Justicia Restaurativa:</strong> Cuando se presente una diferencia o incumplimiento en los compromisos, priorizamos círculos de diálogo formativo, mentoría y planes de mejora concertados de mutuo acuerdo. La amonestación tradicional es considerada el último recurso ante la reincidencia o mala fe.</p>
-        </div>
-
-        ${DEFAULT_SIGNATURE_BLOCK}
-      </div>
-    `.trim()
+    html: ritTemplateHumanista
   },
   {
     id: 'plan_emergencias',
@@ -556,6 +445,14 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'templates' | 'inlays'>('templates');
+  const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
+
+  const handleImportTable = (html: string) => {
+    if (liveEditorRef.current) {
+      // Trigger HTML injection in the WYSIWYG editor
+      liveEditorRef.current.insertHTML?.(html);
+    }
+  };
 
   // Sync content updates imperatively if content changes from outside (e.g. backend polling)
   useEffect(() => {
@@ -687,18 +584,43 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
       )}
 
       {/* Live WYSIWYG Word Editor Wrapper */}
-      <div className="flex-1 h-full overflow-hidden relative">
-        <LiveEditor
-          ref={liveEditorRef}
-          initialContent={initialContent}
-          onUpdate={onUpdate}
-          reportType="general"
-          paperMode={true}
-          hideFullscreen={true} // Fullscreen handled by the outer Canvas container
-          reportSourceData={reportSourceData}
-          hideToolbarWhenCollapsed={!isMaximized}
-        />
+      <div className="flex-1 h-full overflow-hidden relative flex flex-col">
+        {/* Connection Top Bar / Header */}
+        <div className="px-4 py-2.5 border-b border-border-medium bg-surface-secondary/40 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-text-secondary">Documento de Texto</span>
+          </div>
+          <button
+            onClick={() => setIsBridgeOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
+            title="Conectar con otros Lienzos (Excel)"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            <span>Conectar Lienzo (Excel)</span>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-hidden relative">
+          <LiveEditor
+            ref={liveEditorRef}
+            initialContent={initialContent}
+            onUpdate={onUpdate}
+            reportType="general"
+            paperMode={true}
+            hideFullscreen={true} // Fullscreen handled by the outer Canvas container
+            reportSourceData={reportSourceData}
+            hideToolbarWhenCollapsed={!isMaximized}
+          />
+        </div>
       </div>
+
+      {isBridgeOpen && (
+        <CanvasWorkspaceBridge
+          onClose={() => setIsBridgeOpen(false)}
+          onImportTable={handleImportTable}
+          activeFileType="text"
+        />
+      )}
     </div>
   );
 };

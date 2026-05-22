@@ -108,6 +108,40 @@ router.post('/save', requireJwtAuth, async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        // ─── LÓGICA DE INTEGRALIDAD AVANZADA (SST 360) ───────────────────────────
+        const feedWorkerEvent = require('./feedWorkerHelper');
+        if (annualData) {
+            for (const monthKey of Object.keys(annualData)) {
+                const monthInfo = annualData[monthKey];
+                if (monthInfo && monthInfo.events && Array.isArray(monthInfo.events)) {
+                    for (const ev of monthInfo.events) {
+                        // Sincronizar si tiene un documento, workerId o id del trabajador asociado
+                        const docIdentificacion = ev.documento || ev.workerId || ev.id;
+                        if (docIdentificacion && String(docIdentificacion).trim().length > 3) {
+                            const descSiniestro = `[Siniestro ${ev.tipo}] Peligro: ${ev.peligro || 'N/A'}. Causa: ${ev.causaInmediata || 'N/A'}. Incap: ${ev.diasIncapacidad || 0} días.`;
+                            
+                            await feedWorkerEvent(
+                                userId,
+                                docIdentificacion,
+                                'atel',
+                                descSiniestro,
+                                -50, // Penalización de gamificación preventiva
+                                ev.id,
+                                {
+                                    tipo: ev.tipo === 'AT' ? 'Accidente de Trabajo' : (ev.tipo === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo Médico'),
+                                    diasIncapacidad: ev.diasIncapacidad || 0,
+                                    diasCargados: ev.diasCargados || 0,
+                                    parteCuerpo: ev.parteCuerpo || '',
+                                    peligro: ev.peligro || '',
+                                    consecuencia: ev.consecuencia || ''
+                                }
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         res.json({ success: true, data: result });
     } catch (error) {
         logger.error('[SGSST ATEL Data] Error saving data:', error);

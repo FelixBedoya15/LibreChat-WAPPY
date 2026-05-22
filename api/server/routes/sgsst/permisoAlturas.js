@@ -18,6 +18,75 @@ async function getActiveCompanyId(userId) {
     return active ? active._id : null;
 }
 
+// ─── Helper: Validar Aptitud Operativa (Bloqueador de Seguridad SST 360) ─────
+async function checkTrabajadoresAptitud(userId, companyId, trabajadoresList) {
+    if (!trabajadoresList || !Array.isArray(trabajadoresList) || trabajadoresList.length === 0) {
+        return { success: true };
+    }
+
+    const SgsstWorker = mongoose.models.SgsstWorker;
+    const ATELAnnualData = mongoose.models.ATELAnnualData;
+
+    if (!SgsstWorker || !ATELAnnualData) {
+        return { success: true }; // Fallback preventivo si no están cargados aún
+    }
+
+    for (const t of trabajadoresList) {
+        const cedula = String(t.cedula || t.documento || '').trim();
+        if (!cedula) continue;
+
+        // 1. Comprobación de Alertas Médicas Restrictivas (Hito 1)
+        const worker = await SgsstWorker.findOne({ user: userId, companyId, documento: cedula });
+        if (worker) {
+            const restrictivas = ['vertigo', 'epilepsia', 'lumbago', 'cardio', 'restriccion', 'inseguro'];
+            const alertsDetectadas = (worker.fitAlerts || []).filter(alert => 
+                restrictivas.some(r => String(alert).toLowerCase().includes(r))
+            );
+            if (alertsDetectadas.length > 0) {
+                return {
+                    success: false,
+                    message: `El trabajador ${worker.nombre} (CC: ${cedula}) no es APTO para labores de alto riesgo por restricciones médicas activas en su hoja de vida: [${alertsDetectadas.join(', ')}].`
+                };
+            }
+        }
+
+        // 2. Comprobación de Incapacidades Médicas Activas (Hito 4)
+        const currentYear = new Date().getFullYear();
+        const atelRecord = await ATELAnnualData.findOne({ user: userId, companyId, year: currentYear });
+        if (atelRecord && atelRecord.months) {
+            const today = new Date();
+            // Soporta Mongoose Map para months
+            const monthsMap = atelRecord.months;
+            const keys = monthsMap instanceof Map ? Array.from(monthsMap.keys()) : Object.keys(monthsMap);
+
+            for (const monthKey of keys) {
+                const monthInfo = monthsMap instanceof Map ? monthsMap.get(monthKey) : monthsMap[monthKey];
+                if (monthInfo && monthInfo.events && Array.isArray(monthInfo.events)) {
+                    for (const ev of monthInfo.events) {
+                        const evDoc = ev.documento || ev.workerId || ev.id;
+                        if (evDoc && String(evDoc).trim() === cedula) {
+                            if (ev.fecha && ev.diasIncapacidad > 0) {
+                                const fechaAccidente = new Date(ev.fecha);
+                                const fechaFinIncapacidad = new Date(fechaAccidente);
+                                fechaFinIncapacidad.setDate(fechaFinIncapacidad.getDate() + Number(ev.diasIncapacidad));
+                                
+                                if (today >= fechaAccidente && today <= fechaFinIncapacidad) {
+                                    return {
+                                        success: false,
+                                        message: `El trabajador ${t.nombre || 'seleccionado'} (CC: ${cedula}) tiene un accidente/incapacidad registrado el ${ev.fecha} con ${ev.diasIncapacidad} días de incapacidad activos. Se prohíbe su asignación en alturas.`
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return { success: true };
+}
+
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const PermisoAlturasDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -60,6 +129,12 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, video } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
+
+        const validation = await checkTrabajadoresAptitud(req.user.id, companyId, trabajadoresList);
+        if (!validation.success) {
+            return res.status(400).json({ error: validation.message });
+        }
+
         await PermisoAlturasData.findOneAndUpdate(
             { user: req.user.id, companyId: companyId },
             { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
@@ -75,6 +150,12 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
+        const companyId = await getActiveCompanyId(req.user.id);
+
+        const validation = await checkTrabajadoresAptitud(req.user.id, companyId, trabajadoresList);
+        if (!validation.success) {
+            return res.status(400).json({ error: validation.message });
+        }
 
         const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
         const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';

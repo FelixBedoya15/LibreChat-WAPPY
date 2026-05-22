@@ -12,13 +12,25 @@ import {
   ChevronRight,
   Target,
   LogOut,
-  Maximize2
+  Maximize2,
+  Table2,
+  BarChart3,
+  Link2
 } from 'lucide-react';
+import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
 
 interface Slide {
   title: string;
   bullets: string[];
   theme?: 'cobalt' | 'forest' | 'sunset' | 'charcoal';
+  layout?: 'title' | 'bullets' | 'split' | 'media' | 'table' | 'chart';
+  imageUrl?: string;
+  tableHtml?: string;
+  chartConfig?: {
+    type: 'bar' | 'line' | 'pie';
+    data: Array<{ label: string; val: number }>;
+    title: string;
+  };
 }
 
 interface CanvasSlidesEditorProps {
@@ -114,6 +126,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const [isPresenting, setIsPresenting] = useState<boolean>(false);
   const [showLaser, setShowLaser] = useState<boolean>(false);
   const [laserPos, setLaserPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
 
   // Load content
   useEffect(() => {
@@ -180,9 +193,571 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPresenting, slides.length]);
+
+  const handleImportTable = (html: string) => {
+    updateSlide(activeIndex, {
+      layout: 'table',
+      tableHtml: html
+    });
+  };
+
+  const handleImportChart = (config: any) => {
+    updateSlide(activeIndex, {
+      layout: 'chart',
+      chartConfig: config
+    });
+  };
+
+  const handleImportBullets = (sTitle: string, sBullets: string[]) => {
+    const newSlide: Slide = {
+      title: sTitle,
+      bullets: sBullets,
+      theme: 'cobalt',
+      layout: 'bullets'
+    };
+    const updated = [...slides, newSlide];
+    setSlides(updated);
+    setActiveIndex(updated.length - 1);
+    onUpdate(JSON.stringify(updated));
+  };
+
+  const renderSvgChart = (config: any) => {
+    if (!config || !config.data || config.data.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-48 border border-white/10 rounded-xl bg-black/20 text-white/50 text-xs">
+          <span>No hay datos de gráfico configurados.</span>
+        </div>
+      );
+    }
+
+    const { type, data, title } = config;
+    const width = 500;
+    const height = 240;
+    const paddingLeft = 50;
+    const paddingRight = 30;
+    const paddingTop = 40;
+    const paddingBottom = 40;
+
+    const chartWidth = width - paddingLeft - paddingRight;
+    const chartHeight = height - paddingTop - paddingBottom;
+
+    const values = data.map((d: any) => d.val);
+    const maxVal = Math.max(...values, 1);
+    const minVal = Math.min(...values, 0);
+    const range = maxVal - minVal;
+
+    if (type === 'pie') {
+      let total = values.reduce((sum: number, v: number) => sum + v, 0);
+      if (total === 0) total = 1;
+
+      let accumulatedAngle = 0;
+      const cx = width / 2 - 60;
+      const cy = height / 2 + 10;
+      const r = 70;
+
+      const colors = [
+        '#06b6d4', // cyan
+        '#10b981', // emerald
+        '#f43f5e', // rose
+        '#f59e0b', // amber
+        '#8b5cf6', // violet
+        '#3b82f6'  // blue
+      ];
+
+      return (
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full max-h-64 font-sans select-none">
+          <text x={width / 2} y={25} textAnchor="middle" fill="#ffffff" className="text-sm font-bold tracking-wide fill-white drop-shadow">
+            {title}
+          </text>
+          <g>
+            {data.map((d: any, idx: number) => {
+              const percentage = (d.val / total) * 100;
+              const angle = (d.val / total) * 360;
+              
+              const x1 = cx + r * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+              const y1 = cy + r * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+              accumulatedAngle += angle;
+              const x2 = cx + r * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+              const y2 = cy + r * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+              
+              const largeArcFlag = angle > 180 ? 1 : 0;
+              
+              const pathData = `
+                M ${cx} ${cy}
+                L ${x1} ${y1}
+                A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2}
+                Z
+              `;
+
+              const color = colors[idx % colors.length];
+
+              return (
+                <g key={idx} className="group cursor-pointer">
+                  <path
+                    d={pathData}
+                    fill={color}
+                    opacity="0.85"
+                    className="transition-all duration-300 hover:opacity-100 hover:scale-[1.03] origin-center"
+                    style={{ transformOrigin: `${cx}px ${cy}px` }}
+                  >
+                    <title>{`${d.label}: ${d.val} (${percentage.toFixed(1)}%)`}</title>
+                  </path>
+                </g>
+              );
+            })}
+          </g>
+          
+          <g transform={`translate(${width - 150}, ${paddingTop + 10})`}>
+            {data.slice(0, 6).map((d: any, idx: number) => {
+              const color = colors[idx % colors.length];
+              return (
+                <g key={idx} transform={`translate(0, ${idx * 22})`}>
+                  <rect width={12} height={12} rx={3} fill={color} />
+                  <text x={20} y={10} fill="#94a3b8" className="text-[10px] fill-slate-400 font-medium">
+                    {d.label.length > 15 ? d.label.slice(0, 15) + '..' : d.label} ({d.val})
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+      );
+    }
+
+    const getX = (index: number) => {
+      if (data.length <= 1) return paddingLeft + chartWidth / 2;
+      return paddingLeft + (index / (data.length - 1)) * chartWidth;
+    };
+
+    const getY = (val: number) => {
+      const ratio = range === 0 ? 0.5 : (val - minVal) / range;
+      return height - paddingBottom - ratio * chartHeight;
+    };
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full max-h-64 font-sans select-none">
+        <defs>
+          <linearGradient id="neonCyanGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.1" />
+          </linearGradient>
+          <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <text x={width / 2} y={25} textAnchor="middle" fill="#ffffff" className="text-sm font-bold tracking-wide fill-white drop-shadow">
+          {title}
+        </text>
+
+        {[0, 0.25, 0.5, 0.75, 1].map((r, idx) => {
+          const yVal = minVal + r * range;
+          const y = getY(yVal);
+          return (
+            <g key={idx}>
+              <line 
+                x1={paddingLeft} 
+                y1={y} 
+                x2={width - paddingRight} 
+                y2={y} 
+                stroke="#334155" 
+                strokeWidth="0.5" 
+                strokeDasharray="4 4" 
+              />
+              <text 
+                x={paddingLeft - 8} 
+                y={y + 3} 
+                textAnchor="end" 
+                fill="#64748b" 
+                className="text-[9px] fill-slate-500 font-semibold"
+              >
+                {yVal.toFixed(0)}
+              </text>
+            </g>
+          );
+        })}
+
+        <line 
+          x1={paddingLeft} 
+          y1={height - paddingBottom} 
+          x2={width - paddingRight} 
+          y2={height - paddingBottom} 
+          stroke="#475569" 
+          strokeWidth="1.5" 
+        />
+
+        {type === 'bar' && (
+          <g>
+            {data.map((d: any, idx: number) => {
+              const x = paddingLeft + (idx / data.length) * chartWidth + (chartWidth / data.length) * 0.15;
+              const barWidth = (chartWidth / data.length) * 0.7;
+              const y = getY(d.val);
+              const h = height - paddingBottom - y;
+
+              return (
+                <g key={idx} className="group cursor-pointer">
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={h}
+                    rx={Math.min(barWidth / 2, 4)}
+                    fill="url(#neonCyanGrad)"
+                    stroke="#22d3ee"
+                    strokeWidth="1.5"
+                    className="transition-all duration-300 hover:fill-cyan-400 hover:fill-opacity-35"
+                    filter="url(#neonGlow)"
+                  >
+                    <title>{`${d.label}: ${d.val}`}</title>
+                  </rect>
+                  
+                  <text
+                    x={x + barWidth / 2}
+                    y={height - paddingBottom + 16}
+                    textAnchor="middle"
+                    fill="#94a3b8"
+                    className="text-[9px] fill-slate-400 font-semibold truncate"
+                    style={{ maxWidth: barWidth }}
+                  >
+                    {d.label.length > 10 ? d.label.slice(0, 9) + '..' : d.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+
+        {type === 'line' && (
+          <g>
+            {(() => {
+              let pathD = '';
+              data.forEach((d: any, idx: number) => {
+                const x = getX(idx);
+                const y = getY(d.val);
+                if (idx === 0) pathD += `M ${x} ${y}`;
+                else pathD += ` L ${x} ${y}`;
+              });
+
+              return (
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3"
+                  filter="url(#neonGlow)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              );
+            })()}
+
+            {(() => {
+              if (data.length === 0) return null;
+              let pathD = `M ${getX(0)} ${height - paddingBottom}`;
+              data.forEach((d: any, idx: number) => {
+                pathD += ` L ${getX(idx)} ${getY(d.val)}`;
+              });
+              pathD += ` L ${getX(data.length - 1)} ${height - paddingBottom} Z`;
+
+              return (
+                <path
+                  d={pathD}
+                  fill="url(#neonCyanGrad)"
+                  opacity="0.25"
+                />
+              );
+            })()}
+
+            {data.map((d: any, idx: number) => {
+              const x = getX(idx);
+              const y = getY(d.val);
+
+              return (
+                <g key={idx} className="group cursor-pointer">
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={4.5}
+                    fill="#ffffff"
+                    stroke="#10b981"
+                    strokeWidth="2.5"
+                    className="transition-all duration-200 group-hover:r-6 cursor-pointer"
+                  >
+                    <title>{`${d.label}: ${d.val}`}</title>
+                  </circle>
+
+                  <text
+                    x={x}
+                    y={height - paddingBottom + 16}
+                    textAnchor="middle"
+                    fill="#94a3b8"
+                    className="text-[9px] fill-slate-400 font-semibold"
+                  >
+                    {d.label.length > 10 ? d.label.slice(0, 9) + '..' : d.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+      </svg>
+    );
+  };
+
+  const renderSlideContent = (slide: Slide, isPresentationMode = false) => {
+    const layout = slide.layout || 'bullets';
+    const curTheme = THEMES[slide.theme || 'cobalt'];
+
+    switch (layout) {
+      case 'title':
+        return (
+          <div className="flex-1 flex flex-col justify-center items-center text-center my-auto p-4 animate-in fade-in duration-300">
+            {isPresentationMode ? (
+              <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-tight max-w-4xl drop-shadow">
+                {slide.title}
+              </h1>
+            ) : (
+              <input
+                type="text"
+                value={slide.title}
+                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                className={`w-full bg-transparent border-none outline-none font-extrabold text-4xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                placeholder="Introduce el título de portada..."
+              />
+            )}
+            <div className="h-1 w-24 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full mt-6 opacity-80" />
+          </div>
+        );
+
+      case 'split':
+        return (
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-center my-auto w-full p-2 md:p-4 animate-in fade-in duration-300">
+            <div className="relative group rounded-2xl overflow-hidden aspect-[4/3] border border-white/10 shadow-lg bg-black/25 flex items-center justify-center">
+              {slide.imageUrl ? (
+                <img 
+                  src={slide.imageUrl} 
+                  alt={slide.title} 
+                  className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105" 
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1590402449133-79848541a540?q=80&w=600&auto=format&fit=crop';
+                  }}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-white/30 text-xs gap-2 p-6 text-center">
+                  <Layout className="h-10 w-10 text-white/20 animate-pulse" />
+                  <span>Sin Imagen Asignada.</span>
+                  {!isPresentationMode && <span className="text-[10px] text-teal-400">Ingresa una URL en Opciones.</span>}
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+            </div>
+
+            <div className="space-y-4">
+              {isPresentationMode ? (
+                <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-sm">
+                  {slide.title}
+                </h2>
+              ) : (
+                <input
+                  type="text"
+                  value={slide.title}
+                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                  className={`w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                  placeholder="Introduce el título..."
+                />
+              )}
+              
+              {isPresentationMode ? (
+                <ul className="space-y-3 text-lg md:text-2xl font-medium text-slate-200/90 pl-5 list-disc marker:text-emerald-400">
+                  {slide.bullets.map((bullet, bIdx) => (
+                    <li key={bIdx} className="leading-relaxed hover:text-white transition-colors">{bullet}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="max-h-[12rem] overflow-y-auto pr-1">
+                  <ul className={`list-disc pl-5 space-y-2 text-base md:text-lg font-medium ${curTheme.text}/90`}>
+                    {slide.bullets.map((bullet, bIdx) => (
+                      <li key={bIdx}>
+                        <input
+                          type="text"
+                          value={bullet}
+                          onChange={(e) => updateBullet(bIdx, e.target.value)}
+                          className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                          placeholder="Escribe el punto clave..."
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'media':
+        return (
+          <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12 bg-cover bg-center rounded-2xl overflow-hidden animate-in fade-in duration-300" style={{
+            backgroundImage: slide.imageUrl ? `url("${slide.imageUrl}")` : 'url("https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1200&auto=format&fit=crop")',
+          }}>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent pointer-events-none" />
+
+            <div className="relative z-10 w-full max-w-2xl bg-slate-950/40 border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-md shadow-2xl space-y-3.5 animate-in slide-in-from-bottom-6 duration-300">
+              {isPresentationMode ? (
+                <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow">
+                  {slide.title}
+                </h2>
+              ) : (
+                <input
+                  type="text"
+                  value={slide.title}
+                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                  className="w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl text-white placeholder-white/40 focus:border-b border-white/20 pb-1"
+                  placeholder="Introduce el título..."
+                />
+              )}
+              
+              {isPresentationMode ? (
+                <ul className="space-y-2 text-base md:text-xl font-medium text-slate-200/90 pl-5 list-disc marker:text-teal-400">
+                  {slide.bullets.map((bullet, bIdx) => (
+                    <li key={bIdx} className="leading-relaxed hover:text-white transition-colors">{bullet}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="max-h-[8rem] overflow-y-auto pr-1">
+                  <ul className="list-disc pl-5 space-y-1.5 text-sm md:text-base font-medium text-white/90">
+                    {slide.bullets.map((bullet, bIdx) => (
+                      <li key={bIdx}>
+                        <input
+                          type="text"
+                          value={bullet}
+                          onChange={(e) => updateBullet(bIdx, e.target.value)}
+                          className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                          placeholder="Escribe el punto clave..."
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'table':
+        return (
+          <div className="flex-1 flex flex-col justify-center my-auto w-full p-2 md:p-6 space-y-4 animate-in fade-in duration-300">
+            {isPresentationMode ? (
+              <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm">
+                {slide.title}
+              </h2>
+            ) : (
+              <input
+                type="text"
+                value={slide.title}
+                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                placeholder="Introduce el título de la tabla..."
+              />
+            )}
+
+            {slide.tableHtml ? (
+              <div 
+                className="max-h-[16rem] overflow-y-auto border border-white/10 rounded-xl shadow-lg bg-black/25 p-4 scrollbar-thin animate-in zoom-in-95 duration-300"
+                dangerouslySetInnerHTML={{ __html: slide.tableHtml }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48 border border-dashed border-white/20 rounded-xl bg-black/10 text-white/45 text-xs text-center gap-2 p-6">
+                <Table2 className="h-10 w-10 text-white/20 animate-pulse" />
+                <span>No hay celdas de tabla importadas.</span>
+                {!isPresentationMode && <span className="text-[10px] text-teal-400 font-semibold">Usa el botón "Conectar Lienzos" para traer datos de Excel.</span>}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'chart':
+        return (
+          <div className="flex-1 flex flex-col justify-center my-auto w-full p-2 md:p-6 space-y-4 animate-in fade-in duration-300">
+            {isPresentationMode ? (
+              <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm">
+                {slide.title}
+              </h2>
+            ) : (
+              <input
+                type="text"
+                value={slide.title}
+                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                placeholder="Introduce el título del gráfico..."
+              />
+            )}
+
+            <div className="flex-1 flex items-center justify-center p-4 rounded-xl bg-black/20 border border-white/10 shadow-lg relative min-h-[220px]">
+              {slide.chartConfig ? (
+                renderSvgChart(slide.chartConfig)
+              ) : (
+                <div className="flex flex-col items-center justify-center text-white/45 text-xs text-center gap-2 p-6">
+                  <BarChart3 className="h-10 w-10 text-white/20 animate-pulse" />
+                  <span>No hay datos de gráfico configurados.</span>
+                  {!isPresentationMode && <span className="text-[10px] text-teal-400 font-semibold">Usa el botón "Conectar Lienzos" para importar un gráfico de Excel.</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'bullets':
+      default:
+        return (
+          <div className="my-auto space-y-6 z-10 animate-in fade-in duration-350">
+            {isPresentationMode ? (
+              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-8 drop-shadow-sm">
+                {slide.title}
+              </h1>
+            ) : (
+              <input
+                type="text"
+                value={slide.title}
+                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                placeholder="Introduce el título de la diapositiva..."
+              />
+            )}
+
+            {isPresentationMode ? (
+              <ul className="space-y-6 text-xl md:text-3xl font-medium text-slate-200/90 pl-6 list-disc marker:text-emerald-400">
+                {slide.bullets.map((bullet, bIdx) => (
+                  <li key={bIdx} className="leading-relaxed hover:text-white transition-colors duration-300">
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="max-h-[16rem] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                <ul className={`list-disc pl-6 space-y-3 text-lg md:text-xl font-medium ${curTheme.text}/90`}>
+                  {slide.bullets.map((bullet, bIdx) => (
+                    <li key={bIdx}>
+                      <input
+                        type="text"
+                        value={bullet}
+                        onChange={(e) => updateBullet(bIdx, e.target.value)}
+                        className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                        placeholder="Escribe el punto clave..."
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+    }
+  };
 
   const updateSlide = (idx: number, updatedFields: Partial<Slide>) => {
     const updated = slides.map((slide, sIdx) => 
@@ -364,18 +939,9 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           </span>
         </div>
 
-        {/* Central Core Content (Fluid text animation) */}
-        <div className="my-auto max-w-5xl mx-auto w-full z-10 py-8 animate-in slide-in-from-bottom-8 fade-in duration-500">
-          <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-8 drop-shadow-sm">
-            {activeSlide.title}
-          </h1>
-          <ul className="space-y-6 text-xl md:text-3xl font-medium text-slate-200/90 pl-6 list-disc marker:text-emerald-400">
-            {activeSlide.bullets.map((bullet, bIdx) => (
-              <li key={bIdx} className="leading-relaxed hover:text-white transition-colors duration-300">
-                {bullet}
-              </li>
-            ))}
-          </ul>
+        {/* Central Core Content (Fluid text animation with transition layout) */}
+        <div className="my-auto max-w-5xl mx-auto w-full z-10 py-8 flex flex-col relative h-[65vh] justify-center">
+          {renderSlideContent(activeSlide, true)}
         </div>
 
         {/* Floating Bottom Navigation Bar (Glassmorphism + Progress bar) */}
@@ -455,13 +1021,23 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
       <div className="flex-1 flex flex-col h-full bg-surface-secondary/40 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         <div className="flex items-center justify-between px-1 shrink-0">
           <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider">Diapositivas</div>
-          <button
-            onClick={() => setIsPresenting(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md shadow-teal-600/10 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border border-teal-500/20"
-          >
-            <MonitorPlay className="h-3.5 w-3.5" />
-            <span>Presentar</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setIsBridgeOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-extrabold border border-teal-500/20 bg-teal-500/10 text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer"
+              title="Conectar Lienzos"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Conectar</span>
+            </button>
+            <button
+              onClick={() => setIsPresenting(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md shadow-teal-600/10 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border border-teal-500/20"
+            >
+              <MonitorPlay className="h-3.5 w-3.5" />
+              <span>Presentar</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 max-w-md mx-auto w-full pb-8">
@@ -556,6 +1132,21 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             </button>
 
             <button
+              onClick={() => setIsBridgeOpen(true)}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-teal-500/30 hover:bg-teal-50/10 text-teal-600 w-full"
+              aria-label="Conectar Lienzos"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center text-teal-600">
+                <Link2 className="h-4 w-4 text-teal-600" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-teal-600">
+                  Conectar Lienzos
+                </span>
+              </div>
+            </button>
+
+            <button
               onClick={addSlide}
               className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
               aria-label="Nueva Diapositiva"
@@ -603,32 +1194,8 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <span className="text-xs font-mono font-bold tracking-widest text-white/50 uppercase">{title}</span>
               </div>
               
-              <div className="my-auto space-y-6 z-10">
-                {/* Inline Editable Title */}
-                <input
-                  type="text"
-                  value={activeSlide.title}
-                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                  className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${activeTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
-                  placeholder="Introduce el título de la diapositiva..."
-                />
-
-                {/* Bullets presentation list */}
-                <div className="max-h-[16rem] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                  <ul className={`list-disc pl-6 space-y-3 text-lg md:text-xl font-medium ${activeTheme.text}/90`}>
-                    {activeSlide.bullets.map((bullet, bIdx) => (
-                      <li key={bIdx}>
-                        <input
-                          type="text"
-                          value={bullet}
-                          onChange={(e) => updateBullet(bIdx, e.target.value)}
-                          className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
-                          placeholder="Escribe el punto clave..."
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="my-auto w-full flex-1 flex flex-col justify-center z-10 relative overflow-hidden">
+                {renderSlideContent(activeSlide, false)}
               </div>
 
               <div className="flex justify-between items-center text-xs font-semibold text-white/40 z-10 border-t border-white/5 pt-4">
@@ -659,38 +1226,77 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
                 {showSettings && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-primary border border-border-medium rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
-                        <button
-                          onClick={addBullet}
-                          className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline"
-                        >
-                          <Plus className="h-3 w-3" />
-                          <span>Agregar punto</span>
-                        </button>
-                      </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                        {activeSlide.bullets.map((bullet, bIdx) => (
-                          <div key={bIdx} className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
-                            <input
-                              type="text"
-                              value={bullet}
-                              onChange={(e) => updateBullet(bIdx, e.target.value)}
-                              className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-teal-500 transition-colors"
-                            />
+                    <div className="space-y-4">
+                      {/* Slide Layout Selector */}
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-text-secondary uppercase block">Diseño de Diapositiva (Layout)</span>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['title', 'bullets', 'split', 'media', 'table', 'chart'] as const).map((l) => (
                             <button
-                              onClick={() => deleteBullet(bIdx)}
-                              disabled={activeSlide.bullets.length <= 1}
-                              className="p-2 text-text-tertiary hover:text-red-500 disabled:opacity-40 transition-colors"
-                              title="Eliminar punto"
+                              key={l}
+                              onClick={() => updateSlide(activeIndex, { layout: l })}
+                              className={`py-1.5 px-1 text-[10px] font-bold border rounded-xl capitalize transition-all ${
+                                (activeSlide.layout || 'bullets') === l
+                                  ? 'border-teal-500 bg-teal-500/5 ring-1 ring-teal-500/20 text-teal-600'
+                                  : 'border-border-medium hover:bg-surface-hover text-text-secondary'
+                              }`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              {l === 'title' ? 'Título' : l === 'bullets' ? 'Viñetas' : l === 'split' ? 'Split' : l === 'media' ? 'Imagen' : l === 'table' ? 'Tabla' : 'Gráfico'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Image URL Input if split or media layout */}
+                      {((activeSlide.layout === 'split' || activeSlide.layout === 'media') && (
+                        <div className="space-y-1.5 animate-in fade-in duration-200">
+                          <label className="block text-[10px] font-bold text-text-secondary uppercase">URL de Imagen de Fondo/Lateral</label>
+                          <input
+                            type="text"
+                            value={activeSlide.imageUrl || ''}
+                            onChange={(e) => updateSlide(activeIndex, { imageUrl: e.target.value })}
+                            placeholder="https://ejemplo.com/imagen.png"
+                            className="w-full h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-teal-500 transition-colors"
+                          />
+                        </div>
+                      ))}
+
+                      {/* Default bullets configuration list */}
+                      {(activeSlide.layout === 'bullets' || activeSlide.layout === 'split' || activeSlide.layout === 'media' || !activeSlide.layout) && (
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
+                            <button
+                              onClick={addBullet}
+                              className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>Agregar punto</span>
                             </button>
                           </div>
-                        ))}
-                      </div>
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                            {activeSlide.bullets.map((bullet, bIdx) => (
+                              <div key={bIdx} className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
+                                <input
+                                  type="text"
+                                  value={bullet}
+                                  onChange={(e) => updateBullet(bIdx, e.target.value)}
+                                  className="flex-1 h-9 px-3 text-xs bg-surface-secondary border border-border-medium rounded-lg outline-none focus:border-teal-500 transition-colors"
+                                />
+                                <button
+                                  onClick={() => deleteBullet(bIdx)}
+                                  disabled={activeSlide.bullets.length <= 1}
+                                  className="p-2 text-text-tertiary hover:text-red-500 disabled:opacity-40 transition-colors"
+                                  title="Eliminar punto"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">
@@ -746,6 +1352,15 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         )}
       </div>
       {renderPresentationPortal()}
+      {isBridgeOpen && (
+        <CanvasWorkspaceBridge
+          onClose={() => setIsBridgeOpen(false)}
+          onImportTable={handleImportTable}
+          onImportChart={handleImportChart}
+          onImportBullets={handleImportBullets}
+          activeFileType="presentation"
+        />
+      )}
     </div>
   );
 };

@@ -346,12 +346,25 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
             fullReport += buildSignatureSection(loadedCompanyInfo);
         }
 
-        // ── Auto-Feed Bio-Individual (Hoja de Vida) ──
+        // ── Auto-Feed Bio-Individual Enriquecido (Hoja de Vida & SST 360) ──
         if (trabajadoresList && trabajadoresList.length > 0) {
             const shortDesc = formData.actividadGlobal ? formData.actividadGlobal.substring(0, 80) + '...' : 'Reporte de Acto/Condición';
+            const esActoCritico = formData.certificacionAlturas === 'Sí';
+            
             for (const t of trabajadoresList) {
                 if (t.cedula) {
-                    await feedWorkerEvent(req.user.id || req.user, t.cedula, 'actos', shortDesc, 50, result.conversationId || 'generate');
+                    await feedWorkerEvent(
+                        req.user.id || req.user,
+                        t.cedula,
+                        'actos',
+                        `[Acto Inseguro Observado] ${shortDesc}`,
+                        -100, // Penalización en el historial de percepción
+                        result.conversationId || 'generate',
+                        {
+                            esObservado: true,
+                            esCritico: esActoCritico
+                        }
+                    );
                 }
             }
         }
