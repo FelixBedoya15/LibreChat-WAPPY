@@ -17,7 +17,7 @@ import {
   FileMapContext,
 } from '~/Providers';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
-import { TermsAndConditionsModal } from '~/components/ui';
+import { TermsAndConditionsModal, RequiredInfoModal } from '~/components/ui';
 import { Nav, MobileNav } from '~/components/Nav';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
@@ -181,6 +181,9 @@ export default function Root() {
               title={localize('com_ui_terms_title')}
               modalContent={localize('com_ui_terms_content')}
             />
+          )}
+          {isAuthenticated && user && !user.phoneNumber && (
+            <RequiredInfoModal />
           )}
           <TenshiChat />
         </AssistantsMapContext.Provider>

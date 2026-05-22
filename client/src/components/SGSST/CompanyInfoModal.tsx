@@ -712,7 +712,12 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         {!isFormValid && missingFields.length > 0 && (
                             <div className="mt-1 text-xs text-red-500">
                                 <span className="font-semibold">Faltan:</span>{' '}
-                                {missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}
+                                <span className="hidden md:inline">
+                                    {missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}
+                                </span>
+                                <span className="inline md:hidden font-medium bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 px-2 py-0.5 rounded-md">
+                                    {missingFields.length} campos obligatorios
+                                </span>
                             </div>
                         )}
                     </div>
