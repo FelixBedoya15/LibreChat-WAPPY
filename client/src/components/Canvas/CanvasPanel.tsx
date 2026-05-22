@@ -508,6 +508,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         });
         const data = await res.json();
         if (data.success) {
+          muteAutoSave(2000);
+          if (data.content !== undefined) {
+            setContent(data.content);
+            contentRef.current = data.content;
+          }
           setVersion(data.version);
           setHistory(data.history || []);
           lastUpdatedAtRef.current = data.updatedAt;
@@ -983,6 +988,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         toggleOpen={() => setIsReportHistoryOpen((h) => !h)}
         historyEndpoint="/api/sgsst/canvas/history"
         tags={[]}
+        refreshTrigger={version}
       />
 
       <div className="relative flex flex-1 flex-col overflow-hidden">

@@ -52,23 +52,23 @@ function extractExistingHeader(html) {
   if (!html || !hasHeader(html)) {
     return null;
   }
-  
+
   let tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
   if (!tableEndMatch) {
     tableEndMatch = html.match(/<\/table>/i);
   }
   if (!tableEndMatch) return null;
-  
+
   const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
   if (headerStartIdx === -1) {
     const tableStartIdx = html.indexOf('<div style="overflow-x: auto;');
     if (tableStartIdx === -1) return null;
-    
+
     const endIdx = html.indexOf(tableEndMatch[0], tableStartIdx);
     if (endIdx === -1) return null;
     return html.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
   }
-  
+
   const endIdx = html.indexOf(tableEndMatch[0], headerStartIdx);
   if (endIdx === -1) return null;
   return html.substring(headerStartIdx, endIdx + tableEndMatch[0].length);
@@ -87,7 +87,7 @@ function extractExistingSignature(html) {
     '<div style="margin-top: 50px;',
     '<div style="margin-top:50px;',
     '<div style="page-break-inside:avoid;',
-    '<div class="signature-placeholder'
+    '<div class="signature-placeholder',
   ];
 
   for (const variation of variations) {
@@ -131,14 +131,16 @@ async function processTextDocument(content, fileType, title, userId, existingCon
 
   let companyInfo = null;
   if ((!currentHasHeader && !headerHtml) || (!currentHasSignature && !signatureHtml)) {
-    companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
   }
 
   if (!currentHasHeader) {
     if (!headerHtml) {
       headerHtml = buildStandardHeader({
         title: title || 'DOCUMENTO DE TRABAJO',
-        companyInfo
+        companyInfo,
       });
     }
     stringContent = headerHtml + '\n\n' + stringContent;
@@ -170,22 +172,22 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     const activeConvos = await Conversation.find({
       user: userId,
       $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-      $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }]
-    }).select('conversationId').lean();
-    const activeConvoIds = activeConvos.map(c => c.conversationId);
+      $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+    })
+      .select('conversationId')
+      .lean();
+    const activeConvoIds = activeConvos.map((c) => c.conversationId);
 
     const query = companyId ? { companyId } : { user: userId };
     query.conversationId = { $in: activeConvoIds };
 
-    const sessions = await CanvasSession.find(query)
-      .sort({ updatedAt: -1 })
-      .limit(50);
+    const sessions = await CanvasSession.find(query).sort({ updatedAt: -1 }).limit(50);
 
     const conversations = sessions.map((session) => ({
       conversationId: session.conversationId,
       title: session.title || 'Archivo sin título',
       updatedAt: session.updatedAt,
-      fileType: session.fileType
+      fileType: session.fileType,
     }));
 
     res.json({ conversations });
@@ -252,11 +254,12 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 
     // --- Dynamic Title Extraction ---
     if (fileType === 'text' && typeof content === 'string') {
-      const isDefaultTitle = (t) => !t || 
-                                   t === 'Archivo sin título' || 
-                                   t === 'Archivo de Canvas sin título' || 
-                                   t === 'DOCUMENTO DE TRABAJO' || 
-                                   t.trim() === '';
+      const isDefaultTitle = (t) =>
+        !t ||
+        t === 'Archivo sin título' ||
+        t === 'Archivo de Canvas sin título' ||
+        t === 'DOCUMENTO DE TRABAJO' ||
+        t.trim() === '';
       if (isDefaultTitle(finalTitle)) {
         const match = content.match(/<(h[12])\b[^>]*>(.*?)<\/\1>/i);
         if (match) {
@@ -265,7 +268,10 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
             finalTitle = extractedTitle;
             finalContent = content.replace(match[0], '');
             // Clean up leading spaces or empty tags
-            finalContent = finalContent.replace(/^\s*(?:<p>\s*<br\s*\/?>\s*<\/p>|<p>\s*<\/p>|\s)+/i, '');
+            finalContent = finalContent.replace(
+              /^\s*(?:<p>\s*<br\s*\/?>\s*<\/p>|<p>\s*<\/p>|\s)+/i,
+              '',
+            );
           }
         }
       }
@@ -275,7 +281,13 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
     let session = await CanvasSession.findOne({ conversationId });
     const existingContent = session ? session.content : null;
 
-    const processedContent = await processTextDocument(finalContent, fileType, finalTitle, userId, existingContent);
+    const processedContent = await processTextDocument(
+      finalContent,
+      fileType,
+      finalTitle,
+      userId,
+      existingContent,
+    );
 
     if (!session) {
       // Crear nueva sesión
@@ -287,23 +299,26 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         fileType,
         content: processedContent ?? '',
         version: 1,
-        history: [{
-          version: 1,
-          content: processedContent ?? '',
-          title: finalTitle || 'Archivo sin título',
-          updatedAt: new Date()
-        }]
+        history: [
+          {
+            version: 1,
+            content: processedContent ?? '',
+            title: finalTitle || 'Archivo sin título',
+            updatedAt: new Date(),
+          },
+        ],
       });
       await session.save();
     } else {
       // Comprobar si el contenido realmente cambió
       const contentChanged = JSON.stringify(session.content) !== JSON.stringify(processedContent);
-      
+
       // Smart title checking: avoid overwriting a custom title with the default "Archivo sin título" placeholder
-      const isDefaultTitle = (t) => !t || t === 'Archivo sin título' || t === 'Archivo de Canvas sin título';
+      const isDefaultTitle = (t) =>
+        !t || t === 'Archivo sin título' || t === 'Archivo de Canvas sin título';
       const existingIsDefault = isDefaultTitle(session.title);
       const newIsDefault = isDefaultTitle(finalTitle);
- 
+
       let savedTitle = finalTitle || session.title;
       if (newIsDefault && !existingIsDefault) {
         savedTitle = session.title;
@@ -313,13 +328,13 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 
       if (contentChanged || titleChanged) {
         const nextVersion = session.version + 1;
-        
+
         // Agregar al historial limitando a los últimos 20 cambios
         const newHistoryItem = {
           version: nextVersion,
           content: processedContent ?? session.content,
           title: savedTitle,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
@@ -330,7 +345,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         if (companyId) session.companyId = companyId; // Sync active company ID
         session.version = nextVersion;
         session.history = updatedHistory;
-        
+
         await session.save();
       }
     }
@@ -344,6 +359,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       success: true,
       version: session.version,
       title: session.title,
+      content: session.content,
       fileType: session.fileType,
       history: session.history || [],
       updatedAt: session.updatedAt,
@@ -375,6 +391,48 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/sgsst/canvas/:conversationId/rename
+ * Renombra el título del documento Canvas principal y el de su última versión en el historial.
+ */
+router.post('/:conversationId/rename', requireJwtAuth, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { title } = req.body;
+
+    if (!title || title.trim() === '') {
+      return res.status(400).json({ error: 'El título es requerido' });
+    }
+
+    let session = await CanvasSession.findOne({ conversationId });
+    if (!session) {
+      return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
+    }
+
+    session.title = title;
+
+    // Si hay historial, actualizamos el título de la última versión
+    if (session.history && session.history.length > 0) {
+      const lastIndex = session.history.length - 1;
+      session.history[lastIndex].title = title;
+    }
+
+    session.markModified('history');
+    await session.save();
+
+    // Sincronizar de vuelta a LiveEditor si es un documento de texto
+    if (session.fileType === 'text') {
+      const userId = req.user.id;
+      await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+    }
+
+    res.json({ success: true, title: session.title, history: session.history });
+  } catch (error) {
+    logger.error('[Canvas Rename] Error:', error);
+    res.status(500).json({ error: 'Error al renombrar el lienzo Canvas' });
+  }
+});
+
+/**
  * POST /api/sgsst/canvas/:conversationId/versions/:version/rename
  * Renombra una versión específica en el historial de canvas de la conversación.
  */
@@ -390,7 +448,7 @@ router.post('/:conversationId/versions/:version/rename', requireJwtAuth, async (
     }
 
     let updated = false;
-    session.history = session.history.map(item => {
+    session.history = session.history.map((item) => {
       if (item.version === versionNum) {
         item.title = title;
         updated = true;
@@ -427,7 +485,7 @@ router.delete('/:conversationId/versions/:version', requireJwtAuth, async (req, 
       return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
     }
 
-    session.history = session.history.filter(item => item.version !== versionNum);
+    session.history = session.history.filter((item) => item.version !== versionNum);
     session.markModified('history');
     await session.save();
 
@@ -451,7 +509,9 @@ router.post('/app-builder/generate', requireJwtAuth, async (req, res) => {
     // Load active company context if available
     let companyContext = '';
     try {
-      const ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }) || await CompanyInfo.findOne({ user: req.user.id });
+      const ci =
+        (await CompanyInfo.findOne({ user: req.user.id, isActive: true })) ||
+        (await CompanyInfo.findOne({ user: req.user.id }));
       if (ci && ci.companyName) {
         companyContext = buildCompanyContextString(ci);
       }
@@ -462,7 +522,9 @@ router.post('/app-builder/generate', requireJwtAuth, async (req, res) => {
     let promptText = '';
 
     if (taskType === 'chat') {
-      const prevMsgs = (history || []).map(m => `${m.sender === 'user' ? 'Usuario' : 'Agente'}: ${m.text}`).join('\n');
+      const prevMsgs = (history || [])
+        .map((m) => `${m.sender === 'user' ? 'Usuario' : 'Agente'}: ${m.text}`)
+        .join('\n');
       promptText = `Eres un agente de Inteligencia Artificial especializado creado a la medida en el ecosistema WAPPY.
       
 ## PERSONALIDAD / INSTRUCCIONES DEL SISTEMA
