@@ -33,6 +33,7 @@ interface LiveEditorProps {
 
 export interface LiveEditorHandle {
     setHTML: (html: string) => void;
+    insertHTML: (html: string) => void;
 }
 
 const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, onHistory, reportType = 'general', reportSourceData, paperMode = true, hideFullscreen = false, hideToolbarWhenCollapsed = false }, ref) => {
@@ -404,7 +405,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         }
     }, [namedSignatures, content]);
 
-    // Expose setHTML() to parent via ref (imperative handle)
+    // Expose setHTML() and insertHTML() to parent via ref (imperative handle)
     useImperativeHandle(ref, () => ({
         setHTML: (html: string) => {
             if (editorRef.current) {
@@ -412,6 +413,48 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 editorRef.current.innerHTML = safeHtml;
                 setContent(safeHtml);
             }
+        },
+        insertHTML: (html: string) => {
+            if (!editorRef.current) return;
+            editorRef.current.focus();
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                // check if selection is actually inside our editor
+                if (editorRef.current.contains(range.commonAncestorContainer)) {
+                    range.deleteContents();
+                    
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    const frag = document.createDocumentFragment();
+                    let node;
+                    let lastNode;
+                    while ((node = tempDiv.firstChild)) {
+                        lastNode = frag.appendChild(node);
+                    }
+                    range.insertNode(frag);
+                    
+                    if (lastNode) {
+                        const newRange = document.createRange();
+                        newRange.setStartAfter(lastNode);
+                        newRange.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(newRange);
+                    }
+                    
+                    // Trigger onUpdate immediately
+                    const newContent = editorRef.current.innerHTML;
+                    setContent(newContent);
+                    onUpdate(newContent);
+                    return;
+                }
+            }
+            // Fallback: append if selection not inside editor
+            editorRef.current.innerHTML += html;
+            const newContent = editorRef.current.innerHTML;
+            setContent(newContent);
+            onUpdate(newContent);
         }
     }));
 

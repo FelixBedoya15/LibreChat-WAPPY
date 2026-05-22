@@ -255,8 +255,37 @@ const BIOTAG_RECOMENDACIONES = {
   'HTA': 'CAP-06', 'Hipoacusia': 'CAP-03',
 };
 
+const CONTROLES_ADMIN_KEYWORDS = {
+  'CAP-01': [/induccion/i, /reinduccion/i, /acogida/i],
+  'CAP-02': [/gtc 45/i, /gtc-45/i, /identificacion de peligros/i, /evaluacion de riesgos/i, /matriz de peligros/i, /valoracion.*riesgo/i],
+  'CAP-03': [/epp/i, /elementos de proteccion/i, /uso de epp/i, /mantenimiento de epp/i, /casco/i, /gafas/i, /botas/i, /guantes/i, /mascarilla/i, /respirador/i],
+  'CAP-04': [/primeros auxilios/i, /auxilio/i, /rcp/i, /reanimacion/i, /vendajes/i, /atencion basica/i],
+  'CAP-05': [/plan de emergencias/i, /evacuacion/i, /simulacro/i, /punto de encuentro/i, /brigada/i],
+  'CAP-06': [/ergonom/i, /pausa/i, /higiene postural/i, /postura/i, /levantamiento de carga/i, /fisiotera/i, /manipulacion manual/i, /lumbalgia/i, /biomecanic/i, /sobreesfuerzo/i],
+  'CAP-07': [/altura/i, /arnes/i, /caida/i, /linea de vida/i, /mosqueton/i, /andamio/i],
+  'CAP-08': [/coordinador.*altura/i, /coordinador de trabajo seguro/i],
+  'CAP-09': [/confinado/i, /gases/i, /atmosfera/i, /monoxido/i],
+  'CAP-10': [/psicosocial/i, /estres/i, /clima laboral/i, /burnout/i, /acoso/i, /salud mental/i, /ansiedad/i],
+  'CAP-11': [/vial/i, /pesv/i, /transito/i, /conduccion/i, /manejo defensivo/i, /vias/i, /conductor/i],
+  'CAP-12': [/reporte de actos/i, /acto inseguro/i, /condicion insegura/i, /reporte.*condicion/i],
+  'CAP-13': [/quimic/i, /sustancia/i, /ghs/i, /rotulado/i, /ficha de seguridad/i, /msds/i, /solvente/i, /toxico/i, /reactivo/i],
+  'CAP-14': [/herramienta/i, /maquina/i, /retie/i, /riesgo electrico/i, /taladro/i, /esmeril/i, /pulidora/i, /uso.*seguro/i],
+  'CAP-15': [/incendio/i, /extintor/i, /fuego/i, /combate/i, /prevencion de incendios/i]
+};
+
 function calcularTemasAplicables(worker, perfilCargo) {
   const capMap = {};
+
+  // Helper de normalización
+  const normalizeString = (str) => {
+    return str
+      ? str
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+      : "";
+  };
 
   // 1. Obligatorios para todos
   ['CAP-01', 'CAP-02', 'CAP-05', 'CAP-12'].forEach(id => {
@@ -277,30 +306,67 @@ function calcularTemasAplicables(worker, perfilCargo) {
   }
 
   // 3. Por BioTags Oráculo H1 — recomendaciones
-  (worker.bioTagsIA || []).forEach(tag => {
-    const capId = BIOTAG_RECOMENDACIONES[tag];
-    if (capId && !capMap[capId]) {
-      capMap[capId] = { aplica: true, razon: `Oráculo H1: ${tag} detectado`, excluida: false, prioridad: 'Alta' };
+  const activeTags = (worker.bioTagsIA || []).map(tag => normalizeString(tag));
+  
+  Object.keys(BIOTAG_RECOMENDACIONES).forEach(rawKey => {
+    const normKey = normalizeString(rawKey);
+    const capId = BIOTAG_RECOMENDACIONES[rawKey];
+    if (activeTags.includes(normKey) && !capMap[capId]) {
+      capMap[capId] = { aplica: true, razon: `Oráculo H1: ${rawKey} detectado`, excluida: false, prioridad: 'Alta' };
     }
   });
 
-  // 4. Por BioTags — contraindicaciones (sobreescriben)
-  (worker.bioTagsIA || []).forEach(tag => {
-    const capIds = BIOTAG_CONTRAINDICACIONES[tag] || [];
-    capIds.forEach(capId => {
-      capMap[capId] = { aplica: false, razon: `Oráculo H1: CONTRAINDICADO — ${tag}`, excluida: true, prioridad: 'Alta' };
+  // 4. Por Controles Administrativos (Matriz 360 - riesgosBioIndividual & riesgosIpevar)
+  const todosLosRiesgos = [
+    ...(worker.riesgosBioIndividual || []),
+    ...(worker.riesgosIpevar || [])
+  ];
+
+  todosLosRiesgos.forEach(r => {
+    const ctrlText = r.medida_administrativa || r.medidaAdministrativa || '';
+    if (!ctrlText) return;
+
+    const normCtrl = normalizeString(ctrlText);
+
+    Object.keys(CONTROLES_ADMIN_KEYWORDS).forEach(capId => {
+      const regexes = CONTROLES_ADMIN_KEYWORDS[capId] || [];
+      const match = regexes.some(rx => rx.test(normCtrl));
+      
+      if (match && (!capMap[capId] || !capMap[capId].excluida)) {
+        capMap[capId] = {
+          aplica: true,
+          razon: `Control Administrativo (Matriz 360): "${ctrlText.substring(0, 100)}${ctrlText.length > 100 ? '...' : ''}"`,
+          excluida: false,
+          prioridad: 'Alta'
+        };
+      }
     });
   });
 
-  // 5. Licencia de conducción → PESV
-  if (worker.licenciaConduccion && !capMap['CAP-11']) {
+  // 5. Por BioTags — contraindicaciones (sobreescriben todo lo anterior por seguridad ocupacional extrema)
+  Object.keys(BIOTAG_CONTRAINDICACIONES).forEach(rawKey => {
+    const normKey = normalizeString(rawKey);
+    if (activeTags.includes(normKey)) {
+      const capIds = BIOTAG_CONTRAINDICACIONES[rawKey] || [];
+      capIds.forEach(capId => {
+        capMap[capId] = { aplica: false, razon: `Oráculo H1: CONTRAINDICADO — ${rawKey}`, excluida: true, prioridad: 'Alta' };
+      });
+    }
+  });
+
+  // 6. Licencia de conducción → PESV
+  if (worker.licenciaConduccion && (!capMap['CAP-11'] || !capMap['CAP-11'].excluida)) {
     capMap['CAP-11'] = { aplica: true, razon: 'Conductor con licencia activa — Riesgo Vial', excluida: false, prioridad: 'Alta' };
   }
 
-  // 6. Brigadista
+  // 7. Brigadista
   if (worker.esBrigadista && worker.esBrigadista !== 'No') {
-    if (!capMap['CAP-04']) capMap['CAP-04'] = { aplica: true, razon: 'Brigadista activo — Primeros Auxilios obligatorio', excluida: false, prioridad: 'Alta' };
-    if (!capMap['CAP-15']) capMap['CAP-15'] = { aplica: true, razon: 'Brigadista activo — Control de Incendios', excluida: false, prioridad: 'Alta' };
+    if ((!capMap['CAP-04'] || !capMap['CAP-04'].excluida)) {
+      capMap['CAP-04'] = { aplica: true, razon: 'Brigadista activo — Primeros Auxilios obligatorio', excluida: false, prioridad: 'Alta' };
+    }
+    if ((!capMap['CAP-15'] || !capMap['CAP-15'].excluida)) {
+      capMap['CAP-15'] = { aplica: true, razon: 'Brigadista activo — Control de Incendios', excluida: false, prioridad: 'Alta' };
+    }
   }
 
   return CATALOGO_CAPACITACIONES.map(cat => ({
@@ -391,7 +457,7 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
 
       // Merge with saved plan states
       const temasConEstado = temas.map(t => {
-        const saved = planPersonalizado.find(p => p.workerId === worker.id && p.capId === t.capId);
+        const saved = planPersonalizado.find(p => String(p.workerId) === String(worker.id || worker._id) && p.capId === t.capId);
         return {
           ...t,
           estado: saved?.estado || (t.aplica ? 'Pendiente' : 'NoAplica'),

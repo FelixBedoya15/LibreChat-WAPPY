@@ -71,17 +71,17 @@ const getSubPhases = (superId: string) => {
                 label: 'HITO 01'
             },
             {
-                id: 'hito2', title: 'Dinámica de Exposición', subtitle: 'Acción y Percepción', description: 'Participación IPEVAR, Reportes, Capacitaciones, ATS, Permisos y OWAS.',
-                extendedPhilosophy: 'El riesgo se materializa en la fisiología de cada persona. Buscamos medir el contacto real con los peligros.',
-                accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
-                icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-                label: 'HITO 02'
-            },
-            {
-                id: 'hito3', title: 'Núcleo Bio-Evaluativo', subtitle: 'Procesamiento', description: 'Matriz Bio-IPEVAR.',
+                id: 'hito2', title: 'Núcleo Bio-Evaluativo', subtitle: 'Procesamiento', description: 'Matriz Bio-IPEVAR.',
                 extendedPhilosophy: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador.',
                 accent: 'text-[#059669]', bgGlow: 'bg-[#059669]/5', borderHover: 'hover:border-[#059669]',
                 icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                label: 'HITO 02'
+            },
+            {
+                id: 'hito3', title: 'Dinámica de Exposición', subtitle: 'Acción y Percepción', description: 'Participación IPEVAR, Reportes, Capacitaciones, ATS, Permisos y OWAS.',
+                extendedPhilosophy: 'El riesgo se materializa en la fisiología de cada persona. Buscamos medir el contacto real con los peligros.',
+                accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
+                icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
                 label: 'HITO 03'
             },
             {
@@ -244,15 +244,15 @@ export default function SGSSTDashboard() {
     // ─── handle navigate-sgsst event (from notification panel) ───
     useEffect(() => {
         const SGSST_MODULE_PHASE_MAP: Record<string, {super: string, sub: string}> = {
-            reporte_actos: {super: 'bio_motor', sub: 'hito2'},
-            participacion_ipevar: {super: 'bio_motor', sub: 'hito2'},
-            peligros: {super: 'bio_motor', sub: 'hito3'},
+            reporte_actos: {super: 'bio_motor', sub: 'hito3'},
+            participacion_ipevar: {super: 'bio_motor', sub: 'hito3'},
+            peligros: {super: 'bio_motor', sub: 'hito2'},
             alta_direccion: {super: 'boveda_legal', sub: 'verificar'},
         };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (!module) return;
-            const mapping = SGSST_MODULE_PHASE_MAP[module] || {super: 'bio_motor', sub: 'hito2'};
+            const mapping = SGSST_MODULE_PHASE_MAP[module] || {super: 'bio_motor', sub: 'hito3'};
             setSearchParams({ super: mapping.super, sub: mapping.sub, module });
         };
         window.addEventListener('navigate-sgsst', handler);

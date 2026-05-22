@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Layout, MonitorPlay, Palette, Download, Sparkles } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { 
+  Plus, 
+  Trash2, 
+  Layout, 
+  MonitorPlay, 
+  Palette, 
+  Download, 
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Target,
+  LogOut,
+  Maximize2
+} from 'lucide-react';
 
 interface Slide {
   title: string;
@@ -17,7 +31,6 @@ interface CanvasSlidesEditorProps {
 
 /**
  * Extracts and parses a JSON array from noisy/conversational strings.
- * Deals with markdown wrapping (e.g. ```json ... ```) and trailing commas/comments.
  */
 function extractJsonArray(str: string): any[] | null {
   if (!str) return null;
@@ -97,6 +110,11 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [showSettings, setShowSettings] = useState<boolean>(true);
 
+  // Presentation Mode States
+  const [isPresenting, setIsPresenting] = useState<boolean>(false);
+  const [showLaser, setShowLaser] = useState<boolean>(false);
+  const [laserPos, setLaserPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
   // Load content
   useEffect(() => {
     if (initialContent) {
@@ -143,6 +161,28 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
       },
     ]);
   }, [initialContent]);
+
+  // Global keyboard listeners for presentation mode
+  useEffect(() => {
+    if (!isPresenting) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        setActiveIndex((prev) => Math.min(slides.length - 1, prev + 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setActiveIndex((prev) => Math.max(0, prev - 1));
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsPresenting(false);
+        setShowLaser(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPresenting, slides.length]);
 
   const updateSlide = (idx: number, updatedFields: Partial<Slide>) => {
     const updated = slides.map((slide, sIdx) => 
@@ -194,11 +234,8 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
     updateSlide(activeIndex, { bullets: updatedBullets });
   };
 
-  // Export as beautiful print presentation PDF / HTML
   const handleDownloadPdf = () => {
     const slidesHtml = slides.map((slide, idx) => {
-      const activeTheme = THEMES[slide.theme || 'cobalt'];
-      
       let themeBgCss = '';
       if (slide.theme === 'forest') {
         themeBgCss = 'background: linear-gradient(135deg, #022c22 0%, #0f172a 100%); color: #fff;';
@@ -271,10 +308,162 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const activeSlide = slides[activeIndex];
   const activeTheme = activeSlide ? THEMES[activeSlide.theme || 'cobalt'] : THEMES.cobalt;
 
+  // Handle clics on left/right screen in full presentation
+  const handlePresentationClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x > rect.width * 0.7) {
+      // Go Next
+      setActiveIndex((prev) => Math.min(slides.length - 1, prev + 1));
+    } else if (x < rect.width * 0.3) {
+      // Go Prev
+      setActiveIndex((prev) => Math.max(0, prev - 1));
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (showLaser) {
+      setLaserPos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // Render Portal for Cinematic full screen presentation mode
+  const renderPresentationPortal = () => {
+    if (!isPresenting || !activeSlide) return null;
+    const curTheme = THEMES[activeSlide.theme || 'cobalt'];
+
+    return createPortal(
+      <div 
+        className={`fixed inset-0 z-[99999999] flex flex-col justify-between p-10 md:p-16 select-none cursor-none ${curTheme.bg} animate-in fade-in duration-300`}
+        onMouseMove={handleMouseMove}
+        onClick={handlePresentationClick}
+      >
+        {/* Glow lights in backgrounds (WAPPY rules) */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Laser pointer element */}
+        {showLaser && (
+          <div 
+            className="pointer-events-none fixed z-[99999999] -translate-x-1/2 -translate-y-1/2 transition-all duration-75 ease-out"
+            style={{ left: laserPos.x, top: laserPos.y }}
+          >
+            <div className="absolute inset-0 w-8 h-8 -m-4 rounded-full bg-rose-500/20 blur-md animate-pulse shadow-[0_0_15px_#f43f5e]" />
+            <div className="absolute inset-0 w-6 h-6 -m-3 rounded-full border border-rose-500 bg-rose-500/30 shadow-[0_0_10px_#f43f5e]" />
+            <div className="absolute inset-0 w-2.5 h-2.5 -m-1 rounded-full bg-white shadow-[0_0_5px_#fff]" />
+          </div>
+        )}
+
+        {/* Top Header */}
+        <div className="flex items-center justify-between border-b border-white/10 pb-4 z-10">
+          <span className="text-sm font-mono font-bold tracking-widest text-white/50 uppercase">
+            Diapositiva {activeIndex + 1} de {slides.length}
+          </span>
+          <span className="text-sm font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent truncate max-w-xs sm:max-w-md">
+            {title}
+          </span>
+        </div>
+
+        {/* Central Core Content (Fluid text animation) */}
+        <div className="my-auto max-w-5xl mx-auto w-full z-10 py-8 animate-in slide-in-from-bottom-8 fade-in duration-500">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-8 drop-shadow-sm">
+            {activeSlide.title}
+          </h1>
+          <ul className="space-y-6 text-xl md:text-3xl font-medium text-slate-200/90 pl-6 list-disc marker:text-emerald-400">
+            {activeSlide.bullets.map((bullet, bIdx) => (
+              <li key={bIdx} className="leading-relaxed hover:text-white transition-colors duration-300">
+                {bullet}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Floating Bottom Navigation Bar (Glassmorphism + Progress bar) */}
+        <div 
+          className="relative z-20 mx-auto bg-slate-900/80 border border-white/10 p-4 rounded-2xl backdrop-blur-md shadow-2xl flex items-center justify-between w-full max-w-xl cursor-default"
+          onClick={(e) => e.stopPropagation()} // Stop navigation click
+        >
+          {/* Progress bar filled */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-white/5 rounded-t-2xl overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"
+              style={{ width: `${((activeIndex + 1) / slides.length) * 100}%` }}
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 pt-1">
+            <button
+              onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
+              disabled={activeIndex === 0}
+              className="p-2 rounded-xl border border-white/5 bg-white/5 text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 transition-all cursor-pointer"
+              title="Anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-bold text-slate-300 px-2 select-none">
+              {activeIndex + 1} / {slides.length}
+            </span>
+            <button
+              onClick={() => setActiveIndex((prev) => Math.min(slides.length - 1, prev + 1))}
+              disabled={activeIndex === slides.length - 1}
+              className="p-2 rounded-xl border border-white/5 bg-white/5 text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 transition-all cursor-pointer"
+              title="Siguiente"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            {/* Virtual Laser Pointer Toggle */}
+            <button
+              onClick={() => {
+                setShowLaser(!showLaser);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                showLaser 
+                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 ring-1 ring-rose-500/20 shadow-lg shadow-rose-500/10' 
+                  : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+              title="Puntero Láser"
+            >
+              <Target className={`h-4 w-4 ${showLaser ? 'animate-pulse' : ''}`} />
+              <span className="hidden sm:inline">Láser</span>
+            </button>
+
+            {/* Exit button */}
+            <button
+              onClick={() => {
+                setIsPresenting(false);
+                setShowLaser(false);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-white/5 border border-white/5 text-slate-300 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 rounded-xl transition-all cursor-pointer"
+              title="Salir"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  // Reduced workspace view (standard layout)
   if (!isMaximized) {
     return (
       <div className="flex-1 flex flex-col h-full bg-surface-secondary/40 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-        <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
+        <div className="flex items-center justify-between px-1 shrink-0">
+          <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider">Diapositivas</div>
+          <button
+            onClick={() => setIsPresenting(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md shadow-teal-600/10 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border border-teal-500/20"
+          >
+            <MonitorPlay className="h-3.5 w-3.5" />
+            <span>Presentar</span>
+          </button>
+        </div>
+
         <div className="flex flex-col gap-4 max-w-md mx-auto w-full pb-8">
           {slides.map((slide, idx) => {
             const slideTheme = THEMES[slide.theme || 'cobalt'];
@@ -289,7 +478,6 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                     : 'border-border-medium hover:border-border-hover hover:scale-[1.01]'
                 }`}
               >
-                {/* Visual mini-slide representation */}
                 <div className={`h-28 w-full rounded-xl ${slideTheme.bg} p-4 flex flex-col justify-between overflow-hidden shadow-inner`}>
                   <div className={`text-xs font-bold ${slideTheme.text} leading-snug`}>{slide.title}</div>
                   <div className="space-y-1.5 my-auto pt-2">
@@ -306,15 +494,17 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             );
           })}
         </div>
+        {renderPresentationPortal()}
       </div>
     );
   }
 
+  // Maximized expanded workspace view
   return (
     <div className="flex h-full bg-surface-primary text-text-primary overflow-hidden">
-      {/* Slides Thumbnail Sidebar - ONLY visible when maximized (expanded) */}
+      {/* Slides Thumbnail Sidebar */}
       {isMaximized && (
-        <div className="w-48 sm:w-56 md:w-64 border-r flex-shrink-0 border-border-medium bg-surface-secondary flex flex-col justify-between">
+        <div className="w-48 sm:w-56 md:w-64 border-r flex-shrink-0 border-border-medium bg-surface-secondary flex flex-col justify-between shrink-0">
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
             {slides.map((slide, idx) => {
@@ -330,7 +520,6 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                       : 'border-border-medium hover:border-border-hover bg-surface-primary'
                   }`}
                 >
-                  {/* Visual mini-slide representation */}
                   <div className={`h-16 w-full rounded-lg ${slideTheme.bg} p-2 flex flex-col justify-between overflow-hidden shadow-inner`}>
                     <div className={`text-[8px] font-bold ${slideTheme.text} truncate`}>{slide.title}</div>
                     <div className="space-y-0.5">
@@ -349,10 +538,26 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           </div>
 
           {/* Sidebar Actions */}
-          <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2">
+          <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2 shrink-0">
+            {/* New Present button in maximized sidebar actions */}
+            <button
+              onClick={() => setIsPresenting(true)}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-md shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-teal-600 hover:bg-teal-700 text-white w-full border-teal-500/20 shadow-teal-500/10"
+              aria-label="Iniciar Presentación"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center text-white">
+                <MonitorPlay className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-white">
+                  Iniciar Presentación
+                </span>
+              </div>
+            </button>
+
             <button
               onClick={addSlide}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
               aria-label="Nueva Diapositiva"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -364,6 +569,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 </span>
               </div>
             </button>
+
             <button
               onClick={deleteSlide}
               disabled={slides.length <= 1}
@@ -407,7 +613,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                   placeholder="Introduce el título de la diapositiva..."
                 />
 
-                {/* Bullets presentation list with elegant custom scrollbar */}
+                {/* Bullets presentation list */}
                 <div className="max-h-[16rem] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                   <ul className={`list-disc pl-6 space-y-3 text-lg md:text-xl font-medium ${activeTheme.text}/90`}>
                     {activeSlide.bullets.map((bullet, bIdx) => (
@@ -431,14 +637,13 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
               </div>
             </div>
 
-            {/* Collapsible toggle pill & Settings - ONLY visible when maximized (expanded) */}
+            {/* Collapsible toggle pill & Settings */}
             {isMaximized && (
               <>
-                {/* Collapsible toggle pill/button */}
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                     aria-label={showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
                   >
                     <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -452,10 +657,8 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                   </button>
                 </div>
 
-                {/* Slide Configuration Settings */}
                 {showSettings && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-primary border border-border-medium rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* Bullet points editor list */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-text-secondary uppercase">Puntos Clave (Viñetas)</span>
@@ -490,7 +693,6 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                       </div>
                     </div>
 
-                    {/* Slide Custom Theme Color Picker */}
                     <div className="space-y-4">
                       <span className="text-xs font-bold text-text-secondary uppercase block">Estilos y Temas de Color</span>
                       <div className="grid grid-cols-2 gap-2">
@@ -515,10 +717,10 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                       </div>
 
                       <div className="pt-2 border-t border-border-medium/60 flex items-center justify-between">
-                        <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Preservación de formato landscape</span>
+                        <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Formato de Impresión Landscape</span>
                         <button
                           onClick={handleDownloadPdf}
-                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                           aria-label="Descargar Diapositivas"
                         >
                           <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -543,6 +745,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           </div>
         )}
       </div>
+      {renderPresentationPortal()}
     </div>
   );
 };
