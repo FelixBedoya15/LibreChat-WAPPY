@@ -89,281 +89,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
 
-    useEffect(() => {
-        // Check if getDisplayMedia is supported
-        if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
-            setSupportsScreenShare(true);
-        }
-    }, []);
+    // Audio Refs
+    const nextStartTimeRef = useRef<number>(0);
+    const outputAnalyserRef = useRef<AnalyserNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
 
-    // Load MediaPipe scripts on demand when 'biomecanico_mediapipe' is selected
-    useEffect(() => {
-        if (!isOpen || selectedTemplate !== 'biomecanico_mediapipe') return;
+    // Toast control Ref
+    const prevHasReport = useRef(false);
 
-        let active = true;
-        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading MediaPipe...');
-        setStatusText('Loading MediaPipe Pose...');
-
-        const loadAll = async () => {
-            try {
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
-                
-                if (active) {
-                    console.log('[LiveAnalysisModal] MediaPipe Pose successfully loaded!');
-                    setIsMediaPipeLoaded(true);
-                    setStatusText('MediaPipe Ready');
-                }
-            } catch (err) {
-                console.error('[LiveAnalysisModal] Error loading MediaPipe Pose scripts:', err);
-                if (active) {
-                    setStatusText('MediaPipe Load Error');
-                }
-            }
-        };
-
-        loadAll();
-
-        return () => {
-            active = false;
-        };
-    }, [isOpen, selectedTemplate]);
-
-    const onPoseResults = useCallback((results: any) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (!results.poseLandmarks) return;
-
-        // 1. Draw glowing neon HUD skeleton
-        ctx.save();
-        
-        // Neon cyan connections glow
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 10;
-        if (window.drawConnectors && window.POSE_CONNECTIONS) {
-            window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
-                color: '#06b6d4',
-                lineWidth: 3
-            });
-        }
-
-        // Neon emerald joints glow
-        ctx.shadowColor = '#10b981';
-        if (window.drawLandmarks) {
-            window.drawLandmarks(ctx, results.poseLandmarks, {
-                color: '#10b981',
-                fillColor: '#06b6d4',
-                lineWidth: 2,
-                radius: 4
-            });
-        }
-        ctx.restore();
-
-        // 2. Ergo calculations (cervical and trunk angles)
-        const landmarks = results.poseLandmarks;
-        const leftEar = landmarks[7];
-        const rightEar = landmarks[8];
-        const leftShoulder = landmarks[11];
-        const rightShoulder = landmarks[12];
-        const leftHip = landmarks[23];
-        const rightHip = landmarks[24];
-        const leftElbow = landmarks[13];
-        const rightElbow = landmarks[14];
-
-        // Side visibility check
-        const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
-        const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
-
-        let activeEar = null;
-        let activeShoulder = null;
-        let activeHip = null;
-        let activeElbow = null;
-
-        if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
-            activeEar = leftEar;
-            activeShoulder = leftShoulder;
-            activeHip = leftHip;
-            activeElbow = leftElbow;
-        } else if (rightVisible) {
-            activeEar = rightEar;
-            activeShoulder = rightShoulder;
-            activeHip = rightHip;
-            activeElbow = rightElbow;
-        } else {
-            activeEar = leftEar || rightEar;
-            activeShoulder = leftShoulder || rightShoulder;
-            activeHip = leftHip || rightHip;
-            activeElbow = leftElbow || rightElbow;
-        }
-
-        if (activeShoulder && activeEar && activeHip) {
-            // Cervical angle (flexion from vertical)
-            const neckDx = activeShoulder.x - activeEar.x;
-            const neckDy = activeShoulder.y - activeEar.y;
-            const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
-            const neckDeg = Math.round(neckRad * (180 / Math.PI));
-
-            // Trunk angle (flexion from vertical)
-            const trunkDx = activeShoulder.x - activeHip.x;
-            const trunkDy = activeHip.y - activeShoulder.y;
-            const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
-            const trunkDeg = Math.round(trunkRad * (180 / Math.PI));
-
-            setNeckAngle(neckDeg);
-            setTrunkAngle(trunkDeg);
-
-            // Arm angle (abduction from spine)
-            let armDeg = 0;
-            if (activeElbow) {
-                const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
-                const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
-                const dot = v1.x * v2.x + v1.y * v2.y;
-                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-                if (mag1 * mag2 > 0) {
-                    const cosAngle = dot / (mag1 * mag2);
-                    armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-                }
-            }
-            setArmAngle(armDeg);
-
-            // Posture threshold tracking for Auto-Snapshot
-            const now = Date.now();
-            if (neckDeg > 20 || trunkDeg > 20) {
-                if (badPostureStartRef.current === null) {
-                    badPostureStartRef.current = now;
-                } else {
-                    const duration = now - badPostureStartRef.current;
-                    if (duration >= 3000) { // 3 seconds of sustained bad posture
-                        if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
-                            lastSnapshotTimeRef.current = now;
-                            badPostureStartRef.current = null; // reset
-                            
-                            // Capture snapshot
-                            const dataUrl = captureSnapshot();
-                            if (dataUrl) {
-                                // Trigger flash
-                                setIsFlashActive(true);
-                                setTimeout(() => setIsFlashActive(false), 150);
-
-                                setManualCapturedPhotos((prev) => [...prev, dataUrl]);
-
-                                const base64 = dataUrl.split(',')[1];
-                                sendEvidenceImage(base64);
-
-                                // Send telemetry data directly to Gemini session!
-                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
-                            }
-                        }
-                    }
-                }
-            } else {
-                badPostureStartRef.current = null;
-            }
-        }
-    }, [captureSnapshot, sendEvidenceImage, sendTextMessage]);
-
-    // Initialize and handle MediaPipe Pose instance
-    useEffect(() => {
-        if (!isMediaPipeLoaded || !isCameraOn || selectedTemplate !== 'biomecanico_mediapipe') {
-            if (poseRef.current) {
-                try {
-                    poseRef.current.close();
-                } catch (e) {
-                    console.error('Error closing poseRef:', e);
-                }
-                poseRef.current = null;
-            }
-            setIsPoseActive(false);
-            return;
-        }
-
-        console.log('[LiveAnalysisModal] Initializing MediaPipe Pose instance...');
-        
-        try {
-            const pose = new window.Pose({
-                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
-
-            pose.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            pose.onResults((results: any) => {
-                onPoseResults(results);
-            });
-
-            poseRef.current = pose;
-            setIsPoseActive(true);
-            console.log('[LiveAnalysisModal] Pose instance ready!');
-        } catch (e) {
-            console.error('Error creating Pose instance:', e);
-        }
-
-        return () => {
-            if (poseRef.current) {
-                try {
-                    poseRef.current.close();
-                } catch (e) {
-                    console.error('Error closing poseRef on cleanup:', e);
-                }
-                poseRef.current = null;
-            }
-            setIsPoseActive(false);
-        };
-    }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
-
-    // Process frames at 15 FPS
-    useEffect(() => {
-        if (!isPoseActive || !videoRef.current) return;
-
-        let active = true;
-        let lastFrameTime = 0;
-        const fpsInterval = 1000 / 15; // Limit to 15 FPS
-
-        const poseLoop = async () => {
-            if (!active) return;
-
-            const now = Date.now();
-            const elapsed = now - lastFrameTime;
-
-            if (elapsed >= fpsInterval) {
-                lastFrameTime = now - (elapsed % fpsInterval);
-
-                const video = videoRef.current;
-                if (video && video.readyState >= 2 && poseRef.current) {
-                    const canvas = canvasRef.current;
-                    if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                    }
-
-                    try {
-                        await poseRef.current.send({ image: video });
-                    } catch (e) {
-                        console.error('[LiveAnalysisModal] Pose send error:', e);
-                    }
-                }
-            }
-
-            requestAnimationFrame(poseLoop);
-        };
-
-        requestAnimationFrame(poseLoop);
-
-        return () => {
-            active = false;
-        };
-    }, [isPoseActive]);
+    // ==================== HELPER FUNCTIONS & CALLBACKS ====================
 
     // Helper to capture video frame — validates dimensions before saving
     const captureSnapshot = useCallback((): string | null => {
@@ -392,6 +126,53 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
         return null;
     }, []);
+
+    const scheduleAudio = useCallback((buffer: AudioBuffer) => {
+        if (!audioContextRef.current) return;
+
+        const currentTime = audioContextRef.current.currentTime;
+        if (nextStartTimeRef.current < currentTime) {
+            nextStartTimeRef.current = currentTime + 0.05;
+        }
+
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = buffer;
+
+        if (!outputAnalyserRef.current) {
+            const analyser = audioContextRef.current.createAnalyser();
+            analyser.fftSize = 256;
+            outputAnalyserRef.current = analyser;
+            analyser.connect(audioContextRef.current.destination);
+        }
+
+        source.connect(outputAnalyserRef.current);
+        source.start(nextStartTimeRef.current);
+
+        nextStartTimeRef.current += buffer.duration;
+    }, []);
+
+    const handleAudioReceived = useCallback((audioData: string) => {
+        try {
+            if (!audioContextRef.current) return;
+            if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+
+            const binaryString = atob(audioData);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+
+            const float32Data = new Float32Array(len / 2);
+            const dataView = new DataView(bytes.buffer);
+            for (let i = 0; i < len / 2; i++) float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
+
+            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            scheduleAudio(audioBuffer);
+        } catch (error) {
+            console.error('[LiveAnalysisModal] Error processing audio:', error);
+        }
+    }, [scheduleAudio]);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -603,18 +384,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate]);
-
-    // Trigger toast ONLY when hasReceivedReport flips to true (not on every render)
-    const prevHasReport = useRef(false);
-    useEffect(() => {
-        if (hasReceivedReport && !prevHasReport.current) {
-            prevHasReport.current = true;
-            setReportNotification(true);
-            const timer = setTimeout(() => setReportNotification(false), 8000);
-            return () => clearTimeout(timer);
-        }
-    }, [hasReceivedReport]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate, handleAudioReceived, captureSnapshot]);
 
     const {
         isConnected,
@@ -629,6 +399,466 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         getInputVolume,
         sendEvidenceImage,
     } = useLiveAnalysisSession(sessionOptions);
+
+    const onPoseResults = useCallback((results: any) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!results.poseLandmarks) return;
+
+        // 1. Draw glowing neon HUD skeleton
+        ctx.save();
+        
+        // Neon cyan connections glow
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+        if (window.drawConnectors && window.POSE_CONNECTIONS) {
+            window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
+                color: '#06b6d4',
+                lineWidth: 3
+            });
+        }
+
+        // Neon emerald joints glow
+        ctx.shadowColor = '#10b981';
+        if (window.drawLandmarks) {
+            window.drawLandmarks(ctx, results.poseLandmarks, {
+                color: '#10b981',
+                fillColor: '#06b6d4',
+                lineWidth: 2,
+                radius: 4
+            });
+        }
+        ctx.restore();
+
+        // 2. Ergo calculations (cervical and trunk angles)
+        const landmarks = results.poseLandmarks;
+        const leftEar = landmarks[7];
+        const rightEar = landmarks[8];
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftHip = landmarks[23];
+        const rightHip = landmarks[24];
+        const leftElbow = landmarks[13];
+        const rightElbow = landmarks[14];
+
+        // Side visibility check
+        const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
+        const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
+
+        let activeEar = null;
+        let activeShoulder = null;
+        let activeHip = null;
+        let activeElbow = null;
+
+        if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
+            activeEar = leftEar;
+            activeShoulder = leftShoulder;
+            activeHip = leftHip;
+            activeElbow = leftElbow;
+        } else if (rightVisible) {
+            activeEar = rightEar;
+            activeShoulder = rightShoulder;
+            activeHip = rightHip;
+            activeElbow = rightElbow;
+        } else {
+            activeEar = leftEar || rightEar;
+            activeShoulder = leftShoulder || rightShoulder;
+            activeHip = leftHip || rightHip;
+            activeElbow = leftElbow || rightElbow;
+        }
+
+        if (activeShoulder && activeEar && activeHip) {
+            // Cervical angle (flexion from vertical)
+            const neckDx = activeShoulder.x - activeEar.x;
+            const neckDy = activeShoulder.y - activeEar.y;
+            const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
+            const neckDeg = Math.round(neckRad * (180 / Math.PI));
+
+            // Trunk angle (flexion from vertical)
+            const trunkDx = activeShoulder.x - activeHip.x;
+            const trunkDy = activeHip.y - activeShoulder.y;
+            const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
+            const trunkDeg = Math.round(trunkRad * (180 / Math.PI));
+
+            setNeckAngle(neckDeg);
+            setTrunkAngle(trunkDeg);
+
+            // Arm angle (abduction from spine)
+            let armDeg = 0;
+            if (activeElbow) {
+                const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
+                const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                }
+            }
+            setArmAngle(armDeg);
+
+            // Posture threshold tracking for Auto-Snapshot
+            const now = Date.now();
+            if (neckDeg > 20 || trunkDeg > 20) {
+                if (badPostureStartRef.current === null) {
+                    badPostureStartRef.current = now;
+                } else {
+                    const duration = now - badPostureStartRef.current;
+                    if (duration >= 3000) { // 3 seconds of sustained bad posture
+                        if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
+                            lastSnapshotTimeRef.current = now;
+                            badPostureStartRef.current = null; // reset
+                            
+                            // Capture snapshot
+                            const dataUrl = captureSnapshot();
+                            if (dataUrl) {
+                                // Trigger flash
+                                setIsFlashActive(true);
+                                setTimeout(() => setIsFlashActive(false), 150);
+
+                                setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+
+                                const base64 = dataUrl.split(',')[1];
+                                sendEvidenceImage(base64);
+
+                                // Send telemetry data directly to Gemini session!
+                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                            }
+                        }
+                    }
+                }
+            } else {
+                badPostureStartRef.current = null;
+            }
+        }
+    }, [captureSnapshot, sendEvidenceImage, sendTextMessage]);
+
+    // ==================== CONTROLLER HELPER FUNCTIONS ====================
+
+    const stopMediaTracks = () => {
+        if (videoIntervalRef.current) {
+            clearInterval(videoIntervalRef.current);
+            videoIntervalRef.current = null;
+        }
+
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+
+        setIsCameraOn(false);
+        setIsScreenSharing(false);
+    };
+
+    const startSendingFrames = () => {
+        if (videoIntervalRef.current) clearInterval(videoIntervalRef.current);
+        videoIntervalRef.current = setInterval(() => {
+            if (videoRef.current && videoRef.current.readyState >= 2) {
+                sendVideoFrame(videoRef.current);
+            }
+        }, 500); // Keep 2 FPS for analysis
+    };
+
+    const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
+        try {
+            stopMediaTracks(); // Ensure clean switch
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 320 },
+                    height: { ideal: 240 },
+                    frameRate: { ideal: 15 },
+                    facingMode: mode
+                },
+                audio: false
+            });
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play().catch(e => console.error("Error playing video:", e));
+            }
+
+            setIsCameraOn(true);
+            startSendingFrames();
+
+        } catch (error) {
+            console.error('[LiveAnalysisModal] Error starting camera:', error);
+            setStatusText('Error accessing camera');
+            setIsCameraOn(false);
+        }
+    };
+
+    const startScreenShare = async () => {
+        try {
+            stopMediaTracks(); // Ensure clean switch
+
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 10 }
+                },
+                audio: false
+            });
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play();
+            }
+
+            // Handle user clicking "Stop Sharing" in browser UI
+            stream.getVideoTracks()[0].onended = () => {
+                stopMediaTracks();
+            };
+
+            setIsScreenSharing(true);
+            startSendingFrames();
+
+        } catch (error) {
+            console.error('[LiveAnalysisModal] Error starting screen share:', error);
+            setIsScreenSharing(false);
+        }
+    };
+
+    const toggleCamera = () => {
+        if (isCameraOn) {
+            stopMediaTracks();
+        } else {
+            startCamera();
+        }
+    };
+
+    const toggleScreenShare = () => {
+        if (isScreenSharing) {
+            stopMediaTracks();
+        } else {
+            startScreenShare();
+        }
+    };
+
+    const switchCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+        if (isCameraOn) {
+            stopMediaTracks();
+            setTimeout(() => startCamera(newMode), 200);
+        }
+    };
+
+    const toggleMute = () => {
+        const newMuted = !isMuted;
+        setIsMuted(newMuted);
+        setMuted(newMuted);
+    };
+
+    const handleManualCapture = useCallback(() => {
+        const dataUrl = captureSnapshot();
+        if (!dataUrl) return;
+
+        // Trigger visual flash
+        setIsFlashActive(true);
+        setTimeout(() => setIsFlashActive(false), 150);
+
+        // Save locally for carousel
+        setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+
+        // Send to backend via WS (extract base64 payload from data URL)
+        const base64 = dataUrl.split(',')[1];
+        sendEvidenceImage(base64);
+    }, [captureSnapshot, sendEvidenceImage]);
+
+    const handleClose = () => {
+        stopMediaTracks();
+        disconnect();
+        setSelectedTemplate(null);
+        setManualCapturedPhotos([]);
+        onClose();
+    };
+
+    const handleVoiceChange = (voiceId: string) => {
+        setSelectedVoice(voiceId);
+        changeVoice(voiceId);
+        setShowVoiceSelector(false);
+    };
+
+    const handleOrbClick = () => {
+        if (status === 'ready' || status === 'idle' || status === 'listening') {
+            setShowVoiceSelector(!showVoiceSelector);
+        }
+    };
+
+    // ==================== EFFECTS (REACT LIFE CYCLE) ====================
+
+    useEffect(() => {
+        // Check if getDisplayMedia is supported
+        if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+            setSupportsScreenShare(true);
+        }
+    }, []);
+
+    // Load MediaPipe scripts on demand when 'biomecanico_mediapipe' is selected
+    useEffect(() => {
+        if (!isOpen || selectedTemplate !== 'biomecanico_mediapipe') return;
+
+        let active = true;
+        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading MediaPipe...');
+        setStatusText('Loading MediaPipe Pose...');
+
+        const loadAll = async () => {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
+                
+                if (active) {
+                    console.log('[LiveAnalysisModal] MediaPipe Pose successfully loaded!');
+                    setIsMediaPipeLoaded(true);
+                    setStatusText('MediaPipe Ready');
+                }
+            } catch (err) {
+                console.error('[LiveAnalysisModal] Error loading MediaPipe Pose scripts:', err);
+                if (active) {
+                    setStatusText('MediaPipe Load Error');
+                }
+            }
+        };
+
+        loadAll();
+
+        return () => {
+            active = false;
+        };
+    }, [isOpen, selectedTemplate]);
+
+    // Initialize and handle MediaPipe Pose instance
+    useEffect(() => {
+        if (!isMediaPipeLoaded || !isCameraOn || selectedTemplate !== 'biomecanico_mediapipe') {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+            return;
+        }
+
+        console.log('[LiveAnalysisModal] Initializing MediaPipe Pose instance...');
+        
+        try {
+            const pose = new window.Pose({
+                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results: any) => {
+                onPoseResults(results);
+            });
+
+            poseRef.current = pose;
+            setIsPoseActive(true);
+            console.log('[LiveAnalysisModal] Pose instance ready!');
+        } catch (e) {
+            console.error('Error creating Pose instance:', e);
+        }
+
+        return () => {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef on cleanup:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+        };
+    }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
+
+    // Process frames at 15 FPS
+    useEffect(() => {
+        if (!isPoseActive || !videoRef.current) return;
+
+        let active = true;
+        let lastFrameTime = 0;
+        const fpsInterval = 1000 / 15; // Limit to 15 FPS
+
+        const poseLoop = async () => {
+            if (!active) return;
+
+            const now = Date.now();
+            const elapsed = now - lastFrameTime;
+
+            if (elapsed >= fpsInterval) {
+                lastFrameTime = now - (elapsed % fpsInterval);
+
+                const video = videoRef.current;
+                if (video && video.readyState >= 2 && poseRef.current) {
+                    const canvas = canvasRef.current;
+                    if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    }
+
+                    try {
+                        await poseRef.current.send({ image: video });
+                    } catch (e) {
+                        console.error('[LiveAnalysisModal] Pose send error:', e);
+                    }
+                }
+            }
+
+            requestAnimationFrame(poseLoop);
+        };
+
+        requestAnimationFrame(poseLoop);
+
+        return () => {
+            active = false;
+        };
+    }, [isPoseActive]);
+
+    // Amplitude meter updating audioAmplitude
+    useEffect(() => {
+        const updateAmplitude = () => {
+            let vol = 0;
+
+            if (status === 'speaking' && outputAnalyserRef.current) {
+                const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
+                outputAnalyserRef.current.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                vol = Math.min(1, (average / 255) * 2);
+            } else if (status === 'listening' || status === 'ready') {
+                vol = getInputVolume();
+            }
+
+            setAudioAmplitude(vol);
+            animationFrameRef.current = requestAnimationFrame(updateAmplitude);
+        };
+
+        updateAmplitude();
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, [status, getInputVolume]);
 
     // Connection Delay Logic with 10-second Countdown
     useEffect(() => {
@@ -658,6 +888,16 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             setCountdown(10);
         }
     }, [isOpen, isConnected]);
+
+    // Trigger toast ONLY when hasReceivedReport flips to true (not on every render)
+    useEffect(() => {
+        if (hasReceivedReport && !prevHasReport.current) {
+            prevHasReport.current = true;
+            setReportNotification(true);
+            const timer = setTimeout(() => setReportNotification(false), 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [hasReceivedReport]);
 
     // Reset report state when modal is closed (to allow next session to show toast again)
     useEffect(() => {
@@ -751,237 +991,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             return () => clearTimeout(timer);
         }
     }, [isConnected, isOpen, isReady, sendTextMessage, captureSnapshot, selectedTemplate]);
-
-    const handleManualCapture = useCallback(() => {
-        const dataUrl = captureSnapshot();
-        if (!dataUrl) return;
-
-        // Trigger visual flash
-        setIsFlashActive(true);
-        setTimeout(() => setIsFlashActive(false), 150);
-
-        // Save locally for carousel
-        setManualCapturedPhotos((prev) => [...prev, dataUrl]);
-
-        // Send to backend via WS (extract base64 payload from data URL)
-        const base64 = dataUrl.split(',')[1];
-        sendEvidenceImage(base64);
-    }, [captureSnapshot, sendEvidenceImage]);
-
-    const handleClose = () => {
-        stopMediaTracks();
-        disconnect();
-        setSelectedTemplate(null);
-        setManualCapturedPhotos([]);
-        onClose();
-    };
-
-    const stopMediaTracks = () => {
-        if (videoIntervalRef.current) {
-            clearInterval(videoIntervalRef.current);
-            videoIntervalRef.current = null;
-        }
-
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-        }
-
-        setIsCameraOn(false);
-        setIsScreenSharing(false);
-    };
-
-    const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
-        try {
-            stopMediaTracks(); // Ensure clean switch
-
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 320 },
-                    height: { ideal: 240 },
-                    frameRate: { ideal: 15 },
-                    facingMode: mode
-                },
-                audio: false
-            });
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play().catch(e => console.error("Error playing video:", e));
-            }
-
-            setIsCameraOn(true);
-            startSendingFrames();
-
-        } catch (error) {
-            console.error('[LiveAnalysisModal] Error starting camera:', error);
-            setStatusText('Error accessing camera');
-            setIsCameraOn(false);
-        }
-    };
-
-    const startScreenShare = async () => {
-        try {
-            stopMediaTracks(); // Ensure clean switch
-
-            const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    frameRate: { ideal: 10 }
-                },
-                audio: false
-            });
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play();
-            }
-
-            // Handle user clicking "Stop Sharing" in browser UI
-            stream.getVideoTracks()[0].onended = () => {
-                stopMediaTracks();
-            };
-
-            setIsScreenSharing(true);
-            startSendingFrames();
-
-        } catch (error) {
-            console.error('[LiveAnalysisModal] Error starting screen share:', error);
-            setIsScreenSharing(false);
-        }
-    };
-
-    const startSendingFrames = () => {
-        if (videoIntervalRef.current) clearInterval(videoIntervalRef.current);
-        videoIntervalRef.current = setInterval(() => {
-            if (videoRef.current && videoRef.current.readyState >= 2) {
-                sendVideoFrame(videoRef.current);
-            }
-        }, 500); // Keep 2 FPS for analysis
-    };
-
-
-    const toggleCamera = () => {
-        if (isCameraOn) {
-            stopMediaTracks();
-        } else {
-            startCamera();
-        }
-    };
-
-    const toggleScreenShare = () => {
-        if (isScreenSharing) {
-            stopMediaTracks();
-        } else {
-            startScreenShare();
-        }
-    };
-
-    const switchCamera = () => {
-        const newMode = facingMode === 'user' ? 'environment' : 'user';
-        setFacingMode(newMode);
-        if (isCameraOn) {
-            stopMediaTracks();
-            setTimeout(() => startCamera(newMode), 200);
-        }
-    };
-
-    const toggleMute = () => {
-        const newMuted = !isMuted;
-        setIsMuted(newMuted);
-        setMuted(newMuted);
-    };
-
-    const nextStartTimeRef = useRef<number>(0);
-    const outputAnalyserRef = useRef<AnalyserNode | null>(null);
-    const animationFrameRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        const updateAmplitude = () => {
-            let vol = 0;
-
-            if (status === 'speaking' && outputAnalyserRef.current) {
-                const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
-                outputAnalyserRef.current.getByteFrequencyData(dataArray);
-                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                vol = Math.min(1, (average / 255) * 2);
-            } else if (status === 'listening' || status === 'ready') {
-                vol = getInputVolume();
-            }
-
-            setAudioAmplitude(vol);
-            animationFrameRef.current = requestAnimationFrame(updateAmplitude);
-        };
-
-        updateAmplitude();
-
-        return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-        };
-    }, [status, getInputVolume]);
-
-    function handleAudioReceived(audioData: string) {
-        try {
-            if (!audioContextRef.current) return;
-            if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
-
-            const binaryString = atob(audioData);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-
-            const float32Data = new Float32Array(len / 2);
-            const dataView = new DataView(bytes.buffer);
-            for (let i = 0; i < len / 2; i++) float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
-
-            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
-            audioBuffer.getChannelData(0).set(float32Data);
-
-            scheduleAudio(audioBuffer);
-        } catch (error) {
-            console.error('[LiveAnalysisModal] Error processing audio:', error);
-        }
-    }
-
-    function scheduleAudio(buffer: AudioBuffer) {
-        if (!audioContextRef.current) return;
-
-        const currentTime = audioContextRef.current.currentTime;
-        if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime + 0.05;
-        }
-
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = buffer;
-
-        if (!outputAnalyserRef.current) {
-            const analyser = audioContextRef.current.createAnalyser();
-            analyser.fftSize = 256;
-            outputAnalyserRef.current = analyser;
-            analyser.connect(audioContextRef.current.destination);
-        }
-
-        source.connect(outputAnalyserRef.current);
-        source.start(nextStartTimeRef.current);
-
-        nextStartTimeRef.current += buffer.duration;
-    }
-
-    const handleVoiceChange = (voiceId: string) => {
-        setSelectedVoice(voiceId);
-        changeVoice(voiceId);
-        setShowVoiceSelector(false);
-    };
-
-    const handleOrbClick = () => {
-        if (status === 'ready' || status === 'idle' || status === 'listening') {
-            setShowVoiceSelector(!showVoiceSelector);
-        }
-    };
 
     if (!isOpen) return null;
 
