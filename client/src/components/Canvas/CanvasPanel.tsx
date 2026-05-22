@@ -32,6 +32,10 @@ import CanvasHtmlEditor from './CanvasHtmlEditor';
 import ExportDropdown from '../SGSST/ExportDropdown';
 import { useNavigate } from 'react-router-dom';
 import ReportHistory from '~/components/Liva/ReportHistory';
+import { v4 } from 'uuid';
+import { useChatContext } from '~/Providers';
+import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys } from 'librechat-data-provider';
 
 const DEFAULT_SIGNATURE_BLOCK = `
 <div style="margin-top:60px; page-break-inside:avoid;">
@@ -198,6 +202,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   const navigate = useNavigate();
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState<boolean>(false);
+
+  const queryClient = useQueryClient();
+  const chatContext = useChatContext();
+  const setConversation = chatContext?.setConversation;
 
   // Sync state refs on change
   useEffect(() => { contentRef.current = content; }, [content]);
@@ -371,14 +379,46 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     prevIsSubmittingRef.current = isSubmitting;
   }, [isSubmitting, fetchSession, conversationId]);
 
+  // Helper to initialize session and transition new conversation
+  const initializeConvoAndSave = async (
+    initialFileType: 'text' | 'excel' | 'presentation' | 'html',
+    initialContent: string,
+    initialTitle: string
+  ) => {
+    const newConvoId = v4();
+    
+    setFileType(initialFileType);
+    setContent(initialContent);
+    setTitle(initialTitle);
+    
+    fileTypeRef.current = initialFileType;
+    contentRef.current = initialContent;
+    titleRef.current = initialTitle;
+    
+    if (setConversation) {
+      setConversation((prev: any) => ({
+        ...prev,
+        conversationId: newConvoId,
+      }));
+    }
+    
+    await saveSession(newConvoId);
+    
+    queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
+    queryClient.invalidateQueries([QueryKeys.allConversations]);
+    
+    navigate(`/c/${newConvoId}`, { replace: true });
+  };
+
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
-  const saveSession = useCallback(async () => {
-    if (!conversationId || conversationId === 'new') return;
+  const saveSession = useCallback(async (customId?: string) => {
+    const activeConvoId = customId || conversationId;
+    if (!activeConvoId || activeConvoId === 'new') return;
     isSavingRef.current = true;
     setIsSaving(true);
     
     try {
-      const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
+      const res = await fetch(`/api/sgsst/canvas/${activeConvoId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -435,7 +475,21 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     contentRef.current = updated;
     titleRef.current = newTitle;
     
-    await saveSession();
+    if (!conversationId || conversationId === 'new') {
+      const newConvoId = v4();
+      if (setConversation) {
+        setConversation((prev: any) => ({
+          ...prev,
+          conversationId: newConvoId,
+        }));
+      }
+      await saveSession(newConvoId);
+      queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
+      queryClient.invalidateQueries([QueryKeys.allConversations]);
+      navigate(`/c/${newConvoId}`, { replace: true });
+    } else {
+      await saveSession();
+    }
   };
 
   const handleResetSession = async () => {
@@ -808,8 +862,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             <div className="grid grid-cols-2 gap-3 w-full pt-4">
               <button
                 onClick={() => {
-                  setFileType('text');
-                  setContent('<h1>Nuevo Documento</h1><p>Empieza a escribir...</p>');
+                  const initialContent = '<h1>Nuevo Documento</h1><p>Empieza a escribir...</p>';
+                  if (!conversationId || conversationId === 'new') {
+                    initializeConvoAndSave('text', initialContent, 'Nuevo Documento');
+                  } else {
+                    setFileType('text');
+                    setContent(initialContent);
+                    setTitle('Nuevo Documento');
+                    fileTypeRef.current = 'text';
+                    contentRef.current = initialContent;
+                    titleRef.current = 'Nuevo Documento';
+                    queueSave();
+                  }
                 }}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-teal-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
               >
@@ -820,12 +884,22 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
               <button
                 onClick={() => {
-                  setFileType('excel');
-                  setContent(JSON.stringify([
+                  const initialContent = JSON.stringify([
                     ['Concepto', 'Enero', 'Febrero', 'Total'],
                     ['Presupuesto EPP', '500', '600', '1100'],
                     ['Capacitación', '200', '300', '500'],
-                  ]));
+                  ]);
+                  if (!conversationId || conversationId === 'new') {
+                    initializeConvoAndSave('excel', initialContent, 'Hoja de Cálculo');
+                  } else {
+                    setFileType('excel');
+                    setContent(initialContent);
+                    setTitle('Hoja de Cálculo');
+                    fileTypeRef.current = 'excel';
+                    contentRef.current = initialContent;
+                    titleRef.current = 'Hoja de Cálculo';
+                    queueSave();
+                  }
                 }}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-emerald-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
               >
@@ -836,10 +910,20 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
               <button
                 onClick={() => {
-                  setFileType('presentation');
-                  setContent(JSON.stringify([
+                  const initialContent = JSON.stringify([
                     { title: 'Plan de Capacitación', bullets: ['Fase 1: Inducción General', 'Fase 2: Brigadas'] }
-                  ]));
+                  ]);
+                  if (!conversationId || conversationId === 'new') {
+                    initializeConvoAndSave('presentation', initialContent, 'Presentación');
+                  } else {
+                    setFileType('presentation');
+                    setContent(initialContent);
+                    setTitle('Presentación');
+                    fileTypeRef.current = 'presentation';
+                    contentRef.current = initialContent;
+                    titleRef.current = 'Presentación';
+                    queueSave();
+                  }
                 }}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-amber-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
               >
@@ -850,8 +934,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
               <button
                 onClick={() => {
-                  setFileType('html');
-                  setContent(`<!DOCTYPE html>
+                  const initialContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -891,7 +974,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     </div>
   </div>
 </body>
-</html>`);
+</html>`;
+                  if (!conversationId || conversationId === 'new') {
+                    initializeConvoAndSave('html', initialContent, 'Prototipo de Código');
+                  } else {
+                    setFileType('html');
+                    setContent(initialContent);
+                    setTitle('Prototipo de Código');
+                    fileTypeRef.current = 'html';
+                    contentRef.current = initialContent;
+                    titleRef.current = 'Prototipo de Código';
+                    queueSave();
+                  }
                 }}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-blue-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
               >
