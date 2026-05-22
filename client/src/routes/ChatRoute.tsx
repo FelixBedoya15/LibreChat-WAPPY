@@ -40,6 +40,7 @@ export default function ChatRoute() {
   const initialConvoQuery = useGetConvoIdQuery(conversationId, {
     enabled:
       isAuthenticated && conversationId !== Constants.NEW_CONVO && !hasSetConversation.current,
+    retry: false,
   });
   const endpointsQuery = useGetEndpointsQuery({ enabled: isAuthenticated });
   const assistantListMap = useAssistantListMap();
@@ -86,6 +87,16 @@ export default function ChatRoute() {
         keepLatestMessage: true,
       });
       hasSetConversation.current = true;
+    } else if (initialConvoQuery.isFetched && !initialConvoQuery.data && endpointsQuery.data && modelsQuery.data) {
+      logger.log('conversation', 'ChatRoute convo not found fallback', conversationId);
+      const result = getDefaultModelSpec(startupConfig);
+      const spec = result?.default ?? result?.last;
+      newConversation({
+        modelsData: modelsQuery.data,
+        template: { conversationId },
+        ...(spec ? { preset: getModelSpecPreset(spec) } : {}),
+      });
+      hasSetConversation.current = true;
     } else if (
       conversationId === Constants.NEW_CONVO &&
       assistantListMap[EModelEndpoint.assistants] &&
@@ -104,20 +115,33 @@ export default function ChatRoute() {
       assistantListMap[EModelEndpoint.assistants] &&
       assistantListMap[EModelEndpoint.azureAssistants]
     ) {
-      logger.log('conversation', 'ChatRoute convo, assistants effect', initialConvoQuery.data);
-      newConversation({
-        template: initialConvoQuery.data,
-        preset: initialConvoQuery.data as TPreset,
-        modelsData: modelsQuery.data,
-        keepLatestMessage: true,
-      });
-      hasSetConversation.current = true;
+      if (initialConvoQuery.data) {
+        logger.log('conversation', 'ChatRoute convo, assistants effect', initialConvoQuery.data);
+        newConversation({
+          template: initialConvoQuery.data,
+          preset: initialConvoQuery.data as TPreset,
+          modelsData: modelsQuery.data,
+          keepLatestMessage: true,
+        });
+        hasSetConversation.current = true;
+      } else if (initialConvoQuery.isFetched && !initialConvoQuery.data) {
+        logger.log('conversation', 'ChatRoute convo not found assistants fallback', conversationId);
+        const result = getDefaultModelSpec(startupConfig);
+        const spec = result?.default ?? result?.last;
+        newConversation({
+          modelsData: modelsQuery.data,
+          template: { conversationId },
+          ...(spec ? { preset: getModelSpecPreset(spec) } : {}),
+        });
+        hasSetConversation.current = true;
+      }
     }
     /* Creates infinite render if all dependencies included due to newConversation invocations exceeding call stack before hasSetConversation.current becomes truthy */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     startupConfig,
     initialConvoQuery.data,
+    initialConvoQuery.isFetched,
     endpointsQuery.data,
     modelsQuery.data,
     assistantListMap,

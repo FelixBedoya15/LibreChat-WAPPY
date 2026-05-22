@@ -41,10 +41,16 @@ export default function Header() {
   // ── Matrix / Live Editor expand state (synced via Recoil) ───────────────────────
   const isIPEVARActive = useRecoilValue(store.isIPEVARActive);
   const isEditorLiveActive = useRecoilValue(store.isEditorLiveActive);
+  const isCanvasActive = useRecoilValue(store.isCanvasActive);
   const [ipevarMaximized, setIpevarMaximized] = useRecoilState(store.ipevarMaximized);
+  const [canvasMaximized, setCanvasMaximized] = useRecoilState(store.canvasMaximized);
 
   const toggleIpevar = () => {
     setIpevarMaximized((prev) => !prev);
+  };
+
+  const toggleCanvas = () => {
+    setCanvasMaximized((prev) => !prev);
   };
 
   return (
@@ -79,6 +85,17 @@ export default function Header() {
                      aria-label={ipevarMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
                    >
                      {ipevarMaximized
+                       ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
+                       : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
+                   </button>
+                 )}
+                 {isCanvasActive && !isIPEVARActive && !isEditorLiveActive && (
+                   <button
+                     onClick={toggleCanvas}
+                     className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
+                     aria-label={canvasMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
+                   >
+                     {canvasMaximized
                        ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
                        : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
                    </button>

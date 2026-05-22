@@ -21,7 +21,8 @@ import {
   Edit,
   Save
 } from 'lucide-react';
-import { useRecoilState, useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue, useRecoilCallback } from 'recoil';
+import { ephemeralAgentByConvoId } from '~/store/agents';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import store from '~/store';
@@ -207,6 +208,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const chatContext = useChatContext();
   const setConversation = chatContext?.setConversation;
 
+  const copyEphemeralAgent = useRecoilCallback(
+    ({ snapshot, set }) =>
+      async (targetId: string) => {
+        const sourceId = conversationId || 'new';
+        const sourceAgent = await snapshot.getPromise(ephemeralAgentByConvoId(sourceId));
+        if (sourceAgent) {
+          set(ephemeralAgentByConvoId(targetId), sourceAgent);
+        }
+      },
+    [conversationId],
+  );
+
   // Sync state refs on change
   useEffect(() => { contentRef.current = content; }, [content]);
   useEffect(() => { fileTypeRef.current = fileType; }, [fileType]);
@@ -387,6 +400,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   ) => {
     const newConvoId = v4();
     
+    await copyEphemeralAgent(newConvoId);
+    
     setFileType(initialFileType);
     setContent(initialContent);
     setTitle(initialTitle);
@@ -477,6 +492,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     
     if (!conversationId || conversationId === 'new') {
       const newConvoId = v4();
+      await copyEphemeralAgent(newConvoId);
       if (setConversation) {
         setConversation((prev: any) => ({
           ...prev,
