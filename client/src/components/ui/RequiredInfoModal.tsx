@@ -58,14 +58,19 @@ const RequiredInfoModal: React.FC = () => {
   };
 
   const handleOpenChange = (open: boolean) => {
-    // Intercept Radix UI close requests (clicking outside or pressing Escape)
-    // to make the dialog strictly blocking.
+    // Intercept Radix UI close requests to make the dialog strictly blocking.
     if (!open) return;
   };
 
   return (
     <OGDialog open={true} onOpenChange={handleOpenChange}>
-      <OGDialogContent className="relative max-h-[90vh] w-11/12 max-w-md overflow-hidden rounded-2xl border border-green-500/20 bg-surface-secondary/80 p-0 shadow-2xl backdrop-blur-md dark:border-green-500/10">
+      <OGDialogContent
+        showCloseButton={false}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="max-h-[90vh] w-11/12 max-w-md overflow-hidden rounded-2xl border border-green-500/20 bg-surface-secondary/80 p-0 shadow-2xl backdrop-blur-md dark:border-green-500/10"
+      >
         
         {/* Glow ambient background circles */}
         <div className="pointer-events-none absolute -mr-16 -mt-16 right-0 top-0 h-48 w-48 rounded-full bg-green-500/10 blur-2xl transition-all duration-700" />

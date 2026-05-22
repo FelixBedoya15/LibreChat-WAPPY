@@ -794,40 +794,29 @@ export default function ProgramaCapacitaciones() {
     if (!selectedSesion) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div className="relative flex h-[90vh] w-full max-w-4xl flex-col rounded-3xl border border-border-light bg-surface-primary shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 dark:border-white/5">
-          <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary/20 px-6 py-4 dark:border-white/5">
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary">Ficha de Planificación</h3>
-              <h2 className="text-base font-black text-text-primary truncate max-w-md">{selectedSesion.tema || 'Nueva Capacitación'}</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleSaveModal}
-                className="h-8 rounded-lg border border-border-light bg-surface-secondary/20 px-3 text-xs font-bold text-text-primary hover:bg-surface-secondary/40"
-              >
-                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
-                <span>Guardar y Cerrar</span>
-              </Button>
-              <button
-                onClick={() => handleDeleteSesion(selectedSesion.id)}
-                className="h-8 rounded-lg border border-rose-200 bg-rose-50/50 px-2.5 text-rose-600 hover:bg-rose-50 dark:border-rose-900/30 dark:bg-rose-900/10 dark:text-rose-400"
-                title="Eliminar"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setIsSesionModalOpen(false)}
-                className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-rose-500/50 transition-colors ml-2"
-                title="Cancelar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200"
+        onClick={() => setIsSesionModalOpen(false)}
+      >
+        <div 
+          className="relative flex max-h-[85vh] w-full max-w-3xl flex-col rounded-[2rem] border border-border-light bg-surface-primary shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 dark:border-white/5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setIsSesionModalOpen(false)}
+            className="absolute right-6 top-6 z-10 rounded-full bg-surface-secondary/50 p-2 text-text-secondary hover:bg-surface-hover hover:text-rose-500 transition-colors"
+            title="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
           
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex-1 overflow-y-auto p-8 space-y-8">
+            <div className="pr-12">
+              <h3 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">Dinámica de Exposición</h3>
+              <h2 className="text-2xl font-black text-text-primary mt-1">{selectedSesion.tema || 'Nueva Capacitación'}</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Tema de la Capacitación *</label>
                 <input
@@ -1029,6 +1018,23 @@ export default function ProgramaCapacitaciones() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="border-t border-border-light bg-surface-secondary/10 px-8 py-5 flex items-center justify-between dark:border-white/5 mt-auto shrink-0">
+            <button
+              onClick={() => handleDeleteSesion(selectedSesion.id)}
+              className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/50 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/30 dark:bg-rose-900/10 dark:text-rose-400 transition-colors"
+              title="Eliminar Capacitación"
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar
+            </button>
+            <Button
+              onClick={handleSaveModal}
+              className="flex items-center gap-2 rounded-xl border-none bg-teal-600 px-6 py-2.5 text-sm font-black text-white hover:bg-teal-700 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/20"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              <span>Guardar y Cerrar</span>
+            </Button>
           </div>
         </div>
       </div>

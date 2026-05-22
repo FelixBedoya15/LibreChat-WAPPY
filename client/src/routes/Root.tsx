@@ -182,9 +182,16 @@ export default function Root() {
               modalContent={localize('com_ui_terms_content')}
             />
           )}
-          {isAuthenticated && user && !user.phoneNumber && (
-            <RequiredInfoModal />
-          )}
+          {(() => {
+            const isPhoneMissing =
+              !user?.phoneNumber ||
+              user.phoneNumber.trim() === '' ||
+              user.phoneNumber === 'No registrado' ||
+              user.phoneNumber === 'N/A';
+            return isAuthenticated && user && isPhoneMissing ? (
+              <RequiredInfoModal />
+            ) : null;
+          })()}
           <TenshiChat />
         </AssistantsMapContext.Provider>
       </FileMapContext.Provider>
