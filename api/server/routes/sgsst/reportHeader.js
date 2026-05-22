@@ -31,14 +31,16 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   const ciudad = ci.city ? `${ci.city}${ci.departamento ? ', ' + ci.departamento : ''}` : 'N/A';
 
   return `
-<div style="text-align: center; margin-bottom: 24px;">
-    <h1 style="color: #0f766e; font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
+<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(15,118,110,0.15); position: relative; font-family: sans-serif;">
+    <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">PROCESO: SG-SST | V.02</div>
+    <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0;">
         ${title}
     </h1>
-    <div style="width: 100px; height: 3px; background-color: #0f766e; margin: 0 auto 12px auto;"></div>
+    <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.95; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
+    <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
 </div>
 
-<div style="overflow-x: auto; width: 100%; margin-bottom: 24px;">
+<div style="overflow-x: auto; width: 100%; margin-bottom: 24px; font-family: sans-serif;">
 <table style="width: 100%; min-width: 700px; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
   <thead>
     <tr>

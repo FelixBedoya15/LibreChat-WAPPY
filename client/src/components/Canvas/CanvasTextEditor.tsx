@@ -22,6 +22,18 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import { ritTemplateTradicional } from './rit_template_tradicional';
 import { ritTemplateHumanista } from './rit_template_humanista';
 import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
+import {
+  politicaDesconexionHTML,
+  politicaAcosoLaboralHTML,
+  protocoloAcosoLaboralHTML,
+  politicaAcosoSexualHTML,
+  protocoloAcosoSexualHTML,
+  politicaGeneroHTML,
+  contratoIndefinidoHTML,
+  contratoDefinidoHTML,
+  contratoServiciosHTML,
+  contratoObraLaborHTML
+} from './extended_templates';
 
 interface CanvasTextEditorProps {
   initialContent: string;
@@ -129,7 +141,7 @@ const TEMPLATES = [
           Esta política será publicada en cartelera digital y física, se integrará en el proceso de inducción de todo personal y será revisada de forma obligatoria mínimo una (1) vez al año por la alta dirección en coordinación con el COPASST y el responsable del SG-SST.
         </p>
 
-        \${DEFAULT_SIGNATURE_BLOCK}
+        ${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
   },
@@ -269,7 +281,7 @@ const TEMPLATES = [
           Este comité se compromete a sesionar ordinariamente de forma mensual y extraordinaria en casos de accidentes graves. Sus funciones principales comprenden la proposición de medidas higiénicas y de control preventivo, acompañamiento en investigaciones de accidentes, realización de inspecciones de seguridad, y ser puente activo de comunicación fluida y respetuosa entre la alta dirección y los colaboradores de la organización.
         </p>
 
-        \${DEFAULT_SIGNATURE_BLOCK}
+        ${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
   },
@@ -903,9 +915,79 @@ const TEMPLATES = [
           </tbody>
         </table>
 
-        \${DEFAULT_SIGNATURE_BLOCK}
+        ${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
+  },
+  {
+    id: 'politica_desconexion',
+    title: 'Pol. Desconexión Laboral',
+    description: 'Regulación del descanso y salud digital (Ley 2191 de 2022)',
+    icon: <Scale className="h-4 w-4 text-indigo-500" />,
+    html: politicaDesconexionHTML
+  },
+  {
+    id: 'politica_acoso_laboral',
+    title: 'Pol. Acoso Laboral',
+    description: 'Prevención de acoso y convivencia armónica (Ley 1010)',
+    icon: <ShieldAlert className="h-4 w-4 text-emerald-500" />,
+    html: politicaAcosoLaboralHTML
+  },
+  {
+    id: 'protocolo_acoso_laboral',
+    title: 'Prot. Acoso Laboral',
+    description: 'Ruta de quejas y mediación del Comité de Convivencia',
+    icon: <ListTodo className="h-4 w-4 text-teal-500" />,
+    html: protocoloAcosoLaboralHTML
+  },
+  {
+    id: 'politica_acoso_sexual',
+    title: 'Pol. Acoso Sexual',
+    description: 'Prevención y tolerancia cero frente a agresión sexual (Ley 2365)',
+    icon: <ShieldAlert className="h-4 w-4 text-rose-500" />,
+    html: politicaAcosoSexualHTML
+  },
+  {
+    id: 'protocolo_acoso_sexual',
+    title: 'Prot. Acoso Sexual',
+    description: 'Ruta de atención urgente y medidas cautelares (Ley 2365)',
+    icon: <AlertTriangle className="h-4 w-4 text-purple-500" />,
+    html: protocoloAcosoSexualHTML
+  },
+  {
+    id: 'politica_genero',
+    title: 'Pol. Equidad de Género',
+    description: 'Plan de igualdad de oportunidades y brecha salarial cero',
+    icon: <Heart className="h-4 w-4 text-blue-500" />,
+    html: politicaGeneroHTML
+  },
+  {
+    id: 'contrato_indefinido',
+    title: 'Contrato Término Indefinido',
+    description: 'Contrato de trabajo estándar sin límite de tiempo vinculante',
+    icon: <FileText className="h-4 w-4 text-slate-500" />,
+    html: contratoIndefinidoHTML
+  },
+  {
+    id: 'contrato_definido',
+    title: 'Contrato Término Fijo',
+    description: 'Contrato laboral con fecha de vencimiento y prórrogas',
+    icon: <FileText className="h-4 w-4 text-blue-800" />,
+    html: contratoDefinidoHTML
+  },
+  {
+    id: 'contrato_servicios',
+    title: 'Prestación de Servicios',
+    description: 'Contrato civil/comercial independiente con autonomía técnica',
+    icon: <FileText className="h-4 w-4 text-teal-600" />,
+    html: contratoServiciosHTML
+  },
+  {
+    id: 'contrato_obra_labor',
+    title: 'Contrato de Obra o Labor',
+    description: 'Contrato laboral condicionado al fin de un proyecto u obra',
+    icon: <FileText className="h-4 w-4 text-orange-700" />,
+    html: contratoObraLaborHTML
   }
 ];
 

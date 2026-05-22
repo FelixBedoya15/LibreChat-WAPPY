@@ -378,36 +378,257 @@ const LivePage = () => {
 
 
     const initialReportContent = `
-<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#222;">
-  <!-- HEADER -->
-  <div style="background:linear-gradient(135deg,#0d2d5e 0%,#1565c0 100%); padding:28px 32px; border-radius:12px 12px 0 0; margin-bottom:0;">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
+  <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
+  <div style="background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:relative; z-index:10;">
       <div>
-        <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
-        <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
-        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis)</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
-          <div style="color:#64b5f6; font-size:0.65em; font-weight:700; letter-spacing:2px; text-transform:uppercase;">Radicado</div>
-          <div style="color:#fff; font-size:1.1em; font-weight:700;">LA-PENDIENTE</div>
-          <div style="color:#90caf9; font-size:0.7em; margin-top:4px;">${new Date().toLocaleDateString()}</div>
+        <div style="color:#22d3ee; font-size:0.75em; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 10px rgba(34,211,238,0.3); display:flex; align-items:center; gap:8px;">
+          <svg width="12" height="12" viewBox="0 0 100 100" style="overflow:visible;">
+            <circle cx="50" cy="50" r="45" fill="#22d3ee">
+              <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="r" values="45;65;45" dur="1s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+          ✨ WAPPY IA • HSE Command Center
+        </div>
+        <h1 style="color:#ffffff; font-size:1.8em; font-weight:900; margin:0 0 6px; letter-spacing:-0.5px; text-shadow:0 2px 4px rgba(0,0,0,0.2);">
+          Informe de Análisis de Riesgos y Peligros
+        </h1>
+        <div style="color:#a7f3d0; font-size:0.85em; font-weight:500; display:flex; align-items:center; gap:6px;">
+          <span style="display:inline-block; width:8px; height:8px; background-color:#34d399; border-radius:50%; box-shadow:0 0 8px #34d399;"></span>
+          Modalidad: Auditoría de Campo Asistida por IA (Predictiva)
         </div>
       </div>
+      <div>
+        <div style="background:rgba(255,255,255,0.07); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div style="color:#22d3ee; font-size:0.65em; font-weight:800; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">RADICADO</div>
+          <div style="color:#ffffff; font-size:1.25em; font-weight:900; font-family:monospace; letter-spacing:1px;">LA-PENDIENTE</div>
+          <div style="color:#e2e8f0; font-size:0.75em; margin-top:4px; font-weight:500;">
+            📅 \${new Date().toLocaleDateString()}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Background grid pattern -->
+    <div style="position:absolute; inset:0; opacity:0.15; pointer-events:none; z-index:1;">
+      <svg width="100%" height="100%">
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
     </div>
   </div>
 
   <!-- INFO BAR -->
-  <div style="background:#e3f2fd; border:1px solid #90caf9; border-top:none; padding:12px 24px; display:flex; flex-wrap:wrap; gap:24px; font-size:0.8em; color:#1565c0;">
-    <div><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</div>
-    <div><strong>Hora:</strong> --:--</div>
-    <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
-    <div><strong>Estado:</strong> <span style="color:#e65100; font-weight:700;">En Espera</span></div>
+  <div style="background:#f0fdfa; border-bottom:1px solid #ccfbf1; padding:14px 32px; display:flex; flex-wrap:wrap; gap:32px; font-size:0.85em; color:#0f766e; font-weight:600; align-items:center;">
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">📅</span> <strong>Fecha:</strong> \${new Date().toLocaleDateString()}
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">⏱️</span> <strong>Hora:</strong> --:--
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> GTC 45 / ISO 45001
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+      <strong>Estado:</strong> 
+      <span style="background-color:#fffbeb; color:#d97706; padding:3px 12px; border-radius:50px; font-size:0.9em; font-weight:700; border:1px solid #fde68a; display:flex; align-items:center; gap:6px;">
+        <svg width="8" height="8" viewBox="0 0 100 100" style="overflow:visible;">
+          <circle cx="50" cy="50" r="50" fill="#d97706">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+        ⌛ Esperando Evidencias
+      </span>
+    </div>
   </div>
 
-  <!-- BODY -->
-  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; padding:28px 32px 16px; min-height: 200px;">
-    <p style="color:#7f8c8d; text-align:center; font-style:italic; margin-top:40px;">Activa la cámara para comenzar el análisis predictivo de riesgos en tiempo real.</p>
+  <!-- BODY (PREMIUM LAYOUT WITH INTEGRATED TELEMETRY) -->
+  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; position:relative;">
+    
+    <!-- FUTURISTIC SWEEP RADAR & SIGNAL WAVE VISUALIZER (SVG with animation) -->
+    <div style="width:100%; max-width:480px; margin-bottom:28px; background:#042f2e; border-radius:24px; padding:20px; border:2px solid #0f766e; box-shadow:inset 0 0 20px rgba(20,184,166,0.2), 0 10px 15px -3px rgba(0,0,0,0.1); overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(20,184,166,0.3); padding-bottom:8px;">
+        <div style="color:#a5f3fc; font-family:monospace; font-size:0.8em; font-weight:bold; letter-spacing:1px;">
+          📡 RADAR DE MONITOREO EN VIVO
+        </div>
+        <div style="color:#34d399; font-family:monospace; font-size:0.8em; font-weight:bold; display:flex; align-items:center; gap:6px;">
+          ONLINE
+          <svg width="8" height="8" style="overflow:visible;">
+            <circle cx="4" cy="4" r="4" fill="#34d399">
+              <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
+      </div>
+      
+      <svg viewBox="0 0 400 120" fill="none" style="width:100%; height:auto;">
+        <!-- Circular sweep radar grids -->
+        <circle cx="200" cy="60" r="10" stroke="#0f766e" stroke-dasharray="2 2" stroke-width="1" />
+        <circle cx="200" cy="60" r="25" stroke="#0f766e" stroke-dasharray="3 3" stroke-width="1" />
+        <circle cx="200" cy="60" r="45" stroke="#0f766e" stroke-dasharray="4 4" stroke-width="1" />
+        <circle cx="200" cy="60" r="55" stroke="#115e59" stroke-width="1" />
+        
+        <!-- Radar Crosshairs -->
+        <line x1="200" y1="5" x2="200" y2="115" stroke="#0f766e" stroke-dasharray="2 2" stroke-width="1" />
+        <line x1="140" y1="60" x2="260" y2="60" stroke="#0f766e" stroke-dasharray="2 2" stroke-width="1" />
+        
+        <!-- Sweeping radial scanner arm -->
+        <line x1="200" y1="60" x2="200" y2="5" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round" filter="drop-shadow(0 0 4px rgba(20,184,166,0.6))">
+          <animateTransform attributeName="transform" type="rotate" from="0 200 60" to="360 200 60" dur="4s" repeatCount="indefinite" />
+        </line>
+        
+        <!-- Detected Hazard Glow Dots (Simulated) -->
+        <g>
+          <!-- Hazard 1 (EPP) -->
+          <circle cx="170" cy="40" r="4.5" fill="#ef4444" filter="drop-shadow(0 0 6px #ef4444)">
+            <animate attributeName="opacity" values="1;0.1;1" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <text x="145" y="32" fill="#ef4444" font-family="monospace" font-size="7" font-weight="bold">AMENAZA_EPP</text>
+          
+          <!-- Hazard 2 (Alturas) -->
+          <circle cx="235" cy="75" r="4.5" fill="#f59e0b" filter="drop-shadow(0 0 6px #f59e0b)">
+            <animate attributeName="opacity" values="0.1;1;0.1" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+          <text x="215" y="90" fill="#f59e0b" font-family="monospace" font-size="7" font-weight="bold">CAIDA_ALTURA</text>
+        </g>
+        
+        <!-- Live Liquid Audio/Video Signal Waveforms -->
+        <g opacity="0.6">
+          <path d="M 20 60 Q 50 15 100 60 T 180 60 T 260 60 T 380 60" stroke="#06b6d4" stroke-width="2" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="translate" from="0,0" to="-40,0" dur="3s" repeatCount="indefinite" />
+          </path>
+          <path d="M 20 60 Q 60 95 120 60 T 200 60 T 280 60 T 380 60" stroke="#10b981" stroke-width="1.5" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="translate" from="-40,0" to="0,0" dur="3.5s" repeatCount="indefinite" />
+          </path>
+        </g>
+      </svg>
+    </div>
+
+    <h3 style="color:#0f766e; font-size:1.4em; font-weight:900; margin:0 0 12px; letter-spacing:-0.3px;">
+      Centro de Mando HSE Predictivo • WAPPY IA
+    </h3>
+    <p style="color:#6b7280; font-size:0.95em; max-width:560px; line-height:1.6; margin:0 0 28px;">
+      El motor neuronal de Wappy está listo para evaluar el entorno en tiempo real. 
+      Activa tu cámara utilizando el botón de <strong>Video En Vivo</strong> en la barra superior, o selecciona 
+      <strong>Carga Rápida (Offline)</strong> para procesar videos grabados y fotos tomadas en campo.
+    </p>
+
+    <!-- TELEMETRY CORE MODULES (Futuristic Glass Cards Grid) -->
+    <div style="display:grid; grid-template-cols:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; width:100%; max-width:780px; margin-bottom:36px;">
+      
+      <!-- Module 1 -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; text-align:left; display:flex; align-items:flex-start; gap:12px; transition:all 0.3s ease;">
+        <div style="background:#e0f2fe; color:#0284c7; font-size:1.6em; padding:10px; border-radius:12px; display:flex; align-items:center; justify-content:center; line-height:1;">
+          👁️
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+            <strong style="color:#0f172a; font-size:0.9em; font-weight:700;">Visión Artificial</strong>
+            <span style="background-color:#fef3c7; color:#d97706; font-size:0.7em; font-weight:800; padding:2px 8px; border-radius:50px; margin-left:auto; display:flex; align-items:center; gap:4px;">
+              <svg width="6" height="6" style="overflow:visible;"><circle cx="3" cy="3" r="3" fill="#d97706"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></circle></svg>
+              STANDBY
+            </span>
+          </div>
+          <p style="color:#64748b; font-size:0.78em; margin:4px 0 0; line-height:1.4;">
+            Detección de EPP, líneas de vida y actos inseguros dinámicos.
+          </p>
+        </div>
+      </div>
+
+      <!-- Module 2 -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; text-align:left; display:flex; align-items:flex-start; gap:12px; transition:all 0.3s ease;">
+        <div style="background:#ecfeff; color:#0891b2; font-size:1.6em; padding:10px; border-radius:12px; display:flex; align-items:center; justify-content:center; line-height:1;">
+          🎙️
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+            <strong style="color:#0f172a; font-size:0.9em; font-weight:700;">Dictado por Voz</strong>
+            <span style="background-color:#d1fae5; color:#065f46; font-size:0.7em; font-weight:800; padding:2px 8px; border-radius:50px; margin-left:auto; display:flex; align-items:center; gap:4px;">
+              <svg width="6" height="6" style="overflow:visible;"><circle cx="3" cy="3" r="3" fill="#065f46"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle></svg>
+              READY
+            </span>
+          </div>
+          <p style="color:#64748b; font-size:0.78em; margin:4px 0 0; line-height:1.4;">
+            Transcribe observaciones habladas al instante usando Web Speech.
+          </p>
+        </div>
+      </div>
+
+      <!-- Module 3 -->
+      <div style="background:#f0fdf4; color:#16a34a; font-size:1.6em; padding:10px; border-radius:12px; display:flex; align-items:center; justify-content:center; line-height:1;">
+        🧠
+      </div>
+      <div style="flex:1;">
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+          <strong style="color:#0f172a; font-size:0.9em; font-weight:700;">Motor Predictivo</strong>
+          <span style="background-color:#d1fae5; color:#065f46; font-size:0.7em; font-weight:800; padding:2px 8px; border-radius:50px; margin-left:auto; display:flex; align-items:center; gap:4px;">
+            <svg width="6" height="6" style="overflow:visible;"><circle cx="3" cy="3" r="3" fill="#065f46"><animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/></circle></svg>
+            GTC 45
+          </span>
+        </div>
+        <p style="color:#64748b; font-size:0.78em; margin:4px 0 0; line-height:1.4;">
+          Clasifica la probabilidad y consecuencia de riesgos reglamentarios.
+        </p>
+      </div>
+    </div>
+
+    </div>
+
+    <!-- MOCK PREDICTIVE RISK IDENTIFICATION CARD (Educational / visual preview) -->
+    <div style="width:100%; max-width:780px; border:1px solid #ccfbf1; border-radius:20px; background:linear-gradient(to bottom, #f0fdfa 0%, #ffffff 100%); padding:24px; text-align:left; box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; border-bottom:1px solid #e6fffa; padding-bottom:10px;">
+        <span style="font-size:1.2em;">⚡</span>
+        <strong style="color:#0f766e; font-size:0.9em; text-transform:uppercase; letter-spacing:0.5px;">
+          Muestra de Detección de Riesgos (Estilo GTC 45)
+        </strong>
+      </div>
+      
+      <div style="display:flex; flex-wrap:wrap; gap:16px;">
+        
+        <!-- Left Item -->
+        <div style="flex:1; min-width:240px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span style="background-color:#fee2e2; color:#ef4444; padding:2px 8px; border-radius:6px; font-size:0.7em; font-weight:800;">
+              RIESGO CRÍTICO
+            </span>
+            <span style="color:#94a3b8; font-size:0.75em; font-family:monospace; margin-left:auto;">ID: #9941</span>
+          </div>
+          <strong style="display:block; color:#1e293b; font-size:0.85em; margin-bottom:4px;">
+            Trabajo en Alturas sin EPP
+          </strong>
+          <p style="color:#64748b; font-size:0.8em; margin:0; line-height:1.4;">
+            Operario a 3.5 metros sobre andamio incompleto sin arnés ni línea de vida activa.
+          </p>
+        </div>
+
+        <!-- Right Item -->
+        <div style="flex:1; min-width:240px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; border-left:4px solid #ef4444;">
+          <strong style="display:block; color:#0f172a; font-size:0.85em; margin-bottom:8px;">
+            Evaluación Predictiva Wappy IA:
+          </strong>
+          <table style="width:100%; border-collapse:collapse; font-size:0.75em;">
+            <tr>
+              <td style="color:#64748b; padding:2px 0;"><strong>Probabilidad (NP):</strong></td>
+              <td style="color:#ef4444; font-weight:bold; text-align:right;">Muy Alto (40)</td>
+            </tr>
+            <tr>
+              <td style="color:#64748b; padding:2px 0;"><strong>Consecuencia (NC):</strong></td>
+              <td style="color:#ef4444; font-weight:bold; text-align:right;">Muerte / Invalidez (100)</td>
+            </tr>
+            <tr>
+              <td style="color:#64748b; padding:2px 0;"><strong>Nivel de Riesgo (NR):</strong></td>
+              <td style="color:#ffffff; background:#ef4444; font-weight:bold; text-align:center; padding:1px 6px; border-radius:4px; display:inline-block; margin-left:auto;">I (Intervención Inmediata)</td>
+            </tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>`;
 

@@ -323,6 +323,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setMuted,
         changeVoice,
         getInputVolume,
+        sendEvidenceImage,
     } = useLiveAnalysisSession(sessionOptions);
 
     // Connection Delay Logic with 10-second Countdown

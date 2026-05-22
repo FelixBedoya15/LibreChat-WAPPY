@@ -24,6 +24,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from '~/components/SGSST/SignaturePad';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
+import { NotificationSeverity } from '~/common';
 
 const SCORE_COLOR = (s: number) => {
     if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
@@ -368,7 +369,7 @@ const CondicionesSalud = () => {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Trabajadores");
         XLSX.writeFile(workbook, "Perfil_Sociodemografico.xlsx");
-        showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success', severity: 'success' });
+        showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
     };
 
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -466,10 +467,10 @@ const CondicionesSalud = () => {
                 });
 
                 setTrabajadores(prev => [...prev, ...newWorkers]);
-                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success', severity: 'success' });
+                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, severity: NotificationSeverity.SUCCESS });
             } catch (err) {
                 console.error("Error importing Excel:", err);
-                showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', status: 'error' });
+                showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', severity: NotificationSeverity.ERROR });
             }
         };
         reader.readAsArrayBuffer(file);
@@ -479,8 +480,8 @@ const CondicionesSalud = () => {
     // ─── Save & Generate ────────────────────────────────────────
     const handleDummyData = () => {
         const dummyWorkers = generateDummyData.perfilSociodemografico();
-        setTrabajadores(prev => [...prev, ...dummyWorkers]);
-        showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success', severity: 'success' });
+        setTrabajadores(prev => [...prev, ...(dummyWorkers as any[])]);
+        showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, severity: NotificationSeverity.SUCCESS });
     };
 
     const handleSaveData = async () => {
@@ -498,10 +499,10 @@ const CondicionesSalud = () => {
                 // Update workers with IA tags returned from backend
                 if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-                showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', status: 'success', severity: 'success' });
+                showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', severity: NotificationSeverity.SUCCESS });
             } else throw new Error('Error al guardar');
         } catch (err: any) {
-            showToast({ message: err.message, status: 'error' });
+            showToast({ message: err.message, severity: NotificationSeverity.ERROR });
         } finally {
             setIsSaving(false);
         }
@@ -522,7 +523,7 @@ const CondicionesSalud = () => {
             } catch (e) {}
         }
         if (!trabajadores.length) {
-            showToast({ message: 'No hay trabajadores para generar reporte', status: 'warning' });
+            showToast({ message: 'No hay trabajadores para generar reporte', severity: NotificationSeverity.WARNING });
             return;
         }
         setIsAnalyzing(true);
@@ -550,9 +551,9 @@ const CondicionesSalud = () => {
             liveEditorRef.current?.setHTML(data.report);
             setConversationId('new');
             setReportMessageId(null);
-            showToast({ message: 'Informe sociodemográfico generado con éxito', status: 'success', severity: 'success' });
+            showToast({ message: 'Informe sociodemográfico generado con éxito', severity: NotificationSeverity.SUCCESS });
         } catch (err: any) {
-            showToast({ message: err.message, status: 'error' });
+            showToast({ message: err.message, severity: NotificationSeverity.ERROR });
         } finally {
             setIsAnalyzing(false);
         }
@@ -598,10 +599,10 @@ const CondicionesSalud = () => {
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
             }
         } catch (err: any) {
-            showToast({ message: err.message, status: 'error' });
+            showToast({ message: err.message, severity: NotificationSeverity.ERROR });
         }
     }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
@@ -763,7 +764,7 @@ const CondicionesSalud = () => {
         // NOTA: Para evitar sesgos discriminatorios (Ley y OIT), estos factores NO restan puntos al "Fit" (pts = 0).
         // Se mantienen únicamente como Alertas de Vigilancia Epidemiológica para el prevencionista SST.
         let vulnerabilidadSocial = 0;
-        let socialDesc = [];
+        let socialDesc: string[] = [];
         if (['1', '2'].includes(w.estrato)) { vulnerabilidadSocial++; socialDesc.push('estrato socioeconómico bajo'); }
         if (w.personasCargo && Number(w.personasCargo) >= 3) { vulnerabilidadSocial++; socialDesc.push('alta carga de dependientes'); }
         if (w.estadoCivil?.toLowerCase().includes('solter') || w.estadoCivil?.toLowerCase().includes('viud') || w.estadoCivil?.toLowerCase().includes('divorciad')) {
@@ -854,7 +855,7 @@ const CondicionesSalud = () => {
             const json = await res.json();
             setInboxPerfil(json.actualizacionesPendientesSalud || []);
         } catch (e) {
-            showToast({ message: 'Error al cargar actualizaciones pendientes', status: 'error' });
+            showToast({ message: 'Error al cargar actualizaciones pendientes', severity: NotificationSeverity.ERROR });
         } finally {
             setLoadingInbox(false);
         }
@@ -873,10 +874,10 @@ const CondicionesSalud = () => {
                 const json = await res.json();
                 setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, ...changes } : w));
                 setInboxPerfil(json.actualizacionesPendientesSalud || []);
-                showToast({ message: 'Condición médica actualizada permanentemente', status: 'success', severity: 'success' });
+                showToast({ message: 'Condición médica actualizada permanentemente', severity: NotificationSeverity.SUCCESS });
             }
         } catch (e) {
-            showToast({ message: 'Error al actualizar', status: 'error' });
+            showToast({ message: 'Error al actualizar', severity: NotificationSeverity.ERROR });
         }
     };
 
@@ -891,10 +892,10 @@ const CondicionesSalud = () => {
             if (res.ok) {
                 const json = await res.json();
                 setInboxPerfil(json.actualizacionesPendientesSalud || []);
-                showToast({ message: 'Solicitud descartada permanentemente', status: 'success', severity: 'success' });
+                showToast({ message: 'Solicitud descartada permanentemente', severity: NotificationSeverity.SUCCESS });
             }
         } catch (e) {
-            showToast({ message: 'Error al descartar', status: 'error' });
+            showToast({ message: 'Error al descartar', severity: NotificationSeverity.ERROR });
         }
     };
 
@@ -1071,9 +1072,7 @@ const CondicionesSalud = () => {
                             const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
                             const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
                             const colors = SCORE_COLOR(fitData.score);
-                            const initials = w.nombre
-                                ? w.nombre.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
-                                : 'NT';
+                            const initials = (w.nombre?.trim() || 'U')[0].toUpperCase();
                             
                             return (
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
@@ -1428,7 +1427,7 @@ const CondicionesSalud = () => {
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor 
                                 ref={liveEditorRef} 
-                                initialContent={generatedReport} 
+                                initialContent={generatedReport || ''} 
                                 onUpdate={(html) => { editorContentRef.current = html; }} 
                                 reportSourceData={trabajadores} 
                             />
@@ -1491,7 +1490,7 @@ const CondicionesSalud = () => {
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(getQrValue(selectedQrWorker));
-                                                    showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
+                                                    showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                                 }}
                                                 className="px-4 py-2.5 bg-gray-700 hover:bg-gray-900 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                             >
@@ -1520,7 +1519,7 @@ const CondicionesSalud = () => {
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(getUpdateQrValue(selectedQrWorker));
-                                                    showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
+                                                    showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                                 }}
                                                 className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                             >
@@ -1587,7 +1586,7 @@ const CondicionesSalud = () => {
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`);
-                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
+                                            showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >

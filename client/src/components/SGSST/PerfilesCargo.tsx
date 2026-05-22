@@ -27,6 +27,7 @@ import {
     Film,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
+import { NotificationSeverity } from '~/common';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
@@ -261,45 +262,52 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
     const allOptions = Array.from(new Set([...options, ...selected]));
 
     return (
-        <div className="space-y-1 relative" ref={containerRef}>
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">{label}</label>
+        <div className="space-y-2 relative flex flex-col justify-end h-full" ref={containerRef}>
+            <label className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">{label}</label>
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="min-h-[42px] w-full rounded-xl border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all shadow-sm"
+                className={cn(
+                    "min-h-[48px] w-full rounded-2xl border px-4 py-2.5 text-sm bg-surface-primary/70 text-text-primary flex flex-wrap gap-2 cursor-pointer transition-all duration-300 shadow-sm",
+                    isOpen 
+                        ? "border-teal-500 ring-4 ring-teal-500/10 shadow-[0_0_15px_rgba(20,184,166,0.15)]" 
+                        : "border-border-medium/60 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)]"
+                )}
             >
-                {selected.length === 0 && <span className="text-text-tertiary">{placeholder}</span>}
+                {selected.length === 0 && <span className="text-text-tertiary flex items-center text-xs font-semibold">{placeholder}</span>}
                 {selected.map(val => (
-                    <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded-md text-[11px] font-bold border border-teal-200 dark:border-teal-800">
+                    <span key={val} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-[11px] font-extrabold border border-teal-500/20 shadow-sm transition-all hover:scale-102 hover:bg-teal-500/20">
                         {val}
-                        <X className="h-3 w-3 hover:text-teal-900 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(val); }} />
+                        <X className="h-3.5 w-3.5 hover:text-red-500 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(val); }} />
                     </span>
                 ))}
-                <div className="ml-auto flex items-center">
-                    <ChevronDown className={cn("h-4 w-4 text-text-tertiary transition-transform duration-200", isOpen && "rotate-180")} />
+                <div className="ml-auto flex items-center pl-2">
+                    <ChevronDown className={cn("h-4 w-4 text-text-tertiary transition-transform duration-300", isOpen && "rotate-180")} />
                 </div>
             </div>
 
             {isOpen && (
-                <div className="absolute z-[60] mt-1 w-full max-h-72 overflow-hidden bg-surface-secondary border border-border-medium rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 flex flex-col">
-                    <div className="p-2 border-b border-border-medium bg-surface-primary sticky top-0 z-10 shrink-0">
+                <div className="absolute z-[60] bottom-full mb-2 w-full max-h-72 overflow-hidden bg-surface-secondary border border-border-medium/70 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-2 flex flex-col backdrop-blur-md">
+                    <div className="p-2 border-b border-border-medium/40 bg-surface-primary/90 sticky top-0 z-10 shrink-0">
                         <input
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={handleAddCustom}
                             placeholder="Buscar o presionar Enter para crear..."
-                            className="w-full text-xs font-medium rounded-lg bg-surface-secondary border border-border-light px-3 py-2.5 text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-all placeholder:text-text-tertiary shadow-inner"
+                            className="w-full text-xs font-bold rounded-2xl bg-surface-secondary border border-border-medium/60 px-4 py-3 text-text-primary focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:shadow-[0_0_10px_rgba(20,184,166,0.15)] transition-all placeholder:text-text-tertiary shadow-inner"
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>
-                    <div className="p-1.5 flex-1 overflow-y-auto">
+                    <div className="p-2 flex-1 overflow-y-auto space-y-1">
                         {allOptions.filter(opt => opt.toLowerCase().includes(inputValue.toLowerCase())).map(opt => (
                             <div
                                 key={opt}
                                 onClick={() => toggle(opt)}
                                 className={cn(
-                                    "flex items-center justify-between px-3 py-2.5 text-sm rounded-lg cursor-pointer transition-colors mb-0.5",
-                                    selected.includes(opt) ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-bold" : "hover:bg-surface-hover text-text-primary"
+                                    "flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl cursor-pointer transition-all duration-200 font-bold border",
+                                    selected.includes(opt) 
+                                        ? "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20" 
+                                        : "hover:bg-surface-hover text-text-primary border-transparent"
                                 )}
                             >
                                 <span className="leading-snug">{opt}</span>
@@ -308,18 +316,18 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
                         ))}
                         {inputValue.trim() && !allOptions.some(opt => opt.toLowerCase() === inputValue.toLowerCase().trim()) && (
                              <div 
-                                className="px-3 py-2.5 text-sm rounded-lg cursor-pointer text-teal-600 bg-teal-50/50 hover:bg-teal-100 dark:text-teal-400 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 font-bold flex items-center justify-between border border-dashed border-teal-300 dark:border-teal-700 transition-all mt-1"
+                                className="px-3.5 py-2.5 text-xs rounded-xl cursor-pointer text-teal-600 bg-teal-50/50 hover:bg-teal-100 dark:text-teal-400 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 font-bold flex items-center justify-between border border-dashed border-teal-300 dark:border-teal-700 transition-all duration-200 mt-1"
                                 onClick={() => {
                                     onChange([...selected, inputValue.trim()]);
                                     setInputValue('');
                                 }}
                              >
-                                 <span className="truncate mr-2">Agregar "{inputValue.trim()}"</span>
+                                 <span className="truncate mr-2 font-black">Agregar "{inputValue.trim()}"</span>
                                  <Plus className="h-4 w-4 flex-shrink-0"/> 
                              </div>
                         )}
                         {allOptions.filter(opt => opt.toLowerCase().includes(inputValue.toLowerCase())).length === 0 && !inputValue.trim() && (
-                            <div className="px-3 py-4 text-center text-xs text-text-tertiary italic">
+                            <div className="px-3 py-4 text-center text-xs text-text-tertiary italic font-semibold">
                                 No hay opciones disponibles
                             </div>
                         )}
@@ -389,7 +397,7 @@ const PerfilesCargo = () => {
         video.onloadedmetadata = () => {
             window.URL.revokeObjectURL(video.src);
             if (video.duration > 10) {
-                showToast({ message: 'El video no debe superar los 10 segundos.', status: 'error' });
+                showToast({ message: 'El video no debe superar los 10 segundos.', severity: NotificationSeverity.ERROR });
                 setIsVideoUploading(false);
                 return;
             }
@@ -462,7 +470,7 @@ const PerfilesCargo = () => {
         editorContentRef.current = '';
         liveEditorRef.current?.setHTML('');
         setIsFormExpanded(true);
-        showToast({ message: 'Nuevo perfil de cargo creado', status: 'info' });
+        showToast({ message: 'Nuevo perfil de cargo creado', severity: NotificationSeverity.INFO });
     };
 
     const handleDeletePerfil = (id: string) => {
@@ -517,7 +525,7 @@ const PerfilesCargo = () => {
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
+            showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', severity: NotificationSeverity.ERROR });
             return;
         }
 
@@ -555,7 +563,7 @@ const PerfilesCargo = () => {
             };
 
             recognition.onerror = (event: any) => {
-                showToast({ message: 'Error en reconocimiento de voz', status: 'error' });
+                showToast({ message: 'Error en reconocimiento de voz', severity: NotificationSeverity.ERROR });
                 setIsListening(false);
                 setInterimText('');
             };
@@ -568,7 +576,7 @@ const PerfilesCargo = () => {
             recognition.start();
         } catch (e) {
             setIsListening(false);
-            showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
+            showToast({ message: 'Error al iniciar reconocimiento', severity: NotificationSeverity.ERROR });
         }
     };
 
@@ -584,16 +592,16 @@ const PerfilesCargo = () => {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ perfilesList: updatedPerfiles }),
             });
-            if (res.ok && !silent) showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+            if (res.ok && !silent) showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
         } catch {
-            if (!silent) showToast({ message: 'Error al guardar', status: 'error' });
+            if (!silent) showToast({ message: 'Error al guardar', severity: NotificationSeverity.ERROR });
         }
     };
 
     // ─── Generation ─────────────────────────────────────────────────────────────
     const handleGenerate = useCallback(async () => {
         if (!formData.nombreCargo.trim()) {
-            showToast({ message: 'Por favor ingresa el nombre del cargo', status: 'warning' });
+            showToast({ message: 'Por favor ingresa el nombre del cargo', severity: NotificationSeverity.WARNING });
             return;
         }
         setIsGenerating(true);
@@ -614,9 +622,9 @@ const PerfilesCargo = () => {
             setIsFormExpanded(false);
             // Persist report in list immediately
             setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
-            showToast({ message: 'Perfil generado con éxito ✅', status: 'success', severity: 'success' });
+            showToast({ message: 'Perfil generado con éxito ✅', severity: NotificationSeverity.SUCCESS });
         } catch (error: any) {
-            showToast({ message: error.message || 'Error al generar', status: 'error' });
+            showToast({ message: error.message || 'Error al generar', severity: NotificationSeverity.ERROR });
         } finally {
             setIsGenerating(false);
         }
@@ -652,10 +660,10 @@ const PerfilesCargo = () => {
                     body: JSON.stringify({ perfilesList: updatedPerfiles }),
                 });
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
             }
         } catch (error: any) {
-            showToast({ message: `Error: ${error.message}`, status: 'error' });
+            showToast({ message: `Error: ${error.message}`, severity: NotificationSeverity.ERROR });
         } finally {
             setIsSaving(false);
         }
@@ -675,10 +683,10 @@ const PerfilesCargo = () => {
                     editorContentRef.current = lastMsg.text;
                     liveEditorRef.current?.setHTML(lastMsg.text);
                     setIsFormExpanded(false);
-                    showToast({ message: 'Reporte cargado desde el historial', status: 'success', severity: 'success' });
+                    showToast({ message: 'Reporte cargado desde el historial', severity: NotificationSeverity.SUCCESS });
                 }
             } catch {
-                showToast({ message: 'Error al cargar reporte', status: 'error' });
+                showToast({ message: 'Error al cargar reporte', severity: NotificationSeverity.ERROR });
             }
             setIsHistoryOpen(false);
         },
@@ -893,25 +901,26 @@ const PerfilesCargo = () => {
                 body: JSON.stringify({ perfilesList: dummyProfiles }),
             });
             if (res.ok) {
-                showToast({ message: 'Base de datos completada con 10 perfiles de cargo', status: 'success', severity: 'success' });
+                showToast({ message: 'Base de datos completada con 10 perfiles de cargo', severity: NotificationSeverity.SUCCESS });
             } else {
                 throw new Error('Failed to save to db');
             }
         } catch(e) {
-            showToast({ message: 'Error al guardar los perfiles en la base de datos', status: 'error' });
+            showToast({ message: 'Error al guardar los perfiles en la base de datos', severity: NotificationSeverity.ERROR });
         }
     };
 
     // ─── Render Field helper ──────────────────────────────────────────────────
     const renderField = (field: any) => {
         const baseClass =
-            'w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
+            'w-full min-h-[48px] rounded-2xl border border-border-medium/60 px-4 py-2.5 text-sm bg-surface-primary/70 text-text-primary focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 focus:shadow-[0_0_15px_rgba(20,184,166,0.15)] transition-all duration-300 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)] shadow-sm font-medium';
         if (field.type === 'select') {
             return (
                 <SingleSelect
                     value={(formData as any)[field.key] || ''}
                     onChange={val => handleInput(field.key as keyof PerfilCargoData, val)}
                     options={field.options}
+                    className="w-full min-h-[48px] rounded-2xl border border-border-medium/60 px-4 py-2.5 text-sm bg-surface-primary/70 text-text-primary transition-all duration-300 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)] shadow-sm font-medium"
                 />
             );
         }
@@ -984,46 +993,48 @@ const PerfilesCargo = () => {
             />
 
             {/* ── Profiles Quick Access ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-secondary p-5 shadow-md">
-                <div className="flex items-center justify-between mb-3 px-1">
-                    <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-teal-600" />
-                        <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Perfiles</span>
+            <div className="rounded-3xl border border-border-medium/40 bg-gradient-to-br from-surface-secondary/80 to-surface-primary/50 backdrop-blur-md p-6 shadow-xl border-l-4 border-l-teal-500/80 transition-all hover:shadow-2xl hover:border-teal-500/20">
+                <div className="flex items-center justify-between mb-5 px-1">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center border border-teal-500/20">
+                            <Briefcase className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
                     </div>
                     <button
                         onClick={handleAddPerfil}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-xs font-black border border-teal-500/20 dark:border-teal-400/20 hover:from-teal-500/20 hover:to-cyan-500/20 hover:border-teal-500/40 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95 transform duration-300"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Nuevo Cargo
+                        <Plus className="h-4 w-4" /> Nuevo Cargo
                     </button>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-3">
                     {perfiles.map(p => {
                         const isActive = activePerfilId === p.id;
                         return (
                             <div 
                                 key={p.id} 
                                 className={cn(
-                                    "group relative flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer border select-none",
+                                    "group relative flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-2xl text-xs font-black transition-all duration-300 cursor-pointer border select-none transform",
                                     isActive 
-                                        ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-transparent shadow-[0_4px_12px_rgba(20,184,166,0.25)] ring-2 ring-teal-500/20 ring-offset-2 dark:ring-offset-[#111]" 
-                                        : "bg-surface-primary text-text-secondary border-border-medium hover:border-teal-400 hover:shadow-md hover:bg-surface-secondary/50"
+                                        ? "bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 text-white border-transparent shadow-[0_4px_15px_rgba(20,184,166,0.3)] ring-2 ring-teal-500/20 ring-offset-2 dark:ring-offset-[#111] hover:scale-[1.03] active:scale-[0.97]" 
+                                        : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 hover:shadow-[0_4px_15px_rgba(20,184,166,0.08)] hover:bg-surface-secondary/90 hover:scale-[1.03] active:scale-[0.97]"
                                 )}
                                 onClick={() => handleSelectPerfil(p.id)}
                             >
                                 <div className={cn(
-                                    "flex items-center justify-center w-7 h-7 rounded-full shadow-inner transition-colors",
-                                    isActive ? "bg-white/25 text-white" : "bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
+                                    "flex items-center justify-center w-7 h-7 rounded-xl shadow-inner transition-colors",
+                                    isActive ? "bg-white/20 text-white" : "bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
                                 )}>
                                     <Briefcase className="w-3.5 h-3.5" />
                                 </div>
-                                <span className="truncate max-w-[160px] tracking-tight">{p.nombreCargo || 'Cargo sin nombre'}</span>
+                                <span className="truncate max-w-[180px] tracking-tight">{p.nombreCargo || 'Cargo sin nombre'}</span>
                                 
                                 {/* Botón de eliminar integrado */}
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
                                     className={cn(
-                                        "ml-1 p-1.5 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                        "ml-1 p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
                                         isActive 
                                             ? "hover:bg-red-500 hover:text-white text-white/70" 
                                             : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
@@ -1039,18 +1050,18 @@ const PerfilesCargo = () => {
             </div>
 
             {/* ── Core Form ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-xl overflow-hidden">
-                <div className="p-6 space-y-8">
+            <div className="rounded-3xl border border-border-medium/40 bg-gradient-to-br from-surface-secondary/90 to-surface-primary/70 backdrop-blur-lg shadow-2xl p-6 md:p-8 space-y-10 border-l-4 border-l-cyan-500/80 transition-all duration-500 hover:shadow-cyan-500/5 hover:border-cyan-500/20 animate-in fade-in duration-300">
+                <div className="space-y-8">
                     {FIELD_SECTIONS.map(section => (
-                        <div key={section.title} className="space-y-4">
-                            <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                                <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl">{section.icon}</div>
-                                <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">{section.title}</h4>
+                        <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                            <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
+                                <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm">{section.icon}</div>
+                                <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">{section.title}</h4>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                                 {section.fields.map(field => (
-                                    <div key={field.key} className="flex flex-col justify-end h-full space-y-1.5">
-                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-tighter">
+                                    <div key={field.key} className="flex flex-col justify-end h-full space-y-2">
+                                        <label className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
                                             {field.label}
                                         </label>
                                         <div className="mt-auto">
@@ -1062,10 +1073,10 @@ const PerfilesCargo = () => {
                         </div>
                     ))}
 
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                            <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl"><Shield className="h-4 w-4 text-teal-600" /></div>
-                            <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">Equipos y Entrenamiento Especializado</h4>
+                    <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                        <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
+                            <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm"><Shield className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /></div>
+                            <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">Controles y Equipos de Protección</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <MultiSelect
@@ -1135,7 +1146,7 @@ const PerfilesCargo = () => {
                                     "w-full rounded-2xl border-2 p-5 text-sm text-text-primary min-h-[180px] transition-all duration-300 focus:outline-none shadow-inner",
                                     isListening 
                                         ? "border-solid border-red-300 bg-red-50/10 focus:border-red-400" 
-                                        : "border-dashed border-teal-200 bg-teal-50/5 focus:bg-teal-50/10 focus:border-teal-400"
+                                        : "border-dashed border-teal-500/30 bg-surface-primary/50 text-text-primary placeholder:text-text-tertiary focus:bg-surface-primary/80 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:shadow-[0_0_15px_rgba(20,184,166,0.15)]"
                                 )}
                             />
                             {!isListening && (
@@ -1147,9 +1158,9 @@ const PerfilesCargo = () => {
                     </div>
 
                     {/* ── SECCIÓN: Registro Fotográfico de Evidencias ── */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium">
-                        <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
-                            <Camera className="h-4 w-4 text-teal-600" /> Registro Fotográfico del Cargo
+                    <div className="space-y-4 pt-4 border-t border-border-medium/60">
+                        <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
+                            <Camera className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Registro Fotográfico del Cargo
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
@@ -1158,19 +1169,19 @@ const PerfilesCargo = () => {
                                 const descName = `${foto}Desc`;
                                 return (
                                     <div key={foto} className="flex flex-col items-center gap-3">
-                                        <span className="font-semibold text-sm text-center">{labels[idx]}</span>
-                                        <div className="relative w-full aspect-square bg-teal-50/5 hover:bg-teal-50/10 dark:bg-teal-900/5 dark:hover:bg-teal-900/10 rounded-2xl border-2 border-dashed border-teal-200 dark:border-teal-800/60 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 transition-colors shadow-inner">
+                                        <span className="font-extrabold text-xs text-text-secondary text-center uppercase tracking-wide">{labels[idx]}</span>
+                                        <div className="relative w-full aspect-square bg-surface-primary/40 hover:bg-surface-primary/70 dark:bg-surface-primary/10 dark:hover:bg-surface-primary/20 rounded-3xl border-2 border-dashed border-teal-500/30 dark:border-teal-500/20 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 focus-within:ring-4 focus-within:ring-teal-500/10 transition-all duration-300 shadow-lg">
                                             {formData.images?.[fieldName] ? (
                                                 <>
                                                     <img src={formData.images[fieldName] as string} className="w-full h-full object-cover" alt={foto} />
-                                                    <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white hover:bg-red-500">
+                                                    <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full text-white hover:bg-red-500 transition-colors">
                                                         <X className="h-4 w-4" />
                                                     </button>
                                                 </>
                                             ) : (
-                                                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500">
-                                                    <Camera className="h-8 w-8 mb-2" />
-                                                    <span className="text-xs text-center px-4">Subir foto</span>
+                                                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500 transition-colors">
+                                                    <Camera className="h-8 w-8 mb-2 text-text-tertiary" />
+                                                    <span className="text-xs font-bold text-center px-4">Subir foto</span>
                                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(fieldName, e)} />
                                                 </label>
                                             )}
@@ -1180,7 +1191,7 @@ const PerfilesCargo = () => {
                                             placeholder="Descripción de la foto..."
                                             value={formData.images?.[descName as keyof typeof formData.images] || ''}
                                             onChange={e => handleImageDescUpdate(descName, e.target.value)}
-                                            className="w-full rounded-xl border px-3 py-2 text-xs bg-surface-primary text-text-primary focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                            className="w-full rounded-2xl border border-border-medium/60 px-4 py-2.5 text-xs bg-surface-primary/70 text-text-primary focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 focus:shadow-[0_0_10px_rgba(20,184,166,0.15)] transition-all hover:border-teal-500/80 shadow-sm font-medium"
                                         />
                                     </div>
                                 );
@@ -1189,32 +1200,32 @@ const PerfilesCargo = () => {
                     </div>
 
                     {/* ── SECCIÓN: Evidencia en Video ── */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium">
+                    <div className="space-y-4 pt-4 border-t border-border-medium/60">
                         <div className="flex items-center justify-between">
-                            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
-                                <Film className="h-4 w-4 text-teal-600" /> Video de la Actividad (Opcional)
+                            <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
+                                <Film className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Video de la Actividad (Opcional)
                             </h4>
-                            <span className="text-[10px] bg-teal-100/50 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase border border-teal-200">Máximo 10 Segundos</span>
+                            <span className="text-[10px] bg-teal-100/50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 px-3 py-1 rounded-full font-black uppercase border border-teal-200/50 dark:border-teal-800/40">Máximo 10 Segundos</span>
                         </div>
 
-                        <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                        <div className="bg-surface-primary/30 border-2 border-dashed border-teal-500/30 rounded-3xl p-6 transition-all duration-300 hover:bg-surface-primary/50 hover:border-teal-500 hover:shadow-xl">
                             {!formData.video ? (
                                 <div className="flex flex-col items-center justify-center space-y-3">
-                                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                    <div className="w-16 h-16 bg-teal-500/10 dark:bg-teal-400/10 border border-teal-500/20 rounded-full flex items-center justify-center text-teal-600 dark:text-teal-400">
                                         {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm font-semibold text-text-primary">Sube un video corto de la labor</p>
+                                        <p className="text-sm font-extrabold text-text-primary uppercase tracking-wide">Sube un video corto de la labor</p>
                                         <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVAR</p>
                                     </div>
-                                    <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                                    <label className="cursor-pointer bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 hover:scale-105 active:scale-95 text-white px-6 py-2.5 rounded-2xl text-xs font-black transition-all shadow-lg duration-300">
                                         {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
                                         <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
                                     </label>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-400">
+                                    <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-500/50">
                                         <video src={formData.video} controls className="w-full h-full" />
                                         <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
                                             <X className="h-4 w-4" />
@@ -1227,8 +1238,8 @@ const PerfilesCargo = () => {
                 </div>
 
                 {/* Normative Badge Re-styled */}
-                <div className="px-6 py-4 bg-teal-50/50 dark:bg-teal-900/10 border-t border-border-medium flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-teal-600" />
+                <div className="px-6 py-4 bg-teal-500/5 dark:bg-teal-900/10 border-t border-border-medium/60 flex items-center gap-3 rounded-b-3xl">
+                    <CheckCircle2 className="h-5 w-5 text-teal-500" />
                     <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
                         Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)
                     </span>
@@ -1262,7 +1273,7 @@ const PerfilesCargo = () => {
                          <div style={{ minWidth: '100%', padding: '24px' }}>
                             <LiveEditor
                                 ref={liveEditorRef}
-                                initialContent={generatedReport}
+                                initialContent={generatedReport || ''}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
                                 reportSourceData={{ formData, perfiles }}
                             />

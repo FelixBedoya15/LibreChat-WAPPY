@@ -59,8 +59,10 @@ class CanvasTool extends Tool {
 
     this.schema = z.object({
       accion: z
-        .enum(['crear', 'actualizar', 'leer'])
-        .describe('Acción a realizar: "crear" para inicializar un archivo nuevo; "actualizar" para modificar el contenido actual; "leer" para inspeccionar el estado actual del archivo.'),
+        .enum(['crear', 'actualizar', 'leer', 'editar_seccion', 'buscar_reemplazar', 'insertar'])
+        .describe(
+          'Acción a realizar: "crear" para inicializar un archivo nuevo; "actualizar" para modificar el contenido completo; "leer" para inspeccionar el estado actual; "editar_seccion" para editar solo una sección por su título; "buscar_reemplazar" para buscar y reemplazar texto específico; "insertar" para inyectar contenido en una posición específica.'
+        ),
 
       fileType: z
         .enum(['text', 'excel', 'presentation', 'html'])
@@ -69,17 +71,65 @@ class CanvasTool extends Tool {
       title: z
         .string()
         .optional()
-        .describe('Título del documento o archivo. Obligatorio al crear.'),
+        .describe('Título del documento o archivo. Obligatorio al crear o renombrar.'),
 
       content: z
         .string()
+        .optional()
         .describe(
-          'Contenido principal del archivo. ES ESTRICTAMENTE OBLIGATORIO. Si la accion es "leer", envía un string vacío "".\n' +
-          'NUNCA escribas el contenido del documento en el chat normal, DEBES enviarlo a través de este parámetro "content" en formato Markdown o HTML.\n' +
+          'Contenido principal del archivo. OBLIGATORIO al crear o actualizar completamente. Si usas acciones parciales o "leer", envía un string vacío o no lo envíes.\n' +
           '- Para "text" y "html": una cadena de texto (Markdown, HTML enriquecido o código HTML/CSS plano).\n' +
           '- Para "excel": un JSON stringificado representando la grilla bidimensional, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
           '- Para "presentation": un JSON stringificado representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].'
         ),
+
+      // Para accion="editar_seccion"
+      titulo_seccion: z
+        .string()
+        .optional()
+        .describe(
+          'Título exacto (o fragmento) de la sección a editar. El sistema buscará el bloque de texto bajo ese título y lo reemplazará. Requerido para accion="editar_seccion". Solo para fileType="text".'
+        ),
+
+      nuevo_contenido_seccion: z
+        .string()
+        .optional()
+        .describe(
+          'Nuevo contenido HTML/Markdown para reemplazar la sección identificada por titulo_seccion. Requerido para accion="editar_seccion". Solo para fileType="text".'
+        ),
+
+      // Para accion="buscar_reemplazar"
+      buscar: z
+        .string()
+        .optional()
+        .describe('Texto exacto o fragmento a buscar en el documento. Requerido para accion="buscar_reemplazar". Solo para fileType="text".'),
+
+      reemplazar: z
+        .string()
+        .optional()
+        .describe('Texto o HTML que reemplazará al encontrado. Requerido para accion="buscar_reemplazar". Solo para fileType="text".'),
+
+      reemplazar_todo: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe('Si true (por defecto), reemplaza todas las ocurrencias. Si false, solo la primera.'),
+
+      // Para accion="insertar"
+      posicion: z
+        .enum(['inicio', 'fin', 'despues_de'])
+        .optional()
+        .describe('Dónde insertar: "inicio" = al principio, "fin" = al final, "despues_de" = después del texto indicado en "insertar_despues_de_texto". Solo para fileType="text".'),
+
+      insertar_contenido: z
+        .string()
+        .optional()
+        .describe('Contenido HTML/Markdown a insertar. Requerido para accion="insertar". Solo para fileType="text".'),
+
+      insertar_despues_de_texto: z
+        .string()
+        .optional()
+        .describe('Texto o fragmento de título después del cual se insertará el nuevo contenido. Solo cuando posicion="despues_de".'),
     });
   }
 
@@ -95,7 +145,20 @@ class CanvasTool extends Tool {
       }
 
       const userId = this.req?.user?.id;
-      const { accion, fileType, title, content } = input;
+      const {
+        accion,
+        fileType,
+        title,
+        content,
+        titulo_seccion,
+        nuevo_contenido_seccion,
+        buscar,
+        reemplazar,
+        reemplazar_todo,
+        posicion,
+        insertar_contenido,
+        insertar_despues_de_texto
+      } = input;
 
       // ── LEER ────────────────────────────────────────────────────────────────
       if (accion === 'leer') {
@@ -307,6 +370,193 @@ class CanvasTool extends Tool {
             version: session.version,
           });
         }
+      }
+
+      // ── EDITAR SECCIÓN ────────────────────────────────────────────────────
+      if (accion === 'editar_seccion') {
+        const activeFileType = fileType || (session ? session.fileType : 'text');
+        if (activeFileType !== 'text') {
+          return JSON.stringify({ error: 'La acción "editar_seccion" solo está soportada para archivos de tipo "text".' });
+        }
+        if (!titulo_seccion || !nuevo_contenido_seccion) {
+          return JSON.stringify({ error: 'Se requieren "titulo_seccion" y "nuevo_contenido_seccion" para accion="editar_seccion".' });
+        }
+        if (!session || !session.content) {
+          return JSON.stringify({ error: 'El Canvas está vacío o no existe. Usa accion="crear" primero.' });
+        }
+
+        let updatedContent = session.content;
+        const escapedTitle = titulo_seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Match heading containing the title text + everything until next heading or end
+        const sectionRegex = new RegExp(
+          `(<h[1-6][^>]*>[^<]*${escapedTitle}[^<]*<\/h[1-6]>)(.*?)(?=<h[1-6]|$)`,
+          'is',
+        );
+        const match = sectionRegex.exec(updatedContent);
+
+        if (!match) {
+          return JSON.stringify({
+            error: `No se encontró una sección con el título o coincidencia "${titulo_seccion}". Verifica que el título exista en el documento.`,
+          });
+        }
+
+        updatedContent = updatedContent.replace(
+          sectionRegex,
+          match[1] + '\n' + nuevo_contenido_seccion + '\n',
+        );
+
+        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+
+        const nextVersion = session.version + 1;
+        const newHistoryItem = {
+          version: nextVersion,
+          content: updatedContent,
+          title: title || session.title,
+          updatedAt: new Date()
+        };
+
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+
+        session.content = updatedContent;
+        session.title = title || session.title;
+        session.version = nextVersion;
+        session.history = updatedHistory;
+
+        await session.save();
+
+        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+
+        return JSON.stringify({
+          success: true,
+          mensaje: `Sección "${titulo_seccion}" actualizada en el Canvas (versión ${session.version}).`,
+          title: session.title,
+          version: session.version,
+        });
+      }
+
+      // ── BUSCAR Y REEMPLAZAR ───────────────────────────────────────────────
+      if (accion === 'buscar_reemplazar') {
+        const activeFileType = fileType || (session ? session.fileType : 'text');
+        if (activeFileType !== 'text') {
+          return JSON.stringify({ error: 'La acción "buscar_reemplazar" solo está soportada para archivos de tipo "text".' });
+        }
+        if (!buscar || reemplazar === undefined) {
+          return JSON.stringify({ error: 'Se requieren "buscar" y "reemplazar" para accion="buscar_reemplazar".' });
+        }
+        if (!session || !session.content) {
+          return JSON.stringify({ error: 'El Canvas está vacío o no existe. Usa accion="crear" primero.' });
+        }
+
+        const flags = reemplazar_todo !== false ? 'gi' : 'i';
+        const searchRegex = new RegExp(buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+        const matches = (session.content.match(searchRegex) || []).length;
+
+        if (matches === 0) {
+          return JSON.stringify({ error: `No se encontró el texto "${buscar}" en el documento.` });
+        }
+
+        let updatedContent = session.content.replace(searchRegex, reemplazar);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+
+        const nextVersion = session.version + 1;
+        const newHistoryItem = {
+          version: nextVersion,
+          content: updatedContent,
+          title: title || session.title,
+          updatedAt: new Date()
+        };
+
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+
+        session.content = updatedContent;
+        session.title = title || session.title;
+        session.version = nextVersion;
+        session.history = updatedHistory;
+
+        await session.save();
+
+        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+
+        return JSON.stringify({
+          success: true,
+          mensaje: `Se reemplazaron ${matches} ocurrencia(s) de "${buscar}" por "${reemplazar}" en el Canvas (versión ${session.version}).`,
+          title: session.title,
+          version: session.version,
+          reemplazos: matches,
+        });
+      }
+
+      // ── INSERTAR ──────────────────────────────────────────────────────────
+      if (accion === 'insertar') {
+        const activeFileType = fileType || (session ? session.fileType : 'text');
+        if (activeFileType !== 'text') {
+          return JSON.stringify({ error: 'La acción "insertar" solo está soportada para archivos de tipo "text".' });
+        }
+        if (!insertar_contenido || !posicion) {
+          return JSON.stringify({ error: 'Se requieren "insertar_contenido" y "posicion" para accion="insertar".' });
+        }
+        if (!session || !session.content) {
+          return JSON.stringify({ error: 'El Canvas está vacío o no existe. Usa accion="crear" primero.' });
+        }
+
+        const currentContent = session.content || '';
+        let updatedContent;
+
+        if (posicion === 'inicio') {
+          updatedContent = insertar_contenido + '\n' + currentContent;
+        } else if (posicion === 'fin') {
+          // Si tiene bloque de firmas, queremos insertar ANTES del bloque de firmas.
+          const sigIndex = currentContent.indexOf('<div style="margin-top: 50px;');
+          const sigAlternativeIndex = currentContent.indexOf('<div style="margin-top:50px;');
+          const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
+
+          if (index !== -1) {
+            updatedContent = currentContent.substring(0, index) + '\n' + insertar_contenido + '\n\n' + currentContent.substring(index);
+          } else {
+            updatedContent = currentContent + '\n' + insertar_contenido;
+          }
+        } else if (posicion === 'despues_de') {
+          if (!insertar_despues_de_texto) {
+            return JSON.stringify({ error: '"insertar_despues_de_texto" es requerido cuando posicion="despues_de".' });
+          }
+          const escapedRef = insertar_despues_de_texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const refRegex = new RegExp(`(${escapedRef}.*?(?:<\/[^>]+>))`, 'i');
+          if (!refRegex.test(currentContent)) {
+            return JSON.stringify({ error: `No se encontró el texto de referencia "${insertar_despues_de_texto}" en el documento.` });
+          }
+          updatedContent = currentContent.replace(refRegex, `$1\n${insertar_contenido}`);
+        } else {
+          return JSON.stringify({ error: 'Posición inválida. Usa "inicio", "fin" o "despues_de".' });
+        }
+
+        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+
+        const nextVersion = session.version + 1;
+        const newHistoryItem = {
+          version: nextVersion,
+          content: updatedContent,
+          title: title || session.title,
+          updatedAt: new Date()
+        };
+
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+
+        session.content = updatedContent;
+        session.title = title || session.title;
+        session.version = nextVersion;
+        session.history = updatedHistory;
+
+        await session.save();
+
+        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+
+        return JSON.stringify({
+          success: true,
+          mensaje: `Contenido insertado correctamente en posición "${posicion}" en el Canvas (versión ${session.version}).`,
+          title: session.title,
+          version: session.version,
+        });
       }
 
       return JSON.stringify({ error: `Acción desconocida: "${accion}".` });
