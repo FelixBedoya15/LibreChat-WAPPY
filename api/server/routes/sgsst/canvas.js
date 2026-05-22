@@ -16,39 +16,103 @@ async function getActiveCompanyId(userId) {
 }
 
 /**
- * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
- * Safe against consecutive duplicates by inspecting content substrings.
+ * Busca y extrae el bloque del encabezado corporativo (contenedor con degradado linear-gradient y tabla resumen de la entidad)
+ * existente en el contenido previo para evitar sobrescribir las ediciones manuales.
  */
-async function processTextDocument(content, fileType, title, userId) {
+function extractExistingHeader(html) {
+  if (!html || !html.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) {
+    return null;
+  }
+  
+  const tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
+  if (!tableEndMatch) return null;
+  
+  const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
+  if (headerStartIdx === -1) {
+    const tableStartIdx = html.indexOf('<div style="overflow-x: auto;');
+    if (tableStartIdx === -1) return null;
+    
+    const endIdx = html.indexOf(tableEndMatch[0], tableStartIdx);
+    if (endIdx === -1) return null;
+    return html.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
+  }
+  
+  const endIdx = html.indexOf(tableEndMatch[0], headerStartIdx);
+  if (endIdx === -1) return null;
+  return html.substring(headerStartIdx, endIdx + tableEndMatch[0].length);
+}
+
+/**
+ * Busca y extrae la sección de firmas desde el índice `<div style="margin-top: 50px;"` hasta el final
+ * del contenido previo para conservar las firmas digitales y ediciones manuales.
+ */
+function extractExistingSignature(html) {
+  if (!html) return null;
+  const hasSignature = html.includes('signature-placeholder') || html.includes('RESPONSABLE SG-SST') || html.includes('Responsable SG-SST') || html.includes('RESPONSABLE SST');
+  if (!hasSignature) return null;
+
+  const sigIndex = html.lastIndexOf('<div style="margin-top: 50px;');
+  const sigAlternativeIndex = html.lastIndexOf('<div style="margin-top:50px;');
+  const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
+
+  if (index !== -1) {
+    return html.substring(index);
+  }
+  return null;
+}
+
+/**
+ * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
+ * Safe against consecutive duplicates by inspecting content substrings and reusing existing headers/signatures.
+ */
+async function processTextDocument(content, fileType, title, userId, existingContent) {
   if (fileType !== 'text') {
     return content;
   }
 
-  let stringContent = content || '';
+  let stringContent = (content || '').trim();
 
   const hasHeader = stringContent.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD');
-  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST');
+  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST') || stringContent.includes('RESPONSABLE SST');
 
   if (hasHeader && hasSignature) {
     return stringContent;
   }
 
-  let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
-  if (!companyInfo) {
-    companyInfo = await CompanyInfo.findOne({ user: userId });
+  let headerHtml = null;
+  let signatureHtml = null;
+
+  if (existingContent) {
+    if (!hasHeader) {
+      headerHtml = extractExistingHeader(existingContent);
+    }
+    if (!hasSignature) {
+      signatureHtml = extractExistingSignature(existingContent);
+    }
+  }
+
+  let companyInfo = null;
+  if ((!hasHeader && !headerHtml) || (!hasSignature && !signatureHtml)) {
+    companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
   }
 
   if (!hasHeader) {
-    const headerHtml = buildStandardHeader({
-      title: title || 'DOCUMENTO DE TRABAJO',
-      companyInfo
-    });
+    if (!headerHtml) {
+      headerHtml = buildStandardHeader({
+        title: title || 'DOCUMENTO DE TRABAJO',
+        companyInfo
+      });
+    }
     stringContent = headerHtml + '\n\n' + stringContent;
   }
 
-  if (!hasSignature && companyInfo) {
-    const signatureHtml = buildSignatureSection(companyInfo);
-    stringContent = stringContent + '\n\n' + signatureHtml;
+  if (!hasSignature) {
+    if (!signatureHtml && companyInfo) {
+      signatureHtml = buildSignatureSection(companyInfo);
+    }
+    if (signatureHtml) {
+      stringContent = stringContent + '\n\n' + signatureHtml;
+    }
   }
 
   return stringContent;
@@ -63,7 +127,8 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
-    const sessions = await CanvasSession.find({ companyId })
+    const query = companyId ? { companyId } : { user: userId };
+    const sessions = await CanvasSession.find(query)
       .sort({ updatedAt: -1 })
       .limit(50);
 
@@ -158,9 +223,10 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
     }
     // ---------------------------------
 
-    const processedContent = await processTextDocument(finalContent, fileType, finalTitle, userId);
-
     let session = await CanvasSession.findOne({ conversationId });
+    const existingContent = session ? session.content : null;
+
+    const processedContent = await processTextDocument(finalContent, fileType, finalTitle, userId, existingContent);
 
     if (!session) {
       // Crear nueva sesión
@@ -188,7 +254,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       const isDefaultTitle = (t) => !t || t === 'Archivo sin título' || t === 'Archivo de Canvas sin título';
       const existingIsDefault = isDefaultTitle(session.title);
       const newIsDefault = isDefaultTitle(finalTitle);
-
+ 
       let savedTitle = finalTitle || session.title;
       if (newIsDefault && !existingIsDefault) {
         savedTitle = session.title;
@@ -230,6 +296,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       version: session.version,
       title: session.title,
       fileType: session.fileType,
+      history: session.history || [],
       updatedAt: session.updatedAt,
     });
   } catch (error) {

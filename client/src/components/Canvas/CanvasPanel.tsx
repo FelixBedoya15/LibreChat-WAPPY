@@ -19,7 +19,7 @@ import {
   MoreVertical,
   Trash,
   Edit,
-  Save
+  Save,
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue, useRecoilCallback } from 'recoil';
 import { ephemeralAgentByConvoId } from '~/store/agents';
@@ -112,7 +112,12 @@ const VersionMenuDropdown = ({
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(false);
-    if (!window.confirm(`¿Eliminar la versión ${version} del historial?\nEsta acción no se puede deshacer.`)) return;
+    if (
+      !window.confirm(
+        `¿Eliminar la versión ${version} del historial?\nEsta acción no se puede deshacer.`,
+      )
+    )
+      return;
     setIsDeleting(true);
     await onDelete();
     setIsDeleting(false);
@@ -122,7 +127,7 @@ const VersionMenuDropdown = ({
     <div
       ref={dropdownRef}
       style={menuStyle}
-      className="w-36 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-xl rounded-lg py-1"
+      className="w-36 rounded-lg border border-gray-200 bg-surface-primary py-1 shadow-xl dark:border-gray-700"
     >
       <button
         onClick={(e) => {
@@ -131,16 +136,16 @@ const VersionMenuDropdown = ({
           if (n && n !== title) onRename(n);
           setIsOpen(false);
         }}
-        className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
+        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-text-primary hover:bg-surface-hover"
       >
-        <Edit className="w-3 h-3 text-teal-600" /> Renombrar
+        <Edit className="h-3 w-3 text-teal-600" /> Renombrar
       </button>
       <button
         onClick={handleDelete}
         disabled={isDeleting}
-        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 disabled:opacity-50"
+        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
       >
-        <Trash className="w-3.5 h-3.5" /> Eliminar
+        <Trash className="h-3.5 w-3.5" /> Eliminar
       </button>
     </div>
   ) : null;
@@ -152,11 +157,11 @@ const VersionMenuDropdown = ({
         onClick={(e) => {
           e.stopPropagation();
           calcMenuStyle();
-          setIsOpen(o => !o);
+          setIsOpen((o) => !o);
         }}
-        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors shrink-0"
+        className="shrink-0 rounded-full p-1 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
       >
-        <MoreVertical className="w-4 h-4 text-text-secondary" />
+        <MoreVertical className="h-4 w-4 text-text-secondary" />
       </button>
       {ReactDOM.createPortal(menu, document.body)}
     </>
@@ -174,7 +179,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
   const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.canvasMaximized);
-  
+
   // Ephemeral agent state to check which tools are active
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
@@ -221,141 +226,176 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   );
 
   // Sync state refs on change
-  useEffect(() => { contentRef.current = content; }, [content]);
-  useEffect(() => { fileTypeRef.current = fileType; }, [fileType]);
-  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+  useEffect(() => {
+    fileTypeRef.current = fileType;
+  }, [fileType]);
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
 
   // ── Markdown → HTML conversion (for agent-created content) ─────────────
   // The CanvasTool sends markdown; the LiveEditor renders HTML.
   // This lightweight converter handles the common cases produced by LLMs.
   const markdownToHtml = useCallback((md: string): string => {
     if (!md) return md;
-    
+
     // Check if it's purely HTML (like from an old session or already parsed)
     // If it has markdown headers (#) or bold (**), we should parse it.
     // The regex below might break if we parse HTML, so let's protect HTML blocks.
     // A simple heuristic: if it contains # or **, it's probably markdown mixed with HTML.
     if (md.trim().startsWith('<') && !md.includes('#') && !md.includes('**')) {
-      return md; 
+      return md;
     }
 
     // Split the content into HTML blocks and Markdown blocks to avoid parsing inside HTML
     const parts = md.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>)/i);
-    
-    return parts.map(part => {
-      if (part.trim().startsWith('<')) {
-        return part; // Return HTML blocks as-is
-      }
-      
-      let parsed = part;
 
-      // Parse markdown tables first
-      const tableRegex = /((?:^|\n)\|[^\n]+\|[^\n]*\n\|[ \t]*:?-+:?[ \t]*\|[^\n]*\n(?:\|[^\n]+\|[^\n]*(?:\n|$))+)/g;
-      parsed = parsed.replace(tableRegex, (match) => {
-        const lines = match.trim().split('\n').map(l => l.trim());
-        if (lines.length < 2) return match;
-        
-        const headerCols = lines[0].split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-        const separatorCols = lines[1].split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-        
-        const alignments = separatorCols.map(col => {
-          if (col.startsWith(':') && col.endsWith(':')) return 'center';
-          if (col.endsWith(':')) return 'right';
-          if (col.startsWith(':')) return 'left';
-          return '';
+    return parts
+      .map((part) => {
+        if (part.trim().startsWith('<')) {
+          return part; // Return HTML blocks as-is
+        }
+
+        let parsed = part;
+
+        // Parse markdown tables first
+        const tableRegex =
+          /((?:^|\n)\|[^\n]+\|[^\n]*\n\|[ \t]*:?-+:?[ \t]*\|[^\n]*\n(?:\|[^\n]+\|[^\n]*(?:\n|$))+)/g;
+        parsed = parsed.replace(tableRegex, (match) => {
+          const lines = match
+            .trim()
+            .split('\n')
+            .map((l) => l.trim());
+          if (lines.length < 2) return match;
+
+          const headerCols = lines[0]
+            .split('|')
+            .map((c) => c.trim())
+            .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+          const separatorCols = lines[1]
+            .split('|')
+            .map((c) => c.trim())
+            .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+
+          const alignments = separatorCols.map((col) => {
+            if (col.startsWith(':') && col.endsWith(':')) return 'center';
+            if (col.endsWith(':')) return 'right';
+            if (col.startsWith(':')) return 'left';
+            return '';
+          });
+
+          const headersHtml = headerCols
+            .map((col, idx) => {
+              const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
+              return `<th${align} style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; font-weight: bold; text-align: ${alignments[idx] || 'left'};">${col}</th>`;
+            })
+            .join('');
+
+          const dataRowsHtml = lines
+            .slice(2)
+            .map((line) => {
+              const cols = line
+                .split('|')
+                .map((c) => c.trim())
+                .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+              const cellsHtml = cols
+                .map((col, idx) => {
+                  const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
+                  return `<td${align} style="border: 1px solid #ddd; padding: 8px; text-align: ${alignments[idx] || 'left'};">${col}</td>`;
+                })
+                .join('');
+              return `<tr>${cellsHtml}</tr>`;
+            })
+            .join('');
+
+          return `<div style="overflow-x:auto; margin: 15px 0;"><table style="border-collapse: collapse; width: 100%; border: 1px solid #ddd; font-family: sans-serif; font-size: 13px;"><thead><tr>${headersHtml}</tr></thead><tbody>${dataRowsHtml}</tbody></table></div>`.replace(
+            /\n/g,
+            '',
+          );
         });
 
-        const headersHtml = headerCols.map((col, idx) => {
-          const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
-          return `<th${align} style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; font-weight: bold; text-align: ${alignments[idx] || 'left'};">${col}</th>`;
-        }).join('');
-
-        const dataRowsHtml = lines.slice(2).map(line => {
-          const cols = line.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-          const cellsHtml = cols.map((col, idx) => {
-            const align = alignments[idx] ? ` align="${alignments[idx]}"` : '';
-            return `<td${align} style="border: 1px solid #ddd; padding: 8px; text-align: ${alignments[idx] || 'left'};">${col}</td>`;
-          }).join('');
-          return `<tr>${cellsHtml}</tr>`;
-        }).join('');
-
-        return `<div style="overflow-x:auto; margin: 15px 0;"><table style="border-collapse: collapse; width: 100%; border: 1px solid #ddd; font-family: sans-serif; font-size: 13px;"><thead><tr>${headersHtml}</tr></thead><tbody>${dataRowsHtml}</tbody></table></div>`.replace(/\n/g, '');
-      });
-
-      // Parse remaining markdown
-      return parsed
-        .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
-        .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
-        .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
-        .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
-        .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
-        .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---+$/gm, '<hr/>')
-        .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
-        .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
-        .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
-        .replace(/\n{2,}/g, '</p><p>')
-        .replace(/\n/g, '<br/>')
-        .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
-        .replace(/<p><\/p>/g, '')
-        .replace(/<p>(<h[1-6]>)/g, '$1')
-        .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-        .replace(/<p>(<ul>)/g, '$1')
-        .replace(/(<\/ul>)<\/p>/g, '$1')
-        .replace(/<p>(<hr\/>)<\/p>/g, '$1');
-    }).join('');
+        // Parse remaining markdown
+        return parsed
+          .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
+          .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
+          .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
+          .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
+          .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
+          .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/^---+$/gm, '<hr/>')
+          .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+          .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
+          .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
+          .replace(/\n{2,}/g, '</p><p>')
+          .replace(/\n/g, '<br/>')
+          .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
+          .replace(/<p><\/p>/g, '')
+          .replace(/<p>(<h[1-6]>)/g, '$1')
+          .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+          .replace(/<p>(<ul>)/g, '$1')
+          .replace(/(<\/ul>)<\/p>/g, '$1')
+          .replace(/<p>(<hr\/>)<\/p>/g, '$1');
+      })
+      .join('');
   }, []);
 
   // ── Fetch session from database ──────────────────────────────────────────
-  const fetchSession = useCallback(async (isInitial = false) => {
-    if (!conversationId || conversationId === 'new') return;
-    if (isSavingRef.current) return;
+  const fetchSession = useCallback(
+    async (isInitial = false) => {
+      if (!conversationId || conversationId === 'new') return;
+      if (isSavingRef.current) return;
 
-    try {
-      if (isInitial) setIsLoading(true);
-      const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        console.warn(`[CanvasPanel] fetch failed: ${res.status} for convoId=${conversationId}`);
-        return;
-      }
-      const data = await res.json();
-
-      console.log(`[CanvasPanel] fetch ok | convoId=${conversationId} | updatedAt=${data.updatedAt} | prevRef=${lastUpdatedAtRef.current} | contentLen=${String(data.content || '').length}`);
-
-      // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
-      if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
-        lastUpdatedAtRef.current = data.updatedAt || null;
-        setFileType(data.fileType || 'text');
-        setTitle(data.title || 'Archivo sin título');
-        setVersion(data.version || 1);
-        setHistory(data.history || []);
-
-        // Convert markdown → HTML for text documents written by the agent
-        const rawContent = data.content || '';
-        let htmlContent = (data.fileType === 'text' || !data.fileType)
-          ? markdownToHtml(rawContent)
-          : rawContent;
-
-        if (data.fileType === 'text' || !data.fileType) {
-          htmlContent = appendSignatureIfMissing(htmlContent);
+      try {
+        if (isInitial) setIsLoading(true);
+        const res = await fetch(`/api/sgsst/canvas/${conversationId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          console.warn(`[CanvasPanel] fetch failed: ${res.status} for convoId=${conversationId}`);
+          return;
         }
+        const data = await res.json();
 
-        // On initial load always update (even if refs match — avoids stale-ref false-negative).
-        // On subsequent polls only update if content actually changed.
-        if (isInitial || JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
-          setContent(htmlContent);
+        console.log(
+          `[CanvasPanel] fetch ok | convoId=${conversationId} | updatedAt=${data.updatedAt} | prevRef=${lastUpdatedAtRef.current} | contentLen=${String(data.content || '').length}`,
+        );
+
+        // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
+        if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
+          lastUpdatedAtRef.current = data.updatedAt || null;
+          setFileType(data.fileType || 'text');
+          setTitle(data.title || 'Archivo sin título');
+          setVersion(data.version || 1);
+          setHistory(data.history || []);
+
+          // Convert markdown → HTML for text documents written by the agent
+          const rawContent = data.content || '';
+          let htmlContent =
+            data.fileType === 'text' || !data.fileType ? markdownToHtml(rawContent) : rawContent;
+
+          if (data.fileType === 'text' || !data.fileType) {
+            htmlContent = appendSignatureIfMissing(htmlContent);
+          }
+
+          // On initial load always update (even if refs match — avoids stale-ref false-negative).
+          // On subsequent polls only update if content actually changed.
+          if (isInitial || JSON.stringify(contentRef.current) !== JSON.stringify(htmlContent)) {
+            setContent(htmlContent);
+          }
         }
+      } catch (e) {
+        console.error('[CanvasPanel] Fetch error:', e);
+      } finally {
+        if (isInitial) setIsLoading(false);
       }
-    } catch (e) {
-      console.error('[CanvasPanel] Fetch error:', e);
-    } finally {
-      if (isInitial) setIsLoading(false);
-    }
-  }, [conversationId, token, markdownToHtml]);
+    },
+    [conversationId, token, markdownToHtml],
+  );
 
   // ── Polling implementation ───────────────────────────────────────────────
   useEffect(() => {
@@ -364,7 +404,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   useEffect(() => {
     if (!conversationId || conversationId === 'new') return;
-    
+
     // Set periodic polling to retrieve agent changes in real-time
     // isSubmitting in deps resets the interval when agent state changes
     const interval = setInterval(() => {
@@ -396,69 +436,76 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const initializeConvoAndSave = async (
     initialFileType: 'text' | 'excel' | 'presentation' | 'html',
     initialContent: string,
-    initialTitle: string
+    initialTitle: string,
   ) => {
     const newConvoId = v4();
-    
+
     await copyEphemeralAgent(newConvoId);
-    
+
     setFileType(initialFileType);
     setContent(initialContent);
     setTitle(initialTitle);
-    
+
     fileTypeRef.current = initialFileType;
     contentRef.current = initialContent;
     titleRef.current = initialTitle;
-    
+
     if (setConversation) {
       setConversation((prev: any) => ({
         ...prev,
         conversationId: newConvoId,
       }));
     }
-    
+
     await saveSession(newConvoId);
-    
+
     queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
     queryClient.invalidateQueries([QueryKeys.allConversations]);
-    
+
     navigate(`/c/${newConvoId}`, { replace: true });
   };
 
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
-  const saveSession = useCallback(async (customId?: string) => {
-    const activeConvoId = customId || conversationId;
-    if (!activeConvoId || activeConvoId === 'new') return;
-    isSavingRef.current = true;
-    setIsSaving(true);
-    
-    try {
-      const res = await fetch(`/api/sgsst/canvas/${activeConvoId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: fileTypeRef.current === 'text' ? appendSignatureIfMissing(contentRef.current) : contentRef.current,
-          title: titleRef.current,
-          fileType: fileTypeRef.current,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setVersion(data.version);
-        lastUpdatedAtRef.current = data.updatedAt;
-        showToast({ status: 'success', message: '¡Cambios guardados con éxito!' });
+  const saveSession = useCallback(
+    async (customId?: string) => {
+      const activeConvoId = customId || conversationId;
+      if (!activeConvoId || activeConvoId === 'new') return;
+      isSavingRef.current = true;
+      setIsSaving(true);
+
+      try {
+        const res = await fetch(`/api/sgsst/canvas/${activeConvoId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content:
+              fileTypeRef.current === 'text'
+                ? appendSignatureIfMissing(contentRef.current)
+                : contentRef.current,
+            title: titleRef.current,
+            fileType: fileTypeRef.current,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setVersion(data.version);
+          setHistory(data.history || []);
+          lastUpdatedAtRef.current = data.updatedAt;
+          showToast({ status: 'success', message: '¡Cambios guardados con éxito!' });
+        }
+      } catch (e) {
+        console.error('[CanvasPanel] Save error:', e);
+        showToast({ status: 'error', message: 'Error al guardar los cambios.' });
+      } finally {
+        isSavingRef.current = false;
+        setIsSaving(false);
       }
-    } catch (e) {
-      console.error('[CanvasPanel] Save error:', e);
-      showToast({ status: 'error', message: 'Error al guardar los cambios.' });
-    } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
-    }
-  }, [conversationId, token]);
+    },
+    [conversationId, token],
+  );
 
   const queueSave = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -469,7 +516,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Handle local content updates from the child editors
   const handleContentUpdate = (newContent: string) => {
-    const updated = fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+    const updated =
+      fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
     setContent(updated);
     queueSave();
   };
@@ -482,14 +530,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   const handleApplyTemplate = async (newContent: string, newTitle: string) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    const updated = fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
-    
+    const updated =
+      fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+
     setContent(updated);
     setTitle(newTitle);
-    
+
     contentRef.current = updated;
     titleRef.current = newTitle;
-    
+
     if (!conversationId || conversationId === 'new') {
       const newConvoId = v4();
       await copyEphemeralAgent(newConvoId);
@@ -509,8 +558,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   };
 
   const handleResetSession = async () => {
-    if (!window.confirm("¿Deseas volver a la selección de lienzos? Los cambios no guardados en la versión actual podrían perderse.")) return;
-    
+    if (
+      !window.confirm(
+        '¿Deseas volver a la selección de lienzos? Los cambios no guardados en la versión actual podrían perderse.',
+      )
+    )
+      return;
+
     setIsSaving(true);
     try {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -550,8 +604,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     const [draft, setDraft] = useState(title);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => { setDraft(title); }, [title]);
-    useEffect(() => { if (editing) setTimeout(() => inputRef.current?.select(), 50); }, [editing]);
+    useEffect(() => {
+      setDraft(title);
+    }, [title]);
+    useEffect(() => {
+      if (editing) setTimeout(() => inputRef.current?.select(), 50);
+    }, [editing]);
 
     const commit = () => {
       const trimmed = draft.trim();
@@ -561,31 +619,59 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
     const getIcon = () => {
       switch (fileType) {
-        case 'excel': return <FileSpreadsheet className="h-5 w-5" />;
-        case 'presentation': return <MonitorPlay className="h-5 w-5" />;
-        case 'html': return <Code2 className="h-5 w-5" />;
-        default: return <FileEdit className="h-5 w-5" />;
+        case 'excel':
+          return <FileSpreadsheet className="h-5 w-5" />;
+        case 'presentation':
+          return <MonitorPlay className="h-5 w-5" />;
+        case 'html':
+          return <Code2 className="h-5 w-5" />;
+        default:
+          return <FileEdit className="h-5 w-5" />;
       }
     };
 
     const getThemeColors = () => {
       switch (fileType) {
-        case 'excel': return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', grad: 'from-emerald-500/40 via-emerald-300/20' };
-        case 'presentation': return { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400', grad: 'from-amber-500/40 via-amber-300/20' };
-        case 'html': return { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-600 dark:text-blue-400', grad: 'from-blue-500/40 via-blue-300/20' };
-        default: return { bg: 'bg-teal-500/10', border: 'border-teal-500/20', text: 'text-teal-600 dark:text-teal-400', grad: 'from-teal-500/40 via-teal-300/20' };
+        case 'excel':
+          return {
+            bg: 'bg-emerald-500/10',
+            border: 'border-emerald-500/20',
+            text: 'text-emerald-600 dark:text-emerald-400',
+            grad: 'from-emerald-500/40 via-emerald-300/20',
+          };
+        case 'presentation':
+          return {
+            bg: 'bg-amber-500/10',
+            border: 'border-amber-500/20',
+            text: 'text-amber-600 dark:text-amber-400',
+            grad: 'from-amber-500/40 via-amber-300/20',
+          };
+        case 'html':
+          return {
+            bg: 'bg-blue-500/10',
+            border: 'border-blue-500/20',
+            text: 'text-blue-600 dark:text-blue-400',
+            grad: 'from-blue-500/40 via-blue-300/20',
+          };
+        default:
+          return {
+            bg: 'bg-teal-500/10',
+            border: 'border-teal-500/20',
+            text: 'text-teal-600 dark:text-teal-400',
+            grad: 'from-teal-500/40 via-teal-300/20',
+          };
       }
     };
 
     const theme = getThemeColors();
 
     return (
-      <div className="w-full px-4 pt-4 pb-2 shrink-0">
-        <div className="flex items-center gap-3 group">
+      <div className="w-full shrink-0 px-4 pb-2 pt-4">
+        <div className="group flex items-center gap-3">
           {hasActiveSession && (
             <button
               onClick={handleResetSession}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover hover:scale-105 shadow-sm transition-all duration-300 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-sm transition-all duration-300 hover:scale-105 hover:bg-surface-hover"
               aria-label="Volver a la selección de lienzos"
               title="Volver a la selección de lienzos"
             >
@@ -593,7 +679,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </button>
           )}
 
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${theme.bg} ${theme.border} ${theme.text}`}>
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${theme.bg} ${theme.border} ${theme.text}`}
+          >
             {getIcon()}
           </div>
 
@@ -602,26 +690,37 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               <input
                 ref={inputRef}
                 value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-                className={`flex-1 text-xl font-bold text-text-primary bg-transparent border-b-2 outline-none py-0.5 ${theme.border.replace('/20', '')}`}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commit();
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                className={`flex-1 border-b-2 bg-transparent py-0.5 text-xl font-bold text-text-primary outline-none ${theme.border.replace('/20', '')}`}
                 autoFocus
               />
-              <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" aria-label="Confirmar">
+              <button
+                onClick={commit}
+                className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 dark:hover:bg-green-900/20"
+                aria-label="Confirmar"
+              >
                 <Check className="h-4 w-4" />
               </button>
-              <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors" aria-label="Cancelar">
+              <button
+                onClick={() => setEditing(false)}
+                className="rounded-lg p-1.5 text-text-tertiary transition-colors hover:bg-surface-hover"
+                aria-label="Cancelar"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <div className="flex flex-1 items-center gap-2 min-w-0">
-              <h2 className="text-xl font-bold text-text-primary truncate leading-tight">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <h2 className="truncate text-xl font-bold leading-tight text-text-primary">
                 {title}
               </h2>
               <button
                 onClick={() => setEditing(true)}
-                className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-tertiary hover:${theme.text.split(' ')[0]} ${theme.bg.replace('/10', '/5')} transition-all shrink-0`}
+                className={`rounded-lg p-1.5 text-text-tertiary opacity-0 group-hover:opacity-100 hover:${theme.text.split(' ')[0]} ${theme.bg.replace('/10', '/5')} shrink-0 transition-all`}
                 aria-label="Renombrar documento"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -652,7 +751,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             initialContent={content}
             onUpdate={handleContentUpdate}
             title={title}
-            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
+            onRegisterDownload={(fn) => {
+              downloadRef.current = fn;
+            }}
           />
         );
       case 'presentation':
@@ -662,7 +763,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             onUpdate={handleContentUpdate}
             title={title}
             isMaximized={isMaximized}
-            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
+            onRegisterDownload={(fn) => {
+              downloadRef.current = fn;
+            }}
           />
         );
       case 'html':
@@ -672,7 +775,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             onUpdate={handleContentUpdate}
             title={title}
             isMaximized={isMaximized}
-            onRegisterDownload={(fn) => { downloadRef.current = fn; }}
+            onRegisterDownload={(fn) => {
+              downloadRef.current = fn;
+            }}
           />
         );
       default:
@@ -690,39 +795,47 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   // Empty state design with actions to instantiate canvas files
   if (isLoading && !content) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center p-8 bg-surface-primary">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500 mb-4"></div>
-        <p className="text-sm font-semibold text-text-secondary">Cargando espacio de trabajo Canvas...</p>
+      <div className="flex h-full w-full flex-col items-center justify-center bg-surface-primary p-8">
+        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500"></div>
+        <p className="text-sm font-semibold text-text-secondary">
+          Cargando espacio de trabajo Canvas...
+        </p>
       </div>
     );
   }
 
   const panelContent = (
-    <div className={`flex h-full w-full flex-col bg-surface-primary text-text-primary overflow-hidden ${
-      isMaximized ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl' : 'relative'
-    }`}>
+    <div
+      className={`flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary ${
+        isMaximized
+          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none shadow-2xl'
+          : 'relative'
+      }`}
+    >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 relative z-[300] overflow-visible"
+        className="relative z-[300] flex shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-4"
         style={{ minHeight: '4rem' }}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 overflow-hidden">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm shrink-0">
+        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-3 overflow-hidden">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
             <FileEdit className="h-5 w-5" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h2 className="text-sm font-semibold text-text-primary truncate">Canvas</h2>
+            <h2 className="truncate text-sm font-semibold text-text-primary">Canvas</h2>
             <div className="flex items-center gap-1.5">
-              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSubmitting ? 'bg-teal-500 animate-pulse' : 'bg-green-500'}`} />
-              <span className="text-xs text-text-secondary truncate">{title}</span>
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSubmitting ? 'animate-pulse bg-teal-500' : 'bg-green-500'}`}
+              />
+              <span className="truncate text-xs text-text-secondary">{title}</span>
               {isSaving && (
-                <span className="text-[10px] text-text-tertiary italic">Guardando...</span>
+                <span className="text-[10px] italic text-text-tertiary">Guardando...</span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
+        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
           {hasActiveSession && (
             <button
               onClick={async (e) => {
@@ -731,17 +844,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession();
               }}
               disabled={isSaving}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Guardar cambios"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+              <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
                 {isSaving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-text-primary" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-t-2 border-text-primary" />
                 ) : (
                   <Save className="h-4 w-4 text-text-primary" />
                 )}
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
                 <span className="text-sm font-bold tracking-wide text-text-primary">
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </span>
@@ -761,19 +874,20 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 if (downloadRef.current) {
                   downloadRef.current();
                 } else {
-                  console.warn('[CanvasPanel] No download function registered for fileType:', fileType);
+                  console.warn(
+                    '[CanvasPanel] No download function registered for fileType:',
+                    fileType,
+                  );
                 }
               }}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Descargar archivo"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+              <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
                 <Download className="h-4 w-4 text-text-primary" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-text-primary">
-                  Descargar
-                </span>
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-sm font-bold tracking-wide text-text-primary">Descargar</span>
               </div>
             </button>
           )}
@@ -781,20 +895,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
+              className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
                 isReportHistoryOpen
-                  ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
-                  : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+                  ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
+                  : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
               }`}
               aria-label="Historial de reportes"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
+              <div className="relative flex flex-shrink-0 items-center justify-center">
                 <History className="h-4 w-4" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide">
-                  Historial
-                </span>
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-sm font-bold tracking-wide">Historial</span>
               </div>
             </button>
           )}
@@ -802,37 +914,31 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
+              className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
                 isHistoryOpen
-                  ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
-                  : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+                  ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
+                  : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
               }`}
               aria-label="Versiones de documento"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
+              <div className="relative flex flex-shrink-0 items-center justify-center">
                 <RotateCcw className="h-4 w-4" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide">
-                  Versiones
-                </span>
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-sm font-bold tracking-wide">Versiones</span>
               </div>
             </button>
           )}
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              {isMaximized ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
+            <div className="relative flex flex-shrink-0 items-center justify-center">
+              {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </div>
-            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
               <span className="text-sm font-bold tracking-wide">
                 {isMaximized ? 'Contraer' : 'Expandir'}
               </span>
@@ -848,37 +954,39 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           navigate(`/c/${convoId}`);
         }}
         isOpen={isReportHistoryOpen}
-        toggleOpen={() => setIsReportHistoryOpen(h => !h)}
+        toggleOpen={() => setIsReportHistoryOpen((h) => !h)}
         historyEndpoint="/api/sgsst/canvas/history"
         tags={[]}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         {hasActiveSession ? (
           <>
             <DocumentTitleHeader />
-            <div className="flex-1 h-full flex flex-col overflow-hidden relative">
+            <div className="relative flex h-full flex-1 flex-col overflow-hidden">
               {renderEditor()}
             </div>
           </>
         ) : (
           /* Premium Empty State Guide */
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto space-y-6">
-            <div className="h-16 w-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 flex items-center justify-center shadow-inner">
+          <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center space-y-6 p-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-inner">
               <Sparkles className="h-8 w-8 animate-pulse" />
             </div>
-            
+
             <div className="space-y-2">
               <h3 className="text-xl font-extrabold text-text-primary">El lienzo está listo</h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                Pídele a Wappy que empiece a redactar o diagramar un entregable. Canvas creará hojas de cálculo, documentos, diapositivas y prototipos interactivos que podrás ver, editar y exportar de inmediato.
+              <p className="text-sm leading-relaxed text-text-secondary">
+                Pídele a Wappy que empiece a redactar o diagramar un entregable. Canvas creará hojas
+                de cálculo, documentos, diapositivas y prototipos interactivos que podrás ver,
+                editar y exportar de inmediato.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 w-full pt-4">
+            <div className="grid w-full grid-cols-2 gap-3 pt-4">
               <button
                 onClick={() => {
-                  const initialContent = '<h1>Nuevo Documento</h1><p>Empieza a escribir...</p>';
+                  const initialContent = '';
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('text', initialContent, 'Nuevo Documento');
                   } else {
@@ -891,11 +999,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     queueSave();
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-teal-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
+                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-teal-500/40 hover:bg-surface-hover"
               >
-                <FileEdit className="h-6 w-6 text-teal-500 group-hover:scale-110 transition-transform" />
+                <FileEdit className="h-6 w-6 text-teal-500 transition-transform group-hover:scale-110" />
                 <span className="text-xs font-bold text-text-primary">Documento Word</span>
-                <span className="text-[10px] text-text-tertiary text-center">Políticas, actas o guías</span>
+                <span className="text-center text-[10px] text-text-tertiary">
+                  Políticas, actas o guías
+                </span>
               </button>
 
               <button
@@ -917,17 +1027,22 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     queueSave();
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-emerald-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
+                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-emerald-500/40 hover:bg-surface-hover"
               >
-                <FileSpreadsheet className="h-6 w-6 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <FileSpreadsheet className="h-6 w-6 text-emerald-500 transition-transform group-hover:scale-110" />
                 <span className="text-xs font-bold text-text-primary">Hoja de Cálculo</span>
-                <span className="text-[10px] text-text-tertiary text-center">Presupuestos e indicadores</span>
+                <span className="text-center text-[10px] text-text-tertiary">
+                  Presupuestos e indicadores
+                </span>
               </button>
 
               <button
                 onClick={() => {
                   const initialContent = JSON.stringify([
-                    { title: 'Plan de Capacitación', bullets: ['Fase 1: Inducción General', 'Fase 2: Brigadas'] }
+                    {
+                      title: 'Plan de Capacitación',
+                      bullets: ['Fase 1: Inducción General', 'Fase 2: Brigadas'],
+                    },
                   ]);
                   if (!conversationId || conversationId === 'new') {
                     initializeConvoAndSave('presentation', initialContent, 'Presentación');
@@ -941,11 +1056,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     queueSave();
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-amber-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
+                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-amber-500/40 hover:bg-surface-hover"
               >
-                <MonitorPlay className="h-6 w-6 text-amber-500 group-hover:scale-110 transition-transform" />
+                <MonitorPlay className="h-6 w-6 text-amber-500 transition-transform group-hover:scale-110" />
                 <span className="text-xs font-bold text-text-primary">Presentación</span>
-                <span className="text-[10px] text-text-tertiary text-center">Diapositivas y capacitaciones</span>
+                <span className="text-center text-[10px] text-text-tertiary">
+                  Diapositivas y capacitaciones
+                </span>
               </button>
 
               <button
@@ -1003,18 +1120,20 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     queueSave();
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-blue-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
+                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-blue-500/40 hover:bg-surface-hover"
               >
-                <Code2 className="h-6 w-6 text-blue-500 group-hover:scale-110 transition-transform" />
+                <Code2 className="h-6 w-6 text-blue-500 transition-transform group-hover:scale-110" />
                 <span className="text-xs font-bold text-text-primary">Código Prototipo</span>
-                <span className="text-[10px] text-text-tertiary text-center">Páginas web y dashboards</span>
+                <span className="text-center text-[10px] text-text-tertiary">
+                  Páginas web y dashboards
+                </span>
               </button>
             </div>
-            
+
             <div className="flex w-full pt-2">
               <button
                 onClick={() => setIsReportHistoryOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 text-teal-600 font-semibold text-sm transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-5 py-2.5 text-sm font-semibold text-teal-600 transition-all hover:bg-teal-500/10"
               >
                 <History className="h-4 w-4" />
                 Explorar el Historial de Documentos Canvas
@@ -1026,63 +1145,69 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         {/* ── Version History Modal ─────────────────────────────────────────── */}
         {isHistoryOpen && (
           <div className="fixed inset-0 z-[999999] flex items-center justify-center">
-            <div 
+            <div
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsHistoryOpen(false)}
             />
-            <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col rounded-2xl bg-surface-primary shadow-2xl border border-border-light overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-6 py-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
                       <History className="h-5 w-5" />
                     </div>
                     <h2 className="text-lg font-bold text-text-primary">Versiones</h2>
                   </div>
-                  <p className="mt-1 text-sm text-text-secondary">Historial de versiones de {title}</p>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Historial de versiones de {title}
+                  </p>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
-                  className="rounded-lg p-2 text-text-tertiary hover:bg-surface-hover hover:text-text-primary transition-colors"
+                  className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6 bg-surface-primary">
+              <div className="flex-1 overflow-y-auto bg-surface-primary p-6">
                 {history.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-                    <div className="h-16 w-16 rounded-full bg-surface-secondary flex items-center justify-center border border-border-light">
+                  <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border border-border-light bg-surface-secondary">
                       <History className="h-8 w-8 text-text-tertiary" />
                     </div>
-                    <p className="text-text-secondary font-medium">No hay versiones previas guardadas aún.</p>
+                    <p className="font-medium text-text-secondary">
+                      No hay versiones previas guardadas aún.
+                    </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {history.map((hItem, idx) => {
                       const isCurrent = hItem.version === version;
                       return (
                         <div
                           key={idx}
                           className={`flex flex-col rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
-                            isCurrent 
-                              ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10' 
+                            isCurrent
+                              ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10'
                               : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-3 border-b border-border-light pb-2">
-                            <div className="flex flex-col min-w-0 flex-1">
+                          <div className="mb-3 flex items-center justify-between border-b border-border-light pb-2">
+                            <div className="flex min-w-0 flex-1 flex-col">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-text-primary shrink-0">Versión {hItem.version}</span>
+                                <span className="shrink-0 font-bold text-text-primary">
+                                  Versión {hItem.version}
+                                </span>
                                 {isCurrent && (
-                                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 shrink-0">
+                                  <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
                                     Actual
                                   </span>
                                 )}
                               </div>
-                              <span className="text-xs text-text-tertiary truncate">
+                              <span className="truncate text-xs text-text-tertiary">
                                 {new Date(hItem.updatedAt).toLocaleString('es-ES')}
                               </span>
                             </div>
@@ -1092,14 +1217,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                               title={hItem.title || title}
                               onRename={async (newName) => {
                                 try {
-                                  const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`, {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      Authorization: `Bearer ${token}`,
+                                  const res = await fetch(
+                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`,
+                                    {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({ title: newName }),
                                     },
-                                    body: JSON.stringify({ title: newName }),
-                                  });
+                                  );
                                   if (res.ok) {
                                     const data = await res.json();
                                     setHistory(data.history || []);
@@ -1114,12 +1242,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                               }}
                               onDelete={async () => {
                                 try {
-                                  const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`, {
-                                    method: 'DELETE',
-                                    headers: {
-                                      Authorization: `Bearer ${token}`,
+                                  const res = await fetch(
+                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`,
+                                    {
+                                      method: 'DELETE',
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
                                     },
-                                  });
+                                  );
                                   if (res.ok) {
                                     const data = await res.json();
                                     setHistory(data.history || []);
@@ -1130,13 +1261,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                               }}
                             />
                           </div>
-                          <div className="flex-1 text-sm text-text-secondary line-clamp-3 mb-4 italic opacity-80">
+                          <div className="mb-4 line-clamp-3 flex-1 text-sm italic text-text-secondary opacity-80">
                             "{hItem.title || title}"
                           </div>
                           <button
                             onClick={() => handleRestoreVersion(hItem)}
                             disabled={isCurrent}
-                            className="mt-auto w-full flex items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-teal-900/20"
+                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-teal-900/20"
                           >
                             <RotateCcw className="h-4 w-4" />
                             Restaurar
@@ -1155,9 +1286,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   );
 
   // Use Portal when maximized to escape any relative/absolute parent boundaries and overflow hidden contexts
-  return isMaximized
-    ? ReactDOM.createPortal(panelContent, document.body)
-    : panelContent;
+  return isMaximized ? ReactDOM.createPortal(panelContent, document.body) : panelContent;
 };
 
 export default CanvasPanel;

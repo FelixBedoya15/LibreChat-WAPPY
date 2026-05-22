@@ -6,39 +6,103 @@ const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/
 const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
 
 /**
- * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
- * Safe against consecutive duplicates by inspecting content substrings.
+ * Busca y extrae el bloque del encabezado corporativo (contenedor con degradado linear-gradient y tabla resumen de la entidad)
+ * existente en el contenido previo para evitar sobrescribir las ediciones manuales.
  */
-async function processTextDocument(content, fileType, title, userId) {
+function extractExistingHeader(html) {
+  if (!html || !html.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) {
+    return null;
+  }
+  
+  const tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
+  if (!tableEndMatch) return null;
+  
+  const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
+  if (headerStartIdx === -1) {
+    const tableStartIdx = html.indexOf('<div style="overflow-x: auto;');
+    if (tableStartIdx === -1) return null;
+    
+    const endIdx = html.indexOf(tableEndMatch[0], tableStartIdx);
+    if (endIdx === -1) return null;
+    return html.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
+  }
+  
+  const endIdx = html.indexOf(tableEndMatch[0], headerStartIdx);
+  if (endIdx === -1) return null;
+  return html.substring(headerStartIdx, endIdx + tableEndMatch[0].length);
+}
+
+/**
+ * Busca y extrae la sección de firmas desde el índice `<div style="margin-top: 50px;"` hasta el final
+ * del contenido previo para conservar las firmas digitales y ediciones manuales.
+ */
+function extractExistingSignature(html) {
+  if (!html) return null;
+  const hasSignature = html.includes('signature-placeholder') || html.includes('RESPONSABLE SG-SST') || html.includes('Responsable SG-SST') || html.includes('RESPONSABLE SST');
+  if (!hasSignature) return null;
+
+  const sigIndex = html.lastIndexOf('<div style="margin-top: 50px;');
+  const sigAlternativeIndex = html.lastIndexOf('<div style="margin-top:50px;');
+  const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
+
+  if (index !== -1) {
+    return html.substring(index);
+  }
+  return null;
+}
+
+/**
+ * Helper to automatically prepend standard company header and append signature section to text (Word) Canvas documents.
+ * Safe against consecutive duplicates by inspecting content substrings and reusing existing headers/signatures.
+ */
+async function processTextDocument(content, fileType, title, userId, existingContent) {
   if (fileType !== 'text') {
     return content;
   }
 
-  let stringContent = content || '';
+  let stringContent = (content || '').trim();
 
   const hasHeader = stringContent.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD');
-  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST');
+  const hasSignature = stringContent.includes('signature-placeholder') || stringContent.includes('RESPONSABLE SG-SST') || stringContent.includes('Responsable SG-SST') || stringContent.includes('RESPONSABLE SST');
 
   if (hasHeader && hasSignature) {
     return stringContent;
   }
 
-  let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
-  if (!companyInfo) {
-    companyInfo = await CompanyInfo.findOne({ user: userId });
+  let headerHtml = null;
+  let signatureHtml = null;
+
+  if (existingContent) {
+    if (!hasHeader) {
+      headerHtml = extractExistingHeader(existingContent);
+    }
+    if (!hasSignature) {
+      signatureHtml = extractExistingSignature(existingContent);
+    }
+  }
+
+  let companyInfo = null;
+  if ((!hasHeader && !headerHtml) || (!hasSignature && !signatureHtml)) {
+    companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
   }
 
   if (!hasHeader) {
-    const headerHtml = buildStandardHeader({
-      title: title || 'DOCUMENTO DE TRABAJO',
-      companyInfo
-    });
+    if (!headerHtml) {
+      headerHtml = buildStandardHeader({
+        title: title || 'DOCUMENTO DE TRABAJO',
+        companyInfo
+      });
+    }
     stringContent = headerHtml + '\n\n' + stringContent;
   }
 
-  if (!hasSignature && companyInfo) {
-    const signatureHtml = buildSignatureSection(companyInfo);
-    stringContent = stringContent + '\n\n' + signatureHtml;
+  if (!hasSignature) {
+    if (!signatureHtml && companyInfo) {
+      signatureHtml = buildSignatureSection(companyInfo);
+    }
+    if (signatureHtml) {
+      stringContent = stringContent + '\n\n' + signatureHtml;
+    }
   }
 
   return stringContent;
@@ -145,6 +209,11 @@ class CanvasTool extends Tool {
       }
 
       const userId = this.req?.user?.id;
+      let companyInfo = null;
+      if (userId) {
+        companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
+      }
+
       const {
         accion,
         fileType,
@@ -240,7 +309,7 @@ class CanvasTool extends Tool {
           }
 
           if (activeFileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId, session.content);
           }
 
           const nextVersion = session.version + 1;
@@ -258,6 +327,9 @@ class CanvasTool extends Tool {
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
+          if (companyInfo) {
+            session.companyId = companyInfo._id;
+          }
 
           await session.save();
 
@@ -275,7 +347,7 @@ class CanvasTool extends Tool {
         } else {
           // Si no existe, crear de cero con versión 1
           if (fileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent, fileType, activeTitle, userId);
+            parsedContent = await processTextDocument(parsedContent, fileType, activeTitle, userId, null);
           }
 
           session = new CanvasSession({
@@ -293,10 +365,6 @@ class CanvasTool extends Tool {
             }]
           });
 
-          let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
-          if (!companyInfo) {
-            companyInfo = await CompanyInfo.findOne({ user: userId });
-          }
           if (companyInfo) {
             session.companyId = companyInfo._id;
           }
@@ -323,7 +391,7 @@ class CanvasTool extends Tool {
           const activeFileType = fileType || 'text';
 
           if (activeFileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent, activeFileType, activeTitle, userId);
+            parsedContent = await processTextDocument(parsedContent, activeFileType, activeTitle, userId, null);
           }
 
           session = new CanvasSession({
@@ -341,10 +409,6 @@ class CanvasTool extends Tool {
             }]
           });
 
-          let companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true });
-          if (!companyInfo) {
-            companyInfo = await CompanyInfo.findOne({ user: userId });
-          }
           if (companyInfo) {
             session.companyId = companyInfo._id;
           }
@@ -377,7 +441,7 @@ class CanvasTool extends Tool {
           }
 
           if (activeFileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId, session.content);
           }
 
           const nextVersion = session.version + 1;
@@ -395,6 +459,9 @@ class CanvasTool extends Tool {
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
+          if (companyInfo) {
+            session.companyId = companyInfo._id;
+          }
 
           await session.save();
 
@@ -446,7 +513,7 @@ class CanvasTool extends Tool {
           match[1] + '\n' + nuevo_contenido_seccion + '\n',
         );
 
-        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId, session.content);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
@@ -462,6 +529,9 @@ class CanvasTool extends Tool {
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (companyInfo) {
+          session.companyId = companyInfo._id;
+        }
 
         await session.save();
 
@@ -497,7 +567,7 @@ class CanvasTool extends Tool {
         }
 
         let updatedContent = session.content.replace(searchRegex, reemplazar);
-        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId, session.content);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
@@ -513,6 +583,9 @@ class CanvasTool extends Tool {
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (companyInfo) {
+          session.companyId = companyInfo._id;
+        }
 
         await session.save();
 
@@ -582,7 +655,7 @@ class CanvasTool extends Tool {
           return JSON.stringify({ error: 'Posición inválida. Usa "inicio", "fin" o "despues_de".' });
         }
 
-        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId, session.content);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
@@ -598,6 +671,9 @@ class CanvasTool extends Tool {
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (companyInfo) {
+          session.companyId = companyInfo._id;
+        }
 
         await session.save();
 
