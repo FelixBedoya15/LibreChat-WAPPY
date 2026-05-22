@@ -195,6 +195,18 @@ const initializeAgent = async ({
     });
   }
 
+  // Inject Global Canvas Prompt Guidelines if canvas tool is configured
+  const hasCanvasTool = Array.isArray(agent.tools) && agent.tools.includes('canvas');
+  if (hasCanvasTool) {
+    const canvasPrompt = `
+# REGLAS CRÍTICAS DE USO DE CANVAS:
+1. **SIEMPRE LEER ANTES DE EDITAR**: Si vas a modificar un Canvas que ya tiene contenido o que fue cargado desde una plantilla predefinida (por ejemplo, un "Procedimiento Sancionatorio"), primero DEBES usar la acción \`leer\` para inspeccionar el contenido completo actual del Canvas.
+2. **EDICIONES GRANULARES Y PRESERVACIÓN**: Queda estrictamente prohibido usar \`actualizar\` o \`crear\` para reemplazar un documento existente con un bloque pequeño o incompleto. Para realizar cambios o personalizaciones (por ejemplo, rellenar datos de la empresa, agregar cláusulas o nombres), DEBES usar exclusivamente acciones precisas y granulares como \`buscar_reemplazar\`, \`editar_seccion\` o \`insertar\`. Debes mantener intacto el diseño, las cabeceras, pies de página, estilos y la estructura del documento.
+3. **RESPUESTAS CONVERSACIONALES Y LIMPIEZA EN EL CHAT**: No imprimas bloques de código HTML, CSS, tablas extensas, marcas JSON o código Markdown del documento en la ventana de chat. Toda la edición debe realizarse silenciosamente llamando a la herramienta \`canvas\`. En tu mensaje de chat, describe de manera breve, limpia y conversacional los cambios específicos que realizaste en el Canvas, sin saturar la conversación con el código fuente del documento.
+`;
+    agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasPrompt;
+  }
+
   return {
     ...agent,
     tools,
@@ -202,6 +214,7 @@ const initializeAgent = async ({
     resendFiles,
     userMCPAuthMap,
     toolContextMap,
+    additional_instructions: agent.additional_instructions,
     useLegacyContent: !!options.useLegacyContent,
     maxContextTokens: Math.round((agentMaxContextTokens - maxOutputTokens) * 0.9),
   };

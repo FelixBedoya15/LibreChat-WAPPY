@@ -173,10 +173,6 @@ class CanvasTool extends Tool {
         }
         
         let displayContent = session.content;
-        // Truncar contenido muy largo en la salida de consola para no saturar contexto
-        if (typeof displayContent === 'string' && displayContent.length > 3000) {
-          displayContent = displayContent.substring(0, 3000) + '\n...[contenido truncado para visualización]';
-        }
 
         return JSON.stringify({
           mensaje: 'Canvas leído correctamente.',
@@ -232,6 +228,17 @@ class CanvasTool extends Tool {
         if (session) {
           // Si ya existe, nos comportamos como actualizar para no destruir el historial del usuario
           const activeFileType = fileType || session.fileType;
+
+          // Safety Check: Prevent overwriting a larger text/html document with a very short one
+          if ((activeFileType === 'text' || activeFileType === 'html') &&
+              session.content && parsedContent &&
+              session.content.length > 800 &&
+              parsedContent.length < session.content.length * 0.6) {
+            return JSON.stringify({
+              error: `El Canvas ya contiene un documento de mayor tamaño (${session.content.length} caracteres) y estás intentando sobrescribirlo completamente con un contenido mucho más corto (${parsedContent.length} caracteres). Para evitar perder información o el diseño de la plantilla preestablecida, DEBES usar acciones granulares como "buscar_reemplazar", "editar_seccion" o "insertar" en lugar de "actualizar"/"crear".`
+            });
+          }
+
           if (activeFileType === 'text') {
             parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
           }
@@ -358,6 +365,17 @@ class CanvasTool extends Tool {
         } else {
           // Si existe, lo actualizamos normalmente
           const activeFileType = fileType || session.fileType;
+
+          // Safety Check: Prevent overwriting a larger text/html document with a very short one
+          if ((activeFileType === 'text' || activeFileType === 'html') &&
+              session.content && parsedContent &&
+              session.content.length > 800 &&
+              parsedContent.length < session.content.length * 0.6) {
+            return JSON.stringify({
+              error: `El Canvas ya contiene un documento de mayor tamaño (${session.content.length} caracteres) y estás intentando sobrescribirlo completamente con un contenido mucho más corto (${parsedContent.length} caracteres). Para evitar perder información o el diseño de la plantilla preestablecida, DEBES usar acciones granulares como "buscar_reemplazar", "editar_seccion" o "insertar" en lugar de "actualizar"/"crear".`
+            });
+          }
+
           if (activeFileType === 'text') {
             parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
           }
