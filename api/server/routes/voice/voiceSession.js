@@ -491,6 +491,20 @@ class VoiceSession {
                 }
                 break;
 
+            case 'evidence-image':
+                if (data && data.image) {
+                    logger.info(`[VoiceSession] Received manual evidence image (${data.image.length} chars)`);
+                    if (!this.manualEvidences) {
+                        this.manualEvidences = [];
+                    }
+                    this.manualEvidences.push(data.image);
+                    // Keep up to 5 manual evidence photos
+                    if (this.manualEvidences.length > 5) {
+                        this.manualEvidences.shift();
+                    }
+                }
+                break;
+
             case 'config':
                 // Update session configuration
                 if (data.voice) {
@@ -1010,28 +1024,26 @@ class VoiceSession {
                 { text: prompt }
             ];
 
-            // Inject the recent visual frames into the prompt boundaries
+            // Inject visual frames: prefer manual photos captured by the user, fallback to automatic rolling buffer
             let injectedFrames = 0;
-            if (this.frameBuffer && this.frameBuffer.length > 0) {
-                for (const b64 of this.frameBuffer) {
-                    promptParts.push({
-                        inlineData: {
-                            data: b64,
-                            mimeType: "image/jpeg"
-                        }
-                    });
-                    injectedFrames++;
-                }
-            } else if (this.latestFrame) {
+            const framesToUse = (this.manualEvidences && this.manualEvidences.length > 0) 
+                ? this.manualEvidences 
+                : (this.frameBuffer && this.frameBuffer.length > 0) 
+                    ? this.frameBuffer 
+                    : this.latestFrame 
+                        ? [this.latestFrame] 
+                        : [];
+
+            for (const b64 of framesToUse) {
                 promptParts.push({
                     inlineData: {
-                        data: this.latestFrame,
+                        data: b64,
                         mimeType: "image/jpeg"
                     }
                 });
                 injectedFrames++;
             }
-            logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames into report prompt.`);
+            logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames (manual: ${!!(this.manualEvidences && this.manualEvidences.length > 0)}) into report prompt.`);
 
             // Call API with the multimodal array
             const result = await generateWithKeyRotation(reportModelName, this.userId, promptParts);
@@ -1208,12 +1220,16 @@ class VoiceSession {
             }
 
             // Get the frames evaluated
-            let evalFrames = [];
-            if (this.frameBuffer && this.frameBuffer.length > 0) {
-                evalFrames = [...this.frameBuffer];
-            } else if (this.latestFrame) {
-                evalFrames = [this.latestFrame];
-            }
+            const evalFrames = (this.manualEvidences && this.manualEvidences.length > 0)
+                ? [...this.manualEvidences]
+                : (this.frameBuffer && this.frameBuffer.length > 0)
+                    ? [...this.frameBuffer]
+                    : this.latestFrame
+                        ? [this.latestFrame]
+                        : [];
+
+            // Clear manual evidence buffer for next turns/reports
+            this.manualEvidences = [];
 
             // Notify client with HTML (for rich rendering in Live editor) AND messageId
             this.sendToClient({

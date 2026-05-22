@@ -15,13 +15,21 @@ import {
     AlertTriangle,
     Activity,
     Stethoscope,
-    UserCircle
+    UserCircle,
+    HeartPulse,
+    User
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from '~/components/SGSST/SignaturePad';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
+
+const SCORE_COLOR = (s: number) => {
+    if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
+    if (s >= 60) return { ring: 'border-amber-400', text: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+    return { ring: 'border-red-400', text: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+};
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -129,6 +137,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
 
 const CondicionesSalud = () => {
     const { token, user } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
     const { showToast } = useToastContext();
 
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
@@ -967,6 +976,25 @@ const CondicionesSalud = () => {
                 ]}
             />
 
+            {/* Hero Banner */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-8 text-white shadow-2xl">
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20 opacity-10" />
+                    <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10 opacity-10" />
+                </div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
+                            <HeartPulse className="w-5 h-5 text-teal-300" />
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight">Condiciones de Salud (Huella Biocéntrica)</h1>
+                    </div>
+                    <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
+                        Seguimiento médico-clínico y vigilancia epidemiológica. Registra signos vitales, diagnósticos de ingreso/periódicos, recomendaciones y restricciones biomecánicas del trabajador.
+                    </p>
+                </div>
+            </div>
+
             {/* ═══ Inbox Panel: Pending Profile Updates ═══ */}
             {showInboxPerfil && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowInboxPerfil(false)}>
@@ -1042,32 +1070,50 @@ const CondicionesSalud = () => {
                             const fitData = calculateBiocentricFit(w);
                             const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
                             const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
+                            const colors = SCORE_COLOR(fitData.score);
+                            const initials = w.nombre
+                                ? w.nombre.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                                : 'NT';
                             
                             return (
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Worker Header */}
-                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="flex items-center justify-between p-5 bg-surface-primary/50 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
+                                    <div className="flex items-center gap-4 flex-1 min-w-0">
                                         <div className="text-teal-500 shrink-0">
                                             {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
+                                        <div className={`w-14 h-14 rounded-2xl border-2 ${colors.ring} ${colors.bg} ${colors.text} flex items-center justify-center text-xl font-black shrink-0 shadow-sm`}>
+                                            {initials}
+                                        </div>
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="font-bold text-text-primary text-base truncate">
+                                            <h3 className="font-black text-text-primary text-base truncate flex items-center gap-2">
                                                 {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
-                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {w.cargo || 'Sin cargo asignado'}</span>
                                             </h3>
-                                            <p className="text-xs text-text-secondary mt-0.5 truncate">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary mt-1">
+                                                <span className="font-bold text-teal-600 dark:text-teal-400">{w.cargo || 'Sin cargo asignado'}</span>
+                                                <span>•</span>
+                                                <span>CC: {w.identificacion || 'N/A'}</span>
+                                                <span>•</span>
+                                                <span>{w.genero || '—'}</span>
+                                                <span>•</span>
+                                                <span>{w.edad ? `${w.edad} años` : '—'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${colors.badge} shadow-sm`}>
+                                            {fitData.score}% FIT
+                                        </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
-                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
+                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm">
                                             <AnimatedIcon name="qrcode" size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors shadow-sm">
                                             <AnimatedIcon name="trash" size={18} />
                                         </button>
                                     </div>
@@ -1113,7 +1159,7 @@ const CondicionesSalud = () => {
                                                         <div className="flex flex-col gap-2.5 w-full md:flex-1 md:max-w-md">
                                                             {fitData.alerts.length === 0 ? (
                                                                 <div className="flex items-center gap-3 text-sm font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 p-4 rounded-2xl shadow-sm">
-                                                                    <div className="p-2bg-green-100 dark:bg-green-800/50 rounded-full"><CheckCircle className="w-5 h-5"/></div>
+                                                                    <div className="p-2 bg-green-100 dark:bg-green-800/50 rounded-full"><CheckCircle className="w-5 h-5"/></div>
                                                                     Aptitud Operativa Óptima.
                                                                 </div>
                                                             ) : (
@@ -1129,148 +1175,223 @@ const CondicionesSalud = () => {
                                             </div>
                                         )}
 
-                                        {/* Clinical Database Forms */}
-                                        <div className="p-5 md:p-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                
-                                                {/* Grupo 1: Fisiología */}
-                                                <div className="lg:col-span-4 pb-3 mb-2 flex items-center justify-between border-b border-border-light">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg">
-                                                            <Stethoscope className="w-4 h-4" />
+                                        {/* Split Clinical Grid */}
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border-light border-b border-border-light">
+                                            
+                                            {/* COLUMNA IZQUIERDA: SIGNOS VITALES Y BIOMETRÍA */}
+                                            <div className="p-5 md:p-8 space-y-6">
+                                                <div className="flex items-center gap-2 pb-3 border-b border-border-light">
+                                                    <div className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg">
+                                                        <Stethoscope className="w-4 h-4" />
+                                                    </div>
+                                                    <h4 className="font-black text-xs text-text-primary uppercase tracking-wider">Fisiología & Biometría</h4>
+                                                </div>
+
+                                                <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-surface-secondary/50 border border-border-light">
+                                                    {/* Dial Circular de Score Biomédico Centralizado */}
+                                                    <div className="relative shrink-0 w-24 h-24 flex items-center justify-center">
+                                                        <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                                                            <circle cx="48" cy="48" r="42" fill="none" stroke="currentColor" strokeWidth="5" className="text-border-light dark:text-white/5" />
+                                                            <circle cx="48" cy="48" r="42" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="263.89" strokeDashoffset={263.89 - (fitData.score / 100) * 263.89} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
+                                                        </svg>
+                                                        <div className="flex flex-col items-center justify-center">
+                                                            <span className={`text-2xl font-black tracking-tighter ${scoreColor}`}>{fitData.score}%</span>
+                                                            <span className="text-[8px] uppercase font-bold tracking-widest text-text-secondary">FIT</span>
                                                         </div>
-                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Línea Base Fisiológica</h4>
+                                                    </div>
+                                                    <div className="text-center sm:text-left space-y-1">
+                                                        <h5 className="font-bold text-sm text-text-primary">Aptitud Clínica</h5>
+                                                        <p className="text-xs text-text-secondary leading-relaxed">Monitoreo dinámico del estado fisiológico del trabajador frente a sus funciones asignadas.</p>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-1.5 ">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Peso (kg)</label>
-                                                    <input type="number" value={w.peso} onChange={e => updateWorkerField(w.id, 'peso', e.target.value)}
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary font-medium outline-none" />
-                                                </div>
-                                                <div className="space-y-1.5 ">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Talla (m)</label>
-                                                    <input type="number" value={w.talla} onChange={e => updateWorkerField(w.id, 'talla', e.target.value)} step="0.01" placeholder="Ej: 1.75"
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary font-medium outline-none" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[11px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">IMC (Calculado)</label>
-                                                    <div className="relative">
+                                                {/* Cuadrícula 2x2 */}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="bg-surface-primary rounded-xl p-3 border border-border-light text-center shadow-inner hover:scale-[1.02] transition-transform flex flex-col justify-between">
+                                                        <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest block mb-2">Peso (kg)</label>
+                                                        <input type="number" value={w.peso} onChange={e => updateWorkerField(w.id, 'peso', e.target.value)}
+                                                            className="w-full text-center text-sm py-1.5 px-2 rounded-lg border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 text-text-primary font-bold outline-none shadow-inner" />
+                                                    </div>
+                                                    <div className="bg-surface-primary rounded-xl p-3 border border-border-light text-center shadow-inner hover:scale-[1.02] transition-transform flex flex-col justify-between">
+                                                        <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest block mb-2">Talla (m)</label>
+                                                        <input type="number" value={w.talla} onChange={e => updateWorkerField(w.id, 'talla', e.target.value)} step="0.01" placeholder="Ej: 1.75"
+                                                            className="w-full text-center text-sm py-1.5 px-2 rounded-lg border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 text-text-primary font-bold outline-none shadow-inner" />
+                                                    </div>
+                                                    <div className="bg-surface-primary rounded-xl p-3 border border-border-light text-center shadow-inner hover:scale-[1.02] transition-transform flex flex-col justify-between">
+                                                        <label className="text-[10px] font-black text-teal-600 dark:text-teal-400 tracking-widest block mb-2 uppercase">IMC (Calculado)</label>
                                                         <input type="text" readOnly value={w.imc} placeholder="Automático"
-                                                            className={`w-full text-sm font-black py-2.5 px-3 rounded-xl border outline-none ${w.imc && parseFloat(w.imc) > 25 ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 shadow-[inset_0_2px_10px_rgba(251,146,60,0.1)]' : 'border-border-light bg-surface-tertiary text-text-tertiary'}`} />
-                                                        {w.imc && <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full w-2 h-2 bg-current opacity-50"></div>}
+                                                            className={`w-full text-center text-sm font-black py-1.5 px-2 rounded-lg border outline-none ${w.imc && parseFloat(w.imc) > 25 ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 shadow-[inset_0_2px_6px_rgba(251,146,60,0.15)]' : 'border-border-light bg-surface-tertiary text-text-tertiary'}`} />
                                                     </div>
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Tipo Sangre</label>
-                                                    <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
-                                                </div>
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Presión Arterial</label>
-                                                    <input type="text" value={w.presionArterial} onChange={e => updateWorkerField(w.id, 'presionArterial', e.target.value)}
-                                                        placeholder="Sistólica / Diastólica (Ej: 120/80)" className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
-                                                </div>
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Frec. Cardíaca (lpm)</label>
-                                                    <input type="number" value={w.frecuenciaCardiaca} onChange={e => updateWorkerField(w.id, 'frecuenciaCardiaca', e.target.value)}
-                                                        placeholder="Latidos por minuto" className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
-                                                </div>
-
-                                                {/* Grupo 2: Patológico */}
-                                                <div className="lg:col-span-4 pb-3 mb-2 mt-6 flex items-center justify-between border-b border-border-light">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg">
-                                                            <Activity className="w-4 h-4" />
+                                                    <div className="bg-surface-primary rounded-xl p-3 border border-border-light text-center shadow-inner hover:scale-[1.02] transition-transform flex flex-col justify-between">
+                                                        <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest block mb-2">Tipo Sangre</label>
+                                                        <div className="text-left">
+                                                            <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
                                                         </div>
-                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Restricciones Clínicas y Patológicas</h4>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Alergias Químicas / Asma</label>
-                                                    <input type="text" value={w.alergiasQuimicas} onChange={e => updateWorkerField(w.id, 'alergiasQuimicas', e.target.value)}
-                                                        placeholder="Riesgo de choque anafiláctico / respiratorio..."
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Presión Arterial</label>
+                                                        <input type="text" value={w.presionArterial} onChange={e => updateWorkerField(w.id, 'presionArterial', e.target.value)}
+                                                            placeholder="Ej: 120/80" className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none shadow-inner" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Frec. Cardíaca (lpm)</label>
+                                                        <input type="number" value={w.frecuenciaCardiaca} onChange={e => updateWorkerField(w.id, 'frecuenciaCardiaca', e.target.value)}
+                                                            placeholder="Ej: 75" className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none shadow-inner" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* COLUMNA DERECHA: RESTRICCIONES Y PATOLOGÍAS */}
+                                            <div className="p-5 md:p-8 space-y-6">
+                                                <div className="flex items-center gap-2 pb-3 border-b border-border-light">
+                                                    <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg">
+                                                        <Activity className="w-4 h-4" />
+                                                    </div>
+                                                    <h4 className="font-black text-xs text-text-primary uppercase tracking-wider">Patologías & Hallazgos</h4>
                                                 </div>
 
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Limitaciones Biomecánicas</label>
-                                                    <input type="text" value={w.limitacionesBiomecanicas} onChange={e => updateWorkerField(w.id, 'limitacionesBiomecanicas', e.target.value)}
-                                                        placeholder="Hernia, manguito rotador, rodillas..."
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Alergias Químicas / Asma</label>
+                                                        <input type="text" value={w.alergiasQuimicas} onChange={e => updateWorkerField(w.id, 'alergiasQuimicas', e.target.value)}
+                                                            placeholder="Riesgo de choque anafiláctico..."
+                                                            className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/20 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
+                                                    </div>
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Limitaciones Biomecánicas</label>
+                                                        <input type="text" value={w.limitacionesBiomecanicas} onChange={e => updateWorkerField(w.id, 'limitacionesBiomecanicas', e.target.value)}
+                                                            placeholder="Hernia, manguito rotador, rodillas..."
+                                                            className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/20 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
+                                                    </div>
                                                 </div>
 
-                                                <div className="space-y-1.5 lg:col-span-4">
+                                                <div className="space-y-1.5">
                                                     <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Enfermedades Preexistentes Diagnosticadas</label>
                                                     <input type="text" value={w.enfermedades} onChange={e => updateWorkerField(w.id, 'enfermedades', e.target.value)}
                                                         placeholder="Patologías metabólicas, diabetes, cardíacas..."
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/20 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
                                                 </div>
 
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Hallazgos Examen Ocupacional</label>
-                                                    <div className="[&>div>div]:border-rose-200/50 dark:[&>div>div]:border-rose-900/30 [&>div>div]:bg-rose-50/30 dark:[&>div>div]:bg-rose-900/10">
-                                                        <SingleSelect value={w.diagnosticoMedico || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione dictamen principal..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros Clínicos']} />
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Hallazgos Examen Ocupacional</label>
+                                                        <div className="[&>div>div]:border-rose-200/50 dark:[&>div>div]:border-rose-900/30 [&>div>div]:bg-rose-50/20 dark:[&>div>div]:bg-rose-900/10 font-bold">
+                                                            <SingleSelect value={w.diagnosticoMedico || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione dictamen..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros Clínicos']} />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Medicamentos de Consumo</label>
+                                                        <input type="text" value={w.medicamentos} onChange={e => updateWorkerField(w.id, 'medicamentos', e.target.value)}
+                                                            placeholder="Sedantes, psiquiátricos, etc..."
+                                                            className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/20 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </div>
 
-                                                <div className="space-y-1.5 lg:col-span-2">
-                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Medicamentos de Consumo</label>
-                                                    <input type="text" value={w.medicamentos} onChange={e => updateWorkerField(w.id, 'medicamentos', e.target.value)}
-                                                        placeholder="Psiquiátricos, dopaminérgicos, relajantes (riesgo maquinaria)..."
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
-                                                </div>
-
-                                                <div className="space-y-1.5 lg:col-span-3">
+                                        {/* Fila 2: Recomendaciones, Estilos de Vida & Firma */}
+                                        <div className="p-5 md:p-8 space-y-6 bg-surface-secondary/10">
+                                            
+                                            {/* Recomendaciones y Fecha Evaluación */}
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                <div className="space-y-1.5 md:col-span-3">
                                                     <label className="text-[11px] font-bold text-orange-500 uppercase tracking-wider">Recomendaciones & Restricciones Médicas (SST)</label>
                                                     <input type="text" value={w.recomendacionesMedicas || ''} onChange={e => updateWorkerField(w.id, 'recomendacionesMedicas', e.target.value)}
                                                         placeholder="Pautas del médico para reubicación laboral..."
-                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-orange-200/50 bg-orange-50/30 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-orange-200/50 bg-orange-50/20 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
                                                 </div>
 
-                                                <div className="space-y-1.5 lg:col-span-1">
+                                                <div className="space-y-1.5 md:col-span-1">
                                                     <label className="text-[11px] font-bold text-orange-500 uppercase tracking-wider">Fecha Evaluación</label>
                                                     <input type="date" value={w.fechaExamenMedico} onChange={e => updateWorkerField(w.id, 'fechaExamenMedico', e.target.value)}
-                                                        className="w-full text-sm py-[9px] px-3 rounded-xl border border-orange-200/50 bg-orange-50/30 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-orange-200/50 bg-orange-50/20 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none shadow-inner" />
+                                                </div>
+                                            </div>
+
+                                            {/* Estilos de Vida & Carga Mental */}
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 pb-2 border-b border-border-light">
+                                                    <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg">
+                                                        <UserCircle className="w-4 h-4" />
+                                                    </div>
+                                                    <h4 className="font-black text-xs text-text-primary uppercase tracking-wider">Estilos de Vida & Acompañamiento</h4>
                                                 </div>
 
-                                                {/* Grupo 3: Estilos de Vida Inadecuados */}
-                                                <div className="lg:col-span-4 pb-3 mb-2 mt-6 flex items-center justify-between border-b border-border-light">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg">
-                                                            <UserCircle className="w-4 h-4" />
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Tabaquismo</label>
+                                                        <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/20 dark:[&>div>div]:border-amber-900/30 dark:[&>div>div]:bg-amber-900/10">
+                                                            <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
                                                         </div>
-                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Estilos de Vida & Carga Mental</h4>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Etilismo (Alcohol)</label>
+                                                        <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/20 dark:[&>div>div]:border-amber-900/30 dark:[&>div>div]:bg-amber-900/10">
+                                                            <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Riesgo Letal..." options={['No', 'Mensual', 'Semanal', 'Sí (Frecuente)']} />
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider block truncate">Acompañ. Psicológico</label>
+                                                        <div className="[&>div>div]:border-indigo-200/50 [&>div>div]:bg-indigo-50/20 dark:[&>div>div]:border-indigo-900/30 dark:[&>div>div]:bg-indigo-900/10">
+                                                            <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Burnout..." options={['No', 'Sí', 'Anteriormente']} />
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block truncate">Próximo Seguimiento</label>
+                                                        <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
+                                                            className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none shadow-inner" />
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Tabaquismo</label>
-                                                    <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
-                                                        <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
+                                            {/* Firma Digital Card */}
+                                            <div className="p-4 border rounded-2xl bg-surface-primary border-border-medium shadow-sm">
+                                                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                                    <div className="space-y-1.5 w-full md:w-1/2">
+                                                        <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Consentimiento Informado (Firma Digital)</label>
+                                                        <div className="[&>div>div]:bg-indigo-50/10 dark:[&>div>div]:bg-indigo-900/10 font-bold">
+                                                            <SingleSelect value={w.consentimientoFirmaDigital || 'No' || ''} onChange={val => updateWorkerField(w.id, 'consentimientoFirmaDigital', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                        </div>
+                                                        <p className="text-[10px] text-text-secondary mt-1 max-w-[280px]">Habilita la firma del trabajador en su credencial de emergencia y reportes.</p>
                                                     </div>
-                                                </div>
-                                                
-                                                <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Etilismo (Alcohol)</label>
-                                                    <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
-                                                        <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Anotador de Riesgo Letal..." options={['No', 'Mensual', 'Semanal', 'Sí (Frecuente)']} />
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider block truncate" title="Acompañamiento Psicológico">Acompañ. Psicológico</label>
-                                                    <div className="[&>div>div]:border-indigo-200/50 [&>div>div]:bg-indigo-50/30 dark:[&>div>div]:border-indigo-900/30  dark:[&>div>div]:bg-indigo-900/10">
-                                                        <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Indicador de Burnout..." options={['No', 'Sí', 'Anteriormente']} />
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block truncate">Próximo Segumiento</label>
-                                                    <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
-                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
-                                                </div>
 
+                                                    <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors bg-surface-secondary/35">
+                                                        {w.firmaDigital ? (
+                                                            <div className="relative group w-full flex items-center justify-center">
+                                                                <img src={w.firmaDigital} alt="Firma" className="max-h-16 object-contain" />
+                                                                <button
+                                                                    onClick={() => updateWorkerField(w.id, 'firmaDigital', null)}
+                                                                    className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                                >
+                                                                    <AnimatedIcon name="trash" size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-2 w-full">
+                                                                <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                                    <ImageIcon size={16} className="text-indigo-400" />
+                                                                    <span className="text-xs uppercase font-bold">Cargar Archivo</span>
+                                                                    <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload(w.id, e)} className="hidden" />
+                                                                </label>
+                                                                <button 
+                                                                    onClick={(e) => { e.preventDefault(); setActiveSignatureWorkerId(w.id); }}
+                                                                    className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                                >
+                                                                    <PenTool size={16} />
+                                                                    <span className="text-xs uppercase font-bold">Dibujar en Pantalla</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

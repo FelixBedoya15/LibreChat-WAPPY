@@ -245,6 +245,7 @@ const startServer = async () => {
   app.use('/api/sgsst/workers', routes.sgsst.workers);
   app.use('/api/sgsst/canvas', routes.sgsst.canvas);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
+  app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
   app.use('/api/wompi', routes.wompi);

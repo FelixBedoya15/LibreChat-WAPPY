@@ -11,7 +11,9 @@ import {
     CheckCircle,
     PenTool,
     Briefcase,
-    AlertTriangle
+    AlertTriangle,
+    ClipboardList,
+    User,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -23,6 +25,12 @@ import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import SingleSelect from './SingleSelect';
 import ReportHistory from '~/components/Liva/ReportHistory';
+
+const SCORE_COLOR = (s: number) => {
+    if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
+    if (s >= 60) return { ring: 'border-amber-400', text: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+    return { ring: 'border-red-400', text: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+};
 import { QRCodeSVG } from 'qrcode.react';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -790,6 +798,25 @@ const PerfilSociodemografico = () => {
                 ]}
             />
 
+            {/* Hero Banner */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-8 text-white shadow-2xl">
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20" />
+                    <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10" />
+                </div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
+                            <ClipboardList className="w-5 h-5 text-teal-300" />
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight">Perfil Sociodemográfico</h1>
+                    </div>
+                    <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
+                        Población laboral y caracterización sociodemográfica. Analiza variables demográficas, familiares, habitacionales y de hábitos para identificar factores de vulnerabilidad extralaboral.
+                    </p>
+                </div>
+            </div>
+
             {/* ═══ Inbox Panel: Pending Profile Updates ═══ */}
             {showInboxPerfil && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowInboxPerfil(false)}>
@@ -862,23 +889,38 @@ const PerfilSociodemografico = () => {
                 ) : (
                     <>
                         {trabajadores.map((w, wIdx) => {
+                            const score = w.biocentricScore !== undefined ? w.biocentricScore : 100;
+                            const sc = SCORE_COLOR(score);
+                            const initials = (w.nombre || 'U')[0].toUpperCase();
+
                             return (
-                            <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
+                            <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden transition-all hover:border-teal-500/30">
                                 {/* Worker Header */}
-                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="flex items-center justify-between p-5 bg-surface-primary/50 cursor-pointer gap-4 border-b border-border-light" onClick={() => toggleWorker(w.id)}>
+                                    <div className="flex items-center gap-4 flex-1 min-w-0">
                                         <div className="text-teal-500 shrink-0">
                                             {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
+                                        </div>
+                                        <div className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-xl font-black ${sc.ring} ${sc.bg} ${sc.text} shrink-0`}>
+                                            {initials}
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <h3 className="font-bold text-text-primary text-base truncate">
                                                 {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
-                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {w.cargo || 'Sin cargo asignado'}</span>
                                             </h3>
-                                            <p className="text-xs text-text-secondary mt-0.5 truncate">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
+                                            <p className="text-xs text-text-secondary flex items-center gap-1.5 mt-0.5">
+                                                <Briefcase className="w-3.5 h-3.5 shrink-0 text-teal-500" />
+                                                {w.cargo || 'Sin cargo asignado'} · CC: {w.identificacion || 'N/A'}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex flex-col items-end gap-0.5 mr-2">
+                                            <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${sc.badge}`}>
+                                                {score}% FIT
+                                            </span>
+                                            <span className="text-[9px] text-text-secondary font-bold uppercase tracking-tighter">Score Biocéntrico</span>
+                                        </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
@@ -915,98 +957,133 @@ const PerfilSociodemografico = () => {
 
                                         {/* Tab Content */}
                                         <div className="p-4">
-                                            {/* TAB 1: GENERAL */}
+                                            {/* TAB 1: GENERAL & HABITS SPLIT GRID */}
                                             {(workerTabs[w.id] || 'general') === 'general' && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Nombre Completo</label>
-                                                        <input type="text" value={w.nombre} onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Identificación (CC)</label>
-                                                        <input type="text" value={w.identificacion} onChange={e => updateWorkerField(w.id, 'identificacion', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Perfil de Cargo</label>
-                                                        <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
-                                                        <input type="text" value={w.telefono} onChange={e => updateWorkerField(w.id, 'telefono', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border-light gap-6 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                    {/* Lado Izquierdo: Información Personal & Familiar */}
+                                                    <div className="space-y-4 pr-0 lg:pr-6 pb-6 lg:pb-0">
+                                                        <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary flex items-center gap-1.5 mb-2">
+                                                            <User className="w-4 h-4 text-teal-500" /> Información Personal & Familiar
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Nombre Completo</label>
+                                                                <input type="text" value={w.nombre} onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Identificación (CC)</label>
+                                                                <input type="text" value={w.identificacion} onChange={e => updateWorkerField(w.id, 'identificacion', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Edad</label>
+                                                                <input type="number" value={w.edad} onChange={e => updateWorkerField(w.id, 'edad', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
+                                                                <SingleSelect value={w.genero || ''} onChange={val => updateWorkerField(w.id, 'genero', val)} placeholder="Seleccione..." options={['Masculino', 'Femenino', 'Otro']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
+                                                                <SingleSelect value={w.estadoCivil || ''} onChange={val => updateWorkerField(w.id, 'estadoCivil', val)} placeholder="Seleccione..." options={['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
+                                                                <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Fecha Nacimiento</label>
+                                                                <input type="date" value={w.fechaNacimiento} onChange={e => updateWorkerField(w.id, 'fechaNacimiento', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Lugar Nacimiento</label>
+                                                                <input type="text" value={w.lugarNacimiento} onChange={e => updateWorkerField(w.id, 'lugarNacimiento', e.target.value)}
+                                                                    placeholder="Ej: Bogotá" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Correo Electrónico</label>
+                                                                <input type="email" value={w.correoElectronico} onChange={e => updateWorkerField(w.id, 'correoElectronico', e.target.value)}
+                                                                    placeholder="Ej: correo@ejemplo.com" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
+                                                                <input type="text" value={w.telefono} onChange={e => updateWorkerField(w.id, 'telefono', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Municipio Domicilio</label>
+                                                                <input type="text" value={w.municipioDomicilio} onChange={e => updateWorkerField(w.id, 'municipioDomicilio', e.target.value)}
+                                                                    placeholder="Ej: Medellín" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Barrio</label>
+                                                                <input type="text" value={w.barrio} onChange={e => updateWorkerField(w.id, 'barrio', e.target.value)}
+                                                                    placeholder="Ej: El Poblado" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1 md:col-span-2">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Dirección (Google Maps)</label>
+                                                                <input type="text" value={w.direccion} onChange={e => updateWorkerField(w.id, 'direccion', e.target.value)}
+                                                                    placeholder="Ej: Calle 123 #45-67, Medellín"
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
+                                                                <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
+                                                                <SingleSelect value={w.estrato || ''} onChange={val => updateWorkerField(w.id, 'estrato', val)} placeholder="Seleccione..." options={['1', '2', '3', '4', '5', '6']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Contacto de Emergencia</label>
+                                                                <input type="text" value={w.emergenciaContacto} onChange={e => updateWorkerField(w.id, 'emergenciaContacto', e.target.value)}
+                                                                    placeholder="Nombre y Teléfono"
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Personas a Cargo</label>
+                                                                <input type="number" value={w.personasCargo} onChange={e => updateWorkerField(w.id, 'personasCargo', e.target.value)}
+                                                                    placeholder="Número de personas"
+                                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Edad</label>
-                                                        <input type="number" value={w.edad} onChange={e => updateWorkerField(w.id, 'edad', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
-                                                        <SingleSelect value={w.genero || ''} onChange={val => updateWorkerField(w.id, 'genero', val)} placeholder="Seleccione..." options={['Masculino', 'Femenino', 'Otro']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
-                                                        <SingleSelect value={w.estadoCivil || ''} onChange={val => updateWorkerField(w.id, 'estadoCivil', val)} placeholder="Seleccione..." options={['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
-                                                        <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
-                                                    </div>
+                                                    {/* Lado Derecho: Hábitos & Perfil Laboral */}
+                                                    <div className="space-y-4 pl-0 lg:pl-6 pt-6 lg:pt-0">
+                                                        <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary flex items-center gap-1.5 mb-2">
+                                                            <Briefcase className="w-4 h-4 text-indigo-500" /> Hábitos & Perfil Laboral
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div className="space-y-1 md:col-span-2">
+                                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-indigo-500"/> Perfil de Cargo Requerido</label>
+                                                                <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
+                                                            </div>
 
-                                                                                                        <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Fecha Nacimiento</label>
-                                                        <input type="date" value={w.fechaNacimiento} onChange={e => updateWorkerField(w.id, 'fechaNacimiento', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Lugar Nacimiento</label>
-                                                        <input type="text" value={w.lugarNacimiento} onChange={e => updateWorkerField(w.id, 'lugarNacimiento', e.target.value)}
-                                                            placeholder="Ej: Bogotá" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Correo Electrónico</label>
-                                                        <input type="email" value={w.correoElectronico} onChange={e => updateWorkerField(w.id, 'correoElectronico', e.target.value)}
-                                                            placeholder="Ej: correo@ejemplo.com" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Municipio Domicilio</label>
-                                                        <input type="text" value={w.municipioDomicilio} onChange={e => updateWorkerField(w.id, 'municipioDomicilio', e.target.value)}
-                                                            placeholder="Ej: Medellín" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Barrio</label>
-                                                        <input type="text" value={w.barrio} onChange={e => updateWorkerField(w.id, 'barrio', e.target.value)}
-                                                            placeholder="Ej: El Poblado" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-<div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Dirección (Google Maps)</label>
-                                                        <input type="text" value={w.direccion} onChange={e => updateWorkerField(w.id, 'direccion', e.target.value)}
-                                                            placeholder="Ej: Calle 123 #45-67, Medellín"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
-                                                        <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
-                                                        <SingleSelect value={w.estrato || ''} onChange={val => updateWorkerField(w.id, 'estrato', val)} placeholder="Seleccione..." options={['1', '2', '3', '4', '5', '6']} />
-                                                    </div>
-
-                                                    <div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Contacto de Emergencia</label>
-                                                        <input type="text" value={w.emergenciaContacto} onChange={e => updateWorkerField(w.id, 'emergenciaContacto', e.target.value)}
-                                                            placeholder="Nombre y Teléfono"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Personas a Cargo</label>
-                                                        <input type="number" value={w.personasCargo} onChange={e => updateWorkerField(w.id, 'personasCargo', e.target.value)}
-                                                            placeholder="Número de personas"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Deporte / Actividad Física</label>
+                                                                <SingleSelect value={w.deporte || ''} onChange={val => updateWorkerField(w.id, 'deporte', val)} placeholder="Seleccione..." options={['No realiza', '1-2 veces por semana', '3+ veces por semana']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Alimentación</label>
+                                                                <SingleSelect value={w.alimentacion || ''} onChange={val => updateWorkerField(w.id, 'alimentacion', val)} placeholder="Seleccione..." options={['Balanceada', 'Alta en grasas/azúcares', 'Vegetariana/Vegana']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Consumo de Tabaco (Fuma)</label>
+                                                                <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, ocasional', 'Sí, diario']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Consumo de Alcohol</label>
+                                                                <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Seleccione..." options={['No', 'Sí (Social)', 'Sí (Frecuente)']} />
+                                                            </div>
+                                                            <div className="space-y-1 md:col-span-2">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Acompañamiento Psicológico (Terapia)</label>
+                                                                <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}

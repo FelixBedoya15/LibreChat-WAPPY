@@ -954,6 +954,25 @@ const PerfilesCargo = () => {
                 onDummy={handleLoadDummyData}
             />
 
+            {/* Hero Banner */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-8 text-white shadow-2xl">
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20" />
+                    <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10" />
+                </div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
+                            <Briefcase className="w-5 h-5 text-teal-300" />
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight">Perfiles de Cargo Biocéntricos</h1>
+                    </div>
+                    <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
+                        Diseño ergonómico y operacional de perfiles de rol. Define exigencias físicas y cognitivas, equipos de protección requeridos (EPP) y controles de ingeniería en el puesto de trabajo.
+                    </p>
+                </div>
+            </div>
+
             {/* ── History (Filtered by Profile ID) ── */}
             {/* ── History (Filtered by Profile ID) ── */}
             <ReportHistory
@@ -965,7 +984,7 @@ const PerfilesCargo = () => {
             />
 
             {/* ── Profiles Quick Access ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary p-5 shadow-md">
                 <div className="flex items-center justify-between mb-3 px-1">
                     <div className="flex items-center gap-2">
                         <Briefcase className="h-4 w-4 text-teal-600" />
@@ -1140,7 +1159,7 @@ const PerfilesCargo = () => {
                                 return (
                                     <div key={foto} className="flex flex-col items-center gap-3">
                                         <span className="font-semibold text-sm text-center">{labels[idx]}</span>
-                                        <div className="relative w-full aspect-square bg-surface-tertiary rounded-xl border-2 border-dashed border-border-medium flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 transition-colors">
+                                        <div className="relative w-full aspect-square bg-teal-50/5 hover:bg-teal-50/10 dark:bg-teal-900/5 dark:hover:bg-teal-900/10 rounded-2xl border-2 border-dashed border-teal-200 dark:border-teal-800/60 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 transition-colors shadow-inner">
                                             {formData.images?.[fieldName] ? (
                                                 <>
                                                     <img src={formData.images[fieldName] as string} className="w-full h-full object-cover" alt={foto} />

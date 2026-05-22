@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Plus, 
@@ -15,9 +15,25 @@ import {
   Maximize2,
   Table2,
   BarChart3,
-  Link2
+  Link2,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  ListOrdered,
+  Heading1,
+  Heading2,
+  Image as ImageIcon,
+  Camera,
+  X,
+  Upload,
+  Video
 } from 'lucide-react';
 import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
+
 
 interface Slide {
   title: string;
@@ -117,6 +133,59 @@ const THEMES = {
   },
 };
 
+interface SlideEditableTextProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+  tagName?: 'h1' | 'h2' | 'div' | 'span';
+}
+
+const SlideEditableText: React.FC<SlideEditableTextProps> = ({
+  value,
+  onChange,
+  placeholder = '',
+  className = '',
+  tagName = 'div',
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      if (ref.current.innerHTML !== value) {
+        ref.current.innerHTML = value || '';
+      }
+    }
+  }, [value]);
+
+  const handleInput = () => {
+    if (ref.current) {
+      onChange(ref.current.innerHTML);
+    }
+  };
+
+  const handleBlur = () => {
+    if (ref.current) {
+      onChange(ref.current.innerHTML);
+    }
+  };
+
+  const Tag = tagName;
+
+  return (
+    <Tag
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={handleInput}
+      onBlur={handleBlur}
+      className={`outline-none focus:ring-1 focus:ring-teal-500/30 rounded px-1 transition-all ${className} relative empty:before:content-[attr(data-placeholder)] empty:before:text-white/40 empty:before:pointer-events-none empty:before:absolute`}
+      data-placeholder={placeholder}
+      style={{ minWidth: '40px' }}
+    />
+  );
+};
+
 const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent, onUpdate, title, isMaximized = false, onRegisterDownload }) => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
@@ -127,6 +196,138 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const [showLaser, setShowLaser] = useState<boolean>(false);
   const [laserPos, setLaserPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
+
+  // NEW states for Image Modal & Formatting
+  const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'url'>('upload');
+  const [inputUrl, setInputUrl] = useState<string>('');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isCameraActiveRef = useRef<boolean>(false);
+
+  const execCmd = (command: string, arg = '') => {
+    document.execCommand(command, false, arg);
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    isCameraActiveRef.current = true;
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: 'user' }
+      });
+      // If camera was stopped while this promise was loading, stop the tracks immediately!
+      if (!isCameraActiveRef.current) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = mediaStream;
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err: any) {
+      console.error('Error accessing camera:', err);
+      setCameraError('No se pudo acceder a la cámara. Por favor verifica los permisos.');
+    }
+  };
+
+  const stopCamera = () => {
+    isCameraActiveRef.current = false;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isImageModalOpen && activeTab === 'camera') {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isImageModalOpen, activeTab]);
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        saveImageToSlide(dataUrl);
+      }
+    }
+  };
+
+  const saveImageToSlide = (url: string) => {
+    const activeSlide = slides[activeIndex];
+    const currentLayout = activeSlide?.layout || 'bullets';
+    let newLayout = currentLayout;
+    if (currentLayout === 'title' || currentLayout === 'bullets') {
+      newLayout = 'split';
+    }
+    
+    updateSlide(activeIndex, {
+      imageUrl: url,
+      layout: newLayout
+    });
+    
+    setIsImageModalOpen(false);
+    stopCamera();
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          saveImageToSlide(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          saveImageToSlide(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Load content
   useEffect(() => {
@@ -518,16 +719,18 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         return (
           <div className="flex-1 flex flex-col justify-center items-center text-center my-auto p-4 animate-in fade-in duration-300">
             {isPresentationMode ? (
-              <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-tight max-w-4xl drop-shadow">
-                {slide.title}
-              </h1>
+              <h1 
+                className="text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-tight max-w-4xl drop-shadow"
+                dangerouslySetInnerHTML={{ __html: slide.title }}
+              />
             ) : (
-              <input
-                type="text"
+              <SlideEditableText
+                key={`title-${activeIndex}`}
                 value={slide.title}
-                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                className={`w-full bg-transparent border-none outline-none font-extrabold text-4xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                onChange={(val) => updateSlide(activeIndex, { title: val })}
+                className={`w-full bg-transparent border-none outline-none font-extrabold text-4xl text-center ${curTheme.text} placeholder-white/40 pb-1`}
                 placeholder="Introduce el título de portada..."
+                tagName="h1"
               />
             )}
             <div className="h-1 w-24 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full mt-6 opacity-80" />
@@ -537,11 +740,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
       case 'split':
         return (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-center my-auto w-full p-2 md:p-4 animate-in fade-in duration-300">
-            <div className="relative group rounded-2xl overflow-hidden aspect-[4/3] border border-white/10 shadow-lg bg-black/25 flex items-center justify-center">
+            <div 
+              onClick={() => !isPresentationMode && setIsImageModalOpen(true)}
+              className={`relative group rounded-2xl overflow-hidden aspect-[4/3] border border-white/10 shadow-lg bg-black/25 flex items-center justify-center ${!isPresentationMode ? 'cursor-pointer hover:border-teal-500/50 transition-colors' : ''}`}
+            >
               {slide.imageUrl ? (
                 <img 
                   src={slide.imageUrl} 
-                  alt={slide.title} 
+                  alt="" 
                   className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105" 
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1590402449133-79848541a540?q=80&w=600&auto=format&fit=crop';
@@ -551,7 +757,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <div className="flex flex-col items-center justify-center text-white/30 text-xs gap-2 p-6 text-center">
                   <Layout className="h-10 w-10 text-white/20 animate-pulse" />
                   <span>Sin Imagen Asignada.</span>
-                  {!isPresentationMode && <span className="text-[10px] text-teal-400">Ingresa una URL en Opciones.</span>}
+                  {!isPresentationMode && <span className="text-[10px] text-teal-400">Haz clic aquí para agregar imagen.</span>}
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
@@ -559,23 +765,29 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
             <div className="space-y-4">
               {isPresentationMode ? (
-                <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-sm">
-                  {slide.title}
-                </h2>
+                <h2 
+                  className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-sm"
+                  dangerouslySetInnerHTML={{ __html: slide.title }}
+                />
               ) : (
-                <input
-                  type="text"
+                <SlideEditableText
+                  key={`title-${activeIndex}`}
                   value={slide.title}
-                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                  className={`w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                  onChange={(val) => updateSlide(activeIndex, { title: val })}
+                  className={`w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl ${curTheme.text} placeholder-white/40 pb-1`}
                   placeholder="Introduce el título..."
+                  tagName="h2"
                 />
               )}
               
               {isPresentationMode ? (
                 <ul className="space-y-3 text-lg md:text-2xl font-medium text-slate-200/90 pl-5 list-disc marker:text-emerald-400">
                   {slide.bullets.map((bullet, bIdx) => (
-                    <li key={bIdx} className="leading-relaxed hover:text-white transition-colors">{bullet}</li>
+                    <li 
+                      key={bIdx} 
+                      className="leading-relaxed hover:text-white transition-colors"
+                      dangerouslySetInnerHTML={{ __html: bullet }}
+                    />
                   ))}
                 </ul>
               ) : (
@@ -583,11 +795,11 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                   <ul className={`list-disc pl-5 space-y-2 text-base md:text-lg font-medium ${curTheme.text}/90`}>
                     {slide.bullets.map((bullet, bIdx) => (
                       <li key={bIdx}>
-                        <input
-                          type="text"
+                        <SlideEditableText
+                          key={`bullet-${activeIndex}-${bIdx}`}
                           value={bullet}
-                          onChange={(e) => updateBullet(bIdx, e.target.value)}
-                          className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                          onChange={(val) => updateBullet(bIdx, val)}
+                          className="w-full bg-transparent border-none outline-none pb-0.5"
                           placeholder="Escribe el punto clave..."
                         />
                       </li>
@@ -601,30 +813,56 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
       case 'media':
         return (
-          <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12 bg-cover bg-center rounded-2xl overflow-hidden animate-in fade-in duration-300" style={{
-            backgroundImage: slide.imageUrl ? `url("${slide.imageUrl}")` : 'url("https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1200&auto=format&fit=crop")',
-          }}>
+          <div 
+            onClick={() => !isPresentationMode && setIsImageModalOpen(true)}
+            className={`absolute inset-0 flex flex-col justify-end p-8 md:p-12 bg-cover bg-center rounded-2xl overflow-hidden animate-in fade-in duration-300 ${!isPresentationMode ? 'cursor-pointer' : ''}`} 
+            style={{
+              backgroundImage: slide.imageUrl ? `url("${slide.imageUrl}")` : 'url("https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1200&auto=format&fit=crop")',
+            }}
+          >
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent pointer-events-none" />
 
-            <div className="relative z-10 w-full max-w-2xl bg-slate-950/40 border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-md shadow-2xl space-y-3.5 animate-in slide-in-from-bottom-6 duration-300">
+            {!isPresentationMode && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsImageModalOpen(true);
+                }}
+                className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-900/80 border border-white/10 text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer shadow-lg backdrop-blur-sm"
+              >
+                <Camera className="h-3.5 w-3.5 text-teal-400" />
+                <span>Cambiar Imagen</span>
+              </button>
+            )}
+
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 w-full max-w-2xl bg-slate-950/40 border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-md shadow-2xl space-y-3.5 animate-in slide-in-from-bottom-6 duration-300"
+            >
               {isPresentationMode ? (
-                <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow">
-                  {slide.title}
-                </h2>
+                <h2 
+                  className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow"
+                  dangerouslySetInnerHTML={{ __html: slide.title }}
+                />
               ) : (
-                <input
-                  type="text"
+                <SlideEditableText
+                  key={`title-${activeIndex}`}
                   value={slide.title}
-                  onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                  className="w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl text-white placeholder-white/40 focus:border-b border-white/20 pb-1"
+                  onChange={(val) => updateSlide(activeIndex, { title: val })}
+                  className="w-full bg-transparent border-none outline-none font-bold text-2xl md:text-3xl text-white placeholder-white/40 pb-1"
                   placeholder="Introduce el título..."
+                  tagName="h2"
                 />
               )}
               
               {isPresentationMode ? (
                 <ul className="space-y-2 text-base md:text-xl font-medium text-slate-200/90 pl-5 list-disc marker:text-teal-400">
                   {slide.bullets.map((bullet, bIdx) => (
-                    <li key={bIdx} className="leading-relaxed hover:text-white transition-colors">{bullet}</li>
+                    <li 
+                      key={bIdx} 
+                      className="leading-relaxed hover:text-white transition-colors"
+                      dangerouslySetInnerHTML={{ __html: bullet }}
+                    />
                   ))}
                 </ul>
               ) : (
@@ -632,11 +870,11 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                   <ul className="list-disc pl-5 space-y-1.5 text-sm md:text-base font-medium text-white/90">
                     {slide.bullets.map((bullet, bIdx) => (
                       <li key={bIdx}>
-                        <input
-                          type="text"
+                        <SlideEditableText
+                          key={`bullet-${activeIndex}-${bIdx}`}
                           value={bullet}
-                          onChange={(e) => updateBullet(bIdx, e.target.value)}
-                          className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                          onChange={(val) => updateBullet(bIdx, val)}
+                          className="w-full bg-transparent border-none outline-none pb-0.5"
                           placeholder="Escribe el punto clave..."
                         />
                       </li>
@@ -652,16 +890,18 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         return (
           <div className="flex-1 flex flex-col justify-center my-auto w-full p-2 md:p-6 space-y-4 animate-in fade-in duration-300">
             {isPresentationMode ? (
-              <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm">
-                {slide.title}
-              </h2>
+              <h2 
+                className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm"
+                dangerouslySetInnerHTML={{ __html: slide.title }}
+              />
             ) : (
-              <input
-                type="text"
+              <SlideEditableText
+                key={`title-${activeIndex}`}
                 value={slide.title}
-                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                onChange={(val) => updateSlide(activeIndex, { title: val })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 pb-1`}
                 placeholder="Introduce el título de la tabla..."
+                tagName="h2"
               />
             )}
 
@@ -684,16 +924,18 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         return (
           <div className="flex-1 flex flex-col justify-center my-auto w-full p-2 md:p-6 space-y-4 animate-in fade-in duration-300">
             {isPresentationMode ? (
-              <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm">
-                {slide.title}
-              </h2>
+              <h2 
+                className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-sm"
+                dangerouslySetInnerHTML={{ __html: slide.title }}
+              />
             ) : (
-              <input
-                type="text"
+              <SlideEditableText
+                key={`title-${activeIndex}`}
                 value={slide.title}
-                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                onChange={(val) => updateSlide(activeIndex, { title: val })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-xl md:text-2xl text-center ${curTheme.text} placeholder-white/40 pb-1`}
                 placeholder="Introduce el título del gráfico..."
+                tagName="h2"
               />
             )}
 
@@ -716,25 +958,29 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         return (
           <div className="my-auto space-y-6 z-10 animate-in fade-in duration-350">
             {isPresentationMode ? (
-              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-8 drop-shadow-sm">
-                {slide.title}
-              </h1>
+              <h1 
+                className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-8 drop-shadow-sm"
+                dangerouslySetInnerHTML={{ __html: slide.title }}
+              />
             ) : (
-              <input
-                type="text"
+              <SlideEditableText
+                key={`title-${activeIndex}`}
                 value={slide.title}
-                onChange={(e) => updateSlide(activeIndex, { title: e.target.value })}
-                className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${curTheme.text} placeholder-white/40 focus:border-b border-white/20 pb-1`}
+                onChange={(val) => updateSlide(activeIndex, { title: val })}
+                className={`w-full bg-transparent border-none outline-none font-bold text-3xl md:text-4xl ${curTheme.text} placeholder-white/40 pb-1`}
                 placeholder="Introduce el título de la diapositiva..."
+                tagName="h1"
               />
             )}
 
             {isPresentationMode ? (
               <ul className="space-y-6 text-xl md:text-3xl font-medium text-slate-200/90 pl-6 list-disc marker:text-emerald-400">
                 {slide.bullets.map((bullet, bIdx) => (
-                  <li key={bIdx} className="leading-relaxed hover:text-white transition-colors duration-300">
-                    {bullet}
-                  </li>
+                  <li 
+                    key={bIdx} 
+                    className="leading-relaxed hover:text-white transition-colors duration-300"
+                    dangerouslySetInnerHTML={{ __html: bullet }}
+                  />
                 ))}
               </ul>
             ) : (
@@ -742,11 +988,11 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <ul className={`list-disc pl-6 space-y-3 text-lg md:text-xl font-medium ${curTheme.text}/90`}>
                   {slide.bullets.map((bullet, bIdx) => (
                     <li key={bIdx}>
-                      <input
-                        type="text"
+                      <SlideEditableText
+                        key={`bullet-${activeIndex}-${bIdx}`}
                         value={bullet}
-                        onChange={(e) => updateBullet(bIdx, e.target.value)}
-                        className="w-full bg-transparent border-none outline-none focus:border-b border-white/20 pb-0.5"
+                        onChange={(val) => updateBullet(bIdx, val)}
+                        className="w-full bg-transparent border-none outline-none pb-0.5"
                         placeholder="Escribe el punto clave..."
                       />
                     </li>
@@ -1015,6 +1261,169 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
     );
   };
 
+  const renderImageModal = () => {
+    if (!isImageModalOpen || !activeSlide) return null;
+
+    return createPortal(
+      <div className="fixed inset-0 z-[99999999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl text-white flex flex-col gap-5 overflow-hidden animate-in zoom-in-95 duration-200">
+          
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-48 h-48 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="flex items-center justify-between border-b border-white/5 pb-3.5 z-10">
+            <div className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-teal-400" />
+              <h3 className="text-base font-extrabold bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                Agregar Imagen a Diapositiva
+              </h3>
+            </div>
+            <button
+              onClick={() => {
+                setIsImageModalOpen(false);
+                stopCamera();
+              }}
+              className="p-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer border-none outline-none"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex bg-slate-950/80 border border-white/5 p-1 rounded-2xl z-10">
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-none outline-none flex items-center justify-center gap-1.5 ${
+                activeTab === 'upload'
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-transparent'
+              }`}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Cargar PC</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('camera')}
+              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-none outline-none flex items-center justify-center gap-1.5 ${
+                activeTab === 'camera'
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-transparent'
+              }`}
+            >
+              <Video className="h-3.5 w-3.5" />
+              <span>Tomar Foto</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('url')}
+              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-none outline-none flex items-center justify-center gap-1.5 ${
+                activeTab === 'url'
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-transparent'
+              }`}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              <span>Enlace URL</span>
+            </button>
+          </div>
+
+          <div className="z-10 min-h-[200px] flex flex-col justify-center">
+            {activeTab === 'upload' && (
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl transition-all gap-3 bg-slate-950/40 text-center ${
+                  isDragging 
+                    ? 'border-teal-400 bg-teal-500/5' 
+                    : 'border-white/10 hover:border-white/20'
+                }`}
+              >
+                <div className="p-3 bg-teal-500/10 text-teal-400 rounded-full border border-teal-500/20">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-200">Arrastra tu archivo aquí o</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Soporta formatos PNG, JPG, WEBP de alta resolución</p>
+                </div>
+                <label className="mt-2 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95">
+                  Seleccionar Archivo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+
+            {activeTab === 'camera' && (
+              <div className="flex flex-col items-center gap-4">
+                {cameraError ? (
+                  <div className="text-xs text-rose-400 font-semibold p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl w-full text-center">
+                    {cameraError}
+                  </div>
+                ) : (
+                  <div className="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden border border-white/10 shadow-lg">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                    <div className="absolute inset-4 border border-white/5 pointer-events-none rounded-xl" />
+                    <div className="absolute top-1/2 left-4 right-4 h-px bg-white/5 pointer-events-none" />
+                    <div className="absolute left-1/2 top-4 bottom-4 w-px bg-white/5 pointer-events-none" />
+                    
+                    <div className="absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 bg-rose-600/80 border border-rose-500/20 text-white rounded-lg text-[9px] font-bold tracking-wider uppercase animate-pulse">
+                      <div className="h-1.5 w-1.5 bg-white rounded-full" />
+                      <span>REC</span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={capturePhoto}
+                  disabled={!!cameraError || !stream}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-xs font-extrabold bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-2xl shadow-lg border-none outline-none transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span>Capturar Foto</span>
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'url' && (
+              <div className="flex flex-col gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase">Enlace Web de Imagen</label>
+                  <input
+                    type="text"
+                    value={inputUrl}
+                    onChange={(e) => setInputUrl(e.target.value)}
+                    placeholder="https://ejemplo.com/mi-imagen.png"
+                    className="w-full h-10 px-3 text-xs bg-slate-950 border border-white/10 rounded-xl outline-none focus:border-teal-500 text-white placeholder-slate-500 transition-colors font-sans"
+                  />
+                </div>
+                
+                <button
+                  onClick={() => {
+                    if (inputUrl.trim()) {
+                      saveImageToSlide(inputUrl.trim());
+                    }
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-extrabold bg-teal-600 hover:bg-teal-700 text-white rounded-2xl shadow-md border-none outline-none transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  Confirmar Enlace
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   // Reduced workspace view (standard layout)
   if (!isMaximized) {
     return (
@@ -1055,7 +1464,10 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 }`}
               >
                 <div className={`h-28 w-full rounded-xl ${slideTheme.bg} p-4 flex flex-col justify-between overflow-hidden shadow-inner`}>
-                  <div className={`text-xs font-bold ${slideTheme.text} leading-snug`}>{slide.title}</div>
+                  <div 
+                    className={`text-xs font-bold ${slideTheme.text} leading-snug`}
+                    dangerouslySetInnerHTML={{ __html: slide.title }}
+                  />
                   <div className="space-y-1.5 my-auto pt-2">
                     {slide.bullets.slice(0, 2).map((_, bIdx) => (
                       <div key={bIdx} className="h-1 w-2/3 bg-white/20 rounded-full" />
@@ -1097,7 +1509,10 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                   }`}
                 >
                   <div className={`h-16 w-full rounded-lg ${slideTheme.bg} p-2 flex flex-col justify-between overflow-hidden shadow-inner`}>
-                    <div className={`text-[8px] font-bold ${slideTheme.text} truncate`}>{slide.title}</div>
+                    <div 
+                      className={`text-[8px] font-bold ${slideTheme.text} truncate`}
+                      dangerouslySetInnerHTML={{ __html: slide.title }}
+                    />
                     <div className="space-y-0.5">
                       {slide.bullets.slice(0, 2).map((_, bIdx) => (
                         <div key={bIdx} className="h-1 w-2/3 bg-white/20 rounded-full" />
@@ -1184,6 +1599,143 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
       <div className="flex-1 flex flex-col bg-surface-secondary/40 overflow-hidden">
         {activeSlide ? (
           <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6">
+            {/* Rich Text Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-surface-primary/80 border border-border-medium rounded-2xl shadow-sm backdrop-blur-md z-20 shrink-0">
+              <div className="flex flex-wrap items-center gap-1">
+                {/* Text Formatting Group */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('bold')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Negrita"
+                >
+                  <Bold className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('italic')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Cursiva"
+                >
+                  <Italic className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('underline')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Subrayado"
+                >
+                  <Underline className="h-4 w-4" />
+                </button>
+
+                <div className="h-4 w-px bg-border-medium mx-1" />
+
+                {/* Alignment Group */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('justifyLeft')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Alinear a la Izquierda"
+                >
+                  <AlignLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('justifyCenter')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Centrar"
+                >
+                  <AlignCenter className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('justifyRight')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Alinear a la Derecha"
+                >
+                  <AlignRight className="h-4 w-4" />
+                </button>
+
+                <div className="h-4 w-px bg-border-medium mx-1" />
+
+                {/* Lists Group */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('insertUnorderedList')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Lista de Viñetas"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('insertOrderedList')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Lista Numerada"
+                >
+                  <ListOrdered className="h-4 w-4" />
+                </button>
+
+                <div className="h-4 w-px bg-border-medium mx-1" />
+
+                {/* Headings Group */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('formatBlock', '<h1>')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all font-bold text-xs cursor-pointer"
+                  title="Título Principal (H1)"
+                >
+                  <Heading1 className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => execCmd('formatBlock', '<h2>')}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all font-bold text-xs cursor-pointer"
+                  title="Subtítulo (H2)"
+                >
+                  <Heading2 className="h-4 w-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const size = prompt('Ingresa tamaño de letra (1-7):', '4');
+                    if (size) execCmd('fontSize', size);
+                  }}
+                  className="px-2 py-1 text-[11px] font-extrabold text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all flex items-center gap-0.5 cursor-pointer"
+                  title="Tamaño de Letra"
+                >
+                  <span>Tamaño</span>
+                </button>
+
+                <div className="h-4 w-px bg-border-medium mx-1" />
+
+                {/* Add Link */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const url = prompt('Ingresa la URL del enlace:');
+                    if (url) execCmd('createLink', url);
+                  }}
+                  className="p-2 text-text-secondary hover:text-teal-600 hover:bg-teal-50/10 rounded-xl transition-all cursor-pointer"
+                  title="Insertar Enlace"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Multimedia Group */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setIsImageModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer"
+                  title="Agregar Imagen (PC / Cámara)"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Imagen / Foto</span>
+                </button>
+              </div>
+            </div>
+
             {/* Live Interactive Slide Preview */}
             <div className={`aspect-[16/9] w-full rounded-2xl shadow-xl border ${activeTheme.bg} ${activeTheme.border} p-8 flex flex-col justify-between relative overflow-hidden`}>
               <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -1352,6 +1904,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
         )}
       </div>
       {renderPresentationPortal()}
+      {renderImageModal()}
       {isBridgeOpen && (
         <CanvasWorkspaceBridge
           onClose={() => setIsBridgeOpen(false)}

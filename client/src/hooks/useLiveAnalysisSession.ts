@@ -18,11 +18,12 @@ interface UseLiveAnalysisSessionOptions {
     disableAudio?: boolean;
     initialVoice?: string;
     selectedModel?: string;
+    template?: string; // Plantilla de inspección seleccionada
 }
 
 export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = {}) => {
     const { token } = useAuthContext();
-    const { conversationId, disableAudio, initialVoice, selectedModel } = options;
+    const { conversationId, disableAudio, initialVoice, selectedModel, template } = options;
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -35,6 +36,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
     const isMutedRef = useRef(false);
     const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
+
 
     /**
      * Start Audio Capture
@@ -257,6 +259,10 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 wsUrl += `&model=${encodeURIComponent(selectedModel)}`;
             }
 
+            if (template) {
+                wsUrl += `&template=${encodeURIComponent(template)}`;
+            }
+
             console.log('[LiveAnalysisSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
@@ -463,6 +469,17 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         }));
     }, []);
 
+    /**
+     * Send Evidence Image manually captured by user
+     */
+    const sendEvidenceImage = useCallback((base64: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'evidence-image',
+            data: { image: base64 }
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -474,5 +491,6 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         changeVoice,
         getInputVolume,
         setMuted,
+        sendEvidenceImage,
     };
 };

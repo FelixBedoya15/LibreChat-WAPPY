@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
-import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone } from 'lucide-react';
+import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from '../Voice/VoiceOrb';
@@ -32,6 +32,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
+
+    const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+    const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
+    const [isFlashActive, setIsFlashActive] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,6 +95,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         disableAudio: false,
         initialVoice: voiceLiveAnalysis,
         selectedModel,
+        template: selectedTemplate || 'general',
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
@@ -294,7 +299,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate]);
 
     // Trigger toast ONLY when hasReceivedReport flips to true (not on every render)
     const prevHasReport = useRef(false);
@@ -363,9 +368,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setShowModalState(isOpen);
     }, [isOpen, setShowModalState]);
 
-    // Connect on mount if open
+    // Connect on mount if open and template selected
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !selectedTemplate) return;
 
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -381,7 +386,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 audioContextRef.current = null;
             }
         };
-    }, [isOpen]);
+    }, [isOpen, selectedTemplate]);
 
     // Ensure voice is updated when connected
     useEffect(() => {
@@ -405,11 +410,23 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                 const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+                let templateGuide = "";
+                if (selectedTemplate === 'alturas') {
+                    templateGuide = "Tu enfoque de auditoría hoy es TRABAJO EN ALTURAS. Guíame a través de la revisión del arnés, los puntos de anclaje, líneas de vida y conectores.";
+                } else if (selectedTemplate === 'eléctrico') {
+                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO ELÉCTRICO. Guíame a través del estado de tableros eléctricos, cableado expuesto y el protocolo LOTO (bloqueo/etiquetado).";
+                } else if (selectedTemplate === '5s') {
+                    templateGuide = "Tu enfoque de auditoría hoy es ORDEN Y ASEO (METODOLOGÍA 5S). Guíame a través de la clasificación, el orden, la limpieza, estandarización y disciplina del área.";
+                } else {
+                    templateGuide = "Tu enfoque de auditoría hoy es INSPECCIÓN GENERAL DE SEGURIDAD INDUSTRIAL (ISO 45001 / GTC 45). Guíame de manera general para auditar el área de trabajo.";
+                }
+
                 sendTextMessage(`
                     Actúa como un Auditor Líder Experto en Seguridad y Salud en el Trabajo (SST/HSE) certificado.
                     
                     CONTEXTO:
                     Estás realizando una inspección técnica formal basada en la evidencia visual que estás viendo AHORA MISMO en el video.
+                    ${templateGuide}
 
                     TU MISIÓN:
                     Identificar peligros evidentes, evaluar actos inseguros y dar recomendaciones asertivas en tiempo real. 
@@ -424,11 +441,29 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             return () => clearTimeout(timer);
         }
-    }, [isConnected, isOpen, isReady, sendTextMessage, captureSnapshot]);
+    }, [isConnected, isOpen, isReady, sendTextMessage, captureSnapshot, selectedTemplate]);
+
+    const handleManualCapture = useCallback(() => {
+        const dataUrl = captureSnapshot();
+        if (!dataUrl) return;
+
+        // Trigger visual flash
+        setIsFlashActive(true);
+        setTimeout(() => setIsFlashActive(false), 150);
+
+        // Save locally for carousel
+        setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+
+        // Send to backend via WS (extract base64 payload from data URL)
+        const base64 = dataUrl.split(',')[1];
+        sendEvidenceImage(base64);
+    }, [captureSnapshot, sendEvidenceImage]);
 
     const handleClose = () => {
         stopMediaTracks();
         disconnect();
+        setSelectedTemplate(null);
+        setManualCapturedPhotos([]);
         onClose();
     };
 
@@ -641,6 +676,119 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     if (!isOpen) return null;
 
+    if (!selectedTemplate) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto">
+                    {/* Wappy Design Scanlines */}
+                    <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,118,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
+                    
+                    {/* Vignette */}
+                    <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.6)]"></div>
+
+                    {/* Top Close Button */}
+                    <button 
+                        onClick={onClose}
+                        className="absolute top-6 right-6 p-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-all z-50"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    {/* Content Container */}
+                    <div className="relative z-10 max-w-4xl w-full flex flex-col items-center gap-8 my-auto">
+                        <div className="text-center space-y-3">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                HSE Command Center
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 tracking-tight drop-shadow-md pb-1">
+                                ANÁLISIS EN VIVO
+                            </h1>
+                            <p className="text-white/60 text-sm md:text-base max-w-lg mx-auto">
+                                Seleccione una plantilla de inspección técnica especializada. La IA adaptará sus directrices y su enfoque en tiempo real.
+                            </p>
+                        </div>
+
+                        {/* Cards Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-4">
+                            {/* Card 1: General */}
+                            <div 
+                                onClick={() => setSelectedTemplate('general')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">ISO 45001</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-emerald-400 transition-colors">Inspección General</h3>
+                                    <p className="text-white/50 text-xs mt-1">Evaluación amplia de orden, aseo, señalización, ergonomía y condiciones de seguridad industrial estándar.</p>
+                                </div>
+                            </div>
+
+                            {/* Card 2: Alturas */}
+                            <div 
+                                onClick={() => setSelectedTemplate('alturas')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">SST ALTURA</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-cyan-400 transition-colors">Trabajo en Alturas</h3>
+                                    <p className="text-white/50 text-xs mt-1">Enfoque arneses, líneas de vida, puntos de anclaje, conectores y estado de plataformas de elevación.</p>
+                                </div>
+                            </div>
+
+                            {/* Card 3: Eléctrico */}
+                            <div 
+                                onClick={() => setSelectedTemplate('eléctrico')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-amber-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">LOTO / ENERGÍA</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-amber-400 transition-colors">Riesgo Eléctrico</h3>
+                                    <p className="text-white/50 text-xs mt-1">Tableros eléctricos, cableado expuesto, bloqueo y etiquetado (LOTO) y EPP dieléctrico.</p>
+                                </div>
+                            </div>
+
+                            {/* Card 4: 5S */}
+                            <div 
+                                onClick={() => setSelectedTemplate('5s')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-teal-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(20,184,166,0.15)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">ORDEN & ASEO</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-teal-400 transition-colors">Metodología 5S</h3>
+                                    <p className="text-white/50 text-xs mt-1">Clasificación, orden, limpieza, estandarización y disciplina en plantas, almacenes y áreas de trabajo.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
             {/* Main content - Fullscreen */}
@@ -770,6 +918,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         playsInline
                     />
                     
+                    {/* Camera Flash Overlay */}
+                    {isFlashActive && (
+                        <div className="absolute inset-0 bg-white z-20 pointer-events-none animate-flash"></div>
+                    )}
+                    
                     {/* Video Effects Overlays */}
                     {(isCameraOn || isScreenSharing) && (
                         <>
@@ -827,6 +980,25 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 {/* Bottom Main Interaction Bar */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 z-30 flex flex-col items-center gap-6">
                     
+                    {/* Floating Thumbnail Carousel of captured evidence */}
+                    {manualCapturedPhotos.length > 0 && (
+                        <div className="flex flex-col items-center gap-2 max-w-full px-4 animate-in slide-in-from-bottom-2 duration-300">
+                            <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 rounded shadow">
+                                Evidencia Capturada ({manualCapturedPhotos.length})
+                            </span>
+                            <div className="flex items-center gap-2 overflow-x-auto max-w-[90vw] pb-2 scrollbar-none">
+                                {manualCapturedPhotos.map((src, idx) => (
+                                    <div key={idx} className="relative w-16 h-16 rounded-lg border border-white/20 overflow-hidden shadow-md flex-shrink-0 group hover:border-emerald-500 transition-colors">
+                                        <img src={src} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-[9px] font-mono text-white font-bold">#{idx + 1}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Control Bar - Premium Glassmorphism */}
                     <div className="flex items-center justify-center gap-2 md:gap-4 bg-black/60 backdrop-blur-2xl px-4 md:px-8 py-3 md:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group">
                         
@@ -846,6 +1018,21 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 </button>
                             }
                         />
+
+                        {/* Camera Shutter Button */}
+                        {(isCameraOn || isScreenSharing) && (
+                            <TooltipAnchor
+                                description="Capturar Foto de Evidencia"
+                                render={
+                                    <button
+                                        onClick={handleManualCapture}
+                                        className="p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </button>
+                                }
+                            />
+                        )}
 
                         {/* Camera Switch */}
                         {isCameraOn && (
@@ -958,7 +1145,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         0%, 100% { opacity: 0.4; }
                         50% { opacity: 1; }
                     }
-                `}} />
+                    @keyframes flash-effect {
+                        0% { opacity: 1; }
+                        100% { opacity: 0; }
+                    }
+                    .animate-flash {
+                        animation: flash-effect 150ms ease-out forwards;
+                    }
+                ` }} />
             </div>
         </div>
     );

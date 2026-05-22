@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import LiveEditor, { type LiveEditorHandle } from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
-import { Video, Save, History } from 'lucide-react';
+import { Video, Save, History, Upload, Trash2, Mic, MicOff, AlertTriangle, Sparkles } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -25,8 +25,165 @@ const LivePage = () => {
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [reportSourceData, setReportSourceData] = useState<any>(null);
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
+    const [offlineTemplate, setOfflineTemplate] = useState('general');
+    const [offlineNotes, setOfflineNotes] = useState('');
+    const [offlineFiles, setOfflineFiles] = useState<any[]>([]);
+    const [offlineVideoPreview, setOfflineVideoPreview] = useState<string | null>(null);
+    const [offlineImagesPreview, setOfflineImagesPreview] = useState<string[]>([]);
+    const [isGeneratingOfflineReport, setIsGeneratingOfflineReport] = useState(false);
+    const [offlineReportGenerated, setOfflineReportGenerated] = useState(false);
+
     // Imperative ref to push HTML content into the editor directly
     const editorRef = useRef<LiveEditorHandle>(null);
+
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+
+    const toggleSpeechRecognition = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            showToast({ message: 'El dictado por voz no es soportado por este navegador.', status: 'warning' });
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+        } else {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'es-CO';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                setIsListening(true);
+                showToast({ message: 'Escuchando... Dicta tus observaciones de seguridad.', status: 'info' });
+            };
+
+            recognition.onresult = (event: any) => {
+                const resultText = event.results[0][0].transcript;
+                setOfflineNotes(prev => prev ? prev + ' ' + resultText : resultText);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+                setIsListening(false);
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognitionRef.current = recognition;
+            recognition.start();
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const fileList = e.target.files;
+        if (!fileList) return;
+        const filesArray = Array.from(fileList);
+        
+        // Check for video file first (10s max)
+        const videoFile = filesArray.find(f => f.type.startsWith('video/'));
+        if (videoFile) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setOfflineFiles([{ name: videoFile.name, base64: reader.result as string, mimeType: videoFile.type }]);
+                setOfflineVideoPreview(URL.createObjectURL(videoFile));
+                setOfflineImagesPreview([]);
+            };
+            reader.readAsDataURL(videoFile);
+            return;
+        }
+
+        // Otherwise process image files up to 5
+        const imageFiles = filesArray.filter(f => f.type.startsWith('image/')).slice(0, 5);
+        if (imageFiles.length > 0) {
+            setOfflineVideoPreview(null);
+            const loadedFiles: any[] = [];
+            const previews: string[] = [];
+            let loadedCount = 0;
+
+            imageFiles.forEach((file) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    loadedFiles.push({ name: file.name, base64: reader.result as string, mimeType: file.type });
+                    previews.push(URL.createObjectURL(file));
+                    loadedCount++;
+                    if (loadedCount === imageFiles.length) {
+                        setOfflineFiles(loadedFiles);
+                        setOfflineImagesPreview(previews);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+
+    const removeOfflineImage = (index: number) => {
+        const newFiles = [...offlineFiles];
+        newFiles.splice(index, 1);
+        setOfflineFiles(newFiles);
+
+        const newPreviews = [...offlineImagesPreview];
+        newPreviews.splice(index, 1);
+        setOfflineImagesPreview(newPreviews);
+    };
+
+    const clearOfflineFiles = () => {
+        setOfflineFiles([]);
+        setOfflineVideoPreview(null);
+        setOfflineImagesPreview([]);
+    };
+
+    const handleSubmitOfflineReport = async () => {
+        if (!token) return;
+        if (offlineFiles.length === 0) {
+            showToast({ message: 'Debe cargar al menos una foto o un video corto para realizar el análisis.', status: 'error' });
+            return;
+        }
+        setIsGeneratingOfflineReport(true);
+        try {
+            const response = await fetch('/api/live-analysis/offline-report', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ 
+                    files: offlineFiles, 
+                    notes: offlineNotes, 
+                    template: offlineTemplate, 
+                    conversationId 
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al generar el informe');
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                if (data.conversationId) {
+                    setConversationId(data.conversationId);
+                }
+                handleReportReceived(data.html, null, data.conversationId);
+                setOfflineFiles([]);
+                setOfflineNotes('');
+                setOfflineVideoPreview(null);
+                setOfflineImagesPreview([]);
+                setOfflineReportGenerated(true);
+                showToast({ message: '¡Informe generado con éxito desde carga offline!', status: 'success', severity: 'success' });
+            }
+        } catch (err: any) {
+            showToast({ message: err.message || 'Error al conectar con el servidor', status: 'error' });
+        } finally {
+            setIsGeneratingOfflineReport(false);
+        }
+    };
 
     // REMOVED useNewConvo because it forces a redirect to /c/new.
     // We handle "new" state locally.
@@ -314,6 +471,17 @@ const LivePage = () => {
                 historyEndpoint="/api/live-editor/history"
             />
 
+            {/* Style Inject for animations */}
+            <style>{`
+                @keyframes loading-bar {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(200%); }
+                }
+                .animate-spin-slow {
+                    animation: spin 3s linear infinite;
+                }
+            `}</style>
+
             {/* Live Analysis Content (Accessible to all) */}
             <div className="flex-1 flex flex-col min-h-0">
                     {/* Toolbar / Header Actions */}
@@ -324,6 +492,36 @@ const LivePage = () => {
                             <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
                         )}
                         <h1 className="text-2xl font-bold text-primary hidden md:block">{localize('com_ui_risk_analysis')}</h1>
+                        
+                        {/* Mode Selector Capsule (Verde-Esmeralda-Cyan Accent) */}
+                        <div className="bg-surface-secondary border border-border-medium rounded-xl p-0.5 flex space-x-1 shadow-inner">
+                            <button
+                                onClick={() => {
+                                    setIsOfflineMode(false);
+                                    setOfflineReportGenerated(false);
+                                }}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                                    !isOfflineMode
+                                        ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md font-extrabold'
+                                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                                }`}
+                            >
+                                En Vivo
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsOfflineMode(true);
+                                }}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                                    isOfflineMode
+                                        ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md font-extrabold'
+                                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                                }`}
+                            >
+                                Carga Rápida (Offline)
+                            </button>
+                        </div>
+
                         {lastUpdated && (
                             <span className="text-xs text-green-600 font-medium animate-pulse hidden md:inline">
                                 {localize('com_ui_updated_at')} {lastUpdated.toLocaleTimeString()}
@@ -342,23 +540,37 @@ const LivePage = () => {
                                 isHistoryOpen
                                     ? 'bg-surface-hover ring-2 ring-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400'
                                     : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
-                            }`}
+                             }`}
                         >
                             <History className="h-5 w-5 flex-shrink-0" />
                             <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                                 <span className="text-sm font-bold tracking-wide">{localize('com_ui_history')}</span>
                             </div>
                         </button>
-                        {/* Start Analysis Button — same style as ModelSelector */}
-                        <button
-                            onClick={handleStartAnalysis}
-                            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
-                        >
-                            <Video className="h-5 w-5 flex-shrink-0" />
-                            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                <span className="text-sm font-bold tracking-wide">{localize('com_ui_start_live_analysis')}</span>
-                            </div>
-                        </button>
+                        
+                        {/* Action buttons (Camera / Offline state dependent) */}
+                        {isOfflineMode ? (
+                            offlineReportGenerated && (
+                                <button
+                                    onClick={() => setOfflineReportGenerated(false)}
+                                    className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
+                                >
+                                    <Upload className="h-5 w-5 flex-shrink-0 animate-bounce" />
+                                    <span className="text-sm font-bold tracking-wide ml-2">Nueva Carga Offline</span>
+                                </button>
+                            )
+                        ) : (
+                            <button
+                                onClick={handleStartAnalysis}
+                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
+                            >
+                                <Video className="h-5 w-5 flex-shrink-0" />
+                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                    <span className="text-sm font-bold tracking-wide">{localize('com_ui_start_live_analysis')}</span>
+                                </div>
+                            </button>
+                        )}
+
                         {/* Save Report Button — same style as ModelSelector */}
                         <button
                             onClick={handleSave}
@@ -385,19 +597,192 @@ const LivePage = () => {
                 </div>
             </div>
 
-            {/* Main Content: Full Screen Editor */}
+            {/* Main Content: Full Screen Editor or Offline Submission Form */}
             <div className="flex-1 overflow-hidden p-4 bg-surface-secondary">
                 <div className="h-full max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg overflow-hidden border border-light">
-                    <LiveEditor
-                        ref={editorRef}
-                        initialContent={editorContent || initialReportContent}
-                        onUpdate={(html) => {
-                            setEditorContent(html);
-                        }}
-                        onSave={handleSave}
-                        paperMode={false}
-                        reportSourceData={reportSourceData}
-                    />
+                    {isOfflineMode && !offlineReportGenerated ? (
+                        <div className="h-full overflow-y-auto p-6 flex flex-col space-y-6 relative bg-gradient-to-b from-surface-primary to-surface-secondary">
+                            
+                            {/* Scanning/Pulse Indicator during report generation */}
+                            {isGeneratingOfflineReport && (
+                                <div className="absolute inset-0 bg-black/55 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-6">
+                                    <div className="relative w-24 h-24 mb-4 flex items-center justify-center">
+                                        {/* Radial frequency wave effect */}
+                                        <div className="absolute inset-0 rounded-full bg-teal-500/20 animate-ping" />
+                                        <div className="absolute inset-2 rounded-full bg-cyan-500/30 animate-pulse" />
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                                            <Sparkles className="h-6 w-6 text-white animate-spin-slow" />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white tracking-wide animate-pulse">Wappy-Audit HSE Command Center</h3>
+                                    <p className="text-cyan-400 text-sm mt-2 font-mono">PROCESANDO EVIDENCIAS & FORMULANDO MATRIZ GTC 45...</p>
+                                    <div className="w-64 h-1.5 bg-gray-700 rounded-full mt-4 overflow-hidden relative">
+                                        <div className="h-full bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full w-2/3 animate-[loading-bar_2s_ease-in-out_infinite]" />
+                                    </div>
+                                    <p className="text-gray-300 text-xs mt-6 max-w-md">Gemini Flash está analizando secuencialmente el video/imágenes y estructurando el informe reglamentario.</p>
+                                </div>
+                            )}
+
+                            {/* Form Header */}
+                            <div className="flex flex-col space-y-1 pb-4 border-b border-light">
+                                <div className="flex items-center space-x-2 text-teal-600 dark:text-teal-400">
+                                    <AlertTriangle className="h-5 w-5 animate-pulse" />
+                                    <span className="text-xs font-mono font-bold tracking-widest uppercase">Modo Carga Rápida (Offline)</span>
+                                </div>
+                                <h2 className="text-xl font-black text-text-primary">Inspección de HSE en Entornos de Baja Cobertura</h2>
+                                <p className="text-sm text-text-secondary">Sube fotos tomadas previamente en campo o graba/carga un video de hasta 10 segundos. Wappy IA generará una auditoría completa bajo el estándar GTC 45.</p>
+                            </div>
+
+                            {/* Step 1: Template Selection (Guided Cards) */}
+                            <div className="flex flex-col space-y-3">
+                                <label className="text-sm font-bold text-text-primary tracking-wide">1. Seleccionar Plantilla de Inspección:</label>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {[
+                                        { id: 'general', title: 'ISO 45001 General', desc: 'Entorno de trabajo, EPPs, ergonomía y orden general.', color: 'border-blue-500/30 hover:border-blue-500', activeBg: 'bg-blue-500/10 border-blue-500/80 ring-2 ring-blue-500/20' },
+                                        { id: 'alturas', title: 'Trabajo en Alturas', desc: 'Líneas de vida, puntos de anclaje, arneses y certificados.', color: 'border-orange-500/30 hover:border-orange-500', activeBg: 'bg-orange-500/10 border-orange-500/80 ring-2 ring-orange-500/20' },
+                                        { id: 'eléctrico', title: 'Riesgo Eléctrico', desc: 'Tableros, cableado, sistema LOTO y herramientas aisladas.', color: 'border-yellow-500/30 hover:border-yellow-500', activeBg: 'bg-yellow-500/10 border-yellow-500/80 ring-2 ring-yellow-500/20' },
+                                        { id: '5s', title: 'Orden & Aseo (5S)', desc: 'Clasificar, organizar, limpiar, estandarizar y disciplina.', color: 'border-emerald-500/30 hover:border-emerald-500', activeBg: 'bg-emerald-500/10 border-emerald-500/80 ring-2 ring-emerald-500/20' }
+                                    ].map(tmpl => (
+                                        <div
+                                            key={tmpl.id}
+                                            onClick={() => setOfflineTemplate(tmpl.id)}
+                                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 flex flex-col justify-between h-32 hover:-translate-y-1 hover:shadow-md ${
+                                                offlineTemplate === tmpl.id ? tmpl.activeBg : `bg-surface-primary ${tmpl.color}`
+                                            }`}
+                                        >
+                                            <div>
+                                                <h4 className="text-sm font-black text-text-primary">{tmpl.title}</h4>
+                                                <p className="text-xs text-text-secondary mt-1 line-clamp-3 leading-relaxed">{tmpl.desc}</p>
+                                            </div>
+                                            <div className="flex justify-end items-center mt-2">
+                                                <div className={`w-2.5 h-2.5 rounded-full ${offlineTemplate === tmpl.id ? 'bg-current animate-pulse' : 'bg-gray-300'}`} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Step 2: Evidence Upload */}
+                            <div className="flex flex-col space-y-3">
+                                <label className="text-sm font-bold text-text-primary tracking-wide">2. Cargar Evidencia de Campo (Máx 5 fotos o 1 video corto de 10s):</label>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Drag & Drop File Input */}
+                                    <div className="relative border-2 border-dashed border-border-medium hover:border-teal-500 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-surface-primary/40 hover:bg-surface-hover/20 transition-all duration-300">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*,video/*"
+                                            onChange={handleFileChange}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                        />
+                                        <Upload className="h-10 w-10 text-text-secondary mb-3 hover:text-teal-500 transition-colors" />
+                                        <p className="text-sm font-bold text-text-primary">Arrastra tus archivos aquí o haz clic para explorar</p>
+                                        <p className="text-xs text-text-secondary mt-2">Soporta múltiples imágenes o un video de hasta 10 segundos.</p>
+                                    </div>
+
+                                    {/* Previews panel */}
+                                    <div className="bg-surface-primary/50 border border-border-medium rounded-2xl p-4 flex flex-col justify-center min-h-[160px]">
+                                        {offlineFiles.length === 0 ? (
+                                            <p className="text-xs text-text-secondary text-center italic">Ningún archivo cargado todavía. La evidencia visual es obligatoria para realizar la auditoría.</p>
+                                        ) : (
+                                            <div className="flex flex-col space-y-4 w-full">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-mono font-bold text-teal-600 dark:text-teal-400">
+                                                        {offlineVideoPreview ? '1 Video Detectado' : `${offlineFiles.length} Imagen(es) Detectada(s)`}
+                                                    </span>
+                                                    <button
+                                                        onClick={clearOfflineFiles}
+                                                        className="text-xs text-red-500 hover:text-red-700 font-bold flex items-center space-x-1 cursor-pointer"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                        <span>Eliminar todos</span>
+                                                    </button>
+                                                </div>
+
+                                                {/* Image Thumbnail Strip */}
+                                                {offlineImagesPreview.length > 0 && (
+                                                    <div className="flex flex-wrap gap-3">
+                                                        {offlineImagesPreview.map((src, idx) => (
+                                                            <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-light">
+                                                                <img src={src} className="w-full h-full object-cover" alt="Preview" />
+                                                                <button
+                                                                    onClick={() => removeOfflineImage(idx)}
+                                                                    className="absolute top-1 right-1 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Video Player Preview */}
+                                                {offlineVideoPreview && (
+                                                    <div className="relative w-full rounded-xl overflow-hidden border border-light max-h-48 bg-black">
+                                                        <video src={offlineVideoPreview} controls className="w-full h-full max-h-48 object-contain" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Step 3: Speech / Notes */}
+                            <div className="flex flex-col space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-sm font-bold text-text-primary tracking-wide">3. Notas y Observaciones en Campo (Opcional):</label>
+                                    <button
+                                        onClick={toggleSpeechRecognition}
+                                        className={`flex items-center space-x-2 px-3 py-1 text-xs font-bold rounded-lg transition-all border outline-none hover:scale-105 duration-300 cursor-pointer ${
+                                            isListening
+                                                ? 'bg-red-500/20 border-red-500 text-red-600 dark:text-red-400 animate-pulse'
+                                                : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600'
+                                        }`}
+                                    >
+                                        {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                        <span>{isListening ? 'Detener Dictado' : 'Dictar Notas'}</span>
+                                    </button>
+                                </div>
+
+                                <textarea
+                                    value={offlineNotes}
+                                    onChange={(e) => setOfflineNotes(e.target.value)}
+                                    rows={4}
+                                    placeholder="Escribe o dicta aquí detalles sobre EPP faltantes, actos inseguros dinámicos observados, condiciones del terreno, o cualquier anotación crítica para el reporte de riesgos..."
+                                    className="w-full p-4 rounded-2xl border border-border-medium bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-sm text-text-primary shadow-sm leading-relaxed"
+                                />
+                            </div>
+
+                            {/* Step 4: Submission Trigger */}
+                            <div className="pt-4 border-t border-light flex justify-end">
+                                <button
+                                    onClick={handleSubmitOfflineReport}
+                                    disabled={offlineFiles.length === 0 || isGeneratingOfflineReport}
+                                    className={`px-8 py-3.5 rounded-2xl font-black text-sm text-white shadow-lg transition-all duration-300 hover:scale-[1.02] flex items-center space-x-3 cursor-pointer ${
+                                        offlineFiles.length === 0
+                                            ? 'bg-gray-400 cursor-not-allowed opacity-50'
+                                            : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:shadow-teal-500/20 hover:-translate-y-0.5'
+                                    }`}
+                                >
+                                    <Sparkles className="h-5 w-5" />
+                                    <span>Generar Reporte de Inspección</span>
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <LiveEditor
+                            ref={editorRef}
+                            initialContent={editorContent || initialReportContent}
+                            onUpdate={(html) => {
+                                setEditorContent(html);
+                            }}
+                            onSave={handleSave}
+                            paperMode={false}
+                            reportSourceData={reportSourceData}
+                        />
+                    )}
                 </div>
             </div>
 

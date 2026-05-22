@@ -63,23 +63,73 @@ const TEMPLATES = [
     icon: <FileText className="h-4 w-4 text-teal-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #0f766e; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO</h1>
-          <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9; text-transform: uppercase; font-weight: 600;">Sistema de Gestión de SST (Decreto 1072)</p>
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(15,118,110,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-001 | V.04</div>
+          <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">POLÍTICA INTEGRADA DE SEGURIDAD Y SALUD EN EL TRABAJO</h1>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST)</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Conforme al Decreto 1072 de 2015 de la República de Colombia</p>
         </div>
-        <p>En nuestra empresa, nos comprometemos con la protección y promoción de la salud de los trabajadores, procurando su integridad física mediante la gestión de los riesgos laborales en todos los centros de trabajo de la organización.</p>
-        
-        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 18px; font-weight: 700; margin-top: 24px;">1. Compromisos de la Alta Dirección</h3>
-        <ul style="padding-left: 20px; margin-bottom: 20px; list-style-type: square;">
-          <li style="margin-bottom: 8px;"><strong>Identificar y evaluar</strong> de manera continua todos los peligros y riesgos presentes en las áreas de trabajo.</li>
-          <li style="margin-bottom: 8px;"><strong>Proteger la seguridad y salud</strong> de todos los colaboradores mediante la mejora continua del SG-SST.</li>
-          <li style="margin-bottom: 8px;"><strong>Cumplir la normatividad legal</strong> nacional vigente aplicable en materia de riesgos laborales.</li>
-          <li style="margin-bottom: 8px;"><strong>Asignar recursos humanos, financieros y técnicos</strong> requeridos para el diseño y ejecución del plan anual.</li>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+          <tr style="background-color: #f8fafc;">
+            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; width: 25%; color: #334155;">Empresa / Razón Social:</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; width: 25%; font-weight: 600; color: #0f766e;">{{empresa_nombre}}</td>
+            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; width: 25%; color: #334155;">NIT:</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; width: 25%;">{{empresa_nit}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; color: #334155;">Representante Legal:</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;">{{representante_legal}}</td>
+            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; color: #334155;">Fecha de Aprobación:</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;">${new Date().toLocaleDateString('es-ES')}</td>
+          </tr>
+        </table>
+
+        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. DECLARACIÓN GENERAL DE COMPROMISO</h3>
+        <p style="text-align: justify; font-size: 13.5px; color: #334155; margin-bottom: 16px;">
+          En <strong>{{empresa_nombre}}</strong>, empresa dedicada a la actividad comercial de <em>{{actividad_economica}}</em>, asumimos con el más alto nivel de responsabilidad y compromiso la protección de la integridad física, mental y social de la totalidad de nuestros colaboradores. Esta política es de cobertura universal, cobijando a todos los trabajadores vinculados mediante contratos de trabajo (independientemente de su forma o duración), contratistas, subcontractaristas, proveedores, personal en misión y demás partes interesadas que presten servicios o permanezcan en los centros de trabajo de la organización.
+        </p>
+
+        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. OBJETIVOS ESTRATÉGICOS DEL SG-SST</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Para dar cumplimiento a nuestra visión preventiva, la alta dirección se compromete a liderar y financiar el logro de los siguientes objetivos fundamentales:</p>
+        <ul style="padding-left: 20px; margin-bottom: 24px; list-style-type: square; font-size: 13px; color: #334155;">
+          <li style="margin-bottom: 10px;">
+            <strong>Identificar, evaluar y valorar de forma continua los peligros y riesgos</strong> existentes en todas las plazas de trabajo a través del uso y actualización de la metodología IPEVAR (Matriz de Peligros), aplicando jerarquías de control (Eliminación, Sustitución, Controles de Ingeniería, Administrativos y EPP).
+          </li>
+          <li style="margin-bottom: 10px;">
+            <strong>Proteger la seguridad y salud de todos los trabajadores</strong> previniendo activamente incidentes, accidentes laborales y enfermedades profesionales a través de campañas continuas de autocuidado, pausas activas y fomento de estilos de vida saludables.
+          </li>
+          <li style="margin-bottom: 10px;">
+            <strong>Garantizar el estricto cumplimiento de la normatividad legal vigente aplicable</strong> en materia de Riesgos Laborales en el territorio colombiano (Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012, Ley 2466 de 2025) y demás regulaciones nacionales o internacionales suscritas.
+          </li>
+          <li style="margin-bottom: 10px;">
+            <strong>Promover el mejoramiento continuo del SG-SST</strong>, destinando los recursos financieros, humanos, tecnológicos y de infraestructura necesarios y suficientes para asegurar el óptimo funcionamiento del sistema y la ejecución del Plan de Trabajo Anual.
+          </li>
         </ul>
+
+        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. SUB-POLÍTICAS CORPORATIVAS DE CUMPLIMIENTO</h3>
         
-        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 18px; font-weight: 700; margin-top: 24px;">2. Firmas y Vigencia</h3>
-        <p>Esta política tiene alcance sobre todos los trabajadores (independientemente de su forma de vinculación) y contratistas de la organización, y entra en vigencia a partir de su firma.</p>
-        ${DEFAULT_SIGNATURE_BLOCK}
+        <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 6px 0; color: #15803d; font-size: 14px; font-weight: 700;">A. Prevención de Alcohol, Drogas y Sustancias Psicoactivas</h4>
+          <p style="margin: 0; font-size: 12.5px; color: #166534; text-align: justify; line-height: 1.5;">
+            Queda terminantemente prohibido para todos los colaboradores laborar en estado de embriaguez o bajo el efecto de sustancias alucinógenas y psicoactivas. Asimismo, todas las sedes de la organización son declaradas <strong>"Espacios 100% Libres de Humo de Tabaco y Emisiones de Sistemas Electrónicos de Vapeo"</strong> en cumplimiento de la Ley 1335 de 2009. La empresa realiza pruebas preventivas y formales de control.
+          </p>
+        </div>
+
+        <div style="background-color: #f0fbfb; border-left: 4px solid #0d9488; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 6px 0; color: #0f766e; font-size: 14px; font-weight: 700;">B. Prevención de Acoso Laboral y Convivencia Laboral Digna</h4>
+          <p style="margin: 0; font-size: 12.5px; color: #115e59; text-align: justify; line-height: 1.5;">
+            En congruencia con las Leyes 1010 de 2006 y 2365 de 2024, nos comprometemos a promover un ambiente de trabajo fundamentado en el respeto mutuo, la equidad de género, la dignidad humana y el blindaje total contra el acoso laboral o el hostigamiento sexual. El Comité de Convivencia Laboral operará de forma transparente, confidencial y expedita para resolver y prevenir cualquier indicio de violencia o discriminación.
+          </p>
+        </div>
+
+        <h3 style="color: #0f766e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">4. FIRMAS Y DIVULGACIÓN</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 20px;">
+          Esta política será publicada en cartelera digital y física, se integrará en el proceso de inducción de todo personal y será revisada de forma obligatoria mínimo una (1) vez al año por la alta dirección en coordinación con el COPASST y el responsable del SG-SST.
+        </p>
+
+        \${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
   },
@@ -90,51 +140,136 @@ const TEMPLATES = [
     icon: <PenTool className="h-4 w-4 text-emerald-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #0d9488; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">ACTA DE CONSTITUCIÓN DEL COMITÉ PARITARIO DE SST</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">COPASST - Período Vigente</p>
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(13,148,136,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-002 | V.05</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">ACTA DE CONSTITUCIÓN Y APERTURA DEL COMITÉ PARITARIO DE SST</h1>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">COPASST - Período Legal de Operación Vigente</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">En cumplimiento con la Resolución 2013 de 1986 y Decreto 1072 de 2015</p>
         </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-          <tr style="background-color: #f8fafc;">
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; width: 25%;">Empresa / Razón Social:</td>
-            <td style="padding: 10px; border: 1px solid #e2e8f0; width: 25%;">WAPPY SAS</td>
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0; width: 25%;">Fecha de Reunión:</td>
-            <td style="padding: 10px; border: 1px solid #e2e8f0; width: 25%;">${new Date().toLocaleDateString('es-ES')}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0;">Ciudad / Lugar:</td>
-            <td style="padding: 10px; border: 1px solid #e2e8f0;">Bogotá D.C. / Sala de Juntas</td>
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #e2e8f0;">Número de Acta:</td>
-            <td style="padding: 10px; border: 1px solid #e2e8f0;">Acta No. 001</td>
-          </tr>
-        </table>
-        
-        <h3 style="color: #0d9488; font-size: 16px; font-weight: 700; margin-top: 20px;">1. Representantes del Empleador y Trabajadores</h3>
-        <p>Reunidos los miembros de la empresa, se procede a formalizar la elección de los delegados para conformar el COPASST:</p>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+
+        <!-- Tabla de Control Metodológico -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
           <thead>
-            <tr style="background-color: #f1f5f9; color: #475569; font-weight: bold; text-align: left;">
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Representantes del Empleador</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0;">Representantes de los Trabajadores</th>
+            <tr style="background-color: #f1f5f9; color: #0f766e; border-bottom: 2px solid #e2e8f0;">
+              <th colspan="4" style="padding: 10px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px;">DATOS GENERALES DEL COMITÉ Y LA SESIÓN</th>
             </tr>
           </thead>
           <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Razón Social Empresa:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; width: 25%; font-weight: 600;">\${'{{empresa_nombre}}'}</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">NIT / Cédula Jurídica:</td>
+              <td style="padding: 10px; width: 25%;">\${'{{empresa_nit}}'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Ciudad de Reunión:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">Bogotá D.C.</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Lugar / Oficina:</td>
+              <td style="padding: 10px;">Sala de Juntas Principal / Teams</td>
+            </tr>
             <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">1. Principal: Juan Carlos Pérez<br/>2. Suplente: Andrea González</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">1. Principal: Laura María Restrepo<br/>2. Suplente: Javier Alexander Silva</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Fecha y Hora:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')} | 09:00 AM</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Número de Acta:</td>
+              <td style="padding: 10px; font-weight: 700; color: #0d9488;">ACTA No. 001</td>
             </tr>
           </tbody>
         </table>
+
+        <!-- Agenda del Día -->
+        <div style="background-color: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 8px 0; color: #0f766e; font-size: 14.5px; font-weight: 700; text-transform: uppercase;">AGENDA DEL DÍA (ORDEN DEL DÍA)</h4>
+          <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #115e59; line-height: 1.5;">
+            <li style="margin-bottom: 4px;">Verificación de Asistencia y Quórum legal.</li>
+            <li style="margin-bottom: 4px;">Instalación oficial del Comité por parte del Representante Legal de \${'{{empresa_nombre}}'}.</li>
+            <li style="margin-bottom: 4px;">Designación oficial de cargos de Presidente y Secretario del Comité.</li>
+            <li style="margin-bottom: 4px;">Definición del Cronograma Anual de Reuniones Ordinarias Mensuales.</li>
+            <li style="margin-bottom: 4px;">Establecimiento del Plan de Acción Inmediato y compromisos de inspección en SST.</li>
+            <li style="margin-bottom: 4px;">Cierre de la Sesión y firma del Acta.</li>
+          </ol>
+        </div>
+
+        <h3 style="color: #0d9488; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. MATRIZ DE DELEGADOS CONSTITUIDOS</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">En concordancia con los decretos y resoluciones aplicables según el tamaño de planta de la empresa, los siguientes delegados han sido elegidos (por designación directa del empleador y elección democrática por votación de los trabajadores):</p>
         
-        <h3 style="color: #0d9488; font-size: 16px; font-weight: 700; margin-top: 20px;">2. Funciones y Compromisos del Comité</h3>
-        <ul style="padding-left: 20px; list-style-type: circle;">
-          <li style="margin-bottom: 6px;">Proponer medidas y el desarrollo de actividades encaminadas a mantener la salud física y mental en los lugares de trabajo.</li>
-          <li style="margin-bottom: 6px;">Participar activamente en la investigación de incidentes, accidentes de trabajo y enfermedades laborales.</li>
-          <li style="margin-bottom: 6px;">Realizar inspecciones periódicas a los puestos, instalaciones y EPPs de los colaboradores.</li>
-        </ul>
-        ${DEFAULT_SIGNATURE_BLOCK}
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569; font-weight: bold; text-align: left; border-bottom: 2px solid #e2e8f0;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 50%;">REPRESENTANTES POR PARTE DEL EMPLEADOR</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 50%;">REPRESENTANTES POR PARTE DE LOS TRABAJADORES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 12px; border: 1px solid #e2e8f0; vertical-align: top;">
+                <div style="font-weight: 700; color: #0d9488; margin-bottom: 4px;">1. PRINCIPAL DESIGNADO (PRESIDENTE):</div>
+                <div style="margin-bottom: 2px;"><strong>Nombre:</strong> Juan Carlos Pérez</div>
+                <div style="margin-bottom: 8px;"><strong>Cédula:</strong> C.C. 80.123.456</div>
+                
+                <div style="font-weight: 700; color: #0d9488; margin-bottom: 4px;">2. SUPLENTE DESIGNADO:</div>
+                <div style="margin-bottom: 2px;"><strong>Nombre:</strong> Andrea González</div>
+                <div><strong>Cédula:</strong> C.C. 52.987.654</div>
+              </td>
+              <td style="padding: 12px; border: 1px solid #e2e8f0; vertical-align: top;">
+                <div style="font-weight: 700; color: #0d9488; margin-bottom: 4px;">1. PRINCIPAL ELEGIDO (SECRETARIO):</div>
+                <div style="margin-bottom: 2px;"><strong>Nombre:</strong> Laura María Restrepo</div>
+                <div style="margin-bottom: 8px;"><strong>Cédula:</strong> C.C. 1.018.654.321</div>
+                
+                <div style="font-weight: 700; color: #0d9488; margin-bottom: 4px;">2. SUPLENTE ELEGIDO:</div>
+                <div style="margin-bottom: 2px;"><strong>Nombre:</strong> Javier Alexander Silva</div>
+                <div><strong>Cédula:</strong> C.C. 79.456.789</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="color: #0d9488; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. PLAN DE ACCIÓN INMEDIATO (COMPROMISOS)</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Para iniciar el cumplimiento legal y garantizar las mejores prácticas de SST en \${'{{empresa_nombre}}'}, los miembros del COPASST asumen el siguiente plan de trabajo prioritario para el primer mes de operaciones:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <thead>
+            <tr style="background-color: #0d9488; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff;">Actividad Planeada</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 30%; color: #ffffff;">Responsable Designado</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 20%; color: #ffffff;">Fecha Límite</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 15%; text-align: center; color: #ffffff;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Planificación del Cronograma Anual de Inspecciones de Seguridad Locativas</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Juan C. Pérez (Presidente)</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Siguiente Sesión</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                <span style="background-color: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;">En Curso</span>
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Revisión conjunta del reporte de accidentes e incidentes de trabajo del mes anterior</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Laura Restrepo (Secretaria)</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Inmediato</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                <span style="background-color: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;">Pendiente</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Diseño y difusión de infografía sobre reportes rápidos de actos y condiciones inseguras</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Todos los Miembros</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">15 Días</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                <span style="background-color: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;">Planificado</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="color: #0d9488; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. DEBERES GENERALES DEL COPASST</h3>
+        <p style="font-size: 13px; color: #334155; text-align: justify; margin-bottom: 24px;">
+          Este comité se compromete a sesionar ordinariamente de forma mensual y extraordinaria en casos de accidentes graves. Sus funciones principales comprenden la proposición de medidas higiénicas y de control preventivo, acompañamiento en investigaciones de accidentes, realización de inspecciones de seguridad, y ser puente activo de comunicación fluida y respetuosa entre la alta dirección y los colaboradores de la organización.
+        </p>
+
+        \${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
   },
@@ -145,25 +280,141 @@ const TEMPLATES = [
     icon: <BookOpen className="h-4 w-4 text-sky-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #0284c7; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">GUÍA DE INDUCCIÓN GENERAL EN SST</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Proceso de Onboarding y Seguridad del Colaborador</p>
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(2,132,199,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-REG-003 | V.03</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">REGISTRO DE INDUCCIÓN Y ENTRENAMIENTO EN SST</h1>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Proceso de Onboarding, Seguridad y Salud en el Trabajo</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">SG-SST Obligatorio - Conforme al Decreto 1072 de 2015</p>
         </div>
-        <p><strong>Estimado Colaborador:</strong> ¡Bienvenido a nuestra organización! Esta guía tiene como finalidad informarte sobre los peligros básicos a los que puedes estar expuesto, las normas preventivas y tus responsabilidades para preservar la seguridad de todos.</p>
+
+        <!-- Registro del Colaborador -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #0284c7; border-bottom: 2px solid #e2e8f0;">
+              <th colspan="4" style="padding: 10px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px;">DATOS GENERALES DEL TRABAJADOR EN INDUCCIÓN</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Nombre del Colaborador:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; width: 25%; font-weight: 600; color: #0284c7;">[Escribir Nombre Completo]</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Cédula de Ciudadanía:</td>
+              <td style="padding: 10px; width: 25%;">[Ingresar N° C.C.]</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Cargo / Puesto:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">[Cargo Designado]</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Área / Departamento:</td>
+              <td style="padding: 10px;">[Área Operativa]</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Facilitador / Líder SST:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">[Nombre del Facilitador]</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Fecha de Inducción:</td>
+              <td style="padding: 10px;">\${new Date().toLocaleDateString('es-ES')}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Mensaje de bienvenida -->
+        <p style="font-size: 13.5px; text-align: justify; margin-bottom: 20px;">
+          <strong>¡Estimado Colaborador!</strong> En <strong>\${'{{empresa_nombre}}'}</strong> la seguridad de cada persona es lo primero. Esta guía de inducción es un instrumento institucional para darte a conocer los fundamentos de prevención del SG-SST, tus responsabilidades y los mecanismos para preservar tu bienestar integral en tu puesto de trabajo.
+        </p>
+
+        <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. MODULOS EXHAUSTIVOS DE FORMACIÓN PREVENTIVA</h3>
         
-        <h3 style="color: #0284c7; font-size: 17px; font-weight: 700; margin-top: 20px;">1. Deberes Fundamentales del Trabajador (Decreto 1072)</h3>
-        <ol style="padding-left: 20px; margin-bottom: 20px;">
-          <li style="margin-bottom: 6px;"><strong>Procurar el cuidado integral</strong> de su salud.</li>
-          <li style="margin-bottom: 6px;"><strong>Suministrar información clara y veraz</strong> sobre su estado de salud general.</li>
-          <li style="margin-bottom: 6px;"><strong>Cumplir con las normas, reglamentos</strong> e instrucciones del SG-SST.</li>
-          <li style="margin-bottom: 6px;"><strong>Informar oportunamente</strong> al empleador acerca de los peligros y condiciones de riesgo que detecte.</li>
-        </ol>
-        
-        <h3 style="color: #0284c7; font-size: 17px; font-weight: 700; margin-top: 20px;">2. Reporte de Accidentes e Incidentes</h3>
-        <div style="background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 13px; color: #0369a1;"><strong>¡IMPORTANTE!</strong> Todo incidente o accidente laboral debe ser reportado de manera <strong>inmediata</strong> (plazo máximo de 24 horas) a tu jefe directo y al responsable del SG-SST de la organización.</p>
+        <div style="margin-bottom: 16px;">
+          <h4 style="margin: 0 0 4px 0; color: #0369a1; font-size: 14px; font-weight: 700;">Módulo I: Conceptos Fundamentales en SST (Ley 1562 de 2012)</h4>
+          <p style="margin: 0; font-size: 13px; color: #475569; text-align: justify;">
+            Definición y diferenciación técnica y legal de <strong>Accidente de Trabajo</strong> (suceso repentino que cause lesión por causa o con ocasión del trabajo), <strong>Incidente Laboral</strong> (casi-accidente, suceso con potencial de lesión), y <strong>Enfermedad Laboral</strong> (patología contraída como resultado de la exposición a factores de riesgo inherentes a la actividad).
+          </p>
         </div>
-        ${DEFAULT_SIGNATURE_BLOCK}
+
+        <div style="margin-bottom: 16px;">
+          <h4 style="margin: 0 0 4px 0; color: #0369a1; font-size: 14px; font-weight: 700;">Módulo II: Deberes Legales del Trabajador (Decreto 1072)</h4>
+          <p style="margin: 0; font-size: 13px; color: #475569; text-align: justify;">
+            Compromiso estricto con los 6 deberes fundamentales: procurar el autocuidado integral de la salud, suministrar información del estado de salud veraz, cumplir las normas e instrucciones de SST, reportar oportunamente peligros y riesgos, participar en capacitaciones y reportar todo incidente de forma inmediata (máximo 24 horas).
+          </p>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <h4 style="margin: 0 0 4px 0; color: #0369a1; font-size: 14px; font-weight: 700;">Módulo III: Identificación de Peligros Específicos del Cargo</h4>
+          <p style="margin: 0; font-size: 13px; color: #475569; text-align: justify;">
+            Revisión y contextualización de la Matriz de Peligros (IPEVAR) del puesto de trabajo asignado. Identificación de riesgos ergonómicos, locativos, biológicos, eléctricos, mecánicos o psicosociales y las medidas de control adoptadas por la compañía.
+          </p>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <h4 style="margin: 0 0 4px 0; color: #0369a1; font-size: 14px; font-weight: 700;">Módulo IV: Plan de Emergencias y Rutas de Evacuación</h4>
+          <p style="margin: 0; font-size: 13px; color: #475569; text-align: justify;">
+            Instrucción en señalización fotoluminiscente, identificación del Punto de Encuentro (Parque Principal / Zona Verde Norte), conformación de brigadas de emergencia (Primeros auxilios, control de incendios y evacuación) y comportamiento ante emergencias.
+          </p>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h4 style="margin: 0 0 4px 0; color: #0369a1; font-size: 14px; font-weight: 700;">Módulo V: Políticas Preventivas de Convivencia</h4>
+          <p style="margin: 0; font-size: 13px; color: #475569; text-align: justify;">
+            Comprensión de la política de espacios 100% libres de humo y prevención de adicciones, y directrices de protección de la dignidad laboral a cargo del Comité de Convivencia Laboral.
+          </p>
+        </div>
+
+        <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. LISTA DE COMPROBACIÓN DE ENTREGABLES Y EPP</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Se deja constancia del entrenamiento y la entrega formal de los siguientes recursos preventivos al colaborador:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <thead>
+            <tr style="background-color: #0284c7; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff;">Aspecto / Entregable Ocupacional</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 15%; text-align: center; color: #ffffff;">Entregado</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 45%; color: #ffffff;">Detalle / Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Manual de Funciones y Riesgos del Puesto</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Explicación y firma del anexo de riesgos.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Elementos de Protección Personal (EPP)</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Kit básico (Monogafas, protectores auditivos, guantes).</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Folletos y Ruta de Evacuación Física</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Recorrido físico de las instalaciones y botiquines.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. DECLARACIÓN Y COMPROMISO DE AUTOCUIDADO</h3>
+        <p style="font-size: 13px; text-align: justify; color: #334155; margin-bottom: 24px;">
+          Certifico mediante mi firma que he recibido de manera clara, didáctica y exhaustiva la inducción en Seguridad y Salud en el Trabajo, reconozco los riesgos de mi puesto y me comprometo a cumplir cabalmente con todas las normas de seguridad del SG-SST dispuestas por <strong>\${'{{empresa_nombre}}'}</strong>, cuidando activamente de mi salud y de la integridad de mis compañeros.
+        </p>
+
+        <div style="margin-top:60px; page-break-inside:avoid;">
+          <table style="width:100%; border-collapse:collapse;">
+            <tr>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #0284c7; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f0f9ff; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#0284c7;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">TRABAJADOR INDUCIDO</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Huella y Firma</p>
+              </td>
+              <td style="width:4%;"></td>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #0284c7; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f0f9ff; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#0284c7;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">FACILITADOR / RESPONSABLE SST</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Firma y Sello</p>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
     `.trim()
   },
@@ -174,98 +425,328 @@ const TEMPLATES = [
     icon: <CheckSquare className="h-4 w-4 text-indigo-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #4f46e5; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">FORMATO DE INSPECCIÓN DE SEGURIDAD GENERAL</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Orden, Aseo e Instalaciones Físicas</p>
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(79,70,229,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-004 | V.05</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">FORMATO DE INSPECCIÓN PLANEADA DE SEGURIDAD, ORDEN Y ASEO</h1>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Inspección Periódica a Instalaciones Físicas y Puestos de Trabajo</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">SG-SST de \${'{{empresa_nombre}}'} - Decreto 1072 de 2015</p>
         </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #e2e8f0;">
-          <tr style="background-color: #f8fafc;">
-            <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0; width: 20%;">Inspector:</td>
-            <td style="padding: 8px; border: 1px solid #e2e8f0; width: 30%;">Responsable SST / COPASST</td>
-            <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0; width: 20%;">Área Evaluada:</td>
-            <td style="padding: 8px; border: 1px solid #e2e8f0; width: 30%;">Oficinas y Planta General</td>
-          </tr>
-        </table>
-        
-        <h3 style="color: #4f46e5; font-size: 16px; font-weight: 700; margin-top: 20px; margin-bottom: 10px;">Lista de Chequeo Evaluativa</h3>
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 24px;">
+
+        <!-- Metadatos de la Inspección -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
           <thead>
-            <tr style="background-color: #f1f5f9; color: #475569; font-weight: bold; text-align: left;">
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 50%;">Aspecto a Evaluar</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 15%; text-align: center;">Cumple (SÍ/NO)</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 35%;">Observaciones / Hallazgos</th>
+            <tr style="background-color: #f1f5f9; color: #4f46e5; border-bottom: 2px solid #e2e8f0;">
+              <th colspan="4" style="padding: 10px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px;">INFORMACIÓN DEL REGISTRO E INSPECTOR</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">1. Extintores vigentes, cargados y despejados de obstáculos.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Inspección al día. Rotulación correcta.</td>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Nombre del Inspector:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; width: 25%; font-weight: 600;">[Nombre del Evaluador / COPASST]</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Fecha de Inspección:</td>
+              <td style="padding: 10px; width: 25%;">\${new Date().toLocaleDateString('es-ES')}</td>
             </tr>
             <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">2. Salidas de emergencia y rutas de evacuación libres de bloqueos.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Demarcación fotoluminiscente en buen estado.</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">3. Botiquines dotados con elementos vigentes según normativa.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #dc2626;">NO</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Falta gasa estéril y suero fisiológico en botiquín Piso 2.</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">4. Pisos limpios, secos, sin riesgo de caídas o resbalones.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Orden y aseo general satisfactorio.</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Área / Planta Evaluada:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; font-weight: 600; color: #4f46e5;">[Área Oficinas y Producción]</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Frecuencia Planificada:</td>
+              <td style="padding: 10px;">Mensual Obligatoria</td>
             </tr>
           </tbody>
         </table>
-        ${DEFAULT_SIGNATURE_BLOCK}
+
+        <!-- Lista de Chequeo Categorizada -->
+        <h3 style="color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. LISTA DE CHEQUEO APLICADA</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Se realiza la valoración sistemática en los centros de trabajo puntuando el cumplimiento de seguridad:</p>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; border: 1px solid #e2e8f0; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <thead>
+            <tr style="background-color: #4f46e5; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff;">Criterio / Elemento a Inspeccionar</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 12%; text-align: center; color: #ffffff;">Calificación</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 38%; color: #ffffff;">Descripción de Hallazgo / Condición Detectada</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- A. Emergencias -->
+            <tr style="background-color: #f5f3ff;">
+              <td colspan="3" style="padding: 6px 10px; font-weight: bold; color: #4338ca; border: 1px solid #e2e8f0;">A. EQUIPOS DE EMERGENCIA Y SEÑALIZACIÓN</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">1. Extintores portátiles vigentes, cargados y totalmente despejados.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Inspección de presión correcta. Señalizados.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">2. Rutas de evacuación y salidas de emergencia sin bloqueos físicos.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Pasillos despejados y demarcación visible.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">3. Botiquines dotados con insumos de primeros auxilios vigentes.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #dc2626;">NO</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Falta gasa estéril y suero en botiquín de Recepción.</td>
+            </tr>
+            
+            <!-- B. Locativas -->
+            <tr style="background-color: #f5f3ff;">
+              <td colspan="3" style="padding: 6px 10px; font-weight: bold; color: #4338ca; border: 1px solid #e2e8f0;">B. CONDICIONES LOCATIVAS E INSTALACIONES</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">4. Pisos limpios, secos y completamente libres de obstáculos.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Cumple con el programa corporativo 5S (Orden).</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">5. Cables eléctricos encauzados y protegidos en canaletas.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #dc2626;">NO</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Cables expuestos debajo del escritorio de Contabilidad.</td>
+            </tr>
+            
+            <!-- C. Ergonomia -->
+            <tr style="background-color: #f5f3ff;">
+              <td colspan="3" style="padding: 6px 10px; font-weight: bold; color: #4338ca; border: 1px solid #e2e8f0;">C. ERGONOMÍA Y PUESTOS DE TRABAJO</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">6. Sillas ergonómicas regulables en altura y espaldar.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Sillas en buen estado. Se recomiendan descansapiés.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">7. Pantallas a la altura de los ojos y teclado con portamuñecas.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Dotación de soportes elevadores completada.</td>
+            </tr>
+
+            <!-- D. EPP -->
+            <tr style="background-color: #f5f3ff;">
+              <td colspan="3" style="padding: 6px 10px; font-weight: bold; color: #4338ca; border: 1px solid #e2e8f0;">D. ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">8. Uso constante y obligatorio de EPP según el área.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Operadores de planta portan botas de seguridad y casco.</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; padding-left: 20px;">9. EPP almacenados higiénicamente y reemplazados por desgaste.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #16a34a;">SÍ</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Casilleros individuales de almacenamiento limpios.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Registro y Plan de Acción de Hallazgos -->
+        <h3 style="color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. SEGUIMIENTO DE HALLAZGOS Y ACCIONES CORRECTIVAS</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Para todo aspecto calificado con "NO" cumple, se formaliza su plan de mitigación a continuación:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 11.5px; border: 1px solid #e2e8f0;">
+          <thead>
+            <tr style="background-color: #4f46e5; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff; width: 35%;">Hallazgo Detectado</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff; width: 35%;">Acción Correctiva Sugerida</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff; width: 18%;">Responsable</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #ffffff; width: 12%; text-align: center;">Plazo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Desabastecimiento de gasa estéril y suero en botiquín Piso 1.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Comprar y reponer insumos médicos vencidos del botiquín.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Líder SST</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #dc2626; font-weight: bold;">5 Días</td>
+            </tr>
+            <tr style="background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Cables sueltos sin canalizar en oficina Contabilidad (Piso 2).</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Canalizar e instalar canaletas plásticas protectoras de piso.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #475569;">Mantenimiento</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #dc2626; font-weight: bold;">8 Días</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:60px; page-break-inside:avoid;">
+          <table style="width:100%; border-collapse:collapse;">
+            <tr>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #4f46e5; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f5f3ff; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#4f46e5;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">INSPECTOR / EVALUADOR</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Líder SST o COPASST</p>
+              </td>
+              <td style="width:4%;"></td>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #4f46e5; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f5f3ff; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#4f46e5;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">VISTO BUENO DIRECCIÓN</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Representante Legal / Gerencia</p>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
     `.trim()
   },
   {
     id: 'analisis_riesgo_ats',
     title: 'Análisis de Riesgo (ATS)',
-    description: 'Control de peligros y autorizaciones por tarea',
+    description: 'Control de peligros and autorizaciones por tarea',
     icon: <ListTodo className="h-4 w-4 text-orange-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #ea580c; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(234,88,12,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-005 | V.06</div>
           <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">ANÁLISIS DE TRABAJO SEGURO (ATS)</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Identificación y Control de Peligros por Tarea</p>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Permiso de Trabajo Ocupacional y Gestión Preventiva de Peligros</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Obligatorio para Tareas Especiales en \${'{{empresa_nombre}}'}</p>
         </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #e2e8f0;">
-          <tr style="background-color: #f8fafc;">
-            <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0; width: 25%;">Actividad a Realizar:</td>
-            <td style="padding: 8px; border: 1px solid #e2e8f0; width: 75%;">Trabajos de Mantenimiento Eléctrico en Alturas</td>
-          </tr>
-        </table>
-        
-        <h3 style="color: #ea580c; font-size: 16px; font-weight: 700; margin-top: 20px; margin-bottom: 10px;">1. Pasos de la Tarea y Controles</h3>
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+
+        <!-- Metadatos del ATS -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
           <thead>
-            <tr style="background-color: #f1f5f9; color: #475569; font-weight: bold; text-align: left;">
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 30%;">Pasos Detallados</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 35%;">Peligros Identificados</th>
-              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 35%;">Medidas de Control Requeridas</th>
+            <tr style="background-color: #f1f5f9; color: #ea580c; border-bottom: 2px solid #e2e8f0;">
+              <th colspan="4" style="padding: 10px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px;">DESCRIPCIÓN DE LA TAREA Y RECURSOS</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">1. Alistamiento de herramientas y EPPs.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">Pérdida de control, caídas de herramientas al suelo.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">Uso de portaherramientas, inspección preoperacional de arnés y eslingas.</td>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; width: 25%; border-right: 1px solid #e2e8f0;">Actividad a Realizar:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; width: 75%; font-weight: 600; color: #ea580c;" colspan="3">Trabajos de Mantenimiento Eléctrico en Alturas</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Ubicación / Área:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0; width: 30%;">Subestación Eléctrica Principal - Piso 2</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; width: 20%;">Fecha del Trabajo:</td>
+              <td style="padding: 10px; width: 25%;">\${new Date().toLocaleDateString('es-ES')}</td>
             </tr>
             <tr>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">2. Ascenso por escalera o andamio.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">Caídas a diferente nivel, colapso de estructura.</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">Uso de eslinga en Y con absorbedor, línea de vida y puntos de anclaje certificados.</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">EPP Específico:</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">Casco dieléctrico, guantes dieléctricos, arnés, eslinga doble.</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0;">Equipos / Herramientas:</td>
+              <td style="padding: 10px;">Medidor de tensión certificado, herramientas aisladas de 1000V.</td>
             </tr>
           </tbody>
         </table>
-        ${DEFAULT_SIGNATURE_BLOCK}
+
+        <!-- Checklist de Permisos de Alto Riesgo -->
+        <div style="background-color: #fff7ed; border-left: 4px solid #ea580c; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 8px 0; color: #c2410c; font-size: 14px; font-weight: 700; text-transform: uppercase;">CHECKLIST DE VERIFICACIÓN DE TAREAS DE ALTO RIESGO (SÍ / NO)</h4>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; color: #7c2d12;">
+            <tr>
+              <td style="padding: 4px 0; font-weight: bold; width: 45%;">[SÍ] Trabajos en Alturas (H &gt; 2.0m)</td>
+              <td style="padding: 4px 0; font-weight: bold; width: 5%;">|</td>
+              <td style="padding: 4px 0; font-weight: bold; width: 45%;">[NO] Espacios Confinados</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-weight: bold;">[SÍ] Trabajos en Caliente (Soldadura/Chispas)</td>
+              <td style="padding: 4px 0; font-weight: bold;">|</td>
+              <td style="padding: 4px 0; font-weight: bold;">[SÍ] Bloqueo y Etiquetado de Energía (LOTO)</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-weight: bold;" colspan="3">[NO] Izaje Crítico de Cargas Pesadas</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Secuencia de Operación Detallada (6 Pasos) -->
+        <h3 style="color: #ea580c; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. ANÁLISIS DE PASOS DE LA TAREA Y CONTROLES</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Se desglosa la secuencia operativa analizando peligros y estableciendo barreras de contención específicas:</p>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02); margin-bottom: 24px;">
+          <thead>
+            <tr style="background-color: #ea580c; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 25%; color: #ffffff;">Paso Secuencial</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 38%; color: #ffffff;">Peligros Potenciales / Riesgos</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 37%; color: #ffffff;">Medida de Control / Barrera de Seguridad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">1. Delimitación y Señalización</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Ingreso de personal no autorizado, caídas, golpes.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Uso de cinta de demarcación, conos reflexivos y letrero de "Trabajos en Alturas".</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">2. Inspección Preoperacional</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Falla estructural o dieléctrica de herramientas, lesiones corporales.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Diligenciamiento de preoperacional de arnés, escaleras e inspección visual de herramientas de 1000V.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">3. Bloqueo de Energía (LOTO)</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Electrocución directa por arco eléctrico, descargas residuales.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Aplicar candado y tarjeta personal de bloqueo en el breaker principal. Confirmar ausencia de tensión.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">4. Ascenso y Posicionamiento</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Caída a diferente nivel, trauma por suspensión o impacto.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Uso de eslinga de doble terminal en Y conectada a puntos de anclaje certificados. Mantener tres puntos de apoyo.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">5. Ejecución del Mantenimiento</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Quemaduras, choque eléctrico, caídas de herramientas.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Uso de guantes dieléctricos sobre protector de cuero, amarrar herramientas para evitar su caída, monitoreo continuo.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #ea580c;">6. Orden y Cierre de Área</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Locativos, caídas de nivel, residuos peligrosos dispersos.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Retirar bloqueos de energías, recolectar herramientas, limpiar residuos y notificar el cierre del área.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Log de Ejecutores -->
+        <h3 style="color: #ea580c; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. REGISTRO DE TRABAJADORES EJECUTORES DEL TRABAJO</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Los firmantes declaran que comprenden a cabalidad los peligros del trabajo y las medidas de control establecidas:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 11px; border: 1px solid #e2e8f0;">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569; font-weight: bold; text-align: left; border-bottom: 2px solid #e2e8f0;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0;">Nombre Completo del Operario</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 25%;">Cédula de Ciudadanía</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 25%;">Firma de Compromiso</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 15%; text-align: center;">Hora Ingreso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">1. [Escribir Nombre]</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">C.C. _______________</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-style: italic; color: #94a3b8; text-align: center;">Firmar al ingresar</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">_______</td>
+            </tr>
+            <tr style="background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">2. [Escribir Nombre]</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">C.C. _______________</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-style: italic; color: #94a3b8; text-align: center;">Firmar al ingresar</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">_______</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:60px; page-break-inside:avoid;">
+          <table style="width:100%; border-collapse:collapse;">
+            <tr>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #ea580c; min-height:80px; display:flex; align-items:center; justify-content:center; background:#fff7ed; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#ea580c;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">SUPERVISOR DE LA TAREA</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Firma de Aprobación</p>
+              </td>
+              <td style="width:4%;"></td>
+              <td style="width:48%; text-align:center; padding:8px;">
+                <div class="signature-placeholder" style="border-bottom:2px solid #ea580c; min-height:80px; display:flex; align-items:center; justify-content:center; background:#fff7ed; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+                  <span style="font-size:11px; opacity:0.6; color:#ea580c;">Clic para firmar</span>
+                </div>
+                <p style="font-size:12px; font-weight:bold; margin:4px 0 2px; color:#334155;">COORDINADOR DE ALTURAS / SST</p>
+                <p style="font-size:11px; margin:0; color:#64748b;">Firma Emisor de Permiso</p>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
     `.trim()
   },
@@ -290,73 +771,139 @@ const TEMPLATES = [
     icon: <ShieldAlert className="h-4 w-4 text-red-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background-color: #be123c; color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">PLAN DE PREPARACIÓN ANTE EMERGENCIAS</h1>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9; text-transform: uppercase; font-weight: 600;">Protocolo y Estructura Organizativa de Emergencia</p>
-          <p style="margin: 2px 0 0; font-size: 11px; opacity: 0.7;">SG-SST Decreto 1072 de 2015</p>
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #be123c 0%, #9f1239 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(190,18,60,0.15); position: relative;">
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">CÓDIGO: SST-PLN-006 | V.05</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">PLAN DE PREVENCIÓN, PREPARACIÓN Y RESPUESTA ANTE EMERGENCIAS</h1>
+          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Estructura de Brigadas y Protocolos Operativos Normalizados (PON)</p>
+          <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">SG-SST de \${'{{empresa_nombre}}'} - Conforme al Decreto 1072 de 2015</p>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #fca5a5; border-radius: 8px; overflow: hidden;">
-          <tr style="background-color: #fef2f2;">
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #fca5a5; width: 25%;">Punto de Encuentro:</td>
-            <td style="padding: 10px; border: 1px solid #fca5a5; width: 25%; font-weight: bold; color: #be123c;">Parque Principal / Zona Verde Norte</td>
-            <td style="padding: 10px; font-weight: bold; border: 1px solid #fca5a5; width: 25%;">Líder de Brigada:</td>
-            <td style="padding: 10px; border: 1px solid #fca5a5; width: 25%;">Coordinador de Emergencias</td>
-          </tr>
-        </table>
-
-        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. Estructura de la Brigada de Emergencia</h3>
-        <p>La Brigada de Emergencia de la empresa está conformada por personal voluntario capacitado y organizado en tres grupos clave:</p>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
+        <!-- Información Crítica Operativa -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; border: 1px solid #fca5a5; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(190,18,60,0.02);">
           <thead>
-            <tr style="background-color: #fdf2f8; color: #be123c; font-weight: bold; text-align: left;">
-              <th style="padding: 8px; border: 1px solid #fbcfe8; width: 30%;">Grupo de Brigada</th>
-              <th style="padding: 8px; border: 1px solid #fbcfe8; width: 40%;">Responsabilidades Clave</th>
-              <th style="padding: 8px; border: 1px solid #fbcfe8; width: 30%;">Miembros Designados</th>
+            <tr style="background-color: #fef2f2; color: #be123c; border-bottom: 2px solid #fca5a5;">
+              <th colspan="4" style="padding: 10px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px; color: #be123c;">PUNTOS DE RESPUESTA CRÍTICA DE EMERGENCIA</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #fbcfe8; font-weight: bold; color: #be123c;">Evacuación y Rescate</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Guiar la salida de los colaboradores hacia el punto de encuentro, verificar el conteo de personas.</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Diana Patricia Morales / Oscar Torres</td>
+            <tr style="border-bottom: 1px solid #fca5a5;">
+              <td style="padding: 10px; font-weight: bold; background-color: #fff5f5; width: 25%; border-right: 1px solid #fca5a5; color: #be123c;">Punto de Encuentro:</td>
+              <td style="padding: 10px; border-right: 1px solid #fca5a5; width: 25%; font-weight: bold; color: #9f1239;">Parque Principal / Zona Verde Norte</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #fff5f5; width: 25%; border-right: 1px solid #fca5a5; color: #be123c;">Líder de la Brigada:</td>
+              <td style="padding: 10px; width: 25%; font-weight: 600;">Coordinador de Emergencias</td>
             </tr>
             <tr>
-              <td style="padding: 8px; border: 1px solid #fbcfe8; font-weight: bold; color: #be123c;">Primeros Auxilios</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Prestar valoración y primeros auxilios básicos a lesionados en el área de clasificación (Triage).</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Liceth Andrea Ruiz / Dr. Andrés Gómez</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #fbcfe8; font-weight: bold; color: #be123c;">Prevención e Incendios</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Controlar conatos de incendio mediante el uso de extintores portátiles y control de servicios públicos.</td>
-              <td style="padding: 8px; border: 1px solid #fbcfe8;">Carlos Mario Ochoa / José Pérez</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #fff5f5; border-right: 1px solid #fca5a5; color: #be123c;">Teléfonos Directos:</td>
+              <td style="padding: 10px; border-right: 1px solid #fca5a5; font-weight: 600; color: #9f1239;">Línea Única Nacional 123</td>
+              <td style="padding: 10px; font-weight: bold; background-color: #fff5f5; border-right: 1px solid #fca5a5; color: #be123c;">ARL Convenio:</td>
+              <td style="padding: 10px; font-weight: 600;">Línea de Urgencias Médicas ARL</td>
             </tr>
           </tbody>
         </table>
 
-        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. Directorio de Apoyo Externo</h3>
-        <ul style="padding-left: 20px; margin-bottom: 20px; list-style-type: square; font-size: 13px;">
-          <li><strong>Línea Única de Emergencias:</strong> 123 (Nacional)</li>
-          <li><strong>Bomberos Oficiales:</strong> 119</li>
-          <li><strong>Cruz Roja Colombiana:</strong> 132</li>
-          <li><strong>Defensa Civil:</strong> 144</li>
-          <li><strong>Administradora de Riesgos Laborales (ARL):</strong> Línea de Atención de Urgencias 24h</li>
-        </ul>
+        <!-- Roles del Comité de Emergencias -->
+        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">1. ESTRUCTURA ORGANIZATIVA DEL COMITÉ</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">La brigada y el comité operativo de \${'{{empresa_nombre}}'} están coordinados bajo la siguiente cadena de mando:</p>
 
-        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. Protocolo de Evacuación (Pasos a Seguir)</h3>
-        <ol style="padding-left: 20px; margin-bottom: 20px; font-size: 13px;">
-          <li style="margin-bottom: 8px;"><strong>Conservar la calma:</strong> No corra, no grite y evite generar pánico en sus compañeros.</li>
-          <li style="margin-bottom: 8px;"><strong>Interrumpir labores:</strong> Apagar equipos, cerrar llaves de paso o desconectar fuentes de energía si es seguro.</li>
-          <li style="margin-bottom: 8px;"><strong>Evacuar ordenadamente:</strong> Siga la ruta demarcada fotoluminiscente. No se devuelva por objetos personales.</li>
-          <li style="margin-bottom: 8px;"><strong>Ubicarse en el Punto de Encuentro:</strong> Permanezca agrupado con su área y reporte su presencia al coordinador de evacuación.</li>
-        </ol>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 11.5px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <thead>
+            <tr style="background-color: #be123c; color: #ffffff; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 30%; color: #ffffff;">Rol del Comité</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 45%; color: #ffffff;">Responsabilidad Principal</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 25%; color: #ffffff;">Miembro Designado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #be123c;">Director de Emergencias</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Tomar decisiones estratégicas y ordenar la evacuación total de instalaciones.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Gerente General</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #be123c;">Brigada de Evacuación</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Guiar la salida ordenada del personal por rutas de evacuación y hacer el conteo físico.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Diana Morales / Oscar Torres</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #be123c;">Brigada de Primeros Auxilios</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Brindar soporte y primeros auxilios básicos en la zona de clasificación de lesionados.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Liceth Ruiz / Dr. Andrés Gómez</td>
+            </tr>
+            <tr style="background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #be123c;">Brigada Contra Incendios</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">Afrontar conatos de incendio mediante uso de extintores y controlar servicios públicos.</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Carlos Ochoa / José Pérez</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <div style="background-color: #fef2f2; border-left: 4px solid #be123c; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 13px; color: #9f1239;"><strong>🚨 ¡AVISO DE SIMULACRO!</strong> La organización realiza de forma obligatoria mínimo un (1) simulacro general de evacuación al año para evaluar los tiempos de respuesta y capacitar al personal.</p>
+        <!-- Protocolos Operativos Normalizados (PON) -->
+        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">2. PROTOCOLOS OPERATIVOS NORMALIZADOS (PON)</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Instrucciones preestablecidas de reacción y manejo para las contingencias más probables en la empresa:</p>
+
+        <div style="background-color: #fff1f2; border-left: 4px solid #be123c; padding: 14px; border-radius: 0 8px 8px 0; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 4px 0; color: #9f1239; font-size: 13.5px; font-weight: 700;">A. Protocolo Operativo en caso de Conato de Incendio</h4>
+          <ol style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #881337; line-height: 1.5;">
+            <li><strong>Valorar la magnitud del fuego:</strong> Si es menor (conato), proceda al ataque rápido; si es incontrolable, evacúe.</li>
+            <li><strong>Alertar:</strong> Active el sistema manual de alarmas de emergencia y avise al líder de brigada.</li>
+            <li><strong>Atacar el conato:</strong> Retire el pasador del extintor más cercano tipo ABC o CO2 y dirija la descarga a la base de la llama en forma de abanico.</li>
+            <li><strong>Evacuar ordenadamente:</strong> Si el conato progresa, cierre puertas de escape sin llave y evacúe inmediatamente por la ruta.</li>
+          </ol>
         </div>
 
-        ${DEFAULT_SIGNATURE_BLOCK}
+        <div style="background-color: #fff1f2; border-left: 4px solid #be123c; padding: 14px; border-radius: 0 8px 8px 0; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 4px 0; color: #9f1239; font-size: 13.5px; font-weight: 700;">B. Protocolo Operativo en caso de Sismo / Movimiento Telúrico</h4>
+          <ol style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #881337; line-height: 1.5;">
+            <li><strong>Conservar la calma:</strong> No grite, evite generar pánico o salir corriendo en pleno sismo.</li>
+            <li><strong>Buscar Refugio:</strong> Ubíquese bajo un mueble resistente (mesa/escritorio) o en columnas de la estructura. Aléjese de archivadores, ventanas y vidrios.</li>
+            <li><strong>No use ascensores:</strong> Bajo ninguna circunstancia utilice elevadores durante la contingencia sísmica.</li>
+            <li><strong>Evacuación Post-Sismo:</strong> Una vez finalizado el movimiento sísmico, proceda de forma ordenada a evacuar hacia el Punto de Encuentro.</li>
+          </ol>
+        </div>
+
+        <div style="background-color: #fff1f2; border-left: 4px solid #be123c; padding: 14px; border-radius: 0 8px 8px 0; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.01);">
+          <h4 style="margin: 0 0 4px 0; color: #9f1239; font-size: 13.5px; font-weight: 700;">C. Protocolo en caso de Accidente Ocupacional Grave o Trauma</h4>
+          <ol style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #881337; line-height: 1.5;">
+            <li><strong>Proteger el área (Método PAS):</strong> Asegure el área de trabajo para evitar que usted o terceros sufran otra lesión.</li>
+            <li><strong>Avisar de Inmediato:</strong> Notifique al líder de brigada de primeros auxilios y reporte a Urgencias de la ARL.</li>
+            <li><strong>Socorrer:</strong> Brinde únicamente valoración primaria si cuenta con entrenamiento. No mueva al lesionado si se sospecha de fractura cervical.</li>
+            <li><strong>Traslado:</strong> Coordine el traslado seguro en ambulancia certificada del lesionado al centro clínico de convenio de la ARL.</li>
+          </ol>
+        </div>
+
+        <!-- Inventario de Recursos -->
+        <h3 style="color: #be123c; border-bottom: 2px solid #fee2e2; padding-bottom: 6px; font-size: 16px; font-weight: 700; margin-top: 24px;">3. INVENTARIO DE RECURSOS DE RESPUESTA</h3>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">Se cuenta con los siguientes equipos activos de protección en las instalaciones corporativas:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 11.5px; border: 1px solid #e2e8f0;">
+          <thead>
+            <tr style="background-color: #fdf2f8; color: #9f1239; font-weight: 700; text-align: left;">
+              <th style="padding: 10px; border: 1px solid #e2e8f0; color: #9f1239;">Equipo de Emergencia</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 20%; text-align: center; color: #9f1239;">Cantidad Activa</th>
+              <th style="padding: 10px; border: 1px solid #e2e8f0; width: 45%; color: #9f1239;">Detalle / Ubicación Física</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Extintores Portátiles Multipropósito (ABC 10 lbs)</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">6 Unidades</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Distribuidos por pasillos, subestación y bodegas.</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Botiquines Reglamentarios Tipo A</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">2 Unidades</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Ubicados en Recepción y Planta de Producción.</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">Camillas Rígidas de Rescate Plásticas</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">2 Unidades</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b;">Instaladas en pared, con inmovilizador cervical y arnés de sujeción.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        \${DEFAULT_SIGNATURE_BLOCK}
       </div>
     `.trim()
   }

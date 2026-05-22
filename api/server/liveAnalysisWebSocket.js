@@ -36,6 +36,7 @@ function setupLiveAnalysisWebSocket(server) {
             const conversationId = params.conversationId;
             const initialVoice = params.initialVoice;
             const selectedModel = params.model;
+            const template = params.template;
 
             if (!token) {
                 logger.warn('[LiveAnalysisWS] No token provided');
@@ -121,6 +122,19 @@ El sistema te indicará el modo o tú deberás inferirlo según la solicitud del
 3.  Aplica siempre la **Jerarquía de Controles**: Eliminación > Sustitución > Ingeniería > Administrativos > EPP.
 4.  SIEMPRE responde en ESPAÑOL neutro y profesional.`
             };
+
+            let templateInstructions = "";
+            const activeTemplate = (template || 'general').toLowerCase();
+            if (activeTemplate === 'alturas') {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: TRABAJO EN ALTURAS]\n*   **Enfoque:** Líneas de vida, puntos de anclaje, estado del arnés y conectores.\n*   **Misión:** Asegúrate de guiar al usuario a inspeccionar minuciosamente el EPP de protección contra caídas (mosquetones, absorbedores de choque, cabos de vida) y los anclajes estructurales. Pregúntale si tienen certificación vigente y revisa si están correctamente instalados.`;
+            } else if (activeTemplate === 'eléctrico' || activeTemplate === 'electrico') {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: RIESGO ELÉCTRICO]\n*   **Enfoque:** Tableros, cableado, candados y tarjetas LOTO, herramientas aisladas.\n*   **Misión:** Enfoca tu diálogo en el aislamiento de energía, tableros con señalización adecuada, cables expuestos, herramientas y guantes dieléctricos. Guía al usuario a verificar si los tableros están cerrados y bloqueados cuando se realiza un mantenimiento.`;
+            } else if (activeTemplate === '5s') {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: METODOLOGÍA 5S / ORDEN Y ASEO]\n*   **Enfoque:** Seiri (Clasificación), Seiton (Organización), Seiso (Limpieza), Seiketsu (Estandarización), Shitsuke (Disciplina).\n*   **Misión:** Guía activamente al usuario a evaluar el almacenamiento de materiales, la demarcación de pasillos, la limpieza del suelo (libre de aceites o derrame de líquidos), extintores despejados y señalización de salidas de emergencia.`;
+            } else {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: INSPECCIÓN GENERAL (ISO 45001 / GTC 45)]\n*   **Enfoque:** Condiciones locativas generales, orden general, ventilación, señalización y uso general de Elementos de Protección Personal (EPP).\n*   **Misión:** Realiza un escaneo amplio del entorno laboral para detectar riesgos locativos, físicos, ergonómicos o químicos generales. Guía al usuario a revisar el bienestar general del área.`;
+            }
+            config.systemInstruction += templateInstructions;
 
             if (initialVoice) {
                 config.voice = initialVoice;
