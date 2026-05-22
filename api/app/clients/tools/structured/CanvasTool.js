@@ -88,26 +88,26 @@ class CanvasTool extends Tool {
         .string()
         .optional()
         .describe(
-          'Título exacto (o fragmento) de la sección a editar. El sistema buscará el bloque de texto bajo ese título y lo reemplazará. Requerido para accion="editar_seccion". Solo para fileType="text".'
+          'Título exacto (o fragmento) de la sección a editar. El sistema buscará el bloque de texto o etiqueta de encabezado bajo ese título y lo reemplazará. Requerido para accion="editar_seccion". Solo para fileType="text" o fileType="html".'
         ),
 
       nuevo_contenido_seccion: z
         .string()
         .optional()
         .describe(
-          'Nuevo contenido HTML/Markdown para reemplazar la sección identificada por titulo_seccion. Requerido para accion="editar_seccion". Solo para fileType="text".'
+          'Nuevo contenido HTML/Markdown para reemplazar la sección identificada por titulo_seccion. Requerido para accion="editar_seccion". Solo para fileType="text" o fileType="html".'
         ),
 
       // Para accion="buscar_reemplazar"
       buscar: z
         .string()
         .optional()
-        .describe('Texto exacto o fragmento a buscar en el documento. Requerido para accion="buscar_reemplazar". Solo para fileType="text".'),
+        .describe('Texto exacto o fragmento a buscar en el documento. Requerido para accion="buscar_reemplazar". Solo para fileType="text" o fileType="html".'),
 
       reemplazar: z
         .string()
         .optional()
-        .describe('Texto o HTML que reemplazará al encontrado. Requerido para accion="buscar_reemplazar". Solo para fileType="text".'),
+        .describe('Texto o HTML que reemplazará al encontrado. Requerido para accion="buscar_reemplazar". Solo para fileType="text" o fileType="html".'),
 
       reemplazar_todo: z
         .boolean()
@@ -119,12 +119,12 @@ class CanvasTool extends Tool {
       posicion: z
         .enum(['inicio', 'fin', 'despues_de'])
         .optional()
-        .describe('Dónde insertar: "inicio" = al principio, "fin" = al final, "despues_de" = después del texto indicado en "insertar_despues_de_texto". Solo para fileType="text".'),
+        .describe('Dónde insertar: "inicio" = al principio, "fin" = al final (para html se inserta de forma inteligente antes de la etiqueta body/html), "despues_de" = después del texto indicado en "insertar_despues_de_texto". Solo para fileType="text" o fileType="html".'),
 
       insertar_contenido: z
         .string()
         .optional()
-        .describe('Contenido HTML/Markdown a insertar. Requerido para accion="insertar". Solo para fileType="text".'),
+        .describe('Contenido HTML/Markdown a insertar. Requerido para accion="insertar". Solo para fileType="text" o fileType="html".'),
 
       insertar_despues_de_texto: z
         .string()
@@ -254,8 +254,8 @@ class CanvasTool extends Tool {
 
           await session.save();
 
-          // Sincronizar a LiveEditor si es tipo text
-          if (activeFileType === 'text') {
+          // Sincronizar a LiveEditor si es tipo text o html
+          if (activeFileType === 'text' || activeFileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
@@ -296,8 +296,8 @@ class CanvasTool extends Tool {
 
           await session.save();
 
-          // Sincronizar a LiveEditor si es tipo text
-          if (fileType === 'text') {
+          // Sincronizar a LiveEditor si es tipo text o html
+          if (fileType === 'text' || fileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
@@ -344,8 +344,8 @@ class CanvasTool extends Tool {
 
           await session.save();
 
-          // Sincronizar a LiveEditor si es tipo text
-          if (activeFileType === 'text') {
+          // Sincronizar a LiveEditor si es tipo text o html
+          if (activeFileType === 'text' || activeFileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
@@ -380,8 +380,8 @@ class CanvasTool extends Tool {
 
           await session.save();
 
-          // Sincronizar a LiveEditor si es tipo text
-          if (activeFileType === 'text') {
+          // Sincronizar a LiveEditor si es tipo text o html
+          if (activeFileType === 'text' || activeFileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
@@ -397,8 +397,8 @@ class CanvasTool extends Tool {
       // ── EDITAR SECCIÓN ────────────────────────────────────────────────────
       if (accion === 'editar_seccion') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text') {
-          return JSON.stringify({ error: 'La acción "editar_seccion" solo está soportada para archivos de tipo "text".' });
+        if (activeFileType !== 'text' && activeFileType !== 'html') {
+          return JSON.stringify({ error: 'La acción "editar_seccion" solo está soportada para archivos de tipo "text" o "html".' });
         }
         if (!titulo_seccion || !nuevo_contenido_seccion) {
           return JSON.stringify({ error: 'Se requieren "titulo_seccion" y "nuevo_contenido_seccion" para accion="editar_seccion".' });
@@ -460,8 +460,8 @@ class CanvasTool extends Tool {
       // ── BUSCAR Y REEMPLAZAR ───────────────────────────────────────────────
       if (accion === 'buscar_reemplazar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text') {
-          return JSON.stringify({ error: 'La acción "buscar_reemplazar" solo está soportada para archivos de tipo "text".' });
+        if (activeFileType !== 'text' && activeFileType !== 'html') {
+          return JSON.stringify({ error: 'La acción "buscar_reemplazar" solo está soportada para archivos de tipo "text" o "html".' });
         }
         if (!buscar || reemplazar === undefined) {
           return JSON.stringify({ error: 'Se requieren "buscar" y "reemplazar" para accion="buscar_reemplazar".' });
@@ -512,8 +512,8 @@ class CanvasTool extends Tool {
       // ── INSERTAR ──────────────────────────────────────────────────────────
       if (accion === 'insertar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text') {
-          return JSON.stringify({ error: 'La acción "insertar" solo está soportada para archivos de tipo "text".' });
+        if (activeFileType !== 'text' && activeFileType !== 'html') {
+          return JSON.stringify({ error: 'La acción "insertar" solo está soportada para archivos de tipo "text" o "html".' });
         }
         if (!insertar_contenido || !posicion) {
           return JSON.stringify({ error: 'Se requieren "insertar_contenido" y "posicion" para accion="insertar".' });
@@ -528,15 +528,27 @@ class CanvasTool extends Tool {
         if (posicion === 'inicio') {
           updatedContent = insertar_contenido + '\n' + currentContent;
         } else if (posicion === 'fin') {
-          // Si tiene bloque de firmas, queremos insertar ANTES del bloque de firmas.
-          const sigIndex = currentContent.indexOf('<div style="margin-top: 50px;');
-          const sigAlternativeIndex = currentContent.indexOf('<div style="margin-top:50px;');
-          const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
-
-          if (index !== -1) {
-            updatedContent = currentContent.substring(0, index) + '\n' + insertar_contenido + '\n\n' + currentContent.substring(index);
+          if (activeFileType === 'html') {
+            // Inserción inteligente al final en HTML (antes de body o html close tags)
+            const bodyCloseIndex = currentContent.lastIndexOf('</body>');
+            const htmlCloseIndex = currentContent.lastIndexOf('</html>');
+            const index = bodyCloseIndex !== -1 ? bodyCloseIndex : (htmlCloseIndex !== -1 ? htmlCloseIndex : -1);
+            if (index !== -1) {
+              updatedContent = currentContent.substring(0, index) + '\n' + insertar_contenido + '\n' + currentContent.substring(index);
+            } else {
+              updatedContent = currentContent + '\n' + insertar_contenido;
+            }
           } else {
-            updatedContent = currentContent + '\n' + insertar_contenido;
+            // Si tiene bloque de firmas en Word, queremos insertar ANTES del bloque de firmas.
+            const sigIndex = currentContent.indexOf('<div style="margin-top: 50px;');
+            const sigAlternativeIndex = currentContent.indexOf('<div style="margin-top:50px;');
+            const index = sigIndex !== -1 ? sigIndex : (sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1);
+
+            if (index !== -1) {
+              updatedContent = currentContent.substring(0, index) + '\n' + insertar_contenido + '\n\n' + currentContent.substring(index);
+            } else {
+              updatedContent = currentContent + '\n' + insertar_contenido;
+            }
           }
         } else if (posicion === 'despues_de') {
           if (!insertar_despues_de_texto) {

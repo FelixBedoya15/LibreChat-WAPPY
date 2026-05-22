@@ -851,7 +851,47 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               <button
                 onClick={() => {
                   setFileType('html');
-                  setContent('<h1>Prototipo HTML</h1>');
+                  setContent(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Plantilla Informativa SST</title>
+  <!-- Tailwind CSS CDN para estilizado premium de componentes -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+  </style>
+</head>
+<body class="p-6 sm:p-12">
+  <div class="max-w-xl text-center bg-slate-900/60 border border-slate-800 rounded-3xl p-8 backdrop-blur-md shadow-2xl animate-in fade-in zoom-in-95 duration-500">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(20,184,166,0.15)]">
+      <svg class="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-black bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-3">
+      Prototipo de Código WAPPY
+    </h1>
+    <p class="text-xs text-slate-400 leading-relaxed mb-6">
+      Bienvenido al sandbox interactivo de prototipos en HTML. Inserta componentes premium de SST desde la barra lateral izquierda y observa cómo cobran vida en tiempo real en la vista previa.
+    </p>
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/25">
+      <span class="h-2 w-2 rounded-full bg-teal-500 animate-ping"></span>
+      <span class="text-[10px] text-teal-400 font-bold uppercase tracking-widest">Listo para Inyectar</span>
+    </div>
+  </div>
+</body>
+</html>`);
                 }}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-border-medium bg-surface-secondary hover:border-blue-500/40 hover:bg-surface-hover transition-all text-left space-y-2 group"
               >

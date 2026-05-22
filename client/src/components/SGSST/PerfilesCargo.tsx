@@ -1641,13 +1641,7 @@ const PerfilesCargo = () => {
                         </div>
 
                         {/* Footer */}
-                        <div className="border-t border-border-medium px-6 py-4 bg-surface-primary/50 flex justify-end gap-3">
-                            <button
-                                onClick={() => setSummaryPerfil(null)}
-                                className="rounded-xl bg-surface-tertiary px-6 py-2.5 text-sm font-bold text-text-primary hover:bg-surface-hover hover:text-teal-500 transition-colors border border-border-light shadow-sm cursor-pointer"
-                            >
-                                Entendido
-                            </button>
+                        <div className="border-t border-border-medium px-6 py-4 bg-surface-primary/50 flex justify-end">
                             <button
                                 onClick={() => {
                                     setSummaryPerfil(null);
