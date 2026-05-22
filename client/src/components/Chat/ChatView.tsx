@@ -44,7 +44,7 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   const fileMap = useFileMapContext();
 
-  const { data: messagesTree = null, isLoading } = useGetMessagesByConvoId(conversationId ?? '', {
+  const { data: messagesTree = null, isLoading, isFetched } = useGetMessagesByConvoId(conversationId ?? '', {
     select: useCallback(
       (data: TMessage[]) => {
         const dataTree = buildTree({ messages: data, fileMap });
@@ -139,8 +139,8 @@ function ChatView({ index = 0 }: { index?: number }) {
   let content: JSX.Element | null | undefined;
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
-    (conversationId === Constants.NEW_CONVO || !conversationId);
-  const isNavigating = (!messagesTree || messagesTree.length === 0) && conversationId != null;
+    (conversationId === Constants.NEW_CONVO || !conversationId || isFetched);
+  const isNavigating = (!messagesTree || messagesTree.length === 0) && conversationId != null && !isFetched;
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
     content = <LoadingSpinner />;
