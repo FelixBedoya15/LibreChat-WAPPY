@@ -58,7 +58,10 @@ function redactMessage(str: string, trimLength?: number): string {
  * @param info - The log information object.
  * @returns The modified log information object.
  */
-const redactFormat = winston.format((info: winston.Logform.TransformableInfo) => {
+const redactFormat = winston.format((info?: winston.Logform.TransformableInfo) => {
+  if (!info) {
+    return info as unknown as winston.Logform.TransformableInfo;
+  }
   if (info.level === 'error') {
     // Type guard to ensure message is a string
     if (typeof info.message === 'string') {

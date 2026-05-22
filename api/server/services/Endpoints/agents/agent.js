@@ -198,13 +198,44 @@ const initializeAgent = async ({
   // Inject Global Canvas Prompt Guidelines if canvas tool is configured
   const hasCanvasTool = Array.isArray(agent.tools) && agent.tools.includes('canvas');
   if (hasCanvasTool) {
+    let canvasStatusPrompt = '';
+    if (conversationId && conversationId !== 'new') {
+      try {
+        const CanvasSession = require('~/models/CanvasSession');
+        const session = await CanvasSession.findOne({ conversationId });
+        if (session) {
+          canvasStatusPrompt = `
+# ESTADO ACTUAL DEL CANVAS (LIENZO):
+- ¡ATENCIÓN! Ya existe un documento activo cargado en el Canvas del usuario:
+  * Título actual: "${session.title}"
+  * Tipo de archivo: "${session.fileType}"
+  * Longitud del contenido: ${session.content ? session.content.length : 0} caracteres.
+- **DIRECTRICES DE TRABAJO OBLIGATORIAS**:
+  * Si el usuario te pide continuar, rellenar, modificar, auditar o completar este documento preexistente, **NO DEBES crear un nuevo documento ni sobrescribir el actual** con la acción \`crear\` o \`actualizar\`.
+  * En su lugar, usa primero la acción \`leer\` para inspeccionar el contenido completo y luego aplica cambios específicos y enfocados usando exclusivamente las acciones granulares \`buscar_reemplazar\`, \`editar_seccion\` o \`insertar\`. Esto garantiza que no se borre el diseño premium ni la estructura legal de la plantilla preestablecida.
+`;
+        } else {
+          canvasStatusPrompt = `
+# ESTADO ACTUAL DEL CANVAS (LIENZO):
+- El Canvas está actualmente vacío para esta conversación. Si necesitas producir un informe, política, contrato u otro documento, puedes inicializarlo usando la acción \`crear\` de la herramienta \`canvas\`.
+`;
+        }
+      } catch (err) {
+        if (req.log) {
+          req.log.error('[Canvas Ingestion Error]', err);
+        } else {
+          console.error('[Canvas Ingestion Error]', err);
+        }
+      }
+    }
+
     const canvasPrompt = `
 # REGLAS CRÍTICAS DE USO DE CANVAS:
 1. **SIEMPRE LEER ANTES DE EDITAR**: Si vas a modificar un Canvas que ya tiene contenido o que fue cargado desde una plantilla predefinida (por ejemplo, un "Procedimiento Sancionatorio"), primero DEBES usar la acción \`leer\` para inspeccionar el contenido completo actual del Canvas.
 2. **EDICIONES GRANULARES Y PRESERVACIÓN**: Queda estrictamente prohibido usar \`actualizar\` o \`crear\` para reemplazar un documento existente con un bloque pequeño o incompleto. Para realizar cambios o personalizaciones (por ejemplo, rellenar datos de la empresa, agregar cláusulas o nombres), DEBES usar exclusivamente acciones precisas y granulares como \`buscar_reemplazar\`, \`editar_seccion\` o \`insertar\`. Debes mantener intacto el diseño, las cabeceras, pies de página, estilos y la estructura del documento.
 3. **RESPUESTAS CONVERSACIONALES Y LIMPIEZA EN EL CHAT**: No imprimas bloques de código HTML, CSS, tablas extensas, marcas JSON o código Markdown del documento en la ventana de chat. Toda la edición debe realizarse silenciosamente llamando a la herramienta \`canvas\`. En tu mensaje de chat, describe de manera breve, limpia y conversacional los cambios específicos que realizaste en el Canvas, sin saturar la conversación con el código fuente del documento.
 `;
-    agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasPrompt;
+    agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
   }
 
   return {

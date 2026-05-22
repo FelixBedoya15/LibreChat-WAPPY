@@ -57,6 +57,9 @@ function redactMessage(str, trimLength) {
  * @returns {Object} - The modified log information object.
  */
 const redactFormat = winston.format((info) => {
+  if (!info) {
+    return info;
+  }
   if (info.level === 'error') {
     info.message = redactMessage(info.message);
     if (info[MESSAGE_SYMBOL]) {
