@@ -986,7 +986,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         }}
         isOpen={isReportHistoryOpen}
         toggleOpen={() => setIsReportHistoryOpen((h) => !h)}
-        historyEndpoint="/api/sgsst/canvas/history"
+        historyEndpoint={
+          conversationId && conversationId !== 'new'
+            ? `/api/sgsst/canvas/history?conversationId=${conversationId}`
+            : '/api/sgsst/canvas/history'
+        }
         tags={[]}
         refreshTrigger={version}
       />

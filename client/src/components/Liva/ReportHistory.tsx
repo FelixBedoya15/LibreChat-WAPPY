@@ -159,9 +159,10 @@ const ReportHistory = ({
       // Use token from AuthContext first (always current), fallback to localStorage
       const token = authToken || localStorage.getItem('token');
       const tagParams = tags.map((t) => `tags=${encodeURIComponent(t)}`).join('&');
-      const endpoint = historyEndpoint
-        ? `${historyEndpoint}?${tagParams}`
-        : `/api/sgsst/diagnostico/report-history?${tagParams}`;
+      let endpoint = historyEndpoint || '/api/sgsst/diagnostico/report-history';
+      if (tagParams) {
+        endpoint += `${endpoint.includes('?') ? '&' : '?'}${tagParams}`;
+      }
       const res = await fetch(endpoint, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         cache: 'no-store', // Never use browser cache

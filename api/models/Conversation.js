@@ -336,6 +336,16 @@ module.exports = {
         conversationId: { $in: conversationIds },
       });
 
+      // Clean up Wappy Canvas and LiveEditor sessions for deleted conversations
+      try {
+        const CanvasSession = require('./CanvasSession');
+        const LiveEditorSession = require('./LiveEditorSession');
+        await CanvasSession.deleteMany({ conversationId: { $in: conversationIds } });
+        await LiveEditorSession.deleteMany({ conversationId: { $in: conversationIds } });
+      } catch (err) {
+        logger.error('[deleteConvos] Error cleaning up Canvas and LiveEditor sessions:', err);
+      }
+
       return { ...deleteConvoResult, messages: deleteMessagesResult };
     } catch (error) {
       logger.error('[deleteConvos] Error deleting conversations and messages', error);

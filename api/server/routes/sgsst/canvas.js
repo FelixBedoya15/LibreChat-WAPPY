@@ -166,6 +166,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
+    const { conversationId } = req.query;
 
     // Cruzar con conversaciones activas de LibreChat (no archivadas ni expiradas/eliminadas)
     const { Conversation } = require('~/db/models');
@@ -179,7 +180,12 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     const activeConvoIds = activeConvos.map((c) => c.conversationId);
 
     const query = companyId ? { companyId } : { user: userId };
-    query.conversationId = { $in: activeConvoIds };
+    
+    if (conversationId) {
+      query.conversationId = conversationId;
+    } else {
+      query.conversationId = { $in: activeConvoIds };
+    }
 
     const sessions = await CanvasSession.find(query).sort({ updatedAt: -1 }).limit(50);
 
