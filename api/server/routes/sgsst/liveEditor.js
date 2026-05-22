@@ -215,6 +215,10 @@ router.post('/offline-report', requireJwtAuth, async (req, res) => {
     4. **VERACIDAD VISUAL Y CONTEXTUAL:** Analiza PROFUNDAMENTE las imágenes o el video corto de 10 segundos adjuntos. El informe debe basarse estrictamente en lo que se observa en los archivos multimedia. Si se trata de un video corto, analiza la secuencia de movimientos y los posibles actos inseguros en movimiento.
     5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica experta. Usa párrafos exhaustivamente justificados.
     6. **MATRIZ DE RIESGOS:** Mantén OBLIGATORIAMENTE un mínimo de 5 peligros. Deduce 5 riesgos especializados basados directamente en LAS IMÁGENES/VIDEO adjuntos y el tema de la conversación. JAMÁS inventes peligros genéricos si no encajan con la evidencia fotográfica/audiovisual enviada.
+       - OBLIGATORIAMENTE DEBES INCLUIR en la matriz y en las medidas de control:
+         1. **Riesgo Biomecánico / Ergonómico:** Analizando la postura del trabajador, silla, escritorio o movimientos repetitivos observados en la imagen/video (e.g. postura sentada prolongada frente a la pantalla, flexión de cuello, etc.).
+         2. **Uso de Elementos de Protección Personal (EPP):** Analizando si el trabajador usa o no EPP adecuado según el entorno observado en las imágenes/video (e.g., gafas de seguridad, protección auditiva, respiratoria, o EPP específico para oficina/computadores como lentes con filtro de luz azul o soporte ergonómico).
+
 
     ESTRUCTURA HTML OBLIGATORIA:
 

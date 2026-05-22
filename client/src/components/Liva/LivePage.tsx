@@ -219,6 +219,100 @@ const LivePage = () => {
         }
     }, []);
 
+    // Background polling for report completion if socket disconnected before it finished
+    useEffect(() => {
+        if (!conversationId || conversationId === 'new') return;
+        
+        const isGenerating = editorContent && (
+            editorContent.includes('Generando informe técnico') || 
+            editorContent.includes('Generando Reporte')
+        );
+        
+        if (!isGenerating) return;
+
+        console.log('[LivePage] Active report generation detected. Starting background polling for conversationId:', conversationId);
+
+        let isMounted = true;
+        let pollCount = 0;
+        const maxPolls = 24; // 2 minutes (24 * 5s)
+
+        const pollInterval = setInterval(async () => {
+            if (!isMounted) return;
+            pollCount++;
+
+            if (pollCount > maxPolls) {
+                console.log('[LivePage] Polling timeout reached. Stopping.');
+                clearInterval(pollInterval);
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/messages/${conversationId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                let messages = [];
+                if (Array.isArray(data)) {
+                    messages = data;
+                } else if (data && data.messages) {
+                    messages = data.messages;
+                }
+
+                // Look for a finished HTML report message
+                // The finished report shouldn't contain the "Generando informe técnico" placeholder
+                const finishedReport = [...messages].reverse().find((m: any) => {
+                    const isHtml = m.isHtmlReport || (m.text && m.text.trim().startsWith('<'));
+                    const isPlaceholder = m.text && (
+                        m.text.includes('Generando informe técnico') || 
+                        m.text.includes('Generando Reporte')
+                    );
+                    return isHtml && !isPlaceholder;
+                });
+
+                if (finishedReport && finishedReport.text) {
+                    console.log('[LivePage] Finished report found in DB! Updating editor.', finishedReport.messageId);
+                    
+                    // Parse KPI if present
+                    const parseKpi = (rawHtml: string) => {
+                        const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', consecuencia: 'Incapacitante', npeligros: '5+' };
+                        try {
+                            const match = rawHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
+                            if (!match) return defaults;
+                            const tag = match[0];
+                            const get = (attr: string) => {
+                                const m = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, 'i'));
+                                return m ? m[1].trim() : '';
+                            };
+                            return {
+                                riesgo:       get('data-riesgo')       || defaults.riesgo,
+                                accion:       get('data-accion')       || defaults.accion,
+                                consecuencia: get('data-consecuencia') || defaults.consecuencia,
+                                npeligros:    get('data-npeligros')    || defaults.npeligros,
+                            };
+                        } catch { return defaults; }
+                    };
+
+                    const kpi = parseKpi(finishedReport.text);
+                    handleReportReceived(finishedReport.text, kpi, finishedReport.messageId);
+                    
+                    // Trigger history refresh
+                    setRefreshTrigger(prev => prev + 1);
+                    
+                    clearInterval(pollInterval);
+                }
+            } catch (err) {
+                console.error('[LivePage] Error polling for finished report:', err);
+            }
+        }, 5000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(pollInterval);
+        };
+    }, [conversationId, editorContent, token, handleReportReceived]);
+
     const handleSelectReport = async (selectedConvoId: string) => {
         try {
             console.log("Loading report from conversation:", selectedConvoId);

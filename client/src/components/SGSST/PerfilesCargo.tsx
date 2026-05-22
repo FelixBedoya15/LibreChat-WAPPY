@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
     Sparkles,
     Loader2,
@@ -353,6 +354,7 @@ const PerfilesCargo = () => {
     const editorContentRef = useRef<string>('');
     const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [summaryPerfil, setSummaryPerfil] = useState<PerfilCargoData | null>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -1008,41 +1010,84 @@ const PerfilesCargo = () => {
                         <Plus className="h-4 w-4" /> Nuevo Cargo
                     </button>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {perfiles.map(p => {
                         const isActive = activePerfilId === p.id;
                         return (
                             <div 
                                 key={p.id} 
                                 className={cn(
-                                    "group relative flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-2xl text-xs font-black transition-all duration-300 cursor-pointer border select-none transform",
+                                    "group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-300 cursor-pointer border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
                                     isActive 
-                                        ? "bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 text-white border-transparent shadow-[0_4px_15px_rgba(20,184,166,0.3)] ring-2 ring-teal-500/20 ring-offset-2 dark:ring-offset-[#111] hover:scale-[1.03] active:scale-[0.97]" 
-                                        : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 hover:shadow-[0_4px_15px_rgba(20,184,166,0.08)] hover:bg-surface-secondary/90 hover:scale-[1.03] active:scale-[0.97]"
+                                        ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent ring-2 ring-teal-500/20 shadow-[0_4px_20px_rgba(20,184,166,0.25)] hover:scale-[1.02] active:scale-[0.98]" 
+                                        : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:shadow-[0_4px_20px_rgba(20,184,166,0.1)] hover:bg-surface-secondary/90 hover:scale-[1.02] active:scale-[0.98] dark:bg-surface-primary/20"
                                 )}
-                                onClick={() => handleSelectPerfil(p.id)}
+                                onClick={() => {
+                                    handleSelectPerfil(p.id);
+                                    setSummaryPerfil(p);
+                                }}
                             >
-                                <div className={cn(
-                                    "flex items-center justify-center w-7 h-7 rounded-xl shadow-inner transition-colors",
-                                    isActive ? "bg-white/20 text-white" : "bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
-                                )}>
-                                    <Briefcase className="w-3.5 h-3.5" />
+                                {/* Active subtle top glowing bar */}
+                                {isActive && (
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 to-cyan-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]" />
+                                )}
+
+                                <div className="space-y-2">
+                                    <div className="flex items-start justify-between">
+                                        <div className={cn(
+                                            "flex items-center justify-center w-8 h-8 rounded-2xl shadow-inner transition-colors",
+                                            isActive ? "bg-white/20 text-white" : "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400"
+                                        )}>
+                                            <Briefcase className="w-4.5 h-4.5" />
+                                        </div>
+                                        {/* Delete Button */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
+                                            className={cn(
+                                                "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                                isActive 
+                                                    ? "hover:bg-red-500 hover:text-white text-white/70" 
+                                                    : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
+                                            )}
+                                            title="Eliminar cargo"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="pt-1">
+                                        <h5 className={cn(
+                                            "font-extrabold text-xs tracking-tight leading-tight line-clamp-2",
+                                            isActive ? "text-white font-black" : "text-text-primary"
+                                        )}>
+                                            {p.nombreCargo || 'Cargo sin nombre'}
+                                        </h5>
+                                        <p className={cn(
+                                            "text-[9px] font-black uppercase tracking-wider mt-1 truncate",
+                                            isActive ? "text-teal-200" : "text-text-tertiary"
+                                        )}>
+                                            {p.area || 'Sin área asignada'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <span className="truncate max-w-[180px] tracking-tight">{p.nombreCargo || 'Cargo sin nombre'}</span>
-                                
-                                {/* Botón de eliminar integrado */}
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
-                                    className={cn(
-                                        "ml-1 p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+
+                                <div className="flex items-center justify-between pt-2 border-t border-border-medium/20 mt-auto">
+                                    <span className={cn(
+                                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-md",
                                         isActive 
-                                            ? "hover:bg-red-500 hover:text-white text-white/70" 
-                                            : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
+                                            ? "bg-white/10 text-white" 
+                                            : "bg-surface-secondary text-text-secondary border border-border-medium/30"
+                                    )}>
+                                        {p.nivelCargo ? p.nivelCargo.split(' ')[0] : 'Nivel N/A'}
+                                    </span>
+                                    {p.numVacantes && (
+                                        <span className={cn(
+                                            "text-[9px] font-extrabold",
+                                            isActive ? "text-cyan-200" : "text-teal-600 dark:text-teal-400"
+                                        )}>
+                                            {p.numVacantes} {Number(p.numVacantes) === 1 ? 'vacante' : 'vacantes'}
+                                        </span>
                                     )}
-                                    title="Eliminar cargo"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                </div>
                             </div>
                         );
                     })}
@@ -1280,6 +1325,228 @@ const PerfilesCargo = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
+
+            {/* ── Summary Profile Popup Modal (Premium Glassmorphism) ── */}
+            {summaryPerfil && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-300"
+                    onClick={() => setSummaryPerfil(null)}
+                >
+                    <div 
+                        className="bg-gradient-to-br from-surface-secondary/95 to-surface-primary/90 border border-border-medium/60 rounded-[32px] w-full max-w-2xl shadow-2xl p-6 md:p-8 space-y-6 relative transition-all duration-300 scale-95 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Glowing decor */}
+                        <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20 opacity-10 pointer-events-none" />
+                        <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10 opacity-10 pointer-events-none" />
+
+                        {/* Top Close Button */}
+                        <button
+                            onClick={() => setSummaryPerfil(null)}
+                            className="absolute top-5 right-5 p-2 rounded-2xl bg-surface-primary/80 border border-border-medium hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 text-text-tertiary transition-all hover:scale-105 active:scale-95 transform cursor-pointer"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        {/* Header */}
+                        <div className="flex items-start gap-4 pr-8">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-[0_4px_15px_rgba(20,184,166,0.3)] flex items-center justify-center text-white flex-shrink-0">
+                                <Briefcase className="w-7 h-7" />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-xl font-black text-text-primary tracking-tight leading-tight">
+                                    {summaryPerfil.nombreCargo || 'Cargo sin nombre'}
+                                </h3>
+                                <p className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 mt-1">
+                                    {summaryPerfil.area || 'Sin área asignada'}
+                                </p>
+                                
+                                {/* Badges grid */}
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                                        {summaryPerfil.nivelCargo || 'Nivel N/A'}
+                                    </span>
+                                    {summaryPerfil.tipoContrato && (
+                                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20">
+                                            {summaryPerfil.tipoContrato}
+                                        </span>
+                                    )}
+                                    {summaryPerfil.numVacantes && (
+                                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                            {summaryPerfil.numVacantes} {Number(summaryPerfil.numVacantes) === 1 ? 'Vacante' : 'Vacantes'}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="h-px bg-border-medium/30" />
+
+                        {/* General Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Jefe Inmediato</span>
+                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.jefeInmediato || 'No asignado'}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Escala Salarial</span>
+                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.escalasSalarial || 'No especificada'}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Jornada Laboral</span>
+                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.jornada || 'No especificada'}</p>
+                            </div>
+                        </div>
+
+                        {/* Exigencias y Operaciones */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Exigencia Física y Mental */}
+                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 space-y-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
+                                    <Brain className="w-3.5 h-3.5 text-teal-500" /> Exigencias de Rol
+                                </span>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-semibold text-text-secondary">Exigencia Física</span>
+                                        <span className="font-black text-teal-600 dark:text-teal-400">{summaryPerfil.exigenciaFisica || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-semibold text-text-secondary">Exigencia Mental</span>
+                                        <span className="font-black text-cyan-600 dark:text-cyan-400">{summaryPerfil.exigenciaMental || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Operación Maquinaria */}
+                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 flex flex-col justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
+                                    <Shield className="w-3.5 h-3.5 text-cyan-500" /> Operación Especial
+                                </span>
+                                <div className="mt-2.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-semibold text-text-secondary">¿Opera Maquinaria Crítica?</span>
+                                        <span className={cn(
+                                            "font-black px-2 py-0.5 rounded-lg text-[10px] uppercase",
+                                            summaryPerfil.operaMaquinaria === 'Sí' || summaryPerfil.operaMaquinaria === 'Si'
+                                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                                : "bg-surface-secondary text-text-secondary border border-border-medium/30"
+                                        )}>
+                                            {summaryPerfil.operaMaquinaria || 'No'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Protecciones y Capacitación */}
+                        <div className="space-y-4">
+                            {/* EPP */}
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
+                                    <Shield className="w-3.5 h-3.5 text-teal-500" /> Equipos de Protección (EPP)
+                                </span>
+                                {summaryPerfil.eppSeleccionados && summaryPerfil.eppSeleccionados.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {summaryPerfil.eppSeleccionados.map((epp, idx) => (
+                                            <span 
+                                                key={idx}
+                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-medium/30 flex items-center gap-1"
+                                            >
+                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                                                {epp}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-text-tertiary italic">No se han seleccionado EPPs para este cargo.</p>
+                                )}
+                            </div>
+
+                            {/* Capacitaciones */}
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
+                                    <BookOpen className="w-3.5 h-3.5 text-cyan-500" /> Entrenamientos y Capacitaciones
+                                </span>
+                                {summaryPerfil.entrenamientosSeleccionados && summaryPerfil.entrenamientosSeleccionados.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {summaryPerfil.entrenamientosSeleccionados.map((ent, idx) => (
+                                            <span 
+                                                key={idx}
+                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-medium/30 flex items-center gap-1"
+                                            >
+                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                                                {ent}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-text-tertiary italic">No se han seleccionado entrenamientos para este cargo.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Controles de Ingeniería y Medio */}
+                        {(summaryPerfil.controlesFuenteSeleccionados?.length || summaryPerfil.controlesMedioSeleccionados?.length) ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Controles en Fuente</span>
+                                    {summaryPerfil.controlesFuenteSeleccionados && summaryPerfil.controlesFuenteSeleccionados.length > 0 ? (
+                                        <ul className="text-[10px] text-text-secondary space-y-1 list-disc pl-4 font-medium">
+                                            {summaryPerfil.controlesFuenteSeleccionados.map((ctrl, i) => (
+                                                <li key={i}>{ctrl}</li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Controles en Medio</span>
+                                    {summaryPerfil.controlesMedioSeleccionados && summaryPerfil.controlesMedioSeleccionados.length > 0 ? (
+                                        <ul className="text-[10px] text-text-secondary space-y-1 list-disc pl-4 font-medium">
+                                            {summaryPerfil.controlesMedioSeleccionados.map((ctrl, i) => (
+                                                <li key={i}>{ctrl}</li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {/* Contexto Adicional */}
+                        {summaryPerfil.contextoAdicional && (
+                            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-500/5 to-cyan-500/5 border border-border-medium/30">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary block mb-1">Contexto Adicional</span>
+                                <p className="text-xs text-text-secondary italic leading-relaxed">
+                                    "{summaryPerfil.contextoAdicional}"
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 pt-3 border-t border-border-medium/30">
+                            <button
+                                onClick={() => setSummaryPerfil(null)}
+                                className="px-5 py-2.5 rounded-2xl bg-surface-secondary border border-border-medium hover:bg-surface-hover text-text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 transform cursor-pointer"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSummaryPerfil(null);
+                                    // Already selected on click, so just close the summary and view form
+                                }}
+                                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg shadow-teal-500/10 hover:scale-105 active:scale-95 transform transition-all cursor-pointer"
+                            >
+                                Ver Ficha Completa y Editar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

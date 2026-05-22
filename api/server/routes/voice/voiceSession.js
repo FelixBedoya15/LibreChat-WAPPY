@@ -902,6 +902,10 @@ class VoiceSession {
             4. **VERACIDAD VISUAL Y CONTEXTUAL:** Analiza PROFUNDAMENTE las imágenes fotográficas incluidas en este prompt y lee la conversación transcrita. El informe debe basarse en lo que VES en las imágenes y escuchas en la conversación. NO asumas que es una bodega de carga o planta industrial si las imágenes revelan una oficina (o unas gafas, por ejemplo). Adapta tu análisis a la evidencia real proporcionada.
             5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica experta. Usa párrafos exhaustivamente justificados.
             6. **MATRIZ DE RIESGOS:** Mantén OBLIGATORIAMENTE un mínimo de 5 peligros. Deduce 5 riesgos especializados basados directamente en LAS IMÁGENES adjuntas y el tema de la conversación. JAMÁS inventes peligros genéricos "de almacén" si no encajan con la evidencia fotográfica enviada.
+               - OBLIGATORIAMENTE DEBES INCLUIR en la matriz y en las medidas de control:
+                 1. **Riesgo Biomecánico / Ergonómico:** Analizando la postura del trabajador, silla, escritorio o movimientos repetitivos observados en la imagen (e.g. postura sentada prolongada frente a la pantalla, flexión de cuello, etc.).
+                 2. **Uso de Elementos de Protección Personal (EPP):** Analizando si el trabajador usa o no EPP adecuado según el entorno observado en las imágenes (e.g., gafas de seguridad, protección auditiva, respiratoria, o EPP específico para oficina/computadores como lentes con filtro de luz azul o soporte ergonómico).
+
 
             ESTRUCTURA HTML OBLIGATORIA:
 
