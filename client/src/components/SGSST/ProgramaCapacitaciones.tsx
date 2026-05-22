@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { useAuthContext } from '~/hooks';
 import { Button, useToastContext } from '@librechat/client';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import ExportDropdown from './ExportDropdown';
+import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import {
   Plus,
   GraduationCap,
@@ -95,6 +98,7 @@ export default function ProgramaCapacitaciones() {
   // UI State
   const [activeTab, setActiveTab] = useState<'matriz' | 'cronograma' | 'generar'>('matriz');
   const [selectedSesionId, setSelectedSesionId] = useState<string | null>(null);
+  const [isSesionModalOpen, setIsSesionModalOpen] = useState(false);
   
   // Search & Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,10 +107,13 @@ export default function ProgramaCapacitaciones() {
   const [sessionStatusFilter, setSessionStatusFilter] = useState('Todos');
 
   // AI Compiler Terminal logs
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+
   const [isCargoDropdownOpen, setIsCargoDropdownOpen] = useState(false);
+  // Editor & Report State
   const [compiledReport, setCompiledReport] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const editorContentRef = useRef<string>('');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -172,6 +179,12 @@ export default function ProgramaCapacitaciones() {
     }
   };
 
+  const handleSaveModal = async () => {
+    await handleSave(sesiones);
+    await fetchPlanData();
+    setIsSesionModalOpen(false);
+  };
+
   const handleAddSesion = () => {
     const newSesion: SesionCapacitacion = {
       id: Date.now().toString(),
@@ -188,6 +201,7 @@ export default function ProgramaCapacitaciones() {
     const updated = [...sesiones, newSesion];
     setSesiones(updated);
     setSelectedSesionId(newSesion.id);
+    setIsSesionModalOpen(true);
     handleSave(updated);
   };
 
@@ -242,24 +256,6 @@ export default function ProgramaCapacitaciones() {
 
   const handleGeneratePrograma = async () => {
     setIsAnalyzing(true);
-    setConsoleLogs([]);
-    
-    const logs = [
-      "Iniciando compilador de programa anual de capacitaciones...",
-      "Estableciendo enlace con el motor de perfiles de cargo (GTC-45)...",
-      "Evaluando alertas de salud activa y vulnerabilidades (Oráculo H1)...",
-      `Sincronizando cronograma anual (${sesiones.length} sesiones planificadas)...`,
-      "Generando estructura documental bajo Decreto 1072 de 2015...",
-      "Ejecutando agente de redacción técnica (gemini-2.5-flash)...",
-      "Validando estándares mínimos de la Resolución 0312 de 2019...",
-      "Consolidando objetivos, metas, recursos e indicadores..."
-    ];
-
-    for (let i = 0; i < logs.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setConsoleLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [INFO] ${logs[i]}`]);
-    }
-
     try {
       const res = await fetch('/api/sgsst/programa-capacitaciones/generate-programa', {
         method: 'POST',
@@ -270,7 +266,6 @@ export default function ProgramaCapacitaciones() {
 
       if (res.ok && data.report) {
         setCompiledReport(data.report);
-        setConsoleLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [SUCCESS] ¡Programa de capacitación generado con éxito! Cargado en bandeja.`]);
         window.dispatchEvent(
           new CustomEvent('generate-sgsst-document', {
             detail: {
@@ -286,11 +281,26 @@ export default function ProgramaCapacitaciones() {
       }
     } catch (error: any) {
       console.error('Error generating programa:', error);
-      setConsoleLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [ERROR] Falló la generación: ${error.message}`]);
       showToast({ message: error.message || 'Error al compilar el programa', status: 'error' });
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleSaveReport = async () => {
+    const content = editorContentRef.current || compiledReport;
+    if (!content) return;
+    setCompiledReport(content);
+    window.dispatchEvent(
+      new CustomEvent('generate-sgsst-document', {
+        detail: {
+          module: 'capacitaciones',
+          type: 'Programa Anual de Capacitaciones',
+          content: content,
+        },
+      }),
+    );
+    showToast({ message: 'Programa de capacitación guardado con éxito', status: 'success' });
   };
 
   const downloadHtml = () => {
@@ -670,7 +680,7 @@ export default function ProgramaCapacitaciones() {
                     <div className="flex items-center gap-3">
                       {/* Avatar with compliance border glow */}
                       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 font-black text-xs transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
-                        {worker.nombre.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+                        {worker.nombre.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <h4 className="text-sm font-black text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{worker.nombre}</h4>
@@ -779,386 +789,366 @@ export default function ProgramaCapacitaciones() {
     </div>
   );
 
-  const renderCronograma = () => {
+  const renderSesionModal = () => {
     const selectedSesion = sesiones.find((s) => s.id === selectedSesionId);
+    if (!selectedSesion) return null;
 
     return (
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left Column: Timeline list */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-4">
-          <div className="rounded-2xl border border-border-light bg-surface-primary p-4 dark:border-white/5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary">
-                  Cronograma Anual
-                </h3>
-                <p className="text-[11px] text-text-secondary">{sesiones.length} Charlas planificadas</p>
-              </div>
-              <Button
-                onClick={handleAddSesion}
-                size="sm"
-                className="flex items-center gap-1 rounded-xl border-none bg-teal-600 px-3 text-xs font-black text-white hover:bg-teal-700 h-8 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/10"
-              >
-                <Plus className="h-3.5 w-3.5" /> Nueva
-              </Button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="relative flex h-[90vh] w-full max-w-4xl flex-col rounded-3xl border border-border-light bg-surface-primary shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 dark:border-white/5">
+          <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary/20 px-6 py-4 dark:border-white/5">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary">Ficha de Planificación</h3>
+              <h2 className="text-base font-black text-text-primary truncate max-w-md">{selectedSesion.tema || 'Nueva Capacitación'}</h2>
             </div>
-
-            {/* Session Search & Filter */}
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-text-secondary" />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSaveModal}
+                className="h-8 rounded-lg border border-border-light bg-surface-secondary/20 px-3 text-xs font-bold text-text-primary hover:bg-surface-secondary/40"
+              >
+                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+                <span>Guardar y Cerrar</span>
+              </Button>
+              <button
+                onClick={() => handleDeleteSesion(selectedSesion.id)}
+                className="h-8 rounded-lg border border-rose-200 bg-rose-50/50 px-2.5 text-rose-600 hover:bg-rose-50 dark:border-rose-900/30 dark:bg-rose-900/10 dark:text-rose-400"
+                title="Eliminar"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setIsSesionModalOpen(false)}
+                className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-rose-500/50 transition-colors ml-2"
+                title="Cancelar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Tema de la Capacitación *</label>
                 <input
                   type="text"
-                  placeholder="Buscar charla o facilitador..."
-                  value={sessionSearch}
-                  onChange={(e) => setSessionSearch(e.target.value)}
-                  className="w-full rounded-lg border border-border-light bg-surface-secondary/20 py-1.5 pl-8 pr-3 text-[11px] text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
+                  value={selectedSesion.tema}
+                  onChange={(e) => handleUpdateSesion(selectedSesion.id, { tema: e.target.value })}
+                  className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
+                  placeholder="Ej: Identificación de peligros GTC-45"
                 />
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSessionStatusFilter('Todos')}
-                  className={`px-2.5 py-1 text-[10px] rounded-lg font-bold uppercase transition-all ${sessionStatusFilter === 'Todos' ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20' : 'bg-surface-secondary/20 text-text-secondary border border-border-light dark:border-white/5'}`}
-                >
-                  Todos
-                </button>
-                <button
-                  onClick={() => setSessionStatusFilter('Programada')}
-                  className={`px-2.5 py-1 text-[10px] rounded-lg font-bold uppercase transition-all ${sessionStatusFilter === 'Programada' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-surface-secondary/20 text-text-secondary border border-border-light dark:border-white/5'}`}
-                >
-                  Prog
-                </button>
-                <button
-                  onClick={() => setSessionStatusFilter('Completada')}
-                  className={`px-2.5 py-1 text-[10px] rounded-lg font-bold uppercase transition-all ${sessionStatusFilter === 'Completada' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-surface-secondary/20 text-text-secondary border border-border-light dark:border-white/5'}`}
-                >
-                  Compl
-                </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Fecha *</label>
+                  <input
+                    type="date"
+                    value={selectedSesion.fecha}
+                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { fecha: e.target.value })}
+                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none font-mono focus:ring-1 focus:ring-teal-500/50"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Hora</label>
+                  <input
+                    type="time"
+                    value={selectedSesion.hora}
+                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { hora: e.target.value })}
+                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none font-mono focus:ring-1 focus:ring-teal-500/50"
+                  />
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Timeline List */}
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-            {filteredSessions.length === 0 ? (
-              <div className="text-text-secondary/60 bg-surface-primary/30 border-border-light rounded-2xl border border-dashed px-4 py-8 text-center dark:border-white/5">
-                <CalendarCheck className="mx-auto mb-2 h-8 w-8 opacity-45" />
-                <p className="text-xs font-bold">No hay eventos para mostrar.</p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Responsable / Capacitador</label>
+                <input
+                  type="text"
+                  value={selectedSesion.responsable}
+                  onChange={(e) => handleUpdateSesion(selectedSesion.id, { responsable: e.target.value })}
+                  className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
+                  placeholder="Nombre del facilitador"
+                />
               </div>
-            ) : (
-              filteredSessions.map((sesion) => {
-                const isSelected = selectedSesionId === sesion.id;
-                const badgeColor = sesion.estado === 'Completada' 
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' 
-                  : sesion.estado === 'Cancelada' 
-                  ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400' 
-                  : 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
 
-                return (
-                  <div
-                    key={sesion.id}
-                    onClick={() => setSelectedSesionId(sesion.id)}
-                    className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${isSelected ? 'border-teal-500/50 bg-teal-500/[0.03] shadow-md hover:translate-x-1' : 'bg-surface-primary border-border-light hover:border-teal-500/30 hover:translate-x-0.5 dark:border-white/5'}`}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Duración</label>
+                  <input
+                    type="text"
+                    value={selectedSesion.duracion}
+                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { duracion: e.target.value })}
+                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
+                    placeholder="Ej: 2 horas"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Estado</label>
+                  <select
+                    value={selectedSesion.estado}
+                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { estado: e.target.value as any })}
+                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h4 className="line-clamp-2 text-xs font-black text-text-primary">
-                        {sesion.tema || 'Sin tema definido'}
-                      </h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${badgeColor}`}>
-                        {sesion.estado}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-[10px] text-text-secondary mt-3 pt-2 border-t border-border-light dark:border-white/5">
-                      <span className="flex items-center gap-1 font-mono">
-                        <Calendar className="h-3 w-3 text-text-secondary" />
-                        {sesion.fecha || 'Sin fecha'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3 text-text-secondary" />
-                        {sesion.trabajadoresRegistrados.length} Inscritos
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+                    <option value="Programada">Programada</option>
+                    <option value="Completada">Completada</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+                </div>
+              </div>
 
-        {/* Right Column: Detail Editor */}
-        <div className="flex-1 bg-surface-primary rounded-2xl border border-border-light p-6 dark:border-white/5 shadow-sm">
-          {!selectedSesion ? (
-            <div className="text-text-secondary/50 my-20 flex flex-col items-center justify-center text-center">
-              <GraduationCap className="mb-4 h-12 w-12 opacity-30 text-teal-500" />
-              <h3 className="mb-1 text-sm font-bold text-text-primary">Centro de Entrenamiento SG-SST</h3>
-              <p className="max-w-xs text-xs">
-                Selecciona una capacitación del listado o crea una nueva para empezar a planificar e inscribir asistencia.
-              </p>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Descripción y Alcance</label>
+                <textarea
+                  rows={2}
+                  value={selectedSesion.descripcion}
+                  onChange={(e) => handleUpdateSesion(selectedSesion.id, { descripcion: e.target.value })}
+                  className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50 resize-none"
+                  placeholder="Detalles sobre el contenido o material didáctico..."
+                />
+              </div>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Header and Actions */}
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-light pb-4 dark:border-white/5">
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary">Ficha de Planificación</h3>
-                  <h2 className="text-base font-black text-text-primary truncate max-w-md">{selectedSesion.tema || 'Nueva Capacitación'}</h2>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-text-primary">Control de Asistencia</h4>
+                  <p className="text-[10px] text-text-secondary">Inscribe y marca la asistencia del personal.</p>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => handleSave(sesiones)}
-                    className="h-8 rounded-lg border border-border-light bg-surface-secondary/20 px-3 text-xs font-bold text-text-primary hover:bg-surface-secondary/40"
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Save className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    <span>Guardar</span>
-                  </Button>
-                  <Button
-                    onClick={() => handleGenerateActa(selectedSesion)}
-                    disabled={!!isGenerating}
-                    className="h-8 rounded-lg border-none bg-teal-600 px-3 text-xs font-black text-white hover:bg-teal-700"
-                  >
-                    {isGenerating === selectedSesion.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    <span>Emitir Acta</span>
-                  </Button>
-                  <button
-                    onClick={() => handleDeleteSesion(selectedSesion.id)}
-                    className="h-8 rounded-lg border border-rose-200 bg-rose-50/50 px-2.5 text-rose-600 hover:bg-rose-50 dark:border-rose-900/30 dark:bg-rose-900/10 dark:text-rose-400"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <Button
+                  onClick={() => handleAddTrabajador(selectedSesion.id)}
+                  size="sm"
+                  className="h-7 rounded-lg border border-border-light bg-surface-secondary/30 px-2 text-[10px] font-bold text-text-primary hover:bg-surface-secondary/50"
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Añadir Externo
+                </Button>
               </div>
 
-              {/* Editor Fields */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Tema de la Capacitación *</label>
-                  <input
-                    type="text"
-                    value={selectedSesion.tema}
-                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { tema: e.target.value })}
-                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
-                    placeholder="Ej: Identificación de peligros GTC-45"
-                  />
-                </div>
+              {trabajadoresPlan.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary block">Plantilla de la Empresa (Un-click Toggle)</span>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {trabajadoresPlan.map((worker) => {
+                      const cleanCed = String(worker.cedula || worker.id || '').trim();
+                      const regWorker = selectedSesion.trabajadoresRegistrados.find(
+                        (w) => String(w.cedula).trim() === cleanCed
+                      );
+                      
+                      let stateText = 'No inscrito';
+                      let stateClass = 'border-border-light text-text-secondary bg-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02]';
+                      let stateIcon = <Plus className="h-3 w-3" />;
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Fecha *</label>
-                    <input
-                      type="date"
-                      value={selectedSesion.fecha}
-                      onChange={(e) => handleUpdateSesion(selectedSesion.id, { fecha: e.target.value })}
-                      className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none font-mono focus:ring-1 focus:ring-teal-500/50"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Hora</label>
-                    <input
-                      type="time"
-                      value={selectedSesion.hora}
-                      onChange={(e) => handleUpdateSesion(selectedSesion.id, { hora: e.target.value })}
-                      className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none font-mono focus:ring-1 focus:ring-teal-500/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Responsable / Capacitador</label>
-                  <input
-                    type="text"
-                    value={selectedSesion.responsable}
-                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { responsable: e.target.value })}
-                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
-                    placeholder="Nombre del facilitador"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Duración</label>
-                    <input
-                      type="text"
-                      value={selectedSesion.duracion}
-                      onChange={(e) => handleUpdateSesion(selectedSesion.id, { duracion: e.target.value })}
-                      className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
-                      placeholder="Ej: 2 horas"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Estado</label>
-                    <select
-                      value={selectedSesion.estado}
-                      onChange={(e) => handleUpdateSesion(selectedSesion.id, { estado: e.target.value as any })}
-                      className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
-                    >
-                      <option value="Programada">Programada</option>
-                      <option value="Completada">Completada</option>
-                      <option value="Cancelada">Cancelada</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Descripción y Alcance</label>
-                  <textarea
-                    rows={2}
-                    value={selectedSesion.descripcion}
-                    onChange={(e) => handleUpdateSesion(selectedSesion.id, { descripcion: e.target.value })}
-                    className="w-full rounded-xl border border-border-light bg-surface-secondary/10 px-3 py-2 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50 resize-none"
-                    placeholder="Detalles sobre el contenido o material didáctico..."
-                  />
-                </div>
-              </div>
-
-              {/* Legal Reference covered */}
-              <div className="bg-surface-secondary/20 rounded-xl p-4 border border-border-light dark:border-white/5 space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400 block">Cumplimiento Legal Mapeado</span>
-                <p className="text-[11px] text-text-secondary">
-                  Esta sesión cubre automáticamente las exigencias del **Decreto 1072 (SG-SST)** e impacta directamente los indicadores de la autoevaluación de estándares mínimos (**Resolución 0312**).
-                </p>
-              </div>
-
-              {/* Attendance Tracker */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-text-primary">Control de Asistencia Biocéntrica</h4>
-                    <p className="text-[10px] text-text-secondary">Inscribe y marca la asistencia del personal de tu empresa activa.</p>
-                  </div>
-                  <Button
-                    onClick={() => handleAddTrabajador(selectedSesion.id)}
-                    size="sm"
-                    className="h-7 rounded-lg border border-border-light bg-surface-secondary/30 px-2 text-[10px] font-bold text-text-primary hover:bg-surface-secondary/50"
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Añadir Externo
-                  </Button>
-                </div>
-
-                {/* Company Active Workers Quick Selector */}
-                {trabajadoresPlan.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary block">Plantilla de la Empresa (Un-click Toggle)</span>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {trabajadoresPlan.map((worker) => {
-                        const cleanCed = String(worker.cedula || worker.id || '').trim();
-                        const regWorker = selectedSesion.trabajadoresRegistrados.find(
-                          (w) => String(w.cedula).trim() === cleanCed
-                        );
-                        
-                        let stateText = 'No inscrito';
-                        let stateClass = 'border-border-light text-text-secondary bg-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02]';
-                        let stateIcon = <Plus className="h-3 w-3" />;
-
-                        if (regWorker) {
-                          if (regWorker.asistio) {
-                            stateText = 'Asistió';
-                            stateClass = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 shadow-[0_2px_10px_rgba(16,185,129,0.08)]';
-                            stateIcon = <UserCheck className="h-3 w-3" />;
-                          } else {
-                            stateText = 'No asistió';
-                            stateClass = 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 shadow-[0_2px_10px_rgba(245,158,11,0.08)]';
-                            stateIcon = <AlertCircle className="h-3 w-3" />;
-                          }
+                      if (regWorker) {
+                        if (regWorker.asistio) {
+                          stateText = 'Asistió';
+                          stateClass = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 shadow-[0_2px_10px_rgba(16,185,129,0.08)]';
+                          stateIcon = <UserCheck className="h-3 w-3" />;
+                        } else {
+                          stateText = 'No asistió';
+                          stateClass = 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 shadow-[0_2px_10px_rgba(245,158,11,0.08)]';
+                          stateIcon = <AlertCircle className="h-3 w-3" />;
                         }
+                      }
 
-                        return (
-                          <div
-                            key={worker.id}
-                            onClick={() => handleToggleAttendance(selectedSesion.id, worker)}
-                            className={`flex cursor-pointer items-center justify-between rounded-xl border p-2.5 transition-all duration-200 hover:scale-102 hover:shadow-md ${stateClass}`}
-                          >
-                            <div className="truncate pr-2">
-                              <p className="text-[11px] font-black">{worker.nombre}</p>
-                              <p className="text-[9px] opacity-75">{worker.cargo || 'Sin cargo'}</p>
-                            </div>
-                            <span className="flex shrink-0 items-center gap-1 rounded-md border border-current/20 px-2 py-0.5 text-[9px] font-bold uppercase">
-                              {stateIcon}
-                              {stateText}
-                            </span>
+                      return (
+                        <div
+                          key={worker.id}
+                          onClick={() => handleToggleAttendance(selectedSesion.id, worker)}
+                          className={`flex cursor-pointer items-center justify-between rounded-xl border p-2.5 transition-all duration-200 hover:scale-102 hover:shadow-md ${stateClass}`}
+                        >
+                          <div className="truncate pr-2">
+                            <p className="text-[11px] font-black">{worker.nombre}</p>
+                            <p className="text-[9px] opacity-75">{worker.cargo || 'Sin cargo'}</p>
                           </div>
-                        );
-                      })}
+                          <span className="flex shrink-0 items-center gap-1 rounded-md border border-current/20 px-2 py-0.5 text-[9px] font-bold uppercase">
+                            {stateIcon}
+                            {stateText}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedSesion.trabajadoresRegistrados.length > 0 && (
+                <div className="space-y-2 mt-6">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary block">Listado Total Inscrito</span>
+                  <div className="rounded-xl border border-border-light overflow-hidden dark:border-white/5">
+                    <div className="bg-surface-secondary/30 hidden grid-cols-[2fr_1fr_1fr_60px_40px] gap-2 border-b border-border-light p-2 text-[8px] font-black uppercase tracking-wider text-text-secondary sm:grid">
+                      <div>Nombre</div>
+                      <div>Documento</div>
+                      <div>Cargo</div>
+                      <div className="text-center">Asistió</div>
+                      <div></div>
+                    </div>
+
+                    <div className="divide-y divide-border-light dark:divide-white/5">
+                      {selectedSesion.trabajadoresRegistrados.map((worker, i) => (
+                        <div key={i} className="flex flex-col gap-2 p-3 sm:grid sm:grid-cols-[2fr_1fr_1fr_60px_40px] sm:items-center sm:gap-2 sm:p-2">
+                          <input
+                            type="text"
+                            value={worker.nombre}
+                            onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { nombre: e.target.value })}
+                            className="border-none bg-transparent p-0 text-xs font-bold text-text-primary outline-none focus:ring-0"
+                            placeholder="Nombre del asistente"
+                          />
+                          <input
+                            type="text"
+                            value={worker.cedula}
+                            onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { cedula: e.target.value })}
+                            className="border-none bg-transparent p-0 text-xs text-text-secondary font-mono outline-none focus:ring-0"
+                            placeholder="Documento"
+                          />
+                          <input
+                            type="text"
+                            value={worker.cargo}
+                            onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { cargo: e.target.value })}
+                            className="border-none bg-transparent p-0 text-xs text-text-secondary outline-none focus:ring-0"
+                            placeholder="Cargo"
+                          />
+                          <div className="flex items-center sm:justify-center">
+                            <input
+                              type="checkbox"
+                              checked={worker.asistio}
+                              onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { asistio: e.target.checked })}
+                              className="h-4 w-4 rounded border-border-light bg-surface-primary text-teal-600 focus:ring-0 cursor-pointer"
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleDeleteTrabajador(selectedSesion.id, i)}
+                              className="rounded p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
-
-                {/* External / Manual Attendees Edit List */}
-                {selectedSesion.trabajadoresRegistrados.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary block">Listado Total Inscrito</span>
-                    <div className="rounded-xl border border-border-light overflow-hidden dark:border-white/5">
-                      <div className="bg-surface-secondary/30 hidden grid-cols-[2fr_1fr_1fr_60px_40px] gap-2 border-b border-border-light p-2 text-[8px] font-black uppercase tracking-wider text-text-secondary sm:grid">
-                        <div>Nombre</div>
-                        <div>Documento</div>
-                        <div>Cargo</div>
-                        <div className="text-center">Asistió</div>
-                        <div></div>
-                      </div>
-
-                      <div className="divide-y divide-border-light dark:divide-white/5">
-                        {selectedSesion.trabajadoresRegistrados.map((worker, i) => (
-                          <div
-                            key={i}
-                            className="flex flex-col gap-2 p-3 sm:grid sm:grid-cols-[2fr_1fr_1fr_60px_40px] sm:items-center sm:gap-2 sm:p-2"
-                          >
-                            <input
-                              type="text"
-                              value={worker.nombre}
-                              onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { nombre: e.target.value })}
-                              className="border-none bg-transparent p-0 text-xs font-bold text-text-primary outline-none focus:ring-0"
-                              placeholder="Nombre del asistente"
-                            />
-                            <input
-                              type="text"
-                              value={worker.cedula}
-                              onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { cedula: e.target.value })}
-                              className="border-none bg-transparent p-0 text-xs text-text-secondary font-mono outline-none focus:ring-0"
-                              placeholder="Documento"
-                            />
-                            <input
-                              type="text"
-                              value={worker.cargo}
-                              onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { cargo: e.target.value })}
-                              className="border-none bg-transparent p-0 text-xs text-text-secondary outline-none focus:ring-0"
-                              placeholder="Cargo"
-                            />
-                            <div className="flex items-center sm:justify-center">
-                              <input
-                                type="checkbox"
-                                checked={worker.asistio}
-                                onChange={(e) => handleUpdateTrabajador(selectedSesion.id, i, { asistio: e.target.checked })}
-                                className="h-4 w-4 rounded border-border-light bg-surface-primary text-teal-600 focus:ring-0 cursor-pointer"
-                              />
-                            </div>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => handleDeleteTrabajador(selectedSesion.id, i)}
-                                className="rounded p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
+      </div>
+    );
+  };
+
+  const renderCronograma = () => {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="rounded-2xl border border-border-light bg-surface-primary p-6 dark:border-white/5 shadow-sm overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h3 className="text-lg font-black tracking-tight text-text-primary flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-teal-500" /> Matriz del Cronograma Anual
+              </h3>
+              <p className="text-xs text-text-secondary mt-1">Plan de entrenamiento y formación SG-SST ({sesiones.length} planificadas).</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-secondary" />
+                <input
+                  type="text"
+                  placeholder="Buscar charla..."
+                  value={sessionSearch}
+                  onChange={(e) => setSessionSearch(e.target.value)}
+                  className="w-48 rounded-xl border border-border-light bg-surface-secondary/20 py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:ring-1 focus:ring-teal-500/50"
+                />
+              </div>
+              <Button
+                onClick={handleAddSesion}
+                className="flex items-center gap-1.5 rounded-xl border-none bg-teal-600 px-4 py-2 text-xs font-black text-white hover:bg-teal-700 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/10"
+              >
+                <Plus className="h-4 w-4" /> Nueva Charla
+              </Button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border-light dark:border-white/5 bg-surface-primary">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-surface-secondary/50 uppercase text-[10px] font-black tracking-wider text-text-secondary">
+                <tr>
+                  <th className="px-4 py-3 border-b border-border-light dark:border-white/5">Tema Capacitación</th>
+                  <th className="px-4 py-3 border-b border-border-light dark:border-white/5">Responsable</th>
+                  <th className="px-4 py-3 border-b border-border-light dark:border-white/5 text-center">Duración</th>
+                  {months.map(m => (
+                    <th key={m} className="px-2 py-3 border-b border-border-light dark:border-white/5 text-center w-10 border-l border-border-light/30">{m}</th>
+                  ))}
+                  <th className="px-4 py-3 border-b border-border-light dark:border-white/5 text-center border-l border-border-light/30">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-light dark:divide-white/5">
+                {filteredSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={16} className="px-4 py-12 text-center text-text-secondary">
+                      <CalendarCheck className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                      <p className="font-bold text-sm">No hay capacitaciones programadas.</p>
+                      <p className="text-xs opacity-75 mt-1">Usa el botón "Nueva Charla" para empezar a planificar.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSessions.map((sesion) => {
+                    const monthIdx = sesion.fecha ? parseInt(sesion.fecha.split('-')[1] || '0', 10) - 1 : -1;
+                    const isCompleted = sesion.estado === 'Completada';
+                    
+                    return (
+                      <tr 
+                        key={sesion.id} 
+                        className="hover:bg-surface-secondary/20 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setSelectedSesionId(sesion.id);
+                          setIsSesionModalOpen(true);
+                        }}
+                      >
+                        <td className="px-4 py-3 max-w-[250px] truncate font-bold text-text-primary group-hover:text-teal-600 transition-colors">
+                          {sesion.tema || 'Sin definir'}
+                        </td>
+                        <td className="px-4 py-3 max-w-[150px] truncate text-text-secondary">
+                          {sesion.responsable || 'No asignado'}
+                        </td>
+                        <td className="px-4 py-3 text-center text-text-secondary">
+                          {sesion.duracion || '-'}
+                        </td>
+                        {months.map((m, idx) => (
+                          <td key={m} className="px-1 py-3 text-center border-l border-border-light/30 dark:border-white/[0.02]">
+                            {monthIdx === idx ? (
+                              <div className={`mx-auto h-6 w-6 rounded-md flex items-center justify-center text-[10px] font-black ${isCompleted ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20' : 'bg-blue-500 text-white shadow-sm shadow-blue-500/20'}`}>
+                                {isCompleted ? 'E' : 'P'}
+                              </div>
+                            ) : null}
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 text-center border-l border-border-light/30">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedSesionId(sesion.id);
+                              setIsSesionModalOpen(true);
+                            }}
+                            className="text-teal-600 hover:text-teal-700 bg-teal-500/10 hover:bg-teal-500/20 px-3 py-1 rounded-lg font-bold transition-all text-[10px] uppercase"
+                          >
+                            Editar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 flex items-center gap-6 text-[10px] font-bold text-text-secondary uppercase">
+            <span className="flex items-center gap-1.5"><div className="h-3.5 w-3.5 bg-blue-500 rounded-sm shadow-sm"></div> P = Programado</span>
+            <span className="flex items-center gap-1.5"><div className="h-3.5 w-3.5 bg-emerald-500 rounded-sm shadow-sm"></div> E = Ejecutado</span>
+          </div>
+        </div>
+
+        {/* Modal de Sesión */}
+        {isSesionModalOpen && selectedSesionId && renderSesionModal()}
       </div>
     );
   };
@@ -1205,111 +1195,42 @@ export default function ProgramaCapacitaciones() {
         </div>
       </div>
 
-      {/* Hacker/Compiler Terminal logs */}
-      {consoleLogs.length > 0 && (
-        <div className="mb-6 rounded-xl border border-slate-800 bg-[#0B0F19] p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)]">
-          <div className="flex items-center gap-1.5 border-b border-slate-850 pb-2 mb-3">
-            <div className="h-2.5 w-2.5 rounded-full bg-rose-500"></div>
-            <div className="h-2.5 w-2.5 rounded-full bg-amber-500"></div>
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500"></div>
-            <span className="text-[10px] font-mono text-slate-500 ml-2">bio_compiler_h1.sh</span>
-          </div>
-          <div className="max-h-40 space-y-1 overflow-y-auto font-mono text-[10px] text-emerald-400 leading-normal">
-            {consoleLogs.map((log, i) => (
-              <div key={i}>{log}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Compiled Report Download/View Section */}
+      {/* Generated Report View */}
       {compiledReport && (
-        <div className="mb-6 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/[0.03] to-transparent p-5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in zoom-in duration-300">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
-              <FileText className="h-6 w-6" />
+        <div className="mt-8">
+          <CollapsibleReportBox
+            onSave={handleSaveReport}
+            onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+            isHistoryOpen={isHistoryOpen}
+            title="Programa Anual de Capacitación"
+            icon={<FileText className="h-5 w-5" />}
+            actions={
+              <ExportDropdown
+                content={editorContentRef.current || compiledReport || ''}
+                fileName="Programa_Capacitaciones_2026"
+                reportType="general"
+              />
+            }
+            defaultExpanded={true}
+          >
+            <div className="relative overflow-hidden rounded-2xl border border-border-medium/50 shadow-sm transition-all bg-white dark:bg-slate-900/50 p-2">
+              <LiveEditor
+                initialContent={compiledReport}
+                editorId="sgsst-programa-capacitaciones"
+                readOnly={false}
+                onChange={(content) => {
+                  editorContentRef.current = content;
+                }}
+              />
             </div>
-            <div>
-              <h4 className="text-sm font-black text-text-primary uppercase tracking-wide">
-                ¡Programa Anual Compilado!
-              </h4>
-              <p className="text-xs text-text-secondary mt-0.5">
-                El documento técnico del programa anual de capacitación está listo para descarga y visualización.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setIsPreviewModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-black text-white hover:bg-teal-700 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/10"
-            >
-              <Eye className="h-3.5 w-3.5" /> Vista Previa
-            </button>
-            <button
-              onClick={downloadHtml}
-              className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-primary px-4 py-2 text-xs font-black text-text-primary hover:bg-surface-hover transition-all hover:scale-102"
-            >
-              <Download className="h-3.5 w-3.5" /> Descargar HTML
-            </button>
-          </div>
+          </CollapsibleReportBox>
         </div>
       )}
 
       {/* Compilation Trigger */}
-      <div className="flex justify-center">
-        <SGSSTToolbar onAnalyze={handleGeneratePrograma} isAnalyzing={isAnalyzing} />
-      </div>
-
-      {/* Document Preview Modal */}
-      {isPreviewModalOpen && compiledReport && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-6 animate-in fade-in duration-200">
-          <div className="relative flex h-full w-full max-w-5xl flex-col rounded-3xl border border-border-light bg-surface-primary shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 dark:border-white/5">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border-light px-6 py-4 dark:border-white/5 bg-surface-secondary/20">
-              <div>
-                <h3 className="text-sm font-black text-text-primary uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-teal-500" />
-                  Programa Anual de Capacitación y Entrenamiento
-                </h3>
-                <p className="text-[10px] text-text-secondary uppercase tracking-widest mt-0.5">
-                  Vista previa del documento técnico compilado por WAPPY
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={printReport}
-                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-teal-500/50 transition-colors"
-                  title="Imprimir / Guardar PDF"
-                >
-                  <Printer className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={downloadHtml}
-                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-teal-500/50 transition-colors"
-                  title="Descargar HTML"
-                >
-                  <Download className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setIsPreviewModalOpen(false)}
-                  className="rounded-xl border border-border-light bg-surface-primary p-2 text-text-primary hover:bg-surface-hover hover:border-rose-500/50 transition-colors ml-2"
-                  title="Cerrar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body: Sandbox Iframe */}
-            <div className="flex-1 bg-slate-100 p-4 dark:bg-slate-900/50">
-              <iframe
-                id="compiled-report-iframe"
-                srcDoc={compiledReport}
-                className="h-full w-full rounded-2xl border border-border-light bg-white shadow-sm dark:border-white/5"
-                title="Programa Anual de Capacitaciones Compilado"
-              />
-            </div>
-          </div>
+      {!compiledReport && (
+        <div className="flex justify-center mt-8">
+          <SGSSTToolbar onAnalyze={handleGeneratePrograma} isAnalyzing={isAnalyzing} />
         </div>
       )}
     </div>
