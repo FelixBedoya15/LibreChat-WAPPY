@@ -8,6 +8,30 @@ import VoiceSelector from '../Voice/VoiceSelector';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize } from '~/hooks';
 
+declare global {
+    interface Window {
+        Pose: any;
+        drawConnectors: any;
+        drawLandmarks: any;
+        POSE_CONNECTIONS: any;
+    }
+}
+
+const loadScript = (src: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(e);
+        document.head.appendChild(script);
+    });
+};
+
 interface LiveAnalysisModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -21,6 +45,17 @@ interface LiveAnalysisModalProps {
 
 const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated, selectedModel }) => {
     const localize = useLocalize();
+    const [neckAngle, setNeckAngle] = useState<number | null>(null);
+    const [trunkAngle, setTrunkAngle] = useState<number | null>(null);
+    const [armAngle, setArmAngle] = useState<number | null>(null);
+    const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
+    const [isPoseActive, setIsPoseActive] = useState(false);
+
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const poseRef = useRef<any>(null);
+    const badPostureStartRef = useRef<number | null>(null);
+    const lastSnapshotTimeRef = useRef<number>(0);
+
     const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
     const setShowModalState = useSetRecoilState(store.showLiveAnalysisModal);
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
@@ -60,6 +95,275 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             setSupportsScreenShare(true);
         }
     }, []);
+
+    // Load MediaPipe scripts on demand when 'biomecanico_mediapipe' is selected
+    useEffect(() => {
+        if (!isOpen || selectedTemplate !== 'biomecanico_mediapipe') return;
+
+        let active = true;
+        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading MediaPipe...');
+        setStatusText('Loading MediaPipe Pose...');
+
+        const loadAll = async () => {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
+                
+                if (active) {
+                    console.log('[LiveAnalysisModal] MediaPipe Pose successfully loaded!');
+                    setIsMediaPipeLoaded(true);
+                    setStatusText('MediaPipe Ready');
+                }
+            } catch (err) {
+                console.error('[LiveAnalysisModal] Error loading MediaPipe Pose scripts:', err);
+                if (active) {
+                    setStatusText('MediaPipe Load Error');
+                }
+            }
+        };
+
+        loadAll();
+
+        return () => {
+            active = false;
+        };
+    }, [isOpen, selectedTemplate]);
+
+    const onPoseResults = useCallback((results: any) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!results.poseLandmarks) return;
+
+        // 1. Draw glowing neon HUD skeleton
+        ctx.save();
+        
+        // Neon cyan connections glow
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+        if (window.drawConnectors && window.POSE_CONNECTIONS) {
+            window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
+                color: '#06b6d4',
+                lineWidth: 3
+            });
+        }
+
+        // Neon emerald joints glow
+        ctx.shadowColor = '#10b981';
+        if (window.drawLandmarks) {
+            window.drawLandmarks(ctx, results.poseLandmarks, {
+                color: '#10b981',
+                fillColor: '#06b6d4',
+                lineWidth: 2,
+                radius: 4
+            });
+        }
+        ctx.restore();
+
+        // 2. Ergo calculations (cervical and trunk angles)
+        const landmarks = results.poseLandmarks;
+        const leftEar = landmarks[7];
+        const rightEar = landmarks[8];
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftHip = landmarks[23];
+        const rightHip = landmarks[24];
+        const leftElbow = landmarks[13];
+        const rightElbow = landmarks[14];
+
+        // Side visibility check
+        const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
+        const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
+
+        let activeEar = null;
+        let activeShoulder = null;
+        let activeHip = null;
+        let activeElbow = null;
+
+        if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
+            activeEar = leftEar;
+            activeShoulder = leftShoulder;
+            activeHip = leftHip;
+            activeElbow = leftElbow;
+        } else if (rightVisible) {
+            activeEar = rightEar;
+            activeShoulder = rightShoulder;
+            activeHip = rightHip;
+            activeElbow = rightElbow;
+        } else {
+            activeEar = leftEar || rightEar;
+            activeShoulder = leftShoulder || rightShoulder;
+            activeHip = leftHip || rightHip;
+            activeElbow = leftElbow || rightElbow;
+        }
+
+        if (activeShoulder && activeEar && activeHip) {
+            // Cervical angle (flexion from vertical)
+            const neckDx = activeShoulder.x - activeEar.x;
+            const neckDy = activeShoulder.y - activeEar.y;
+            const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
+            const neckDeg = Math.round(neckRad * (180 / Math.PI));
+
+            // Trunk angle (flexion from vertical)
+            const trunkDx = activeShoulder.x - activeHip.x;
+            const trunkDy = activeHip.y - activeShoulder.y;
+            const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
+            const trunkDeg = Math.round(trunkRad * (180 / Math.PI));
+
+            setNeckAngle(neckDeg);
+            setTrunkAngle(trunkDeg);
+
+            // Arm angle (abduction from spine)
+            let armDeg = 0;
+            if (activeElbow) {
+                const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
+                const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                }
+            }
+            setArmAngle(armDeg);
+
+            // Posture threshold tracking for Auto-Snapshot
+            const now = Date.now();
+            if (neckDeg > 20 || trunkDeg > 20) {
+                if (badPostureStartRef.current === null) {
+                    badPostureStartRef.current = now;
+                } else {
+                    const duration = now - badPostureStartRef.current;
+                    if (duration >= 3000) { // 3 seconds of sustained bad posture
+                        if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
+                            lastSnapshotTimeRef.current = now;
+                            badPostureStartRef.current = null; // reset
+                            
+                            // Capture snapshot
+                            const dataUrl = captureSnapshot();
+                            if (dataUrl) {
+                                // Trigger flash
+                                setIsFlashActive(true);
+                                setTimeout(() => setIsFlashActive(false), 150);
+
+                                setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+
+                                const base64 = dataUrl.split(',')[1];
+                                sendEvidenceImage(base64);
+
+                                // Send telemetry data directly to Gemini session!
+                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                            }
+                        }
+                    }
+                }
+            } else {
+                badPostureStartRef.current = null;
+            }
+        }
+    }, [captureSnapshot, sendEvidenceImage, sendTextMessage]);
+
+    // Initialize and handle MediaPipe Pose instance
+    useEffect(() => {
+        if (!isMediaPipeLoaded || !isCameraOn || selectedTemplate !== 'biomecanico_mediapipe') {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+            return;
+        }
+
+        console.log('[LiveAnalysisModal] Initializing MediaPipe Pose instance...');
+        
+        try {
+            const pose = new window.Pose({
+                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results: any) => {
+                onPoseResults(results);
+            });
+
+            poseRef.current = pose;
+            setIsPoseActive(true);
+            console.log('[LiveAnalysisModal] Pose instance ready!');
+        } catch (e) {
+            console.error('Error creating Pose instance:', e);
+        }
+
+        return () => {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef on cleanup:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+        };
+    }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
+
+    // Process frames at 15 FPS
+    useEffect(() => {
+        if (!isPoseActive || !videoRef.current) return;
+
+        let active = true;
+        let lastFrameTime = 0;
+        const fpsInterval = 1000 / 15; // Limit to 15 FPS
+
+        const poseLoop = async () => {
+            if (!active) return;
+
+            const now = Date.now();
+            const elapsed = now - lastFrameTime;
+
+            if (elapsed >= fpsInterval) {
+                lastFrameTime = now - (elapsed % fpsInterval);
+
+                const video = videoRef.current;
+                if (video && video.readyState >= 2 && poseRef.current) {
+                    const canvas = canvasRef.current;
+                    if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    }
+
+                    try {
+                        await poseRef.current.send({ image: video });
+                    } catch (e) {
+                        console.error('[LiveAnalysisModal] Pose send error:', e);
+                    }
+                }
+            }
+
+            requestAnimationFrame(poseLoop);
+        };
+
+        requestAnimationFrame(poseLoop);
+
+        return () => {
+            active = false;
+        };
+    }, [isPoseActive]);
 
     // Helper to capture video frame — validates dimensions before saving
     const captureSnapshot = useCallback((): string | null => {
@@ -418,6 +722,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     templateGuide = "Tu enfoque de auditoría hoy es RIESGO ELÉCTRICO. Guíame a través del estado de tableros eléctricos, cableado expuesto y el protocolo LOTO (bloqueo/etiquetado).";
                 } else if (selectedTemplate === '5s') {
                     templateGuide = "Tu enfoque de auditoría hoy es ORDEN Y ASEO (METODOLOGÍA 5S). Guíame a través de la clasificación, el orden, la limpieza, estandarización y disciplina del área.";
+                } else if (selectedTemplate === 'biomecanico_estandar') {
+                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUALITATIVO (GTC 45 / ERGONOMÍA). Guíame a través de la evaluación de posturas prolongadas, levantamiento manual de cargas, movimientos repetitivos y disponibilidad de puestos ergonómicos.";
+                } else if (selectedTemplate === 'biomecanico_mediapipe') {
+                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON MEDIAPIPE (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (ángulos del cuello y del tronco) que te enviaré en tiempo real y que se muestran en mi pantalla.";
                 } else {
                     templateGuide = "Tu enfoque de auditoría hoy es INSPECCIÓN GENERAL DE SEGURIDAD INDUSTRIAL (ISO 45001 / GTC 45). Guíame de manera general para auditar el área de trabajo.";
                 }
@@ -711,7 +1019,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         </div>
 
                         {/* Cards Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-4">
                             {/* Card 1: General */}
                             <div 
                                 onClick={() => setSelectedTemplate('general')}
@@ -781,6 +1089,42 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 <div className="mt-4">
                                     <h3 className="text-white text-lg font-bold group-hover:text-teal-400 transition-colors">Metodología 5S</h3>
                                     <p className="text-white/50 text-xs mt-1">Clasificación, orden, limpieza, estandarización y disciplina en plantas, almacenes y áreas de trabajo.</p>
+                                </div>
+                            </div>
+
+                            {/* Card 5: Biomecánico Estándar */}
+                            <div 
+                                onClick={() => setSelectedTemplate('biomecanico_estandar')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">GTC 45 ERGO</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-purple-400 transition-colors">Riesgo Biomecánico</h3>
+                                    <p className="text-white/50 text-xs mt-1">Evaluación cualitativa de posturas, movimientos repetitivos, manejo de cargas y puestos de trabajo ergonómicos.</p>
+                                </div>
+                            </div>
+
+                            {/* Card 6: Biomecánico MediaPipe */}
+                            <div 
+                                onClick={() => setSelectedTemplate('biomecanico_mediapipe')}
+                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] flex flex-col justify-between min-h-[180px]"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">MEDIAPIPE POSE</span>
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-white text-lg font-bold group-hover:text-cyan-400 transition-colors">Biomecánico (MediaPipe)</h3>
+                                    <p className="text-white/50 text-xs mt-1">Evaluación cuantitativa en tiempo real con esqueleto digital fluorescente, medición de ángulos cervical y tronco en vivo.</p>
                                 </div>
                             </div>
                         </div>
@@ -910,6 +1254,101 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     </div>
                 </div>
 
+                {selectedTemplate === 'biomecanico_mediapipe' && isReady && (
+                    <div className="absolute top-6 right-6 z-40 w-80 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-white pointer-events-auto">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
+                                <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Telemetría de Pose</h3>
+                            </div>
+                            <span className="text-[9px] font-mono text-white/40 uppercase">GTC 45 / RULA</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Cuello Box */}
+                            <div className={`p-3 rounded-xl border transition-all duration-300 ${
+                                neckAngle !== null && neckAngle > 20 
+                                    ? 'bg-red-500/20 border-red-500/50 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                    : 'bg-white/5 border-white/10 text-white/90'
+                            }`}>
+                                <div className="text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Cervical (Cuello)</div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-2xl font-mono font-black ${
+                                        neckAngle !== null && neckAngle > 20 ? 'text-red-400 animate-pulse' : 'text-cyan-400'
+                                    }`}>
+                                        {neckAngle !== null ? `${neckAngle}°` : '--'}
+                                    </span>
+                                    <span className="text-[9px] uppercase font-bold">
+                                        {neckAngle !== null && neckAngle > 20 ? 'Alerta' : 'Normal'}
+                                    </span>
+                                </div>
+                                <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                    <div 
+                                        className={`h-full transition-all duration-300 ${
+                                            neckAngle !== null && neckAngle > 20 ? 'bg-red-500' : 'bg-cyan-500'
+                                        }`}
+                                        style={{ width: `${neckAngle !== null ? Math.min(100, (neckAngle / 90) * 100) : 0}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Tronco Box */}
+                            <div className={`p-3 rounded-xl border transition-all duration-300 ${
+                                trunkAngle !== null && trunkAngle > 20 
+                                    ? 'bg-red-500/20 border-red-500/50 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                    : 'bg-white/5 border-white/10 text-white/90'
+                            }`}>
+                                <div className="text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Columna (Tronco)</div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-2xl font-mono font-black ${
+                                        trunkAngle !== null && trunkAngle > 20 ? 'text-red-400 animate-pulse' : 'text-emerald-400'
+                                    }`}>
+                                        {trunkAngle !== null ? `${trunkAngle}°` : '--'}
+                                    </span>
+                                    <span className="text-[9px] uppercase font-bold">
+                                        {trunkAngle !== null && trunkAngle > 20 ? 'Riesgo' : 'Seguro'}
+                                    </span>
+                                </div>
+                                <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                    <div 
+                                        className={`h-full transition-all duration-300 ${
+                                            trunkAngle !== null && trunkAngle > 20 ? 'bg-red-500' : 'bg-emerald-500'
+                                        }`}
+                                        style={{ width: `${trunkAngle !== null ? Math.min(100, (trunkAngle / 90) * 100) : 0}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Arm Abduction Box */}
+                        <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+                            <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">
+                                <span>Abducción de Brazos</span>
+                                <span className="text-cyan-300 font-bold">{armAngle !== null ? `${armAngle}°` : '--'}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
+                                    style={{ width: `${armAngle !== null ? Math.min(100, (armAngle / 180) * 100) : 0}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Warnings Alert Box */}
+                        {(neckAngle !== null && neckAngle > 20) || (trunkAngle !== null && trunkAngle > 20) ? (
+                            <div className="bg-red-500/20 border border-red-500/40 px-3 py-2 rounded-xl flex items-center gap-2 text-red-200 text-xs font-semibold animate-pulse">
+                                <span>⚠️</span>
+                                <span>¡Postura Crítica Detectada! Grabando evidencia...</span>
+                            </div>
+                        ) : (
+                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl flex items-center gap-2 text-emerald-300 text-xs">
+                                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
+                                <span>Posturas seguras bajo el estándar RULA</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Video Preview (Main Focus) */}
                 <div className="absolute inset-0 z-0 overflow-hidden bg-surface-primary">
                     <video
@@ -917,6 +1356,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${isCameraOn || isScreenSharing ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-110 blur-xl'}`}
                         muted
                         playsInline
+                    />
+                    <canvas
+                        ref={canvasRef}
+                        className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-500 z-10 ${
+                            selectedTemplate === 'biomecanico_mediapipe' && isCameraOn ? 'opacity-100' : 'opacity-0'
+                        }`}
                     />
                     
                     {/* Camera Flash Overlay */}

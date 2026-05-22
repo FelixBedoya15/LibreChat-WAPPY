@@ -26,6 +26,11 @@ import {
     Camera,
     Video,
     Film,
+    Activity,
+    ShieldAlert,
+    HeartPulse,
+    Info,
+    MapPin,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { NotificationSeverity } from '~/common';
@@ -1327,225 +1332,334 @@ const PerfilesCargo = () => {
                 </CollapsibleReportBox>
 
             {/* ── Summary Profile Popup Modal (Premium Glassmorphism) ── */}
-            {summaryPerfil && (
+            {/* ── Summary Profile Popup Modal (Estilo Auditoría Biocéntrica - Portalizado) ── */}
+            {summaryPerfil && ReactDOM.createPortal(
                 <div 
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-300"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
                     onClick={() => setSummaryPerfil(null)}
                 >
                     <div 
-                        className="bg-gradient-to-br from-surface-secondary/95 to-surface-primary/90 border border-border-medium/60 rounded-[32px] w-full max-w-2xl shadow-2xl p-6 md:p-8 space-y-6 relative transition-all duration-300 scale-95 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+                        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl animate-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Glowing decor */}
-                        <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20 opacity-10 pointer-events-none" />
-                        <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10 opacity-10 pointer-events-none" />
-
-                        {/* Top Close Button */}
-                        <button
-                            onClick={() => setSummaryPerfil(null)}
-                            className="absolute top-5 right-5 p-2 rounded-2xl bg-surface-primary/80 border border-border-medium hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 text-text-tertiary transition-all hover:scale-105 active:scale-95 transform cursor-pointer"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
                         {/* Header */}
-                        <div className="flex items-start gap-4 pr-8">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-[0_4px_15px_rgba(20,184,166,0.3)] flex items-center justify-center text-white flex-shrink-0">
-                                <Briefcase className="w-7 h-7" />
+                        <div className="flex items-center justify-between border-b border-border-medium px-6 py-5 bg-surface-primary/50 backdrop-blur-md">
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col items-center justify-center h-14 w-14 rounded-full border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 font-bold text-xl text-teal-600 shadow-inner">
+                                    <Briefcase className="h-6 w-6 text-teal-500" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+                                        Resumen de Perfil de Cargo
+                                    </h2>
+                                    <p className="text-sm text-text-secondary mt-0.5">
+                                        <span className="font-semibold text-text-primary">{summaryPerfil.nombreCargo || 'Cargo sin nombre'}</span> — {summaryPerfil.area || 'Sin área asignada'}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="min-w-0">
-                                <h3 className="text-xl font-black text-text-primary tracking-tight leading-tight">
-                                    {summaryPerfil.nombreCargo || 'Cargo sin nombre'}
+                            <button 
+                                onClick={() => setSummaryPerfil(null)} 
+                                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                            
+                            {/* Caja de Explicación del Perfil */}
+                            <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 flex gap-4">
+                                <div className="mt-1">
+                                    <Activity className="h-5 w-5 text-indigo-500" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-300 mb-1">¿Qué define este Perfil de Cargo?</h4>
+                                    <p className="text-sm text-indigo-800/80 dark:text-indigo-400/80 leading-relaxed">
+                                        Este perfil establece las exigencias físicas, mentales, controles de seguridad (EPP), entrenamientos requeridos y condiciones operativas para el desempeño seguro y eficiente del cargo de <strong>{summaryPerfil.nombreCargo}</strong> en el área de <strong>{summaryPerfil.area || 'Sin área'}</strong>.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Desglose de Puntos / Requerimientos */}
+                            <div>
+                                <h3 className="text-base font-bold text-text-primary mb-4 flex items-center gap-2">
+                                    <span className="bg-surface-tertiary px-2.5 py-1 rounded-md text-xs border border-border-light">Detalles y Requerimientos del Cargo</span>
                                 </h3>
-                                <p className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 mt-1">
-                                    {summaryPerfil.area || 'Sin área asignada'}
-                                </p>
                                 
-                                {/* Badges grid */}
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                                        {summaryPerfil.nivelCargo || 'Nivel N/A'}
-                                    </span>
-                                    {summaryPerfil.tipoContrato && (
-                                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20">
-                                            {summaryPerfil.tipoContrato}
-                                        </span>
-                                    )}
-                                    {summaryPerfil.numVacantes && (
-                                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                            {summaryPerfil.numVacantes} {Number(summaryPerfil.numVacantes) === 1 ? 'Vacante' : 'Vacantes'}
-                                        </span>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {/* Fila 1: Estructura Organizacional */}
+                                    <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                        <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                            <div className="font-mono font-bold text-base text-text-primary">
+                                                ROL
+                                            </div>
+                                            <div className="text-[9px] uppercase font-bold text-text-secondary">Estructura</div>
+                                        </div>
+                                        <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center">
+                                                    <MapPin className="h-5 w-5 text-teal-500" />
+                                                    <h4 className="font-bold text-sm ml-2 text-text-primary">Estructura Organizacional</h4>
+                                                </div>
+                                                <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                    <Briefcase className="h-3.5 w-3.5 mr-1" />
+                                                    General
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Jefe Inmediato</span>
+                                                    <span className="text-xs font-bold text-text-primary block truncate">{summaryPerfil.jefeInmediato || 'No asignado'}</span>
+                                                </div>
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Escala Salarial</span>
+                                                    <span className="text-xs font-bold text-text-primary block truncate">{summaryPerfil.escalasSalarial || 'No especificada'}</span>
+                                                </div>
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Jornada Laboral</span>
+                                                    <span className="text-xs font-bold text-text-primary block truncate">{summaryPerfil.jornada || 'No especificada'}</span>
+                                                </div>
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Vacantes / Contrato</span>
+                                                    <span className="text-xs font-bold text-text-primary block truncate">
+                                                        {summaryPerfil.nivelCargo || 'Nivel N/A'}
+                                                        {summaryPerfil.numVacantes ? ` (${summaryPerfil.numVacantes} Vac)` : ''}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fila 2: Exigencias y Operaciones */}
+                                    <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                        <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                            <div className="font-mono font-bold text-base text-text-primary">
+                                                EXIG
+                                            </div>
+                                            <div className="text-[9px] uppercase font-bold text-text-secondary">Condición</div>
+                                        </div>
+                                        <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center">
+                                                    <Brain className="h-5 w-5 text-indigo-500" />
+                                                    <h4 className="font-bold text-sm ml-2 text-text-primary">Exigencias de Rol y Operación</h4>
+                                                </div>
+                                                <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                    <Brain className="h-3.5 w-3.5 mr-1" />
+                                                    Capacidad
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Exigencia Física</span>
+                                                    <span className="text-xs font-bold text-teal-600 dark:text-teal-400 block">{summaryPerfil.exigenciaFisica || 'N/A'}</span>
+                                                </div>
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">Exigencia Mental</span>
+                                                    <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 block">{summaryPerfil.exigenciaMental || 'N/A'}</span>
+                                                </div>
+                                                <div className="p-2 rounded-lg bg-surface-secondary border border-border-light">
+                                                    <span className="text-[8px] font-black uppercase text-text-tertiary block">¿Opera Maquinaria?</span>
+                                                    <span className={cn(
+                                                        "text-xs font-bold uppercase block",
+                                                        summaryPerfil.operaMaquinaria === 'Sí' || summaryPerfil.operaMaquinaria === 'Si'
+                                                            ? "text-red-500"
+                                                            : "text-text-secondary"
+                                                    )}>
+                                                        {summaryPerfil.operaMaquinaria || 'No'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fila 3: Equipos de Protección Personal */}
+                                    <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                        <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                            <div className="font-mono font-bold text-base text-text-primary">
+                                                EPP
+                                            </div>
+                                            <div className="text-[9px] uppercase font-bold text-text-secondary">Seguridad</div>
+                                        </div>
+                                        <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center">
+                                                    <Shield className="h-5 w-5 text-emerald-500" />
+                                                    <h4 className="font-bold text-sm ml-2 text-text-primary">Equipos de Protección Personal</h4>
+                                                </div>
+                                                <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                    <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                                                    Protección
+                                                </span>
+                                            </div>
+                                            <div className="mt-3">
+                                                {summaryPerfil.eppSeleccionados && summaryPerfil.eppSeleccionados.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {summaryPerfil.eppSeleccionados.map((epp, idx) => (
+                                                            <span 
+                                                                key={idx}
+                                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-light flex items-center gap-1.5"
+                                                            >
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                                                                {epp}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-text-tertiary italic">No se han seleccionado EPPs para este cargo.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fila 4: Entrenamientos y Capacitación */}
+                                    <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                        <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                            <div className="font-mono font-bold text-base text-text-primary">
+                                                CAP
+                                            </div>
+                                            <div className="text-[9px] uppercase font-bold text-text-secondary">Formación</div>
+                                        </div>
+                                        <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center">
+                                                    <BookOpen className="h-5 w-5 text-blue-500" />
+                                                    <h4 className="font-bold text-sm ml-2 text-text-primary">Entrenamientos y Capacitaciones</h4>
+                                                </div>
+                                                <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                    <BookOpen className="h-3.5 w-3.5 mr-1" />
+                                                    Desarrollo
+                                                </span>
+                                            </div>
+                                            <div className="mt-3">
+                                                {summaryPerfil.entrenamientosSeleccionados && summaryPerfil.entrenamientosSeleccionados.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {summaryPerfil.entrenamientosSeleccionados.map((ent, idx) => (
+                                                            <span 
+                                                                key={idx}
+                                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-light flex items-center gap-1.5"
+                                                            >
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                                                                {ent}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-text-tertiary italic">No se han seleccionado entrenamientos para este cargo.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fila 5: Controles de Prevención (Si aplica) */}
+                                    {(summaryPerfil.controlesFuenteSeleccionados?.length || summaryPerfil.controlesMedioSeleccionados?.length) ? (
+                                        <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                            <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                                <div className="font-mono font-bold text-base text-text-primary">
+                                                    CTRL
+                                                </div>
+                                                <div className="text-[9px] uppercase font-bold text-text-secondary">Prevención</div>
+                                            </div>
+                                            <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center">
+                                                        <ShieldAlert className="h-5 w-5 text-purple-500" />
+                                                        <h4 className="font-bold text-sm ml-2 text-text-primary">Controles Operacionales</h4>
+                                                    </div>
+                                                    <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                        <Info className="h-3.5 w-3.5 mr-1" />
+                                                        Ingeniería
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                                                    <div className="space-y-1">
+                                                        <span className="text-[9px] font-black uppercase text-text-tertiary">En Fuente</span>
+                                                        {summaryPerfil.controlesFuenteSeleccionados && summaryPerfil.controlesFuenteSeleccionados.length > 0 ? (
+                                                            <ul className="text-xs text-text-secondary space-y-1 list-disc pl-4 font-semibold">
+                                                                {summaryPerfil.controlesFuenteSeleccionados.map((ctrl, i) => (
+                                                                    <li key={i}>{ctrl}</li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <span className="text-[9px] font-black uppercase text-text-tertiary">En Medio</span>
+                                                        {summaryPerfil.controlesMedioSeleccionados && summaryPerfil.controlesMedioSeleccionados.length > 0 ? (
+                                                            <ul className="text-xs text-text-secondary space-y-1 list-disc pl-4 font-semibold">
+                                                                {summaryPerfil.controlesMedioSeleccionados.map((ctrl, i) => (
+                                                                    <li key={i}>{ctrl}</li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {/* Fila 6: Contexto Adicional (Si aplica) */}
+                                    {summaryPerfil.contextoAdicional && (
+                                        <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
+                                            <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                                <div className="font-mono font-bold text-base text-text-primary">
+                                                    DESC
+                                                </div>
+                                                <div className="text-[9px] uppercase font-bold text-text-secondary">Notas</div>
+                                            </div>
+                                            <div className="w-px h-full bg-border-medium self-stretch mx-1"></div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center">
+                                                        <Info className="h-5 w-5 text-indigo-500" />
+                                                        <h4 className="font-bold text-sm ml-2 text-text-primary">Contexto Adicional</h4>
+                                                    </div>
+                                                    <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-primary px-2 py-0.5 rounded-full border border-border-light">
+                                                        <Info className="h-3.5 w-3.5 mr-1" />
+                                                        Información
+                                                    </span>
+                                                </div>
+                                                <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-teal-500/5 to-cyan-500/5 border border-border-medium/30">
+                                                    <p className="text-xs text-text-secondary italic leading-relaxed">
+                                                        "{summaryPerfil.contextoAdicional}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Divider */}
-                        <div className="h-px bg-border-medium/30" />
-
-                        {/* General Details Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Jefe Inmediato</span>
-                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.jefeInmediato || 'No asignado'}</p>
-                            </div>
-                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Escala Salarial</span>
-                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.escalasSalarial || 'No especificada'}</p>
-                            </div>
-                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 backdrop-blur-sm space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">Jornada Laboral</span>
-                                <p className="text-xs font-bold text-text-primary truncate">{summaryPerfil.jornada || 'No especificada'}</p>
-                            </div>
-                        </div>
-
-                        {/* Exigencias y Operaciones */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Exigencia Física y Mental */}
-                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 space-y-3">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
-                                    <Brain className="w-3.5 h-3.5 text-teal-500" /> Exigencias de Rol
-                                </span>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-text-secondary">Exigencia Física</span>
-                                        <span className="font-black text-teal-600 dark:text-teal-400">{summaryPerfil.exigenciaFisica || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-text-secondary">Exigencia Mental</span>
-                                        <span className="font-black text-cyan-600 dark:text-cyan-400">{summaryPerfil.exigenciaMental || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Operación Maquinaria */}
-                            <div className="p-4 rounded-2xl bg-surface-primary/40 border border-border-medium/30 flex flex-col justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
-                                    <Shield className="w-3.5 h-3.5 text-cyan-500" /> Operación Especial
-                                </span>
-                                <div className="mt-2.5">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-text-secondary">¿Opera Maquinaria Crítica?</span>
-                                        <span className={cn(
-                                            "font-black px-2 py-0.5 rounded-lg text-[10px] uppercase",
-                                            summaryPerfil.operaMaquinaria === 'Sí' || summaryPerfil.operaMaquinaria === 'Si'
-                                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                                                : "bg-surface-secondary text-text-secondary border border-border-medium/30"
-                                        )}>
-                                            {summaryPerfil.operaMaquinaria || 'No'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Protecciones y Capacitación */}
-                        <div className="space-y-4">
-                            {/* EPP */}
-                            <div className="space-y-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
-                                    <Shield className="w-3.5 h-3.5 text-teal-500" /> Equipos de Protección (EPP)
-                                </span>
-                                {summaryPerfil.eppSeleccionados && summaryPerfil.eppSeleccionados.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {summaryPerfil.eppSeleccionados.map((epp, idx) => (
-                                            <span 
-                                                key={idx}
-                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-medium/30 flex items-center gap-1"
-                                            >
-                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                                                {epp}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-[11px] text-text-tertiary italic">No se han seleccionado EPPs para este cargo.</p>
-                                )}
-                            </div>
-
-                            {/* Capacitaciones */}
-                            <div className="space-y-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary flex items-center gap-1.5">
-                                    <BookOpen className="w-3.5 h-3.5 text-cyan-500" /> Entrenamientos y Capacitaciones
-                                </span>
-                                {summaryPerfil.entrenamientosSeleccionados && summaryPerfil.entrenamientosSeleccionados.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {summaryPerfil.entrenamientosSeleccionados.map((ent, idx) => (
-                                            <span 
-                                                key={idx}
-                                                className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-medium/30 flex items-center gap-1"
-                                            >
-                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                                                {ent}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-[11px] text-text-tertiary italic">No se han seleccionado entrenamientos para este cargo.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Controles de Ingeniería y Medio */}
-                        {(summaryPerfil.controlesFuenteSeleccionados?.length || summaryPerfil.controlesMedioSeleccionados?.length) ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Controles en Fuente</span>
-                                    {summaryPerfil.controlesFuenteSeleccionados && summaryPerfil.controlesFuenteSeleccionados.length > 0 ? (
-                                        <ul className="text-[10px] text-text-secondary space-y-1 list-disc pl-4 font-medium">
-                                            {summaryPerfil.controlesFuenteSeleccionados.map((ctrl, i) => (
-                                                <li key={i}>{ctrl}</li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Controles en Medio</span>
-                                    {summaryPerfil.controlesMedioSeleccionados && summaryPerfil.controlesMedioSeleccionados.length > 0 ? (
-                                        <ul className="text-[10px] text-text-secondary space-y-1 list-disc pl-4 font-medium">
-                                            {summaryPerfil.controlesMedioSeleccionados.map((ctrl, i) => (
-                                                <li key={i}>{ctrl}</li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-[10px] text-text-tertiary italic">Ninguno</p>
-                                    )}
-                                </div>
-                            </div>
-                        ) : null}
-
-                        {/* Contexto Adicional */}
-                        {summaryPerfil.contextoAdicional && (
-                            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-500/5 to-cyan-500/5 border border-border-medium/30">
-                                <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary block mb-1">Contexto Adicional</span>
-                                <p className="text-xs text-text-secondary italic leading-relaxed">
-                                    "{summaryPerfil.contextoAdicional}"
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex justify-end gap-3 pt-3 border-t border-border-medium/30">
+                        {/* Footer */}
+                        <div className="border-t border-border-medium px-6 py-4 bg-surface-primary/50 flex justify-end gap-3">
                             <button
                                 onClick={() => setSummaryPerfil(null)}
-                                className="px-5 py-2.5 rounded-2xl bg-surface-secondary border border-border-medium hover:bg-surface-hover text-text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 transform cursor-pointer"
+                                className="rounded-xl bg-surface-tertiary px-6 py-2.5 text-sm font-bold text-text-primary hover:bg-surface-hover hover:text-teal-500 transition-colors border border-border-light shadow-sm cursor-pointer"
                             >
-                                Cerrar
+                                Entendido
                             </button>
                             <button
                                 onClick={() => {
                                     setSummaryPerfil(null);
-                                    // Already selected on click, so just close the summary and view form
                                 }}
-                                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg shadow-teal-500/10 hover:scale-105 active:scale-95 transform transition-all cursor-pointer"
+                                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-500/10 transition-all hover:scale-105 active:scale-95 transform cursor-pointer"
                             >
                                 Ver Ficha Completa y Editar
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

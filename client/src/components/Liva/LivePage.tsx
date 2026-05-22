@@ -951,12 +951,14 @@ const LivePage = () => {
                             {/* Step 1: Template Selection (Guided Cards) */}
                             <div className="flex flex-col space-y-3">
                                 <label className="text-sm font-bold text-text-primary tracking-wide">1. Seleccionar Plantilla de Inspección:</label>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {[
                                         { id: 'general', title: 'ISO 45001 General', desc: 'Entorno de trabajo, EPPs, ergonomía y orden general.', color: 'border-blue-500/30 hover:border-blue-500', activeBg: 'bg-blue-500/10 border-blue-500/80 ring-2 ring-blue-500/20' },
                                         { id: 'alturas', title: 'Trabajo en Alturas', desc: 'Líneas de vida, puntos de anclaje, arneses y certificados.', color: 'border-orange-500/30 hover:border-orange-500', activeBg: 'bg-orange-500/10 border-orange-500/80 ring-2 ring-orange-500/20' },
                                         { id: 'eléctrico', title: 'Riesgo Eléctrico', desc: 'Tableros, cableado, sistema LOTO y herramientas aisladas.', color: 'border-yellow-500/30 hover:border-yellow-500', activeBg: 'bg-yellow-500/10 border-yellow-500/80 ring-2 ring-yellow-500/20' },
-                                        { id: '5s', title: 'Orden & Aseo (5S)', desc: 'Clasificar, organizar, limpiar, estandarizar y disciplina.', color: 'border-emerald-500/30 hover:border-emerald-500', activeBg: 'bg-emerald-500/10 border-emerald-500/80 ring-2 ring-emerald-500/20' }
+                                        { id: '5s', title: 'Orden & Aseo (5S)', desc: 'Clasificar, organizar, limpiar, estandarizar y disciplina.', color: 'border-emerald-500/30 hover:border-emerald-500', activeBg: 'bg-emerald-500/10 border-emerald-500/80 ring-2 ring-emerald-500/20' },
+                                        { id: 'biomecanico_estandar', title: 'Riesgo Biomecánico', desc: 'Ergonomía cualitativa, cargas, posturas y movimientos repetitivos.', color: 'border-purple-500/30 hover:border-purple-500', activeBg: 'bg-purple-500/10 border-purple-500/80 ring-2 ring-purple-500/20' },
+                                        { id: 'biomecanico_mediapipe', title: 'Biomecánico (MediaPipe)', desc: 'Ergonomía cuantitativa asistida por IA y telemetría articular en vivo.', color: 'border-cyan-500/30 hover:border-cyan-500', activeBg: 'bg-cyan-500/10 border-cyan-500/80 ring-2 ring-cyan-500/20' }
                                     ].map(tmpl => (
                                         <div
                                             key={tmpl.id}

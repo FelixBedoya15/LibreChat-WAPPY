@@ -73,11 +73,14 @@ function setupLiveAnalysisWebSocket(server) {
 
             logger.info(`[LiveAnalysisWS] User authenticated: ${userId}`);
 
+            const activeTemplate = (template || 'general').toLowerCase();
+
             // Force mode to 'live_analysis' for this endpoint
             const config = {
                 userSettings,
                 mode: 'live_analysis',
                 enableReportGenerator: true,
+                template: activeTemplate,
                 systemInstruction: `Eres "Wappy-Audit", un Consultor Senior Certificado en Seguridad, Salud y Ambiente (HSE/SST) con especialización en normas ISO 45001 y GTC 45. Tu capacidad de observación es detallada, crítica y técnica.
 
 TU MISIÓN:
@@ -124,13 +127,16 @@ El sistema te indicará el modo o tú deberás inferirlo según la solicitud del
             };
 
             let templateInstructions = "";
-            const activeTemplate = (template || 'general').toLowerCase();
             if (activeTemplate === 'alturas') {
                 templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: TRABAJO EN ALTURAS]\n*   **Enfoque:** Líneas de vida, puntos de anclaje, estado del arnés y conectores.\n*   **Misión:** Asegúrate de guiar al usuario a inspeccionar minuciosamente el EPP de protección contra caídas (mosquetones, absorbedores de choque, cabos de vida) y los anclajes estructurales. Pregúntale si tienen certificación vigente y revisa si están correctamente instalados.`;
             } else if (activeTemplate === 'eléctrico' || activeTemplate === 'electrico') {
                 templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: RIESGO ELÉCTRICO]\n*   **Enfoque:** Tableros, cableado, candados y tarjetas LOTO, herramientas aisladas.\n*   **Misión:** Enfoca tu diálogo en el aislamiento de energía, tableros con señalización adecuada, cables expuestos, herramientas y guantes dieléctricos. Guía al usuario a verificar si los tableros están cerrados y bloqueados cuando se realiza un mantenimiento.`;
             } else if (activeTemplate === '5s') {
                 templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: METODOLOGÍA 5S / ORDEN Y ASEO]\n*   **Enfoque:** Seiri (Clasificación), Seiton (Organización), Seiso (Limpieza), Seiketsu (Estandarización), Shitsuke (Disciplina).\n*   **Misión:** Guía activamente al usuario a evaluar el almacenamiento de materiales, la demarcación de pasillos, la limpieza del suelo (libre de aceites o derrame de líquidos), extintores despejados y señalización de salidas de emergencia.`;
+            } else if (activeTemplate === 'biomecanico_estandar') {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: RIESGO BIOMECÁNICO (CUALITATIVO)]\n*   **Enfoque:** Ergonomía general, movimientos repetitivos, manipulación de cargas, posturas estáticas y dinámicas.\n*   **Misión:** Guía al usuario a inspeccionar cómo se mueven los trabajadores, cómo levantan cargas (¿flexionan las rodillas?), si las sillas o mesas de trabajo son ergonómicas, y si realizan pausas activas. Recomienda el análisis visual de las posturas forzadas.`;
+            } else if (activeTemplate === 'biomecanico_mediapipe') {
+                templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: BIOMECÁNICO CON MEDIAPIPE (CUANTITATIVO)]\n*   **Enfoque:** Telemetría de ángulos en tiempo real (cuello, espalda, brazos), evaluación ergonómica objetiva (criterios RULA/REBA).\n*   **Misión:** Guía activamente al usuario basándote en la telemetría de de ángulos que ve en pantalla. Si el usuario te indica un valor de ángulo de inclinación de cuello o espalda superior a 20° (o brazos sobre 45°), confirma el riesgo RULA/REBA y recomienda correcciones inmediatas de postura. Adicionalmente, el sistema enviará "Auto-Snapshots" automáticos cuando se detecten malas posturas prolongadas (>3s); cuando recibas estas imágenes o notificaciones de postura crítica, analízalas y retroalimenta al usuario de inmediato con pautas técnicas específicas (ej: 'El trabajador está inclinando la columna a 28 grados, debe flexionar las piernas al levantar la carga').`;
             } else {
                 templateInstructions = `\n\n### [DIRECTRIZ ESPECIALIZADA: INSPECCIÓN GENERAL (ISO 45001 / GTC 45)]\n*   **Enfoque:** Condiciones locativas generales, orden general, ventilación, señalización y uso general de Elementos de Protección Personal (EPP).\n*   **Misión:** Realiza un escaneo amplio del entorno laboral para detectar riesgos locativos, físicos, ergonómicos o químicos generales. Guía al usuario a revisar el bienestar general del área.`;
             }

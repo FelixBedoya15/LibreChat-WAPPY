@@ -190,6 +190,29 @@ class CanvasTool extends Tool {
       // ── CREAR / ACTUALIZAR ──────────────────────────────────────────────────
       let session = await CanvasSession.findOne({ conversationId });
       let parsedContent = content;
+      let activeTitle = title || (session ? session.title : 'Archivo sin título');
+
+      // --- Dynamic Title Extraction ---
+      if ((accion === 'crear' || accion === 'actualizar') && (fileType === 'text' || (session && session.fileType === 'text')) && typeof parsedContent === 'string') {
+        const isDefaultTitle = (t) => !t || 
+                                     t === 'Archivo sin título' || 
+                                     t === 'Archivo de Canvas sin título' || 
+                                     t === 'DOCUMENTO DE TRABAJO' || 
+                                     t.trim() === '';
+        if (isDefaultTitle(activeTitle)) {
+          const match = parsedContent.match(/<(h[12])\b[^>]*>(.*?)<\/\1>/i);
+          if (match) {
+            const extractedTitle = match[2].replace(/<[^>]*>/g, '').trim();
+            if (extractedTitle) {
+              activeTitle = extractedTitle;
+              parsedContent = parsedContent.replace(match[0], '');
+              // Clean up leading spaces or empty tags
+              parsedContent = parsedContent.replace(/^\s*(?:<p>\s*<br\s*\/?>\s*<\/p>|<p>\s*<\/p>|\s)+/i, '');
+            }
+          }
+        }
+      }
+      // ---------------------------------
 
       // Si es excel o presentation, intentar parsear el JSON
       if (fileType === 'excel' || fileType === 'presentation') {
@@ -210,21 +233,21 @@ class CanvasTool extends Tool {
           // Si ya existe, nos comportamos como actualizar para no destruir el historial del usuario
           const activeFileType = fileType || session.fileType;
           if (activeFileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
           }
 
           const nextVersion = session.version + 1;
           const newHistoryItem = {
             version: nextVersion,
             content: parsedContent ?? session.content,
-            title: title || session.title,
+            title: activeTitle,
             updatedAt: new Date()
           };
 
           const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
           session.content = parsedContent ?? session.content;
-          session.title = title || session.title;
+          session.title = activeTitle;
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
@@ -245,20 +268,20 @@ class CanvasTool extends Tool {
         } else {
           // Si no existe, crear de cero con versión 1
           if (fileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent, fileType, title, userId);
+            parsedContent = await processTextDocument(parsedContent, fileType, activeTitle, userId);
           }
 
           session = new CanvasSession({
             user: userId,
             conversationId,
             content: parsedContent ?? '',
-            title: title || 'Archivo sin título',
+            title: activeTitle,
             fileType,
             version: 1,
             history: [{
               version: 1,
               content: parsedContent ?? '',
-              title: title || 'Archivo sin título',
+              title: activeTitle,
               updatedAt: new Date()
             }]
           });
@@ -291,7 +314,6 @@ class CanvasTool extends Tool {
         if (!session) {
           // Si no existe, lo creamos automáticamente con versión 1
           const activeFileType = fileType || 'text';
-          const activeTitle = title || 'Archivo sin título';
 
           if (activeFileType === 'text') {
             parsedContent = await processTextDocument(parsedContent, activeFileType, activeTitle, userId);
@@ -337,21 +359,21 @@ class CanvasTool extends Tool {
           // Si existe, lo actualizamos normalmente
           const activeFileType = fileType || session.fileType;
           if (activeFileType === 'text') {
-            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, title || session.title, userId);
+            parsedContent = await processTextDocument(parsedContent ?? session.content, activeFileType, activeTitle, userId);
           }
 
           const nextVersion = session.version + 1;
           const newHistoryItem = {
             version: nextVersion,
             content: parsedContent ?? session.content,
-            title: title || session.title,
+            title: activeTitle,
             updatedAt: new Date()
           };
 
           const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
           session.content = parsedContent ?? session.content;
-          session.title = title || session.title;
+          session.title = activeTitle;
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
@@ -406,20 +428,20 @@ class CanvasTool extends Tool {
           match[1] + '\n' + nuevo_contenido_seccion + '\n',
         );
 
-        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,
-          title: title || session.title,
+          title: activeTitle,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
         session.content = updatedContent;
-        session.title = title || session.title;
+        session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
 
@@ -457,20 +479,20 @@ class CanvasTool extends Tool {
         }
 
         let updatedContent = session.content.replace(searchRegex, reemplazar);
-        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,
-          title: title || session.title,
+          title: activeTitle,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
         session.content = updatedContent;
-        session.title = title || session.title;
+        session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
 
@@ -530,20 +552,20 @@ class CanvasTool extends Tool {
           return JSON.stringify({ error: 'Posición inválida. Usa "inicio", "fin" o "despues_de".' });
         }
 
-        updatedContent = await processTextDocument(updatedContent, activeFileType, title || session.title, userId);
+        updatedContent = await processTextDocument(updatedContent, activeFileType, activeTitle, userId);
 
         const nextVersion = session.version + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,
-          title: title || session.title,
+          title: activeTitle,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
         session.content = updatedContent;
-        session.title = title || session.title;
+        session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
 

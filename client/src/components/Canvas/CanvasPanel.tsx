@@ -425,6 +425,19 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     saveSession();
   };
 
+  const handleApplyTemplate = async (newContent: string, newTitle: string) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    const updated = fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+    
+    setContent(updated);
+    setTitle(newTitle);
+    
+    contentRef.current = updated;
+    titleRef.current = newTitle;
+    
+    await saveSession();
+  };
+
   const handleResetSession = async () => {
     if (!window.confirm("¿Deseas volver a la selección de lienzos? Los cambios no guardados en la versión actual podrían perderse.")) return;
     
@@ -597,6 +610,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           <CanvasTextEditor
             initialContent={content}
             onUpdate={handleContentUpdate}
+            onApplyTemplate={handleApplyTemplate}
             isMaximized={isMaximized}
           />
         );

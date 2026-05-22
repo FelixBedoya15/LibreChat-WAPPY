@@ -182,11 +182,21 @@ router.post('/offline-report', requireJwtAuth, async (req, res) => {
     let templateInstructions = "";
     const activeTemplate = (template || 'general').toLowerCase();
     if (activeTemplate === 'alturas') {
-      templateInstructions = "ENFOQUE DE AUDITORÍA: Trabajo en alturas (líneas de vida, puntos de anclaje, estado del arnés y conectores, equipo de protección anticaídas certificado).";
+      templateInstructions = "ENFOQUE DE AUDITORÍA: Trabajo en alturas (líneas de vida, puntos de anclaje, estado del arnés y conectores, equipo de protección anticaídas certificado). Guía el análisis y la matriz de peligros para priorizar riesgos de caída a distinto nivel, sistemas de acceso y EPP especializado contra caídas.";
     } else if (activeTemplate === 'eléctrico' || activeTemplate === 'electrico') {
-      templateInstructions = "ENFOQUE DE AUDITORÍA: Riesgo eléctrico (tableros eléctricos, cableado expuesto, candados y tarjetas LOTO, herramientas aisladas, EPP dieléctrico).";
+      templateInstructions = "ENFOQUE DE AUDITORÍA: Riesgo eléctrico (tableros eléctricos, cableado expuesto, candados y tarjetas LOTO, herramientas aisladas, EPP dieléctrico). Guía el análisis y la matriz de peligros para priorizar riesgos de choque eléctrico, arco eléctrico, quemaduras y control de energías peligrosas.";
     } else if (activeTemplate === '5s') {
-      templateInstructions = "ENFOQUE DE AUDITORÍA: Orden y aseo con metodología 5S (Seiri/Clasificar, Seiton/Organizar, Seiso/Limpiar, Seiketsu/Estandarizar, Shitsuke/Disciplina, almacenamiento seguro, pasillos despejados).";
+      templateInstructions = "ENFOQUE DE AUDITORÍA: Orden y aseo con metodología 5S (Seiri/Clasificar, Seiton/Organizar, Seiso/Limpiar, Seiketsu/Estandarizar, Shitsuke/Disciplina, almacenamiento seguro, pasillos despejados). Enfoca el reporte en las desviaciones de orden, aseo y disciplina locativa.";
+    } else if (activeTemplate === 'biomecanico_estandar') {
+      templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
+En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
+    } else if (activeTemplate === 'biomecanico_mediapipe') {
+      templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por MediaPipe Pose y criterios RULA/REBA.
+Durante la sesión se ha registrado telemetría de ángulos articulares: Flexión de Cuello (cervical), Inclinación de Columna (tronco) y Abducción de Brazos. Las alertas críticas se disparan cuando los ángulos superan los 20° en cuello y espalda (posturas de alto riesgo ergonómico) de manera sostenida.
+REQUERIMIENTO ADICIONAL OBLIGATORIO:
+1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa RULA/REBA</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
+2. En esa sección, inserta una tabla detallada con los ángulos promedio detectados en Cuello/Cervical, Columna/Tronco y Abducción de Brazos, clasificando su nivel de riesgo y recomendación de acción según los estándares ergonómicos RULA/REBA.
+3. Analiza las imágenes o secuencias de video de evidencia capturadas, haciendo referencia explícita a la postura observada en las fotos (e.g., 'se observa al trabajador con una flexión de tronco de X grados en la captura de evidencia ergonómica').`;
     } else {
       templateInstructions = "ENFOQUE DE AUDITORÍA: Inspección general de seguridad industrial (ISO 45001 y GTC 45, orden general, señalización, ergonomía, EPP general).";
     }

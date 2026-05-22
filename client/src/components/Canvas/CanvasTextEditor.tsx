@@ -32,12 +32,14 @@ import {
   contratoIndefinidoHTML,
   contratoDefinidoHTML,
   contratoServiciosHTML,
-  contratoObraLaborHTML
+  contratoObraLaborHTML,
+  procedimientoSancionatorioHTML
 } from './extended_templates';
 
 interface CanvasTextEditorProps {
   initialContent: string;
   onUpdate: (content: string) => void;
+  onApplyTemplate?: (content: string, title: string) => void;
   reportSourceData?: any;
   isMaximized?: boolean;
 }
@@ -988,6 +990,13 @@ const TEMPLATES = [
     description: 'Contrato laboral condicionado al fin de un proyecto u obra',
     icon: <FileText className="h-4 w-4 text-orange-700" />,
     html: contratoObraLaborHTML
+  },
+  {
+    id: 'procedimiento_sancionatorio',
+    title: 'Procedimiento Sancionatorio',
+    description: 'Debido proceso disciplinario, descargos y apelación (C-593/14 y Ley 2466 de 2025)',
+    icon: <Scale className="h-4 w-4 text-slate-700" />,
+    html: procedimientoSancionatorioHTML
   }
 ];
 
@@ -1070,7 +1079,7 @@ const INLAYS = [
   }
 ];
 
-const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onUpdate, reportSourceData, isMaximized }) => {
+const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onUpdate, onApplyTemplate, reportSourceData, isMaximized }) => {
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'templates' | 'inlays'>('templates');
@@ -1090,11 +1099,15 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
     }
   }, [initialContent]);
 
-  const handleApplyTemplate = (htmlContent: string) => {
-    if (!window.confirm('¿Deseas reemplazar el contenido actual por este formato de plantilla? Se perderán las modificaciones no guardadas.')) return;
+  const handleApplyTemplate = (htmlContent: string, title: string) => {
+    if (!window.confirm(`¿Deseas reemplazar el contenido actual por el formato "${title}"? Se perderán las modificaciones no guardadas.`)) return;
     if (liveEditorRef.current) {
       liveEditorRef.current.setHTML(htmlContent);
-      onUpdate(htmlContent);
+      if (onApplyTemplate) {
+        onApplyTemplate(htmlContent, title);
+      } else {
+        onUpdate(htmlContent);
+      }
     }
   };
 
@@ -1156,7 +1169,7 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
                 {TEMPLATES.map((tpl) => (
                   <button
                     key={tpl.id}
-                    onClick={() => handleApplyTemplate(tpl.html)}
+                    onClick={() => handleApplyTemplate(tpl.html, tpl.title)}
                     className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5"
                   >
                     <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">

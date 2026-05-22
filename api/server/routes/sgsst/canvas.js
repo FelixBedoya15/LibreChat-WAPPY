@@ -125,7 +125,7 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
 router.post('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { content, title, fileType } = req.body;
+    let { content, title, fileType } = req.body;
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
@@ -133,7 +133,32 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'El campo "fileType" es requerido.' });
     }
 
-    const processedContent = await processTextDocument(content, fileType, title, userId);
+    let finalTitle = title;
+    let finalContent = content;
+
+    // --- Dynamic Title Extraction ---
+    if (fileType === 'text' && typeof content === 'string') {
+      const isDefaultTitle = (t) => !t || 
+                                   t === 'Archivo sin título' || 
+                                   t === 'Archivo de Canvas sin título' || 
+                                   t === 'DOCUMENTO DE TRABAJO' || 
+                                   t.trim() === '';
+      if (isDefaultTitle(finalTitle)) {
+        const match = content.match(/<(h[12])\b[^>]*>(.*?)<\/\1>/i);
+        if (match) {
+          const extractedTitle = match[2].replace(/<[^>]*>/g, '').trim();
+          if (extractedTitle) {
+            finalTitle = extractedTitle;
+            finalContent = content.replace(match[0], '');
+            // Clean up leading spaces or empty tags
+            finalContent = finalContent.replace(/^\s*(?:<p>\s*<br\s*\/?>\s*<\/p>|<p>\s*<\/p>|\s)+/i, '');
+          }
+        }
+      }
+    }
+    // ---------------------------------
+
+    const processedContent = await processTextDocument(finalContent, fileType, finalTitle, userId);
 
     let session = await CanvasSession.findOne({ conversationId });
 
@@ -143,14 +168,14 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         user: userId,
         companyId,
         conversationId,
-        title: title || 'Archivo sin título',
+        title: finalTitle || 'Archivo sin título',
         fileType,
         content: processedContent ?? '',
         version: 1,
         history: [{
           version: 1,
           content: processedContent ?? '',
-          title: title || 'Archivo sin título',
+          title: finalTitle || 'Archivo sin título',
           updatedAt: new Date()
         }]
       });
@@ -162,14 +187,14 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
       // Smart title checking: avoid overwriting a custom title with the default "Archivo sin título" placeholder
       const isDefaultTitle = (t) => !t || t === 'Archivo sin título' || t === 'Archivo de Canvas sin título';
       const existingIsDefault = isDefaultTitle(session.title);
-      const newIsDefault = isDefaultTitle(title);
+      const newIsDefault = isDefaultTitle(finalTitle);
 
-      let finalTitle = title || session.title;
+      let savedTitle = finalTitle || session.title;
       if (newIsDefault && !existingIsDefault) {
-        finalTitle = session.title;
+        savedTitle = session.title;
       }
 
-      const titleChanged = session.title !== finalTitle && finalTitle !== undefined;
+      const titleChanged = session.title !== savedTitle && savedTitle !== undefined;
 
       if (contentChanged || titleChanged) {
         const nextVersion = session.version + 1;
@@ -178,14 +203,14 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
         const newHistoryItem = {
           version: nextVersion,
           content: processedContent ?? session.content,
-          title: finalTitle,
+          title: savedTitle,
           updatedAt: new Date()
         };
 
         const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
 
         session.content = processedContent ?? session.content;
-        session.title = finalTitle;
+        session.title = savedTitle;
         if (fileType) session.fileType = fileType;
         if (companyId) session.companyId = companyId; // Sync active company ID
         session.version = nextVersion;
