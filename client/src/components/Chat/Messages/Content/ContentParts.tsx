@@ -10,7 +10,7 @@ import { MessageContext, SearchContext } from '~/Providers';
 import MemoryArtifacts from './MemoryArtifacts';
 import Sources from '~/components/Web/Sources';
 import { mapAttachments } from '~/utils/map';
-import { EditTextPart } from './Parts';
+import EditTextPart from './Parts/EditTextPart';
 import Part from './Part';
 
 type ContentPartsProps = {

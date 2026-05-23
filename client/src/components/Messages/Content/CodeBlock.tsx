@@ -7,7 +7,7 @@ import type { CodeBarProps } from '~/common';
 import ResultSwitcher from '~/components/Messages/Content/ResultSwitcher';
 import { useMessageContext } from '~/Providers/MessageContext';
 import { useToolCallsMapContext } from '~/Providers/ToolCallsMapContext';
-import { LogContent } from '~/components/Chat/Messages/Content/Parts';
+import LogContent from '~/components/Chat/Messages/Content/Parts/LogContent';
 import RunCode from '~/components/Messages/Content/RunCode';
 import useLocalize from '~/hooks/useLocalize';
 import cn from '~/utils/cn';

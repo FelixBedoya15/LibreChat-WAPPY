@@ -8,7 +8,12 @@ import {
 } from 'librechat-data-provider';
 import { memo } from 'react';
 import type { TMessageContentParts, TAttachment } from 'librechat-data-provider';
-import { OpenAIImageGen, EmptyText, Reasoning, ExecuteCode, AgentUpdate, Text } from './Parts';
+import OpenAIImageGen from './Parts/OpenAIImageGen/OpenAIImageGen';
+import EmptyText from './Parts/EmptyText';
+import Reasoning from './Parts/Reasoning';
+import ExecuteCode from './Parts/ExecuteCode';
+import AgentUpdate from './Parts/AgentUpdate';
+import Text from './Parts/Text';
 import { ErrorMessage } from './MessageContent';
 import RetrievalCall from './RetrievalCall';
 import AgentHandoff from './AgentHandoff';
