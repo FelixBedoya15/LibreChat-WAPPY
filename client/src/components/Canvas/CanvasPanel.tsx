@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   FileEdit,
+  FileText,
   Maximize2,
   Minimize2,
   History,
@@ -1252,6 +1253,41 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {history.map((hItem, idx) => {
                       const isCurrent = hItem.version === version;
+                      const itemFileType = hItem.fileType || fileType || 'text';
+
+                      const renderTypeBadge = () => {
+                        switch (itemFileType) {
+                          case 'excel':
+                            return (
+                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                                <FileSpreadsheet className="h-3 w-3 text-emerald-500" />
+                                Hoja de Cálculo (Excel)
+                              </span>
+                            );
+                          case 'presentation':
+                            return (
+                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-500/20 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:text-amber-400">
+                                <MonitorPlay className="h-3 w-3 text-amber-500" />
+                                Presentación (Slides)
+                              </span>
+                            );
+                          case 'html':
+                            return (
+                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-purple-50 dark:bg-purple-950/30 border border-purple-500/20 px-2 py-0.5 text-[9.5px] font-bold text-purple-600 dark:text-purple-400">
+                                <Code2 className="h-3 w-3 text-purple-500" />
+                                Prototipo HTML / Código
+                              </span>
+                            );
+                          default:
+                            return (
+                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-sky-50 dark:bg-sky-950/30 border border-sky-500/20 px-2 py-0.5 text-[9.5px] font-bold text-sky-600 dark:text-sky-400">
+                                <FileText className="h-3 w-3 text-sky-500" />
+                                Documento de Texto (Word)
+                              </span>
+                            );
+                        }
+                      };
+
                       return (
                         <div
                           key={idx}
@@ -1276,6 +1312,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                               <span className="truncate text-xs text-text-tertiary">
                                 {new Date(hItem.updatedAt).toLocaleString('es-ES')}
                               </span>
+                              {renderTypeBadge()}
                             </div>
 
                             <VersionMenuDropdown
