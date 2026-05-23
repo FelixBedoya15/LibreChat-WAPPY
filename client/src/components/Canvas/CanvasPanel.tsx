@@ -765,12 +765,32 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const handleRestoreVersion = async (vItem: any) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     muteAutoSave(1500);
-    setContent(vItem.content);
-    contentRef.current = vItem.content;
-    setTitle(vItem.title);
-    titleRef.current = vItem.title;
-    setIsHistoryOpen(false);
-    await saveSession();
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${vItem.version}/restore`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContent(data.content);
+        contentRef.current = data.content;
+        setTitle(data.title);
+        titleRef.current = data.title;
+        setVersion(data.version);
+        setHistory(data.history || []);
+        lastUpdatedAtRef.current = data.updatedAt;
+        setIsHistoryOpen(false);
+        showToast({ status: 'success', message: '¡Versión restaurada con éxito!' });
+      }
+    } catch (e) {
+      console.error('[Restore Version] Error:', e);
+      showToast({ status: 'error', message: 'Error al restaurar la versión.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Render correct editor depending on active session state

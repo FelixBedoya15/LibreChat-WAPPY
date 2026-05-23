@@ -146,6 +146,107 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [showHtmlCopiedToast, setShowHtmlCopiedToast] = useState<boolean>(false);
+  const [aggMethod, setAggMethod] = useState<'sum' | 'avg' | 'count'>('sum');
+
+  // --- Advanced Data Analyzer Calculations ---
+  const colCount = (() => {
+    let maxCols = 0;
+    if (Array.isArray(data)) {
+      data.forEach(row => {
+        if (Array.isArray(row) && row.length > maxCols) maxCols = row.length;
+      });
+    }
+    return maxCols || 3;
+  })();
+
+  const headerRowIdx = (() => {
+    let bestRowIdx = 0;
+    let maxCols = 0;
+    if (Array.isArray(data)) {
+      const scanLimit = Math.min(10, data.length);
+      for (let r = 0; r < scanLimit; r++) {
+        const row = data[r] || [];
+        const nonEmpties = row.filter(cell => cell && String(cell).trim() !== '').length;
+        if (nonEmpties > maxCols) {
+          maxCols = nonEmpties;
+          bestRowIdx = r;
+        }
+      }
+    }
+    return bestRowIdx;
+  })();
+
+  const headerRow = data[headerRowIdx] || [];
+
+  const columnsList = Array.from({ length: colCount }).map((_, i) => {
+    const label = headerRow[i] ? String(headerRow[i]).trim() : '';
+    return {
+      index: i,
+      label: label || `Columna ${getColumnLabel(i)}`
+    };
+  });
+
+  const dataRows = Array.isArray(data)
+    ? data.slice(headerRowIdx + 1).filter(row => {
+        return Array.isArray(row) && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+      })
+    : [];
+
+  const groups: { [key: string]: number[] } = {};
+
+  dataRows.forEach((row, idx) => {
+    const xValRaw = row[xAxisCol];
+    const xValStr = xValRaw !== undefined && xValRaw !== null ? String(xValRaw) : '';
+    const xVal = xValStr.startsWith('=') ? evaluateFormula(xValStr, data) : xValStr;
+    const cleanX = xVal.trim() || `Fila ${idx + 1 + headerRowIdx + 1}`;
+
+    const upperX = cleanX.toUpperCase();
+    if (upperX.includes('TOTAL') || upperX.includes('CÁLCULO') || upperX.includes('PROMEDIO') || upperX.includes('SUMA') || upperX.includes('CONCEPTO')) {
+      return;
+    }
+
+    const yValRaw = row[yAxisCol];
+    const yValStr = yValRaw !== undefined && yValRaw !== null ? String(yValRaw) : '';
+    const yValEvaluated = yValStr.startsWith('=') ? evaluateFormula(yValStr, data) : yValStr;
+    const parsedY = parseFloat(yValEvaluated.replace(/[^0-9.\-]/g, ''));
+    const yValue = isNaN(parsedY) ? 0 : parsedY;
+
+    if (!groups[cleanX]) {
+      groups[cleanX] = [];
+    }
+    groups[cleanX].push(yValue);
+  });
+
+  const chartData = Object.keys(groups).map(key => {
+    const vals = groups[key];
+    let val = 0;
+    if (aggMethod === 'sum') {
+      val = vals.reduce((acc, v) => acc + v, 0);
+    } else if (aggMethod === 'avg') {
+      val = vals.reduce((acc, v) => acc + v, 0) / vals.length;
+    } else if (aggMethod === 'count') {
+      val = vals.length;
+    }
+    return {
+      label: key,
+      val: Math.round(val * 100) / 100,
+      count: vals.length
+    };
+  }).filter(item => item.label && (item.val > 0 || aggMethod === 'count'));
+
+  const conteo = chartData.length;
+  const values = chartData.map(d => d.val);
+  const suma = values.reduce((acc, v) => acc + v, 0);
+  const promedio = conteo > 0 ? (suma / conteo) : 0;
+  const maxVal = conteo > 0 ? Math.max(...values) : 0;
+  const minVal = conteo > 0 ? Math.min(...values) : 0;
+
+  const maxIdx = values.indexOf(maxVal);
+  const minIdx = values.indexOf(minVal);
+  
+  const maxLabel = maxIdx !== -1 ? chartData[maxIdx].label : '---';
+  const minLabel = minIdx !== -1 ? chartData[minIdx].label : '---';
+  // ---------------------------------------------
 
   // Auto-detectar la primera columna numérica cuando cambie la data
   useEffect(() => {
@@ -366,6 +467,59 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     });
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, r: number, c: number) => {
+    let nextRow = r;
+    let nextCol = c;
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextRow = Math.max(0, r - 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextRow = Math.min(data.length - 1, r + 1);
+    } else if (e.key === 'ArrowLeft') {
+      const input = e.currentTarget;
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault();
+        nextCol = Math.max(0, c - 1);
+      } else {
+        return;
+      }
+    } else if (e.key === 'ArrowRight') {
+      const input = e.currentTarget;
+      if (input.selectionStart === input.value.length && input.selectionEnd === input.value.length) {
+        e.preventDefault();
+        nextCol = Math.min(data[0].length - 1, c + 1);
+      } else {
+        return;
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      nextRow = Math.min(data.length - 1, r + 1);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        nextCol = Math.max(0, c - 1);
+      } else {
+        nextCol = Math.min(data[0].length - 1, c + 1);
+      }
+    } else {
+      return;
+    }
+
+    if (nextRow !== r || nextCol !== c) {
+      setSelectedCell({ row: nextRow, col: nextCol });
+      setFormulaValue(data[nextRow][nextCol] || '');
+      setTimeout(() => {
+        const cellInput = document.getElementById(`cell-${nextRow}-${nextCol}`) as HTMLInputElement | null;
+        if (cellInput) {
+          cellInput.focus();
+          cellInput.select();
+        }
+      }, 10);
+    }
+  };
+
   useEffect(() => {
     if (onRegisterDownload) {
       onRegisterDownload(handleExportExcel);
@@ -530,8 +684,11 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                           }`}
                         >
                           <input
+                            id={`cell-${rowIdx}-${colIdx}`}
                             type="text"
                             value={displayVal}
+                            onFocus={() => handleCellClick(rowIdx, colIdx)}
+                            onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
                             onChange={(e) => {
                               updateCell(rowIdx, colIdx, e.target.value);
                               setFormulaValue(e.target.value);
@@ -584,382 +741,393 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
 
               {/* Modal Body - 2 Column Split Grid */}
               <div className="flex-1 overflow-y-auto p-6 bg-surface-primary grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-                {(() => {
-                  const colHeaders = data[0] || [];
-                  const columnsList = colHeaders.map((h, i) => ({
-                    index: i,
-                    label: h || `Columna ${getColumnLabel(i)}`
-                  }));
-
-                  const chartData = data.slice(1).map((row, idx) => {
-                    const labelVal = row[xAxisCol] !== undefined && row[xAxisCol] !== null ? row[xAxisCol] : `Fila ${idx + 1}`;
-                    const label = String(labelVal).startsWith('=') ? evaluateFormula(String(labelVal), data) : String(labelVal);
-                    
-                    const rawVal = row[yAxisCol] !== undefined && row[yAxisCol] !== null ? row[yAxisCol] : '0';
-                    const evaluatedVal = String(rawVal).startsWith('=') ? evaluateFormula(String(rawVal), data) : String(rawVal);
-                    
-                    const cleanedVal = parseFloat(evaluatedVal.replace(/[^0-9.\-]/g, ''));
-                    const val = isNaN(cleanedVal) ? 0 : cleanedVal;
-                    return { label, val, raw: evaluatedVal };
-                  }).filter(item => item.label || item.val > 0);
-
-                  const conteo = chartData.length;
-                  const values = chartData.map(d => d.val);
-                  const suma = values.reduce((acc, v) => acc + v, 0);
-                  const promedio = conteo > 0 ? (suma / conteo) : 0;
-                  const maxVal = conteo > 0 ? Math.max(...values) : 0;
-                  const minVal = conteo > 0 ? Math.min(...values) : 0;
-
-                  const maxIdx = values.indexOf(maxVal);
-                  const minIdx = values.indexOf(minVal);
-                  
-                  const maxLabel = maxIdx !== -1 ? chartData[maxIdx].label : '---';
-                  const minLabel = minIdx !== -1 ? chartData[minIdx].label : '---';
-
-                  return (
-                    <>
-                      {/* Left Column - Controls & Stats (lg:col-span-4) */}
-                      <div className="lg:col-span-4 flex flex-col space-y-4">
-                        {/* Dimension Selectors Card */}
-                        <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3.5 shadow-sm">
-                          <span className="text-xs font-bold text-text-primary tracking-tight block">Dimensiones de Gráfico</span>
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <div>
-                              <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1">Eje X (Etiqueta)</label>
-                              <select
-                                value={xAxisCol}
-                                onChange={(e) => setXAxisCol(parseInt(e.target.value))}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg p-2 outline-none focus:border-teal-500 transition-colors cursor-pointer"
-                              >
-                                {columnsList.map((col) => (
-                                  <option key={col.index} value={col.index}>{col.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1">Eje Y (Valor)</label>
-                              <select
-                                value={yAxisCol}
-                                onChange={(e) => setYAxisCol(parseInt(e.target.value))}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg p-2 outline-none focus:border-teal-500 transition-colors cursor-pointer"
-                              >
-                                {columnsList.map((col) => (
-                                  <option key={col.index} value={col.index}>{col.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Chart Format Buttons */}
-                        <div className="flex bg-surface-secondary border border-border-medium rounded-xl p-1 shadow-sm shrink-0">
-                          {(['bar', 'line', 'area', 'pie'] as const).map((t) => (
-                            <button
-                              key={t}
-                              onClick={() => setChartType(t)}
-                              className={`flex-1 text-center py-1.5 text-xs font-semibold rounded-lg capitalize transition-all cursor-pointer ${
-                                chartType === t
-                                  ? 'bg-teal-500 text-white shadow-sm'
-                                  : 'text-text-secondary hover:bg-surface-hover'
-                              }`}
-                            >
-                              {t === 'bar' ? 'Barras' : t === 'line' ? 'Líneas' : t === 'area' ? 'Área' : 'Torta'}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Quick Statistics Card */}
-                        <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3 shadow-sm">
-                          <span className="text-xs font-bold text-text-primary tracking-tight block">Indicadores del Eje Y</span>
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between">
-                              <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Total Suma</span>
-                              <span className="text-sm font-bold text-text-primary mt-1 font-mono">{suma.toLocaleString()}</span>
-                            </div>
-                            <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between">
-                              <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Promedio</span>
-                              <span className="text-sm font-bold text-teal-600 mt-1 font-mono">{(Math.round(promedio * 100) / 100).toLocaleString()}</span>
-                            </div>
-                            <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between col-span-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Límites Máx/Mín</span>
-                                <span className="text-[9px] bg-teal-500/10 text-teal-600 px-1.5 py-0.5 rounded-full font-mono font-semibold">Regs: {conteo}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-border-medium/30">
-                                <div>
-                                  <span className="text-[9px] text-text-tertiary block">Máx: <strong className="text-text-secondary">{maxLabel}</strong></span>
-                                  <span className="text-xs font-bold text-green-600 font-mono">{maxVal.toLocaleString()}</span>
-                                </div>
-                                <div className="border-l border-border-medium/30 pl-2">
-                                  <span className="text-[9px] text-text-tertiary block">Mín: <strong className="text-text-secondary">{minLabel}</strong></span>
-                                  <span className="text-xs font-bold text-red-500 font-mono">{minVal.toLocaleString()}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Copy HTML Table Button */}
-                        <button
-                          onClick={copyTableAsHtml}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 text-teal-600 font-bold text-xs tracking-wide uppercase transition-all shadow-sm cursor-pointer"
+                {/* Left Column - Controls & Stats (lg:col-span-4) */}
+                <div className="lg:col-span-4 flex flex-col space-y-4 max-h-full overflow-y-auto pr-1">
+                  {/* Dimension Selectors Card */}
+                  <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3.5 shadow-sm">
+                    <span className="text-xs font-bold text-text-primary tracking-tight block">Dimensiones de Gráfico</span>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1">Eje X (Etiqueta)</label>
+                        <select
+                          value={xAxisCol}
+                          onChange={(e) => setXAxisCol(parseInt(e.target.value))}
+                          className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg p-2 outline-none focus:border-teal-500 transition-colors cursor-pointer"
                         >
-                          <Copy className="h-4 w-4" />
-                          Copiar Tabla como HTML Premium
+                          {columnsList.map((col) => (
+                            <option key={col.index} value={col.index}>{col.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1">Eje Y (Valor)</label>
+                        <select
+                          value={yAxisCol}
+                          onChange={(e) => setYAxisCol(parseInt(e.target.value))}
+                          className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg p-2 outline-none focus:border-teal-500 transition-colors cursor-pointer"
+                        >
+                          {columnsList.map((col) => (
+                            <option key={col.index} value={col.index}>{col.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Operación / Agregación de Datos */}
+                  <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3 shadow-sm">
+                    <span className="text-xs font-bold text-text-primary tracking-tight block">Operación de Análisis</span>
+                    <div className="flex bg-surface-primary border border-border-medium rounded-xl p-1 shadow-sm shrink-0">
+                      {(['sum', 'avg', 'count'] as const).map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setAggMethod(m)}
+                          className={`flex-1 text-center py-1.5 text-[10px] font-bold rounded-lg uppercase transition-all cursor-pointer ${
+                            aggMethod === m
+                              ? 'bg-teal-600 text-white shadow-sm'
+                              : 'text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          {m === 'sum' ? 'Suma' : m === 'avg' ? 'Promedio' : 'Frecuencia'}
                         </button>
-                      </div>
+                      ))}
+                    </div>
+                  </div>
 
-                      {/* Right Column - SVG Interactive Chart Canvas (lg:col-span-8) */}
-                      <div className="lg:col-span-8 bg-surface-secondary/40 border border-border-light rounded-2xl p-5 flex flex-col items-center justify-center min-h-[350px] relative shadow-sm overflow-hidden">
-                        {conteo === 0 ? (
-                          <div className="text-center py-8 text-text-tertiary">
-                            <Info className="h-8 w-8 mx-auto mb-2 text-text-tertiary/50" />
-                            <p className="text-xs">No hay datos numéricos para graficar.</p>
+                  {/* Chart Format Buttons */}
+                  <div className="flex bg-surface-secondary border border-border-medium rounded-xl p-1 shadow-sm shrink-0">
+                    {(['bar', 'line', 'area', 'pie'] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setChartType(t)}
+                        className={`flex-1 text-center py-1.5 text-xs font-semibold rounded-lg capitalize transition-all cursor-pointer ${
+                          chartType === t
+                            ? 'bg-teal-500 text-white shadow-sm'
+                            : 'text-text-secondary hover:bg-surface-hover'
+                        }`}
+                      >
+                        {t === 'bar' ? 'Barras' : t === 'line' ? 'Líneas' : t === 'area' ? 'Área' : 'Torta'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Quick Statistics Card */}
+                  <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3 shadow-sm">
+                    <span className="text-xs font-bold text-text-primary tracking-tight block">Indicadores del Eje Y</span>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                        <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Total Suma</span>
+                        <span className="text-sm font-bold text-text-primary mt-1 font-mono">{suma.toLocaleString()}</span>
+                      </div>
+                      <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                        <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Promedio</span>
+                        <span className="text-sm font-bold text-teal-600 mt-1 font-mono">{(Math.round(promedio * 100) / 100).toLocaleString()}</span>
+                      </div>
+                      <div className="bg-surface-primary border border-border-medium rounded-xl p-3 shadow-sm flex flex-col justify-between col-span-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] text-text-tertiary font-bold uppercase tracking-wide">Límites Máx/Mín</span>
+                          <span className="text-[9px] bg-teal-500/10 text-teal-600 px-1.5 py-0.5 rounded-full font-mono font-semibold">Regs: {conteo}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-border-medium/30">
+                          <div>
+                            <span className="text-[9px] text-text-tertiary block">Máx: <strong className="text-text-secondary truncate block max-w-[80px]">{maxLabel}</strong></span>
+                            <span className="text-xs font-bold text-green-600 font-mono">{maxVal.toLocaleString()}</span>
                           </div>
-                        ) : (
-                          <svg
-                            width="100%"
-                            height="100%"
-                            viewBox="0 0 500 280"
-                            className="overflow-visible w-full max-h-[380px]"
-                            onMouseLeave={() => setHoveredIndex(null)}
-                          >
-                            <defs>
-                              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#10b981" />
-                                <stop offset="100%" stopColor="#3b82f6" />
-                              </linearGradient>
-                              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%" stopColor="#8b5cf6" />
-                                <stop offset="100%" stopColor="#ec4899" />
-                              </linearGradient>
-                              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
-                              </linearGradient>
-                              <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-                                <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.1" />
-                              </filter>
-                            </defs>
-
-                            {/* Renderizar Gráfico de Barras */}
-                            {chartType === 'bar' && (() => {
-                              const graphWidth = 430;
-                              const graphHeight = 220;
-                              const xOffset = 45;
-                              const yOffset = 15;
-                              const barW = Math.min(36, (graphWidth / conteo) * 0.7);
-                              const spacing = (graphWidth / conteo);
-                              
-                              return chartData.map((d, i) => {
-                                const barHeight = maxVal > 0 ? (d.val / maxVal) * graphHeight : 0;
-                                const x = xOffset + i * spacing + (spacing - barW) / 2;
-                                const y = yOffset + graphHeight - barHeight;
-                                const isHovered = hoveredIndex === i;
-
-                                return (
-                                  <g key={i}>
-                                    <rect
-                                      x={x}
-                                      y={y}
-                                      width={barW}
-                                      height={Math.max(2, barHeight)}
-                                      fill="url(#barGradient)"
-                                      rx="4"
-                                      className="transition-all duration-300 cursor-pointer"
-                                      style={{
-                                        transformOrigin: `${x + barW/2}px ${y + barHeight}px`,
-                                        opacity: hoveredIndex === null || isHovered ? 1 : 0.6,
-                                        filter: isHovered ? 'url(#shadow)' : 'none',
-                                        transform: isHovered ? 'scale(1.05)' : 'scale(1)'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        setHoveredIndex(i);
-                                        setTooltipPos({ x: e.clientX, y: e.clientY });
-                                      }}
-                                      onMouseMove={(e) => {
-                                        setTooltipPos({ x: e.clientX, y: e.clientY });
-                                      }}
-                                    />
-                                    {conteo <= 15 && (
-                                      <text
-                                        x={x + barW / 2}
-                                        y={graphHeight + yOffset + 16}
-                                        textAnchor="middle"
-                                        fill="currentColor"
-                                        className="text-[9px] font-mono text-text-tertiary select-none"
-                                      >
-                                        {d.label.length > 9 ? `${d.label.slice(0, 8)}.` : d.label}
-                                      </text>
-                                    )}
-                                  </g>
-                                );
-                              });
-                            })()}
-
-                            {/* Renderizar Gráfico de Línea o Área */}
-                            {(chartType === 'line' || chartType === 'area') && (() => {
-                              const graphWidth = 430;
-                              const graphHeight = 220;
-                              const xOffset = 45;
-                              const yOffset = 15;
-                              const spacing = conteo > 1 ? graphWidth / (conteo - 1) : graphWidth;
-
-                              const points = chartData.map((d, i) => {
-                                const x = xOffset + i * spacing;
-                                const y = yOffset + graphHeight - (maxVal > 0 ? (d.val / maxVal) * graphHeight : 0);
-                                return { x, y };
-                              });
-
-                              let pathD = '';
-                              if (points.length > 0) {
-                                pathD = `M ${points[0].x} ${points[0].y}`;
-                                for (let i = 1; i < points.length; i++) {
-                                  const p0 = points[i - 1];
-                                  const p = points[i];
-                                  const cpX1 = p0.x + spacing / 3;
-                                  const cpY1 = p0.y;
-                                  const cpX2 = p.x - spacing / 3;
-                                  const cpY2 = p.y;
-                                  pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p.x} ${p.y}`;
-                                }
-                              }
-
-                              const areaPathD = points.length > 0
-                                ? `${pathD} L ${points[points.length - 1].x} ${graphHeight + yOffset} L ${points[0].x} ${graphHeight + yOffset} Z`
-                                : '';
-
-                              return (
-                                <g>
-                                  {chartType === 'area' && points.length > 0 && (
-                                    <path
-                                      d={areaPathD}
-                                      fill="url(#areaGradient)"
-                                      className="transition-all duration-500"
-                                    />
-                                  )}
-                                  {points.length > 0 && (
-                                    <path
-                                      d={pathD}
-                                      fill="none"
-                                      stroke="url(#lineGradient)"
-                                      strokeWidth="3.5"
-                                      strokeLinecap="round"
-                                      className="transition-all duration-500"
-                                    />
-                                  )}
-                                  {points.map((p, i) => {
-                                    const isHovered = hoveredIndex === i;
-                                    return (
-                                      <circle
-                                        key={i}
-                                        cx={p.x}
-                                        cy={p.y}
-                                        r={isHovered ? 6 : 4}
-                                        fill={isHovered ? '#ec4899' : '#8b5cf6'}
-                                        stroke="white"
-                                        strokeWidth="1.5"
-                                        className="transition-all duration-150 cursor-pointer shadow-sm"
-                                        style={{
-                                          filter: isHovered ? 'url(#shadow)' : 'none'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          setHoveredIndex(i);
-                                          setTooltipPos({ x: e.clientX, y: e.clientY });
-                                        }}
-                                        onMouseMove={(e) => {
-                                          setTooltipPos({ x: e.clientX, y: e.clientY });
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                  {conteo <= 15 && points.map((p, i) => (
-                                    <text
-                                      key={`lbl-${i}`}
-                                      x={p.x}
-                                      y={graphHeight + yOffset + 16}
-                                      textAnchor="middle"
-                                      fill="currentColor"
-                                      className="text-[9px] font-mono text-text-tertiary select-none"
-                                    >
-                                      {chartData[i].label.length > 9 ? `${chartData[i].label.slice(0, 8)}.` : chartData[i].label}
-                                    </text>
-                                  ))}
-                                </g>
-                              );
-                            })()}
-
-                            {/* Renderizar Gráfico de Torta (Pie Chart) */}
-                            {chartType === 'pie' && (() => {
-                              const centerX = 240;
-                              const centerY = 125;
-                              const radius = 100;
-                              let accumulatedAngle = 0;
-
-                              return chartData.map((d, i) => {
-                                if (suma === 0) return null;
-                                const percentage = d.val / suma;
-                                const angle = percentage * 360;
-                                
-                                const x1 = centerX + radius * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
-                                const y1 = centerY + radius * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
-                                
-                                accumulatedAngle += angle;
-                                
-                                const x2 = centerX + radius * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
-                                const y2 = centerY + radius * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
-                                
-                                const largeArc = angle > 180 ? 1 : 0;
-                                
-                                const pathData = `
-                                  M ${centerX} ${centerY}
-                                  L ${x1} ${y1}
-                                  A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}
-                                  Z
-                                `;
-
-                                const sliceColors = [
-                                  '#0d9488', '#06b6d4', '#3b82f6', '#6366f1', 
-                                  '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', 
-                                  '#10b981', '#14b8a6'
-                                ];
-                                const color = sliceColors[i % sliceColors.length];
-                                const isHovered = hoveredIndex === i;
-
-                                const midAngle = accumulatedAngle - angle / 2 - 90;
-                                const moveDist = isHovered ? 8 : 0;
-                                const translate = `translate(${moveDist * Math.cos(midAngle * Math.PI / 180)}px, ${moveDist * Math.sin(midAngle * Math.PI / 180)}px)`;
-
-                                return (
-                                  <path
-                                    key={i}
-                                    d={pathData}
-                                    fill={color}
-                                    stroke="white"
-                                    strokeWidth="1.5"
-                                    className="transition-all duration-300 cursor-pointer"
-                                    style={{
-                                      transform: translate,
-                                      opacity: hoveredIndex === null || isHovered ? 1 : 0.7,
-                                      filter: isHovered ? 'url(#shadow)' : 'none'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      setHoveredIndex(i);
-                                      setTooltipPos({ x: e.clientX, y: e.clientY });
-                                    }}
-                                    onMouseMove={(e) => {
-                                      setTooltipPos({ x: e.clientX, y: e.clientY });
-                                    }}
-                                  />
-                                );
-                              });
-                            })()}
-                          </svg>
-                        )}
+                          <div className="border-l border-border-medium/30 pl-2">
+                            <span className="text-[9px] text-text-tertiary block">Mín: <strong className="text-text-secondary truncate block max-w-[80px]">{minLabel}</strong></span>
+                            <span className="text-xs font-bold text-red-500 font-mono">{minVal.toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
-                    </>
-                  );
-                })()}
+                    </div>
+                  </div>
+
+                  {/* Distribution Breakdown Table Card */}
+                  <div className="bg-surface-secondary/40 border border-border-light rounded-2xl p-4 space-y-3 shadow-sm flex flex-col min-h-[160px]">
+                    <span className="text-xs font-bold text-text-primary tracking-tight block">Tabla de Distribución</span>
+                    <div className="flex-1 overflow-y-auto border border-border-medium rounded-xl bg-surface-primary shadow-sm max-h-[180px]">
+                      <table className="w-full text-left font-sans text-[11px] border-collapse">
+                        <thead className="bg-surface-secondary sticky top-0 font-bold text-text-secondary select-none border-b border-border-medium z-10">
+                          <tr>
+                            <th className="p-2">Categoría</th>
+                            <th className="p-2 text-right">Valor</th>
+                            <th className="p-2 text-right">% Part.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chartData.map((d, i) => {
+                            const pct = suma > 0 ? (d.val / suma) * 100 : 0;
+                            return (
+                              <tr key={i} className="border-b border-border-medium hover:bg-surface-hover/20">
+                                <td className="p-2 font-medium text-text-primary max-w-[120px] truncate" title={d.label}>{d.label}</td>
+                                <td className="p-2 text-right font-mono text-text-secondary">{d.val.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono text-teal-600 font-semibold">{Math.round(pct)}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Copy HTML Table Button */}
+                  <button
+                    onClick={copyTableAsHtml}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 text-teal-600 font-bold text-xs tracking-wide uppercase transition-all shadow-sm cursor-pointer"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copiar Tabla como HTML Premium
+                  </button>
+                </div>
+
+                {/* Right Column - SVG Interactive Chart Canvas (lg:col-span-8) */}
+                <div className="lg:col-span-8 bg-surface-secondary/40 border border-border-light rounded-2xl p-5 flex flex-col items-center justify-center min-h-[350px] relative shadow-sm overflow-hidden">
+                  {conteo === 0 ? (
+                    <div className="text-center py-8 text-text-tertiary">
+                      <Info className="h-8 w-8 mx-auto mb-2 text-text-tertiary/50" />
+                      <p className="text-xs">No hay datos válidos para graficar con la operación seleccionada.</p>
+                    </div>
+                  ) : (
+                    <svg
+                      width="100%"
+                      height="100%"
+                      viewBox="0 0 500 280"
+                      className="overflow-visible w-full max-h-[380px]"
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    >
+                      <defs>
+                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" />
+                          <stop offset="100%" stopColor="#3b82f6" />
+                        </linearGradient>
+                        <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#8b5cf6" />
+                          <stop offset="100%" stopColor="#ec4899" />
+                        </linearGradient>
+                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
+                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
+                        </linearGradient>
+                        <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                          <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.1" />
+                        </filter>
+                      </defs>
+
+                      {/* Renderizar Gráfico de Barras */}
+                      {chartType === 'bar' && (() => {
+                        const graphWidth = 430;
+                        const graphHeight = 220;
+                        const xOffset = 45;
+                        const yOffset = 15;
+                        const barW = Math.min(36, (graphWidth / conteo) * 0.7);
+                        const spacing = (graphWidth / conteo);
+                        
+                        return chartData.map((d, i) => {
+                          const barHeight = maxVal > 0 ? (d.val / maxVal) * graphHeight : 0;
+                          const x = xOffset + i * spacing + (spacing - barW) / 2;
+                          const y = yOffset + graphHeight - barHeight;
+                          const isHovered = hoveredIndex === i;
+
+                          return (
+                            <g key={i}>
+                              <rect
+                                x={x}
+                                y={y}
+                                width={barW}
+                                height={Math.max(2, barHeight)}
+                                fill="url(#barGradient)"
+                                rx="4"
+                                className="transition-all duration-300 cursor-pointer animate-in fade-in slide-in-from-bottom-5 duration-500"
+                                style={{
+                                  transformOrigin: `${x + barW/2}px ${y + barHeight}px`,
+                                  opacity: hoveredIndex === null || isHovered ? 1 : 0.6,
+                                  filter: isHovered ? 'url(#shadow)' : 'none',
+                                  transform: isHovered ? 'scale(1.05)' : 'scale(1)'
+                                }}
+                                onMouseEnter={(e) => {
+                                  setHoveredIndex(i);
+                                  setTooltipPos({ x: e.clientX, y: e.clientY });
+                                }}
+                                onMouseMove={(e) => {
+                                  setTooltipPos({ x: e.clientX, y: e.clientY });
+                                }}
+                              />
+                              {conteo <= 15 && (
+                                <text
+                                  x={x + barW / 2}
+                                  y={graphHeight + yOffset + 16}
+                                  textAnchor="middle"
+                                  fill="currentColor"
+                                  className="text-[9px] font-mono text-text-tertiary select-none"
+                                >
+                                  {d.label.length > 9 ? `${d.label.slice(0, 8)}.` : d.label}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        });
+                      })()}
+
+                      {/* Renderizar Gráfico de Línea o Área */}
+                      {(chartType === 'line' || chartType === 'area') && (() => {
+                        const graphWidth = 430;
+                        const graphHeight = 220;
+                        const xOffset = 45;
+                        const yOffset = 15;
+                        const spacing = conteo > 1 ? graphWidth / (conteo - 1) : graphWidth;
+
+                        const points = chartData.map((d, i) => {
+                          const x = xOffset + i * spacing;
+                          const y = yOffset + graphHeight - (maxVal > 0 ? (d.val / maxVal) * graphHeight : 0);
+                          return { x, y };
+                        });
+
+                        let pathD = '';
+                        if (points.length > 0) {
+                          pathD = `M ${points[0].x} ${points[0].y}`;
+                          for (let i = 1; i < points.length; i++) {
+                            const p0 = points[i - 1];
+                            const p = points[i];
+                            const cpX1 = p0.x + spacing / 3;
+                            const cpY1 = p0.y;
+                            const cpX2 = p.x - spacing / 3;
+                            const cpY2 = p.y;
+                            pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p.x} ${p.y}`;
+                          }
+                        }
+
+                        const areaPathD = points.length > 0
+                          ? `${pathD} L ${points[points.length - 1].x} ${graphHeight + yOffset} L ${points[0].x} ${graphHeight + yOffset} Z`
+                          : '';
+
+                        return (
+                          <g>
+                            {chartType === 'area' && points.length > 0 && (
+                              <path
+                                d={areaPathD}
+                                fill="url(#areaGradient)"
+                                className="transition-all duration-500 animate-in fade-in duration-500"
+                              />
+                            )}
+                            {points.length > 0 && (
+                              <path
+                                d={pathD}
+                                fill="none"
+                                stroke="url(#lineGradient)"
+                                strokeWidth="3.5"
+                                strokeLinecap="round"
+                                className="transition-all duration-500 animate-in fade-in duration-500"
+                              />
+                            )}
+                            {points.map((p, i) => {
+                              const isHovered = hoveredIndex === i;
+                              return (
+                                <circle
+                                  key={i}
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={isHovered ? 6 : 4}
+                                  fill={isHovered ? '#ec4899' : '#8b5cf6'}
+                                  stroke="white"
+                                  strokeWidth="1.5"
+                                  className="transition-all duration-150 cursor-pointer shadow-sm"
+                                  style={{
+                                    filter: isHovered ? 'url(#shadow)' : 'none'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    setHoveredIndex(i);
+                                    setTooltipPos({ x: e.clientX, y: e.clientY });
+                                  }}
+                                  onMouseMove={(e) => {
+                                    setTooltipPos({ x: e.clientX, y: e.clientY });
+                                  }}
+                                />
+                              );
+                            })}
+                            {conteo <= 15 && points.map((p, i) => (
+                              <text
+                                key={`lbl-${i}`}
+                                x={p.x}
+                                y={graphHeight + yOffset + 16}
+                                textAnchor="middle"
+                                fill="currentColor"
+                                className="text-[9px] font-mono text-text-tertiary select-none"
+                              >
+                                {chartData[i].label.length > 9 ? `${chartData[i].label.slice(0, 8)}.` : chartData[i].label}
+                              </text>
+                            ))}
+                          </g>
+                        );
+                      })()}
+
+                      {/* Renderizar Gráfico de Torta (Pie Chart) */}
+                      {chartType === 'pie' && (() => {
+                        const centerX = 240;
+                        const centerY = 125;
+                        const radius = 100;
+                        let accumulatedAngle = 0;
+
+                        return chartData.map((d, i) => {
+                          if (suma === 0) return null;
+                          const percentage = d.val / suma;
+                          const angle = percentage * 360;
+                          
+                          const x1 = centerX + radius * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+                          const y1 = centerY + radius * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+                          
+                          accumulatedAngle += angle;
+                          
+                          const x2 = centerX + radius * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+                          const y2 = centerY + radius * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+                          
+                          const largeArc = angle > 180 ? 1 : 0;
+                          
+                          const pathData = `
+                            M ${centerX} ${centerY}
+                            L ${x1} ${y1}
+                            A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}
+                            Z
+                          `;
+
+                          const sliceColors = [
+                            '#0d9488', '#06b6d4', '#3b82f6', '#6366f1', 
+                            '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', 
+                            '#10b981', '#14b8a6'
+                          ];
+                          const color = sliceColors[i % sliceColors.length];
+                          const isHovered = hoveredIndex === i;
+
+                          const midAngle = accumulatedAngle - angle / 2 - 90;
+                          const moveDist = isHovered ? 8 : 0;
+                          const translate = `translate(${moveDist * Math.cos(midAngle * Math.PI / 180)}px, ${moveDist * Math.sin(midAngle * Math.PI / 180)}px)`;
+
+                          return (
+                            <path
+                              key={i}
+                              d={pathData}
+                              fill={color}
+                              stroke="white"
+                              strokeWidth="1.5"
+                              className="transition-all duration-300 cursor-pointer animate-in fade-in duration-500"
+                              style={{
+                                transform: translate,
+                                opacity: hoveredIndex === null || isHovered ? 1 : 0.7,
+                                filter: isHovered ? 'url(#shadow)' : 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                setHoveredIndex(i);
+                                setTooltipPos({ x: e.clientX, y: e.clientY });
+                              }}
+                              onMouseMove={(e) => {
+                                setTooltipPos({ x: e.clientX, y: e.clientY });
+                              }}
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  )}
+                </div>
               </div>
             </div>
           </div>,
@@ -968,32 +1136,17 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
       </div>
 
       {/* Reactive floating tooltip */}
-      {hoveredIndex !== null && isChartPanelOpen && (() => {
-        const colHeaders = data[0] || [];
-        const chartData = data.slice(1).map((row, idx) => {
-          const labelVal = row[xAxisCol] !== undefined && row[xAxisCol] !== null ? row[xAxisCol] : `Fila ${idx + 1}`;
-          const label = String(labelVal).startsWith('=') ? evaluateFormula(String(labelVal), data) : String(labelVal);
-          const rawVal = row[yAxisCol] !== undefined && row[yAxisCol] !== null ? row[yAxisCol] : '0';
-          const evaluatedVal = String(rawVal).startsWith('=') ? evaluateFormula(String(rawVal), data) : String(rawVal);
-          const cleanedVal = parseFloat(evaluatedVal.replace(/[^0-9.\-]/g, ''));
-          const val = isNaN(cleanedVal) ? 0 : cleanedVal;
-          return { label, val };
-        }).filter(item => item.label || item.val > 0);
-
-        if (!chartData[hoveredIndex]) return null;
-
-        return (
-          <div
-            className="fixed z-[99999] pointer-events-none backdrop-blur-md bg-surface-primary/95 border border-border-medium rounded-xl p-2.5 shadow-xl text-xs font-sans text-text-primary flex flex-col gap-1"
-            style={{ left: tooltipPos.x + 15, top: tooltipPos.y - 10 }}
-          >
-            <span className="font-bold text-text-secondary">{chartData[hoveredIndex].label}</span>
-            <span className="text-teal-600 dark:text-teal-400 font-mono text-sm font-semibold">
-              Valor: {chartData[hoveredIndex].val.toLocaleString()}
-            </span>
-          </div>
-        );
-      })()}
+      {hoveredIndex !== null && isChartPanelOpen && chartData[hoveredIndex] && (
+        <div
+          className="fixed z-[99999999] pointer-events-none backdrop-blur-md bg-surface-primary/95 border border-border-medium rounded-xl p-2.5 shadow-xl text-xs font-sans text-text-primary flex flex-col gap-1"
+          style={{ left: tooltipPos.x + 15, top: tooltipPos.y - 10 }}
+        >
+          <span className="font-bold text-text-secondary">{chartData[hoveredIndex].label}</span>
+          <span className="text-teal-600 dark:text-teal-400 font-mono text-sm font-semibold">
+            Valor: {chartData[hoveredIndex].val.toLocaleString()}
+          </span>
+        </div>
+      )}
 
       {/* Floating HTML Copied notification */}
       {showHtmlCopiedToast && (

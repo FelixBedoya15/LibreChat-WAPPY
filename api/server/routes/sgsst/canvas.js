@@ -503,6 +503,52 @@ router.delete('/:conversationId/versions/:version', requireJwtAuth, async (req, 
 });
 
 /**
+ * POST /api/sgsst/canvas/:conversationId/versions/:version/restore
+ * Restaura el documento a una versión específica sin crear duplicados en el historial.
+ */
+router.post('/:conversationId/versions/:version/restore', requireJwtAuth, async (req, res) => {
+  try {
+    const { conversationId, version } = req.params;
+    const versionNum = parseInt(version, 10);
+
+    let session = await CanvasSession.findOne({ conversationId });
+    if (!session) {
+      return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
+    }
+
+    const versionItem = session.history.find((item) => item.version === versionNum);
+    if (!versionItem) {
+      return res.status(404).json({ error: 'Versión no encontrada en el historial' });
+    }
+
+    session.content = versionItem.content;
+    session.title = versionItem.title;
+    session.version = versionNum;
+
+    // Sincronizar hacia LiveEditor si aplica
+    if (session.fileType === 'text') {
+      const userId = req.user.id;
+      await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+    }
+
+    await session.save();
+
+    res.json({
+      success: true,
+      version: session.version,
+      title: session.title,
+      content: session.content,
+      fileType: session.fileType,
+      history: session.history || [],
+      updatedAt: session.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[Canvas Version Restore] Error:', error);
+    res.status(500).json({ error: 'Error al restaurar la versión' });
+  }
+});
+
+/**
  * POST /api/sgsst/canvas/app-builder/generate
  * Unified generation endpoint for all custom App Builder canvas modules & IA Soul.
  */
