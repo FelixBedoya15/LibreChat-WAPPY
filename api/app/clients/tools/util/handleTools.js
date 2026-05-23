@@ -43,6 +43,7 @@ const {
   CanvasTool,
   SomosSST,
   ConsultarAgenteEspecializado,
+  BlogEditor,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -250,6 +251,9 @@ const loadTools = async ({
     },
     consultar_agente_especializado: async (_toolContextMap) => {
       return new ConsultarAgenteEspecializado({ req: options.req });
+    },
+    blog_editor: async (_toolContextMap) => {
+      return new BlogEditor({ req: options.req });
     },
   };
 

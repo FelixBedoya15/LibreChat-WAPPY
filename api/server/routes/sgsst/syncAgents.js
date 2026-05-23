@@ -34,7 +34,8 @@ const AGENT_FILE_MAP = {
   'fisioterapeuta_laboral': 'Fisioterapeuta Laboral',
   'medico_laboral': 'Medic@ Laboral',
   'profesional_sst': 'Profesional SST',
-  'psicologo_especialista_sst': 'Psicólog@ Especialista SST'
+  'psicologo_especialista_sst': 'Psicólog@ Especialista SST',
+  'redactor_blog': 'Redactor de Blog'
 };
 
 /**

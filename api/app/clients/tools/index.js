@@ -20,6 +20,7 @@ const EditorRIT = require('./structured/EditorRIT');
 const CanvasTool = require('./structured/CanvasTool');
 const SomosSST = require('./structured/SomosSST');
 const ConsultarAgenteEspecializado = require('./structured/ConsultarAgenteEspecializado');
+const BlogEditor = require('./structured/BlogEditor');
 
 
 module.exports = {
@@ -44,4 +45,5 @@ module.exports = {
   CanvasTool,
   SomosSST,
   ConsultarAgenteEspecializado,
+  BlogEditor,
 };

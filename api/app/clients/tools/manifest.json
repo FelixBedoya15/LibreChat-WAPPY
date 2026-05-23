@@ -242,5 +242,12 @@
     "description": "Permite al agente crear, editar, leer e interactuar con archivos en pantalla dividida en tiempo real: documentos de texto (Word), hojas de cálculo (Excel), presentaciones (Slides) y código prototipo (HTML). La herramienta abre automáticamente un editor lateral en la pantalla del usuario.",
     "icon": "https://cdn-icons-png.flaticon.com/512/3749/3749784.png",
     "authConfig": []
+  },
+  {
+    "name": "Gestor de Blog",
+    "pluginKey": "blog_editor",
+    "description": "Permite al agente crear, leer, listar, editar o eliminar borradores de artículos de blog directamente en la base de datos de Wappy. El usuario podrá revisar el borrador, subir imágenes de portada y publicar el artículo desde su panel administrativo.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/3512/3512613.png",
+    "authConfig": []
   }
 ]
