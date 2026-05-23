@@ -70,7 +70,7 @@ router.post('/upload', requireJwtAuth, express.json({ limit: '200mb' }), async (
     if (!fileData) return res.status(400).json({ error: 'No file data' });
     
     // fileData is expected to be a base64 string: data:image/png;base64,iVBORw...
-    const matches = fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    const matches = fileData.match(/^data:(.+?);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
       return res.status(400).json({ error: 'Invalid base64 format' });
     }
