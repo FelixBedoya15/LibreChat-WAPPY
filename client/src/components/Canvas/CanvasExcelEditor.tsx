@@ -26,27 +26,29 @@ function refToCoords(ref: string): { row: number; col: number } | null {
   return { row, col };
 }
 
-function getCellValue(row: number, col: number, gridData: string[][], visited: Set<string> = new Set()): number {
+function getCellValue(row: number, col: number, gridData: any[][], visited: Set<string> = new Set()): number {
   const cellKey = `${row},${col}`;
   if (visited.has(cellKey)) {
     return 0; // circular dependency protection
   }
   visited.add(cellKey);
   
-  const rawVal = gridData[row]?.[col] || '';
-  if (rawVal.startsWith('=')) {
-    const evaluated = evaluateFormula(rawVal, gridData, visited);
+  const rawVal = gridData[row]?.[col];
+  const rawValStr = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
+  if (rawValStr.startsWith('=')) {
+    const evaluated = evaluateFormula(rawValStr, gridData, visited);
     const parsed = parseFloat(evaluated);
     visited.delete(cellKey);
     return isNaN(parsed) ? 0 : parsed;
   }
   visited.delete(cellKey);
-  const parsed = parseFloat(rawVal);
+  const parsed = parseFloat(rawValStr);
   return isNaN(parsed) ? 0 : parsed;
 }
 
-function evaluateFormula(formula: string, gridData: string[][], visited: Set<string> = new Set()): string {
-  if (!formula || !formula.startsWith('=')) return formula;
+function evaluateFormula(formula: any, gridData: any[][], visited: Set<string> = new Set()): string {
+  const formulaStr = formula !== undefined && formula !== null ? String(formula) : '';
+  if (!formulaStr || !formulaStr.startsWith('=')) return formulaStr;
 
   const upperFormula = formula.toUpperCase().trim();
   
@@ -349,7 +351,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
       const bgColor = rowIdx % 2 === 0 ? '#ffffff' : '#f9fafb';
       html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
       row.forEach((cellVal) => {
-        const displayVal = cellVal.startsWith('=') ? evaluateFormula(cellVal, data) : cellVal;
+        const displayVal = cellVal && String(cellVal).startsWith('=') ? evaluateFormula(String(cellVal), data) : cellVal;
         html += `<td style="padding: 10px 16px; vertical-align: middle;">${displayVal || ''}</td>`;
       });
       html += `</tr>`;
@@ -590,11 +592,11 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                   }));
 
                   const chartData = data.slice(1).map((row, idx) => {
-                    const labelVal = row[xAxisCol] || `Fila ${idx + 1}`;
-                    const label = labelVal.startsWith('=') ? evaluateFormula(labelVal, data) : labelVal;
+                    const labelVal = row[xAxisCol] !== undefined && row[xAxisCol] !== null ? row[xAxisCol] : `Fila ${idx + 1}`;
+                    const label = String(labelVal).startsWith('=') ? evaluateFormula(String(labelVal), data) : String(labelVal);
                     
-                    const rawVal = row[yAxisCol] || '0';
-                    const evaluatedVal = rawVal.startsWith('=') ? evaluateFormula(evaluatedVal, data) : rawVal;
+                    const rawVal = row[yAxisCol] !== undefined && row[yAxisCol] !== null ? row[yAxisCol] : '0';
+                    const evaluatedVal = String(rawVal).startsWith('=') ? evaluateFormula(String(rawVal), data) : String(rawVal);
                     
                     const cleanedVal = parseFloat(evaluatedVal.replace(/[^0-9.\-]/g, ''));
                     const val = isNaN(cleanedVal) ? 0 : cleanedVal;
@@ -969,10 +971,10 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
       {hoveredIndex !== null && isChartPanelOpen && (() => {
         const colHeaders = data[0] || [];
         const chartData = data.slice(1).map((row, idx) => {
-          const labelVal = row[xAxisCol] || `Fila ${idx + 1}`;
-          const label = labelVal.startsWith('=') ? evaluateFormula(labelVal, data) : labelVal;
-          const rawVal = row[yAxisCol] || '0';
-          const evaluatedVal = rawVal.startsWith('=') ? evaluateFormula(rawVal, data) : rawVal;
+          const labelVal = row[xAxisCol] !== undefined && row[xAxisCol] !== null ? row[xAxisCol] : `Fila ${idx + 1}`;
+          const label = String(labelVal).startsWith('=') ? evaluateFormula(String(labelVal), data) : String(labelVal);
+          const rawVal = row[yAxisCol] !== undefined && row[yAxisCol] !== null ? row[yAxisCol] : '0';
+          const evaluatedVal = String(rawVal).startsWith('=') ? evaluateFormula(String(rawVal), data) : String(rawVal);
           const cleanedVal = parseFloat(evaluatedVal.replace(/[^0-9.\-]/g, ''));
           const val = isNaN(cleanedVal) ? 0 : cleanedVal;
           return { label, val };
