@@ -371,15 +371,23 @@ const PerfilesCargo = () => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
             const base64String = reader.result as string;
-            setFormData(prev => ({
-                ...prev,
-                images: {
-                    ...(prev.images || {}),
-                    [key]: base64String
+            try {
+                const res = await fetch('/api/sgsst/perfiles-cargo/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ fileData: base64String, fileName: file.name })
+                });
+                const data = await res.json();
+                if (data.url) {
+                    setFormData(prev => ({ ...prev, images: { ...(prev.images || {}), [key]: data.url } }));
+                } else {
+                    showToast({ message: 'Error al subir imagen', severity: NotificationSeverity.ERROR });
                 }
-            }));
+            } catch (err) {
+                showToast({ message: 'Error de conexión', severity: NotificationSeverity.ERROR });
+            }
         };
         reader.readAsDataURL(file);
     };
@@ -409,10 +417,25 @@ const PerfilesCargo = () => {
                 return;
             }
             const reader = new FileReader();
-            reader.onloadend = () => {
+            reader.onloadend = async () => {
                 const base64String = reader.result as string;
-                setFormData(prev => ({ ...prev, video: base64String }));
-                setIsVideoUploading(false);
+                try {
+                    const res = await fetch('/api/sgsst/perfiles-cargo/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ fileData: base64String, fileName: file.name })
+                    });
+                    const data = await res.json();
+                    if (data.url) {
+                        setFormData(prev => ({ ...prev, video: data.url }));
+                    } else {
+                        showToast({ message: 'Error al subir video', severity: NotificationSeverity.ERROR });
+                    }
+                } catch (err) {
+                    showToast({ message: 'Error de conexión', severity: NotificationSeverity.ERROR });
+                } finally {
+                    setIsVideoUploading(false);
+                }
             };
             reader.readAsDataURL(file);
         };

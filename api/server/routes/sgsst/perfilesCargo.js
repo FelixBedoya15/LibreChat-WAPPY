@@ -63,6 +63,41 @@ router.post('/save', requireJwtAuth, async (req, res) => {
   }
 });
 
+// ─── POST /upload ──────────────────────────────────────────────────────────
+router.post('/upload', requireJwtAuth, express.json({ limit: '200mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'No file data' });
+    
+    // fileData is expected to be a base64 string: data:image/png;base64,iVBORw...
+    const matches = fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Invalid base64 format' });
+    }
+    
+    const buffer = Buffer.from(matches[2], 'base64');
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Save to client/public/images/sgsst
+    const uploadDir = path.join(__dirname, '../../../../client/public/images/sgsst');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    // Secure filename
+    const safeName = (fileName || 'upload').replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1000)}-${safeName}`;
+    const filePath = path.join(uploadDir, uniqueName);
+    
+    fs.writeFileSync(filePath, buffer);
+    res.json({ url: `/images/sgsst/${uniqueName}` });
+  } catch (error) {
+    logger.error('[SGSST PerfilesCargo] Upload error:', error);
+    res.status(500).json({ error: 'Error al subir el archivo' });
+  }
+});
+
 // ─── POST /generate ────────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
