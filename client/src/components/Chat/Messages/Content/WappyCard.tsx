@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
+import useSubmitMessage from '~/hooks/Messages/useSubmitMessage';
 import cn from '~/utils/cn';
 
 interface CardItem {
@@ -29,7 +30,10 @@ interface CardData {
   badge?: string;
   items?: CardItem[];
   links?: CardLink[];
+  suggestions?: string[] | { label: string }[];
   footer?: string;
+  layout?: 'list' | 'grid' | 'metrics';
+  columns?: number;
 }
 
 // Convert kebab-case or custom naming to PascalCase Lucide Icon safely
@@ -152,6 +156,7 @@ const THEMES = {
 
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const { submitMessage } = useSubmitMessage();
   const data = parseTolerantJson(content);
 
   if (!data) {
@@ -173,6 +178,21 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const themeType = data.type || 'primary';
   const theme = THEMES[themeType] || THEMES.primary;
   const CardIcon = getIcon(data.icon || 'Shield');
+
+  // Safely extract suggestions from variations
+  const suggestionsList: string[] = [];
+  const rawSuggestions = data.suggestions || (data as any).buttons;
+  if (rawSuggestions && Array.isArray(rawSuggestions)) {
+    rawSuggestions.forEach((s) => {
+      if (typeof s === 'string') {
+        suggestionsList.push(s);
+      } else if (s && typeof s === 'object' && typeof (s as any).label === 'string') {
+        suggestionsList.push((s as any).label);
+      } else if (s && typeof s === 'object' && typeof (s as any).text === 'string') {
+        suggestionsList.push((s as any).text);
+      }
+    });
+  }
 
   return (
     <div className={cn(
@@ -234,43 +254,145 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
           {/* RENDER ITEMS */}
           {data.items && data.items.length > 0 && (
-            <div className="grid grid-cols-1 gap-2.5 mb-4">
-              {data.items.map((item, idx) => {
-                const ItemIcon = getIcon(item.icon);
-                const itemTheme = item.color ? THEMES[item.color] : theme;
-                return (
-                  <div 
-                    key={idx}
-                    className={cn(
-                      "flex gap-3 p-3 rounded-xl border border-black/5 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300 group"
-                    )}
-                  >
-                    <div className={cn(
-                      "p-1.5 rounded-lg shrink-0 h-fit transition-transform group-hover:scale-105", 
-                      itemTheme.iconBg, 
-                      itemTheme.iconText
-                    )}>
-                      <ItemIcon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h4 className="font-semibold text-xs text-gray-800 dark:text-gray-200">
+            <>
+              {/* layout === 'metrics' */}
+              {data.layout === 'metrics' && (
+                <div className={cn(
+                  "grid gap-3 mb-4",
+                  data.columns === 2 ? "grid-cols-2" :
+                  data.columns === 3 ? "grid-cols-3" :
+                  data.columns === 4 ? "grid-cols-2 sm:grid-cols-4" :
+                  "grid-cols-2 sm:grid-cols-4"
+                )}>
+                  {data.items.map((item, idx) => {
+                    const itemTheme = item.color ? THEMES[item.color] : theme;
+                    return (
+                      <div 
+                        key={idx}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm bg-white/40 dark:bg-zinc-900/40",
+                          itemTheme.border
+                        )}
+                      >
+                        <div className={cn("text-xl md:text-2xl font-extrabold tracking-tight mb-2", itemTheme.iconText)}>
                           {item.title}
-                        </h4>
+                        </div>
+                        <div className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 leading-snug">
+                          {item.description}
+                        </div>
                         {item.badge && (
-                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", itemTheme.badge)}>
+                          <span className={cn("mt-2 text-[9px] px-1.5 py-0.5 rounded font-medium", itemTheme.badge)}>
                             {item.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* layout === 'grid' */}
+              {data.layout === 'grid' && (
+                <div className={cn(
+                  "grid gap-4 mb-4",
+                  data.columns === 2 ? "grid-cols-1 sm:grid-cols-2" :
+                  data.columns === 3 ? "grid-cols-1 sm:grid-cols-3" :
+                  data.columns === 4 ? "grid-cols-2 md:grid-cols-4" :
+                  "grid-cols-1 sm:grid-cols-2"
+                )}>
+                  {data.items.map((item, idx) => {
+                    const ItemIcon = getIcon(item.icon);
+                    const itemTheme = item.color ? THEMES[item.color] : theme;
+                    const bulletPoints = item.description.split('\n').filter(p => p.trim().length > 0);
+                    return (
+                      <div 
+                        key={idx}
+                        className={cn(
+                          "p-4 rounded-2xl border bg-white/40 dark:bg-zinc-900/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 flex flex-col justify-between",
+                          itemTheme.border
+                        )}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <h4 className="font-bold text-xs text-gray-800 dark:text-gray-100">
+                              {item.title}
+                            </h4>
+                            {item.badge && (
+                              <span className={cn("text-[9px] px-2 py-0.5 rounded font-semibold", itemTheme.badge)}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {bulletPoints.length > 1 ? (
+                            <ul className="space-y-1.5 mt-2">
+                              {bulletPoints.map((bp, bpIdx) => (
+                                <li key={bpIdx} className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1.5 leading-relaxed">
+                                  <span className={cn("h-1.5 w-1.5 rounded-full mt-1.5 shrink-0", itemTheme.accent)} />
+                                  <span>{bp.replace(/^-\s*/, '')}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                        {item.icon && (
+                          <div className="flex justify-end mt-3">
+                            <div className={cn("p-1.5 rounded-lg shrink-0", itemTheme.iconBg, itemTheme.iconText)}>
+                              <ItemIcon className="h-4 w-4" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* layout === 'list' (default) */}
+              {(!data.layout || data.layout === 'list') && (
+                <div className="grid grid-cols-1 gap-2.5 mb-4">
+                  {data.items.map((item, idx) => {
+                    const ItemIcon = getIcon(item.icon);
+                    const itemTheme = item.color ? THEMES[item.color] : theme;
+                    return (
+                      <div 
+                        key={idx}
+                        className={cn(
+                          "flex gap-3 p-3 rounded-xl border border-black/5 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300 group"
+                        )}
+                      >
+                        <div className={cn(
+                          "p-1.5 rounded-lg shrink-0 h-fit transition-transform group-hover:scale-105", 
+                          itemTheme.iconBg, 
+                          itemTheme.iconText
+                        )}>
+                          <ItemIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h4 className="font-semibold text-xs text-gray-800 dark:text-gray-200">
+                              {item.title}
+                            </h4>
+                            {item.badge && (
+                              <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", itemTheme.badge)}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {/* RENDER LINKS / ACTIONS */}
@@ -295,6 +417,27 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                   </a>
                 );
               })}
+            </div>
+          )}
+
+          {/* RENDER SUGGESTED QUESTIONS / CHAT PROMPTS (CLAUDE STYLE) */}
+          {suggestionsList.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-black/5 dark:border-white/10">
+              {suggestionsList.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => submitMessage({ text: suggestion })}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200",
+                    "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 shadow-sm",
+                    "hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  )}
+                >
+                  <span>{suggestion}</span>
+                  <Icons.ArrowUpRight className="h-3.5 w-3.5 opacity-80" />
+                </button>
+              ))}
             </div>
           )}
 
