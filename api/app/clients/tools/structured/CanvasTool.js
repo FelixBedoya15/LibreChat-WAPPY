@@ -156,7 +156,7 @@ class CanvasTool extends Tool {
     super();
     this.name = 'canvas';
     this.description =
-      'Herramienta interactiva de pantalla dividida (Canvas). Úsala para crear o editar: documentos de texto enriquecidos ("text"), hojas de cálculo ("excel"), presentaciones ("presentation") y prototipos visuales ("html"). El usuario ve los cambios reflejados en tiempo real en la barra lateral derecha.';
+      'Herramienta interactiva de pantalla dividida (Canvas). Úsala para crear o editar: documentos de texto enriquecidos ("text") - OBLIGATORIO para políticas, reglamentos, manuales, contratos, cartas, planes, actas, informes y cualquier documento tradicional -, hojas de cálculo ("excel"), presentaciones ("presentation") y prototipos visuales/aplicaciones interactivas ("html") - SOLO para aplicaciones, páginas o juegos interactivos. El usuario ve los cambios reflejados en tiempo real en la barra lateral derecha.';
     this.req = fields.req;
 
     this.schema = z.object({
@@ -168,7 +168,13 @@ class CanvasTool extends Tool {
 
       fileType: z
         .enum(['text', 'excel', 'presentation', 'html'])
-        .describe('Tipo de archivo a gestionar: "text" (Word/PDF), "excel" (Excel), "presentation" (PowerPoint/PDF slides) o "html" (Prototipos/Iframe).'),
+        .describe(
+          'Tipo de archivo/lienzo del Canvas a crear o gestionar. Respeta estrictamente lo que pida el usuario mapeándolo según este diccionario de variables:\n' +
+          '- "text" (Word / Documento tradicional - PRIORIDAD POR DEFECTO): Úsalo si el usuario menciona: documento, word, doc, docx, redactar, escribir, política, manual, reglamento, contrato, carta, plan, acta, informe, procedimiento, guía, circular, memorando, texto, minuta, estandares, sanción, llamado de atención, descripción de cargo, perfil sociodemográfico o notificación.\n' +
+          '- "excel" (Hoja de cálculo): Úsalo si el usuario menciona: excel, hoja de cálculo, hoja de calculo, tabla de datos, grilla, matriz, indicadores, accidentalidad, fórmulas, celdas, cálculo, presupuesto, listado, registro, base de datos, gráfico, cronograma, plan de trabajo, seguimiento o inventario.\n' +
+          '- "presentation" (Presentación / Slides): Úsalo si el usuario menciona: presentación, presentacion, diapositivas, slides, diapos, powerpoint, ppt, pptx, exposición, capacitación, inducción, charla de 5 minutos, láminas, filminas.\n' +
+          '- "html" (Prototipo HTML / Código): Úsalo si el usuario menciona: código, codigo, html, css, js, javascript, programar, desarrollar, aplicación, app, prototipo, iframe, página web, calculadora interactiva, formulario interactivo, simulador interactivo, juego o widget.'
+        ),
 
       title: z
         .string()

@@ -84,6 +84,7 @@
     "migrate:prompt-permissions:dry-run": "node config/migrate-prompt-permissions.js --dry-run",
     "migrate:prompt-permissions": "node config/migrate-prompt-permissions.js",
     "migrate:prompt-permissions:batch": "node config/migrate-prompt-permissions.js --batch-size=50",
+    "seed:prompts": "node scripts/seed_prompts_wappy.js",
     "deploy": "git add . && git commit -m \"Auto-deploy\" && git push && curl -X POST -H \"Content-Type: application/json\" -H \"X-GitHub-Event: push\" -d '{\"ref\": \"refs/heads/main\"}' http://72.60.124.130:3000/api/deploy/compose/gqcBaGhm5xDAuXlgop-PA"
   },
   "repository": {
