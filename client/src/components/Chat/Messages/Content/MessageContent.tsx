@@ -4,15 +4,15 @@ import { DelayedRender } from '@librechat/client';
 import type { TMessage } from 'librechat-data-provider';
 import type { TMessageContentProps, TDisplayProps } from '~/common';
 import Error from '~/components/Messages/Content/Error';
-import { useMessageContext } from '~/Providers';
+import { useMessageContext } from '~/Providers/MessageContext';
 import MarkdownLite from './MarkdownLite';
 import EditMessage from './EditMessage';
 import Thinking from './Parts/Thinking';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 import Container from './Container';
 import Markdown from './Markdown';
 import { cn } from '~/utils';
-import store from '~/store';
+import store from '~/store/settings';
 
 const ERROR_CONNECTION_TEXT = 'Error connecting to server, try refreshing the page.';
 const DELAYED_ERROR_TIMEOUT = 5500;

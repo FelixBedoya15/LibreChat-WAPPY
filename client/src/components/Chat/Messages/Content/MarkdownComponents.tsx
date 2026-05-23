@@ -8,7 +8,7 @@ import { useFileDownload } from '~/data-provider/Files/queries';
 import { useCodeBlockContext } from '~/Providers/CodeBlockContext';
 import { handleDoubleClick } from '~/utils';
 import useLocalize from '~/hooks/useLocalize';
-import store from '~/store';
+import store from '~/store/user';
 import { WappyCard } from './WappyCard';
 
 type TCodeProps = {

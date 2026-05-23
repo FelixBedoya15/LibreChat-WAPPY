@@ -10,12 +10,13 @@ import remarkDirective from 'remark-directive';
 import type { Pluggable } from 'unified';
 import { Citation, CompositeCitation, HighlightedText } from '~/components/Web/Citation';
 import { Artifact, artifactPlugin } from '~/components/Artifacts/Artifact';
-import { ArtifactProvider, CodeBlockProvider } from '~/Providers';
+import { ArtifactProvider } from '~/Providers/ArtifactContext';
+import { CodeBlockProvider } from '~/Providers/CodeBlockContext';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
 import { langSubset, preprocessLaTeX } from '~/utils';
-import { unicodeCitation } from '~/components/Web';
+import { unicodeCitation } from '~/components/Web/plugin';
 import { code, a, p } from './MarkdownComponents';
-import store from '~/store';
+import store from '~/store/settings';
 
 type TContentProps = {
   content: string;
