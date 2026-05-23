@@ -143,7 +143,9 @@ function getColumnLabel(index: number): string {
 }
 
 const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title, onRegisterDownload }) => {
-  const [data, setData] = useState<string[][]>([['', '', ''], ['', '', ''], ['', '', '']]);
+  const [sheets, setSheets] = useState<{ [sheetName: string]: string[][] }>({ 'Hoja 1': [['', '', ''], ['', '', ''], ['', '', '']] });
+  const [activeSheet, setActiveSheet] = useState<string>('Hoja 1');
+  const data = sheets[activeSheet] || [['', '', ''], ['', '', ''], ['', '', '']];
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [formulaValue, setFormulaValue] = useState<string>('');
   const gridRef = useRef<HTMLDivElement>(null);
@@ -280,33 +282,71 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     }
   }, [data]);
 
+  // Actualización centralizada de hojas y backend
+  const updateSheets = (updatedGrid: string[][]) => {
+    const updatedSheets = {
+      ...sheets,
+      [activeSheet]: updatedGrid
+    };
+    setSheets(updatedSheets);
+
+    // Notificar al backend
+    const keys = Object.keys(updatedSheets);
+    const hasMultipleSheets = keys.length > 1 || keys[0] !== 'Hoja 1';
+    if (hasMultipleSheets) {
+      onUpdate(JSON.stringify(updatedSheets));
+    } else {
+      onUpdate(JSON.stringify(updatedGrid));
+    }
+  };
+
   // Load initial content
   useEffect(() => {
     if (initialContent) {
       if (Array.isArray(initialContent)) {
-        setData(initialContent);
+        setSheets({ 'Hoja 1': initialContent });
+        setActiveSheet('Hoja 1');
         return;
       }
       try {
         const parsed = JSON.parse(initialContent);
+        
+        // 1. Si es un array de arrays (grilla plana)
         if (Array.isArray(parsed) && parsed.every(row => Array.isArray(row))) {
-          setData(parsed);
+          setSheets({ 'Hoja 1': parsed });
+          setActiveSheet('Hoja 1');
           return;
+        }
+
+        // 2. Si es un objeto que representa múltiples pestañas (sheets)
+        if (typeof parsed === 'object' && parsed !== null) {
+          const keys = Object.keys(parsed);
+          const isMultipleSheets = keys.length > 0 && keys.every(key => Array.isArray(parsed[key]) && parsed[key].every((row: any) => Array.isArray(row)));
+          if (isMultipleSheets) {
+            setSheets(parsed);
+            if (!parsed[activeSheet]) {
+              setActiveSheet(keys[0]);
+            }
+            return;
+          }
         }
       } catch (e) {
         console.warn('Failed to parse excel content JSON, using fallback', e);
       }
     }
     // Fallback default grid (only if we don't have valid grid data loaded already)
-    setData(prev => {
-      const isPrevEmpty = !prev || prev.length <= 1 || (prev.length === 3 && prev[0].every(c => c === ''));
+    setSheets(prev => {
+      const keys = Object.keys(prev);
+      const isPrevEmpty = !prev || keys.length === 0 || (keys.length === 1 && (prev['Hoja 1']?.length <= 1 || (prev['Hoja 1']?.length === 3 && prev['Hoja 1']?.[0]?.every(c => c === ''))));
       if (isPrevEmpty) {
-        return [
-          ['Indicador', 'Meta', 'Resultado', 'Cumplimiento'],
-          ['Capacitaciones Realizadas', '12', '10', '83.3%'],
-          ['Simulacros de Emergencia', '2', '2', '100%'],
-          ['Inspecciones de Seguridad', '24', '18', '75%'],
-        ];
+        return {
+          'Hoja 1': [
+            ['Indicador', 'Meta', 'Resultado', 'Cumplimiento'],
+            ['Capacitaciones Realizadas', '12', '10', '83.3%'],
+            ['Simulacros de Emergencia', '2', '2', '100%'],
+            ['Inspecciones de Seguridad', '24', '18', '75%'],
+          ]
+        };
       }
       return prev;
     });
@@ -316,13 +356,12 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     const updated = data.map((r, rIdx) => 
       r.map((c, cIdx) => (rIdx === row && cIdx === col ? value : c))
     );
-    setData(updated);
-    onUpdate(JSON.stringify(updated));
+    updateSheets(updated);
   };
 
   const handleCellClick = (row: number, col: number) => {
     setSelectedCell({ row, col });
-    setFormulaValue(data[row][col] || '');
+    setFormulaValue(data[row]?.[col] || '');
   };
 
   const handleFormulaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,29 +376,25 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     const colCount = data[0]?.length || 3;
     const newRow = Array(colCount).fill('');
     const updated = [...data, newRow];
-    setData(updated);
-    onUpdate(JSON.stringify(updated));
+    updateSheets(updated);
   };
 
   const deleteRow = () => {
     if (data.length <= 1) return;
     const updated = data.slice(0, -1);
-    setData(updated);
-    onUpdate(JSON.stringify(updated));
+    updateSheets(updated);
     setSelectedCell(null);
   };
 
   const addColumn = () => {
     const updated = data.map(row => [...row, '']);
-    setData(updated);
-    onUpdate(JSON.stringify(updated));
+    updateSheets(updated);
   };
 
   const deleteColumn = () => {
     if (data[0]?.length <= 1) return;
     const updated = data.map(row => row.slice(0, -1));
-    setData(updated);
-    onUpdate(JSON.stringify(updated));
+    updateSheets(updated);
     setSelectedCell(null);
   };
 
@@ -652,63 +687,141 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
 
       {/* Main Workspace Frame (Grid + Analytics Sidebar) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Spreadsheet Grid Container */}
-        <div className="flex-1 overflow-auto p-4 bg-surface-secondary/40" ref={gridRef}>
-          <div className="inline-block min-w-full align-middle border border-border-medium rounded-xl shadow-sm overflow-hidden bg-surface-primary">
-            <table className="min-w-full border-collapse text-left font-sans text-xs">
-              <thead>
-                <tr className="bg-surface-secondary select-none">
-                  {/* Index Column */}
-                  <th className="w-10 border-r border-b border-border-medium text-center font-mono font-bold text-text-tertiary p-1.5"></th>
-                  {data[0]?.map((_, colIdx) => (
-                    <th
-                      key={colIdx}
-                      className="border-r border-b border-border-medium text-center font-mono font-bold text-text-secondary px-3 py-1.5 min-w-[120px]"
-                    >
-                      {getColumnLabel(colIdx)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="hover:bg-surface-hover/30 transition-colors">
-                    {/* Index Row Cell */}
-                    <td className="border-r border-b border-border-medium text-center font-mono font-bold bg-surface-secondary text-text-tertiary select-none p-1.5">
-                      {rowIdx + 1}
-                    </td>
-                    {row.map((cellVal, colIdx) => {
-                      const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
-                      const displayVal = isSelected ? cellVal : evaluateFormula(cellVal, data);
-                      return (
-                        <td
-                          key={colIdx}
-                          onClick={() => handleCellClick(rowIdx, colIdx)}
-                          className={`border-r border-b border-border-medium px-3 py-2 cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-teal-500/10 outline outline-2 outline-teal-500 z-10'
-                              : 'hover:bg-teal-500/5'
-                          }`}
-                        >
-                          <input
-                            id={`cell-${rowIdx}-${colIdx}`}
-                            type="text"
-                            value={displayVal}
-                            onFocus={() => handleCellClick(rowIdx, colIdx)}
-                            onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
-                            onChange={(e) => {
-                              updateCell(rowIdx, colIdx, e.target.value);
-                              setFormulaValue(e.target.value);
-                            }}
-                            className="w-full bg-transparent border-none outline-none text-text-primary cursor-pointer focus:cursor-text"
-                          />
-                        </td>
-                      );
-                    })}
+        {/* Spreadsheet Left Side: Grid + Tabs */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-surface-secondary/40">
+          {/* Spreadsheet Grid Container */}
+          <div className="flex-1 overflow-auto p-4" ref={gridRef}>
+            <div className="inline-block min-w-full align-middle border border-border-medium rounded-xl shadow-sm overflow-hidden bg-surface-primary">
+              <table className="min-w-full border-collapse text-left font-sans text-xs">
+                <thead>
+                  <tr className="bg-surface-secondary select-none">
+                    {/* Index Column */}
+                    <th className="w-10 border-r border-b border-border-medium text-center font-mono font-bold text-text-tertiary p-1.5"></th>
+                    {data[0]?.map((_, colIdx) => (
+                      <th
+                        key={colIdx}
+                        className="border-r border-b border-border-medium text-center font-mono font-bold text-text-secondary px-3 py-1.5 min-w-[120px]"
+                      >
+                        {getColumnLabel(colIdx)}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.map((row, rowIdx) => (
+                    <tr key={rowIdx} className="hover:bg-surface-hover/30 transition-colors">
+                      {/* Index Row Cell */}
+                      <td className="border-r border-b border-border-medium text-center font-mono font-bold bg-surface-secondary text-text-tertiary select-none p-1.5">
+                        {rowIdx + 1}
+                      </td>
+                      {row.map((cellVal, colIdx) => {
+                        const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
+                        const displayVal = isSelected ? cellVal : evaluateFormula(cellVal, data);
+                        return (
+                          <td
+                            key={colIdx}
+                            onClick={() => handleCellClick(rowIdx, colIdx)}
+                            className={`border-r border-b border-border-medium px-3 py-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-teal-500/10 outline outline-2 outline-teal-500 z-10'
+                                : 'hover:bg-teal-500/5'
+                            }`}
+                          >
+                            <input
+                              id={`cell-${rowIdx}-${colIdx}`}
+                              type="text"
+                              value={displayVal}
+                              onFocus={() => handleCellClick(rowIdx, colIdx)}
+                              onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
+                              onChange={(e) => {
+                                updateCell(rowIdx, colIdx, e.target.value);
+                                setFormulaValue(e.target.value);
+                              }}
+                              className="w-full bg-transparent border-none outline-none text-text-primary cursor-pointer focus:cursor-text"
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pestañas (Hojas) del Excel con Estilo WAPPY Premium */}
+          <div className="flex items-center justify-between border-t border-border-medium bg-surface-secondary px-4 py-2 mt-auto select-none">
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-[80%] pr-2 scrollbar-none">
+              {Object.keys(sheets).map((sheetName) => {
+                const isActive = activeSheet === sheetName;
+                return (
+                  <button
+                    key={sheetName}
+                    onClick={() => {
+                      setActiveSheet(sheetName);
+                      setSelectedCell(null);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer ${
+                      isActive
+                        ? 'bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 font-bold shadow-sm'
+                        : 'bg-transparent border border-transparent text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <FileSpreadsheet className={`h-3.5 w-3.5 ${isActive ? 'text-teal-500' : 'text-text-secondary'}`} />
+                    <span>{sheetName}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Controles de hojas */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const newSheetName = `Hoja ${Object.keys(sheets).length + 1}`;
+                  const newSheets = {
+                    ...sheets,
+                    [newSheetName]: [['', '', ''], ['', '', ''], ['', '', '']]
+                  };
+                  setSheets(newSheets);
+                  setActiveSheet(newSheetName);
+                  setSelectedCell(null);
+                  onUpdate(JSON.stringify(newSheets));
+                }}
+                title="Añadir nueva pestaña"
+                className="p-1.5 rounded-lg text-text-secondary hover:text-teal-500 dark:hover:text-teal-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              
+              {Object.keys(sheets).length > 1 && (
+                <button
+                  onClick={() => {
+                    const keys = Object.keys(sheets);
+                    const currentIndex = keys.indexOf(activeSheet);
+                    const updatedSheets = { ...sheets };
+                    delete updatedSheets[activeSheet];
+                    
+                    const nextActiveSheet = keys[currentIndex - 1] || keys[currentIndex + 1] || Object.keys(updatedSheets)[0];
+                    setSheets(updatedSheets);
+                    setActiveSheet(nextActiveSheet);
+                    setSelectedCell(null);
+                    
+                    const nextKeys = Object.keys(updatedSheets);
+                    const hasMultipleSheets = nextKeys.length > 1 || nextKeys[0] !== 'Hoja 1';
+                    if (hasMultipleSheets) {
+                      onUpdate(JSON.stringify(updatedSheets));
+                    } else {
+                      onUpdate(JSON.stringify(updatedSheets[nextActiveSheet]));
+                    }
+                  }}
+                  title="Eliminar pestaña actual"
+                  className="p-1.5 rounded-lg text-text-secondary hover:text-rose-500 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
