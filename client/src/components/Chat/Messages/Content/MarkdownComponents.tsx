@@ -4,7 +4,7 @@ import { useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, dataService } from 'librechat-data-provider';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
-import { useFileDownload } from '~/data-provider';
+import { useFileDownload } from '~/data-provider/Files/queries';
 import { useCodeBlockContext } from '~/Providers/CodeBlockContext';
 import { handleDoubleClick } from '~/utils';
 import useLocalize from '~/hooks/useLocalize';
