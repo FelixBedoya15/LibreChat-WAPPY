@@ -646,6 +646,10 @@ router.all('/seed-prompts', requireJwtAuth, async (req, res) => {
       seededList
     });
 
+  } catch (err) {
+    logger.error('[SeedPrompts] Critical error:', err);
+    return res.status(500).json({ error: 'Falla interna al sembrar prompts: ' + err.message });
+  }
 });
 
 router.get('/migrate-names-public', async (req, res) => {
