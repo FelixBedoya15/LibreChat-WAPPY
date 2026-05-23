@@ -672,7 +672,7 @@ Genera el código HTML interactivo autocontenido. Puedes usar Tailwind CSS (clas
 Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de markdown de tres comillas.`;
     }
 
-    const preferredModel = 'gemini-2.5-flash';
+    const preferredModel = 'gemini-3.5-flash';
     const result = await generateWithKeyRotation(preferredModel, req.user.id, promptText);
     const response = await result.response;
     const outputText = response.text();

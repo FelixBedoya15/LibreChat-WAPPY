@@ -193,7 +193,7 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
 
         // 4. Generate Content
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: finalModelName });
 

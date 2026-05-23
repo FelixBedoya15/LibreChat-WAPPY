@@ -329,7 +329,7 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const selectedModel = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
@@ -543,7 +543,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
 
         // Build expanded SST context
@@ -757,7 +757,7 @@ router.post('/autofill-proceso', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
 
         const systemPrompt = `Eres un experto en SST. Tienes la información completa de un Perfil de Cargo, y posiblemente evidencia visual (fotos o video).
@@ -823,7 +823,7 @@ router.post('/autofill-proceso', requireJwtAuth, async (req, res) => {
     try {
         const { procesos, currentDate, userName, modelName } = req.body;
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
 
         if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {

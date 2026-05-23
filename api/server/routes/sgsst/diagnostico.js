@@ -459,7 +459,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
         };
 
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
         const selectedModel = req.body.modelName || preferredModel;
 
         // Helper: generate with timeout (90 seconds)
@@ -480,14 +480,14 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             const modelPrimary = genAI.getGenerativeModel({ model: selectedModel, generationConfig });
             text = await generateWithTimeout(modelPrimary, promptText);
         } catch (primaryError) {
-            console.warn(`[SGSST Diagnostico] Primary model (${selectedModel}) failed, attempting fallback to gemini-2.5-flash (fallback dinámico). Error:`, primaryError.message);
+            console.warn(`[SGSST Diagnostico] Primary model (${selectedModel}) failed, attempting fallback to gemini-3.5-flash (fallback dinámico). Error:`, primaryError.message);
             // If it was a timeout, don't retry — inform user immediately
             if (primaryError.message.includes('TIMEOUT')) {
                 throw primaryError;
             }
             try {
                 // Fallback to previous stable/experimental version
-                const modelFallback = genAI.getGenerativeModel({ model: (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim(), generationConfig });
+                const modelFallback = genAI.getGenerativeModel({ model: (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim(), generationConfig });
                 text = await generateWithTimeout(modelFallback, promptText);
             } catch (fallbackError) {
                 console.error('[SGSST Diagnostico] All models failed.');

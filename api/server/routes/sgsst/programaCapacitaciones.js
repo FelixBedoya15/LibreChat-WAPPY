@@ -559,7 +559,7 @@ router.post('/generate-programa', requireJwtAuth, async (req, res) => {
     }).join('\n');
 
     const { generateWithKeyRotation } = require('./sgsstGemini');
-    const preferredModel = modelName || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+    const preferredModel = modelName || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
 
     const prompt = `Eres un experto en SG-SST Colombia. Genera el PROGRAMA ANUAL DE CAPACITACIÓN Y ENTRENAMIENTO en formato HTML premium según el Decreto 1072/2015 (Art. 2.2.4.6.11) y Res. 0312/2019.
 
