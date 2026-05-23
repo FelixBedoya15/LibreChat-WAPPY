@@ -36,7 +36,7 @@ const ReglamentoHigiene = () => {
     const [identifiedRisks, setIdentifiedRisks] = useState('');
     const [workShifts, setWorkShifts] = useState('');
     const [additionalRules, setAdditionalRules] = useState('');
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
 
     React.useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

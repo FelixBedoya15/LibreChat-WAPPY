@@ -175,7 +175,7 @@ const MetodoOwas = () => {
   const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-  const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const editorContentRef = useRef<string>('');
     const liveEditorRef = useRef<LiveEditorHandle>(null);

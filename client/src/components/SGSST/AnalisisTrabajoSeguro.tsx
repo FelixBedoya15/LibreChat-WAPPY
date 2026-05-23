@@ -132,7 +132,7 @@ const AnalisisTrabajoSeguro = () => {
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
     const [selectedModel, setSelectedModel] = useState<string>(() => {
-        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite';
+        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash';
     });
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
     const editorContentRef = useRef<string>('');
