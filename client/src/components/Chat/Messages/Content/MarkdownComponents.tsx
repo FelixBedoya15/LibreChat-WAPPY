@@ -9,6 +9,7 @@ import { useCodeBlockContext } from '~/Providers';
 import { handleDoubleClick } from '~/utils';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
+import { WappyCard } from './WappyCard';
 
 type TCodeProps = {
   inline?: boolean;
@@ -21,13 +22,21 @@ export const code: React.ElementType = memo(({ className, children }: TCodeProps
     permissionType: PermissionTypes.RUN_CODE,
     permission: Permissions.USE,
   });
-  const match = /language-(\w+)/.exec(className ?? '');
+  const match = /language-([a-zA-Z0-9_-]+)/.exec(className ?? '');
   const lang = match && match[1];
   const isMath = lang === 'math';
   const isSingleLine = typeof children === 'string' && children.split('\n').length === 1;
 
+  const codeString = typeof children === 'string'
+    ? children
+    : Array.isArray(children)
+      ? children.join('')
+      : children?.toString() || '';
+
+  const isWappyCard = (lang === 'wappy-card' || lang === 'card') && codeString.trim().startsWith('{');
+
   const { getNextIndex, resetCounter } = useCodeBlockContext();
-  const blockIndex = useRef(getNextIndex(isMath || isSingleLine)).current;
+  const blockIndex = useRef(getNextIndex(isMath || isSingleLine || isWappyCard)).current;
 
   useEffect(() => {
     resetCounter();
@@ -35,6 +44,8 @@ export const code: React.ElementType = memo(({ className, children }: TCodeProps
 
   if (isMath) {
     return <>{children}</>;
+  } else if (isWappyCard) {
+    return <WappyCard content={codeString} />;
   } else if (isSingleLine) {
     return (
       <code onDoubleClick={handleDoubleClick} className={className}>
@@ -54,11 +65,21 @@ export const code: React.ElementType = memo(({ className, children }: TCodeProps
 });
 
 export const codeNoExecution: React.ElementType = memo(({ className, children }: TCodeProps) => {
-  const match = /language-(\w+)/.exec(className ?? '');
+  const match = /language-([a-zA-Z0-9_-]+)/.exec(className ?? '');
   const lang = match && match[1];
+
+  const codeString = typeof children === 'string'
+    ? children
+    : Array.isArray(children)
+      ? children.join('')
+      : children?.toString() || '';
+
+  const isWappyCard = (lang === 'wappy-card' || lang === 'card') && codeString.trim().startsWith('{');
 
   if (lang === 'math') {
     return children;
+  } else if (isWappyCard) {
+    return <WappyCard content={codeString} />;
   } else if (typeof children === 'string' && children.split('\n').length === 1) {
     return (
       <code onDoubleClick={handleDoubleClick} className={className}>
