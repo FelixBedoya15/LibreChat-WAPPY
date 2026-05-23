@@ -132,6 +132,16 @@ function evaluateFormula(formula: any, gridData: any[][], visited: Set<string> =
   }
 }
 
+function getColumnLabel(index: number): string {
+  let label = '';
+  let temp = index;
+  while (temp >= 0) {
+    label = String.fromCharCode((temp % 26) + 65) + label;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return label;
+}
+
 const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title, onRegisterDownload }) => {
   const [data, setData] = useState<string[][]>([['', '', ''], ['', '', ''], ['', '', '']]);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
@@ -344,16 +354,6 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     setData(updated);
     onUpdate(JSON.stringify(updated));
     setSelectedCell(null);
-  };
-
-  const getColumnLabel = (index: number): string => {
-    let label = '';
-    let temp = index;
-    while (temp >= 0) {
-      label = String.fromCharCode((temp % 26) + 65) + label;
-      temp = Math.floor(temp / 26) - 1;
-    }
-    return label;
   };
 
   // Professional spreadsheet export using exceljs
