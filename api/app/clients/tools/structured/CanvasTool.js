@@ -176,13 +176,13 @@ class CanvasTool extends Tool {
         .describe('Título del documento o archivo. Obligatorio al crear o renombrar.'),
 
       content: z
-        .string()
+        .any()
         .optional()
         .describe(
           'Contenido principal del archivo. OBLIGATORIO al crear o actualizar completamente. Si usas acciones parciales o "leer", envía un string vacío o no lo envíes.\n' +
           '- Para "text" y "html": una cadena de texto (Markdown, HTML enriquecido o código HTML/CSS plano).\n' +
-          '- Para "excel": un JSON stringificado representando la grilla bidimensional, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
-          '- Para "presentation": un JSON stringificado representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].'
+          '- Para "excel": un JSON stringificado o array bidimensional directo representando la grilla, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
+          '- Para "presentation": un JSON stringificado o array directo representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].'
         ),
 
       // Para accion="editar_seccion"
@@ -317,11 +317,15 @@ class CanvasTool extends Tool {
       }
       // ---------------------------------
 
-      // Si es excel o presentation, intentar parsear el JSON
+      // Si es excel o presentation, intentar parsear el JSON de forma segura (aceptando strings u objetos directos)
       if (fileType === 'excel' || fileType === 'presentation') {
         try {
           if (content) {
-            parsedContent = JSON.parse(content);
+            if (typeof content === 'string') {
+              parsedContent = JSON.parse(content);
+            } else {
+              parsedContent = content;
+            }
           }
         } catch (e) {
           return JSON.stringify({

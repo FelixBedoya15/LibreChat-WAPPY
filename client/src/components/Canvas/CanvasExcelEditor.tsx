@@ -297,13 +297,19 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
         console.warn('Failed to parse excel content JSON, using fallback', e);
       }
     }
-    // Fallback default grid
-    setData([
-      ['Indicador', 'Meta', 'Resultado', 'Cumplimiento'],
-      ['Capacitaciones Realizadas', '12', '10', '83.3%'],
-      ['Simulacros de Emergencia', '2', '2', '100%'],
-      ['Inspecciones de Seguridad', '24', '18', '75%'],
-    ]);
+    // Fallback default grid (only if we don't have valid grid data loaded already)
+    setData(prev => {
+      const isPrevEmpty = !prev || prev.length <= 1 || (prev.length === 3 && prev[0].every(c => c === ''));
+      if (isPrevEmpty) {
+        return [
+          ['Indicador', 'Meta', 'Resultado', 'Cumplimiento'],
+          ['Capacitaciones Realizadas', '12', '10', '83.3%'],
+          ['Simulacros de Emergencia', '2', '2', '100%'],
+          ['Inspecciones de Seguridad', '24', '18', '75%'],
+        ];
+      }
+      return prev;
+    });
   }, [initialContent]);
 
   const updateCell = (row: number, col: number, value: string) => {
