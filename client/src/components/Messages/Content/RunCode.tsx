@@ -6,8 +6,9 @@ import { Spinner, useToastContext } from '@librechat/client';
 import type { CodeBarProps } from '~/common';
 import { useVerifyAgentToolAuth, useToolCallMutation } from '~/data-provider';
 import ApiKeyDialog from '~/components/SidePanel/Agents/Code/ApiKeyDialog';
-import { useLocalize, useCodeApiKeyForm } from '~/hooks';
-import { useMessageContext } from '~/Providers';
+import useLocalize from '~/hooks/useLocalize';
+import useCodeApiKeyForm from '~/hooks/Plugins/useCodeApiKeyForm';
+import { useMessageContext } from '~/Providers/MessageContext';
 import { cn, normalizeLanguage } from '~/utils';
 
 const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex }) => {

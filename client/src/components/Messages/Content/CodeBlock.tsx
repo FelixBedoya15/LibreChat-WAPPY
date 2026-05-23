@@ -5,10 +5,11 @@ import { Tools } from 'librechat-data-provider';
 import { Clipboard, CheckMark } from '@librechat/client';
 import type { CodeBarProps } from '~/common';
 import ResultSwitcher from '~/components/Messages/Content/ResultSwitcher';
-import { useToolCallsMapContext, useMessageContext } from '~/Providers';
+import { useMessageContext } from '~/Providers/MessageContext';
+import { useToolCallsMapContext } from '~/Providers/ToolCallsMapContext';
 import { LogContent } from '~/components/Chat/Messages/Content/Parts';
 import RunCode from '~/components/Messages/Content/RunCode';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 import cn from '~/utils/cn';
 
 type CodeBlockProps = Pick<

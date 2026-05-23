@@ -5,9 +5,9 @@ import { PermissionTypes, Permissions, dataService } from 'librechat-data-provid
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
-import { useCodeBlockContext } from '~/Providers';
+import { useCodeBlockContext } from '~/Providers/CodeBlockContext';
 import { handleDoubleClick } from '~/utils';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 import store from '~/store';
 import { WappyCard } from './WappyCard';
 
