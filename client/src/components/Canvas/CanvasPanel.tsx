@@ -775,6 +775,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       });
       if (res.ok) {
         const data = await res.json();
+        setFileType(data.fileType);
+        fileTypeRef.current = data.fileType;
         setContent(data.content);
         contentRef.current = data.content;
         setTitle(data.title);

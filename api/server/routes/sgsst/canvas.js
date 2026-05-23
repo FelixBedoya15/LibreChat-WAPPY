@@ -310,6 +310,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
             version: 1,
             content: processedContent ?? '',
             title: finalTitle || 'Archivo sin título',
+            fileType,
             updatedAt: new Date(),
           },
         ],
@@ -340,6 +341,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
           version: nextVersion,
           content: processedContent ?? session.content,
           title: savedTitle,
+          fileType: fileType || session.fileType,
           updatedAt: new Date(),
         };
 
@@ -524,6 +526,9 @@ router.post('/:conversationId/versions/:version/restore', requireJwtAuth, async 
     session.content = versionItem.content;
     session.title = versionItem.title;
     session.version = versionNum;
+    if (versionItem.fileType) {
+      session.fileType = versionItem.fileType;
+    }
 
     // Sincronizar hacia LiveEditor si aplica
     if (session.fileType === 'text') {

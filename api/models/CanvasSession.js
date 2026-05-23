@@ -46,6 +46,7 @@ const canvasSessionSchema = new mongoose.Schema(
         version: Number,
         content: mongoose.Schema.Types.Mixed,
         title: String,
+        fileType: String,
         updatedAt: {
           type: Date,
           default: Date.now,

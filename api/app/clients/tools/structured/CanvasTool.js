@@ -359,6 +359,7 @@ class CanvasTool extends Tool {
             version: nextVersion,
             content: parsedContent ?? session.content,
             title: activeTitle,
+            fileType: activeFileType,
             updatedAt: new Date()
           };
 
@@ -403,6 +404,7 @@ class CanvasTool extends Tool {
               version: 1,
               content: parsedContent ?? '',
               title: activeTitle,
+              fileType,
               updatedAt: new Date()
             }]
           });
@@ -447,6 +449,7 @@ class CanvasTool extends Tool {
               version: 1,
               content: parsedContent ?? '',
               title: activeTitle,
+              fileType: activeFileType,
               updatedAt: new Date()
             }]
           });
@@ -491,6 +494,7 @@ class CanvasTool extends Tool {
             version: nextVersion,
             content: parsedContent ?? session.content,
             title: activeTitle,
+            fileType: activeFileType,
             updatedAt: new Date()
           };
 
@@ -562,6 +566,7 @@ class CanvasTool extends Tool {
           version: nextVersion,
           content: updatedContent,
           title: activeTitle,
+          fileType: activeFileType,
           updatedAt: new Date()
         };
 
@@ -616,6 +621,7 @@ class CanvasTool extends Tool {
           version: nextVersion,
           content: updatedContent,
           title: activeTitle,
+          fileType: activeFileType,
           updatedAt: new Date()
         };
 
@@ -704,6 +710,7 @@ class CanvasTool extends Tool {
           version: nextVersion,
           content: updatedContent,
           title: activeTitle,
+          fileType: activeFileType,
           updatedAt: new Date()
         };
 

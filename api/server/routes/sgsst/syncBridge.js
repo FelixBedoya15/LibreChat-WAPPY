@@ -35,6 +35,7 @@ async function syncLiveEditorToCanvas(conversationId, content, fileName, userId)
           version: 1,
           content: content || '',
           title: fileName || 'Documento sin título',
+          fileType: 'text',
           updatedAt: new Date()
         }]
       });
@@ -52,6 +53,7 @@ async function syncLiveEditorToCanvas(conversationId, content, fileName, userId)
             version: nextVersion,
             content: content ?? canvasSession.content,
             title: fileName || canvasSession.title,
+            fileType: 'text',
             updatedAt: new Date()
           };
           
