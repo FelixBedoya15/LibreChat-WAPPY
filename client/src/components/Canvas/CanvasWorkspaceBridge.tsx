@@ -165,7 +165,8 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
             for (let col = 1; col < parsedData[0].length; col++) {
               let hasNumber = false;
               for (let row = 1; row < parsedData.length; row++) {
-                const val = parsedData[row]?.[col] || '';
+                const rawCell = parsedData[row]?.[col];
+                const val = rawCell !== undefined && rawCell !== null ? String(rawCell) : '';
                 const clean = val.replace(/[^0-9.\-]/g, '');
                 if (clean && !isNaN(parseFloat(clean))) {
                   hasNumber = true;
@@ -226,7 +227,8 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
       const bg = row % 2 === 0 ? 'rgba(20,184,166,0.03)' : '#ffffff';
       html += `<tr style="background:${bg}; border-bottom:1px solid rgba(226,232,240,0.8); transition:all 0.2s;">`;
       for (let col = cStart; col <= cEnd; col++) {
-        const val = excelData[row]?.[col] || '';
+        const rawCell = excelData[row]?.[col];
+        const val = rawCell !== undefined && rawCell !== null ? String(rawCell) : '';
         // If it looks like a number, align right
         const isNum = !isNaN(parseFloat(val.replace(/[^0-9.\-]/g, ''))) && val.includes('$') || val.length < 10;
         const align = isNum ? 'right' : 'left';
@@ -251,8 +253,10 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
     
     // Read labels from xAxisCol and values from yAxisCol starting from data row
     for (let row = rStart + 1; row <= rEnd; row++) {
-      const label = excelData[row]?.[xAxisCol] || `Fila ${row}`;
-      const rawVal = excelData[row]?.[yAxisCol] || '0';
+      const rawLabel = excelData[row]?.[xAxisCol];
+      const label = rawLabel !== undefined && rawLabel !== null ? String(rawLabel) : `Fila ${row}`;
+      const rawValCell = excelData[row]?.[yAxisCol];
+      const rawVal = rawValCell !== undefined && rawValCell !== null ? String(rawValCell) : '0';
       const cleanVal = parseFloat(rawVal.replace(/[^0-9.\-]/g, ''));
       const val = isNaN(cleanVal) ? 0 : cleanVal;
       chartData.push({ label, val });

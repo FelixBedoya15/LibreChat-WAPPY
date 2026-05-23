@@ -218,7 +218,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
     const yValRaw = row[yAxisCol];
     const yValStr = yValRaw !== undefined && yValRaw !== null ? String(yValRaw) : '';
     const yValEvaluated = yValStr.startsWith('=') ? evaluateFormula(yValStr, data) : yValStr;
-    const parsedY = parseFloat(yValEvaluated.replace(/[^0-9.\-]/g, ''));
+    const parsedY = parseFloat(String(yValEvaluated || '').replace(/[^0-9.\-]/g, ''));
     const yValue = isNaN(parsedY) ? 0 : parsedY;
 
     if (!groups[cleanX]) {
@@ -264,7 +264,8 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
       for (let col = 1; col < data[0].length; col++) {
         let hasNumber = false;
         for (let row = 1; row < data.length; row++) {
-          const val = data[row]?.[col] || '';
+          const rawCell = data[row]?.[col];
+          const val = rawCell !== undefined && rawCell !== null ? String(rawCell) : '';
           const cleaned = val.replace(/[^0-9.\-]/g, '');
           if (cleaned && !isNaN(parseFloat(cleaned))) {
             hasNumber = true;
