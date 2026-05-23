@@ -51,7 +51,7 @@ Rol (predefinido por ley)	Nombre	Cargo	Documento
 Jefe inmediato / Supervisor	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 Representante COPASST / Vigía Ocupacional	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 Encargado del SG-SST	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
-Profesional SST (solo en accidentes graves/fatales)	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
+Consultor Senior SG-SST (solo en accidentes graves/fatales)	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 
 📍 **DOCUMENTACIÓN FOTOGRÁFICA**
 Se cuenta con evidencias visuales de [describir: el lugar del accidente y sus condiciones], [describir: equipos, herramientas o máquinas involucradas] y [describir: elementos de protección personal y condiciones del trabajador].
@@ -204,7 +204,7 @@ Rol (predefinido por ley)	Nombre	Cargo	Documento	Firma
 Jefe inmediato / Supervisor	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 Representante COPASST / Vigía Ocupacional	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 Encargado del SG-SST	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
-Profesional SST (solo en accidentes graves/fatales)	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
+Consultor Senior SG-SST (solo en accidentes graves/fatales)	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]	[PENDIENTE]
 •	El equipo puede complementarse con expertos internos o externos según necesidades.
  
 1️⃣2️⃣ TESTIGOS
