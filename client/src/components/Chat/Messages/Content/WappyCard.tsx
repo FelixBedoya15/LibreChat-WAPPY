@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
-import useSubmitMessage from '~/hooks/Messages/useSubmitMessage';
 import cn from '~/utils/cn';
 
 interface CardItem {
@@ -156,8 +155,33 @@ const THEMES = {
 
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const { submitMessage } = useSubmitMessage();
   const data = parseTolerantJson(content);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    const textarea = document.getElementById('textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(textarea, suggestion);
+      } else {
+        textarea.value = suggestion;
+      }
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      setTimeout(() => {
+        const submitButton = document.querySelector('form button[type="submit"]') as HTMLButtonElement 
+          || document.getElementById('submit-button') as HTMLButtonElement;
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          const form = textarea.closest('form');
+          if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }
+      }, 50);
+    }
+  };
 
   if (!data) {
     // Elegant fallback rendering if JSON parse fails completely
@@ -427,7 +451,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => submitMessage({ text: suggestion })}
+                  onClick={() => handleSuggestionClick(suggestion)}
                   className={cn(
                     "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200",
                     "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 shadow-sm",
