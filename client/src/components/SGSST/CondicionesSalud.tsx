@@ -17,7 +17,9 @@ import {
     Stethoscope,
     UserCircle,
     HeartPulse,
-    User
+    User,
+    QrCode,
+    Info
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -1125,16 +1127,23 @@ const CondicionesSalud = () => {
                                                 <span className="font-bold text-teal-600 dark:text-teal-400">{w.cargo || 'Sin cargo asignado'}</span>
                                                 <span>•</span>
                                                 <span>CC: {w.identificacion || 'N/A'}</span>
-                                                <span>•</span>
-                                                <span>{w.genero || '—'}</span>
-                                                <span>•</span>
-                                                <span>{w.edad ? `${w.edad} años` : '—'}</span>
+                                                <span className="hidden sm:inline">•</span>
+                                                <span className="hidden sm:inline">{w.genero || '—'}</span>
+                                                <span className="hidden sm:inline">•</span>
+                                                <span className="hidden sm:inline">{w.edad ? `${w.edad} años` : '—'}</span>
+                                            </div>
+                                            {/* Mobile Biocentric Score Badge */}
+                                            <div className="flex items-center gap-1.5 mt-2 md:hidden">
+                                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${colors.badge}`}>
+                                                    {fitData.score}% FIT
+                                                </span>
+                                                <span className="text-[9px] text-text-secondary font-bold uppercase tracking-tighter">Score Biocéntrico</span>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${colors.badge} shadow-sm`}>
+                                    <div className="flex items-center gap-2.5 shrink-0">
+                                        <div className={`hidden md:block px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${colors.badge} shadow-sm mr-1`}>
                                             {fitData.score}% FIT
                                         </div>
                                         <button
@@ -1442,90 +1451,109 @@ const CondicionesSalud = () => {
             </div>
 
             {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
-            <div className="mt-8">
-                    <CollapsibleReportBox onSave={handleSaveReport}
+            {generatedReport && (
+                <div className="mt-8">
+                    <CollapsibleReportBox
+                        onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
-                        title="Informe Condiciones de Salud"
-                        icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
-                    actions={
-                        <ExportDropdown
-                            content={editorContentRef.current || generatedReport || ''}
-                            fileName="Informe_CondicionesSalud"
-                            reportType="general"
-                        />
-                    }
-                >
-                        <div className="rounded-xl p-1 overflow-hidden">
-                            <LiveEditor 
-                                ref={liveEditorRef} 
-                                initialContent={generatedReport || ''} 
-                                onUpdate={(html) => { editorContentRef.current = html; }} 
-                                reportSourceData={trabajadores} 
+                        title="Documento de Perfil Epidemiológico Generado"
+                        icon={<AnimatedIcon name="file-text" size={16} className="text-teal-600" />}
+                        actions={
+                            <ExportDropdown
+                                content={editorContentRef.current || generatedReport || ''}
+                                fileName="Informe_PerfilEpidemiologico"
+                                reportType="general"
                             />
+                        }
+                    >
+                        <div className="p-1 overflow-hidden">
+                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor
+                                        ref={liveEditorRef}
+                                        initialContent={generatedReport}
+                                        onUpdate={(html) => { editorContentRef.current = html; }}
+                                        reportSourceData={trabajadores}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </CollapsibleReportBox>
-            </div>
+                </div>
+            )}
 
-            {/* ═══ QR Modal ═══ */}
+            {/* Worker Specific QR Modal */}
             {selectedQrWorker && ReactDOM.createPortal(
                 <div
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
-                        {/* Modal Header */}
-                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
-                            <button onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
+                        {/* Modal Header - Integrated Wappy Style */}
+                        <div className="flex items-center gap-4 px-6 py-5 border-b border-border-light dark:border-border-medium/30 relative">
+                            <div className="w-12 h-12 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <div className="text-left flex-grow">
+                                <h3 className="font-extrabold text-base text-text-primary tracking-tight">{selectedQrWorker.nombre || 'Trabajador'}</h3>
+                                <p className="text-xs text-text-secondary font-semibold">{selectedQrWorker.cargo || 'Sin cargo'}</p>
+                            </div>
+                            <button
+                                onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}
+                                className="absolute top-5 right-5 p-1.5 rounded-xl text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                            >
                                 <X className="w-4 h-4" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
-                                <QrCode className="w-6 h-6 text-teal-300" />
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-5">
+                            {/* Segmented Pill Switcher */}
+                            <div className="flex p-1 bg-surface-secondary dark:bg-zinc-950/40 rounded-2xl border border-border-medium/30 gap-1 w-full">
+                                <button
+                                    onClick={() => setQrTab('profile')}
+                                    className={cn(
+                                        'flex-grow py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5',
+                                        qrTab === 'profile'
+                                            ? 'bg-white dark:bg-zinc-800 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/20'
+                                            : 'text-text-secondary hover:text-text-primary'
+                                    )}
+                                >
+                                    <UserCircle className="w-4 h-4" />
+                                    Ver Tarjeta
+                                </button>
+                                <button
+                                    onClick={() => setQrTab('update')}
+                                    className={cn(
+                                        'flex-grow py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5',
+                                        qrTab === 'update'
+                                            ? 'bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-border-medium/20'
+                                            : 'text-text-secondary hover:text-text-primary'
+                                    )}
+                                >
+                                    <PenTool className="w-4 h-4" />
+                                    Actualizar Datos
+                                </button>
                             </div>
-                            <h3 className="font-black text-base tracking-tight text-white">{selectedQrWorker.nombre || 'Trabajador'}</h3>
-                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
-                                {selectedQrWorker.cargo || 'Sin cargo'}
-                            </span>
-                        </div>
 
-                        {/* QR Tab Switcher */}
-                        <div className="flex p-1.5 gap-1 border-b border-border-light bg-surface-secondary dark:bg-zinc-900/40">
-                            <button
-                                onClick={() => setQrTab('profile')}
-                                className={cn(
-                                    'flex-grow py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5',
-                                    qrTab === 'profile'
-                                        ? 'bg-white dark:bg-zinc-800 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/20 font-black'
-                                        : 'text-text-secondary hover:text-text-primary'
-                                )}
-                            >
-                                <UserCircle className="w-3.5 h-3.5" />
-                                Ver Perfil
-                            </button>
-                            <button
-                                onClick={() => setQrTab('update')}
-                                className={cn(
-                                    'flex-grow py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5',
-                                    qrTab === 'update'
-                                        ? 'bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-border-medium/20 font-black'
-                                        : 'text-text-secondary hover:text-text-primary'
-                                )}
-                            >
-                                <PenTool className="w-3.5 h-3.5" />
-                                Actualizar Datos
-                            </button>
-                        </div>
-
-                        {/* QR Code Body */}
-                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-6">
                             {qrTab === 'profile' ? (
                                 <>
-                                    <p className="text-xs text-center text-text-secondary leading-relaxed font-semibold max-w-[260px]">
-                                        Escanea para ver la <strong className="text-text-primary">Tarjeta de Emergencia</strong> del trabajador en tiempo real.
-                                    </p>
+                                    {/* Blue Instruction Card (Wappy Style) */}
+                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4 text-left w-full flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <h4 className="text-xs font-bold text-indigo-800 dark:text-indigo-300">Tarjeta de Emergencia Médica</h4>
+                                            <p className="text-[11px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                                Escanea para ver el tipo de sangre, alergias, contactos de emergencia y recomendaciones médicas vigentes en tiempo real.
+                                            </p>
+                                        </div>
+                                    </div>
                                     
-                                    <div className="relative group flex flex-col items-center gap-3">
+                                    <div className="relative group flex flex-col items-center gap-3 py-2">
                                         <div id="worker-profile-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
                                             <QRCodeSVG value={getQrValue(selectedQrWorker)} size={138} className="mx-auto" level="H" includeMargin={false} />
                                         </div>
@@ -1537,52 +1565,35 @@ const CondicionesSalud = () => {
                                             Descargar QR
                                         </button>
                                     </div>
-
-                                    <div className="w-full space-y-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary text-center opacity-70">Enlace de acceso directo</p>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                readOnly
-                                                value={getQrValue(selectedQrWorker)}
-                                                className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
-                                            />
-                                            <button
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(getQrValue(selectedQrWorker));
-                                                    showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
-                                                }}
-                                                className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
-                                            >
-                                                Copiar
-                                            </button>
-                                        </div>
-                                        <div className="pt-2 border-t border-border-light text-center">
-                                            <span className="text-[10px] font-mono font-bold tracking-wider text-text-secondary uppercase">
-                                                Identificación (CC): {selectedQrWorker.identificacion || 'N/A'}
-                                            </span>
-                                        </div>
-                                    </div>
                                 </>
                             ) : (
                                 <>
-                                    <p className="text-xs text-center text-text-secondary leading-relaxed font-semibold max-w-[260px]">
-                                        El trabajador escanea este código para <strong className="text-text-primary">actualizar sus condiciones de salud</strong> desde su celular.
-                                    </p>
+                                    {/* Blue Instruction Card (Wappy Style) */}
+                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4 text-left w-full flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <h4 className="text-xs font-bold text-indigo-800 dark:text-indigo-300">Enlace de Auto-Actualización</h4>
+                                            <p className="text-[11px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                                Comparte este enlace para que el trabajador pueda actualizar sus condiciones de salud de forma remota.
+                                            </p>
+                                        </div>
+                                    </div>
                                     
-                                    <div className="relative group flex flex-col items-center gap-3">
+                                    <div className="relative group flex flex-col items-center gap-3 py-2">
                                         <div id="worker-update-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
                                             <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={138} className="mx-auto" level="H" includeMargin={false} />
                                         </div>
                                         <button
                                             onClick={() => downloadQR(`${selectedQrWorker.nombre || 'Trabajador'}_Actualizacion`, 'worker-update-qr-container')}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400 rounded-xl text-xs font-bold border border-cyan-200 dark:border-cyan-900/50 hover:bg-cyan-100 transition-colors shadow-sm cursor-pointer"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             Descargar QR
                                         </button>
                                     </div>
 
-                                    <div className="w-full space-y-2.5">
+                                    <div className="w-full space-y-2.5 pt-1">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400 text-center opacity-70">Enlace de acceso personal</p>
                                         <div className="flex items-center gap-2">
                                             <input
@@ -1612,7 +1623,7 @@ const CondicionesSalud = () => {
                         <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>
@@ -1627,29 +1638,41 @@ const CondicionesSalud = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowPortalQr(false)}>
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
-                        {/* Modal Header */}
-                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
-                            <button onClick={() => setShowPortalQr(false)} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
-                                <X className="w-5 h-5" />
-                            </button>
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
-                                <QrCode className="w-6 h-6 text-teal-300" />
+                        {/* Modal Header - Integrated Wappy Style */}
+                        <div className="flex items-center gap-4 px-6 py-5 border-b border-border-light dark:border-border-medium/30 relative">
+                            <div className="w-12 h-12 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                             </div>
-                            <h3 className="font-black text-lg tracking-tight uppercase">Portal Público SGSST</h3>
-                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
-                                Auto-Actualización de Perfil
-                            </span>
+                            <div className="text-left flex-grow">
+                                <h3 className="font-extrabold text-base text-text-primary tracking-tight">Portal Público SGSST</h3>
+                                <p className="text-xs text-text-secondary font-semibold">Auto-Actualización de Perfil</p>
+                            </div>
+                            <button
+                                onClick={() => setShowPortalQr(false)}
+                                className="absolute top-5 right-5 p-1.5 rounded-xl text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-5 text-center">
-                            <p className="text-xs text-text-secondary leading-relaxed font-semibold max-w-[240px]">
-                                Comparte este código o enlace para que los trabajadores actualicen su información sociodemográfica desde sus celulares.
-                            </p>
+                        <div className="p-6 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-5">
+                            {/* Blue Instruction Card (Wappy Style) */}
+                            <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4 text-left w-full flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                    <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <h4 className="text-xs font-bold text-indigo-800 dark:text-indigo-300">Portal de Autogestión Médica</h4>
+                                    <p className="text-[11px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                        Comparte este código o enlace. Los trabajadores podrán actualizar sus condiciones de salud e incompatibilidades clínicas de forma rápida desde sus celulares.
+                                    </p>
+                                </div>
+                            </div>
 
-                            <div className="relative group flex flex-col items-center gap-3">
+                            <div className="relative group flex flex-col items-center gap-3 py-2">
                                 <div id="portal-public-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
                                     <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={138} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
@@ -1662,7 +1685,7 @@ const CondicionesSalud = () => {
                                 </button>
                             </div>
 
-                            <div className="w-full space-y-2.5">
+                            <div className="w-full space-y-2.5 pt-1">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
                                     <input
@@ -1687,7 +1710,7 @@ const CondicionesSalud = () => {
                         <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setShowPortalQr(false)}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>

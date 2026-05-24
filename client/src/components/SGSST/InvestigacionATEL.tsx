@@ -29,7 +29,7 @@ import {
     QrCode,
     Check,
     Trash2,
-    ShieldAlert, Download } from 'lucide-react';
+    ShieldAlert, Download, Info } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -688,6 +688,92 @@ const InvestigacionATEL = () => {
                     />
                 </div>
             )}
+            {/* QR Modal */}
+            {showQrModal && ReactDOM.createPortal(
+                <div
+                    className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowQrModal(false)}>
+                    <div
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        onClick={e => e.stopPropagation()}>
+                        {/* Modal Header - Integrated Wappy Style */}
+                        <div className="flex items-center gap-4 px-6 py-5 border-b border-border-light dark:border-border-medium/30 relative">
+                            <div className="w-12 h-12 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <div className="text-left flex-grow">
+                                <h3 className="font-extrabold text-base text-text-primary tracking-tight">Portal Público SGSST</h3>
+                                <p className="text-xs text-text-secondary font-semibold">Investigación ATEL - Testimonios</p>
+                            </div>
+                            <button
+                                onClick={() => setShowQrModal(false)}
+                                className="absolute top-5 right-5 p-1.5 rounded-xl text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-5">
+                            {/* Blue Instruction Card (Wappy Style) */}
+                            <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4 text-left w-full flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                    <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <h4 className="text-xs font-bold text-indigo-800 dark:text-indigo-300">Radicación de Testimonios</h4>
+                                    <p className="text-[11px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                        Comparte este código o enlace para que los testigos radiquen su versión desde sus celulares de forma ágil y segura.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="relative group flex flex-col items-center gap-3 py-2">
+                                <div id="atel-portal-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`} size={138} className="mx-auto" level="H" includeMargin={false} />
+                                </div>
+                                <button
+                                    onClick={() => downloadQR("Investigacion_ATEL_Testimonios_SGSST", 'atel-portal-qr-container')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar QR
+                                </button>
+                            </div>
+
+                            <div className="w-full space-y-2.5 pt-1">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        readOnly
+                                        value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`}
+                                        className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`);
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
+                                        }}
+                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
+                                    >
+                                        Copiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
+                            <button
+                                onClick={() => setShowQrModal(false)}
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* ── Form Container ── */}
             <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
@@ -704,82 +790,7 @@ const InvestigacionATEL = () => {
                 </button>
 
                 {isFormExpanded && (
-                    <div className="grid grid-cols-1 gap-8">
-                {/* ── QR CODE MODAL ── */}
-                {showQrModal && ReactDOM.createPortal(
-                    <div
-                        className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => setShowQrModal(false)}>
-                        <div
-                            className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
-                            onClick={e => e.stopPropagation()}>
-                            {/* Modal Header */}
-                            <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
-                                <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
-                                    <X className="w-5 h-5" />
-                                </button>
-                                <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
-                                    <QrCode className="w-6 h-6 text-teal-300" />
-                                </div>
-                                <h3 className="font-black text-lg tracking-tight uppercase">Portal Público SGSST</h3>
-                                <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
-                                    Investigación ATEL - Testimonios
-                                </span>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-5 text-center">
-                                <p className="text-xs text-text-secondary leading-relaxed font-semibold max-w-[240px]">
-                                    Comparte este código o enlace para que los testigos radiquen su versión desde sus celulares de forma segura.
-                                </p>
-
-                                <div className="relative group flex flex-col items-center gap-3">
-                                    <div id="atel-portal-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
-                                        <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`} size={138} className="mx-auto" level="H" includeMargin={false} />
-                                    </div>
-                                    <button
-                                        onClick={() => downloadQR("Investigacion_ATEL_Testimonios_SGSST", 'atel-portal-qr-container')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
-                                    >
-                                        <Download className="w-3.5 h-3.5" />
-                                        Descargar QR
-                                    </button>
-                                </div>
-
-                                <div className="w-full space-y-2.5">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            readOnly
-                                            value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`}
-                                            className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
-                                        />
-                                        <button
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`);
-                                                showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
-                                            }}
-                                            className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
-                                        >
-                                            Copiar
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
-                                <button
-                                    onClick={() => setShowQrModal(false)}
-                                    className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer"
-                                >
-                                    Cerrar
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
+                    <div className="grid grid-cols-1 gap-8 p-6">
 
 
                         {/* ── SECCIÓN 1: Datos del Evento ── */}
