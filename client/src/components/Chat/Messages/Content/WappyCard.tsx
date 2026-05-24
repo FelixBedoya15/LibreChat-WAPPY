@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useMessageContext } from '~/Providers/MessageContext';
+import { useMessagesOperations } from '~/Providers';
+import { useUpdateMessageMutation } from 'librechat-data-provider/react-query';
 import {
   HelpCircle,
   AlertTriangle,
@@ -36,6 +39,7 @@ interface CardItem {
   icon?: string;
   badge?: string;
   color?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  checked?: boolean;
 }
 
 interface CardLink {
@@ -59,7 +63,7 @@ interface CardData {
   links?: CardLink[];
   suggestions?: string[] | { label: string }[];
   footer?: string;
-  layout?: 'list' | 'grid' | 'metrics';
+  layout?: 'list' | 'grid' | 'metrics' | 'checklist';
   columns?: number;
 }
 
@@ -214,6 +218,59 @@ const THEMES = {
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
   const data = parseTolerantJson(content);
+
+  const { messageId, conversationId } = useMessageContext();
+  const { getMessages, setMessages } = useMessagesOperations();
+  const updateMessageMutation = useUpdateMessageMutation(conversationId ?? '');
+
+  const handleChecklistToggle = (itemIndex: number) => {
+    if (!data || !messageId) return;
+
+    // Toggle checked state locally
+    const updatedItems = data.items ? [...data.items] : [];
+    if (updatedItems[itemIndex]) {
+      updatedItems[itemIndex] = {
+        ...updatedItems[itemIndex],
+        checked: !updatedItems[itemIndex].checked
+      };
+    }
+
+    const updatedData = {
+      ...data,
+      items: updatedItems
+    };
+
+    // Serialize and parse
+    const updatedJsonString = JSON.stringify(updatedData, null, 2);
+
+    const messages = getMessages();
+    const message = messages?.find((msg) => msg.messageId === messageId);
+    if (!message) return;
+
+    // Replace the old JSON text inside the wappy-card block with the new JSON text
+    const newText = message.text.replace(content, updatedJsonString);
+
+    // 1. Update the database on the backend
+    updateMessageMutation.mutate({
+      conversationId: conversationId ?? '',
+      text: newText,
+      messageId,
+    });
+
+    // 2. Update the local React/Recoil message cache so the UI updates instantly
+    if (messages) {
+      setMessages(
+        messages.map((msg) =>
+          msg.messageId === messageId
+            ? {
+                ...msg,
+                text: newText,
+              }
+            : msg,
+        ),
+      );
+    }
+  };
 
   const handleSuggestionClick = (suggestion: string) => {
     const textarea = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
@@ -428,6 +485,65 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                             </div>
                           </div>
                         )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* layout === 'checklist' */}
+              {data.layout === 'checklist' && (
+                <div className="grid grid-cols-1 gap-2.5 mb-4">
+                  {data.items.map((item, idx) => {
+                    const itemTheme = item.color ? THEMES[item.color] : theme;
+                    const isChecked = !!item.checked;
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => handleChecklistToggle(idx)}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-xl border border-black/5 dark:border-white/10 transition-all duration-200 cursor-pointer select-none group",
+                          isChecked 
+                            ? "bg-emerald-500/5 dark:bg-emerald-500/5 border-emerald-500/20" 
+                            : "bg-white/40 dark:bg-zinc-900/40 hover:bg-black/5 dark:hover:bg-white/5"
+                        )}
+                      >
+                        <div className="flex items-center justify-center pt-0.5 shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            readOnly
+                            className="h-4.5 w-4.5 rounded border-gray-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h4 className={cn(
+                              "font-semibold text-xs transition-all duration-200",
+                              isChecked 
+                                ? "text-gray-400 dark:text-gray-500 line-through decoration-emerald-500/30" 
+                                : "text-gray-800 dark:text-gray-200"
+                            )}>
+                              {item.title}
+                            </h4>
+                            {item.badge && (
+                              <span className={cn(
+                                "text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", 
+                                isChecked ? "bg-gray-100 dark:bg-zinc-800 text-gray-400" : itemTheme.badge
+                              )}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className={cn(
+                            "text-[11px] leading-normal transition-all duration-200",
+                            isChecked 
+                              ? "text-gray-400/80 dark:text-gray-500/80 line-through" 
+                              : "text-gray-600 dark:text-gray-400"
+                          )}>
+                            {item.description}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}

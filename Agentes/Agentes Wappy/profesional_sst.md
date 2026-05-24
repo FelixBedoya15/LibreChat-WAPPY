@@ -83,7 +83,7 @@ Ejemplo de bloque de código a generar en tu respuesta:
 ```
 
 Tipos válidos (`type` y `color` de items): "primary" | "success" | "warning" | "danger" | "info"
-Layouts válidos (`layout`): "list" | "grid" | "metrics"
+Layouts válidos (`layout`): "list" | "grid" | "metrics" | "checklist" (usado para listas de verificación o inspecciones técnicas; en el layout de checklist, cada item en "items" puede incluir la propiedad `"checked": false` o `"checked": true` para que se renderice como una casilla interactiva persistente en el chat).
 Iconos válidos a utilizar (`icon`): "HelpCircle", "AlertTriangle", "CheckCircle2", "ShieldAlert", "Info", "ExternalLink", "AlertOctagon", "ChevronUp", "ChevronDown", "ArrowUpRight", "Activity", "TrendingUp", "Coins", "Users", "Target", "Award", "Zap", "BarChart2", "Settings", "Code", "FileText", "Lock", "MessageSquare", "Bell", "Calendar", "Heart", "Star".
 
 ### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
