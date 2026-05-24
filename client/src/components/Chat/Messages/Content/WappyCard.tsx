@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMessageContext } from '~/Providers/MessageContext';
-import { useMessagesOperations } from '~/Providers';
+import { useMessagesOperations, useMessagesConversation } from '~/Providers';
 import { useUpdateMessageMutation } from 'librechat-data-provider/react-query';
 import {
   HelpCircle,
@@ -350,6 +350,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
   const { messageId, conversationId, isSubmitting } = useMessageContext();
   const { getMessages, setMessages } = useMessagesOperations();
+  const { conversation } = useMessagesConversation();
   const updateMessageMutation = useUpdateMessageMutation(conversationId ?? '');
 
   const handleChecklistToggle = (itemIndex: number) => {
@@ -376,12 +377,28 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
     const message = messages?.find((msg) => msg.messageId === messageId);
     if (!message) return;
 
-    // Replace the old JSON text inside the wappy-card block with the new JSON text
-    const newText = message.text.replace(content, updatedJsonString);
+    // Locate and replace the block contents cleanly in message.text
+    let newText = message.text;
+    if (message.text.includes(content)) {
+      newText = message.text.replace(content, updatedJsonString);
+    } else {
+      // Fallback matching to bypass any carriage return (\r\n) or parser whitespace normalizations
+      const regex = /```(?:wappy-card|card)\s*([\s\S]*?)\s*```/g;
+      let match;
+      while ((match = regex.exec(message.text)) !== null) {
+        const blockContent = match[1];
+        const parsedBlock = parseTolerantJson(blockContent);
+        if (parsedBlock && parsedBlock.title === data.title) {
+          newText = message.text.replace(blockContent, updatedJsonString);
+          break;
+        }
+      }
+    }
 
-    // 1. Update the database on the backend
+    // 1. Update the database on the backend (model is a strict required parameter in TUpdateMessageRequest)
     updateMessageMutation.mutate({
       conversationId: conversationId ?? '',
+      model: conversation?.model ?? 'gpt-3.5-turbo',
       text: newText,
       messageId,
     });
