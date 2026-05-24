@@ -227,7 +227,7 @@ const FileItem = React.memo(function FileItem({
   );
 
   // Check if file is from local storage
-  const isLocalFile = file.metadata?.storageType === 'local';
+  const isLocalFile = false;
 
   const handleDownload = useCallback(
     async (e: React.MouseEvent) => {

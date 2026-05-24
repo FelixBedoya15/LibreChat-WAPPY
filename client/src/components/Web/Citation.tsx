@@ -130,7 +130,7 @@ export function Citation(props: CitationComponentProps) {
 
   // Setup file download hook
   const isFileType = refData?.refType === 'file' && (refData as any)?.fileId;
-  const isLocalFile = isFileType && (refData as any)?.metadata?.storageType === 'local';
+  const isLocalFile = false;
   const { refetch: downloadFile } = useFileDownload(
     user?.id ?? '',
     isFileType && !isLocalFile ? (refData as any).fileId : '',
