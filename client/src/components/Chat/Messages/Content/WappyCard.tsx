@@ -1,5 +1,33 @@
 import React, { useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  HelpCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
+  Info,
+  ExternalLink,
+  AlertOctagon,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpRight,
+  Activity,
+  TrendingUp,
+  Coins,
+  Users,
+  Target,
+  Award,
+  Zap,
+  BarChart2,
+  Settings,
+  Code,
+  FileText,
+  Lock,
+  MessageSquare,
+  Bell,
+  Calendar,
+  Heart,
+  Star
+} from 'lucide-react';
 import cn from '~/utils/cn';
 
 interface CardItem {
@@ -35,9 +63,39 @@ interface CardData {
   columns?: number;
 }
 
-// Convert kebab-case or custom naming to PascalCase Lucide Icon safely
+const LucideIcons: Record<string, React.ComponentType<any>> = {
+  HelpCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
+  Info,
+  ExternalLink,
+  AlertOctagon,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpRight,
+  Activity,
+  TrendingUp,
+  Coins,
+  Users,
+  Target,
+  Award,
+  Zap,
+  BarChart2,
+  Settings,
+  Code,
+  FileText,
+  Lock,
+  MessageSquare,
+  Bell,
+  Calendar,
+  Heart,
+  Star
+};
+
+// Convert kebab-case or custom naming to PascalCase Lucide Icon safely from our curated list
 const getIcon = (name?: string): React.ComponentType<any> => {
-  if (!name) return Icons.HelpCircle;
+  if (!name) return HelpCircle;
   
   // Clean name and map common custom names if any
   const cleanName = name.trim();
@@ -48,26 +106,26 @@ const getIcon = (name?: string): React.ComponentType<any> => {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
   
-  const Icon = (Icons as any)[pascalCase] || (Icons as any)[cleanName];
+  const Icon = LucideIcons[pascalCase] || LucideIcons[cleanName];
   if (Icon) return Icon;
 
-  // Search case-insensitively for a match
+  // Search case-insensitively for a match in our curated list
   const lowerName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const keys = Object.keys(Icons);
+  const keys = Object.keys(LucideIcons);
   for (const key of keys) {
     if (key.toLowerCase() === lowerName) {
-      return (Icons as any)[key];
+      return LucideIcons[key];
     }
   }
 
   // Common fallbacks for safety
-  if (lowerName.includes('alert') || lowerName.includes('warning')) return Icons.AlertTriangle;
-  if (lowerName.includes('check') || lowerName.includes('success')) return Icons.CheckCircle2;
-  if (lowerName.includes('danger') || lowerName.includes('shield')) return Icons.ShieldAlert;
-  if (lowerName.includes('info')) return Icons.Info;
-  if (lowerName.includes('link') || lowerName.includes('url')) return Icons.ExternalLink;
+  if (lowerName.includes('alert') || lowerName.includes('warning')) return AlertTriangle;
+  if (lowerName.includes('check') || lowerName.includes('success')) return CheckCircle2;
+  if (lowerName.includes('danger') || lowerName.includes('shield')) return ShieldAlert;
+  if (lowerName.includes('info')) return Info;
+  if (lowerName.includes('link') || lowerName.includes('url')) return ExternalLink;
 
-  return Icons.HelpCircle;
+  return HelpCircle;
 };
 
 // Safe and highly tolerant JSON parser for AI outputs
@@ -188,7 +246,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
     return (
       <div className="my-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300">
         <div className="flex items-center gap-2 font-semibold">
-          <Icons.AlertOctagon className="h-5 w-5 text-red-500" />
+          <AlertOctagon className="h-5 w-5 text-red-500" />
           <span>Error al procesar la tarjeta interactiva</span>
         </div>
         <p className="mt-1 text-xs opacity-90">El bloque de datos no tiene una estructura JSON válida.</p>
@@ -258,9 +316,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0 ml-2"
         >
           {isOpen ? (
-            <Icons.ChevronUp className="h-4 w-4" />
+            <ChevronUp className="h-4 w-4" />
           ) : (
-            <Icons.ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" />
           )}
         </button>
       </div>
@@ -459,7 +517,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                   )}
                 >
                   <span>{suggestion}</span>
-                  <Icons.ArrowUpRight className="h-3.5 w-3.5 opacity-80" />
+                  <ArrowUpRight className="h-3.5 w-3.5 opacity-80" />
                 </button>
               ))}
             </div>
