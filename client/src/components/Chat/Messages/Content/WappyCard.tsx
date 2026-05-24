@@ -216,7 +216,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const data = parseTolerantJson(content);
 
   const handleSuggestionClick = (suggestion: string) => {
-    const textarea = document.getElementById('textarea') as HTMLTextAreaElement;
+    const textarea = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
     if (textarea) {
       textarea.focus();
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
@@ -228,7 +228,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
       setTimeout(() => {
         const submitButton = document.querySelector('form button[type="submit"]') as HTMLButtonElement 
-          || document.getElementById('submit-button') as HTMLButtonElement;
+          || document.getElementById('send-button') as HTMLButtonElement;
         if (submitButton) {
           submitButton.click();
         } else {
