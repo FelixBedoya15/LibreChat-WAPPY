@@ -8,7 +8,7 @@ import {
     ChevronDown, ChevronRight, FileText, Sparkles, History,
     Loader2, HelpCircle, QrCode, Inbox, CheckCheck, X,
     Info, Building2, Shield, User, AlertTriangle,
-    ClipboardCheck, Trash2, Plus,
+    ClipboardCheck, Trash2, Plus, Download,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -61,6 +61,16 @@ export default function AltaDireccionChecklist() {
     const [showQrModal, setShowQrModal] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState('');
     const [portalUrl, setPortalUrl] = useState('');
+
+    const downloadQR = (title: string) => {
+        if (!qrDataUrl) return;
+        const downloadLink = document.createElement('a');
+        downloadLink.href = qrDataUrl;
+        downloadLink.download = `QR_${title.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    };
 
     // Inbox (public submissions) state
     const [showInbox, setShowInbox] = useState(false);
@@ -556,57 +566,74 @@ export default function AltaDireccionChecklist() {
 
             {/* ─── QR Modal ─────────────────────────────────────────────── */}
             {showQrModal && ReactDOM.createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
-                    <div className="bg-surface-primary w-full max-w-[340px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium flex flex-col animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowQrModal(false)}>
+                    <div
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
-                            <button onClick={() => setShowQrModal(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
+                            <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
-                                <QrCode className="w-6 h-6 text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
+                                <QrCode className="w-6 h-6 text-teal-300" />
                             </div>
-                            <h3 className="font-bold text-lg">Portal Público SGSST</h3>
+                            <h3 className="font-black text-lg tracking-tight uppercase">Portal Público SGSST</h3>
+                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
+                                Revisión Alta Dirección
+                            </span>
                         </div>
 
-                        {/* QR Code Body */}
-                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4">
-                            <p className="text-[12px] text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-5 text-center">
+                            <p className="text-xs text-text-secondary leading-relaxed font-semibold max-w-[240px]">
                                 Comparte este QR exclusivamente con el <strong>Representante Legal</strong> o personal de <strong>Gerencia</strong>.
                             </p>
-                            
-                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                {qrDataUrl ? (
-                                    <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-32 h-32 mx-auto" />
-                                ) : (
-                                    <div className="w-32 h-32 flex items-center justify-center bg-gray-50">
-                                        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-                                    </div>
+
+                            <div className="relative group flex flex-col items-center gap-3">
+                                <div className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                    {qrDataUrl ? (
+                                        <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-[138px] h-[138px] mx-auto" />
+                                    ) : (
+                                        <div className="w-[138px] h-[138px] flex items-center justify-center bg-gray-50">
+                                            <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                                        </div>
+                                    )}
+                                </div>
+                                {qrDataUrl && (
+                                    <button
+                                        onClick={() => downloadQR("Revision_Alta_Direccion_SGSST")}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
+                                    >
+                                        <Download className="w-3.5 h-3.5" />
+                                        Descargar QR
+                                    </button>
                                 )}
                             </div>
 
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-left w-full flex items-start gap-2">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                            <div className="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl p-4 text-left w-full flex items-start gap-3 shadow-[0_4px_20px_rgb(245,158,11,0.03)]">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-amber-800 dark:text-amber-400 leading-relaxed font-semibold">
                                     Solo podrán acceder los trabajadores con cargo de <strong>Representante Legal</strong>, <strong>Gerente</strong> o <strong>Director</strong> registrados en el Perfil Sociodemográfico.
                                 </p>
                             </div>
 
-                            {/* Public Link Section */}
-                            <div className="w-full space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
+                            <div className="w-full space-y-2.5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
-                                    <input 
-                                        readOnly 
+                                    <input
+                                        readOnly
                                         value={portalUrl}
-                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                        className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(portalUrl);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
-                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
@@ -615,10 +642,10 @@ export default function AltaDireccionChecklist() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                        <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setShowQrModal(false)}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>

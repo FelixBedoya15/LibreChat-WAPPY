@@ -13,6 +13,8 @@ import {
     Briefcase,
     AlertTriangle,
     ClipboardList,
+    QrCode,
+    UserCircle,
     User,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -591,6 +593,38 @@ const PerfilSociodemografico = () => {
             n.has(id) ? n.delete(id) : n.add(id);
             return n;
         });
+    };
+
+    const downloadQR = (title: string, containerId: string) => {
+        const svgElement = document.getElementById(containerId)?.querySelector('svg');
+        if (!svgElement) return;
+
+        const svgString = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, 512, 512);
+                context.drawImage(image, 32, 32, 448, 448);
+                
+                const png = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = png;
+                downloadLink.download = `QR_${title.replace(/\s+/g, '_')}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            }
+        };
+        image.src = blobURL;
     };
 
     // ─── QR: URL corta al perfil público del backend ─────────────────────
@@ -1374,80 +1408,122 @@ const PerfilSociodemografico = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
-                        className="bg-surface-primary w-full max-w-[340px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium flex flex-col"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
-                            <button onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
+                            <button onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
                                 <X className="w-4 h-4" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-10 h-10 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
-                                <AnimatedIcon name="qrcode" size={20} className="text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
+                                <QrCode className="w-6 h-6 text-teal-300" />
                             </div>
-                            <h3 className="font-bold text-sm">{selectedQrWorker.nombre || 'Trabajador'}</h3>
-                            <p className="text-[10px] text-teal-100 mt-0.5 opacity-90">{selectedQrWorker.cargo || 'Sin cargo'}</p>
+                            <h3 className="font-black text-lg tracking-tight uppercase">{selectedQrWorker.nombre || 'Trabajador'}</h3>
+                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
+                                {selectedQrWorker.cargo || 'Sin cargo'}
+                            </span>
                         </div>
 
                         {/* QR Tab Switcher */}
-                        <div className="flex border-b border-gray-100 dark:border-border-medium bg-white dark:bg-surface-primary">
+                        <div className="flex p-1.5 bg-gray-50 dark:bg-zinc-950/40 border-b border-border-medium/30 gap-1">
                             <button
                                 onClick={() => setQrTab('profile')}
-                                className={cn('flex-1 py-2 text-[10px] font-bold transition-colors', qrTab === 'profile' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-gray-400 hover:text-gray-600')}>
+                                className={cn(
+                                    'flex-grow py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5',
+                                    qrTab === 'profile'
+                                        ? 'bg-white dark:bg-zinc-800 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/20 font-black'
+                                        : 'text-text-secondary hover:text-text-primary'
+                                )}
+                            >
+                                <UserCircle className="w-3.5 h-3.5" />
                                 Ver Perfil
                             </button>
                             <button
                                 onClick={() => setQrTab('update')}
-                                className={cn('flex-1 py-2 text-[10px] font-bold transition-colors', qrTab === 'update' ? 'border-b-2 border-cyan-500 text-cyan-600' : 'text-gray-400 hover:text-gray-600')}>
+                                className={cn(
+                                    'flex-grow py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5',
+                                    qrTab === 'update'
+                                        ? 'bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-border-medium/20 font-black'
+                                        : 'text-text-secondary hover:text-text-primary'
+                                )}
+                            >
+                                <PenTool className="w-3.5 h-3.5" />
                                 Actualizar Datos
                             </button>
                         </div>
 
                         {/* QR Code Body */}
-                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
+                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-6">
                             {qrTab === 'profile' ? (
                                 <>
-                                    <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
-                                        Escanea para ver la <strong>Tarjeta de Emergencia</strong> del trabajador.
+                                    <p className="text-xs text-center text-text-secondary leading-relaxed font-semibold max-w-[260px]">
+                                        Escanea para ver la <strong className="text-text-primary">Tarjeta de Emergencia</strong> del trabajador en tiempo real.
                                     </p>
-                                    <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
+                                    
+                                    <div className="relative group flex flex-col items-center gap-3">
+                                        <div id="worker-profile-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                            <QRCodeSVG value={getQrValue(selectedQrWorker)} size={138} className="mx-auto" level="H" includeMargin={false} />
+                                        </div>
+                                        <button
+                                            onClick={() => downloadQR(selectedQrWorker.nombre || 'Trabajador', 'worker-profile-qr-container')}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            Descargar QR
+                                        </button>
                                     </div>
-                                    <div className="w-full space-y-2">
-                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 text-center">Enlace de acceso al perfil</p>
+
+                                    <div className="w-full space-y-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary text-center opacity-70">Enlace de acceso directo</p>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 readOnly
                                                 value={getQrValue(selectedQrWorker)}
-                                                className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300"
+                                                className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                             />
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(getQrValue(selectedQrWorker));
                                                     showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                                 }}
-                                                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-900 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
+                                                className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                             >
                                                 Copiar
                                             </button>
                                         </div>
-                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Identificación (CC): {selectedQrWorker.identificacion || 'N/A'}</p>
+                                        <div className="pt-2 border-t border-border-light text-center">
+                                            <span className="text-[10px] font-mono font-bold tracking-wider text-text-secondary uppercase">
+                                                Identificación (CC): {selectedQrWorker.identificacion || 'N/A'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
-                                        El trabajador escanea este QR o usa el enlace para actualizar su información sociodemográfica.
+                                    <p className="text-xs text-center text-text-secondary leading-relaxed font-semibold max-w-[260px]">
+                                        El trabajador escanea este código para <strong className="text-text-primary">actualizar su información sociodemográfica</strong> desde su celular.
                                     </p>
-                                    <div className="p-3 border-4 border-cyan-100 dark:border-cyan-800 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
+                                    
+                                    <div className="relative group flex flex-col items-center gap-3">
+                                        <div id="worker-update-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                            <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={138} className="mx-auto" level="H" includeMargin={false} />
+                                        </div>
+                                        <button
+                                            onClick={() => downloadQR(`${selectedQrWorker.nombre || 'Trabajador'}_Actualizacion`, 'worker-update-qr-container')}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400 rounded-xl text-xs font-bold border border-cyan-200 dark:border-cyan-900/50 hover:bg-cyan-100 transition-colors shadow-sm cursor-pointer"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            Descargar QR
+                                        </button>
                                     </div>
-                                    <div className="w-full space-y-2">
-                                        <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-600 text-center">Enlace de acceso personal</p>
+
+                                    <div className="w-full space-y-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400 text-center opacity-70">Enlace de acceso personal</p>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 readOnly
                                                 value={getUpdateQrValue(selectedQrWorker)}
-                                                className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300"
+                                                className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                             />
                                             <button
                                                 onClick={() => {
@@ -1459,17 +1535,19 @@ const PerfilSociodemografico = () => {
                                                 Copiar
                                             </button>
                                         </div>
-                                        <p className="text-xs text-gray-400 text-center">Los cambios requerirán aprobación del admin SST</p>
+                                        <p className="text-[9px] text-text-secondary text-center font-bold tracking-tight opacity-75">
+                                            ⚠️ Las actualizaciones requerirán aprobación del admin SST.
+                                        </p>
                                     </div>
                                 </>
                             )}
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                        <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>
@@ -1484,37 +1562,48 @@ const PerfilSociodemografico = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowPortalQr(false)}>
                     <div
-                        className="bg-surface-primary w-full max-w-[340px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium flex flex-col"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
-                            <button onClick={() => setShowPortalQr(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
+                            <button onClick={() => setShowPortalQr(false)} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
-                                <AnimatedIcon name="qrcode" size={24} className="text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
+                                <QrCode className="w-6 h-6 text-teal-300" />
                             </div>
-                            <h3 className="font-bold text-lg uppercase tracking-tighter">Portal Público SGSST</h3>
-                            <p className="text-[11px] text-teal-100 mt-0.5 opacity-90">Auto-Actualización de Perfil</p>
+                            <h3 className="font-black text-lg tracking-tight uppercase">Portal Público SGSST</h3>
+                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
+                                Auto-Actualización de Perfil
+                            </span>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4 text-center">
-                            <p className="text-[12px] text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
-                                Comparte este código o enlace. Los trabajadores podrán actualizar su información sociodemográfica desde su celular.
+                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-5 text-center">
+                            <p className="text-xs text-text-secondary leading-relaxed font-semibold max-w-[240px]">
+                                Comparte este código o enlace para que los trabajadores actualicen su información sociodemográfica desde sus celulares.
                             </p>
 
-                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
+                            <div className="relative group flex flex-col items-center gap-3">
+                                <div id="portal-public-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={138} className="mx-auto" level="H" includeMargin={false} />
+                                </div>
+                                <button
+                                    onClick={() => downloadQR("Portal_Publico_SGSST", 'portal-public-qr-container')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar QR
+                                </button>
                             </div>
 
-                            <div className="w-full space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Enlace de acceso público</p>
+                            <div className="w-full space-y-2.5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
                                         value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`}
-                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                        className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
@@ -1530,10 +1619,10 @@ const PerfilSociodemografico = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                        <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setShowPortalQr(false)}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>

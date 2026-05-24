@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UpgradeWall } from './UpgradeWall';
+import { QRCodeSVG } from 'qrcode.react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -223,6 +224,38 @@ const ParticipacionIPEVAR = () => {
     const [inboxPublico, setInboxPublico] = useState<any[]>([]);
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+
+    const downloadQR = (title: string, containerId: string) => {
+        const svgElement = document.getElementById(containerId)?.querySelector('svg');
+        if (!svgElement) return;
+
+        const svgString = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, 512, 512);
+                context.drawImage(image, 32, 32, 448, 448);
+                
+                const png = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = png;
+                downloadLink.download = `QR_${title.replace(/\s+/g, '_')}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            }
+        };
+        image.src = blobURL;
+    };
 
     // Listen for cross-component inbox open requests (from notifications)
     React.useEffect(() => {
@@ -881,47 +914,59 @@ const ParticipacionIPEVAR = () => {
 
             {/* QR Modal */}
             {showQrModal && ReactDOM.createPortal(
-                <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
-                    <div className="bg-surface-primary w-full max-w-[340px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium flex flex-col" onClick={e => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowQrModal(false)}>
+                    <div
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[340px] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
-                            <button onClick={() => setShowQrModal(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-950 text-white px-5 py-6 text-center relative border-b border-white/10">
+                            <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-white/70 hover:text-white hover:scale-105 transition-all p-1.5 rounded-full bg-white/10 backdrop-blur-sm">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
-                                <QrCode className="w-6 h-6 text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-400/20 backdrop-blur-md rounded-2xl mb-3 shadow-inner border border-teal-400/30">
+                                <QrCode className="w-6 h-6 text-teal-300" />
                             </div>
-                            <h3 className="font-bold text-lg">Portal Público SGSST</h3>
+                            <h3 className="font-black text-lg tracking-tight uppercase">Portal Público SGSST</h3>
+                            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-[10px] font-bold text-teal-200 mt-1.5 uppercase tracking-wider">
+                                Participación Trabajadores IPEVAR
+                            </span>
                         </div>
 
-                        {/* QR Code Body */}
-                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4">
-                            <p className="text-[12px] text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
-                                Comparte este código o enlace. Los trabajadores podrán reportar actos inseguros desde su celular.
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col items-center bg-surface-primary dark:bg-zinc-900/30 space-y-5 text-center">
+                            <p className="text-xs text-text-secondary leading-relaxed font-semibold max-w-[240px]">
+                                Comparte este código o enlace para que los trabajadores reporten y participen en IPEVAR desde sus celulares.
                             </p>
-                            
-                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`)}`} 
-                                    alt="QR Code" 
-                                    className="w-32 h-32 mx-auto"
-                                />
+
+                            <div className="relative group flex flex-col items-center gap-3">
+                                <div id="ipevar-portal-qr-container" className="p-4 border border-border-medium bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)]">
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id || ''}`} size={138} className="mx-auto" level="H" includeMargin={false} />
+                                </div>
+                                <button
+                                    onClick={() => downloadQR("Participacion_IPEVAR_SGSST", 'ipevar-portal-qr-container')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar QR
+                                </button>
                             </div>
-                            
-                            <div className="w-full space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
+
+                            <div className="w-full space-y-2.5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-text-secondary opacity-70">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
-                                    <input 
-                                        readOnly 
-                                        value={`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`}
-                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                    <input
+                                        readOnly
+                                        value={`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id || ''}`}
+                                        className="flex-grow text-[11px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
-                                    <button 
+                                    <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
-                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
@@ -930,10 +975,10 @@ const ParticipacionIPEVAR = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                        <div className="p-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setShowQrModal(false)}
-                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>
