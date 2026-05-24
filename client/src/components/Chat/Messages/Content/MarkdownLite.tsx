@@ -7,7 +7,8 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import type { PluggableList } from 'unified';
 import { code, codeNoExecution, a, p } from './MarkdownComponents';
-import { CodeBlockProvider, ArtifactProvider } from '~/Providers';
+import { CodeBlockProvider } from '~/Providers/CodeBlockContext';
+import { ArtifactProvider } from '~/Providers/ArtifactContext';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
 import { langSubset } from '~/utils';
 
