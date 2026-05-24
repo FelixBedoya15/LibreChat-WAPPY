@@ -47,10 +47,12 @@ Escribir artículos de alta calidad, optimizados para SEO y listos para publicar
 
 ---
 
-
-
 🔹 12. Tarjetas Interactivas en el Chat (OBLIGATORIO PARA LISTAS, PLANES Y RESÚMENES MÉTRICOS)
 Cuando presentes listas de chequeo, planes de acción, resúmenes de riesgos, conjunto de métricas o información estructurada en bloques, debes formatearlos estrictamente dentro de un bloque de código `wappy-card` con el JSON de la tarjeta. NUNCA uses texto plano simple si puedes estructurarlo en una tarjeta interactiva premium de vidrio (glassmorphism).
+
+* 💡 **DIRECTRICES DE FORMATO (CHECKLIST VS TABLA):**
+  - **Usa Tarjeta con `layout: "checklist"`** cuando el usuario te pida una lista de verificación, inspección rápida o plan de tareas **interactivo para chulear/marcar elementos** en tiempo real directamente en el chat.
+  - **Usa Tabla de Markdown estándar** (o genera un archivo de Excel interactivo en el panel derecho) cuando requieras presentar una **matriz legal completa o grilla técnica con múltiples columnas complejas** (por ejemplo: Requisito, Base Legal, Estado de Cumplimiento, Evidencia Sugerida). Las tarjetas son para acciones directas e interactivas; las tablas de columnas amplias son para auditoría técnica.
 
 Ejemplo de bloque de código a generar en tu respuesta:
 ```wappy-card
@@ -60,13 +62,14 @@ Ejemplo de bloque de código a generar en tu respuesta:
   "type": "primary",
   "icon": "Target",
   "description": "Explicación breve o resumen ejecutivo del contenido.",
-  "layout": "list",
+  "layout": "checklist",
   "items": [
     {
       "title": "Nombre de la Tarea/Item",
       "description": "Detalle explicativo técnico de la recomendación",
-      "icon": "CheckCircle2",
-      "color": "primary"
+      "badge": "Pendiente",
+      "color": "primary",
+      "checked": false
     }
   ],
   "suggestions": [

@@ -132,7 +132,128 @@ const getIcon = (name?: string): React.ComponentType<any> => {
   return HelpCircle;
 };
 
-// Safe and highly tolerant JSON parser for AI outputs
+// Safe and highly tolerant JSON parser with backtracking truncated JSON repair
+const repairJson = (str: string): string | null => {
+  let s = str.trim();
+  
+  // Balance quotes first
+  let quotes = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\' && !escaped) {
+      escaped = true;
+    } else {
+      if (s[i] === '"' && !escaped) {
+        inString = !inString;
+      }
+      escaped = false;
+    }
+  }
+  if (inString) {
+    s += '"';
+  }
+
+  // Count open brackets/braces
+  let stack: string[] = [];
+  inString = false;
+  escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const char = s[i];
+    if (char === '\\' && !escaped) {
+      escaped = true;
+      continue;
+    }
+    if (char === '"' && !escaped) {
+      inString = !inString;
+    }
+    escaped = false;
+    if (!inString) {
+      if (char === '{' || char === '[') {
+        stack.push(char);
+      } else if (char === '}') {
+        if (stack[stack.length - 1] === '{') {
+          stack.pop();
+        }
+      } else if (char === ']') {
+        if (stack[stack.length - 1] === '[') {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  let temp = s;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i] === '{') temp += '}';
+    else if (stack[i] === '[') temp += ']';
+  }
+  
+  try {
+    JSON.parse(temp);
+    return temp;
+  } catch (e) {
+    // Continue to backtracking
+  }
+
+  // Backtracking repair: iteratively slice from the end to find a valid JSON structure
+  for (let len = s.length - 1; len > 0; len--) {
+    let sub = s.slice(0, len).trim();
+    if (sub.endsWith(',') || sub.endsWith(':') || sub.endsWith('[')) {
+      sub = sub.slice(0, -1).trim();
+    }
+    if (sub.endsWith(',')) {
+      sub = sub.slice(0, -1).trim();
+    }
+    
+    let subStack: string[] = [];
+    let subInString = false;
+    let subEscaped = false;
+    for (let i = 0; i < sub.length; i++) {
+      const char = sub[i];
+      if (char === '\\' && !subEscaped) {
+        subEscaped = true;
+        continue;
+      }
+      if (char === '"' && !subEscaped) {
+        subInString = !subInString;
+      }
+      subEscaped = false;
+      if (!subInString) {
+        if (char === '{' || char === '[') {
+          subStack.push(char);
+        } else if (char === '}') {
+          if (subStack[subStack.length - 1] === '{') {
+            subStack.pop();
+          }
+        } else if (char === ']') {
+          if (subStack[subStack.length - 1] === '[') {
+            subStack.pop();
+          }
+        }
+      }
+    }
+    
+    if (subInString) {
+      sub += '"';
+    }
+    
+    let attempt = sub;
+    for (let i = subStack.length - 1; i >= 0; i--) {
+      if (subStack[i] === '{') attempt += '}';
+      else if (subStack[i] === '[') attempt += ']';
+    }
+    
+    try {
+      JSON.parse(attempt);
+      return attempt;
+    } catch (e) {
+      // Continue backtracking
+    }
+  }
+  return null;
+};
+
 const parseTolerantJson = (text: string): CardData | null => {
   let cleaned = text.trim();
   
@@ -156,7 +277,15 @@ const parseTolerantJson = (text: string): CardData | null => {
         .replace(/,(\s*[}\]])/g, '$1');
       return JSON.parse(repair) as CardData;
     } catch (err) {
-      console.error('Error parsing card JSON:', err);
+      // Attempt advanced backtracking truncated JSON repair
+      try {
+        const repaired = repairJson(cleaned);
+        if (repaired) {
+          return JSON.parse(repaired) as CardData;
+        }
+      } catch (advancedErr) {
+        console.error('Advanced JSON repair failed:', advancedErr);
+      }
       return null;
     }
   }
@@ -219,7 +348,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
   const data = parseTolerantJson(content);
 
-  const { messageId, conversationId } = useMessageContext();
+  const { messageId, conversationId, isSubmitting } = useMessageContext();
   const { getMessages, setMessages } = useMessagesOperations();
   const updateMessageMutation = useUpdateMessageMutation(conversationId ?? '');
 
@@ -299,15 +428,41 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   };
 
   if (!data) {
+    // If the card is still generating / streaming, show an elegant premium glassmorphic loader
+    if (isSubmitting) {
+      return (
+        <div className={cn(
+          "w-full my-3 rounded-2xl border p-5 backdrop-blur-[2px] font-sans whitespace-normal break-words shadow-sm animate-pulse",
+          "bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-100/30 dark:border-indigo-900/30"
+        )}>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-100/30 dark:bg-indigo-900/30 text-indigo-500 shrink-0">
+              <Activity className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="h-4 bg-indigo-100/40 dark:bg-indigo-900/40 rounded w-1/3 mb-2" />
+              <div className="h-3 bg-indigo-100/30 dark:bg-indigo-900/30 rounded w-1/2" />
+            </div>
+          </div>
+          <div className="h-[1px] bg-black/5 dark:bg-white/10 my-4" />
+          <div className="space-y-3">
+            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-3/4" />
+            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-5/6" />
+            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-2/3" />
+          </div>
+        </div>
+      );
+    }
+
     // Elegant fallback rendering if JSON parse fails completely
     return (
-      <div className="my-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300">
+      <div className="my-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300 font-sans whitespace-normal break-words shadow-sm">
         <div className="flex items-center gap-2 font-semibold">
           <AlertOctagon className="h-5 w-5 text-red-500" />
           <span>Error al procesar la tarjeta interactiva</span>
         </div>
         <p className="mt-1 text-xs opacity-90">El bloque de datos no tiene una estructura JSON válida.</p>
-        <pre className="mt-2 max-h-40 overflow-auto rounded bg-red-100/50 p-2 font-mono text-[10px] text-red-900 dark:bg-red-900/30 dark:text-red-200">
+        <pre className="mt-2 max-h-40 overflow-auto rounded bg-red-100/50 p-2 font-mono text-[10px] text-red-900 dark:bg-red-900/30 dark:text-red-200 whitespace-pre-wrap break-all">
           {content}
         </pre>
       </div>
@@ -339,7 +494,8 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
       theme.bg,
       theme.border,
       theme.glow,
-      "shadow-sm hover:shadow-md backdrop-blur-[2px]"
+      "shadow-sm hover:shadow-md backdrop-blur-[2px]",
+      "font-sans whitespace-normal break-words" // SHIELD FROM INHERITED PRE STYLES
     )}>
       {/* CARD HEADER */}
       <div 
@@ -352,9 +508,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={cn("font-semibold text-sm leading-snug tracking-wide", theme.text)}>
+              <div className={cn("font-bold text-sm leading-snug tracking-wide", theme.text)}>
                 {data.title}
-              </h3>
+              </div>
               {data.badge && (
                 <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0", theme.badge)}>
                   {data.badge}
@@ -362,9 +518,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
               )}
             </div>
             {data.subtitle && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">
+              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">
                 {data.subtitle}
-              </p>
+              </div>
             )}
           </div>
         </div>
@@ -386,9 +542,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
           <div className="h-[1px] w-full bg-black/5 dark:bg-white/10 mb-3" />
           
           {data.description && (
-            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+            <div className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
               {data.description}
-            </p>
+            </div>
           )}
 
           {/* RENDER ITEMS */}
@@ -453,9 +609,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <h4 className="font-bold text-xs text-gray-800 dark:text-gray-100">
+                            <div className="font-bold text-xs text-gray-800 dark:text-gray-100">
                               {item.title}
-                            </h4>
+                            </div>
                             {item.badge && (
                               <span className={cn("text-[9px] px-2 py-0.5 rounded font-semibold", itemTheme.badge)}>
                                 {item.badge}
@@ -464,18 +620,18 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                           </div>
                           
                           {bulletPoints.length > 1 ? (
-                            <ul className="space-y-1.5 mt-2">
+                            <div className="space-y-1.5 mt-2">
                               {bulletPoints.map((bp, bpIdx) => (
-                                <li key={bpIdx} className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1.5 leading-relaxed">
+                                <div key={bpIdx} className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1.5 leading-relaxed">
                                   <span className={cn("h-1.5 w-1.5 rounded-full mt-1.5 shrink-0", itemTheme.accent)} />
                                   <span>{bp.replace(/^-\s*/, '')}</span>
-                                </li>
+                                </div>
                               ))}
-                            </ul>
+                            </div>
                           ) : (
-                            <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                            <div className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
                               {item.description}
-                            </p>
+                            </div>
                           )}
                         </div>
                         {item.icon && (
@@ -518,14 +674,14 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className={cn(
+                            <div className={cn(
                               "font-semibold text-xs transition-all duration-200",
                               isChecked 
                                 ? "text-gray-400 dark:text-gray-500 line-through decoration-emerald-500/30" 
                                 : "text-gray-800 dark:text-gray-200"
                             )}>
                               {item.title}
-                            </h4>
+                            </div>
                             {item.badge && (
                               <span className={cn(
                                 "text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", 
@@ -535,14 +691,14 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                               </span>
                             )}
                           </div>
-                          <p className={cn(
+                          <div className={cn(
                             "text-[11px] leading-normal transition-all duration-200",
                             isChecked 
                               ? "text-gray-400/80 dark:text-gray-500/80 line-through" 
                               : "text-gray-600 dark:text-gray-400"
                           )}>
                             {item.description}
-                          </p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -572,18 +728,18 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className="font-semibold text-xs text-gray-800 dark:text-gray-200">
+                            <div className="font-semibold text-xs text-gray-800 dark:text-gray-200">
                               {item.title}
-                            </h4>
+                            </div>
                             {item.badge && (
                               <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", itemTheme.badge)}>
                                 {item.badge}
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
+                          <div className="text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
                             {item.description}
-                          </p>
+                          </div>
                         </div>
                       </div>
                     );
