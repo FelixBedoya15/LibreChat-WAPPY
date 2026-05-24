@@ -480,9 +480,17 @@ export default function SGSSTDashboard() {
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="mb-4 flex items-center justify-between">
-                                                        <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
-                                                            MÓDULO PRINCIPAL
+                                                    <div className="mb-4 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
+                                                                MÓDULO PRINCIPAL
+                                                            </div>
+                                                            {phase.id === 'boveda_legal' && (
+                                                                <div className="inline-flex items-center gap-1.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 rounded-full px-3 py-1.5 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold tracking-wider uppercase shadow-sm animate-pulse">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                                    En construcción
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         {isAdmin && phase.id === 'boveda_legal' && (
                                                             <div 
