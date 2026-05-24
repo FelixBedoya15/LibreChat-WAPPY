@@ -570,46 +570,46 @@ export default function AltaDireccionChecklist() {
                     className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowQrModal(false)}>
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-[360px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[385px] min-h-[490px] md:min-h-[530px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header - Integrated Wappy Style (Compact) */}
-                        <div className="flex items-center gap-2.5 px-4.5 py-3 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
-                            <div className="w-9 h-9 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
-                                <QrCode className="w-4.5 h-4.5 text-teal-600 dark:text-teal-400" />
+                        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
+                            <div className="w-10 h-10 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                             </div>
                             <div className="text-left flex-grow">
-                                <h3 className="font-extrabold text-xs text-text-primary tracking-tight">Portal Público SGSST</h3>
-                                <p className="text-[10px] text-text-secondary font-semibold">Revisión Alta Dirección</p>
+                                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Portal Público SGSST</h3>
+                                <p className="text-[11px] text-text-secondary font-semibold">Revisión Alta Dirección</p>
                             </div>
                             <button
                                 onClick={() => setShowQrModal(false)}
-                                className="absolute top-3.5 right-4 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                                className="absolute top-4 right-5 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
                             >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         {/* Modal Body - Scrollable */}
-                        <div className="p-3.5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-2.5 overflow-y-auto flex-grow">
+                        <div className="p-5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-4 overflow-y-auto flex-grow">
                             {/* Warning Instruction Card (Wappy Style - Compact) */}
-                            <div className="bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/40 dark:border-amber-900/30 rounded-xl p-2 text-left w-full flex items-start gap-2 shrink-0">
-                                <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                                    <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            <div className="bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/40 dark:border-amber-900/30 rounded-xl p-3 text-left w-full flex items-start gap-2.5 shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <h4 className="text-[10px] font-bold text-amber-800 dark:text-indigo-300">Acceso Restringido</h4>
-                                    <p className="text-[9px] text-amber-600/90 dark:text-amber-400/90 leading-relaxed font-semibold">
+                                    <h4 className="text-[11px] font-bold text-amber-800 dark:text-indigo-300">Acceso Restringido</h4>
+                                    <p className="text-[10px] text-amber-600/90 dark:text-amber-400/90 leading-relaxed font-semibold">
                                         Comparte este QR exclusivamente con el <strong>Representante Legal</strong> o personal de <strong>Gerencia</strong>. Solo podrán acceder quienes estén registrados con dicho rol en el Perfil Sociodemográfico.
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="relative group flex flex-col items-center gap-1.5 py-0.5 shrink-0">
-                                <div className="p-2 border border-border-medium bg-white rounded-lg shadow-sm">
+                            <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
+                                <div className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
                                     {qrDataUrl ? (
-                                        <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-[95px] h-[95px] mx-auto" />
+                                        <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-[115px] h-[115px] mx-auto" />
                                     ) : (
-                                        <div className="w-[95px] h-[95px] flex items-center justify-center bg-gray-50">
+                                        <div className="w-[115px] h-[115px] flex items-center justify-center bg-gray-50">
                                             <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
                                         </div>
                                     )}
@@ -617,28 +617,28 @@ export default function AltaDireccionChecklist() {
                                 {qrDataUrl && (
                                     <button
                                         onClick={() => downloadQR("Revision_Alta_Direccion_SGSST")}
-                                        className="flex items-center gap-1 px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-md text-[9px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
+                                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg text-[10px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
                                     >
-                                        <Download className="w-2.5 h-2.5" />
+                                        <Download className="w-3.5 h-3.5" />
                                         Descargar QR
                                     </button>
                                 )}
                             </div>
 
-                            <div className="w-full space-y-1 pt-0.5 shrink-0">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-text-secondary opacity-70 text-center">Enlace de acceso público</p>
-                                <div className="flex items-center gap-1.5">
+                            <div className="w-full space-y-1.5 pt-1 shrink-0">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-text-secondary opacity-70 text-center">Enlace de acceso público</p>
+                                <div className="flex items-center gap-2">
                                     <input
                                         readOnly
                                         value={portalUrl}
-                                        className="flex-grow text-[9px] font-mono px-2 py-1.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-lg outline-none text-text-secondary"
+                                        className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(portalUrl);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
-                                        className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-bold rounded-lg transition-colors shadow-sm shrink-0"
+                                        className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
@@ -647,10 +647,10 @@ export default function AltaDireccionChecklist() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-2.5 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
+                        <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
                             <button
                                 onClick={() => setShowQrModal(false)}
-                                className="px-4 py-1.5 rounded-lg font-bold text-[11px] bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
+                                className="px-5 py-1.5 rounded-lg font-bold text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>

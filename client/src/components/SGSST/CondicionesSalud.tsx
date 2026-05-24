@@ -1482,51 +1482,51 @@ const CondicionesSalud = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-[360px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[385px] min-h-[490px] md:min-h-[530px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header - Integrated Wappy Style (Compact) */}
-                        <div className="flex items-center gap-2.5 px-4.5 py-3 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
-                            <div className="w-9 h-9 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
-                                <QrCode className="w-4.5 h-4.5 text-teal-600 dark:text-teal-400" />
+                        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
+                            <div className="w-10 h-10 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                             </div>
                             <div className="text-left flex-grow min-w-0 pr-6">
-                                <h3 className="font-extrabold text-xs text-text-primary tracking-tight truncate">{selectedQrWorker.nombre || 'Trabajador'}</h3>
-                                <p className="text-[10px] text-text-secondary font-semibold truncate">{selectedQrWorker.cargo || 'Sin cargo'}</p>
+                                <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate">{selectedQrWorker.nombre || 'Trabajador'}</h3>
+                                <p className="text-[11px] text-text-secondary font-semibold truncate">{selectedQrWorker.cargo || 'Sin cargo'}</p>
                             </div>
                             <button
                                 onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}
-                                className="absolute top-3.5 right-4 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                                className="absolute top-4 right-5 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
                             >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         {/* Modal Body - Scrollable */}
-                        <div className="p-3.5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-2.5 overflow-y-auto flex-grow">
+                        <div className="p-5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-4 overflow-y-auto flex-grow">
                             {/* Segmented Pill Switcher (Compact) */}
-                            <div className="flex p-0.5 bg-surface-secondary dark:bg-zinc-950/40 rounded-lg border border-border-medium/30 gap-0.5 w-full shrink-0">
+                            <div className="flex p-0.5 bg-surface-secondary dark:bg-zinc-950/40 rounded-xl border border-border-medium/30 gap-0.5 w-full shrink-0">
                                 <button
                                     onClick={() => setQrTab('profile')}
                                     className={cn(
-                                        'flex-grow py-1 rounded-md text-[10px] font-bold transition-all duration-300 flex items-center justify-center gap-1',
+                                        'flex-grow py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300 flex items-center justify-center gap-1',
                                         qrTab === 'profile'
                                             ? 'bg-white dark:bg-zinc-800 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/20'
                                             : 'text-text-secondary hover:text-text-primary'
                                     )}
                                 >
-                                    <UserCircle className="w-3 h-3" />
+                                    <UserCircle className="w-3.5 h-3.5" />
                                     Ver Tarjeta
                                 </button>
                                 <button
                                     onClick={() => setQrTab('update')}
                                     className={cn(
-                                        'flex-grow py-1 rounded-md text-[10px] font-bold transition-all duration-300 flex items-center justify-center gap-1',
+                                        'flex-grow py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300 flex items-center justify-center gap-1',
                                         qrTab === 'update'
                                             ? 'bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-border-medium/20'
                                             : 'text-text-secondary hover:text-text-primary'
                                     )}
                                 >
-                                    <PenTool className="w-3 h-3" />
+                                    <PenTool className="w-3.5 h-3.5" />
                                     Actualizar Datos
                                 </button>
                             </div>
@@ -1534,27 +1534,27 @@ const CondicionesSalud = () => {
                             {qrTab === 'profile' ? (
                                 <>
                                     {/* Blue Instruction Card (Wappy Style - Compact) */}
-                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-2 text-left w-full flex items-start gap-2 shrink-0">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                                            <Info className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-3 text-left w-full flex items-start gap-2.5 shrink-0">
+                                        <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                            <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                                         </div>
                                         <div className="space-y-0.5">
-                                            <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300">Tarjeta de Emergencia Médica</h4>
-                                            <p className="text-[9px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                            <h4 className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">Tarjeta de Emergencia Médica</h4>
+                                            <p className="text-[10px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
                                                 Escanea para ver el tipo de sangre, alergias, contactos de emergencia y recomendaciones médicas.
                                             </p>
                                         </div>
                                     </div>
                                     
-                                    <div className="relative group flex flex-col items-center gap-1.5 py-0.5 shrink-0">
-                                        <div id="worker-profile-qr-container" className="p-2 border border-border-medium bg-white rounded-lg shadow-sm">
-                                            <QRCodeSVG value={getQrValue(selectedQrWorker)} size={95} className="mx-auto" level="H" includeMargin={false} />
+                                    <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
+                                        <div id="worker-profile-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
+                                            <QRCodeSVG value={getQrValue(selectedQrWorker)} size={115} className="mx-auto" level="H" includeMargin={false} />
                                         </div>
                                         <button
                                             onClick={() => downloadQR(selectedQrWorker.nombre || 'Trabajador', 'worker-profile-qr-container')}
-                                            className="flex items-center gap-1 px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-md text-[9px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
+                                            className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg text-[10px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
                                         >
-                                            <Download className="w-2.5 h-2.5" />
+                                            <Download className="w-3.5 h-3.5" />
                                             Descargar QR
                                         </button>
                                     </div>
@@ -1562,45 +1562,45 @@ const CondicionesSalud = () => {
                             ) : (
                                 <>
                                     {/* Blue Instruction Card (Wappy Style - Compact) */}
-                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-2 text-left w-full flex items-start gap-2 shrink-0">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                                            <Info className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                                    <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-3 text-left w-full flex items-start gap-2.5 shrink-0">
+                                        <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                            <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                                         </div>
                                         <div className="space-y-0.5">
-                                            <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300">Enlace de Auto-Actualización</h4>
-                                            <p className="text-[9px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                            <h4 className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">Enlace de Auto-Actualización</h4>
+                                            <p className="text-[10px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
                                                 Comparte este enlace para que el trabajador pueda actualizar sus condiciones de salud de forma remota.
                                             </p>
                                         </div>
                                     </div>
                                     
-                                    <div className="relative group flex flex-col items-center gap-1.5 py-0.5 shrink-0">
-                                        <div id="worker-update-qr-container" className="p-2 border border-border-medium bg-white rounded-lg shadow-sm">
-                                            <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={95} className="mx-auto" level="H" includeMargin={false} />
+                                    <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
+                                        <div id="worker-update-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
+                                            <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={115} className="mx-auto" level="H" includeMargin={false} />
                                         </div>
                                         <button
                                             onClick={() => downloadQR(`${selectedQrWorker.nombre || 'Trabajador'}_Actualizacion`, 'worker-update-qr-container')}
-                                            className="flex items-center gap-1 px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-md text-[9px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
+                                            className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg text-[10px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
                                         >
-                                            <Download className="w-2.5 h-2.5" />
+                                            <Download className="w-3.5 h-3.5" />
                                             Descargar QR
                                         </button>
                                     </div>
 
-                                    <div className="w-full space-y-1.5 pt-0.5 shrink-0">
+                                    <div className="w-full space-y-1.5 pt-1 shrink-0">
                                         <p className="text-[8px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400 text-center opacity-70">Enlace de acceso personal</p>
                                         <div className="flex items-center gap-1.5">
                                             <input
                                                 readOnly
                                                 value={getUpdateQrValue(selectedQrWorker)}
-                                                className="flex-grow text-[9px] font-mono px-2 py-1.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-lg outline-none text-text-secondary"
+                                                className="flex-grow text-[9px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                             />
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(getUpdateQrValue(selectedQrWorker));
                                                     showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                                 }}
-                                                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-[9px] font-bold rounded-lg transition-colors shadow-sm shrink-0"
+                                                className="px-3.5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-[9px] font-bold rounded-lg transition-colors shadow-sm shrink-0"
                                             >
                                                 Copiar
                                             </button>
@@ -1614,10 +1614,10 @@ const CondicionesSalud = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-2.5 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
+                        <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
                             <button
                                 onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}
-                                className="px-4 py-1.5 rounded-lg font-bold text-[11px] bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
+                                className="px-5 py-1.5 rounded-lg font-bold text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>
@@ -1632,67 +1632,67 @@ const CondicionesSalud = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowPortalQr(false)}>
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-[360px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-[385px] min-h-[490px] md:min-h-[530px] max-h-[85vh] md:max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-border-medium/60 flex flex-col animate-in zoom-in duration-200"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header - Integrated Wappy Style (Compact) */}
-                        <div className="flex items-center gap-2.5 px-4.5 py-3 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
-                            <div className="w-9 h-9 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
-                                <QrCode className="w-4.5 h-4.5 text-teal-600 dark:text-teal-400" />
+                        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border-light dark:border-border-medium/30 relative shrink-0">
+                            <div className="w-10 h-10 rounded-full border-2 border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-center shrink-0 shadow-inner">
+                                <QrCode className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                             </div>
                             <div className="text-left flex-grow">
-                                <h3 className="font-extrabold text-xs text-text-primary tracking-tight">Portal Público SGSST</h3>
-                                <p className="text-[10px] text-text-secondary font-semibold">Auto-Actualización de Perfil</p>
+                                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Portal Público SGSST</h3>
+                                <p className="text-[11px] text-text-secondary font-semibold">Auto-Actualización de Perfil</p>
                             </div>
                             <button
                                 onClick={() => setShowPortalQr(false)}
-                                className="absolute top-3.5 right-4 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
+                                className="absolute top-4 right-5 p-1 rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all duration-200"
                             >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         {/* Modal Body - Scrollable */}
-                        <div className="p-3.5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-2.5 overflow-y-auto flex-grow">
+                        <div className="p-5 flex flex-col bg-surface-primary dark:bg-zinc-900/10 space-y-4 overflow-y-auto flex-grow">
                             {/* Blue Instruction Card (Wappy Style - Compact) */}
-                            <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-2 text-left w-full flex items-start gap-2 shrink-0">
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                                    <Info className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                            <div className="bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-3 text-left w-full flex items-start gap-2.5 shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                                    <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300">Portal de Autogestión Médica</h4>
-                                    <p className="text-[9px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
+                                    <h4 className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">Portal de Autogestión Médica</h4>
+                                    <p className="text-[10px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
                                         Comparte este código o enlace. Los trabajadores podrán actualizar sus condiciones de salud e incompatibilidades clínicas de forma rápida desde sus celulares.
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="relative group flex flex-col items-center gap-1.5 py-0.5 shrink-0">
-                                <div id="portal-public-qr-container" className="p-2 border border-border-medium bg-white rounded-lg shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={95} className="mx-auto" level="H" includeMargin={false} />
+                            <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
+                                <div id="portal-public-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Portal_Publico_SGSST", 'portal-public-qr-container')}
-                                    className="flex items-center gap-1 px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-md text-[9px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg text-[10px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
                                 >
-                                    <Download className="w-2.5 h-2.5" />
+                                    <Download className="w-3.5 h-3.5" />
                                     Descargar QR
                                 </button>
                             </div>
 
-                            <div className="w-full space-y-1 pt-0.5 shrink-0">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-text-secondary opacity-70 text-center">Enlace de acceso público</p>
-                                <div className="flex items-center gap-1.5">
+                            <div className="w-full space-y-1.5 pt-1 shrink-0">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-text-secondary opacity-70 text-center">Enlace de acceso público</p>
+                                <div className="flex items-center gap-2">
                                     <input
                                         readOnly
                                         value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`}
-                                        className="flex-grow text-[9px] font-mono px-2 py-1.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-lg outline-none text-text-secondary"
+                                        className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                         }}
-                                        className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-bold rounded-lg transition-colors shadow-sm shrink-0"
+                                        className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
@@ -1701,10 +1701,10 @@ const CondicionesSalud = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-2.5 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
+                        <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
                             <button
                                 onClick={() => setShowPortalQr(false)}
-                                className="px-4 py-1.5 rounded-lg font-bold text-[11px] bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
+                                className="px-5 py-1.5 rounded-lg font-bold text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-750 transition-all shadow-sm cursor-pointer">
                                 Cerrar
                             </button>
                         </div>
