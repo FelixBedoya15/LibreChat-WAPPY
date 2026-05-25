@@ -285,6 +285,27 @@ const startServer = async () => {
     }
   });
 
+  // Ruta de redirección limpia para Meta Ads y comunidad de WhatsApp
+  app.get(['/comunidad', '/comunidad/'], (req, res) => {
+    res.type('html');
+    res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>WAPPY IA - Comunidad</title>
+    <meta http-equiv="refresh" content="0; url=https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy" />
+</head>
+<body>
+    <script>
+        window.location.href = "https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy";
+    </script>
+    <p style="font-family: Arial, sans-serif; text-align: center; margin-top: 50px;">
+        Redirigiendo a la comunidad... si no carga, <a href="https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy">haz clic aquí</a>.
+    </p>
+</body>
+</html>`);
+  });
+
   app.use(ErrorController);
 
   app.use((req, res) => {

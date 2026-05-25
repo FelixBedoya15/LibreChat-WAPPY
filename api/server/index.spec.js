@@ -116,6 +116,21 @@ describe('Server Configuration', () => {
       mongoose.models.User.findOne = originalFindOne;
     }
   });
+
+  it('should return 200 and redirect HTML for /comunidad', async () => {
+    const response = await request(app).get('/comunidad');
+    expect(response.status).toBe(200);
+    expect(response.type).toBe('text/html');
+    expect(response.text).toContain('WAPPY IA - Comunidad');
+    expect(response.text).toContain('https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy');
+  });
+
+  it('should return 200 and redirect HTML for /comunidad/', async () => {
+    const response = await request(app).get('/comunidad/');
+    expect(response.status).toBe(200);
+    expect(response.type).toBe('text/html');
+    expect(response.text).toContain('WAPPY IA - Comunidad');
+  });
 });
 
 // Polls the /health endpoint every 30ms for up to 10 seconds to wait for the server to start completely
