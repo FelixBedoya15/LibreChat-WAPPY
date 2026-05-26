@@ -87,6 +87,9 @@ function ConvoOptions({
 
   const handleDeleteClick = useCallback(() => {
     if (!isPro) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       setUpgradeModalTitle("Eliminación de Chats Bloqueada");
       setUpgradeModalDesc("La eliminación de chats en tu cuenta gratuita está restringida para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y eliminar historiales de forma ilimitada.");
       setIsUpgradeModalOpen(true);
@@ -98,6 +101,9 @@ function ConvoOptions({
 
   const handleArchiveClick = useCallback(async () => {
     if (!isPro) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       setUpgradeModalTitle("Archivado de Chats Bloqueado");
       setUpgradeModalDesc("El archivado de chats en tu cuenta gratuita está restringido para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y archivar historiales de forma ilimitada.");
       setIsUpgradeModalOpen(true);
@@ -144,6 +150,9 @@ function ConvoOptions({
 
   const handleDuplicateClick = useCallback(() => {
     if (!isPro) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       setUpgradeModalTitle("Duplicación de Chats Bloqueada");
       setUpgradeModalDesc("La duplicación de chats está reservada exclusivamente para cuentas PREMIUM del Plan Pro.");
       setIsUpgradeModalOpen(true);

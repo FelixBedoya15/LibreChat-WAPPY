@@ -871,11 +871,6 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                                     <div className="text-xs text-text-secondary">{option.description}</div>
                                 </div>
                             </div>
-                            {isOptionBlocked && (
-                                <span className="text-[10px] font-black uppercase bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 tracking-wider">
-                                    🔒 PRO
-                                </span>
-                            )}
                         </button>
                     );
                 })}
