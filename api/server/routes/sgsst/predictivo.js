@@ -42,128 +42,170 @@ function cleanHtmlOutput(text) {
         .trim();
 }
 
-// ──// Helper: Obtener Empresa Activa
+// ── Helper: Obtener Empresa Activa
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id : null;
 }
 
-// ─── HELPER: Aggregate All SST Context from DB  ──────────────────────────────
+// ─── HELPER: Aggregate All SST Context from DB (Hito 1 to 4) ──────────────────
 async function getFullSSTContext(userId, companyId) {
-    let fullContext = '\n═══════════════════════════════════════\n   DATOS COMPLETOS DEL ECOSISTEMA SST\n═══════════════════════════════════════\n';
+    let fullContext = '\n═══════════════════════════════════════\n   DATOS COMPLETOS DEL ECOSISTEMA SST (HITOS 1 - 4)\n═══════════════════════════════════════\n';
     try {
-        // 1. Perfil Sociodemográfico
+        // ─── HITO 1: HUELLA BIOCÉNTRICA ───
+        // 1. Perfil Sociodemográfico & Oráculo H1
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
             const psd = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
             if (psd?.trabajadores?.length) {
-                fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO]\nTotal trabajadores: ${psd.trabajadores.length}\n`;
+                fullContext += `\n[HITO 1 - PERFIL SOCIODEMOGRÁFICO Y ORÁCULO H1]\n`;
+                fullContext += `Total trabajadores registrados: ${psd.trabajadores.length}\n`;
                 psd.trabajadores.forEach(t => {
-                    fullContext += `  • ${t.nombre || 'N/A'} | Cargo: ${t.cargo || 'N/A'} | Edad: ${t.edad || 'N/A'} | Examen: ${t.fechaExamenMedico || 'No'} | Diagnóstico: ${t.diagnosticoMedico || 'Apto'} | Rec: ${t.recomendacionesMedicas || 'Ninguna'}\n`;
+                    fullContext += `  • Trabajador: ${t.nombre || 'N/A'} | Cargo: ${t.cargo || 'N/A'} | Edad: ${t.edad || 'N/A'} | Diagnóstico: ${t.diagnosticoMedico || 'Apto'} | Rec: ${t.recomendacionesMedicas || 'Ninguna'} | Score H1 Fit: ${t.biocentricScore !== undefined ? t.biocentricScore + '%' : 'N/A'} | IA Tags H1: ${(t.bioTagsIA || []).join(', ') || 'Sin Hallazgos'} | Dictamen H1: ${t.dictamenPredictivoH1 ? 'Generado y guardado permanentemente ✅' : 'Pendiente'}\n`;
                 });
-            } else fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO] Sin datos.\n`;
+            } else fullContext += `\n[HITO 1 - PERFIL SOCIODEMOGRÁFICO Y ORÁCULO H1] Sin datos de trabajadores registrados.\n`;
         }
 
-        // 2. Estadísticas ATEL
+        // ─── HITO 2: NÚCLEO BIO-EVALUATIVO ───
+        // 2. Matriz Bio-IPEVAR / GTC-45
+        const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
+        if (MatrizPeligrosData) {
+            const mpd = await MatrizPeligrosData.findOne({ user: userId, companyId }).lean();
+            if (mpd?.procesos?.length) {
+                fullContext += `\n[HITO 2 - MATRIZ DE RIESGOS BIO-IPEVAR (GTC 45)]\n`;
+                let totalPeligros = 0, nivelI = 0, nivelII = 0;
+                mpd.procesos.forEach(p => {
+                    (p.peligros || []).forEach(h => {
+                        totalPeligros++;
+                        const nr = h.nivelRiesgo || 0;
+                        const cat = nr >= 600 ? 'I (Inaceptable)' : nr >= 150 ? 'II (Crítico)' : 'III/IV (Controlado)';
+                        if (nr >= 600) nivelI++;
+                        else if (nr >= 150) nivelII++;
+                        fullContext += `  • Proceso: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N'}" | Tipo: ${h.tipoPeligro || 'N'} | NR: ${nr} [Cat ${cat}] | Controles: ${h.controlesExistentes || 'Ninguno'}\n`;
+                    });
+                });
+                fullContext += `  RESUMEN MATRIZ: ${totalPeligros} peligros evaluados | Nivel I (Inaceptable): ${nivelI} | Nivel II (Crítico): ${nivelII}\n`;
+            } else fullContext += `\n[HITO 2 - MATRIZ DE RIESGOS BIO-IPEVAR] Sin peligros registrados en la matriz.\n`;
+        }
+
+        // ─── HITO 3: DINÁMICA DE EXPOSICIÓN (APLICATIVOS IMPORTANTES DE LA OPERACIÓN) ───
+        // 3. Participación IPEVAR Bio-Individual
+        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+        if (ParticipacionIpevarData) {
+            const pip = await ParticipacionIpevarData.find({ user: userId, companyId }).lean();
+            if (pip?.length) {
+                fullContext += `\n[HITO 3 - PARTICIPACIÓN IPEVAR BIO-INDIVIDUAL]\n`;
+                pip.slice(0, 10).forEach(p => {
+                    fullContext += `  • Trabajador: "${p.workerName || 'N/A'}" | Peligro Percibido: "${p.peligro || 'N/A'}" | Nivel de Miedo: ${p.miedoScore ?? 'N/A'}/10 | Propuesta de Control: "${p.propuestaMejora || 'N/A'}"\n`;
+                });
+            } else fullContext += `\n[HITO 3 - PARTICIPACIÓN IPEVAR BIO-INDIVIDUAL] Sin registros de participación de trabajadores.\n`;
+        }
+
+        // 4. Reporte de Actos y Condiciones Inseguras
+        const ReporteActosData = mongoose.models.ReporteActosData;
+        if (ReporteActosData) {
+            const rad = await ReporteActosData.findOne({ user: userId, companyId }).lean();
+            if (rad?.reportesList?.length) {
+                fullContext += `\n[HITO 3 - REPORTES DE ACTOS Y CONDICIONES INSEGURAS]\n`;
+                const abiertos = rad.reportesList.filter(r => r.estado !== 'Cerrado');
+                fullContext += `Total reportes registrados: ${rad.reportesList.length} | Abiertos (Pendientes): ${abiertos.length}\n`;
+                rad.reportesList.slice(-10).forEach(r => {
+                    fullContext += `  • Tipo: ${r.tipo} | Hallazgo: "${r.hallazgo || 'N'}" | Área: ${r.area || 'N'} | Responsable: ${r.responsable || 'N'} | Estado: ${r.estado || 'Abierto'}\n`;
+                });
+            } else fullContext += `\n[HITO 3 - REPORTES DE ACTOS Y CONDICIONES INSEGURAS] Sin reportes activos.\n`;
+        }
+
+        // 5. Programa de Capacitación SG-SST
+        const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData;
+        if (ProgramaCapacitacionesData) {
+            const pcd = await ProgramaCapacitacionesData.findOne({ user: userId, companyId }).lean();
+            if (pcd?.temas?.length) {
+                fullContext += `\n[HITO 3 - PROGRAMA DE CAPACITACIONES SG-SST]\n`;
+                let totalHoras = 0, totalAsistentes = 0;
+                pcd.temas.forEach(t => {
+                    totalHoras += (t.duracionHoras || 0);
+                    totalAsistentes += (t.asistentesReal || 0);
+                    fullContext += `  • Tema formativo: "${t.nombre || 'N'}" | Prog: ${t.fechaProgramada || 'N'} | Ejec: ${t.fechaEjecutada || 'No'} | Estado: ${t.estado || 'Planificado'} | Cobertura: ${t.asistentesReal || 0}/${t.asistentesEsperados || 0} asistentes.\n`;
+                });
+                fullContext += `  RESUMEN FORMATIVO: ${pcd.temas.length} capacitaciones | Total Horas: ${totalHoras}h | Total Asistentes: ${totalAsistentes}\n`;
+            } else fullContext += `\n[HITO 3 - PROGRAMA DE CAPACITACIONES] Sin capacitaciones registradas.\n`;
+        }
+
+        // 6. Análisis de Trabajo Seguro (ATS)
+        const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
+        if (AnalisisTrabajoSeguroData) {
+            const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId, companyId }).lean();
+            if (ats?.pasos) {
+                fullContext += `\n[HITO 3 - ANÁLISIS DE TRABAJO SEGURO (ATS)]\n`;
+                fullContext += `  Actividad Crítica: "${ats.actividad || 'N/A'}" | Equipos Requeridos: "${ats.equiposRequeridos || 'N/A'}"\n`;
+                ats.pasos.slice(0, 8).forEach(p => {
+                    fullContext += `  • Paso de Tarea: "${p.descripcion || 'N'}" | Peligro de Exposición: "${p.peligro || 'N'}" | Medida de Mitigación: "${p.control || 'Ninguno'}"\n`;
+                });
+            } else fullContext += `\n[HITO 3 - ANÁLISIS DE TRABAJO SEGURO (ATS)] Sin datos activos registrados.\n`;
+        }
+
+        // 7. Permiso de Trabajo en Alturas (Alto Riesgo)
+        const PermisoAlturasData = mongoose.models.PermisoAlturasData;
+        if (PermisoAlturasData) {
+            const pad = await PermisoAlturasData.find({ user: userId, companyId }).lean();
+            if (pad?.length) {
+                fullContext += `\n[HITO 3 - PERMISOS DE TRABAJO EN ALTURAS]\n`;
+                pad.slice(0, 5).forEach(p => {
+                    fullContext += `  • Ejecutor/Solicitante: "${p.solicitante || 'N'}" | Altura: ${p.alturaMetros || '?'}m | Vigencia: ${p.vigenciaHoras || '?'}h | EPP: ${(p.eppSeleccionados || []).join(', ') || 'Ninguno'}\n`;
+                });
+            } else fullContext += `\n[HITO 3 - PERMISOS DE TRABAJO EN ALTURAS] Sin permisos recientes registrados.\n`;
+        }
+
+        // 8. Método OWAS (Evaluación Postural Biomecánica)
+        const MetodoOwasData = mongoose.models.MetodoOwasData;
+        if (MetodoOwasData) {
+            const owas = await MetodoOwasData.findOne({ user: userId, companyId }).lean();
+            if (owas?.resultados?.length) {
+                fullContext += `\n[HITO 3 - EVALUACIÓN POSTURAL OWAS]\n`;
+                fullContext += `  Cargo Evaluado: "${owas.cargo || 'N/A'}"\n`;
+                owas.resultados.forEach(r => {
+                    fullContext += `  • Fase Tarea: "${r.faseTarea || 'N'}" | Categoría OWAS: ${r.categoriaRiesgo || 'N'} (Rango 1-4) | Acción: "${r.accionRequerida || 'N'}"\n`;
+                });
+            } else fullContext += `\n[HITO 3 - EVALUACIÓN POSTURAL OWAS] Sin mediciones posturales activas.\n`;
+        }
+
+        // ─── HITO 4: TRAUMATISMO Y CURACIÓN (SINIESTRALIDAD HISTÓRICA E INVESTIGACIONES) ───
+        // 9. Estadísticas ATEL (Siniestralidad e Incapacidades)
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
             const ad = await ATELAnnualData.findOne({ user: userId, companyId }).lean();
             if (ad?.years) {
                 const years = Object.keys(ad.years).sort().reverse();
-                fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL]\n`;
+                fullContext += `\n[HITO 4 - ESTADÍSTICAS ATEL (SINIESTRALIDAD HISTÓRICA)]\n`;
                 years.slice(0, 2).forEach(yr => {
                     let totalEvents = 0, totalDays = 0; let eventList = [];
                     Object.entries(ad.years[yr] || {}).forEach(([mes, m]) => {
                         if (m?.events) {
                             totalEvents += m.events.length;
-                            m.events.forEach(e => { totalDays += (e.diasIncapacidad || 0); eventList.push(`${mes}: ${e.peligro || 'N'} (${e.tipoEvento || 'N'})`); });
+                            m.events.forEach(e => {
+                                totalDays += (e.diasIncapacidad || 0);
+                                eventList.push(`${mes}: ${e.peligro || 'N/A'} (${e.tipoEvento || 'N/A'}) - ${e.diasIncapacidad || 0} días`);
+                            });
                         }
                     });
-                    fullContext += `  Año ${yr}: ${totalEvents} eventos, ${totalDays} días incapacidad. Detalle: ${eventList.slice(0, 10).join(' | ') || 'Sin detalle'}.\n`;
+                    fullContext += `  Año ${yr}: Total ${totalEvents} siniestros, acumulando ${totalDays} días de incapacidad médica laboral.\n  Detalle de eventos: ${eventList.slice(0, 10).join(' | ') || 'Sin registros médicos de incapacidad'}.\n`;
                 });
-            } else fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL] Sin historial.\n`;
+            } else fullContext += `\n[HITO 4 - ESTADÍSTICAS ATEL] Sin historial de incapacidades médicas por ATEL.\n`;
         }
 
-        // 3. Investigación ATEL
+        // 10. Investigaciones ATEL (Análisis de Causa Raíz Forense)
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
         if (InvestigacionAtelData) {
             const investigations = await InvestigacionAtelData.find({ user: userId, companyId }).lean();
             if (investigations?.length) {
-                fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] ${investigations.length} invest:\n`;
+                fullContext += `\n[HITO 4 - INVESTIGACIONES DE ACCIDENTES Y ENFERMEDADES (ATEL)]\n`;
+                fullContext += `Total eventos investigados forensicamente: ${investigations.length}\n`;
                 investigations.slice(0, 5).forEach(inv => {
                     const f = inv.formData || {};
-                    fullContext += `  • Tarea: "${f.tareaAccidente || 'N'}" | Cargo: ${f.cargoAccidentado || 'N'} | Causa: ${f.causasInmediatas || 'N'} | Lesión: ${f.naturalezaLesion || 'N'}.\n`;
+                    fullContext += `  • Trabajador: "${f.nombreAccidentado || 'N/A'}" | Cargo: "${f.cargoAccidentado || 'N/A'}" | Tarea: "${f.tareaAccidente || 'N'}" | Causa Inmediata: "${f.causasInmediatas || 'N'}" | Causa Básica: "${f.causasBasicas || 'N'}" | Naturaleza Lesión: "${f.naturalezaLesion || 'N'}" | Mecanismo: "${f.mecanismoAccidente || 'N'}"\n`;
                 });
-            } else fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] Sin invest.\n`;
-        }
-
-        // 4. Actos y Condiciones
-        const ReporteActosData = mongoose.models.ReporteActosData;
-        if (ReporteActosData) {
-            const rad = await ReporteActosData.findOne({ user: userId, companyId }).lean();
-            if (rad?.reportesList?.length) {
-                fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] ${rad.reportesList.length} reportes.\n`;
-                rad.reportesList.slice(-15).forEach(r => {
-                    fullContext += `  • ${r.tipo}: "${r.hallazgo || 'N'}" | Área: ${r.area || 'N'} | Resp: ${r.responsable || 'N'} | Est: ${r.estado || 'N'}\n`;
-                });
-            } else fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] Sin reportes.\n`;
-        }
-
-        // 5. Ergonomía OWAS
-        const MetodoOwasData = mongoose.models.MetodoOwasData;
-        if (MetodoOwasData) {
-            const owas = await MetodoOwasData.findOne({ user: userId, companyId }).lean();
-            if (owas?.resultados?.length) {
-                fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS]\n`;
-                owas.resultados.forEach(r => {
-                    fullContext += `  • Tarea: "${r.faseTarea || 'N'}" | Riesgo OWAS: ${r.categoriaRiesgo || 'N'} | Acción: ${r.accionRequerida || 'N'} | Cargo: ${owas.cargo || 'N'}\n`;
-                });
-            } else fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS] Sin posturas.\n`;
-        }
-
-        // 6. ATS
-        const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
-        if (AnalisisTrabajoSeguroData) {
-            const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId, companyId }).lean();
-            if (ats?.pasos) {
-                fullContext += `\n[MÓDULO 6 - ATS] Actividad: "${ats.actividad || 'N'}"\n`;
-                ats.pasos.slice(0, 8).forEach(p => {
-                    fullContext += `  • Paso: "${p.descripcion || 'N'}" | Peligro: ${p.peligro || 'N'}\n`;
-                });
-            } else fullContext += `\n[MÓDULO 6 - ATS] Sin ATS.\n`;
-        }
-
-        // 7. Vulnerabilidad
-        const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
-        if (AnalisisVulnerabilidadData) {
-            const avd = await AnalisisVulnerabilidadData.findOne({ user: userId, companyId }).lean();
-            const amenazas = avd?.formData?.amenazasList || avd?.amenazasList || [];
-            if (amenazas.length) {
-                fullContext += `\n[MÓDULO 7 - VULNERABILIDAD]\n`;
-                amenazas.forEach(a => {
-                    fullContext += `  • Amenaza: "${a.amenaza || 'N'}" | Nivel: ${a.nivelAmenaza || 'N'}\n`;
-                });
-            } else fullContext += `\n[MÓDULO 7 - VULNERABILIDAD] Sin amenazas.\n`;
-        }
-
-        // 8. Matriz GTC 45
-        const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
-        if (MatrizPeligrosData) {
-            const mpd = await MatrizPeligrosData.findOne({ user: userId, companyId }).lean();
-            if (mpd?.procesos?.length) {
-                fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45]\n`;
-                let tP = 0, rI = 0, rII = 0;
-                mpd.procesos.forEach(p => {
-                    (p.peligros || []).forEach(h => {
-                        tP++;
-                        const n = h.nivelRiesgo >= 600 ? 'I' : h.nivelRiesgo >= 150 ? 'II' : 'III';
-                        if (n === 'I') rI++; else if (n === 'II') rII++;
-                        fullContext += `  • Proc: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N'}" | NR=${h.nivelRiesgo || 0} (${n}) | Acept: ${h.aceptabilidad || '-'}\n`;
-                    });
-                });
-                fullContext += `  RESUMEN: ${tP} peligros | Nivel I: ${rI} | Nivel II: ${rII}\n`;
-            } else fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45] Sin peligros.\n`;
+            } else fullContext += `\n[HITO 4 - INVESTIGACIONES DE ACCIDENTES Y ENFERMEDADES] Sin registros de investigación forense.\n`;
         }
 
     } catch (err) {
@@ -187,16 +229,24 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let totalATEL = 0;
         let totalATS = 0;
         let totalVulnerabilidades = 0;
+        let totalIpevarHighMiedo = 0;
+        let totalAlturasActive = 0;
+        let totalCapPendientes = 0;
         let criticalAreasMap = {};
         
         try {
+            // Hito 1: Perfil Sociodemográfico & Oráculo H1
             const pData = mongoose.models.PerfilSociodemograficoData;
             if (pData) {
                 const doc = await pData.findOne({ user: userId, companyId }).lean();
                 if (doc?.trabajadores?.length) {
                     totalWorkers = doc.trabajadores.length;
                     doc.trabajadores.forEach(t => {
-                        if (t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos' && t.diagnosticoMedico !== 'Apto') {
+                        // Check if low fit in Oráculo Predictivo H1
+                        if (t.biocentricScore !== undefined && t.biocentricScore < 60) {
+                            sickWorkers++;
+                            if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 1.5;
+                        } else if (t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos' && t.diagnosticoMedico !== 'Apto') {
                             sickWorkers++;
                             if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 1;
                         }
@@ -204,6 +254,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
             
+            // Hito 2: Matriz Bio-IPEVAR / GTC-45
             const mData = mongoose.models.MatrizPeligrosData;
             if (mData) {
                 const doc = await mData.findOne({ user: userId, companyId }).lean();
@@ -220,6 +271,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
             
+            // Hito 3: posturas OWAS
             const oData = mongoose.models.MetodoOwasData;
             if (oData) {
                 const doc = await oData.findOne({ user: userId, companyId }).lean();
@@ -231,6 +283,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
             
+            // Hito 3: Reporte Actos
             const rData = mongoose.models.ReporteActosData;
             if (rData) {
                 const doc = await rData.findOne({ user: userId, companyId }).lean();
@@ -239,20 +292,39 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
 
-            const atelData = mongoose.models.InvestigacionAtelData;
-            if (atelData) {
-                const docs = await atelData.find({ user: userId, companyId }).lean();
-                if (docs && docs.length > 0) {
-                    totalATEL = docs.length;
-                    docs.forEach(doc => {
-                        const formData = doc.formData || {};
-                        if (formData.cargoAccidentado) {
-                            criticalAreasMap[formData.cargoAccidentado] = (criticalAreasMap[formData.cargoAccidentado] || 0) + 3; // Higheest weight!
+            // Hito 3: Participación IPEVAR
+            const ipevarData = mongoose.models.ParticipacionIpevarData;
+            if (ipevarData) {
+                const docs = await ipevarData.find({ user: userId, companyId }).lean();
+                if (docs?.length) {
+                    docs.forEach(p => {
+                        if (p.miedoScore >= 7) {
+                            totalIpevarHighMiedo++;
+                            if (p.workerName) criticalAreasMap[p.workerName] = (criticalAreasMap[p.workerName] || 0) + 1;
                         }
                     });
                 }
             }
 
+            // Hito 3: Permisos Alturas
+            const alturasData = mongoose.models.PermisoAlturasData;
+            if (alturasData) {
+                const docs = await alturasData.find({ user: userId, companyId }).lean();
+                if (docs?.length) {
+                    totalAlturasActive = docs.length;
+                }
+            }
+
+            // Hito 3: Programa Capacitaciones
+            const capData = mongoose.models.ProgramaCapacitacionesData;
+            if (capData) {
+                const doc = await capData.findOne({ user: userId, companyId }).lean();
+                if (doc?.temas?.length) {
+                    totalCapPendientes = doc.temas.filter(t => t.estado !== 'Ejecutada').length;
+                }
+            }
+
+            // Hito 3: ATS
             const atsData = mongoose.models.AnalisisTrabajoSeguroData;
             if (atsData) {
                 const doc = await atsData.findOne({ user: userId, companyId }).lean();
@@ -261,6 +333,22 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
 
+            // Hito 4: Investigaciones ATEL (Accidentes/Siniestralidad)
+            const atelData = mongoose.models.InvestigacionAtelData;
+            if (atelData) {
+                const docs = await atelData.find({ user: userId, companyId }).lean();
+                if (docs && docs.length > 0) {
+                    totalATEL = docs.length;
+                    docs.forEach(doc => {
+                        const formData = doc.formData || {};
+                        if (formData.cargoAccidentado) {
+                            criticalAreasMap[formData.cargoAccidentado] = (criticalAreasMap[formData.cargoAccidentado] || 0) + 3.5;
+                        }
+                    });
+                }
+            }
+
+            // Hito 3: Escenarios Vulnerabilidad
             const vulData = mongoose.models.AnalisisVulnerabilidadData;
             if (vulData) {
                 const doc = await vulData.findOne({ user: userId, companyId }).lean();
@@ -276,34 +364,37 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         
         let healthRisk = totalWorkers > 0 ? Math.min(100, Math.round((sickWorkers / totalWorkers) * 100 * 2)) : 0;
         let healthEvidence = sickWorkers > 0 
-            ? `Calculado sobre ${sickWorkers} casos médicos activos de un total de ${totalWorkers} trabajadores (Perfil Sociodemográfico).` 
-            : `Sin hallazgos clínicos críticos en ${totalWorkers} trabajadores.`;
+            ? `Calculado sobre ${sickWorkers} casos clínicos o de bajo fit H1 activos de un total de ${totalWorkers} trabajadores.` 
+            : `Sin hallazgos clínicos críticos en ${totalWorkers} trabajadores (Oráculo H1).`;
 
         let safetyRisk = totalHazards > 0 ? Math.min(100, Math.round((totalHazardsI_II / totalHazards) * 100 * 1.5)) : 0;
         if (totalActsConds > 0) safetyRisk = Math.min(100, safetyRisk + (totalActsConds * 5));
-        if (totalATEL > 0) safetyRisk = Math.min(100, safetyRisk + (totalATEL * 15));
+        if (totalATEL > 0) safetyRisk = Math.min(100, safetyRisk + (totalATEL * 12));
+        if (totalAlturasActive > 0) safetyRisk = Math.min(100, safetyRisk + (totalAlturasActive * 8));
+        if (totalIpevarHighMiedo > 0) safetyRisk = Math.min(100, safetyRisk + (totalIpevarHighMiedo * 6));
+        if (totalCapPendientes > 0) safetyRisk = Math.min(100, safetyRisk + (totalCapPendientes * 3));
         
         let safetyEvidence = [];
-        if (totalHazardsI_II > 0) safetyEvidence.push(`${totalHazardsI_II} peligros Nivel I/II (GTC 45)`);
-        if (totalActsConds > 0) safetyEvidence.push(`${totalActsConds} actos inseguros abiertos`);
-        if (totalATEL > 0) safetyEvidence.push(`${totalATEL} investigaciones ATEL recientes`);
-        if (totalATS > 0) safetyEvidence.push(`${totalATS} pasos de alto riesgo en ATS`);
-        if (totalVulnerabilidades > 0) safetyEvidence.push(`${totalVulnerabilidades} escenarios de vulnerabilidad activa`);
+        if (totalHazardsI_II > 0) safetyEvidence.push(`${totalHazardsI_II} peligros inaceptables/críticos Bio-IPEVAR (H2)`);
+        if (totalActsConds > 0) safetyEvidence.push(`${totalActsConds} actos/condiciones inseguras abiertos (H3)`);
+        if (totalATEL > 0) safetyEvidence.push(`${totalATEL} accidentes ATEL investigados forensicamente (H4)`);
+        if (totalAlturasActive > 0) safetyEvidence.push(`${totalAlturasActive} permisos de alturas activos (H3)`);
+        if (totalIpevarHighMiedo > 0) safetyEvidence.push(`${totalIpevarHighMiedo} miedos severos en participación (H3)`);
 
         let safetyEvidenceText = safetyEvidence.length > 0 
             ? `Cruce de datos: ${safetyEvidence.join(' / ')}.`
-            : `Condiciones operativas estables en Matriz GTC 45 y Seguridad Industrial.`;
+            : `Condiciones operativas y de seguridad física estables en hitos 2, 3 y 4.`;
 
         let ergonomicRisk = totalOwas > 0 ? Math.min(100, Math.round((totalOwasHigh / totalOwas) * 100 * 1.5)) : 0;
         if (ergonomicRisk === 0 && sickWorkers > 0) ergonomicRisk = Math.floor(healthRisk / 2);
         
         let ergonomicEvidence = totalOwasHigh > 0
-            ? `Identificadas ${totalOwasHigh} posturas de Riesgo Nivel 3 y 4 (Método OWAS).`
-            : (totalOwas > 0 ? `Analizadas ${totalOwas} posturas operativas bajo control.` : `Nivel basal proyectado desde Perfil Sociodemográfico.`);
+            ? `Identificadas ${totalOwasHigh} posturas de Riesgo Nivel 3 y 4 en Método OWAS (H3).`
+            : (totalOwas > 0 ? `Analizadas ${totalOwas} posturas operativas bajo control.` : `Nivel postural basal calculado desde Oráculo H1.`);
 
         let overallRisk = Math.round((healthRisk + safetyRisk + ergonomicRisk) / 3);
         if (overallRisk === 0 && (totalWorkers > 0 || totalHazards > 0 || totalVulnerabilidades > 0)) {
-            overallRisk = 12; // Base sub-record risk
+            overallRisk = 12;
             safetyRisk = totalVulnerabilidades > 0 ? 25 : 15;
             healthRisk = 10;
         }
@@ -314,10 +405,10 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             if (count > maxCount) { maxCount = count; criticalArea = area; }
         }
 
-        let predictionSummary = "Evaluación determinística en tiempo real cruzando múltiples bases de datos institucionales. ";
-        if (overallRisk < 20) predictionSummary += "Riesgo proyectado bajo. Monitoreo pasivo recomendado (posible subregistro en Actos/Condiciones). ";
-        else if (overallRisk < 50) predictionSummary += `Volumen controlable de incidentes vaticinados. El principal vector de intervención estructural recae en la sección de: ${criticalArea}. `;
-        else predictionSummary += `ALERTA DE CONTINGENCIA ORQUESTADA EN: ${criticalArea}. La correlación de investigaciones ATEL, hallazgos médicos y severos peligros GTC-45 sugieren inevitabilidad de siniestro a corto plazo. `;
+        let predictionSummary = "Evaluación predictiva cruzando bases de datos de perfiles clínicos (H1), peligros (H2), operaciones de campo (H3) e incapacidades (H4). ";
+        if (overallRisk < 20) predictionSummary += "Riesgo proyectado bajo. Monitoreo pasivo y preventivo recomendado sobre incidentes menores.";
+        else if (overallRisk < 50) predictionSummary += `Probabilidad de incidente o accidente moderado. Se sugiere control en área/cargo: ${criticalArea}.`;
+        else predictionSummary += `🛑 ALERTA MÁXIMA EN: ${criticalArea}. Convergencia crítica de susceptibilidad de salud H1, peligros inaceptables Bio-IPEVAR, y causas raíces en investigaciones ATEL anteriores. Muy alta probabilidad de accidente o brote de enfermedad laboral a corto plazo.`;
         
         res.json({
             overallRisk,
@@ -330,10 +421,10 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 ergonomicEvidence
             },
             recommendedActions: [
-                "Control y ejecución de intervenciones prioritarias detectadas en la Matriz GTC 45",
-                "Seguimiento epidemiológico a la población con diagnósticos activos y reestructuración de perfiles",
-                "Verificación y corrección de las posturas críticas categorizadas por OWAS en el marco de ingeniería del puesto",
-                "Cierre inmediato de los actos, condiciones inseguras abiertas e investigaciones ATEL (Accidentes/Incidentes)"
+                "Control y mitigación prioritarios de peligros inaceptables de categoría I/II identificados en Bio-IPEVAR (Hito 2)",
+                "Intervención de ingeniería y ergonomía postural sobre tareas con riesgo OWAS nivel 3 o 4 (Hito 3)",
+                "Seguimiento clínico cerrado a trabajadores con bajo score biocéntrico (<60%) en el Oráculo H1 (Hito 1)",
+                "Cierre inmediato de actos/condiciones inseguras abiertos y aplicación de lecciones aprendidas de investigaciones ATEL (Hito 4)"
             ]
         });
     } catch (err) {
@@ -344,7 +435,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── ENDPOINT: Generate Predictive Report (Same pattern as estadisticas.js) ──
+// ─── ENDPOINT: Generate Predictive Report (Dense prediction, hitos 1-4) ──────
 // ═══════════════════════════════════════════════════════════════════════════════
 router.post('/generate-report', requireJwtAuth, async (req, res) => {
     try {
@@ -362,77 +453,79 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
 
         // Build header HTML (same as estadisticas, diagnostico, etc.)
         const headerHTML = buildStandardHeader({
-            title: 'INFORME TÉCNICO DE INTELIGENCIA PREDICTIVA SST',
+            title: 'INFORME MAESTRO DE PRONÓSTICO E INTELIGENCIA PREDICTIVA SST',
             companyInfo: ci,
             date: fecha,
             norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
         });
 
-        // Use the newly shared deep context block
+        // Use the newly shared deep context block (Hit 1 to 4)
         const fullContext = await getFullSSTContext(userId, companyId);
 
-        const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia. Dominas la GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019 y el análisis predictivo de riesgo laboral.
+        const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia. Dominas la GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019 y el análisis predictivo de riesgo laboral en base a múltiples hitos interconectados.
 
-Has sido contratado para producir el INFORME TÉCNICO DE INTELIGENCIA PREDICTIVA SST más completo, denso y específico que esta empresa haya recibido jamás. Tienes acceso a los datos REALES de todos los módulos del sistema.
+Has sido contratado para producir el INFORME MAESTRO DE INTELIGENCIA Y PRONÓSTICO PREDICTIVO SST más completo, denso y específico que esta empresa haya recibido jamás. Tienes acceso a los datos REALES de todos los hitos y módulos del sistema.
 
 ${fullContext}
 
 ═══════════════════════════════════════
-      TU TAREA: INFORME EJECUTIVO
+      TU TAREA: INFORME Y PRONÓSTICO DE SINIESTRALIDAD
 ═══════════════════════════════════════
 
-Produce un INFORME EXTENSO, ESPECÍFICO, DENSO Y TÉCNICO. NO uses frases genéricas. Cada afirmación debe basarse en los datos reales anteriores. Menciona nombres de cargos, diagnósticos específicos, hallazgos concretos.
+Produce un INFORME EXTENSO, ESPECÍFICO, DENSO Y TÉCNICO. Debes cruzar la información de manera matemática e IA:
+- **HITO 1 (Oráculo H1):** Cruza el biocentricScore de los trabajadores y sus etiquetas médicas de susceptibilidad.
+- **HITO 2 (Matriz Bio-IPEVAR):** Analiza los peligros inaceptables (Nivel I) o críticos (Nivel II) y si coinciden con los operarios con baja aptitud en H1.
+- **HITO 3 (Aplicativos importantes):** Analiza los pasos críticos de ATS, los permisos de alturas activos, las posturas de riesgo 3/4 evaluadas por OWAS, los reportes de actos inseguros abiertos, el nivel de miedo de la Participación IPEVAR y la cobertura del Programa de Capacitaciones.
+- **HITO 4 (Estadísticas e Investigaciones ATEL):** Analiza los antecedentes de incapacidad por accidentes y las causas raíces forenses encontradas.
+
+**TU OBJETIVO PRINCIPAL ES PREDECIR CON MÁXIMA PRECISIÓN:**
+1. **INCIDENTES:** Casi-accidentes, desviaciones operativas o fallas de control que ocurrirán (ej. resbalones en áreas específicas, descuidos formativos).
+2. **ACCIDENTES DE TRABAJO (AT):** Proyección cuantitativa de accidentes físicos severos en los próximos 30, 90 y 180 días (ej. caídas de altura si hay permisos y no capacitaciones, atrapamientos si hay peligros inaceptables de maquinaria, etc.).
+3. **ENFERMEDADES LABORALES (EL):** Proyección de patologías osteomusculares crónicas (DME, túnel carpiano, hernia discal) y agravamiento de condiciones clínicas (HTA, taquicardia, diabetes, etc.) por posturas OWAS críticas y perfiles de cargo de alta exigencia física/mental.
 
 **ESTRUCTURA EXACTA (7 secciones, cada una extensa y con datos reales):**
 
-──── SECCIÓN 1: TABLERO DE INDICADORES PREDICTIVOS (Gráficos Textuales Obligatorios) ────
+──── SECCIÓN 1: TABLERO DE INDICADORES PREDICTIVOS (Cuadro de Mando Integrado) ────
 Genera una TABLA HTML visual (sin 'striped' class) que funcione como un Cuadro de Mando Integrado, que resuma estrictamente los hallazgos de todo el reporte.
 Ejemplo de estructura (hazla más elegante con CSS inline, colores y padding, pero respetando las normas de no-oscuro):
 | Indicador Predictivo | Nivel de Riesgo (%) | Justificación (Evidencia de BD) |
 | --- | --- | --- |
 | Riesgo de Siniestro (General) | [Valor Real] | [Conclusión / Área Crítica] |
-| Salud Operacional | [Valor Real] | [Hallazgos Clínicos] |
-| Seguridad Física | [Valor Real] | [Actos/Condiciones, ATEL, ATS] |
+| Salud Operacional | [Valor Real] | [Hallazgos Clínicos / H1] |
+| Seguridad Física | [Valor Real] | [Actos/Condiciones, ATEL, ATS, Alturas] |
 | Biomecánica (OWAS) | [Valor Real] | [Posturas Críticas] |
 
-──── SECCIÓN 2: RESUMEN EJECUTIVO DE RIESGO PROYECTADO (30 días) ────
-- Mínimo 4-5 párrafos. NO repitas los números crudos sin interpretar.
-- Analiza la probabilidad real de accidente o enfermedad laboral en los próximos 30 días, basado en los datos de todos los módulos.
-- Interpreta la siniestralidad (o su ausencia) como señal de posible subregistro o sesgo de supervivencia.
-- Conecta los diagnósticos médicos reales del perfil sociodemográfico con los riesgos de la matriz GTC 45.
-- Comenta el nivel de riesgo de la ARL vs. los riesgos reales encontrados.
+──── SECCIÓN 2: PRONÓSTICO DE ACCIDENTABILIDAD (30, 90 Y 180 DÍAS) ────
+- Párrafos densos y extensos.
+- Predice los tipos específicos de ACCIDENTES e INCIDENTES de trabajo que ocurrirán con mayor probabilidad en los procesos operativos de la empresa.
+- Asocia estas predicciones directamente a los peligros inaceptables de la Matriz Bio-IPEVAR (Hito 2), a los reportes de actos inseguros abiertos, a los pasos críticos de ATS o los trabajos en alturas (Hito 3) y al historial forense de investigaciones ATEL (Hito 4).
 
-──── SECCIÓN 3: ANÁLISIS DE CORRELACIÓN PROFUNDA (CRUCE DE MÓDULOS) ────
-- Múltiples párrafos, uno por cada correlación encontrada.
-- Cruza: diagnósticos clínicos (perfil sociodemográfico) ↔ peligros GTC 45 del mismo tipo de riesgo.
-- Cruza: ausencia de reportes de actos/condiciones (módulo 4) ↔ cantidad de peligros identificados en GTC 45 → posible cultura de subregistro.
-- Cruza: resultados OWAS ↔ diagnósticos ergonómicos del perfil.
-- Cruza: investigaciones ATEL (causas raíz) ↔ controles existentes en ATS y GTC 45.
-- Identifica PATRONES OCULTOS: qué cargos o áreas concentran múltiples señales de riesgo convergentes.
-- Menciona explícitamente los nombres de cargos y los diagnósticos/peligros específicos.
+──── SECCIÓN 3: PRONÓSTICO DE ENFERMEDADES LABORALES Y APTITUD BIOCÉNTRICA ────
+- Múltiples párrafos estructurados por especialidad (Osteomuscular, Cardiovascular, Psicosocial, etc.).
+- Predice la aparición de ENFERMEDADES LABORALES crónicas (ej. trastornos músculo-esqueléticos por posturas críticas OWAS categoría 3 o 4) o la pérdida de aptitud biocéntrica de los trabajadores.
+- Cruza de forma explícita las susceptibilidades del Oráculo H1 (ej. trabajadores con lumbalgia, hernia discal, HTA, asma, etc.) con las exigencias del Perfil de Cargo y las condiciones de exposición real para proyectar ausentismo o crisis de salud ocupacional.
 
 ──── SECCIÓN 4: FACTORES DE RIESGO - PROYECCIÓN (Gráfica de Barras HTML) ────
-Genera una gráfica de barras horizontales usando DIVs con CSS inline. Mínimo 6 factores de riesgo.
+Genera una gráfica de barras horizontales usando DIVs con CSS inline. Mínimo 6 factores de riesgo de siniestralidad (ej. biomecánico postural, psicosocial, mecánico/maquinaria, trabajo en alturas, clínico cardiovascular, químico/exposiciones).
 Cada barra: [Nombre del Factor] con su porcentaje y una barra visual coloreada.
-Los porcentajes deben derivarse de los datos reales.
 
-──── SECCIÓN 5: ANÁLISIS POR CARGO/PROCESO (Radar de Vulnerabilidad) ────
-Para cada cargo/proceso identificado en los datos (especialmente los que aparecen en múltiples módulos), genera una mini-tarjeta con:
+──── SECCIÓN 5: MAPA DE CARGOS Y PROCESOS DE ALTA VULNERABILIDAD ────
+Para cada cargo/proceso de la empresa (ej. Operario de Producción, Auxiliar de Bodega, etc. identificados en los datos), genera una tarjeta HTML elegante con:
 • Nombre del Cargo/Proceso
-• Señales de riesgo convergentes: diagnóstico médico + peligros GTC 45 + hallazgos OWAS/ATS
-• Nivel de vulnerabilidad estimado: CRÍTICO / ALTO / MEDIO / BAJO
-• Razón técnica de la clasificación
+• Señales de riesgo convergentes (Hito 1 + Hito 2 + Hito 3 + Hito 4)
+• Pronóstico Predictivo del Cargo: INCIDENTES / ACCIDENTES / ENFERMEDADES
+• Razón técnica de la clasificación de vulnerabilidad (CRÍTICA / ALTA / MEDIA / BAJA)
 
-──── SECCIÓN 6: PLAN PRESCRIPTIVO DE ACCIÓN INMEDIATA ────
+──── SECCIÓN 6: PLAN DE ACCIÓN Y MITIGACIÓN PRESCRIPTIVA ────
 Tabla completa y detallada con columnas:
-| # | Factor de Riesgo | Cargo/Proceso Afectado | Evidencia (Módulo Origen) | Acción Recomendada | Prioridad | Plazo Sugerido |
+| # | Factor de Riesgo | Cargo/Proceso Afectado | Evidencia (Módulos Origen Hito 1-4) | Acción Prescriptiva (Control Recomendado) | Prioridad | Plazo Sugerido |
 - Mínimo 8-10 filas, específicas y basadas en datos reales.
 - Las acciones deben ser concretas: "Evaluación ergonómica del puesto del Operario", "Implementar Programa de Vigilancia Epidemiológica en DME", etc.
 - Prioridad: Inmediata (< 15 días) / Corto Plazo (15-30 días) / Medio Plazo (1-3 meses).
 
-──── SECCIÓN 7: CONCLUSIÓN Y CUMPLIMIENTO LEGAL ────
+──── SECCIÓN 7: CONCLUSIÓN E IMPACTO LEGAL/FINANCIERO ────
 - Explica las consecuencias legales concretas (sanciones del Ministerio del Trabajo, Res. 0312 Art. 25, responsabilidad patronal).
-- Menciona qué módulos presentan mayor riesgo de incumplimiento normativo.
+- Proyecta los costos económicos por días de incapacidad (derivado de las Estadísticas ATEL), indemnizaciones y pérdidas de productividad si no se interviene a tiempo.
 - Concluye con una recomendación estratégica de inversión en SST vs. costo de sanciones.
 
 ═══════════════════════════════════════
@@ -478,4 +571,3 @@ Tabla completa y detallada con columnas:
 });
 
 module.exports = router;
-
