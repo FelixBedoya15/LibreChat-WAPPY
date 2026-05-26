@@ -5,6 +5,8 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { cn } from '~/utils';
+import { useParams } from 'react-router-dom';
+import { UpgradeWall } from './UpgradeWall';
 
 interface ExportDropdownProps {
     content: string;
@@ -26,12 +28,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { showToast } = useToastContext();
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
+    const { conversationId, id: docId } = useParams();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
+    const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
 
     if (onlyExcel && onExportExcel) {
         return (
+            <>
             <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onExportExcel(); }}
+                onClick={(e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    if (!isPro) {
+                        setUpgradeModalTitle("Exportación Premium Bloqueada");
+                        setUpgradeModalDesc("La exportación de matrices a Excel está reservada exclusivamente para cuentas PREMIUM del Plan Pro.");
+                        setIsUpgradeModalOpen(true);
+                        return;
+                    }
+                    onExportExcel(); 
+                }}
                 className="group flex flex-shrink-0 items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
             >
                 <div className="relative flex-shrink-0 flex items-center justify-center">
@@ -43,6 +61,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                     </span>
                 </div>
             </button>
+            {isUpgradeModalOpen && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setIsUpgradeModalOpen(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title={upgradeModalTitle}
+                                description={upgradeModalDesc}
+                                plan="USER_PRO"
+                                isCompact={true}
+                                hideFeatures={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+            </>
         );
     }
 
@@ -596,13 +636,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
 </html>`;
     };
 
-    /**
-     * Export as HTML — opens in a new browser tab with full styling.
-     */
+    const checkHtmlPreviewLimit = (): boolean => {
+        if (isPro) return true;
+        const key = `wappy_html_export_count_${conversationId || docId || 'global'}`;
+        const count = parseInt(localStorage.getItem(key) || '0', 10);
+        if (count >= 3) {
+            return false;
+        }
+        localStorage.setItem(key, String(count + 1));
+        return true;
+    };
+
     /**
      * Export as HTML — saves to backend and opens a shareable URL.
      */
     const handleExportHtml = async () => {
+        if (!checkHtmlPreviewLimit()) {
+            setUpgradeModalTitle("Límite de Previsualización");
+            setUpgradeModalDesc("Has abierto la vista web de este documento 3 veces en este chat (límite del Plan Gratuito). Pásate a Pro para tener accesos ilimitados.");
+            setIsUpgradeModalOpen(true);
+            setIsOpen(false);
+            return;
+        }
         setIsSharing(true);
         try {
             const fullHtml = buildFullHtml();
@@ -742,6 +797,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             handler: handleDownloadHtml,
             description: 'Archivo HTML independiente',
             disabled: !content,
+            premium: true,
         },
         {
             label: 'Descargar Word (.doc)',
@@ -749,6 +805,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             handler: handleExportWord,
             description: 'Editable con tablas y formato',
             disabled: !content,
+            premium: true,
         },
         {
             label: 'Descargar PDF',
@@ -756,6 +813,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             handler: handleExportPdf,
             description: 'Imprimir / guardar como PDF',
             disabled: !content,
+            premium: true,
         },
     ];
 
@@ -769,6 +827,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             },
             description: 'Datos crudos de la tabla en Excel',
             disabled: false,
+            premium: true,
         });
     }
 
@@ -781,23 +840,42 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             <div className="p-1">
                 {exportOptions.map((option) => {
                     const Icon = option.icon;
+                    const isOptionBlocked = !isPro && option.premium;
                     return (
                         <button
                             key={option.label}
-                            onClick={option.handler}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (isOptionBlocked) {
+                                    setUpgradeModalTitle("Exportación Premium Bloqueada");
+                                    setUpgradeModalDesc(`La exportación en este formato (${option.label.split('(')[0].trim()}) está reservada exclusivamente para cuentas PREMIUM del Plan Pro.`);
+                                    setIsUpgradeModalOpen(true);
+                                    setIsOpen(false);
+                                    return;
+                                }
+                                option.handler();
+                            }}
                             disabled={option.disabled}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left",
+                                "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-colors text-left",
                                 option.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-hover"
                             )}
                         >
-                            <div className="p-1.5 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                                <Icon className="h-4 w-4" />
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                                    <Icon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-text-primary">{option.label}</div>
+                                    <div className="text-xs text-text-secondary">{option.description}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="text-sm font-medium text-text-primary">{option.label}</div>
-                                <div className="text-xs text-text-secondary">{option.description}</div>
-                            </div>
+                            {isOptionBlocked && (
+                                <span className="text-[10px] font-black uppercase bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 tracking-wider">
+                                    🔒 PRO
+                                </span>
+                            )}
                         </button>
                     );
                 })}
@@ -824,6 +902,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             </button>
 
             {ReactDOM.createPortal(dropdown, document.body)}
+
+            {isUpgradeModalOpen && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setIsUpgradeModalOpen(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title={upgradeModalTitle}
+                                description={upgradeModalDesc}
+                                plan="USER_PRO"
+                                isCompact={true}
+                                hideFeatures={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

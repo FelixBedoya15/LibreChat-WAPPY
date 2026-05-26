@@ -253,6 +253,8 @@ class CanvasTool extends Tool {
       }
 
       const userId = this.req?.user?.id;
+      const userRole = this.req?.user?.role;
+      const isPro = userRole === 'ADMIN' || userRole === 'USER_PRO';
       let companyInfo = null;
       if (userId) {
         companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
@@ -298,6 +300,14 @@ class CanvasTool extends Tool {
 
       // ── CREAR / ACTUALIZAR ──────────────────────────────────────────────────
       let session = await CanvasSession.findOne({ conversationId });
+      const isWriteAction = ['crear', 'actualizar', 'editar_seccion', 'buscar_reemplazar', 'insertar'].includes(accion);
+      if (isWriteAction && session) {
+        if (!isPro && (session.aiRewriteCount || 0) >= 3) {
+          return JSON.stringify({
+            error: 'Límite de Ediciones IA alcanzado. Has reescrito este documento con IA 3 veces en este chat (límite del Plan Gratuito). Adquiere el Plan Pro para obtener reescrituras ilimitadas.'
+          });
+        }
+      }
       let parsedContent = content;
       let activeTitle = title || (session ? session.title : 'Archivo sin título');
 
@@ -369,13 +379,17 @@ class CanvasTool extends Tool {
             updatedAt: new Date()
           };
 
-          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+          const maxHistory = isPro ? 20 : 5;
+          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
           session.content = parsedContent ?? session.content;
           session.title = activeTitle;
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
+          if (!isPro) {
+            session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
+          }
           if (companyInfo) {
             session.companyId = companyInfo._id;
           }
@@ -504,13 +518,17 @@ class CanvasTool extends Tool {
             updatedAt: new Date()
           };
 
-          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+          const maxHistory = isPro ? 20 : 5;
+          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
           session.content = parsedContent ?? session.content;
           session.title = activeTitle;
           session.fileType = activeFileType;
           session.version = nextVersion;
           session.history = updatedHistory;
+          if (!isPro) {
+            session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
+          }
           if (companyInfo) {
             session.companyId = companyInfo._id;
           }
@@ -576,12 +594,16 @@ class CanvasTool extends Tool {
           updatedAt: new Date()
         };
 
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+        const maxHistory = isPro ? 20 : 5;
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
         session.content = updatedContent;
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (!isPro) {
+          session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
+        }
         if (companyInfo) {
           session.companyId = companyInfo._id;
         }
@@ -631,12 +653,16 @@ class CanvasTool extends Tool {
           updatedAt: new Date()
         };
 
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+        const maxHistory = isPro ? 20 : 5;
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
         session.content = updatedContent;
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (!isPro) {
+          session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
+        }
         if (companyInfo) {
           session.companyId = companyInfo._id;
         }
@@ -720,12 +746,16 @@ class CanvasTool extends Tool {
           updatedAt: new Date()
         };
 
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+        const maxHistory = isPro ? 20 : 5;
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
         session.content = updatedContent;
         session.title = activeTitle;
         session.version = nextVersion;
         session.history = updatedHistory;
+        if (!isPro) {
+          session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
+        }
         if (companyInfo) {
           session.companyId = companyInfo._id;
         }

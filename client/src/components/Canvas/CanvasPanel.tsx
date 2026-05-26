@@ -32,6 +32,7 @@ import CanvasExcelEditor from './CanvasExcelEditor';
 import CanvasSlidesEditor from './CanvasSlidesEditor';
 import CanvasHtmlEditor from './CanvasHtmlEditor';
 import ExportDropdown from '../SGSST/ExportDropdown';
+import { UpgradeWall } from '../SGSST/UpgradeWall';
 import { useNavigate } from 'react-router-dom';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { v4 } from 'uuid';
@@ -177,7 +178,11 @@ const POLL_INTERVAL_MS = 2500;
 const DEBOUNCE_SAVE_MS = 1200;
 
 const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
+  const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
   const { showToast } = useToastContext();
   const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.canvasMaximized);
 
@@ -1240,6 +1245,24 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto bg-surface-primary p-6">
+                {!isPro && (
+                  <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-300">
+                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
+                    <div className="flex-1 text-sm">
+                      <span className="font-bold">Límite del Plan Gratuito:</span> Solo conservamos las últimas 5 versiones en este chat. Pásate a Pro para mantener un registro de hasta 20 versiones.
+                      <button
+                        onClick={() => {
+                          setUpgradeModalTitle("Historial de Versiones Premium");
+                          setUpgradeModalDesc("El almacenamiento extendido de hasta 20 versiones e historial completo está disponible de forma exclusiva para cuentas PREMIUM del Plan Pro.");
+                          setIsUpgradeModalOpen(true);
+                        }}
+                        className="ml-2 font-bold underline hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+                      >
+                        ¡Subir de nivel ahora!
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {history.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full border border-border-light bg-surface-secondary">
@@ -1288,12 +1311,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                         }
                       };
 
+                      const isBlockedVersion = !isPro && idx < history.length - 5;
+
                       return (
                         <div
                           key={idx}
                           className={`flex flex-col rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                             isCurrent
                               ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10'
+                              : isBlockedVersion
+                              ? 'border-dashed border-gray-300 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/5 opacity-60 hover:opacity-85'
                               : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
                           }`}
                         >
@@ -1315,66 +1342,86 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                               {renderTypeBadge()}
                             </div>
 
-                            <VersionMenuDropdown
-                              version={hItem.version}
-                              title={hItem.title || title}
-                              onRename={async (newName) => {
-                                try {
-                                  const res = await fetch(
-                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`,
-                                    {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        Authorization: `Bearer ${token}`,
+                            {!isBlockedVersion ? (
+                              <VersionMenuDropdown
+                                version={hItem.version}
+                                title={hItem.title || title}
+                                onRename={async (newName) => {
+                                  try {
+                                    const res = await fetch(
+                                      `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`,
+                                      {
+                                        method: 'POST',
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                          Authorization: `Bearer ${token}`,
+                                        },
+                                        body: JSON.stringify({ title: newName }),
                                       },
-                                      body: JSON.stringify({ title: newName }),
-                                    },
-                                  );
-                                  if (res.ok) {
-                                    const data = await res.json();
-                                    setHistory(data.history || []);
-                                    if (isCurrent) {
-                                      setTitle(newName);
-                                      titleRef.current = newName;
+                                    );
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      setHistory(data.history || []);
+                                      if (isCurrent) {
+                                        setTitle(newName);
+                                        titleRef.current = newName;
+                                      }
                                     }
+                                  } catch (e) {
+                                    console.error('[Version History Rename] Error:', e);
                                   }
-                                } catch (e) {
-                                  console.error('[Version History Rename] Error:', e);
-                                }
-                              }}
-                              onDelete={async () => {
-                                try {
-                                  const res = await fetch(
-                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`,
-                                    {
-                                      method: 'DELETE',
-                                      headers: {
-                                        Authorization: `Bearer ${token}`,
+                                }}
+                                onDelete={async () => {
+                                  try {
+                                    const res = await fetch(
+                                      `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`,
+                                      {
+                                        method: 'DELETE',
+                                        headers: {
+                                          Authorization: `Bearer ${token}`,
+                                        },
                                       },
-                                    },
-                                  );
-                                  if (res.ok) {
-                                    const data = await res.json();
-                                    setHistory(data.history || []);
+                                    );
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      setHistory(data.history || []);
+                                    }
+                                  } catch (e) {
+                                    console.error('[Version History Delete] Error:', e);
                                   }
-                                } catch (e) {
-                                  console.error('[Version History Delete] Error:', e);
-                                }
-                              }}
-                            />
+                                }}
+                              />
+                            ) : (
+                              <span className="shrink-0 text-[9px] font-black uppercase bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 tracking-wider">
+                                🔒 PRO
+                              </span>
+                            )}
                           </div>
                           <div className="mb-4 line-clamp-3 flex-1 text-sm italic text-text-secondary opacity-80">
                             "{hItem.title || title}"
                           </div>
-                          <button
-                            onClick={() => handleRestoreVersion(hItem)}
-                            disabled={isCurrent}
-                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-teal-900/20"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            Restaurar
-                          </button>
+                          {isBlockedVersion ? (
+                            <button
+                              onClick={() => {
+                                setUpgradeModalTitle("Historial Premium Bloqueado");
+                                setUpgradeModalDesc("El acceso a versiones antiguas (más allá de las últimas 5) está reservado exclusivamente para cuentas PREMIUM del Plan Pro.");
+                                setIsUpgradeModalOpen(true);
+                              }}
+                              className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 py-2 text-sm font-semibold text-amber-600 transition-colors hover:bg-amber-500/10 dark:hover:bg-amber-900/20"
+                            >
+                              <RotateCcw className="h-4 w-4 text-amber-500" />
+                              Restaurar 🔒 PRO
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRestoreVersion(hItem)}
+                              disabled={isCurrent}
+                              className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-teal-900/20"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              Restaurar
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1389,7 +1436,35 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   );
 
   // Use Portal when maximized to escape any relative/absolute parent boundaries and overflow hidden contexts
-  return isMaximized ? ReactDOM.createPortal(panelContent, document.body) : panelContent;
+  const output = isMaximized ? ReactDOM.createPortal(panelContent, document.body) : panelContent;
+
+  return (
+    <>
+      {output}
+
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+            >
+              Cerrar ✕
+            </button>
+            <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+              <UpgradeWall
+                title={upgradeModalTitle}
+                description={upgradeModalDesc}
+                plan="USER_PRO"
+                isCompact={true}
+                hideFeatures={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 export default CanvasPanel;

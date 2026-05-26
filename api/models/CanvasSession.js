@@ -41,6 +41,10 @@ const canvasSessionSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    aiRewriteCount: {
+      type: Number,
+      default: 0,
+    },
     history: [
       {
         version: Number,
@@ -60,3 +64,4 @@ const canvasSessionSchema = new mongoose.Schema(
 const CanvasSession = mongoose.model('CanvasSession', canvasSessionSchema);
 
 module.exports = CanvasSession;
+

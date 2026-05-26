@@ -345,7 +345,8 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
           updatedAt: new Date(),
         };
 
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-20);
+        const maxHistory = req.user.role === 'USER' ? 5 : 20;
+        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
         session.content = processedContent ?? session.content;
         session.title = savedTitle;

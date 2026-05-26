@@ -42,7 +42,7 @@ const EditorArchivosDashboard = () => {
   }, [token]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isPro && documents.length >= 1) {
+    if (!isPro && documents.length >= 5) {
         e.preventDefault();
         setShowUpgradeModal(true);
         e.target.value = '';
@@ -225,8 +225,8 @@ const EditorArchivosDashboard = () => {
                 </button>
                 <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
                     <UpgradeWall
-                        title="Límite Gratuito"
-                        description="Has importado tu documento de prueba gratuito. Adquiere Premium para importar más."
+                        title="Límite de Historial"
+                        description="Has importado el máximo de 5 documentos permitidos en el Plan Gratuito. Adquiere Premium para tener almacenamiento ilimitado en la nube."
                         plan="USER_PRO"
                         isCompact={true}
                         hideFeatures={true}
