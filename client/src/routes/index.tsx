@@ -9,6 +9,7 @@ import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
+import ComunidadPage from '~/components/Marketing/ComunidadPage';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import {
   Login,
@@ -150,6 +151,16 @@ export const router = createBrowserRouter(
     {
       path: 'about',
       element: <WappyAboutPage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'comunidad',
+      element: (
+        <AuthContextProvider>
+          <ComunidadPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {

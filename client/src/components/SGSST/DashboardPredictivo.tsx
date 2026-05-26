@@ -16,6 +16,15 @@ import {
     ChevronDown,
     BrainCircuit,
     Database,
+    Search,
+    User,
+    UserX,
+    X,
+    Eye,
+    Briefcase,
+    ShieldAlert,
+    CheckCircle,
+    Clock,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -151,6 +160,18 @@ const RiskBar = ({ label, value, color, delay }: { label: string; value: number;
     );
 };
 
+const SCORE_COLOR = (s: number) => {
+    if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
+    if (s >= 60) return { ring: 'border-amber-400', text: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+    return { ring: 'border-red-400', text: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+};
+
+const SEV_STYLES: Record<string, { icon: React.ReactNode; border: string; pts: string }> = {
+    critical: { icon: <ShieldAlert className="w-4 h-4 text-red-500" />, border: 'border-red-200 dark:border-red-800', pts: 'text-red-600 dark:text-red-400' },
+    warning:  { icon: <AlertTriangle className="w-4 h-4 text-amber-500" />, border: 'border-amber-200 dark:border-amber-800', pts: 'text-amber-600 dark:text-amber-400' },
+    info:     { icon: <HeartPulse className="w-4 h-4 text-blue-400" />, border: 'border-blue-100 dark:border-blue-800', pts: 'text-blue-500 dark:text-blue-400' },
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── Main DashboardPredictivo Component ──────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -167,6 +188,13 @@ const DashboardPredictivo = () => {
     const editorContentRef = useRef<string>('');
     const liveEditorRef = useRef<LiveEditorHandle>(null);
 
+    // Sociodemographic & Roles State (Hito 1 & 2 integration)
+    const [workers, setWorkers] = useState<any[]>([]);
+    const [profiles, setProfiles] = useState<any[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+
     // UI State
     const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
 
@@ -182,7 +210,7 @@ const DashboardPredictivo = () => {
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
 
-    // ─── Fetch Forecast Data ─────────────────────────────────────────────
+    // ─── Fetch Forecast & Biocentric data ─────────────────────────────────
     const fetchForecast = useCallback(async () => {
         if (!token) return;
         if (!isPro) {
@@ -209,8 +237,202 @@ const DashboardPredictivo = () => {
         }
     }, [token, showToast]);
 
+    const fetchBiocentricData = useCallback(async () => {
+        if (!token) return;
+        setLoadingData(true);
+        try {
+            const [s, p] = await Promise.all([
+                fetch('/api/sgsst/perfil-sociodemografico/data', { headers: { Authorization: `Bearer ${token}` } }),
+                fetch('/api/sgsst/perfiles-cargo/data', { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+            const sd = await s.json();
+            const pd = await p.json();
+            setWorkers(sd.trabajadores || []);
+            setProfiles(pd.perfilesList || []);
+        } catch {
+            showToast({ message: 'Error cargando datos biocéntricos', status: 'error' });
+        } finally {
+            setLoadingData(false);
+        }
+    }, [token, showToast]);
+
     useEffect(() => {
         fetchForecast();
+        fetchBiocentricData();
+    }, [token]);
+
+    // ─── TAG → Score Map: Each IA tag maps to a score penalty ────────────────
+    const TAG_RULES: Record<string, { pts: number; sev: string; cat: string; label: string; desc: string }> = {
+        Lumbalgia:            { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Lumbalgia',             desc: 'Restricción lumbar detectada. Limita carga de peso y posturas prolongadas.' },
+        Hernia_Discal:        { pts: 15, sev: 'critical', cat: 'Osteomuscular',    label: 'Hernia Discal',         desc: 'Condición discal que puede agravarse con esfuerzo físico.' },
+        Cervicalgia:          { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Cervicalgia',           desc: 'Restricción cervical. Limita posiciones de cuello sostenidas.' },
+        Epicondilitis:        { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Epicondilitis',         desc: 'Inflamación en el codo. Limita movimientos repetitivos del antebrazo.' },
+        Tunel_Carpiano:       { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Túnel Carpiano',        desc: 'Compresión del nervio mediano. Limita trabajo manual repetitivo.' },
+        Restriccion_Hombro:   { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Hombro', desc: 'Limitación en el complejo del hombro. Limita levantamiento sobre la cabeza.' },
+        Restriccion_Rodilla:  { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Rodilla',desc: 'Limitación articular en rodilla. Limita escaleras, cargas y bipedestación.' },
+        No_Carga_Peso:        { pts: 8,  sev: 'warning',  cat: 'Restricción Física',label: 'No Carga de Peso',      desc: 'Restricción médica explícita de levantamiento o carga de objetos.' },
+        No_Bipedestacion:     { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Bipedestación Prolongada', desc: 'Limitación para permanecer de pie por períodos extendidos.' },
+        No_Sedestacion:       { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Sedestación Prolongada',   desc: 'Limitación para permanecer sentado por períodos extendidos.' },
+        Hipoacusia:           { pts: 8,  sev: 'warning',  cat: 'Sensorial',        label: 'Hipoacusia',            desc: 'Pérdida auditiva detectada. Requiere protección auditiva y evaluación.' },
+        Vision_Reducida:      { pts: 5,  sev: 'info',     cat: 'Sensorial',        label: 'Visión Reducida',       desc: 'Disminución visual. Requiere corrección óptica adecuada para el cargo.' },
+        HTA:                  { pts: 15, sev: 'warning',  cat: 'Clínico',          label: 'Hipertensión Arterial', desc: 'Tensión arterial elevada. Requiere seguimiento y control de estrés.' },
+        Cardiopatia:          { pts: 20, sev: 'critical', cat: 'Clínico',          label: 'Cardiopatía',           desc: 'Condición cardíaca declarada. Limita esfuerzos físicos intensos.' },
+        Diabetes:             { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Diabetes',              desc: 'Condición metabólica que requiere control glucémico y pausas.' },
+        Epilepsia:            { pts: 25, sev: 'critical', cat: 'Neurológico',      label: 'Epilepsia / Convulsiones','desc': 'Alto riesgo en operación de maquinaria y alturas. Bloqueo preventivo.' },
+        Vertigo:              { pts: 18, sev: 'critical', cat: 'Neurológico',      label: 'Vértigo / Mareo',       desc: 'Riesgo de caída en alturas o desequilibrio durante operación de equipos.' },
+        EPOC:                 { pts: 15, sev: 'warning',  cat: 'Respiratorio',     label: 'EPOC / Bronquitis',     desc: 'Enfermedad pulmonar obstructiva. Limita exposición a polvo y químicos.' },
+        Asma:                 { pts: 10, sev: 'warning',  cat: 'Respiratorio',     label: 'Asma',                  desc: 'Hipersensibilidad bronquial. Limita exposición a irritantes ambientales.' },
+        Alergia_Quimica:      { pts: 10, sev: 'warning',  cat: 'Inmunológico',     label: 'Alergia Química',       desc: 'Sensibilidad a agentes químicos. Requiere EPP específico y restricción de área.' },
+        Medicamento_SNC:      { pts: 15, sev: 'critical', cat: 'Farmacológico',    label: 'Medicamento Depresor SNC','desc': 'Uso de sedantes o psicotrópicos incompatible con maquinaria. Alerta de seguridad.' },
+        Restriccion_Mental:   { pts: 12, sev: 'warning',  cat: 'Psicosocial',      label: 'Restricción de Salud Mental','desc': 'Condición de salud mental que puede afectar concentración y toma de decisiones.' },
+        Patologia_Cronica:    { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Patología Crónica',     desc: 'Enfermedad crónica base que requiere vigilancia epidemiológica.' },
+        Diagnostico_Reciente: { pts: 5,  sev: 'info',     cat: 'Clínico',          label: 'Diagnóstico Reciente',  desc: 'Diagnóstico médico reciente. Amerita seguimiento y ajuste del puesto.' },
+        Recomendacion_Leve:   { pts: 3,  sev: 'info',     cat: 'Preventivo',       label: 'Recomendación Médica',  desc: 'Recomendación preventiva activa que debe ser gestionada por SST.' },
+    };
+
+    const calcFit = useCallback((w: any, profile: any) => {
+        let score = 100;
+        const auditItems: { title: string; description: string; pts: number; severity: string; category: string }[] = [];
+        const add = (title: string, desc: string, pts: number, sev: string, cat: string) => {
+            score -= pts; auditItems.push({ title, description: desc, pts, severity: sev, category: cat });
+        };
+        if (!profile) return { score: 0, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }] };
+
+        // 1. BIOMETRÍA
+        if (w.imc) {
+            const imc = parseFloat(w.imc);
+            if (imc >= 30) add('Obesidad detectada', `IMC ${imc} indica obesidad. Riesgo cardiovascular elevado.`, 10, 'warning', 'Clínico');
+            else if (imc < 18.5) add('Bajo peso', `IMC ${imc} sugiere déficit nutricional.`, 5, 'info', 'Clínico');
+        }
+        if (w.presionArterial) {
+            const [s1, d1] = w.presionArterial.split('/');
+            if (parseInt(s1||'0') >= 135 || parseInt(d1||'0') >= 90) add('Riesgo de Hipertensión', `PA ${w.presionArterial} sobre rangos óptimos.`, 15, 'warning', 'Clínico');
+        }
+        if (w.frecuenciaCardiaca) {
+            const fc = parseInt(w.frecuenciaCardiaca);
+            if (fc > 100) add('Taquicardia en reposo', `FC ${fc} lpm, posible estrés cardiovascular.`, 10, 'warning', 'Clínico');
+            else if (fc < 50) add('Bradicardia', `FC ${fc} lpm, valoración cardiológica recomendada.`, 5, 'info', 'Clínico');
+        }
+
+        // 2. HÁBITOS
+        if (w.fuma === 'Sí, diario') add('Tabaquismo Activo', 'Consumo diario impacta capacidad pulmonar y oxigenación celular.', 10, 'warning', 'Clínico');
+        if (w.alcohol === 'Sí (Frecuente)') add('Etilismo Frecuente', 'Aumenta accidentabilidad y vulnerabilidad hepática.', 15, 'warning', 'Psicosocial');
+
+        // 3. IA SEMÁNTICA
+        const iaTags: string[] = w.bioTagsIA || [];
+        const hasIATags = iaTags.length > 0 && !iaTags.includes('Sin_Hallazgos');
+        const hasAnyText = [
+            w.limitacionesBiomecanicas, w.recomendacionesMedicas,
+            w.diagnosticoMedico, w.enfermedades, w.alergiasQuimicas, w.medicamentos
+        ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
+
+        if (hasAnyText) {
+            if (hasIATags) {
+                iaTags.forEach(tag => {
+                    const rule = TAG_RULES[tag];
+                    if (!rule) return;
+                    let pts = rule.pts;
+                    if (tag === 'Lumbalgia' || tag === 'Hernia_Discal' || tag === 'Restriccion_Hombro' || tag === 'Restriccion_Rodilla') {
+                        if (profile.exigenciaFisica === 'Alta') pts = Math.round(pts * 1.5);
+                    }
+                    if ((tag === 'Epilepsia' || tag === 'Vertigo' || tag === 'Medicamento_SNC' || tag === 'Restriccion_Mental') && profile.operaMaquinaria === 'Sí') {
+                        pts = Math.round(pts * 2.0);
+                    }
+                    if (tag === 'Restriccion_Mental' && profile.exigenciaMental === 'Alta') {
+                        pts = Math.round(pts * 1.5);
+                    }
+                    add(rule.label, rule.desc + (pts !== rule.pts ? ` ⚠️ Penalización agravada por exigencias del cargo.` : ''), pts, rule.sev, rule.cat);
+                });
+            } else {
+                const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
+                const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
+                const hasRestr = w.limitacionesBiomecanicas?.trim() && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
+                const hasRec = w.recomendacionesMedicas?.trim() && !w.recomendacionesMedicas.toLowerCase().includes('ninguna');
+                const hasAl = w.alergiasQuimicas?.trim() && !w.alergiasQuimicas.toLowerCase().includes('ninguna');
+                if (hasEnf) add('Patología Base (pendiente análisis IA)', `"${w.enfermedades}" — Procesando con IA semántica.`, 10, 'warning', 'Clínico');
+                if (hasDiag && !hasEnf) add('Diagnóstico Médico (pendiente análisis IA)', `"${w.diagnosticoMedico}" — Procesando con IA semántica.`, 5, 'info', 'Clínico');
+                if (hasRestr) add('Restricción Biomecánica (pendiente análisis IA)', `"${w.limitacionesBiomecanicas}" — Procesando con IA semántica.`, 8, 'warning', 'Osteomuscular');
+                if (hasRec) add('Recomendación Médica (pendiente análisis IA)', `"${w.recomendacionesMedicas}" — Procesando con IA semántica.`, 3, 'info', 'Preventivo');
+                if (hasAl) add('Alergia Química (pendiente análisis IA)', `"${w.alergiasQuimicas}" — Procesando con IA semántica.`, 8, 'warning', 'Inmunológico');
+            }
+        }
+
+        // 4. VULNERABILIDAD SOCIODEMOGRÁFICA
+        let vs = 0;
+        let socialDesc: string[] = [];
+        if (['1', '2'].includes(w.estrato)) { vs++; socialDesc.push('estrato bajo'); }
+        if (w.personasCargo && Number(w.personasCargo) >= 3) { vs++; socialDesc.push('alta carga dependientes'); }
+        if (w.estadoCivil?.toLowerCase().includes('solter') || w.estadoCivil?.toLowerCase().includes('viud') || w.estadoCivil?.toLowerCase().includes('divorciad')) {
+            if (w.personasCargo && Number(w.personasCargo) > 0) { vs++; socialDesc.push('monoparentalidad'); }
+        }
+        if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) { vs++; socialDesc.push('inestabilidad habitacional'); }
+
+        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', `Factores: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
+        else if (vs >= 2) add('Factores Psicosociales Externos', `Factores: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
+
+        return { score: Math.max(0, score), auditItems, hasIATags };
+    }, [TAG_RULES]);
+
+    // ─── Deterministic Conflict Detection Engine (Bio-Seguridad 360) ──────
+    const getActiveConflicts = useCallback((workersList: any[], profilesList: any[]) => {
+        const conflictsList: { workerName: string; cargo: string; severity: 'critical' | 'warning' | 'info'; title: string; description: string }[] = [];
+        workersList.forEach(w => {
+            const profile = profilesList.find(p => (p.nombreCargo || '').toLowerCase().trim() === (w.cargo || '').toLowerCase().trim());
+            if (!profile) return;
+            const tags: string[] = w.bioTagsIA || [];
+            
+            // 1. Critical Lifesaving conflict: Epilepsia, Vertigo, SNC meds + operating machinery
+            const isMachinery = profile.operaMaquinaria === 'Sí';
+            const hasLethalTags = tags.some(t => ['Epilepsia', 'Vertigo', 'Medicamento_SNC'].includes(t));
+            if (hasLethalTags && isMachinery) {
+                conflictsList.push({
+                    workerName: w.nombre,
+                    cargo: w.cargo,
+                    severity: 'critical',
+                    title: '🛑 CONFLICTO CRÍTICO DE SEGURIDAD VITAL',
+                    description: `El trabajador presenta susceptibilidad neurológica/farmacológica activa (${tags.filter(t => ['Epilepsia', 'Vertigo', 'Medicamento_SNC'].includes(t)).join(', ')}) y está asignado a operación de maquinaria pesada. Alto riesgo de fatalidad.`
+                });
+            }
+
+            // 2. High Physical demand conflict: Lumbalgia, Hernia, Restricciones + High Physical Exigency
+            const isHighPhysical = profile.exigenciaFisica === 'Alta';
+            const hasErgoTags = tags.some(t => ['Lumbalgia', 'Hernia_Discal', 'Restriccion_Hombro', 'Restriccion_Rodilla', 'No_Carga_Peso'].includes(t));
+            if (hasErgoTags && isHighPhysical) {
+                conflictsList.push({
+                    workerName: w.nombre,
+                    cargo: w.cargo,
+                    severity: 'warning',
+                    title: '⚠️ INCOMPATIBILIDAD BIOMECÁNICA',
+                    description: `Trabajador con restricción o antecedente osteomuscular activo (${tags.filter(t => ['Lumbalgia', 'Hernia_Discal', 'Restriccion_Hombro', 'Restriccion_Rodilla', 'No_Carga_Peso'].includes(t)).join(', ')}) asignado a cargo con exigencia física ALTA.`
+                });
+            }
+
+            // 3. Clinical Exposure: HTA, Cardiopatía, Diabetes + High Physical Exigency
+            const hasClinicalTags = tags.some(t => ['HTA', 'Cardiopatia', 'Diabetes'].includes(t));
+            if (hasClinicalTags && isHighPhysical) {
+                conflictsList.push({
+                    workerName: w.nombre,
+                    cargo: w.cargo,
+                    severity: 'warning',
+                    title: '💓 EXPOSICIÓN CARDIOVASCULAR',
+                    description: `Trabajador con susceptibilidad cardiovascular activa (${tags.filter(t => ['HTA', 'Cardiopatia', 'Diabetes'].includes(t)).join(', ')}) expuesto a cargas físicas intensas de alta exigencia.`
+                });
+            }
+
+            // 4. Psicosocial: Restriccion mental + High Mental Exigency
+            const isHighMental = profile.exigenciaMental === 'Alta';
+            const hasMentalTags = tags.some(t => ['Restriccion_Mental'].includes(t));
+            if (hasMentalTags && isHighMental) {
+                conflictsList.push({
+                    workerName: w.nombre,
+                    cargo: w.cargo,
+                    severity: 'info',
+                    title: '🧠 EXTREMA CARGA PSICOSOCIAL',
+                    description: `Trabajador con vulnerabilidad de salud mental asignado a rol de alta exigencia cognitiva/toma de decisiones. Riesgo agudo de burnout.`
+                });
+            }
+        });
+        return conflictsList;
     }, []);
 
     // ─── Report Generation ────────────────────────────────────────────────
@@ -391,10 +613,10 @@ const DashboardPredictivo = () => {
 
     // Build bar data from forecast
     const barData = [
-        { label: 'Riesgo Ergonómico', value: forecast?.indicators?.ergonomicRisk || 0, color: '#8b5cf6' },
-        { label: 'Vigilancia Salud', value: forecast?.indicators?.healthRisk || 0, color: '#ef4444' },
-        { label: 'Seguridad Física', value: forecast?.indicators?.safetyRisk || 0, color: '#f97316' },
-        { label: 'Riesgo General', value: overallRisk, color: '#0d9488' },
+        { label: 'Incompatibilidad Biomecánica', value: forecast?.indicators?.ergonomicRisk || 0, color: '#8b5cf6' },
+        { label: 'Vulnerabilidad Biométrica', value: forecast?.indicators?.healthRisk || 0, color: '#ef4444' },
+        { label: 'Exposición Operacional', value: forecast?.indicators?.safetyRisk || 0, color: '#f97316' },
+        { label: 'Riesgo Bio-Individual General', value: overallRisk, color: '#0d9488' },
     ];
 
     useAutoLoadReport({
@@ -404,8 +626,17 @@ const DashboardPredictivo = () => {
         handleSelectReport
     });
 
+    // Filtering workers
+    const filteredWorkers = workers.filter(w => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) return true;
+        return (w.nombre || '').toLowerCase().includes(query) || (w.cargo || '').toLowerCase().includes(query);
+    });
+
+    const activeConflicts = getActiveConflicts(workers, profiles);
+
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
             {/* Inject Custom Style Block for High End Micro-Animations */}
             <style>{`
                 @keyframes pulse-slow {
@@ -433,12 +664,12 @@ const DashboardPredictivo = () => {
                     animation: shimmer-move 3s infinite linear;
                 }
                 .glass-premium {
-                    background: rgba(255, 255, 255, 0.6);
+                    background: rgba(255, 255, 255, 0.65);
                     backdrop-filter: blur(16px);
                     -webkit-backdrop-filter: blur(16px);
                 }
                 .dark .glass-premium {
-                    background: rgba(15, 23, 42, 0.45);
+                    background: rgba(15, 23, 42, 0.5);
                     backdrop-filter: blur(16px);
                     -webkit-backdrop-filter: blur(16px);
                 }
@@ -453,20 +684,20 @@ const DashboardPredictivo = () => {
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-teal-400/10 backdrop-blur-md border border-teal-400/20 flex items-center justify-center shrink-0 shadow-lg shadow-teal-500/10">
-                            <Brain className="w-6 h-6 text-teal-300 animate-pulse" />
+                            <BrainCircuit className="w-6 h-6 text-teal-300 animate-pulse" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
                                 <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-teal-200 via-teal-100 to-indigo-200">
-                                    Gestor de Inteligencia Predictiva SST
+                                    Oráculo Predictivo · Bio-Seguridad 360°
                                 </h1>
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                    Activo · 8 Módulos
+                                    Hito 5 · Activo 
                                 </span>
                             </div>
                             <p className="text-teal-100/75 text-xs max-w-2xl leading-relaxed font-medium">
-                                Motor de análisis predictivo cruzado. Evalúa vulnerabilidades, reportes y métricas operacionales para emitir alertas e informes preventivos automatizados.
+                                Motor de consolidación biocéntrica. Mapea y predice incompatibilidades físicas, ergonómicas y clínicas cruzando el organismo de tus trabajadores con las exigencias del cargo.
                             </p>
                         </div>
                     </div>
@@ -481,7 +712,7 @@ const DashboardPredictivo = () => {
                                 id: 'generate-predictive',
                                 onClick: handleGenerate,
                                 disabled: isGenerating,
-                                title: "Generar Pronóstico IA",
+                                title: "Generar Pronóstico IA 360°",
                                 label: "Generar Pronóstico IA",
                                 icon: "sparkles",
                                 variant: "ai",
@@ -492,15 +723,15 @@ const DashboardPredictivo = () => {
                         onSelectModel={setSelectedModel}
                         hasContent={!!(editorContentRef.current || generatedReport)}
                         exportContent={editorContentRef.current || generatedReport || ''}
-                        exportFileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
+                        exportFileName={`Pronostico_Predictivo_BioSeguridad_IA_${new Date().toISOString().split('T')[0]}`}
                         customSections={[
                             <button
                                 key="btn-refresh"
-                                onClick={fetchForecast}
-                                disabled={isLoadingForecast}
+                                onClick={() => { fetchForecast(); fetchBiocentricData(); }}
+                                disabled={isLoadingForecast || loadingData}
                                 className="group flex items-center justify-center h-10 px-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl transition-all duration-300 shadow-lg shrink-0 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed outline-none hover:-rotate-2 hover:scale-105"
                             >
-                                <RefreshCw className={cn("h-4 w-4 text-teal-300", isLoadingForecast && "animate-spin")} />
+                                <RefreshCw className={cn("h-4 w-4 text-teal-300", (isLoadingForecast || loadingData) && "animate-spin")} />
                                 <span className="ml-2 font-bold tracking-wide uppercase">Actualizar</span>
                             </button>
                         ]}
@@ -523,14 +754,15 @@ const DashboardPredictivo = () => {
                 <div className="lg:col-span-1 relative overflow-hidden rounded-3xl p-8 flex flex-col justify-between min-h-[300px] border border-white/10 shadow-2xl transition-all duration-500 hover:scale-[1.01] hover:shadow-3xl"
                     style={{ background: heroStyles.bg, boxShadow: `0 20px 40px -15px ${heroStyles.glow}` }}>
                     
-                    {/* Glowing moving ambient orbs */}
-                    <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/5 blur-2xl animate-pulse-slow pointer-events-none" />
-                    <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/5 blur-2xl animate-pulse-slow pointer-events-none" />
+                    <div className="absolute inset-0 opacity-20 pointer-events-none">
+                        <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/5 blur-2xl animate-pulse-slow" />
+                        <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/5 blur-2xl animate-pulse-slow" />
+                    </div>
 
                     <div>
                         <div className="flex items-center gap-2 mb-5">
                             <Zap className="h-4.5 w-4.5 text-teal-200 animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-teal-200">Probabilidad de Siniestro</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-teal-200">Riesgo Bio-Individual General</span>
                         </div>
                         <div className={cn("text-7xl sm:text-8xl font-black text-white mb-4 tracking-tighter leading-none transition-all duration-500", heroStyles.textGlow)}>
                             {isLoadingForecast
@@ -545,51 +777,176 @@ const DashboardPredictivo = () => {
                     </div>
 
                     {forecast?.criticalArea && (
-                        <div className="mt-6 pt-5 border-t border-white/15">
+                        <div className="mt-6 pt-5 border-t border-white/15 relative z-10">
                             <span className="block text-[9px] text-teal-200/80 font-black uppercase tracking-[0.2em] mb-2.5 flex items-center gap-1.5">
-                                <TrendingUp className="h-3.5 w-3.5" /> Área Crítica Detectada
+                                <TrendingUp className="h-3.5 w-3.5" /> Foco Crítico de Siniestralidad
                             </span>
                             <span className="font-black text-white text-sm sm:text-base tracking-wide flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping" />
                                 {forecast.criticalArea.toUpperCase()}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* ── Right: 3 Premium Medidores ── */}
+                {/* ── Right: 3 Premium Bioseguridad Medidores ── */}
                 <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <RingGauge
-                        value={forecast?.indicators?.safetyRisk || 0}
-                        label="Seguridad Física"
-                        color="#f97316"
-                        bgColor="#fff7ed"
-                        icon={AlertTriangle}
-                        description={forecast?.evidence?.safetyEvidence || "Condiciones y actos inseguros no controlados"}
-                        gradientId="grad-safety"
-                        gradColors={{ from: "#f97316", to: "#f43f5e" }}
-                    />
-                    <RingGauge
                         value={forecast?.indicators?.healthRisk || 0}
-                        label="Vigilancia Salud"
+                        label="Vulnerabilidad Biométrica"
                         color="#ef4444"
                         bgColor="#fef2f2"
                         icon={HeartPulse}
-                        description={forecast?.evidence?.healthEvidence || "Hallazgos médicos y patologías de origen laboral"}
+                        description={forecast?.evidence?.healthEvidence || "Hallazgos y susceptibilidades clínicas registradas"}
                         gradientId="grad-health"
                         gradColors={{ from: "#ef4444", to: "#991b1b" }}
                     />
                     <RingGauge
+                        value={forecast?.indicators?.safetyRisk || 0}
+                        label="Exposición Operacional"
+                        color="#f97316"
+                        bgColor="#fff7ed"
+                        icon={AlertTriangle}
+                        description={forecast?.evidence?.safetyEvidence || "Incidentes, actos inseguros y peligros biológicos/físicos"}
+                        gradientId="grad-safety"
+                        gradColors={{ from: "#f97316", to: "#f43f5e" }}
+                    />
+                    <RingGauge
                         value={forecast?.indicators?.ergonomicRisk || 0}
-                        label="Ergonomía"
+                        label="Incompatibilidad Postural"
                         color="#8b5cf6"
                         bgColor="#f5f3ff"
                         icon={ShieldCheck}
-                        description={forecast?.evidence?.ergonomicEvidence || "Riesgos biomecánicos y posturales (OWAS)"}
+                        description={forecast?.evidence?.ergonomicEvidence || "Riesgos biomecánicos y OWAS ergonómicos"}
                         gradientId="grad-ergonomic"
                         gradColors={{ from: "#8b5cf6", to: "#6366f1" }}
                     />
                 </div>
+            </div>
+
+            {/* ═══ active conflicts list (strategic bioseguridad alerts) ═══ */}
+            {activeConflicts.length > 0 && (
+                <div className="p-6 rounded-3xl border-2 border-red-500/20 bg-red-500/[0.03] dark:bg-red-500/[0.02] shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-2 mb-4">
+                        <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />
+                        <h3 className="text-sm font-black text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">ALERTAS CRÍTICAS DE BIO-SEGURIDAD 360°</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {activeConflicts.map((conf, index) => (
+                            <div key={index} className="flex items-start gap-4 p-4 rounded-2xl border border-red-500/20 bg-surface-primary dark:bg-slate-900/50 hover:shadow-lg transition-shadow group">
+                                <div className="p-2 bg-red-500/10 text-red-500 rounded-xl shrink-0">
+                                    <ShieldAlert className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 mb-1 border border-red-500/20">
+                                        {conf.severity.toUpperCase()}
+                                    </span>
+                                    <h4 className="font-bold text-xs text-text-primary mb-1">
+                                        {conf.workerName} · <span className="text-text-secondary font-medium">{conf.cargo}</span>
+                                    </h4>
+                                    <p className="text-[11px] text-text-secondary leading-relaxed font-semibold">
+                                        {conf.description}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ Heatmap & Search (Bio 360° Workforce) ═══ */}
+            <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 className="text-sm font-black text-text-primary flex items-center gap-2 tracking-[0.1em] uppercase">
+                            <Users className="h-4.5 w-4.5 text-teal-500" />
+                            MAPA DE CALOR: APTITUD BIO-INDIVIDUAL 360°
+                        </h3>
+                        <p className="text-[11px] text-text-secondary font-semibold mt-0.5">Control de aptitud clínica-operativa de la plantilla completa.</p>
+                    </div>
+                    <div className="relative max-w-xs w-full">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
+                        <input
+                            type="text"
+                            placeholder="Buscar trabajador o cargo..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-border-medium bg-surface-primary hover:border-teal-500/30 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all font-semibold"
+                        />
+                    </div>
+                </div>
+
+                {loadingData ? (
+                    <div className="flex items-center justify-center p-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                    </div>
+                ) : filteredWorkers.length === 0 ? (
+                    <div className="text-center p-12 text-text-secondary">
+                        <UserX className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-xs font-bold">No se encontraron trabajadores en condiciones de salud.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredWorkers.map(w => {
+                            const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (w.cargo || '').toLowerCase().trim());
+                            const fit = calcFit(w, profile);
+                            const score = (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : fit.score;
+                            const sc = SCORE_COLOR(score);
+                            const hasIA = w.bioTagsIA && w.bioTagsIA.length > 0 && !w.bioTagsIA.includes('Sin_Hallazgos');
+                            
+                            return (
+                                <div 
+                                    key={w.id} 
+                                    onClick={() => setSelectedWorker({ ...w, calculatedScore: score, auditItems: fit.auditItems })}
+                                    className="p-4 rounded-2xl border border-border-light bg-surface-primary/70 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group relative overflow-hidden"
+                                >
+                                    {/* Visual hover background glow */}
+                                    <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-teal-500/[0.02] blur-xl pointer-events-none group-hover:bg-teal-500/10 transition-all duration-500" />
+                                    
+                                    <div className="flex items-start justify-between gap-2.5">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className={cn("w-9 h-9 rounded-xl border flex items-center justify-center text-xs font-black shrink-0 transition-transform duration-500 group-hover:scale-105", sc.ring, sc.bg, sc.text)}>
+                                                {(w.nombre || 'U')[0].toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-xs text-text-primary truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{w.nombre}</h4>
+                                                <p className="text-[10px] text-text-secondary truncate font-bold flex items-center gap-1 mt-0.5">
+                                                    <Briefcase className="w-3 h-3 shrink-0" />
+                                                    {w.cargo || 'Sin cargo'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 flex flex-col items-end">
+                                            <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase shadow-sm", sc.badge)}>
+                                                {score}% FIT
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Tags row */}
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                        {hasIA ? (
+                                            w.bioTagsIA.slice(0, 2).map((tag: string) => (
+                                                <span key={tag} className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                    {tag}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-[8px] font-bold text-text-secondary italic">Sin anomalías críticas</span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between border-t border-border-light pt-2 mt-1">
+                                        <span className="text-[9px] font-bold text-text-secondary">Edad: {w.edad || '?'} años</span>
+                                        <span className="text-[9px] font-black text-teal-600 dark:text-teal-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Ficha 360° <Eye className="w-3 h-3" />
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* ═══ Bar Chart + Predicted Insight ═══ */}
@@ -599,7 +956,7 @@ const DashboardPredictivo = () => {
                 <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl transition-all duration-300">
                     <h3 className="text-xs font-black text-text-primary mb-6 flex items-center gap-2 tracking-[0.12em] uppercase">
                         <Activity className="h-4 w-4 text-teal-500" />
-                        RADAR DE FACTORES DE RIESGO
+                        PUNTOS CRÍTICOS BIO-SEGURIDAD 360
                     </h3>
                     {isLoadingForecast ? (
                         <div className="space-y-4">
@@ -694,12 +1051,12 @@ const DashboardPredictivo = () => {
                     onSave={handleSaveReport}
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                     isHistoryOpen={isHistoryOpen}
-                    title="Gestión Predictiva SST"
+                    title="Gestión Predictiva de Bioseguridad"
                     icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={
                         <ExportDropdown
                             content={editorContentRef.current || generatedReport || ''}
-                            fileName="Informe_DashboardPredictivo"
+                            fileName="Informe_DashboardPredictivo_Bioseguridad360"
                             reportType="general"
                         />
                     }
@@ -733,6 +1090,120 @@ const DashboardPredictivo = () => {
                                 isCompact={true}
                                 hideFeatures={true}
                             />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ Ultra-Premium Bioseguridad 360° Worker Modal ═══ */}
+            {selectedWorker && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium/60 rounded-3xl p-6 max-w-xl w-full mx-4 shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+                        <button 
+                            onClick={() => setSelectedWorker(null)} 
+                            className="absolute top-4 right-4 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-text-secondary outline-none"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="flex items-center gap-4.5 mb-6 border-b border-border-light pb-5">
+                            <div className={cn("w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-xl font-black shrink-0", SCORE_COLOR(selectedWorker.calculatedScore).ring, SCORE_COLOR(selectedWorker.calculatedScore).bg, SCORE_COLOR(selectedWorker.calculatedScore).text)}>
+                                {(selectedWorker.nombre || 'U')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-black text-lg text-text-primary truncate">{selectedWorker.nombre}</h3>
+                                <p className="text-xs text-text-secondary font-bold flex items-center gap-1.5 mt-0.5">
+                                    <Briefcase className="w-3.5 h-3.5 text-teal-500" />
+                                    {selectedWorker.cargo || 'Sin cargo'} · {selectedWorker.edad || '?'} años
+                                </p>
+                            </div>
+                            <div className={cn("px-3.5 py-2 rounded-2xl text-xs font-black uppercase tracking-wider text-center shrink-0 border", SCORE_COLOR(selectedWorker.calculatedScore).badge)}>
+                                {selectedWorker.calculatedScore}% FIT
+                            </div>
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* IA Tags Area */}
+                            <div>
+                                <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-teal-500" /> Hallazgos Semánticos IA
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedWorker.bioTagsIA && selectedWorker.bioTagsIA.length > 0 && !selectedWorker.bioTagsIA.includes('Sin_Hallazgos') ? (
+                                        selectedWorker.bioTagsIA.map((tag: string) => {
+                                            const r = TAG_RULES[tag];
+                                            const pts = r?.pts || 5;
+                                            return (
+                                                <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-border-medium/60 shadow-sm">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                    {r?.label || tag} (-{pts} pts)
+                                                </span>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-green-600 text-xs font-bold py-1">
+                                            <CheckCircle className="w-4 h-4" /> Apto · Sin susceptibilidades de salud críticas
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
+                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Presión Arterial</p>
+                                    <p className="text-sm font-black text-text-primary">{selectedWorker.presionArterial || 'No registrada'}</p>
+                                </div>
+                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
+                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Frecuencia Cardíaca</p>
+                                    <p className="text-sm font-black text-text-primary">{selectedWorker.frecuenciaCardiaca ? `${selectedWorker.frecuenciaCardiaca} lpm` : 'No registrada'}</p>
+                                </div>
+                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
+                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Índice de Masa Corporal (IMC)</p>
+                                    <p className="text-sm font-black text-text-primary">{selectedWorker.imc || 'No registrado'}</p>
+                                </div>
+                                <div className="bg-surface-secondary/50 rounded-2xl p-4 border border-border-light">
+                                    <p className="text-[9px] text-text-secondary font-black uppercase tracking-wider mb-1">Hábitos de Fumar</p>
+                                    <p className="text-sm font-black text-text-primary">{selectedWorker.fuma || 'No registrado'}</p>
+                                </div>
+                            </div>
+
+                            {/* Biocentric Audit Alerts */}
+                            <div>
+                                <h4 className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <HeartPulse className="w-3.5 h-3.5 text-teal-500" /> Auditoría de Aptitud Biocéntrica 360°
+                                </h4>
+                                <div className="space-y-2">
+                                    {selectedWorker.auditItems && selectedWorker.auditItems.length > 0 ? (
+                                        selectedWorker.auditItems.map((item: any, i: number) => {
+                                            const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
+                                            return (
+                                                <div key={i} className={cn("flex items-start gap-3 p-3 rounded-2xl border bg-surface-secondary/30", s.border)}>
+                                                    <div className={cn("text-xs font-black w-8 shrink-0 text-right mt-0.5", s.pts)}>-{Math.abs(item.pts)}</div>
+                                                    <div className="shrink-0 mt-0.5">{s.icon}</div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-bold text-text-primary">{item.title}</p>
+                                                        <p className="text-[10px] text-text-secondary leading-tight mt-0.5 font-semibold">{item.description}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="p-3 bg-green-500/5 border border-green-500/20 text-green-600 text-xs font-bold rounded-2xl flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4" /> 100% de Aptitud Biocéntrica. Óptimas condiciones clínicas y operacionales.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 pt-5 border-t border-border-light flex justify-end">
+                            <button 
+                                onClick={() => setSelectedWorker(null)}
+                                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-teal-600/10 border border-teal-500/20 transition-all duration-300"
+                            >
+                                Entendido · Cerrar
+                            </button>
                         </div>
                     </div>
                 </div>

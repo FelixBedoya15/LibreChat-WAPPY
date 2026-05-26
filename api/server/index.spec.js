@@ -117,19 +117,18 @@ describe('Server Configuration', () => {
     }
   });
 
-  it('should return 200 and redirect HTML for /comunidad', async () => {
-    const response = await request(app).get('/comunidad');
+  it('should return 200 and redirect HTML for /links', async () => {
+    const response = await request(app).get('/links');
     expect(response.status).toBe(200);
     expect(response.type).toBe('text/html');
-    expect(response.text).toContain('WAPPY IA - Comunidad');
-    expect(response.text).toContain('https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy');
+    expect(response.text).toContain('WAPPY IA - Conecta con Nosotros');
   });
 
-  it('should return 200 and redirect HTML for /comunidad/', async () => {
-    const response = await request(app).get('/comunidad/');
+  it('should return 200 and redirect HTML for /links/', async () => {
+    const response = await request(app).get('/links/');
     expect(response.status).toBe(200);
     expect(response.type).toBe('text/html');
-    expect(response.text).toContain('WAPPY IA - Comunidad');
+    expect(response.text).toContain('WAPPY IA - Conecta con Nosotros');
   });
 });
 
