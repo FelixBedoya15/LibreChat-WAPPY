@@ -46,11 +46,34 @@ const errorMessages = {
       <div className="w-full my-3 p-5 rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent text-amber-900 dark:text-amber-100 font-sans whitespace-normal break-words shadow-md shadow-amber-500/5 backdrop-blur-[2px] animate-fadeIn">
         <div className="flex flex-col sm:flex-row items-start gap-4">
           <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 shrink-0 shadow-sm shadow-amber-500/10">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-key">
-              <circle cx="7.5" cy="16.5" r="4.5" />
-              <path d="m21 3-10.7 10.7" />
-              <path d="m14 6 3 3" />
-              <path d="M11 9h2" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="w-6 h-6 animate-pulse-slow">
+              <defs>
+                <linearGradient id="wappyKeyGoldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#D97706" />
+                  <stop offset="40%" stopColor="#F59E0B" />
+                  <stop offset="85%" stopColor="#FBBF24" />
+                  <stop offset="100%" stopColor="#FEF3C7" />
+                </linearGradient>
+                <filter id="wappyKeyGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="0.8" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <circle cx="8" cy="16" r="6" fill="url(#wappyKeyGoldGrad)" opacity="0.15" />
+
+              <circle cx="8" cy="16" r="5" stroke="url(#wappyKeyGoldGrad)" strokeWidth="2.2" fill="none" filter="url(#wappyKeyGlow)" />
+              <circle cx="8" cy="16" r="3.2" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" fill="none" opacity="0.35" />
+
+              <path d="M11.5 12.5 L20.5 3.5" stroke="url(#wappyKeyGoldGrad)" strokeWidth="2.2" strokeLinecap="round" />
+
+              <path d="M17 7 L19.5 9.5" stroke="url(#wappyKeyGoldGrad)" strokeWidth="2.2" strokeLinecap="round" />
+              <path d="M14.2 9.8 L16.2 11.8" stroke="url(#wappyKeyGoldGrad)" strokeWidth="2.2" strokeLinecap="round" />
+
+              <circle cx="8" cy="16" r="1.5" fill="#7F1D1D" className="dark:fill-[#451A03]" opacity="0.85" />
+              <circle cx="8" cy="16" r="0.6" fill="#FBBF24" />
+
+              <path d="M12.2 11.8 L19.2 4.8" stroke="#FFFFFF" strokeWidth="0.7" strokeLinecap="round" opacity="0.8" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
@@ -85,10 +108,29 @@ const errorMessages = {
       <div className="w-full my-3 p-5 rounded-3xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent text-rose-900 dark:text-rose-100 font-sans whitespace-normal break-words shadow-md shadow-rose-500/5 backdrop-blur-[2px] animate-fadeIn">
         <div className="flex flex-col sm:flex-row items-start gap-4">
           <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 shrink-0 shadow-sm shadow-rose-500/10">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield-alert">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="w-6 h-6 animate-pulse-slow">
+              <defs>
+                <linearGradient id="wappyShieldRoseGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#BE123C" />
+                  <stop offset="45%" stopColor="#F43F5E" />
+                  <stop offset="85%" stopColor="#FDA4AF" />
+                  <stop offset="100%" stopColor="#FFE4E6" />
+                </linearGradient>
+                <filter id="wappyShieldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="0.8" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="url(#wappyShieldRoseGrad)" opacity="0.15" />
+              
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#wappyShieldRoseGrad)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" filter="url(#wappyShieldGlow)" />
+              <path d="M12 20s6.5-3.5 6.5-8.5V6.2L12 4.1 5.5 6.2v5.3c0 5 6.5 8.5 6.5 8.5z" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.3" />
+
+              <path d="M12 8 V13" stroke="url(#wappyShieldRoseGrad)" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="12" cy="16.25" r="1.25" fill="url(#wappyShieldRoseGrad)" />
+
+              <path d="M12 8.5 V12.5" stroke="#FFFFFF" strokeWidth="0.8" strokeLinecap="round" opacity="0.75" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
