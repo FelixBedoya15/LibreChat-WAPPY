@@ -6,16 +6,31 @@ const Notification = require('~/models/Notification');
 
 const router = express.Router();
 
+// ─── Helper: Resolver Empresa Activa ─────────────────────────────────────────
+async function resolveActiveCompany(companyId) {
+    if (!mongoose.Types.ObjectId.isValid(companyId)) return null;
+
+    // 1. Intentar buscar por el _id directo de la empresa (si ya viene resuelto)
+    let company = await CompanyInfo.findById(companyId).lean();
+    if (company) return company;
+
+    // 2. Si no se encuentra, asumir que es el ID del usuario (propietario) y buscar la empresa activa
+    company = await CompanyInfo.findOne({ user: companyId, isActive: true }).lean();
+
+    // 3. Fallback: Si no hay empresa activa explícita, devolver la primera empresa de ese usuario
+    if (!company) {
+        company = await CompanyInfo.findOne({ user: companyId }).lean();
+    }
+
+    return company;
+}
+
 // ─── GET /api/public-sgsst/company/:companyId ─────────────────────────────
 // Get public details of the company (Name, Logo, Cargos) to show in the portal
 router.get('/company/:companyId', async (req, res) => {
     try {
         const { companyId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
-        }
-
-        const company = await CompanyInfo.findOne({ user: companyId }).lean();
+        const company = await resolveActiveCompany(companyId);
         if (!company) {
             return res.status(404).json({ error: 'Empresa no encontrada' });
         }
@@ -24,7 +39,10 @@ router.get('/company/:companyId', async (req, res) => {
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         let cargos = [];
         if (PerfilSociodemograficoData) {
-            const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+            const perfil = await PerfilSociodemograficoData.findOne({
+                user: new mongoose.Types.ObjectId(company.user),
+                companyId: company._id
+            }).lean();
             if (perfil?.trabajadores?.length) {
                 const set = new Set();
                 perfil.trabajadores.forEach(t => {
@@ -54,12 +72,13 @@ router.post('/validate-worker/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
-        }
-
         if (!cedula || !nombre) {
             return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
+        }
+
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -67,7 +86,10 @@ router.post('/validate-worker/:companyId', async (req, res) => {
             return res.status(500).json({ error: 'Modelo PerfilSociodemografico no encontrado' });
         }
 
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
             return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
         }
@@ -101,12 +123,13 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre, data } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
-        }
-
         if (!cedula || !nombre) {
             return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para el reporte' });
+        }
+
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -117,7 +140,10 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
         }
 
         // 1. Validar identidad cruzada con el Perfil Sociodemográfico
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
             return res.status(404).json({ 
                 error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' 
@@ -161,9 +187,8 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
         };
 
         // 3. Guardar en el Inbox Público de ReporteActosData
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await ReporteActosData.findOneAndUpdate(
-            { user: companyObjectId },
+            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
             { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -171,7 +196,7 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
         // ─── Crear notificación de sistema ───
         try {
             await Notification.create({
-                user: companyId,
+                user: new mongoose.Types.ObjectId(company.user),
                 type: 'sgsst_reporte_acto',
                 title: 'Nuevo Reporte de Acto Inseguro',
                 body: `${workerFound.nombre} ha reportado un acto o condición insegura desde el portal público.`,
@@ -216,12 +241,13 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre, data } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
-        }
-
         if (!cedula || !nombre) {
             return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para la participación' });
+        }
+
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -232,7 +258,10 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
         }
 
         // 1. Validar identidad cruzada con el Perfil Sociodemográfico
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
             return res.status(404).json({ 
                 error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' 
@@ -274,9 +303,8 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
         };
 
         // 3. Guardar en el Inbox Público de ParticipacionIpevarData
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await ParticipacionIpevarData.findOneAndUpdate(
-            { user: companyObjectId },
+            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
             { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -284,7 +312,7 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
         // ─── Crear notificación de sistema ───
         try {
             await Notification.create({
-                user: companyId,
+                user: new mongoose.Types.ObjectId(company.user),
                 type: 'sgsst_participacion_ipevar',
                 title: 'Nueva Participación IPEVAR Recibida',
                 body: `${workerFound.nombre} ha enviado su identificación de peligros y participación IPEVAR.`,
@@ -309,12 +337,13 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre, data } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
-        }
-
         if (!cedula || !nombre) {
             return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
+        }
+
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
@@ -341,9 +370,8 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         };
 
         // Push to inboxTestimonios
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await InvestigacionAtelData.findOneAndUpdate(
-            { user: companyObjectId },
+            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
             { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -353,7 +381,7 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         // ─── Crear notificación de sistema ───
         try {
             await Notification.create({
-                user: companyObjectId,
+                user: new mongoose.Types.ObjectId(company.user),
                 type: 'sgsst_testimonio_atel',
                 title: 'Nuevo Testimonio de Testigo',
                 body: `${nombre} ha radicado su testimonio en la investigación ATEL desde el portal público.`,
@@ -388,16 +416,18 @@ router.post('/validate-alta-direccion/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (!PerfilSociodemograficoData) return res.status(500).json({ error: 'Modelo no encontrado' });
 
-        // IMPORTANT: Always cast to ObjectId to match how the document was stored
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyObjectId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         if (!perfil || !perfil.trabajadores) return res.status(404).json({ error: 'Empresa sin trabajadores registrados. Asegúrese de haber guardado el Perfil Sociodemográfico.' });
 
         const worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
@@ -419,8 +449,9 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, data } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const AltaDireccionData = mongoose.models.AltaDireccionData;
@@ -430,10 +461,10 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
             return res.status(500).json({ error: 'Modelos no encontrados. Asegúrese de que el sistema esté completamente cargado.' });
         }
 
-        // Always cast to ObjectId for consistent findOne behavior
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
-
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyObjectId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         const worker = perfil?.trabajadores?.find(t => String(t.identificacion).trim() === String(cedula).trim());
         if (!worker || !isGerenciaRole(worker.cargo)) return res.status(403).json({ error: 'No autorizado.' });
 
@@ -446,7 +477,7 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
         };
 
         await AltaDireccionData.findOneAndUpdate(
-            { user: companyObjectId },
+            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
             { $push: { inboxPublico: newReport }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -454,7 +485,7 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
         // ─── Crear notificación de sistema ───
         try {
             await Notification.create({
-                user: companyObjectId,  // Use ObjectId consistently
+                user: new mongoose.Types.ObjectId(company.user),
                 type: 'sgsst_alta_direccion',
                 title: 'Nueva Evaluación de Alta Dirección',
                 body: `${worker.nombre} (${worker.cargo}) ha enviado su revisión por la Alta Dirección desde el portal público.`,
@@ -478,8 +509,9 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         const { companyId, workerId } = req.params;
         const { cedula } = req.query;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -487,7 +519,10 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
             return res.status(500).json({ error: 'Modelo no encontrado' });
         }
 
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        }).lean();
         if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
             return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
         }
@@ -503,11 +538,9 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
             return res.status(404).json({ error: 'Trabajador no encontrado o identificación incorrecta.' });
         }
 
-        const company = await (require('~/models/CompanyInfo')).findOne({ user: companyId }).lean();
-
         return res.json({
-            companyName: company?.companyName || 'Empresa',
-            logo: company?.logoBase64 || null,
+            companyName: company.companyName || 'Empresa',
+            logo: company.logoBase64 || null,
             worker: {
                 id: worker.id,
                 nombre: worker.nombre,
@@ -550,13 +583,17 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
         const { companyId, workerId: paramWorkerId } = req.params;
         const { updates, cedula } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return res.status(400).json({ error: 'ID de empresa inválido' });
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        const perfil = await PerfilSociodemograficoData.findOne({ user: new mongoose.Types.ObjectId(companyId) });
-        if (!perfil) return res.status(404).json({ error: 'Empresa no encontrada' });
+        const perfil = await PerfilSociodemograficoData.findOne({
+            user: new mongoose.Types.ObjectId(company.user),
+            companyId: company._id
+        });
+        if (!perfil) return res.status(404).json({ error: 'Perfil sociodemográfico no encontrado para esta empresa' });
 
         let worker;
         if (paramWorkerId && paramWorkerId !== 'undefined') {
@@ -625,7 +662,7 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
         try {
             const Notif = require('~/models/Notification');
             await Notif.create({
-                user: new mongoose.Types.ObjectId(companyId),
+                user: new mongoose.Types.ObjectId(company.user),
                 type: 'sgsst_perfil_update',
                 title: 'Actualización de Perfil Recibida',
                 body: `${worker.nombre} ha solicitado actualizar su perfil sociodemográfico.`,
