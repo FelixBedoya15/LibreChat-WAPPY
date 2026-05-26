@@ -292,16 +292,266 @@ const startServer = async () => {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WAPPY IA - Comunidad</title>
-    <meta http-equiv="refresh" content="0; url=https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10B981;
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --accent: #8B5CF6;
+            --background: #0B0F19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --text-main: #F3F4F6;
+            --text-muted: #9CA3AF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Radial glow background */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(16, 185, 129, 0.05) 50%, rgba(0,0,0,0) 100%);
+            top: -200px;
+            right: -100px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(0,0,0,0) 100%);
+            bottom: -200px;
+            left: -100px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            z-index: 10;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            transform: translateY(0);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(16, 185, 129, 0.1);
+        }
+
+        .logo-container {
+            margin-bottom: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo-glow {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            filter: blur(25px);
+            opacity: 0.3;
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 800;
+            color: #FFF;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(to right, #FFF 30%, #E5E7EB 70%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            font-size: 16px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .features {
+            text-align: left;
+            margin-bottom: 35px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #D1D5DB;
+            margin-bottom: 12px;
+        }
+
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, #059669 100%);
+            color: #FFF;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px var(--primary-glow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -50%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: skewX(-25deg);
+            transition: 0.75s;
+            opacity: 0;
+        }
+
+        .btn:hover::after {
+            left: 125%;
+            opacity: 1;
+        }
+
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #4B5563;
+        }
+    </style>
 </head>
 <body>
-    <script>
-        window.location.href = "https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy";
-    </script>
-    <p style="font-family: Arial, sans-serif; text-align: center; margin-top: 50px;">
-        Redirigiendo a la comunidad... si no carga, <a href="https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy">haz clic aquí</a>.
-    </p>
+    <div class="container">
+        <div class="card">
+            <div class="logo-container">
+                <div class="logo-glow"></div>
+                <div class="logo-icon">W</div>
+            </div>
+            <h1>Comunidad WAPPY</h1>
+            <p class="tagline">Únete a nuestro espacio exclusivo para recibir soporte de IA de primer nivel, herramientas y recursos en primicia.</p>
+            
+            <div class="features">
+                <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <span>Actualizaciones de IA en tiempo real</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">💬</span>
+                    <span>Soporte prioritario y comunidad activa</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🚀</span>
+                    <span>Acceso a plantillas y prompts VIP</span>
+                </div>
+            </div>
+
+            <a href="https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy" target="_blank" class="btn">
+                Unirme en WhatsApp
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </a>
+        </div>
+        <div class="footer">
+            &copy; 2026 WAPPY IA. Todos los derechos reservados.
+        </div>
+    </div>
 </body>
 </html>`);
   });
