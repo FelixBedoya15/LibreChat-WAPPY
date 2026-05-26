@@ -38,6 +38,7 @@ function ConvoOptions({
   const { index } = useChatContext();
   const { data: startupConfig } = useGetStartupConfig();
   const { navigateToConvo } = useNavigateToConvo(index);
+  const { showToast } = useToastContext();
   const navigate = useNavigate();
   const { conversationId: currentConvoId } = useParams();
   const { newConversation } = useNewConvo();
