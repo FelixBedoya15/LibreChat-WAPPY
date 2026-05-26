@@ -1121,10 +1121,19 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
 
   return (
     <div className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
+      
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isMaximized && sidebarOpen && (
+        <div 
+          className="sm:hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* SST Template Center Sidebar */}
       {isMaximized && (
         <div 
-          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 relative ${
+          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] sm:relative sm:z-0 ${
             sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
           }`}
         >
@@ -1210,7 +1219,7 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
       {isMaximized && (
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`absolute top-1/2 -translate-y-1/2 z-[400] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
+          className={`absolute top-1/2 -translate-y-1/2 z-[460] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
             sidebarOpen 
               ? 'left-[279px] sm:left-[319px]' 
               : 'left-0 border-l-0'
@@ -1238,7 +1247,8 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
             title="Conectar con otros Lienzos (Excel)"
           >
             <Link2 className="h-3.5 w-3.5" />
-            <span>Conectar Lienzo (Excel)</span>
+            <span className="hidden sm:inline">Conectar Lienzo (Excel)</span>
+            <span className="sm:hidden">Conectar</span>
           </button>
         </div>
 

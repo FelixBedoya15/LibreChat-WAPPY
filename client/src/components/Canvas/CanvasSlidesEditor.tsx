@@ -190,6 +190,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [showSettings, setShowSettings] = useState<boolean>(true);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   // Presentation Mode States
   const [isPresenting, setIsPresenting] = useState<boolean>(false);
@@ -1489,10 +1490,23 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
   // Maximized expanded workspace view
   return (
-    <div className="flex h-full bg-surface-primary text-text-primary overflow-hidden">
+    <div className="flex h-full bg-surface-primary text-text-primary overflow-hidden relative">
+      
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isMaximized && sidebarOpen && (
+        <div 
+          className="sm:hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Slides Thumbnail Sidebar */}
       {isMaximized && (
-        <div className="w-48 sm:w-56 md:w-64 border-r flex-shrink-0 border-border-medium bg-surface-secondary flex flex-col justify-between shrink-0">
+        <div 
+          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col justify-between transition-all duration-300 absolute inset-y-0 left-0 z-[450] sm:relative sm:z-0 ${
+            sidebarOpen ? 'w-48 sm:w-56 md:w-64' : 'w-0 overflow-hidden border-r-0'
+          }`}
+        >
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <div className="text-xs font-bold text-text-tertiary uppercase tracking-wider px-1">Diapositivas</div>
             {slides.map((slide, idx) => {
@@ -1593,6 +1607,25 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             </button>
           </div>
         </div>
+      )}
+
+      {/* Floating Toggle Button for Sidebar - ONLY visible when maximized */}
+      {isMaximized && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className={`absolute top-1/2 -translate-y-1/2 z-[460] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
+            sidebarOpen 
+              ? 'left-[191px] sm:left-[223px] md:left-[255px]' 
+              : 'left-0 border-l-0'
+          }`}
+          title={sidebarOpen ? 'Contraer Panel Lateral' : 'Expandir Panel Lateral'}
+        >
+          {sidebarOpen ? (
+            <ChevronLeft className="h-3.5 w-3.5 text-text-secondary" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
+          )}
+        </button>
       )}
 
       {/* Main Slide Editor */}

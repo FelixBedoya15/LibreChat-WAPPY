@@ -252,11 +252,17 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Safely fallback activeTab to "code" if not maximized and currently in "split"
+  // Safely fallback activeTab to "code" if not maximized or on mobile screen and currently in "split"
   useEffect(() => {
-    if (!isMaximized && activeTab === 'split') {
-      setActiveTab('code');
-    }
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 640;
+      if ((!isMaximized || isMobile) && activeTab === 'split') {
+        setActiveTab('code');
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [isMaximized, activeTab]);
 
   // Load content with Tailwind CDN included by default for instant premium styling
@@ -363,10 +369,18 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   return (
     <div className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
       
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isMaximized && sidebarOpen && (
+        <div 
+          className="sm:hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       {/* Left Column: SST Component Library Sidebar */}
       {isMaximized && (
         <div 
-          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 relative ${
+          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] sm:relative sm:z-0 ${
             sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
           }`}
         >
@@ -420,7 +434,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
       {isMaximized && (
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`absolute top-1/2 -translate-y-1/2 z-[400] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
+          className={`absolute top-1/2 -translate-y-1/2 z-[460] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
             sidebarOpen 
               ? 'left-[279px] sm:left-[319px]' 
               : 'left-0 border-l-0'
@@ -444,12 +458,12 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
             {isMaximized && (
               <button
                 onClick={() => setActiveTab('split')}
-                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
+                className={`hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
                   activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
                 }`}
               >
                 <Split className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Dividido</span>
+                <span>Dividido</span>
               </button>
             )}
             <button
