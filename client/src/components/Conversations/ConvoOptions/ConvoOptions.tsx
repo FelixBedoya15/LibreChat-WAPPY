@@ -9,7 +9,8 @@ import {
   useGetStartupConfig,
   useArchiveConvoMutation,
 } from '~/data-provider';
-import { useLocalize, useNavigateToConvo, useNewConvo } from '~/hooks';
+import { useLocalize, useNavigateToConvo, useNewConvo, useAuthContext } from '~/hooks';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { NotificationSeverity } from '~/common';
 import { useChatContext } from '~/Providers';
 import DeleteButton from './DeleteButton';
@@ -37,11 +38,14 @@ function ConvoOptions({
   const { index } = useChatContext();
   const { data: startupConfig } = useGetStartupConfig();
   const { navigateToConvo } = useNavigateToConvo(index);
-  const { showToast } = useToastContext();
-
   const navigate = useNavigate();
   const { conversationId: currentConvoId } = useParams();
   const { newConversation } = useNewConvo();
+  const { user } = useAuthContext();
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
+  const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
 
   const shareButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
@@ -81,10 +85,24 @@ function ConvoOptions({
   }, []);
 
   const handleDeleteClick = useCallback(() => {
+    if (!isPro) {
+      setUpgradeModalTitle("Eliminación de Chats Bloqueada");
+      setUpgradeModalDesc("La eliminación de chats en tu cuenta gratuita está restringida para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y eliminar historiales de forma ilimitada.");
+      setIsUpgradeModalOpen(true);
+      setIsPopoverActive(false);
+      return;
+    }
     setShowDeleteDialog(true);
-  }, []);
+  }, [isPro, setIsPopoverActive]);
 
   const handleArchiveClick = useCallback(async () => {
+    if (!isPro) {
+      setUpgradeModalTitle("Archivado de Chats Bloqueado");
+      setUpgradeModalDesc("El archivado de chats en tu cuenta gratuita está restringido para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y archivar historiales de forma ilimitada.");
+      setIsUpgradeModalOpen(true);
+      setIsPopoverActive(false);
+      return;
+    }
     const convoId = conversationId ?? '';
     if (!convoId) {
       return;
@@ -120,13 +138,21 @@ function ConvoOptions({
     setIsPopoverActive,
     showToast,
     localize,
+    isPro,
   ]);
 
   const handleDuplicateClick = useCallback(() => {
+    if (!isPro) {
+      setUpgradeModalTitle("Duplicación de Chats Bloqueada");
+      setUpgradeModalDesc("La duplicación de chats está reservada exclusivamente para cuentas PREMIUM del Plan Pro.");
+      setIsUpgradeModalOpen(true);
+      setIsPopoverActive(false);
+      return;
+    }
     duplicateConversation.mutate({
       conversationId: conversationId ?? '',
     });
-  }, [conversationId, duplicateConversation]);
+  }, [conversationId, duplicateConversation, isPro, setIsPopoverActive]);
 
   const dropdownItems = useMemo(
     () => [
@@ -242,6 +268,27 @@ function ConvoOptions({
           conversationId={conversationId ?? ''}
           setShowDeleteDialog={setShowDeleteDialog}
         />
+      )}
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+            >
+              Cerrar ✕
+            </button>
+            <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+              <UpgradeWall
+                title={upgradeModalTitle}
+                description={upgradeModalDesc}
+                plan="USER_PRO"
+                isCompact={true}
+                hideFeatures={true}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

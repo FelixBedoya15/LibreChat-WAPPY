@@ -121,7 +121,7 @@ export const UpgradeWall = ({
     const { user } = useAuthContext();
     // Prefer the explicit override; fall back to the session role
     const effectivePlan = planOverride || user?.role || 'USER';
-    const features = PLAN_FEATURES[effectivePlan] ?? PLAN_FEATURES['USER'];
+    const features = PLAN_FEATURES['USER_PRO'];
 
     return (
         <div className={`relative flex flex-col items-center justify-center text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full mx-auto my-4 group ${isCompact ? 'p-6 max-w-sm' : 'p-12 max-w-4xl'}`}>
