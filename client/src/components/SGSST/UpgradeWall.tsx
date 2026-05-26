@@ -205,13 +205,11 @@ export const UpgradeWall = ({
             {/* Upgrade Button */}
             <a
                 href="/planes"
-                className={`relative flex items-center justify-center gap-2 font-bold text-gray-800 dark:text-gray-200 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:text-green-600 dark:hover:text-green-400 ${isCompact ? 'mt-0' : 'mt-2'}`}
+                className={`relative flex items-center justify-center gap-2 font-extrabold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg border border-white/20 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:shadow-xl ${isCompact ? 'mt-4 px-6 py-2.5 text-sm w-full' : 'mt-6 px-10 py-3.5 text-lg'}`}
             >
-                <div className={isCompact ? 'scale-75' : ''}>
-                    <ShieldSVGButton />
-                </div>
-                <span className={`tracking-wide border-b-2 border-transparent hover:border-green-500 transition-colors ${isCompact ? 'text-base' : 'text-xl'}`}>
-                    Planes
+                <Sparkles className="w-5 h-5 animate-pulse text-white" />
+                <span className="tracking-wide">
+                    Ver Planes y Precios Pro
                 </span>
             </a>
         </div>

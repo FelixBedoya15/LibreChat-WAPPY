@@ -1246,20 +1246,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto bg-surface-primary p-6">
                 {!isPro && (
-                  <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-300">
+                  <div 
+                    onClick={() => window.location.href = '/planes'}
+                    className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-300 cursor-pointer hover:bg-amber-500/15 transition-all duration-300 hover:scale-[1.01]"
+                  >
                     <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
                     <div className="flex-1 text-sm">
                       <span className="font-bold">Límite del Plan Gratuito:</span> Solo conservamos las últimas 5 versiones en este chat. Pásate a Pro para mantener un registro de hasta 20 versiones.
-                      <button
-                        onClick={() => {
-                          setUpgradeModalTitle("Historial de Versiones Premium");
-                          setUpgradeModalDesc("El almacenamiento extendido de hasta 20 versiones e historial completo está disponible de forma exclusiva para cuentas PREMIUM del Plan Pro.");
-                          setIsUpgradeModalOpen(true);
-                        }}
-                        className="ml-2 font-bold underline hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
-                      >
+                      <span className="ml-2 font-bold underline hover:text-amber-900 dark:hover:text-amber-100 transition-colors">
                         ¡Subir de nivel ahora!
-                      </button>
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1403,9 +1399,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                           {isBlockedVersion ? (
                             <button
                               onClick={() => {
-                                setUpgradeModalTitle("Historial Premium Bloqueado");
-                                setUpgradeModalDesc("El acceso a versiones antiguas (más allá de las últimas 5) está reservado exclusivamente para cuentas PREMIUM del Plan Pro.");
-                                setIsUpgradeModalOpen(true);
+                                window.location.href = '/planes';
                               }}
                               className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 py-2 text-sm font-semibold text-amber-600 transition-colors hover:bg-amber-500/10 dark:hover:bg-amber-900/20"
                             >
