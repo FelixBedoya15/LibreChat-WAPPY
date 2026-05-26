@@ -519,7 +519,6 @@ const startServer = async () => {
                 <div class="logo-glow"></div>
                 <img src="/assets/logo.png" alt="WAPPY Logo" class="logo-image">
             </div>
-            <h1>WAPPY IA</h1>
             <p class="bio">Optimiza tu gestión de seguridad y salud en el trabajo con Inteligencia Artificial de primer nivel.</p>
             
             <div class="links-wrapper">
