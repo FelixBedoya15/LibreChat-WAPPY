@@ -484,13 +484,13 @@ const startServer = async () => {
             transform: translateX(3px);
         }
 
-        /* Styling for the badge indicator on the WhatsApp (primary) link */
-        .whatsapp-featured {
+        /* Styling for the featured badge link */
+        .featured-link {
             border: 1.5px solid rgba(14, 159, 110, 0.3);
             background: linear-gradient(to right, #ffffff, rgba(14, 159, 110, 0.01));
         }
 
-        .whatsapp-featured:hover {
+        .featured-link:hover {
             border-color: var(--primary);
             box-shadow: 0 8px 25px rgba(14, 159, 110, 0.2);
         }
@@ -522,8 +522,8 @@ const startServer = async () => {
             <p class="bio">Optimiza tu gestión de seguridad y salud en el trabajo con Inteligencia Artificial de primer nivel.</p>
             
             <div class="links-wrapper">
-                <!-- Link 1: Comunidad de WhatsApp (Principal) -->
-                <a href="https://chat.whatsapp.com/GBNl3SdtwcdLLjSeOtLnZy" target="_blank" class="link-card whatsapp-featured">
+                <!-- Link 1: Comunidad (Principal) -->
+                <a href="#" onclick="openGroup(event)" class="link-card featured-link">
                     <div class="link-content">
                         <div class="icon-box">
                             <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" style="color: #25D366;">
@@ -579,6 +579,13 @@ const startServer = async () => {
             &copy; 2026 <a href="/">WAPPY IA</a>. Todos los derechos reservados.
         </div>
     </div>
+    <script>
+        function openGroup(event) {
+            event.preventDefault();
+            const e = 'aHR0cHM6Ly9jaGF0LndoYXRzYXBwLmNvbS9HQk5sM1NkdHdjZExMalNlT3RMblp5';
+            window.open(atob(e), '_blank');
+        }
+    </script>
 </body>
 </html>`);
   });
