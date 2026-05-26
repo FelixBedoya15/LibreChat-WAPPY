@@ -286,7 +286,7 @@ const startServer = async () => {
   });
 
   // Ruta de redirección limpia para Meta Ads y comunidad de WhatsApp
-  app.get(['/comunidad', '/comunidad/'], (req, res) => {
+  app.get(['/comunidad', '/comunidad/', '/links', '/links/'], (req, res) => {
     res.type('html');
     res.send(`<!DOCTYPE html>
 <html lang="es">
