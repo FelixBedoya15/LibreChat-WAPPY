@@ -43,28 +43,30 @@ const errorMessages = {
   [ErrorTypes.MODERATION]: 'com_error_moderation',
   [ErrorTypes.NO_USER_KEY]: (json: any, localize: LocalizeFunction) => {
     return (
-      <div className="my-2 p-4.5 rounded-2xl border border-amber-200/60 bg-amber-50/40 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/15 dark:text-amber-100 font-sans whitespace-normal break-words shadow-sm max-w-2xl">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-key-round">
-              <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4c.9.2 1.8.1 2.6-.2L18.4 11c1.2-1.2 1.4-3 .5-4.3l-.3-.4C17.3 4.8 15.1 4.5 13.5 5.5l-1.3 1.3c-.9.9-1.2 2.2-.9 3.4L10 11.6v2.4H7v3H4v-1"/>
-              <circle cx="17" cy="8" r="1"/>
+      <div className="w-full my-3 p-5 rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent text-amber-900 dark:text-amber-100 font-sans whitespace-normal break-words shadow-md shadow-amber-500/5 backdrop-blur-[2px] animate-fadeIn">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 shrink-0 shadow-sm shadow-amber-500/10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-key">
+              <circle cx="7.5" cy="16.5" r="4.5" />
+              <path d="m21 3-10.7 10.7" />
+              <path d="m14 6 3 3" />
+              <path d="M11 9h2" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-bold text-sm leading-snug tracking-wide text-amber-950 dark:text-amber-200 mb-1">
+            <div className="font-extrabold text-base leading-snug tracking-wide text-amber-950 dark:text-amber-100 mb-1.5">
               No se encontró ninguna clave API de Google Gemini
             </div>
-            <div className="text-xs leading-relaxed opacity-95 text-gray-700 dark:text-gray-300">
-              Para chatear con el asistente es obligatorio que conectes tu clave API. Te recomendamos realizar el videotutorial rápido paso a paso en nuestra aula de estudio para activarla en 2 minutos:
+            <div className="text-xs leading-relaxed opacity-95 text-gray-700 dark:text-gray-300 max-w-4xl">
+              Para conversar con el asistente es obligatorio que conectes tu clave API. Te recomendamos realizar el videotutorial rápido paso a paso en nuestra aula de estudio para activarla de forma sencilla en 2 minutos:
             </div>
             
-            <div className="mt-3.5 flex flex-wrap gap-2.5">
+            <div className="mt-4 flex flex-wrap gap-2.5">
               <a
                 href="https://wappy.club/training/69a5efb4780d73647a1961fe/api-key-facil-conecta-google-gemini-a-wappy-ia"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200 bg-amber-600 border-amber-600 hover:bg-amber-700 text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white shadow-md shadow-amber-500/20 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer"
               >
                 <span>Activar Clave (Videotutorial Aula de Estudio)</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-up-right">
@@ -80,29 +82,29 @@ const errorMessages = {
   },
   [ErrorTypes.INVALID_USER_KEY]: (json: any, localize: LocalizeFunction) => {
     return (
-      <div className="my-2 p-4.5 rounded-2xl border border-red-200/60 bg-red-50/40 text-red-900 dark:border-red-900/40 dark:bg-red-950/15 dark:text-red-100 font-sans whitespace-normal break-words shadow-sm max-w-2xl">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 shrink-0 mt-0.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield-alert">
+      <div className="w-full my-3 p-5 rounded-3xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent text-rose-900 dark:text-rose-100 font-sans whitespace-normal break-words shadow-md shadow-rose-500/5 backdrop-blur-[2px] animate-fadeIn">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 shrink-0 shadow-sm shadow-rose-500/10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield-alert">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <path d="M12 8v4"/>
-              <path d="M12 16h.01"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-bold text-sm leading-snug tracking-wide text-red-950 dark:text-red-200 mb-1">
+            <div className="font-extrabold text-base leading-snug tracking-wide text-rose-950 dark:text-rose-100 mb-1.5">
               Clave API de Google Gemini no válida
             </div>
-            <div className="text-xs leading-relaxed opacity-95 text-gray-700 dark:text-gray-300">
+            <div className="text-xs leading-relaxed opacity-95 text-gray-700 dark:text-gray-300 max-w-4xl">
               La clave de API proporcionada no es válida. Por favor, asegúrate de haberla copiado correctamente sin espacios adicionales. Si tienes dudas, te recomendamos realizar el videotutorial paso a paso en nuestra aula de estudio:
             </div>
             
-            <div className="mt-3.5 flex flex-wrap gap-2.5">
+            <div className="mt-4 flex flex-wrap gap-2.5">
               <a
                 href="https://wappy.club/training/69a5efb4780d73647a1961fe/api-key-facil-conecta-google-gemini-a-wappy-ia"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200 bg-red-600 border-red-600 hover:bg-red-700 text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-700 hover:to-rose-600 text-white shadow-md shadow-rose-500/20 hover:shadow-lg hover:shadow-rose-500/30 cursor-pointer"
               >
                 <span>Ver Videotutorial en Aula de Estudio</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-up-right">
