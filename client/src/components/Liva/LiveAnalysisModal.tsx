@@ -996,18 +996,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     if (!selectedTemplate) {
         return (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50/98 backdrop-blur-md transition-all duration-300">
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto">
-                    {/* Wappy Design Scanlines */}
-                    <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,118,0.02))] bg-[length:100%_2px,3px_100%] opacity-20"></div>
+                    {/* Wappy Design Light BG Gradients */}
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-slate-100/50 via-white to-teal-50/30 opacity-70"></div>
                     
-                    {/* Vignette */}
-                    <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.6)]"></div>
-
                     {/* Top Close Button */}
                     <button 
                         onClick={onClose}
-                        className="absolute top-6 right-6 p-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-all z-50"
+                        className="absolute top-6 right-6 p-3 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 hover:text-slate-900 transition-all z-50 shadow-sm"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -1015,14 +1012,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     {/* Content Container */}
                     <div className="relative z-10 max-w-4xl w-full flex flex-col items-center gap-8 my-auto">
                         <div className="text-center space-y-3">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-mono uppercase tracking-[0.2em] shadow-sm">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 HSE Command Center
                             </div>
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 tracking-tight drop-shadow-md pb-1">
+                            <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-teal-900 to-slate-950 tracking-tight pb-1 drop-shadow-sm">
                                 ANÁLISIS EN VIVO
                             </h1>
-                            <p className="text-white/60 text-sm md:text-base max-w-lg mx-auto">
+                            <p className="text-slate-600 text-sm md:text-base max-w-lg mx-auto font-medium">
                                 Seleccione una plantilla de inspección técnica especializada. La IA adaptará sus directrices y su enfoque en tiempo real.
                             </p>
                         </div>
@@ -1032,108 +1029,108 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             {/* Card 1: General */}
                             <div 
                                 onClick={() => setSelectedTemplate('general')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-emerald-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-emerald-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">ISO 45001</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">ISO 45001</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-emerald-400 transition-colors">Inspección General</h3>
-                                    <p className="text-white/50 text-xs mt-1">Evaluación amplia de orden, aseo, señalización, ergonomía y condiciones de seguridad industrial estándar.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-emerald-600 transition-colors">Inspección General</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Evaluación amplia de orden, aseo, señalización, ergonomía y condiciones de seguridad industrial estándar.</p>
                                 </div>
                             </div>
 
                             {/* Card 2: Alturas */}
                             <div 
                                 onClick={() => setSelectedTemplate('alturas')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(6,182,212,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-cyan-50 border border-cyan-100 rounded-xl text-cyan-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">SST ALTURA</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">SST ALTURA</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-cyan-400 transition-colors">Trabajo en Alturas</h3>
-                                    <p className="text-white/50 text-xs mt-1">Enfoque arneses, líneas de vida, puntos de anclaje, conectores y estado de plataformas de elevación.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-cyan-600 transition-colors">Trabajo en Alturas</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Enfoque arneses, líneas de vida, puntos de anclaje, conectores y estado de plataformas de elevación.</p>
                                 </div>
                             </div>
 
                             {/* Card 3: Eléctrico */}
                             <div 
                                 onClick={() => setSelectedTemplate('eléctrico')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-amber-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-amber-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(245,158,11,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 group-hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">LOTO / ENERGÍA</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">LOTO / ENERGÍA</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-amber-400 transition-colors">Riesgo Eléctrico</h3>
-                                    <p className="text-white/50 text-xs mt-1">Tableros eléctricos, cableado expuesto, bloqueo y etiquetado (LOTO) y EPP dieléctrico.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-amber-600 transition-colors">Riesgo Eléctrico</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Tableros eléctricos, cableado expuesto, bloqueo y etiquetado (LOTO) y EPP dieléctrico.</p>
                                 </div>
                             </div>
 
                             {/* Card 4: 5S */}
                             <div 
                                 onClick={() => setSelectedTemplate('5s')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-teal-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(20,184,166,0.15)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-teal-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(20,184,166,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400 group-hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-emerald-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-teal-50 border border-teal-100 rounded-xl text-teal-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">ORDEN & ASEO</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">ORDEN & ASEO</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-teal-400 transition-colors">Metodología 5S</h3>
-                                    <p className="text-white/50 text-xs mt-1">Clasificación, orden, limpieza, estandarización y disciplina en plantas, almacenes y áreas de trabajo.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-teal-600 transition-colors">Metodología 5S</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Clasificación, orden, limpieza, estandarización y disciplina en plantas, almacenes y áreas de trabajo.</p>
                                 </div>
                             </div>
 
                             {/* Card 5: Biomecánico Estándar */}
                             <div 
                                 onClick={() => setSelectedTemplate('biomecanico_estandar')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-purple-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(168,85,247,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 group-hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-violet-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-purple-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">GTC 45 ERGO</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">GTC 45 ERGO</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-purple-400 transition-colors">Riesgo Biomecánico</h3>
-                                    <p className="text-white/50 text-xs mt-1">Evaluación cualitativa de posturas, movimientos repetitivos, manejo de cargas y puestos de trabajo ergonómicos.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-purple-600 transition-colors">Riesgo Biomecánico</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Evaluación cualitativa de posturas, movimientos repetitivos, manejo de cargas y puestos de trabajo ergonómicos.</p>
                                 </div>
                             </div>
 
                             {/* Card 6: Biomecánico MediaPipe */}
                             <div 
                                 onClick={() => setSelectedTemplate('biomecanico_mediapipe')}
-                                className="group relative cursor-pointer bg-slate-950/60 hover:bg-slate-900/60 border border-white/10 hover:border-cyan-500/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-xl hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] flex flex-col justify-between min-h-[180px]"
+                                className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(6,182,212,0.12)] flex flex-col justify-between min-h-[180px]"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="p-3 bg-cyan-50 border border-cyan-100 rounded-xl text-cyan-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border border-white/5 px-2 py-0.5 rounded">MEDIAPIPE POSE</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">MEDIAPIPE POSE</span>
                                 </div>
-                                <div className="mt-4">
-                                    <h3 className="text-white text-lg font-bold group-hover:text-cyan-400 transition-colors">Biomecánico (MediaPipe)</h3>
-                                    <p className="text-white/50 text-xs mt-1">Evaluación cuantitativa en tiempo real con esqueleto digital fluorescente, medición de ángulos cervical y tronco en vivo.</p>
+                                <div className="mt-4 z-10">
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-cyan-600 transition-colors">Biomecánico (MediaPipe)</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Evaluación cuantitativa en tiempo real con esqueleto digital fluorescente, medición de ángulos cervical y tronco en vivo.</p>
                                 </div>
                             </div>
                         </div>
