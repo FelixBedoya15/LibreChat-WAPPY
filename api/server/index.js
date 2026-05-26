@@ -390,13 +390,9 @@ const startServer = async () => {
         }
 
         .logo-image {
-            width: 84px;
-            height: 84px;
-            border-radius: 52px;
-            border: 3px solid #ffffff;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            object-fit: cover;
-            background-color: #fff;
+            width: 140px;
+            height: auto;
+            object-fit: contain;
         }
 
         h1 {
@@ -537,7 +533,7 @@ const startServer = async () => {
                         </div>
                         <div class="link-info">
                             <h2>Comunidad Oficial</h2>
-                            <p>Únete para soporte, novedades y material VIP.</p>
+                            <p>Curso gratuito de IA para SST.</p>
                         </div>
                     </div>
                     <svg class="arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -546,10 +542,10 @@ const startServer = async () => {
                 </a>
 
                 <!-- Link 2: Registro en WAPPY (current domain relative url) -->
-                <a href="/auth/register" class="link-card">
+                <a href="/register" class="link-card">
                     <div class="link-content">
                         <div class="icon-box" style="background: #ffffff;">
-                            <img src="/assets/logo.png" alt="WAPPY Icon" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;">
+                            <img src="/assets/icon-192x192.png" alt="WAPPY Icon" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;">
                         </div>
                         <div class="link-info">
                             <h2>Crear tu Cuenta Gratis</h2>
