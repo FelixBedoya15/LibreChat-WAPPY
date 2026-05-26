@@ -128,6 +128,10 @@ const companyInfoSchema = new mongoose.Schema({
         type: String,
         default: null,
     },
+    logoBase64: {
+        type: String,
+        default: null,
+    },
     legalRepConsent: {
         type: String,
         default: 'No',

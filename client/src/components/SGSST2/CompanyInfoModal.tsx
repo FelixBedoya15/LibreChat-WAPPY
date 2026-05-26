@@ -56,6 +56,7 @@ interface CompanyInfoData {
     legalRepConsent: string;
     sstRespSignature: string | null;
     sstRespConsent: string;
+    logoBase64?: string | null;
     sedes: SedeData[];
 }
 
@@ -88,6 +89,7 @@ const INITIAL_DATA: CompanyInfoData = {
     legalRepConsent: 'No',
     sstRespSignature: null,
     sstRespConsent: 'No',
+    logoBase64: null,
     sedes: [],
 };
 
@@ -437,6 +439,51 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     <div className="md:col-span-3">
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
                                         <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary"><ImageIcon className="h-3.5 w-3.5 text-teal-500" />Logotipo de la Empresa (Opcional)</label>
+                                        <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-border-medium bg-surface-primary p-4">
+                                            {data.logoBase64 ? (
+                                                <div className="relative group rounded-xl border border-border-medium p-2 bg-white dark:bg-zinc-800 shadow-sm transition-all hover:border-red-400">
+                                                    <img src={data.logoBase64} alt="Logotipo Empresa" className="h-16 w-16 object-contain rounded-lg" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleChange('logoBase64', null)}
+                                                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-md"
+                                                        title="Eliminar Logotipo"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="h-16 w-16 rounded-xl border-2 border-dashed border-border-medium flex items-center justify-center bg-surface-secondary text-text-secondary shadow-inner shrink-0">
+                                                    <Building2 className="h-6 w-6 text-text-secondary/60" />
+                                                </div>
+                                            )}
+                                            <div className="flex-1 text-center md:text-left space-y-1">
+                                                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg active:scale-95 shrink-0">
+                                                    <ImageIcon className="h-4 w-4" />
+                                                    <span>SELECCIONAR IMAGEN</span>
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                const reader = new FileReader();
+                                                                reader.onload = (readerEvent) => {
+                                                                    handleChange('logoBase64', readerEvent.target?.result as string);
+                                                                };
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                            e.target.value = '';
+                                                        }} 
+                                                        className="hidden" 
+                                                    />
+                                                </label>
+                                                <p className="text-[10.5px] text-text-secondary font-medium">Recomendado: imagen cuadrada o rectangular horizontal, formato PNG/JPG, peso menor a 1MB. Se utilizará para estampar tu marca en los portales QR y reportes.</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
