@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
+import axios from 'axios';
 
 // Declare global types for YouTube Iframe Player API
 declare global {
@@ -339,11 +340,8 @@ export default function ComunidadPage() {
   const fetchLeads = async () => {
     setIsLoadingLeads(true);
     try {
-      const response = await fetch('/api/admin/leads');
-      if (response.ok) {
-        const data = await response.json();
-        setLeads(data);
-      }
+      const response = await axios.get('/api/admin/leads');
+      setLeads(response.data);
     } catch (err) {
       console.error('Error fetching leads:', err);
     } finally {
@@ -401,23 +399,12 @@ export default function ComunidadPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/admin/leads', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          videoUrl,
-        }),
+      const response = await axios.post('/api/admin/leads', {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        videoUrl,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al guardar la información.');
-      }
 
       localStorage.setItem('wappy_lead_captured', 'true');
       localStorage.setItem('wappy_lead_data', JSON.stringify({ fullName, email, phone }));
@@ -434,7 +421,8 @@ export default function ComunidadPage() {
         }).catch(err => console.error("Error playing video:", err));
       }
     } catch (err: any) {
-      setFormError(err.message || 'Hubo un problema al registrar la información.');
+      const errMsg = err.response?.data?.message || err.message || 'Hubo un problema al registrar la información.';
+      setFormError(errMsg);
       setIsSubmitting(false);
     }
   };
