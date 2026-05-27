@@ -1,4 +1,5 @@
 import { useState, useId, useRef, memo, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import * as Menu from '@ariakit/react/menu';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DropdownPopup, Spinner, useToastContext } from '@librechat/client';
@@ -279,7 +280,7 @@ function ConvoOptions({
           setShowDeleteDialog={setShowDeleteDialog}
         />
       )}
-      {isUpgradeModalOpen && (
+      {isUpgradeModalOpen && createPortal(
         <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
             <button
@@ -298,7 +299,8 @@ function ConvoOptions({
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
