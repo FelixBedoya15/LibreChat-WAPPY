@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Trabajo Anual SST 2026 - WAPPY SA</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config for Wappy Theme Customization -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        wappy: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e', /* Verde Wappy Principal */
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        accent: {
+                            500: '#06b6d4', /* Cyan */
+                            600: '#0891b2',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Glassmorphism Styles & Premium Touches */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card {
+            background: rgba(30, 41, 59, 0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 10px 30px -10px rgba(34, 197, 94, 0.15);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(34, 197, 94, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(34, 197, 94, 0.5);
+        }
+
+        /* Contenteditable focus styles */
+        [contenteditable="true"]:focus {
+            outline: 2px solid #22c55e;
+            background: rgba(34, 197, 94, 0.05);
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        /* Ambient Glow Animations */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.15; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(1.1); }
+        }
+        .glow-sphere {
+            animation: pulseGlow 8s infinite ease-in-out;
+        }
+
+        /* Printing Adjustments */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-size: 11px;
+            }
+            .no-print, 
+            .no-print *, 
+            #ai-assistant-sidebar, 
+            .btn-action, 
+            #logo-input-label,
+            #reset-btn,
+            #btn-add-activity,
+            .th-actions,
+            .td-actions {
+                display: none !important;
+            }
+            .glass-panel, .glass-card {
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                color: #0f172a !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                color: #0f172a !important;
+                border: 1px solid #cbd5e1 !important;
+                padding: 6px !important;
+            }
+            td {
+                border: 1px solid #cbd5e1 !important;
+                padding: 6px !important;
+                color: #334155 !important;
+            }
+            h1, h2, h3 {
+                color: #15803d !important;
+                background: none !important;
+                -webkit-text-fill-color: initial !important;
+            }
+            .print-full-width {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .print-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 12px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-wappy-500/30 selection:text-wappy-200 relative overflow-x-hidden pb-12">
+
+    <!-- Ambient Glow Effects -->
+    <div class="absolute top-0 right-0 -mr-20 -mt-20 w-[450px] h-[450px] bg-wappy-500/10 rounded-full blur-[120px] pointer-events-none glow-sphere"></div>
+    <div class="absolute bottom-1/3 left-0 -ml-20 w-[400px] h-[400px] bg-accent-500/10 rounded-full blur-[100px] pointer-events-none glow-sphere" style="animation-delay: -3s;"></div>
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl print-full-width relative z-10">
+        
+        <!-- ==================== HEADER ==================== -->
+        <header class="glass-panel rounded-2xl p-6 mb-8 shadow-xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-wappy-500 via-emerald-400 to-cyan-500"></div>
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <!-- Custom Logo Upload Area -->
+                <div class="flex items-center gap-4">
+                    <div class="relative group">
+                        <div id="logo-container" class="w-20 h-20 rounded-xl bg-slate-800/80 border border-slate-700/50 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-wappy-500/50">
+                            <!-- Default Icon Placeholder -->
+                            <i data-lucide="shield" class="w-10 h-10 text-wappy-500/60" id="default-logo-icon"></i>
+                            <img id="logo-preview" class="w-full h-full object-contain hidden" alt="Logo Empresa">
+                        </div>
+                        <label id="logo-input-label" for="logo-upload" class="absolute -bottom-2 -right-2 bg-wappy-500 hover:bg-wappy-600 text-white rounded-full p-1.5 shadow-lg cursor-pointer transition-transform duration-200 hover:scale-110 no-print flex items-center justify-center">
+                            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                            <input type="file" id="logo-upload" accept="image/*" class="hidden">
+                        </label>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-wappy-500/10 text-wappy-400 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-wappy-500/20">SG-SST 2026</span>
+                            <span class="bg-slate-800 text-slate-400 text-xs px-2.5 py-0.5 rounded-full border border-slate-700/50">Colombia</span>
+                        </div>
+                        <h1 id="editable-plan-title" contenteditable="true" onblur="saveHeaderMetadata()" class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-wappy-500 to-cyan-400 bg-clip-text text-transparent mt-1.5">
+                            PLAN DE TRABAJO ANUAL SST
+                        </h1>
+                        <p class="text-sm text-slate-400 mt-1">Cumplimiento Decreto 1072 de 2015 y Resolución 0312 de 2019</p>
+                    </div>
+                </div>
+
+                <!-- Action Controls (Print, Reset, AI Assistant Toggle) -->
+                <div class="flex flex-wrap items-center gap-3 no-print">
+                    <button onclick="toggleAIAssistant()" class="flex items-center gap-2 bg-gradient-to-r from-wappy-500 to-cyan-500 hover:from-wappy-600 hover:to-cyan-600 text-slate-950 font-bold px-4 py-2 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-wappy-500/20 hover:scale-[1.02]">
+                        <i data-lucide="sparkles" class="w-4 h-4 animate-pulse"></i>
+                        <span>Asistente IA Wappy</span>
+                    </button>
+                    <button onclick="window.print()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl border border-slate-700/80 transition-colors">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        <span>Imprimir</span>
+                    </button>
+                    <button id="reset-btn" onclick="resetPlanToOriginal()" class="flex items-center gap-2 bg-red-950/40 hover:bg-red-900/40 text-red-300 px-4 py-2 rounded-xl border border-red-900/30 transition-colors" title="Restablecer valores originales">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span>Reiniciar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==================== METADATA TARJETA ==================== -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mt-6 pt-6 border-t border-slate-800/80">
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Empresa</span>
+                    <span id="meta-empresa" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-slate-200 block mt-0.5">WAPPY SA</span>
+                </div>
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">NIT</span>
+                    <span id="meta-nit" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-slate-200 block mt-0.5">901437310-1</span>
+                </div>
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Trabajadores</span>
+                    <span id="meta-trabajadores" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-slate-200 block mt-0.5">30</span>
+                </div>
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Clase de Riesgo</span>
+                    <span id="meta-riesgo" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-slate-200 block mt-0.5">Riesgo III</span>
+                </div>
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">ARL</span>
+                    <span id="meta-arl" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-slate-200 block mt-0.5">ARL Colmena</span>
+                </div>
+                <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Año Vigencia</span>
+                    <span id="meta-anio" contenteditable="true" onblur="saveHeaderMetadata()" class="text-sm font-bold text-wappy-400 block mt-0.5">2026</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ==================== SECCIONES DINÁMICAS (3 COLUMNAS) ==================== -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 print-grid">
+            
+            <!-- Objetivos del Plan -->
+            <div class="glass-card rounded-2xl p-5 flex flex-col relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-400">
+                            <i data-lucide="target" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-100">Objetivos del Plan</h3>
+                    </div>
+                    <button onclick="addDynamicItem('objectives')" class="w-7 h-7 rounded-lg bg-wappy-500/10 border border-wappy-500/20 text-wappy-400 hover:bg-wappy-500 hover:text-slate-950 flex items-center justify-center transition-all no-print">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <ul id="list-objectives" class="space-y-3 flex-1">
+                    <!-- Dynamic rendering -->
+                </ul>
+            </div>
+
+            <!-- Indicadores Clave -->
+            <div class="glass-card rounded-2xl p-5 flex flex-col relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-100">Indicadores de Gestión</h3>
+                    </div>
+                    <button onclick="addDynamicItem('indicators')" class="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500 hover:text-slate-950 flex items-center justify-center transition-all no-print">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <ul id="list-indicators" class="space-y-3 flex-1">
+                    <!-- Dynamic rendering -->
+                </ul>
+            </div>
+
+            <!-- Recursos Asignados -->
+            <div class="glass-card rounded-2xl p-5 flex flex-col relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                            <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-100">Recursos (Presupuesto)</h3>
+                    </div>
+                    <button onclick="addDynamicItem('resources')" class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all no-print">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <ul id="list-resources" class="space-y-3 flex-1">
+                    <!-- Dynamic rendering -->
+                </ul>
+            </div>
+
+        </section>
+
+        <!-- ==================== TABLA DE ACTIVIDADES ==================== -->
+        <main class="glass-panel rounded-2xl p-6 shadow-xl mb-8 overflow-hidden relative">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800/80">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-wappy-500/10 flex items-center justify-center text-wappy-400">
+                        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100">Cronograma General de Actividades</h2>
+                        <p class="text-xs text-slate-400">Control de ejecución mensual y soportes de cumplimiento legal</p>
+                    </div>
+                </div>
+
+                <!-- Add Activity Trigger -->
+                <button id="btn-add-activity" onclick="openActivityModal(null)" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-wappy-400 hover:text-wappy-300 font-semibold px-4 py-2.5 rounded-xl border border-slate-700 transition-all hover:scale-[1.02] no-print">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Agregar Actividad</span>
+                </button>
+            </div>
+
+            <!-- Table Wrapper -->
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left border-collapse min-w-[900px]">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-900/30 text-xs font-semibold text-slate-400 tracking-wider">
+                            <th class="p-4 w-12 text-center">Estado</th>
+                            <th class="p-4 min-w-[220px]">Actividad / Tarea</th>
+                            <th class="p-4 w-16 text-center">PHVA</th>
+                            <th class="p-4 min-w-[140px]">Cronograma (Inicio - Fin)</th>
+                            <th class="p-4 min-w-[140px]">Responsable</th>
+                            <th class="p-4 min-w-[140px]">Recursos Asignados</th>
+                            <th class="p-4 min-w-[140px]">Soporte Legal</th>
+                            <th class="p-4 w-28 text-center th-actions no-print">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-activities-body" class="divide-y divide-slate-800/80 text-sm">
+                        <!-- Dynamic rendering -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- ==================== FIRMAS OBLIGATORIAS ==================== -->
+        <footer class="glass-panel rounded-2xl p-6 shadow-xl">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-8 border-b border-slate-800 pb-3">Firmas de Aprobación Obligatorias</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mt-6">
+                <!-- Legal Representative Signature -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-64 border-b border-slate-700 mb-3 pb-2 min-h-[30px]" id="signature-rep-name" contenteditable="true" onblur="saveHeaderMetadata()" placeholder="Escriba aquí el nombre del representante">
+                        FELIX ANTONIO BEDOYA
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Representante Legal</span>
+                    <span class="text-xs text-slate-500">C.C. / NIT Empresa</span>
+                </div>
+
+                <!-- SST Officer Signature -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-64 border-b border-slate-700 mb-3 pb-2 min-h-[30px]" id="signature-sst-name" contenteditable="true" onblur="saveHeaderMetadata()" placeholder="Escriba aquí el nombre del responsable SST">
+                        ING. MARÍA VALENTINA ORTIZ
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Responsable SG-SST</span>
+                    <span class="text-xs text-slate-500">Licencia SST: N° 129846 de 2024</span>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- ==================== IA WAPPY ASSISTANT SIDEBAR ==================== -->
+    <div id="ai-assistant-sidebar" class="fixed top-0 right-0 w-[420px] max-w-[95%] h-screen bg-slate-900/95 border-l border-slate-800 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col no-print">
+        <!-- AI Sidebar Header -->
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-wappy-500 to-cyan-500 flex items-center justify-center text-slate-950 font-bold">
+                    <i data-lucide="sparkles" class="w-4.5 h-4.5 animate-pulse"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-slate-100 text-md">Asistente IA Wappy</h3>
+                    <p class="text-[10px] text-slate-400">Potenciado por Gemini 3.1 Flash-Lite</p>
+                </div>
+            </div>
+            <button onclick="toggleAIAssistant()" class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- AI Sidebar Body -->
+        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+            <!-- Gemini API Key Setup -->
+            <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <i data-lucide="key" class="w-3.5 h-3.5 text-wappy-500"></i>
+                        <span>Gemini API Key</span>
+                    </label>
+                    <a href="https://aistudio.google.com/" target="_blank" class="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5">
+                        <span>Obtener Gratis</span>
+                        <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                    </a>
+                </div>
+                <div class="relative">
+                    <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500">
+                    <button onclick="togglePasswordVisibility('gemini-api-key')" class="absolute right-2 top-2.5 text-slate-500 hover:text-slate-300">
+                        <i data-lucide="eye" class="w-4 h-4" id="eye-icon"></i>
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-500">Tu API key se guarda de forma segura en tu navegador local (localStorage).</p>
+            </div>
+
+            <!-- Model Selection & Mode -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-300">Seleccione el Modelo de IA</label>
+                <select id="gemini-model" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-wappy-500">
+                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.5-flash">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.1-pro">Wappy IA Cerebro (Auditoría Profunda y Leyes)</option>
+                </select>
+            </div>
+
+            <!-- IA Command Textarea -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Instrucciones / ¿Qué deseas que la IA haga?</span>
+                    <span class="text-[10px] text-slate-500 font-normal">En español</span>
+                </label>
+                <textarea id="ai-instructions" rows="6" placeholder="Ejemplos:&#10;- Agrega 4 actividades obligatorias de prevención sobre riesgo eléctrico.&#10;- Redacta 3 objetivos del SST estratégicos para WAPPY SA.&#10;- Completa y mejora las actividades actuales de la tabla." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500 focus:ring-1 focus:ring-wappy-500/30 leading-relaxed"></textarea>
+            </div>
+
+            <!-- Suggested quick templates -->
+            <div class="space-y-2">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Sugerencias rápidas</span>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="setQuickAiPrompt('Agrega 5 capacitaciones fundamentales en SST que cumplan con la Resolución 0312')" class="text-xs bg-slate-800 hover:bg-slate-700/80 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700/50 transition-colors">Capacitaciones 0312</button>
+                    <button onclick="setQuickAiPrompt('Propón 3 indicadores de estructura, proceso y resultado según el Decreto 1072')" class="text-xs bg-slate-800 hover:bg-slate-700/80 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700/50 transition-colors">Indicadores 1072</button>
+                    <button onclick="setQuickAiPrompt('Agrega actividades para el plan de emergencia y simulacro anual')" class="text-xs bg-slate-800 hover:bg-slate-700/80 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700/50 transition-colors">Plan de Emergencias</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Sidebar Action Bar -->
+        <div class="p-5 border-t border-slate-800 bg-slate-950/60 flex flex-col gap-3">
+            <button onclick="callGeminiAPI()" id="btn-call-ai" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-wappy-500 to-cyan-500 hover:from-wappy-600 hover:to-cyan-600 text-slate-950 font-bold py-3 rounded-xl shadow-lg transition-transform duration-200 active:scale-95">
+                <i data-lucide="cpu" class="w-4 h-4 animate-spin-slow"></i>
+                <span>Generar con IA Wappy</span>
+            </button>
+            <div id="ai-status" class="hidden text-xs text-center py-1 rounded"></div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: ADD / EDIT ACTIVITY ==================== -->
+    <div id="activity-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 no-print animate-fade-in">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/20">
+                <h3 id="modal-title" class="font-extrabold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-wappy-500"></i>
+                    <span>Nueva Actividad</span>
+                </h3>
+                <button onclick="closeActivityModal()" class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content Form -->
+            <form id="activity-form" onsubmit="saveActivity(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modal-task-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Descripción de la Actividad</label>
+                    <input type="text" id="modal-activity-name" required placeholder="Ej: Realizar exámenes médicos ocupacionales de ingreso" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Ciclo PHVA</label>
+                        <select id="modal-phva" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-wappy-500">
+                            <option value="P">Planear (P)</option>
+                            <option value="H">Hacer (H)</option>
+                            <option value="V">Verificar (V)</option>
+                            <option value="A">Actuar (A)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Responsable</label>
+                        <input type="text" id="modal-responsible" required placeholder="Ej: Responsable SST" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Fecha Inicio</label>
+                        <input type="date" id="modal-start" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-wappy-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Fecha Fin</label>
+                        <input type="date" id="modal-end" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-wappy-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Recursos Asignados</label>
+                        <input type="text" id="modal-resources" placeholder="Ej: Tecnológicos y Financieros" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Soporte Legal</label>
+                        <input type="text" id="modal-legal" placeholder="Ej: Res. 0312 de 2019" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-wappy-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-4 border-t border-slate-800/80">
+                    <button type="button" onclick="closeActivityModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-3 rounded-xl transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 bg-gradient-to-r from-wappy-500 to-cyan-500 hover:from-wappy-600 hover:to-cyan-600 text-slate-950 font-bold py-3 rounded-xl transition-transform active:scale-95">
+                        Guardar Actividad
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== FLOATING AI ACTION BUTTON (FAB) ==================== -->
+    <button onclick="toggleAIAssistant()" class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-wappy-500 to-cyan-500 hover:from-wappy-600 hover:to-cyan-600 rounded-full flex items-center justify-center shadow-xl shadow-wappy-500/20 hover:shadow-wappy-500/30 text-slate-950 transition-all duration-300 hover:scale-110 active:scale-95 z-50 no-print group" title="Asistente de IA Wappy">
+        <i data-lucide="sparkles" class="w-6 h-6 animate-pulse group-hover:rotate-12 transition-transform"></i>
+        <!-- Ripple Outer Pulse Glow -->
+        <span class="absolute -inset-1 rounded-full bg-wappy-500/20 blur-sm pointer-events-none group-hover:bg-wappy-500/35 transition-colors"></span>
+    </button>
+
+    <!-- ==================== CUSTOM ALERTS TOAST ==================== -->
+    <div id="toast" class="fixed bottom-5 right-5 glass-panel border-wappy-500/50 rounded-xl px-5 py-3.5 shadow-2xl z-50 text-sm flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="w-6 h-6 rounded-full bg-wappy-500/20 flex items-center justify-center text-wappy-400" id="toast-icon-wrapper">
+            <i data-lucide="check" class="w-4 h-4" id="toast-icon"></i>
+        </div>
+        <div>
+            <p class="font-bold text-slate-100" id="toast-title">¡Éxito!</p>
+            <p class="text-xs text-slate-400" id="toast-desc">Cambios guardados con éxito.</p>
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+    <script>
+        // Default Initial Data (Prepopulated following Decreto 1072 & Res 0312)
+        const ORIGINAL_PLAN = {
+            metadata: {
+                title: "PLAN DE TRABAJO ANUAL SST",
+                empresa: "WAPPY SA",
+                nit: "901437310-1",
+                trabajadores: "30",
+                riesgo: "Riesgo III",
+                arl: "ARL Colmena",
+                anio: "2026",
+                repName: "FELIX ANTONIO BEDOYA",
+                sstName: "ING. MARÍA VALENTINA ORTIZ"
+            },
+            objectives: [
+                { id: "obj-1", text: "Definir e implementar las actividades de capacitación en SST de acuerdo con los peligros identificados en la matriz." },
+                { id: "obj-2", text: "Realizar el 100% de las inspecciones planeadas de seguridad para identificar actos y condiciones subestándar." },
+                { id: "obj-3", text: "Monitorear e impulsar el cumplimiento legal de las normas colombianas vigentes en seguridad y salud ocupacional." }
+            ],
+            indicators: [
+                { id: "ind-1", text: "Frecuencia de Accidentabilidad = (N° de accidentes en el mes / N° total de horas trabajadas) * 240.000" },
+                { id: "ind-2", text: "Severidad de Accidentabilidad = (N° de días perdidos por accidentes en el mes / N° total de horas trabajadas) * 240.000" },
+                { id: "ind-3", text: "Cumplimiento del Plan de Trabajo = (N° de actividades ejecutadas / N° de actividades programadas) * 100" }
+            ],
+            resources: [
+                { id: "rec-1", text: "Humanos: Responsable de SST con licencia nacional vigente asignado al plan." },
+                { id: "rec-2", text: "Tecnológicos: Computador de escritorio, software inteligente WAPPY IA y portal web ARL Colmena." },
+                { id: "rec-3", text: "Financieros: Presupuesto total aprobado de $7.500.000 COP para insumos y capacitaciones." }
+            ],
+            activities: [
+                { id: "act-1", completed: true, activity: "Socialización y firma de la política de SST", phva: "P", start: "2026-01-05", end: "2026-01-20", responsible: "Representante Legal", resources: "Físicos (política impresa)", legal: "Decreto 1072 (Art. 2.2.4.6.5)" },
+                { id: "act-2", completed: false, activity: "Capacitación en prevención de caídas y trabajo seguro en alturas", phva: "H", start: "2026-03-10", end: "2026-03-25", responsible: "Responsable SST / ARL Colmena", resources: "Humano (Entrenador), Físico (EPP)", legal: "Resolución 4272 de 2021" },
+                { id: "act-3", completed: false, activity: "Inspección periódica de orden y aseo en puestos de trabajo", phva: "V", start: "2026-05-15", end: "2026-05-20", responsible: "Integrantes COPASST", resources: "Formatos de inspección digitales", legal: "Decreto 1072 (Art. 2.2.4.6.24)" },
+                { id: "act-4", completed: false, activity: "Auditoría integral anual del SG-SST y revisión por la alta dirección", phva: "A", start: "2026-11-01", end: "2026-11-30", responsible: "Auditor Externo Calificado", resources: "Financiero (Honorarios de auditor)", legal: "Decreto 1072 (Art. 2.2.4.6.29)" }
+            ]
+        };
+
+        // Application State
+        let state = {};
+        let editingTaskId = null;
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderAll();
+            lucide.createIcons();
+        });
+
+        // Load state from localStorage with Try-Catch
+        function loadState() {
+            try {
+                const stored = localStorage.getItem('wappy_sst_plan_state');
+                if (stored) {
+                    state = JSON.parse(stored);
+                } else {
+                    state = JSON.parse(JSON.stringify(ORIGINAL_PLAN));
+                }
+                
+                // Load Gemini Key if saved
+                const geminiKey = localStorage.getItem('wappy_gemini_api_key');
+                if (geminiKey) {
+                    document.getElementById('gemini-api-key').value = geminiKey;
+                }
+
+                // Load Logo if saved
+                const savedLogo = localStorage.getItem('wappy_sst_logo');
+                if (savedLogo) {
+                    const img = document.getElementById('logo-preview');
+                    const icon = document.getElementById('default-logo-icon');
+                    img.src = savedLogo;
+                    img.classList.remove('hidden');
+                    icon.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error("Error cargando el estado desde localStorage:", error);
+                showToast("Error de Carga", "No se pudo recuperar el plan guardado. Usando plantilla base.", "alert-triangle");
+                state = JSON.parse(JSON.stringify(ORIGINAL_PLAN));
+            }
+        }
+
+        // Save State to localStorage with Try-Catch
+        function saveState() {
+            try {
+                localStorage.setItem('wappy_sst_plan_state', JSON.stringify(state));
+            } catch (error) {
+                console.error("Error guardando el estado en localStorage:", error);
+                showToast("Error al Guardar", "El almacenamiento local está lleno o no disponible.", "alert-triangle");
+            }
+        }
+
+        // Reset to default
+        function resetPlanToOriginal() {
+            if (confirm("¿Está seguro de que desea restablecer los valores originales del Plan de Trabajo? Se perderán todos los cambios personalizados.")) {
+                try {
+                    localStorage.removeItem('wappy_sst_plan_state');
+                    localStorage.removeItem('wappy_sst_logo');
+                    
+                    // Reset logo UI
+                    const img = document.getElementById('logo-preview');
+                    const icon = document.getElementById('default-logo-icon');
+                    img.src = '';
+                    img.classList.add('hidden');
+                    icon.classList.remove('hidden');
+                    document.getElementById('logo-upload').value = '';
+
+                    state = JSON.parse(JSON.stringify(ORIGINAL_PLAN));
+                    renderAll();
+                    showToast("Reiniciado", "El plan se ha restablecido a su estado inicial.", "check");
+                } catch (e) {
+                    console.error("Error al reiniciar plan:", e);
+                }
+            }
+        }
+
+        // Sync Contenteditable Header & Metadata to State onBlur
+        function saveHeaderMetadata() {
+            try {
+                state.metadata.title = document.getElementById('editable-plan-title').innerText.trim();
+                state.metadata.empresa = document.getElementById('meta-empresa').innerText.trim();
+                state.metadata.nit = document.getElementById('meta-nit').innerText.trim();
+                state.metadata.trabajadores = document.getElementById('meta-trabajadores').innerText.trim();
+                state.metadata.riesgo = document.getElementById('meta-riesgo').innerText.trim();
+                state.metadata.arl = document.getElementById('meta-arl').innerText.trim();
+                state.metadata.anio = document.getElementById('meta-anio').innerText.trim();
+                
+                state.metadata.repName = document.getElementById('signature-rep-name').innerText.trim();
+                state.metadata.sstName = document.getElementById('signature-sst-name').innerText.trim();
+
+                saveState();
+                showToast("Sincronizado", "Metadatos y firmas actualizados.", "check");
+            } catch (error) {
+                console.error("Error guardando metadatos:", error);
+            }
+        }
+
+        // Customizable Logo Handler
+        document.getElementById('logo-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast("Error de Logo", "La imagen no debe superar los 2MB.", "alert-triangle");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64 = event.target.result;
+                    try {
+                        localStorage.setItem('wappy_sst_logo', base64);
+                        
+                        const img = document.getElementById('logo-preview');
+                        const icon = document.getElementById('default-logo-icon');
+                        img.src = base64;
+                        img.classList.remove('hidden');
+                        icon.classList.add('hidden');
+                        
+                        showToast("Logo Guardado", "El logo corporativo se ha actualizado.", "check");
+                    } catch (e) {
+                        showToast("Error de Logo", "No se pudo guardar el logo en el almacenamiento local.", "alert-triangle");
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // ==================== RENDERING LOGIC ====================
+        function renderAll() {
+            renderHeaderMetadata();
+            renderDynamicSection('objectives', 'list-objectives', 'text-slate-300');
+            renderDynamicSection('indicators', 'list-indicators', 'text-slate-300');
+            renderDynamicSection('resources', 'list-resources', 'text-slate-300');
+            renderActivitiesTable();
+            lucide.createIcons();
+        }
+
+        function renderHeaderMetadata() {
+            document.getElementById('editable-plan-title').innerText = state.metadata.title || "PLAN DE TRABAJO ANUAL SST";
+            document.getElementById('meta-empresa').innerText = state.metadata.empresa || "";
+            document.getElementById('meta-nit').innerText = state.metadata.nit || "";
+            document.getElementById('meta-trabajadores').innerText = state.metadata.trabajadores || "";
+            document.getElementById('meta-riesgo').innerText = state.metadata.riesgo || "";
+            document.getElementById('meta-arl').innerText = state.metadata.arl || "";
+            document.getElementById('meta-anio').innerText = state.metadata.anio || "";
+            
+            document.getElementById('signature-rep-name').innerText = state.metadata.repName || "";
+            document.getElementById('signature-sst-name').innerText = state.metadata.sstName || "";
+        }
+
+        // Render Dynamic 3 Columns
+        function renderDynamicSection(sectionKey, elementId, textClass) {
+            const list = document.getElementById(elementId);
+            list.innerHTML = '';
+            
+            const items = state[sectionKey] || [];
+            if (items.length === 0) {
+                list.innerHTML = `<li class="text-xs text-slate-500 italic py-2">No se han registrado ítems.</li>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'group flex items-start justify-between gap-3 bg-slate-950/50 p-2.5 rounded-xl border border-slate-900/60 hover:border-slate-800 transition-all';
+                li.innerHTML = `
+                    <div class="flex items-start gap-2.5 flex-1 min-w-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-wappy-500 mt-2 shrink-0"></span>
+                        <div contenteditable="true" 
+                             onblur="updateDynamicItemText('${sectionKey}', '${item.id}', this)"
+                             class="text-xs leading-relaxed ${textClass} flex-1 break-words focus:outline-none focus:bg-slate-900"
+                             placeholder="Escriba contenido aquí...">
+                            ${item.text}
+                        </div>
+                    </div>
+                    <button onclick="deleteDynamicItem('${sectionKey}', '${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 p-1 rounded transition-all no-print" title="Eliminar ítem">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+            lucide.createIcons();
+        }
+
+        // Render Activities Table
+        function renderActivitiesTable() {
+            const tbody = document.getElementById('table-activities-body');
+            tbody.innerHTML = '';
+
+            const list = state.activities || [];
+            if (list.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="p-8 text-center text-slate-500 italic">
+                            No hay actividades programadas. Utilice el botón "Agregar Actividad" o Wappy IA.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            list.forEach(task => {
+                const tr = document.createElement('tr');
+                tr.className = `border-b border-slate-800/60 transition-colors hover:bg-slate-900/20 ${task.completed ? 'bg-wappy-950/5' : ''}`;
+                
+                // PHVA Badge Colors
+                let phvaClass = 'bg-slate-800 text-slate-400';
+                if (task.phva === 'P') phvaClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                else if (task.phva === 'H') phvaClass = 'bg-wappy-500/10 text-wappy-400 border border-wappy-500/20';
+                else if (task.phva === 'V') phvaClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                else if (task.phva === 'A') phvaClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
+
+                tr.innerHTML = `
+                    <td class="p-4 text-center">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                               onclick="toggleActivityStatus('${task.id}')"
+                               class="w-4.5 h-4.5 rounded border-slate-800 bg-slate-950 text-wappy-500 focus:ring-wappy-500 focus:ring-offset-slate-950 cursor-pointer">
+                    </td>
+                    <td class="p-4 font-medium text-slate-200">
+                        <div class="break-words max-w-[280px]">${task.activity}</div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${phvaClass}">${task.phva}</span>
+                    </td>
+                    <td class="p-4 text-slate-300 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-500 shrink-0"></i>
+                            <span>${formatDate(task.start)} a ${formatDate(task.end)}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-slate-300">${task.responsible}</td>
+                    <td class="p-4 text-slate-300 text-xs">${task.resources || '<span class="text-slate-600">-</span>'}</td>
+                    <td class="p-4 text-slate-300 text-xs">
+                        <span class="inline-block bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-slate-400">${task.legal || 'Ninguno'}</span>
+                    </td>
+                    <td class="p-4 text-center td-actions no-print">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="openActivityModal('${task.id}')" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-wappy-500/20 text-slate-400 hover:text-wappy-400 border border-slate-700/50 hover:border-wappy-500/30 transition-all" title="Editar Actividad">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteActivity('${task.id}')" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700/50 hover:border-red-500/30 transition-all" title="Eliminar Actividad">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // ==================== DYNAMIC COLUMN FUNCTIONS ====================
+        function addDynamicItem(sectionKey) {
+            const placeholder = sectionKey === 'objectives' ? 'Redactar un nuevo objetivo' : 
+                                sectionKey === 'indicators' ? 'Redactar un nuevo indicador' : 'Describir presupuesto o recurso';
+            
+            const promptText = prompt(`Ingrese el nuevo elemento para ${sectionKey === 'objectives' ? 'Objetivos' : sectionKey === 'indicators' ? 'Indicadores' : 'Recursos'}:`, "");
+            if (promptText && promptText.trim() !== '') {
+                const newItem = {
+                    id: `${sectionKey.slice(0, 3)}-${Date.now()}`,
+                    text: promptText.trim()
+                };
+                
+                if (!state[sectionKey]) state[sectionKey] = [];
+                state[sectionKey].push(newItem);
+                saveState();
+                
+                const listId = sectionKey === 'objectives' ? 'list-objectives' : 
+                               sectionKey === 'indicators' ? 'list-indicators' : 'list-resources';
+                const textClass = 'text-slate-300';
+                
+                renderDynamicSection(sectionKey, listId, textClass);
+                showToast("Agregado", "Elemento adicionado con éxito.", "check");
+            }
+        }
+
+        function updateDynamicItemText(sectionKey, id, element) {
+            const updatedText = element.innerText.trim();
+            if (updatedText === '') {
+                deleteDynamicItem(sectionKey, id);
+                return;
+            }
+
+            const items = state[sectionKey] || [];
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.text = updatedText;
+                saveState();
+            }
+        }
+
+        function deleteDynamicItem(sectionKey, id) {
+            if (confirm("¿Desea eliminar este ítem?")) {
+                const items = state[sectionKey] || [];
+                state[sectionKey] = items.filter(i => i.id !== id);
+                saveState();
+                
+                const listId = sectionKey === 'objectives' ? 'list-objectives' : 
+                               sectionKey === 'indicators' ? 'list-indicators' : 'list-resources';
+                renderDynamicSection(sectionKey, listId, 'text-slate-300');
+                showToast("Eliminado", "Ítem eliminado correctamente.", "trash-2");
+            }
+        }
+
+        // ==================== TABLE CONTROL FUNCTIONS ====================
+        function toggleActivityStatus(id) {
+            const task = state.activities.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveState();
+                renderActivitiesTable();
+                showToast(task.completed ? "Completado" : "Pendiente", `Actividad marcada como ${task.completed ? 'completada' : 'pendiente'}.`, "check");
+            }
+        }
+
+        function openActivityModal(id = null) {
+            const modal = document.getElementById('activity-modal');
+            const form = document.getElementById('activity-form');
+            const titleEl = document.getElementById('modal-title');
+            
+            editingTaskId = id;
+            
+            if (id) {
+                // Edit Mode
+                const task = state.activities.find(t => t.id === id);
+                if (task) {
+                    titleEl.innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-wappy-500"></i> <span>Editar Actividad</span>`;
+                    document.getElementById('modal-task-id').value = task.id;
+                    document.getElementById('modal-activity-name').value = task.activity;
+                    document.getElementById('modal-phva').value = task.phva;
+                    document.getElementById('modal-responsible').value = task.responsible;
+                    document.getElementById('modal-start').value = task.start;
+                    document.getElementById('modal-end').value = task.end;
+                    document.getElementById('modal-resources').value = task.resources || '';
+                    document.getElementById('modal-legal').value = task.legal || '';
+                }
+            } else {
+                // Add Mode
+                titleEl.innerHTML = `<i data-lucide="plus-circle" class="w-5 h-5 text-wappy-500"></i> <span>Nueva Actividad</span>`;
+                form.reset();
+                document.getElementById('modal-task-id').value = '';
+                
+                // Set default dates to current year
+                const year = state.metadata.anio || "2026";
+                document.getElementById('modal-start').value = `${year}-01-01`;
+                document.getElementById('modal-end').value = `${year}-12-31`;
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeActivityModal() {
+            const modal = document.getElementById('activity-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            editingTaskId = null;
+        }
+
+        function saveActivity(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('modal-task-id').value;
+            const activityData = {
+                activity: document.getElementById('modal-activity-name').value.trim(),
+                phva: document.getElementById('modal-phva').value,
+                responsible: document.getElementById('modal-responsible').value.trim(),
+                start: document.getElementById('modal-start').value,
+                end: document.getElementById('modal-end').value,
+                resources: document.getElementById('modal-resources').value.trim(),
+                legal: document.getElementById('modal-legal').value.trim(),
+            };
+
+            if (id) {
+                // Update Activity
+                const index = state.activities.findIndex(t => t.id === id);
+                if (index !== -1) {
+                    state.activities[index] = {
+                        ...state.activities[index],
+                        ...activityData
+                    };
+                    showToast("Actualizado", "Actividad guardada correctamente.", "check");
+                }
+            } else {
+                // Create Activity
+                const newActivity = {
+                    id: `act-${Date.now()}`,
+                    completed: false,
+                    ...activityData
+                };
+                state.activities.push(newActivity);
+                showToast("Creado", "Nueva actividad registrada en el cronograma.", "plus");
+            }
+
+            saveState();
+            renderActivitiesTable();
+            closeActivityModal();
+        }
+
+        function deleteActivity(id) {
+            if (confirm("¿Está seguro de que desea eliminar permanentemente esta actividad del cronograma?")) {
+                state.activities = state.activities.filter(t => t.id !== id);
+                saveState();
+                renderActivitiesTable();
+                showToast("Eliminado", "Actividad removida con éxito del cronograma.", "trash-2");
+            }
+        }
+
+        // ==================== GEMINI AI INTEGRATION ====================
+        function toggleAIAssistant() {
+            const sidebar = document.getElementById('ai-assistant-sidebar');
+            const isOpen = !sidebar.classList.contains('translate-x-full');
+            
+            if (isOpen) {
+                sidebar.classList.add('translate-x-full');
+            } else {
+                sidebar.classList.remove('translate-x-full');
+            }
+        }
+
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            const icon = document.getElementById('eye-icon');
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                field.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        function setQuickAiPrompt(text) {
+            document.getElementById('ai-instructions').value = text;
+        }
+
+        async function callGeminiAPI() {
+            const apiKey = document.getElementById('gemini-api-key').value.trim();
+            const model = document.getElementById('gemini-model').value;
+            const instructions = document.getElementById('ai-instructions').value.trim();
+            const btn = document.getElementById('btn-call-ai');
+            const statusEl = document.getElementById('ai-status');
+
+            if (!apiKey) {
+                alert("Por favor ingrese su API Key de Gemini. Puede obtener una de forma gratuita en el portal de Google AI Studio.");
+                return;
+            }
+            if (!instructions) {
+                alert("Por favor escriba las instrucciones o la solicitud para el asistente de IA.");
+                return;
+            }
+
+            // Save key in localStorage for convenience
+            localStorage.setItem('wappy_gemini_api_key', apiKey);
+
+            // Set loading UI
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> <span>Procesando con IA...</span>`;
+            statusEl.innerText = "Consultando con Consultor SG-SST en Google AI Studio...";
+            statusEl.className = "text-xs text-center py-2 rounded bg-slate-800 text-cyan-400 block animate-pulse";
+            lucide.createIcons();
+
+            // Prepare Wappy Context & Year
+            const companyName = state.metadata.empresa || "WAPPY SA";
+            const nit = state.metadata.nit || "901437310-1";
+            const workers = state.metadata.trabajadores || "30";
+            const risk = state.metadata.riesgo || "Riesgo III";
+            const arl = state.metadata.arl || "ARL Colmena";
+            const year = state.metadata.anio || "2026";
+
+            // Define System Instruction following native Gemini REST payload
+            const systemInstructionText = `Actúas como un Desarrollador Web Senior y Consultor Experto en SG-SST en Colombia. Tu tarea es generar, modificar o sugerir información para el "Plan de Trabajo Anual SST ${year}" de la empresa ${companyName} (NIT: ${nit}, ${workers} trabajadores, ${risk}, ARL ${arl}).
+Debes responder ÚNICAMENTE con un objeto JSON válido y estricto que cumpla exactamente con la estructura requerida. No uses explicaciones, comentarios, ni formato Markdown.
+
+ESTRUCTURA EXIGIDA DEL JSON:
+{
+  "objectives": [
+    { "id": "obj-1", "text": "..." }
+  ],
+  "indicators": [
+    { "id": "ind-1", "text": "..." }
+  ],
+  "resources": [
+    { "id": "rec-1", "text": "..." }
+  ],
+  "activities": [
+    {
+      "id": "act-1",
+      "completed": false,
+      "activity": "...",
+      "phva": "P",
+      "start": "${year}-01-01",
+      "end": "${year}-12-31",
+      "responsible": "...",
+      "resources": "...",
+      "legal": "..."
+    }
+  ]
+}
+
+REGLAS SST EN COLOMBIA:
+1. Asegura el estricto cumplimiento legal de Colombia (Decreto 1072/2015, Res 0312/2019).
+2. Asigna fases del ciclo PHVA válidas (letra única: P, H, V, A).
+3. Asegura que todos los IDs dinámicos sean únicos.`;
+
+            // Prepare User Prompt
+            const userPromptText = `Instrucción del usuario: "${instructions}"
+
+El estado actual del plan es:
+- Objetivos del Plan: ${JSON.stringify(state.objectives)}
+- Indicadores de Gestión: ${JSON.stringify(state.indicators)}
+- Recursos Asignados: ${JSON.stringify(state.resources)}
+- Cronograma de Actividades actuales: ${JSON.stringify(state.activities)}
+
+Fusiónalos, añade las actividades solicitadas, o edita la información según corresponda. Si te pide agregar actividades, manten las anteriores a menos que el usuario indique explícitamente reemplazarlas. Recuerda que las fechas deben estar dentro del año ${year} en formato YYYY-MM-DD.`;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: userPromptText
+                            }]
+                        }],
+                        systemInstruction: {
+                            parts: [{
+                                text: systemInstructionText
+                            }]
+                        },
+                        generationConfig: {
+                            responseMimeType: "application/json"
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (!result.candidates || result.candidates.length === 0) {
+                    throw new Error("No se recibió ninguna respuesta de los servidores de Gemini.");
+                }
+
+                let responseText = result.candidates[0].content.parts[0].text.trim();
+                
+                // Clean markdown code blocks just in case
+                if (responseText.startsWith("```")) {
+                    responseText = responseText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+                }
+
+                // Parse response
+                const parsedData = JSON.parse(responseText);
+
+                // Update state reactive
+                if (parsedData.objectives) state.objectives = parsedData.objectives;
+                if (parsedData.indicators) state.indicators = parsedData.indicators;
+                if (parsedData.resources) state.resources = parsedData.resources;
+                if (parsedData.activities) state.activities = parsedData.activities;
+
+                saveState();
+                renderAll();
+                
+                statusEl.innerText = "¡Plan sincronizado con Wappy IA con éxito!";
+                statusEl.className = "text-xs text-center py-2 rounded bg-wappy-950/60 text-wappy-400 block font-semibold";
+                showToast("IA Sincronizada", "El contenido sugerido ha sido integrado al plan.", "sparkles");
+                
+                // Clear instruction box
+                document.getElementById('ai-instructions').value = '';
+            } catch (error) {
+                console.error("Error al llamar a Gemini:", error);
+                statusEl.innerText = `Error: ${error.message}`;
+                statusEl.className = "text-xs text-center py-2 rounded bg-red-950/60 text-red-400 block font-semibold";
+                alert("Error al procesar con IA. Verifique su API Key de Gemini y que la instrucción sea correcta. Detalle: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="cpu" class="w-4 h-4"></i> <span>Generar con IA Wappy</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        // ==================== HELPER UTILS ====================
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return `${parts[2]} ${months[parseInt(parts[1]) - 1]}`;
+        }
+
+        function showToast(title, desc, iconName = "check") {
+            const toast = document.getElementById('toast');
+            const tTitle = document.getElementById('toast-title');
+            const tDesc = document.getElementById('toast-desc');
+            const tIcon = document.getElementById('toast-icon');
+            const tIconWrap = document.getElementById('toast-icon-wrapper');
+
+            tTitle.innerText = title;
+            tDesc.innerText = desc;
+            tIcon.setAttribute('data-lucide', iconName);
+            
+            // Adjust styles based on type
+            if (iconName === 'alert-triangle') {
+                tIconWrap.className = 'w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-400';
+                toast.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            } else if (iconName === 'sparkles') {
+                tIconWrap.className = 'w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400';
+                toast.style.borderColor = 'rgba(6, 182, 212, 0.5)';
+            } else {
+                tIconWrap.className = 'w-6 h-6 rounded-full bg-wappy-500/20 flex items-center justify-center text-wappy-400';
+                toast.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            }
+
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
