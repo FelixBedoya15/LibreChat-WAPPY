@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, AlertCircle, Sparkles, UserCheck, HelpCircle } from 'lucide-react';
+import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
+
+// Declare global types for YouTube Iframe Player API
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: (() => void) | undefined;
+  }
+}
 
 // Extract YouTube ID helper
 function getYouTubeId(url: string) {
@@ -25,11 +33,14 @@ export default function ComunidadPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const ytPlayerRef = useRef<any>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVideoFinished, setIsVideoFinished] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Parse if it is YouTube
   const youtubeId = getYouTubeId(videoUrl);
@@ -50,9 +61,99 @@ export default function ComunidadPage() {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Monitor playback time to trigger the lead capture at 120 seconds (2 minutes)
+  // Load YouTube API script
   useEffect(() => {
-    if (isYouTube) return; // YouTube logic handled via postMessage post listener below
+    if (!isYouTube) return;
+
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, [isYouTube]);
+
+  // Hook into the YouTube Player Iframe API
+  useEffect(() => {
+    if (!isYouTube) return;
+
+    let intervalId: NodeJS.Timeout;
+    let ytPlayer: any = null;
+
+    const initializeYTPlayer = () => {
+      if (window.YT && window.YT.Player) {
+        ytPlayer = new window.YT.Player('wappy-yt-player', {
+          events: {
+            onReady: (event: any) => {
+              setDuration(event.target.getDuration());
+            },
+            onStateChange: (event: any) => {
+              const state = event.data;
+              if (state === 1) { // Playing
+                setIsPlaying(true);
+              } else if (state === 2) { // Paused
+                setIsPlaying(false);
+              } else if (state === 0) { // Ended
+                setIsPlaying(false);
+                setIsVideoFinished(true);
+              }
+            }
+          }
+        });
+        ytPlayerRef.current = ytPlayer;
+
+        // Poll current playback time securely every 200ms
+        intervalId = setInterval(() => {
+          if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+            try {
+              const time = ytPlayer.getCurrentTime();
+              setCurrentTime(time);
+              const totalDuration = ytPlayer.getDuration();
+              if (totalDuration > 0) setDuration(totalDuration);
+
+              // 120 seconds limit lock logic
+              if (time >= 120 && !isLeadCaptured) {
+                ytPlayer.pauseVideo();
+                setIsPlaying(false);
+                setShowLeadModal(true);
+              }
+            } catch (err) {
+              // Frame may not be fully loaded
+            }
+          }
+        }, 200);
+      }
+    };
+
+    // If YT API is already loaded
+    if (window.YT && window.YT.Player) {
+      initializeYTPlayer();
+    } else {
+      // Poll to check when YT SDK script is loaded
+      const pollYTSDK = setInterval(() => {
+        if (window.YT && window.YT.Player) {
+          clearInterval(pollYTSDK);
+          initializeYTPlayer();
+        }
+      }, 100);
+
+      return () => {
+        clearInterval(pollYTSDK);
+        if (intervalId) clearInterval(intervalId);
+      };
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+        ytPlayer.destroy();
+      }
+    };
+  }, [isYouTube, isLeadCaptured, videoUrl]);
+
+  // Monitor playback time for HTML5 video
+  useEffect(() => {
+    if (isYouTube) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -89,50 +190,16 @@ export default function ComunidadPage() {
     };
   }, [isLeadCaptured, videoUrl, isYouTube]);
 
-  // YouTube postMessage Listener
+  // Monitor fullscreen change events globally to sync the icon state
   useEffect(() => {
-    if (!isYouTube) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes('youtube.com') && !event.origin.includes('youtube-nocookie.com')) return;
-      
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === 'infoDelivery' && data.info) {
-          if (data.info.currentTime !== undefined) {
-            const time = data.info.currentTime;
-            setCurrentTime(time);
-            
-            // If YouTube video reaches 120s and lead is not captured, pause it
-            if (time >= 120 && !isLeadCaptured) {
-              pauseYouTube();
-              setShowLeadModal(true);
-            }
-          }
-          if (data.info.duration !== undefined) {
-            setDuration(data.info.duration);
-          }
-          if (data.info.playerState !== undefined) {
-            if (data.info.playerState === 1) { // Playing
-              setIsPlaying(true);
-            } else if (data.info.playerState === 2) { // Paused
-              setIsPlaying(false);
-            } else if (data.info.playerState === 0) { // Ended
-              setIsPlaying(false);
-              setIsVideoFinished(true);
-            }
-          }
-        }
-      } catch (e) {
-        // Safe to ignore non-JSON messages
-      }
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
-
-    window.addEventListener('message', handleMessage);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
-      window.removeEventListener('message', handleMessage);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isYouTube, isLeadCaptured]);
+  }, []);
 
   // Prevent seeking via keyboard
   useEffect(() => {
@@ -164,21 +231,19 @@ export default function ComunidadPage() {
     };
   }, [showLeadModal, isPlaying, videoUrl]);
 
-  // YouTube controllers
+  // Playback control functions
   const playYouTube = () => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: 'command', func: 'playVideo' }),
-      '*'
-    );
-    setIsPlaying(true);
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === 'function') {
+      ytPlayerRef.current.playVideo();
+      setIsPlaying(true);
+    }
   };
 
   const pauseYouTube = () => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: 'command', func: 'pauseVideo' }),
-      '*'
-    );
-    setIsPlaying(false);
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === 'function') {
+      ytPlayerRef.current.pauseVideo();
+      setIsPlaying(false);
+    }
   };
 
   const togglePlay = () => {
@@ -204,8 +269,22 @@ export default function ComunidadPage() {
     }
   };
 
+  const toggleFullscreen = () => {
+    const container = playerContainerRef.current;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => console.error("Error entering fullscreen:", err));
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
   const formatTime = (time: number) => {
-    if (isNaN(time)) return '00:00';
+    if (isNaN(time) || time <= 0) return '00:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -422,11 +501,16 @@ export default function ComunidadPage() {
           </div>
 
           {/* Custom Video Player Container */}
-          <div className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group" onContextMenu={(e) => e.preventDefault()}>
+          <div 
+            ref={playerContainerRef}
+            className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group" 
+            onContextMenu={(e) => e.preventDefault()}
+          >
             
             {/* YouTube embed vs standard HTML5 video tag */}
             {isYouTube ? (
               <iframe
+                id="wappy-yt-player"
                 ref={iframeRef}
                 src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&controls=0&disablekb=1&rel=0&modestbranding=1&fs=0&iv_load_policy=3&showinfo=0`}
                 className="w-full h-full object-cover pointer-events-none select-none border-0"
@@ -573,24 +657,47 @@ export default function ComunidadPage() {
             )}
 
             {/* Custom Control Bar */}
-            <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-slate-950/80 to-transparent flex items-center justify-between px-6 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={togglePlay}
-                  className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
-                >
-                  {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                </button>
-
-                <span className="text-xs font-mono text-white">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
+            <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-slate-950/90 to-transparent flex flex-col justify-end z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              
+              {/* Passive Visual Read-Only Progress Bar */}
+              <div className="w-full h-1 bg-white/20 relative">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-200 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
+                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                />
               </div>
 
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[10px] text-slate-300">
-                <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Reproducción Protegida WAPPY</span>
+              <div className="flex items-center justify-between px-6 py-3">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={togglePlay}
+                    className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                  </button>
+
+                  <span className="text-xs font-mono text-white select-none">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Fullscreen Button */}
+                  <button 
+                    onClick={toggleFullscreen}
+                    className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                    title={isFullscreen ? "Minimizar pantalla" : "Pantalla completa"}
+                  >
+                    {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                  </button>
+
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[10px] text-slate-300 select-none">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    <span>Reproducción Protegida WAPPY</span>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
 
