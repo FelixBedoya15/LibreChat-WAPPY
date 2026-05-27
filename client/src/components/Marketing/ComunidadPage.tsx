@@ -58,6 +58,11 @@ export default function ComunidadPage() {
     isLeadCapturedRef.current = isLeadCaptured;
   }, [isLeadCaptured]);
 
+  const showLeadModalRef = useRef(showLeadModal);
+  useEffect(() => {
+    showLeadModalRef.current = showLeadModal;
+  }, [showLeadModal]);
+
   // Admin Leads State
   const [isLeadsPanelOpen, setIsLeadsPanelOpen] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
@@ -123,7 +128,7 @@ export default function ComunidadPage() {
               if (totalDuration > 0) setDuration(totalDuration);
 
               // 120 seconds limit lock logic
-              if (time >= 120 && !isLeadCapturedRef.current && !showLeadModal) {
+              if (time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -160,7 +165,7 @@ export default function ComunidadPage() {
         ytPlayer.destroy();
       }
     };
-  }, [isYouTube, videoUrl, showLeadModal]);
+  }, [isYouTube, videoUrl]);
 
   // Monitor playback time for HTML5 video
   useEffect(() => {
@@ -173,7 +178,7 @@ export default function ComunidadPage() {
       setCurrentTime(video.currentTime);
       
       // If video reaches 120s and lead is not captured, pause and show modal
-      if (video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModal) {
+      if (video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current) {
         video.pause();
         setIsPlaying(false);
         video.currentTime = 120; // Lock to exactly 120s
@@ -199,7 +204,7 @@ export default function ComunidadPage() {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [videoUrl, isYouTube, showLeadModal]);
+  }, [videoUrl, isYouTube]);
 
   // Monitor fullscreen change events globally to sync the icon state
   useEffect(() => {
@@ -476,6 +481,21 @@ export default function ComunidadPage() {
           <div className="flex items-center gap-4">
             {isAdmin && (
               <>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('wappy_lead_captured');
+                    localStorage.removeItem('wappy_lead_data');
+                    setIsLeadCaptured(false);
+                    setShowLeadModal(false);
+                    setCurrentTime(0);
+                    window.location.reload();
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 transition-all text-xs font-semibold shadow-sm"
+                  title="Elimina tu registro de prueba para volver a bloquear el video a los 2 minutos"
+                >
+                  Reiniciar Bloqueo
+                </button>
+
                 <button
                   onClick={() => {
                     fetchLeads();
