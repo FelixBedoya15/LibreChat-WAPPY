@@ -31,4 +31,9 @@ router.post('/checkout-event', recordEvent); // public — no auth required
 router.get('/checkout/summary', requireJwtAuth, requireAdmin, getSummary);
 router.get('/checkout/events', requireJwtAuth, requireAdmin, getRecentEvents);
 
+// Lead Capture Funnel (public write + admin read)
+const { recordLead, getAllLeads } = require('~/server/controllers/LeadController');
+router.post('/leads', recordLead);
+router.get('/leads', requireJwtAuth, requireAdmin, getAllLeads);
+
 module.exports = router;

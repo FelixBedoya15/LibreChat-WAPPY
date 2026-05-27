@@ -53,6 +53,17 @@ export default function ComunidadPage() {
     return localStorage.getItem('wappy_lead_captured') === 'true';
   });
 
+  const isLeadCapturedRef = useRef(isLeadCaptured);
+  useEffect(() => {
+    isLeadCapturedRef.current = isLeadCaptured;
+  }, [isLeadCaptured]);
+
+  // Admin Leads State
+  const [isLeadsPanelOpen, setIsLeadsPanelOpen] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadsSearch, setLeadsSearch] = useState('');
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+
   // Form Fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -112,7 +123,7 @@ export default function ComunidadPage() {
               if (totalDuration > 0) setDuration(totalDuration);
 
               // 120 seconds limit lock logic
-              if (time >= 120 && !isLeadCaptured) {
+              if (time >= 120 && !isLeadCapturedRef.current && !showLeadModal) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -149,7 +160,7 @@ export default function ComunidadPage() {
         ytPlayer.destroy();
       }
     };
-  }, [isYouTube, isLeadCaptured, videoUrl]);
+  }, [isYouTube, videoUrl, showLeadModal]);
 
   // Monitor playback time for HTML5 video
   useEffect(() => {
@@ -162,7 +173,7 @@ export default function ComunidadPage() {
       setCurrentTime(video.currentTime);
       
       // If video reaches 120s and lead is not captured, pause and show modal
-      if (video.currentTime >= 120 && !isLeadCaptured) {
+      if (video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModal) {
         video.pause();
         setIsPlaying(false);
         video.currentTime = 120; // Lock to exactly 120s
@@ -188,7 +199,7 @@ export default function ComunidadPage() {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [isLeadCaptured, videoUrl, isYouTube]);
+  }, [videoUrl, isYouTube, showLeadModal]);
 
   // Monitor fullscreen change events globally to sync the icon state
   useEffect(() => {
@@ -207,6 +218,12 @@ export default function ComunidadPage() {
     if (showLeadModal) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // If user is currently focusing/typing in any input, textarea or editable field, bypass all hotkeys completely!
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
       // List of blocked keys
       const blockedKeys = [
         'ArrowLeft', 'ArrowRight', 'Home', 'End', 
@@ -286,11 +303,19 @@ export default function ComunidadPage() {
     }
   };
 
-  const formatTime = (time: number) => {
-    if (isNaN(time) || time <= 0) return '00:00';
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const getProgressBarWidth = () => {
+    const targetDuration = isLeadCaptured ? duration : 120;
+    if (targetDuration <= 0) return 0;
+    
+    // Normalized linear progress [0, 1]
+    const x = Math.min(Math.max(currentTime / targetDuration, 0), 1);
+    
+    // Non-linear curve: y = 1 - (1 - x)^2 (quadratic ease-out)
+    // This fills extremely fast at first (reaches 75% bar length when at 50% time)
+    // and slows down significantly in the last quarter to keep the user hooked.
+    const nonLinearX = 1 - Math.pow(1 - x, 2);
+    
+    return nonLinearX * 100;
   };
 
   const handleSaveVideoUrl = () => {
@@ -306,7 +331,48 @@ export default function ComunidadPage() {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const fetchLeads = async () => {
+    setIsLoadingLeads(true);
+    try {
+      const response = await fetch('/api/admin/leads');
+      if (response.ok) {
+        const data = await response.json();
+        setLeads(data);
+      }
+    } catch (err) {
+      console.error('Error fetching leads:', err);
+    } finally {
+      setIsLoadingLeads(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchLeads();
+    }
+  }, [isAdmin]);
+
+  const handleExportCSV = () => {
+    if (leads.length === 0) return;
+    const headers = ['Nombre Completo', 'Correo Electrónico', 'Número de Celular', 'Fecha de Registro'];
+    const rows = leads.map(lead => [
+      `"${lead.fullName.replace(/"/g, '""')}"`,
+      `"${lead.email.replace(/"/g, '""')}"`,
+      `"${lead.phone.replace(/"/g, '""')}"`,
+      `"${new Date(lead.createdAt).toLocaleString()}"`
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `WAPPY_Leads_Comunidad_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -329,8 +395,25 @@ export default function ComunidadPage() {
 
     setIsSubmitting(true);
 
-    // Mock API submission / Lead storage
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          videoUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al guardar la información.');
+      }
+
       localStorage.setItem('wappy_lead_captured', 'true');
       localStorage.setItem('wappy_lead_data', JSON.stringify({ fullName, email, phone }));
       setIsLeadCaptured(true);
@@ -343,9 +426,12 @@ export default function ComunidadPage() {
       } else if (videoRef.current) {
         videoRef.current.play().then(() => {
           setIsPlaying(true);
-        });
+        }).catch(err => console.error("Error playing video:", err));
       }
-    }, 1000);
+    } catch (err: any) {
+      setFormError(err.message || 'Hubo un problema al registrar la información.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -389,16 +475,31 @@ export default function ComunidadPage() {
 
           <div className="flex items-center gap-4">
             {isAdmin && (
-              <button
-                onClick={() => {
-                  setTempVideoUrl(videoUrl);
-                  setIsAdminPanelOpen(!isAdminPanelOpen);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-sm font-medium shadow-sm"
-              >
-                <Settings className="w-4 h-4 text-emerald-500 animate-spin-slow" />
-                Configurar Video
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    fetchLeads();
+                    setIsLeadsPanelOpen(!isLeadsPanelOpen);
+                    setIsAdminPanelOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-sm font-medium shadow-sm"
+                >
+                  <UserCheck className="w-4 h-4 text-emerald-500" />
+                  Ver Contactos ({leads.length})
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempVideoUrl(videoUrl);
+                    setIsAdminPanelOpen(!isAdminPanelOpen);
+                    setIsLeadsPanelOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-sm font-medium shadow-sm"
+                >
+                  <Settings className="w-4 h-4 text-emerald-500 animate-spin-slow" />
+                  Configurar Video
+                </button>
+              </>
             )}
 
             {/* Login Button: Only appears when the video finishes (isVideoFinished === true) */}
@@ -414,10 +515,87 @@ export default function ComunidadPage() {
           </div>
         </nav>
 
+        {/* Leads Panel */}
+        {isAdmin && isLeadsPanelOpen && (
+          <div className="w-full max-w-5xl mx-auto px-6 mb-6 relative z-30">
+            <div className="bg-surface-primary/95 border border-emerald-500/40 rounded-2xl p-5 sm:p-6 backdrop-blur-md shadow-xl text-left">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-md font-bold text-emerald-500 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5" />
+                    Contactos Registrados (Leads de Comunidad)
+                  </h3>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Visualiza y exporta los datos de los usuarios que han desbloqueado el video de la masterclass.
+                  </p>
+                </div>
+                
+                <button
+                  onClick={handleExportCSV}
+                  disabled={leads.length === 0}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  Exportar a Excel (CSV)
+                </button>
+              </div>
+
+              {/* Search filter */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={leadsSearch}
+                  onChange={(e) => setLeadsSearch(e.target.value)}
+                  placeholder="Buscar por nombre, correo o celular..."
+                  className="w-full max-w-md px-4 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all placeholder:text-text-secondary/40"
+                />
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-border-medium bg-surface-secondary/20">
+                {isLoadingLeads ? (
+                  <div className="text-center py-8 text-xs text-text-secondary">Cargando contactos...</div>
+                ) : leads.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-text-secondary">No hay contactos registrados aún.</div>
+                ) : (
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-surface-secondary border-b border-border-medium text-text-secondary font-semibold">
+                        <th className="p-3">Nombre</th>
+                        <th className="p-3">Correo</th>
+                        <th className="p-3">Celular</th>
+                        <th className="p-3">Fecha de Registro</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leads
+                        .filter(lead => {
+                          const query = leadsSearch.toLowerCase();
+                          return (
+                            lead.fullName.toLowerCase().includes(query) ||
+                            lead.email.toLowerCase().includes(query) ||
+                            lead.phone.includes(query)
+                          );
+                        })
+                        .map((lead, idx) => (
+                          <tr key={lead._id || idx} className="border-b border-border-medium/40 hover:bg-surface-secondary/40 transition-colors">
+                            <td className="p-3 font-medium text-text-primary">{lead.fullName}</td>
+                            <td className="p-3 text-text-secondary">{lead.email}</td>
+                            <td className="p-3 text-text-secondary">{lead.phone}</td>
+                            <td className="p-3 text-text-secondary">{new Date(lead.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Admin Panel */}
         {isAdmin && isAdminPanelOpen && (
           <div className="w-full max-w-3xl mx-auto px-6 mb-6 relative z-30">
-            <div className="bg-surface-primary/95 border border-emerald-500/40 rounded-2xl p-5 backdrop-blur-md shadow-xl">
+            <div className="bg-surface-primary/95 border border-emerald-500/40 rounded-2xl p-5 backdrop-blur-md shadow-xl text-left">
               <h3 className="text-md font-bold text-emerald-500 mb-3 flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 Panel de Administración: Enlace de Video
@@ -653,7 +831,7 @@ export default function ComunidadPage() {
                       disabled={isSubmitting}
                       className="w-full py-3 mt-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 hover:translate-x-0.5 active:translate-x-0 disabled:opacity-50"
                     >
-                      {isSubmitting ? 'Registrando...' : 'Desbloquear y Continuar'}
+                      {isSubmitting ? 'Cargando...' : 'Continuar'}
                       {!isSubmitting && <ArrowRight className="w-4 h-4" />}
                     </button>
                   </form>
@@ -668,7 +846,7 @@ export default function ComunidadPage() {
               <div className="w-full h-1 bg-white/20 relative">
                 <div 
                   className="h-full bg-emerald-500 transition-all duration-200 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
-                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                  style={{ width: `${getProgressBarWidth()}%` }}
                 />
               </div>
 
