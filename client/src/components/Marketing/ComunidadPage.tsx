@@ -203,6 +203,9 @@ export default function ComunidadPage() {
 
   // Prevent seeking via keyboard
   useEffect(() => {
+    // If the data capture popup is open, do NOT block any key events so user can fill out the form
+    if (showLeadModal) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // List of blocked keys
       const blockedKeys = [
@@ -218,7 +221,7 @@ export default function ComunidadPage() {
       }
       
       // Space toggles play/pause
-      if (e.key === ' ' && !showLeadModal) {
+      if (e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();
         togglePlay();
@@ -360,9 +363,11 @@ export default function ComunidadPage() {
         }
       `}</style>
 
-      {/* Dynamic Glow Accents in Dark Mode */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/5 dark:bg-emerald-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 dark:bg-purple-600/10 blur-[120px] pointer-events-none" />
+      {/* Dynamic Glow Accents in Dark Mode Wrapper */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/5 dark:bg-emerald-600/10 blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 dark:bg-purple-600/10 blur-[120px]" />
+      </div>
 
       {/* Theme Switcher Selector (standard bottom left) */}
       <div className="fixed bottom-4 left-4 z-50">
@@ -675,10 +680,6 @@ export default function ComunidadPage() {
                   >
                     {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
                   </button>
-
-                  <span className="text-xs font-mono text-white select-none">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
