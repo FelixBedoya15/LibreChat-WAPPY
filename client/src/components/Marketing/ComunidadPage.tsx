@@ -4,6 +4,13 @@ import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Setting
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
 
+// Extract YouTube ID helper
+function getYouTubeId(url: string) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
 export default function ComunidadPage() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
@@ -17,10 +24,17 @@ export default function ComunidadPage() {
   const [tempVideoUrl, setTempVideoUrl] = useState(videoUrl);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVideoFinished, setIsVideoFinished] = useState(false);
+
+  // Parse if it is YouTube
+  const youtubeId = getYouTubeId(videoUrl);
+  const isYouTube = !!youtubeId;
+  const isYouTubeChannelError = !isYouTube && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
 
   // Lead Modal State
   const [showLeadModal, setShowLeadModal] = useState(false);
@@ -38,6 +52,8 @@ export default function ComunidadPage() {
 
   // Monitor playback time to trigger the lead capture at 120 seconds (2 minutes)
   useEffect(() => {
+    if (isYouTube) return; // YouTube logic handled via postMessage post listener below
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -71,7 +87,52 @@ export default function ComunidadPage() {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [isLeadCaptured]);
+  }, [isLeadCaptured, videoUrl, isYouTube]);
+
+  // YouTube postMessage Listener
+  useEffect(() => {
+    if (!isYouTube) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.includes('youtube.com') && !event.origin.includes('youtube-nocookie.com')) return;
+      
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'infoDelivery' && data.info) {
+          if (data.info.currentTime !== undefined) {
+            const time = data.info.currentTime;
+            setCurrentTime(time);
+            
+            // If YouTube video reaches 120s and lead is not captured, pause it
+            if (time >= 120 && !isLeadCaptured) {
+              pauseYouTube();
+              setShowLeadModal(true);
+            }
+          }
+          if (data.info.duration !== undefined) {
+            setDuration(data.info.duration);
+          }
+          if (data.info.playerState !== undefined) {
+            if (data.info.playerState === 1) { // Playing
+              setIsPlaying(true);
+            } else if (data.info.playerState === 2) { // Paused
+              setIsPlaying(false);
+            } else if (data.info.playerState === 0) { // Ended
+              setIsPlaying(false);
+              setIsVideoFinished(true);
+            }
+          }
+        }
+      } catch (e) {
+        // Safe to ignore non-JSON messages
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [isYouTube, isLeadCaptured]);
 
   // Prevent seeking via keyboard
   useEffect(() => {
@@ -101,19 +162,45 @@ export default function ComunidadPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [showLeadModal, isPlaying]);
+  }, [showLeadModal, isPlaying, videoUrl]);
+
+  // YouTube controllers
+  const playYouTube = () => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'playVideo' }),
+      '*'
+    );
+    setIsPlaying(true);
+  };
+
+  const pauseYouTube = () => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'pauseVideo' }),
+      '*'
+    );
+    setIsPlaying(false);
+  };
 
   const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video || showLeadModal) return;
+    if (showLeadModal) return;
 
-    if (video.paused) {
-      video.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => console.error("Error playing video:", err));
+    if (isYouTube) {
+      if (isPlaying) {
+        pauseYouTube();
+      } else {
+        playYouTube();
+      }
     } else {
-      video.pause();
-      setIsPlaying(false);
+      const video = videoRef.current;
+      if (!video) return;
+      if (video.paused) {
+        video.play().then(() => {
+          setIsPlaying(true);
+        }).catch(err => console.error("Error playing video:", err));
+      } else {
+        video.pause();
+        setIsPlaying(false);
+      }
     }
   };
 
@@ -129,9 +216,11 @@ export default function ComunidadPage() {
     setVideoUrl(tempVideoUrl);
     setIsAdminPanelOpen(false);
     setIsVideoFinished(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
     if (videoRef.current) {
       videoRef.current.load();
-      setIsPlaying(false);
     }
   };
 
@@ -167,7 +256,9 @@ export default function ComunidadPage() {
       setIsSubmitting(false);
       
       // Auto-resume video
-      if (videoRef.current) {
+      if (isYouTube) {
+        playYouTube();
+      } else if (videoRef.current) {
         videoRef.current.play().then(() => {
           setIsPlaying(true);
         });
@@ -248,24 +339,32 @@ export default function ComunidadPage() {
                 Panel de Administración: Enlace de Video
               </h3>
               <p className="text-xs text-text-secondary mb-4">
-                Ingresa el link directo de tu video promocional (.mp4). Los cambios se aplicarán de inmediato.
+                Ingresa el link directo de tu video (.mp4) o un enlace de video de YouTube (ej. https://www.youtube.com/watch?v=VIDEO_ID).
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
                   value={tempVideoUrl}
                   onChange={(e) => setTempVideoUrl(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-sm focus:outline-none focus:border-emerald-500 transition-all"
-                  placeholder="https://ejemplo.com/video.mp4"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-sm focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                  placeholder="https://ejemplo.com/video.mp4 o https://www.youtube.com/watch?v=VIDEO_ID"
                 />
                 <button
                   onClick={handleSaveVideoUrl}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shrink-0"
                 >
                   <Save className="w-4 h-4" />
                   Guardar Enlace
                 </button>
               </div>
+              {isYouTubeChannelError && (
+                <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>
+                    ⚠️ Advertencia: Has ingresado un link de canal o perfil de YouTube. Asegúrate de ingresar un enlace directo a un <strong>video específico</strong> (ej. https://www.youtube.com/watch?v=kY31WnN3B3Y) para que se reproduzca correctamente.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -325,16 +424,34 @@ export default function ComunidadPage() {
           {/* Custom Video Player Container */}
           <div className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group" onContextMenu={(e) => e.preventDefault()}>
             
-            {/* Main Video Element */}
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              className="w-full h-full object-cover pointer-events-none select-none"
-              playsInline
-              controls={false}
-            />
+            {/* YouTube embed vs standard HTML5 video tag */}
+            {isYouTube ? (
+              <iframe
+                ref={iframeRef}
+                src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&controls=0&disablekb=1&rel=0&modestbranding=1&fs=0&iv_load_policy=3&showinfo=0`}
+                className="w-full h-full object-cover pointer-events-none select-none border-0"
+                allow="autoplay; encrypted-media"
+                title="YouTube Video Player"
+              />
+            ) : isYouTubeChannelError ? (
+              <div className="w-full h-full bg-surface-secondary flex flex-col items-center justify-center p-6 text-center select-none">
+                <ShieldAlert className="w-12 h-12 text-amber-500 mb-2 animate-bounce" />
+                <h4 className="font-bold text-text-primary text-base">Formato de enlace de YouTube no soportado</h4>
+                <p className="text-xs text-text-secondary mt-1 max-w-sm leading-normal">
+                  Has ingresado un enlace de perfil o canal. Para reproducir videos de YouTube, ingresa un enlace de video directo como <strong>https://www.youtube.com/watch?v=ID_VIDEO</strong>.
+                </p>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                className="w-full h-full object-cover pointer-events-none select-none"
+                playsInline
+                controls={false}
+              />
+            )}
 
-            {/* Secure Interactive Touch Layer */}
+            {/* Secure Interactive Shield Overlay */}
             <div 
               onClick={togglePlay}
               onDoubleClick={(e) => {
@@ -349,7 +466,7 @@ export default function ComunidadPage() {
             />
 
             {/* Large Center Play Overlay (when paused) */}
-            {!isPlaying && !showLeadModal && (
+            {!isPlaying && !showLeadModal && !isYouTubeChannelError && (
               <div 
                 onClick={togglePlay}
                 className="absolute inset-0 flex items-center justify-center bg-slate-950/40 hover:bg-slate-950/30 transition-all duration-300 cursor-pointer z-25"
