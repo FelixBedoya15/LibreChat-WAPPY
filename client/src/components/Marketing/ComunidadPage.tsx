@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize } from 'lucide-react';
+import { Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize, Trash2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
 import axios from 'axios';
@@ -375,6 +375,23 @@ export default function ComunidadPage() {
     document.body.removeChild(link);
   };
 
+  const handleDeleteLead = async (leadId: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este contacto?')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(`/api/admin/leads/${leadId}`);
+      if (response.data.success) {
+        // Remove from local array instantly
+        setLeads(prev => prev.filter(lead => lead._id !== leadId));
+      }
+    } catch (err) {
+      console.error('Error deleting lead:', err);
+      alert('Hubo un error al intentar eliminar el contacto.');
+    }
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -572,6 +589,7 @@ export default function ComunidadPage() {
                         <th className="p-3">Correo</th>
                         <th className="p-3">Celular</th>
                         <th className="p-3">Fecha de Registro</th>
+                        <th className="p-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -590,6 +608,15 @@ export default function ComunidadPage() {
                             <td className="p-3 text-text-secondary">{lead.email}</td>
                             <td className="p-3 text-text-secondary">{lead.phone}</td>
                             <td className="p-3 text-text-secondary">{new Date(lead.createdAt).toLocaleString()}</td>
+                            <td className="p-3 text-right">
+                              <button
+                                onClick={() => handleDeleteLead(lead._id)}
+                                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all shadow-sm hover:scale-105 shrink-0"
+                                title="Eliminar contacto"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                     </tbody>

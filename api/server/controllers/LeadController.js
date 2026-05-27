@@ -34,7 +34,24 @@ const getAllLeads = async (req, res) => {
     }
 };
 
+const deleteLead = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedLead = await Lead.findByIdAndDelete(id);
+
+        if (!deletedLead) {
+            return res.status(404).json({ message: 'Contacto no encontrado.' });
+        }
+
+        res.status(200).json({ success: true, message: 'Contacto eliminado correctamente.' });
+    } catch (error) {
+        logger.error('Error deleting lead', error);
+        res.status(500).json({ message: 'Error interno al eliminar el contacto.' });
+    }
+};
+
 module.exports = {
     recordLead,
     getAllLeads,
+    deleteLead,
 };
