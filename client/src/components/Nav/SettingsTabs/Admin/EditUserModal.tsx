@@ -434,7 +434,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                                         placeholder="ej: felix-socio"
                                                                         value={partnerSlug}
                                                                         onChange={(e) => setPartnerSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))}
-                                                                        required={commercialTier !== 'none'}
+                                                                        required={true}
                                                                         className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-text-primary focus:border-amber-500 outline-none"
                                                                     />
                                                                 </div>

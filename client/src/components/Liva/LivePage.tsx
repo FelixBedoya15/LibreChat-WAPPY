@@ -801,8 +801,8 @@ const LivePage = () => {
             <div className="flex-1 flex flex-col min-h-0">
                     {/* Toolbar / Header Actions */}
                     <div className="w-full p-4 pb-0">
-                        <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
+                        <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-3 sm:p-4 flex flex-col sm:flex-row gap-4 sm:gap-0 items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:space-x-4">
                         {!navVisible && (
                             <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
                         )}
@@ -843,7 +843,7 @@ const LivePage = () => {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-0 sm:space-x-3">
                         <ModelSelector
                             selectedModel={selectedModel}
                             onSelectModel={setSelectedModel}
