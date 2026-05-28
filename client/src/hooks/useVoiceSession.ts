@@ -460,7 +460,16 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      */
     const setMuted = useCallback((muted: boolean) => {
         isMutedRef.current = muted;
-    }, []);
+        if (muted) {
+            console.log('[VoiceSession] Hardware Mute: Releasing microphone to system.');
+            stopAudioCapture();
+        } else {
+            console.log('[VoiceSession] Hardware Unmute: Acquiring microphone.');
+            if (isConnected) {
+                startAudioCapture();
+            }
+        }
+    }, [isConnected]);
 
     /**
      * Send Text Message

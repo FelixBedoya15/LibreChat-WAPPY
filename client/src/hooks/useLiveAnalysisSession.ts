@@ -456,7 +456,16 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
      */
     const setMuted = useCallback((muted: boolean) => {
         isMutedRef.current = muted;
-    }, []);
+        if (muted) {
+            console.log('[LiveAnalysisSession] Hardware Mute: Releasing microphone to system.');
+            stopAudioCapture();
+        } else {
+            console.log('[LiveAnalysisSession] Hardware Unmute: Acquiring microphone.');
+            if (isConnected) {
+                startAudioCapture();
+            }
+        }
+    }, [isConnected]);
 
     /**
      * Send Text Message

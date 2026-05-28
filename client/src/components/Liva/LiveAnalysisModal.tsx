@@ -190,146 +190,144 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
 
+            // REGLA DE ORO 1: Si el HTML ya viene completamente formateado del servidor con la plantilla premium esmeralda/teal,
+            // no lo envolvemos doblemente. Lo pasamos tal cual al callback del editor principal.
+            if (html.includes('WAPPY IA • HSE Command Center') || html.includes('wappy-kpi')) {
+                const parseKpi = (rawHtml: string) => {
+                    const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', consecuencia: 'Incapacitante', npeligros: '5+' };
+                    try {
+                        const match = rawHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
+                        if (!match) return defaults;
+                        const tag = match[0];
+                        const get = (attr: string) => {
+                            const m = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, 'i'));
+                            return m ? m[1].trim() : '';
+                        };
+                        return {
+                            riesgo:       get('data-riesgo')       || defaults.riesgo,
+                            accion:       get('data-accion')       || defaults.accion,
+                            consecuencia: get('data-consecuencia') || defaults.consecuencia,
+                            npeligros:    get('data-npeligros')    || defaults.npeligros,
+                        };
+                    } catch { return defaults; }
+                };
+                const kpi = parseKpi(html);
+                onReportReceived?.(html, kpi, messageId);
+                return;
+            }
+
+            // REGLA DE ORO 2: Si es un placeholder simple, lo envolvemos en la plantilla Verde Esmeralda/Teal oficial,
+            // inyectando las fotos capturadas durante la videollamada.
             const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const timeStr = new Date().toLocaleTimeString('es-ES');
+            const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             
-            // Prefer the EXACT frames the AI evaluated. Provide the base64 prefix so the <img> tag works.
-            let snapshots = snapshotsRef.current;
+            // Preferir frames evaluados del backend, sino fotos manuales, sino snapshots automáticos
+            let snapshots = manualCapturedPhotos.length > 0 ? manualCapturedPhotos : snapshotsRef.current;
             if (evaluatedFrames && evaluatedFrames.length > 0) {
-                // Backend sends raw base64. Frontend needs the data URL scheme to render in <img>
                 snapshots = evaluatedFrames.map(b64 => `data:image/jpeg;base64,${b64}`);
             }
 
-            // Build evidence gallery (up to 4 images if backend evaluated them)
-            let evidenceSection = '';
+            // Construir la sección HTML de la galería de fotos
+            let evidenceHtml = '';
             if (snapshots.length > 0) {
                 const imgItems = snapshots.map((src, idx) => `
-                    <div style="flex:1; min-width:200px; text-align:center;">
+                    <div style="flex:1; min-width:200px; text-align:center; margin-bottom:12px;">
                         <img src="${src}" alt="Evidencia ${idx+1}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
-                        <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura ${idx === 0 ? 'inicial' : idx === 1 ? 'intermedia' : 'final'} del entorno.</p>
+                        <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura de evidencia del entorno analizado.</p>
                     </div>`).join('');
-                evidenceSection = `
+                evidenceHtml = `
                     <div style="margin-bottom:24px;">
-                        <h3 style="color:#1a3a5c; font-size:1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #0066cc; padding-left:10px;">1. Evidencia Fotográfica del Entorno Analizado</h3>
-                        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">${imgItems}</div>
+                        <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">1. Evidencia Fotográfica del Entorno Analizado</h3>
+                        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:12px;">${imgItems}</div>
                     </div>`;
             }
 
-            // ─── Parse KPI metadata embedded by the AI ─────────────────────────
-            // The AI starts with: <div id="wappy-kpi" data-riesgo="..." data-accion="..." data-consecuencia="..." data-npeligros="N">
-            const parseKpi = (rawHtml: string) => {
-                const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', consecuencia: 'Incapacitante', npeligros: '5+' };
-                try {
-                    const match = rawHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
-                    if (!match) return defaults;
-                    const tag = match[0];
-                    const get = (attr: string) => {
-                        const m = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, 'i'));
-                        return m ? m[1].trim() : '';
-                    };
-                    return {
-                        riesgo:       get('data-riesgo')       || defaults.riesgo,
-                        accion:       get('data-accion')       || defaults.accion,
-                        consecuencia: get('data-consecuencia') || defaults.consecuencia,
-                        npeligros:    get('data-npeligros')    || defaults.npeligros,
-                    };
-                } catch { return defaults; }
-            };
+            const radicadoId = `LA-${new Date().getFullYear()}-PENDIENTE`;
 
-            const kpi = parseKpi(html);
-
-            // Color schemes per risk level
-            const riesgoStyle = kpi.riesgo === 'ALTO'
-                ? { bg: '#fff3e0', border: '#f57c00', labelColor: '#e65100', valColor: '#bf360c', icon: '⚠' }
-                : kpi.riesgo === 'MEDIO'
-                ? { bg: '#fffde7', border: '#f9a825', labelColor: '#f57f17', valColor: '#e65100', icon: '⚡' }
-                : kpi.riesgo === 'BAJO'
-                ? { bg: '#e8f5e9', border: '#2e7d32', labelColor: '#1b5e20', valColor: '#2e7d32', icon: '✔' }
-                : { bg: '#f5f5f5', border: '#9e9e9e', labelColor: '#616161', valColor: '#424242', icon: '?' };
-
-            const accionStyle = kpi.accion === 'Inmediata'
-                ? { bg: '#fce4ec', border: '#c62828', labelColor: '#b71c1c', valColor: '#b71c1c', icon: '🔴' }
-                : kpi.accion === 'Programada'
-                ? { bg: '#fff8e1', border: '#f57c00', labelColor: '#e65100', valColor: '#e65100', icon: '🟡' }
-                : { bg: '#e3f2fd', border: '#1565c0', labelColor: '#0d47a1', valColor: '#0d47a1', icon: '🟢' };
-
-            const consecuenciaStyle = kpi.consecuencia === 'Mortal'
-                ? { bg: '#fce4ec', border: '#880e4f', labelColor: '#880e4f', valColor: '#880e4f', icon: '☠️' }
-                : kpi.consecuencia === 'Incapacitante'
-                ? { bg: '#fff3e0', border: '#e65100', labelColor: '#bf360c', valColor: '#bf360c', icon: '🦺' }
-                : { bg: '#e8f5e9', border: '#2e7d32', labelColor: '#1b5e20', valColor: '#2e7d32', icon: '🩹' };
-
-            const kpiCards = `
-      <div style="flex:1; min-width:120px; background:${riesgoStyle.bg}; border-left:4px solid ${riesgoStyle.border}; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:${riesgoStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Riesgo Predominante</div>
-        <div style="font-size:1.3em; font-weight:800; color:${riesgoStyle.valColor};">${kpi.riesgo} ${riesgoStyle.icon}</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:${consecuenciaStyle.bg}; border-left:4px solid ${consecuenciaStyle.border}; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:${consecuenciaStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Consecuencia Máx.</div>
-        <div style="font-size:1.1em; font-weight:800; color:${consecuenciaStyle.valColor};">${kpi.consecuencia} ${consecuenciaStyle.icon}</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:#e8eaf6; border-left:4px solid #3949ab; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#1a237e; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Peligros Detectados</div>
-        <div style="font-size:1.3em; font-weight:800; color:#283593;">${kpi.npeligros} 🔍</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:${accionStyle.bg}; border-left:4px solid ${accionStyle.border}; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:${accionStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Acción Requerida</div>
-        <div style="font-size:1.1em; font-weight:800; color:${accionStyle.valColor};">${kpi.accion} ${accionStyle.icon}</div>
-      </div>`;
-
-            // SGSST-style full report HTML
-            const finalHtml = `
-<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#222;">
-
-  <!-- HEADER -->
-  <div style="background:linear-gradient(135deg,#0d2d5e 0%,#1565c0 100%); padding:28px 32px; border-radius:12px 12px 0 0; margin-bottom:0;">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            // Envoltura Esmeralda/Teal idéntica al formato del inicio y al final
+            const finalHtml = `<div id="wappy-kpi" data-riesgo="PENDIENTE" data-accion="Evaluar" data-consecuencia="Incapacitante" data-npeligros="5" style="display:none"></div>
+<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
+  <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
+  <div style="background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:relative; z-index:10;">
       <div>
-        <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
-        <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
-        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · GTC 45 / ISO 45001</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
-          <div style="color:#64b5f6; font-size:0.65em; font-weight:700; letter-spacing:2px; text-transform:uppercase;">Radicado</div>
-          <div style="color:#fff; font-size:1.1em; font-weight:700;">LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}</div>
-          <div style="color:#90caf9; font-size:0.7em; margin-top:4px;">${dateStr}</div>
+        <div style="color:#22d3ee; font-size:0.75em; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 10px rgba(34,211,238,0.3); display:flex; align-items:center; gap:8px;">
+          <svg width="12" height="12" viewBox="0 0 100 100" style="overflow:visible;">
+            <circle cx="50" cy="50" r="45" fill="#22d3ee">
+              <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="r" values="45;65;45" dur="1s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+          ✨ WAPPY IA • HSE Command Center
+        </div>
+        <h1 style="color:#ffffff; font-size:1.8em; font-weight:900; margin:0 0 6px; letter-spacing:-0.5px; text-shadow:0 2px 4px rgba(0,0,0,0.2);">
+          Informe de Análisis de Riesgos y Peligros
+        </h1>
+        <div style="color:#a7f3d0; font-size:0.85em; font-weight:500; display:flex; align-items:center; gap:6px;">
+          <span style="display:inline-block; width:8px; height:8px; background-color:#34d399; border-radius:50%; box-shadow:0 0 8px #34d399;"></span>
+          Modalidad: Auditoría de Campo Asistida por IA (Predictiva)
         </div>
       </div>
+      <div>
+        <div style="background:rgba(255,255,255,0.07); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div style="color:#22d3ee; font-size:0.65em; font-weight:800; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">RADICADO</div>
+          <div style="color:#ffffff; font-size:1.25em; font-weight:900; font-family:monospace; letter-spacing:1px;">${radicadoId}</div>
+          <div style="color:#e2e8f0; font-size:0.75em; margin-top:4px; font-weight:500;">
+            📅 ${dateStr}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Background grid pattern -->
+    <div style="position:absolute; inset:0; opacity:0.15; pointer-events:none; z-index:1;">
+      <svg width="100%" height="100%">
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
     </div>
   </div>
 
   <!-- INFO BAR -->
-  <div style="background:#e3f2fd; border:1px solid #90caf9; border-top:none; padding:12px 24px; display:flex; flex-wrap:wrap; gap:24px; font-size:0.8em; color:#1565c0;">
-    <div><strong>Fecha:</strong> ${dateStr}</div>
-    <div><strong>Hora:</strong> ${timeStr}</div>
-    <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
-    <div><strong>Metodología:</strong> GTC 45 / ISO 45001 / Decreto 1072</div>
-    <div><strong>Estado:</strong> <span style="color:#2e7d32; font-weight:700;">✔ Completado</span></div>
+  <div style="background:#f0fdfa; border-bottom:1px solid #ccfbf1; padding:14px 32px; display:flex; flex-wrap:wrap; gap:32px; font-size:0.85em; color:#0f766e; font-weight:600; align-items:center;">
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">📅</span> <strong>Fecha:</strong> ${dateStr}
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">⏱️</span> <strong>Hora:</strong> ${timeStr}
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> GTC 45 / ISO 45001
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+      <strong>Estado:</strong> 
+      <span style="background-color:#fffbeb; color:#d97706; padding:3px 12px; border-radius:50px; font-size:0.9em; font-weight:700; border:1px solid #fde68a; display:flex; align-items:center; gap:6px;">
+        <svg width="8" height="8" viewBox="0 0 100 100" style="overflow:visible;">
+          <circle cx="50" cy="50" r="50" fill="#d97706">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+        ⌛ Generando Informe
+      </span>
+    </div>
   </div>
 
-  <!-- BODY -->
-  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; padding:28px 32px 16px;">
+  <!-- BODY CONTENT -->
+  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column;">
+    
+    ${evidenceHtml}
 
-    ${evidenceSection}
-
-    <!-- KPI Cards (dynamic) -->
-    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
-      ${kpiCards}
-    </div>
-
-    <!-- AI GENERATED CONTENT -->
     <div class="ai-report-content" style="line-height:1.7;">
       ${html}
     </div>
-
+    
   </div>
-  </div>
-
 </div>`;
 
+            const kpi = { riesgo: 'PENDIENTE', accion: 'Evaluar', consecuencia: 'Incapacitante', npeligros: '5' };
             onReportReceived?.(finalHtml, kpi, messageId);
-
         },
         onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);
@@ -451,10 +449,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
         const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
 
-        let activeEar = null;
-        let activeShoulder = null;
-        let activeHip = null;
-        let activeElbow = null;
+        let activeEar: any = null;
+        let activeShoulder: any = null;
+        let activeHip: any = null;
+        let activeElbow: any = null;
 
         if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
             activeEar = leftEar;
@@ -1401,7 +1399,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         
                         {/* Camera Toggle */}
                         <TooltipAnchor
-                            description={isCameraOn ? localize('com_ui_voice_camera_off') : localize('com_ui_voice_camera_on')}
+                            description={isCameraOn ? localize('com_ui_voice_camera_off' as any) : localize('com_ui_voice_camera_on' as any)}
                             render={
                                 <button
                                     onClick={toggleCamera}
@@ -1434,7 +1432,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         {/* Camera Switch */}
                         {isCameraOn && (
                             <TooltipAnchor
-                                description={localize('com_ui_switch_camera')}
+                                description={localize('com_ui_switch_camera' as any)}
                                 render={
                                     <button
                                         onClick={switchCamera}
@@ -1450,7 +1448,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                         {/* Microphone Toggle (Center Piece) */}
                         <TooltipAnchor
-                            description={isMuted ? localize('com_nav_voice_unmute') : localize('com_nav_voice_mute')}
+                            description={isMuted ? localize('com_nav_voice_unmute' as any) : localize('com_nav_voice_mute' as any)}
                             render={
                                 <button
                                     onClick={toggleMute}
@@ -1479,7 +1477,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         {/* Screen Share Toggle */}
                         {supportsScreenShare && (
                             <TooltipAnchor
-                                description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
+                                description={isScreenSharing ? localize('com_ui_voice_screen_share_stop' as any) : localize('com_ui_voice_screen_share_start' as any)}
                                 render={
                                     <button
                                         onClick={toggleScreenShare}
@@ -1497,7 +1495,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                         {/* End Call Button */}
                         <TooltipAnchor
-                            description={localize('com_ui_voice_end_call')}
+                            description={localize('com_ui_voice_end_call' as any)}
                             render={
                                 <button
                                     onClick={handleClose}

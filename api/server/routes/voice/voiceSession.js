@@ -435,7 +435,7 @@ class VoiceSession {
                         conversationId: this.conversationId,
                         endpoint: this.dbEndpoint,
                         model: this.dbModel,
-                        tags: ['sgsst-live-analysis']
+                        ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
                     }, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
@@ -669,7 +669,7 @@ class VoiceSession {
                             // Also save/update the conversation
                             await saveConvo({ user: { id: this.userId } }, {
                                 ...savedMessage,
-                                tags: ['sgsst-live-analysis']
+                                ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
                             }, { context: 'VoiceSession' });
 
                             logger.info(`[VoiceSession] Saved user message: ${messageId}`);
@@ -1133,6 +1133,122 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             if (finalSignatureHtml) {
                 reportHtml += `\n\n${finalSignatureHtml}`;
             }
+
+            // ─── PREMIUM EMERALD-TEAL WRAPPER (MATCH INITIAL FORMAT 1) ────────
+            const kpiMatch = reportHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>[\s\S]*?<\/div>/i) || reportHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
+            let kpiDiv = '';
+            if (kpiMatch) {
+                kpiDiv = kpiMatch[0];
+                if (!kpiDiv.endsWith('</div>') && !kpiDiv.includes('/>')) {
+                    kpiDiv += '</div>';
+                }
+                reportHtml = reportHtml.replace(kpiMatch[0], '');
+            } else {
+                kpiDiv = '<div id="wappy-kpi" data-riesgo="MEDIO" data-accion="Programada" data-consecuencia="Incapacitante" data-npeligros="5" style="display:none"></div>';
+            }
+
+            // Remove any duplicated title or metadata from Gemini's output
+            reportHtml = reportHtml.replace(/<h2>Informe Técnico de Evaluación de Riesgos y Peligros<\/h2>/i, '');
+            reportHtml = reportHtml.replace(/<p><strong>Fecha de Generación:<\/strong>.*?<\/p>/i, '');
+            reportHtml = reportHtml.replace(/<p><strong>Modalidad:<\/strong>.*?<\/p>/i, '');
+            reportHtml = reportHtml.replace(/<p><strong>Metodología Aplicada:<\/strong>.*?<\/p>/i, '');
+
+            // Build photographic evidence section inside body
+            let evidenceHtml = '';
+            if (framesToUse.length > 0) {
+                const imgItems = framesToUse.map((b64, idx) => `
+                    <div style="flex:1; min-width:200px; text-align:center; margin-bottom:12px;">
+                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+                        <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura de evidencia del entorno analizado.</p>
+                    </div>`).join('');
+                evidenceHtml = `
+                    <div style="margin-bottom:24px;">
+                        <h3 style="color:#0f766e; font-size:1.1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #14b8a6; padding-left:10px; margin-bottom:12px;">1. Evidencia Fotográfica del Entorno Analizado</h3>
+                        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:12px;">${imgItems}</div>
+                    </div>`;
+            }
+
+            const radicadoId = `LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
+            const currentHour = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+            const finalWrappedHtml = `${kpiDiv}
+<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; background-color:#f9fafb; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);">
+  <!-- HEADER (WAPPY PREMIUM EMERALD-TEAL-CYAN DEGRADADO) -->
+  <div style="background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#0891b2 100%); padding:32px; position:relative; overflow:hidden; border-bottom:3px solid #14b8a6;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:relative; z-index:10;">
+      <div>
+        <div style="color:#22d3ee; font-size:0.75em; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 10px rgba(34,211,238,0.3); display:flex; align-items:center; gap:8px;">
+          <svg width="12" height="12" viewBox="0 0 100 100" style="overflow:visible;">
+            <circle cx="50" cy="50" r="45" fill="#22d3ee">
+              <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="r" values="45;65;45" dur="1s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+          ✨ WAPPY IA • HSE Command Center
+        </div>
+        <h1 style="color:#ffffff; font-size:1.8em; font-weight:900; margin:0 0 6px; letter-spacing:-0.5px; text-shadow:0 2px 4px rgba(0,0,0,0.2);">
+          Informe de Análisis de Riesgos y Peligros
+        </h1>
+        <div style="color:#a7f3d0; font-size:0.85em; font-weight:500; display:flex; align-items:center; gap:6px;">
+          <span style="display:inline-block; width:8px; height:8px; background-color:#34d399; border-radius:50%; box-shadow:0 0 8px #34d399;"></span>
+          Modalidad: Auditoría de Campo Asistida por IA (Predictiva)
+        </div>
+      </div>
+      <div>
+        <div style="background:rgba(255,255,255,0.07); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 20px; min-width:180px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div style="color:#22d3ee; font-size:0.65em; font-weight:800; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">RADICADO</div>
+          <div style="color:#ffffff; font-size:1.25em; font-weight:900; font-family:monospace; letter-spacing:1px;">${radicadoId}</div>
+          <div style="color:#e2e8f0; font-size:0.75em; margin-top:4px; font-weight:500;">
+            📅 ${currentDate}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Background grid pattern -->
+    <div style="position:absolute; inset:0; opacity:0.15; pointer-events:none; z-index:1;">
+      <svg width="100%" height="100%">
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- INFO BAR -->
+  <div style="background:#f0fdfa; border-bottom:1px solid #ccfbf1; padding:14px 32px; display:flex; flex-wrap:wrap; gap:32px; font-size:0.85em; color:#0f766e; font-weight:600; align-items:center;">
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">📅</span> <strong>Fecha:</strong> ${currentDate}
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">⏱️</span> <strong>Hora:</strong> ${currentHour}
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#14b8a6; font-size:1.2em;">🛡️</span> <strong>Estándar:</strong> GTC 45 / ISO 45001
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+      <strong>Estado:</strong> 
+      <span style="background-color:#ecfdf5; color:#065f46; padding:3px 12px; border-radius:50px; font-size:0.9em; font-weight:700; border:1px solid #a7f3d0; display:flex; align-items:center; gap:6px;">
+        ✔ Completado
+      </span>
+    </div>
+  </div>
+
+  <!-- BODY CONTENT -->
+  <div style="background:#ffffff; padding:40px 32px; min-height:400px; display:flex; flex-direction:column;">
+    
+    ${evidenceHtml}
+
+    <div class="ai-report-content" style="line-height:1.7;">
+      <h2>Informe Técnico de Evaluación de Riesgos y Peligros</h2>
+      ${reportHtml}
+    </div>
+    
+  </div>
+</div>`;
+
+            reportHtml = finalWrappedHtml;
             // ──────────────────────────────────────────────────────────────────
 
             logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
