@@ -34,6 +34,7 @@ export default function ComunidadPage() {
   const [configLoading, setConfigLoading] = useState(true);
   const [requiresPayment, setRequiresPayment] = useState(false);
   const [price, setPrice] = useState(0);
+  const actualRequiresPayment = requiresPayment && price > 0;
   const [downloadableFiles, setDownloadableFiles] = useState<any[]>([]);
   const [videoUrl, setVideoUrl] = useState('https://www.w3schools.com/html/mov_bbb.mp4');
 
@@ -148,7 +149,7 @@ export default function ComunidadPage() {
     if (configLoading) return;
     
     // If not in paid mode, we bypass paid check
-    if (!requiresPayment) {
+    if (!actualRequiresPayment) {
       setIsAccessChecking(false);
       return;
     }
@@ -174,7 +175,7 @@ export default function ComunidadPage() {
       .finally(() => {
         setIsAccessChecking(false);
       });
-  }, [userEmail, requiresPayment, configLoading]);
+  }, [userEmail, actualRequiresPayment, configLoading]);
 
   // 3. Auto-populate fields and email checking if user is logged in
   useEffect(() => {
@@ -192,7 +193,7 @@ export default function ComunidadPage() {
   // 4. Silent lead registration for logged-in users in Free Mode
   useEffect(() => {
     if (configLoading) return;
-    if (requiresPayment) return;
+    if (actualRequiresPayment) return;
     if (!user) return;
     if (isLeadCaptured) return;
 
@@ -221,7 +222,7 @@ export default function ComunidadPage() {
     .catch((err) => {
       console.error('[Comunidad] Silent lead registration failed:', err);
     });
-  }, [user, requiresPayment, configLoading, isLeadCaptured, videoUrl]);
+  }, [user, actualRequiresPayment, configLoading, isLeadCaptured, videoUrl]);
 
   // Load YouTube API script dynamically
   useEffect(() => {
@@ -274,7 +275,7 @@ export default function ComunidadPage() {
               if (totalDuration > 0) setDuration(totalDuration);
 
               // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-              if (!requiresPayment && time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+              if (!actualRequiresPayment && time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -309,7 +310,7 @@ export default function ComunidadPage() {
         ytPlayer.destroy();
       }
     };
-  }, [isYouTube, videoUrl, requiresPayment]);
+  }, [isYouTube, videoUrl, actualRequiresPayment]);
 
   // Monitor playback time for HTML5 video
   useEffect(() => {
@@ -322,7 +323,7 @@ export default function ComunidadPage() {
       setCurrentTime(video.currentTime);
       
       // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-      if (!requiresPayment && video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+      if (!actualRequiresPayment && video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
         video.pause();
         setIsPlaying(false);
         video.currentTime = 120; // Lock to exactly 120s
@@ -348,7 +349,7 @@ export default function ComunidadPage() {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [videoUrl, isYouTube, requiresPayment]);
+  }, [videoUrl, isYouTube, actualRequiresPayment]);
 
   // Sync fullscreen state
   useEffect(() => {
@@ -363,7 +364,7 @@ export default function ComunidadPage() {
 
   // Prevent seeking via keyboard
   useEffect(() => {
-    if (showLeadModal || (requiresPayment && !isAccessGranted && !isAdmin)) return;
+    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin)) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -394,7 +395,7 @@ export default function ComunidadPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [showLeadModal, isPlaying, videoUrl, requiresPayment, isAccessGranted, isAdmin]);
+  }, [showLeadModal, isPlaying, videoUrl, actualRequiresPayment, isAccessGranted, isAdmin]);
 
   // Video completion callback
   const handleVideoFinished = async () => {
@@ -427,7 +428,7 @@ export default function ComunidadPage() {
   };
 
   const togglePlay = () => {
-    if (showLeadModal || (requiresPayment && !isAccessGranted && !isAdmin)) return;
+    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin)) return;
 
     if (isYouTube) {
       if (isPlaying) {
@@ -866,7 +867,7 @@ export default function ComunidadPage() {
     document.body.removeChild(link);
   };
 
-  const isUnlocked = isAdmin || isAccessGranted || (!requiresPayment && isLeadCaptured);
+  const isUnlocked = isAdmin || isAccessGranted || (!actualRequiresPayment && isLeadCaptured);
 
   return (
     <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
@@ -1237,7 +1238,7 @@ export default function ComunidadPage() {
             <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
             <h3 className="font-bold text-text-primary text-base">Cargando embudo interactivo...</h3>
           </div>
-        ) : (requiresPayment && !isAccessGranted && !isAdmin) ? (
+        ) : (actualRequiresPayment && !isAccessGranted && !isAdmin) ? (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center justify-center relative z-10 text-center">
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
@@ -1682,22 +1683,23 @@ export default function ComunidadPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {downloadableFiles.map((file, idx) => {
+                    const canDownload = isVideoFinished || isAdmin;
                     return (
                       <div 
                         key={idx} 
                         className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between gap-4 ${
-                          isVideoFinished 
+                          canDownload 
                             ? 'bg-surface-primary border-emerald-500/30 hover:border-emerald-500/60 shadow-md hover:shadow-lg' 
                             : 'bg-surface-primary/50 border-border-medium/60 opacity-70 select-none'
                         }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className={`p-2.5 rounded-xl border shrink-0 ${
-                            isVideoFinished 
+                            canDownload 
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
                               : 'bg-surface-secondary border-border-medium text-text-secondary/50'
                           }`}>
-                            {isVideoFinished ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            {canDownload ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                           </div>
                           
                           <div className="truncate">
@@ -1706,7 +1708,7 @@ export default function ComunidadPage() {
                           </div>
                         </div>
 
-                        {isVideoFinished ? (
+                        {canDownload ? (
                           <a
                             href={file.url}
                             download
@@ -1720,7 +1722,7 @@ export default function ComunidadPage() {
                             onClick={() => alert('🔒 Contenido Bloqueado: Debes terminar de ver la videocapacitación de principio a fin para descargar estas herramientas de valor.')}
                             className="w-full py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-secondary text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
                           >
-                            <Lock className="w-3 h-3" />
+                            <Lock className="w-3.5 h-3.5" />
                             Bloqueado
                           </button>
                         )}
