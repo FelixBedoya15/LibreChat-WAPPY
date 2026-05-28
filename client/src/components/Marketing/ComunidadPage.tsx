@@ -176,6 +176,53 @@ export default function ComunidadPage() {
       });
   }, [userEmail, requiresPayment, configLoading]);
 
+  // 3. Auto-populate fields and email checking if user is logged in
+  useEffect(() => {
+    if (user) {
+      if (user.email && !userEmail) {
+        setUserEmail(user.email);
+      }
+      setCheckoutFullName(user.name || user.username || '');
+      setCheckoutEmail(user.email || '');
+      setCheckoutPhone(user.phoneNumber || user.phone || '');
+      setAcceptedPolicies(true);
+    }
+  }, [user, userEmail]);
+
+  // 4. Silent lead registration for logged-in users in Free Mode
+  useEffect(() => {
+    if (configLoading) return;
+    if (requiresPayment) return;
+    if (!user) return;
+    if (isLeadCaptured) return;
+
+    const fullName = user.name || user.username || 'Usuario WAPPY';
+    const email = user.email || '';
+    const phone = user.phoneNumber || user.phone || '';
+
+    if (!email) return;
+
+    axios.post('/api/admin/leads', {
+      fullName,
+      email,
+      phone,
+      videoUrl,
+    })
+    .then(() => {
+      localStorage.setItem('wappy_lead_captured', 'true');
+      localStorage.setItem('wappy_lead_data', JSON.stringify({ 
+        fullName, 
+        email, 
+        phone 
+      }));
+      setIsLeadCaptured(true);
+      console.log('[Comunidad] Silent lead registration completed for logged-in user.');
+    })
+    .catch((err) => {
+      console.error('[Comunidad] Silent lead registration failed:', err);
+    });
+  }, [user, requiresPayment, configLoading, isLeadCaptured, videoUrl]);
+
   // Load YouTube API script dynamically
   useEffect(() => {
     if (!isYouTube) return;
@@ -227,7 +274,7 @@ export default function ComunidadPage() {
               if (totalDuration > 0) setDuration(totalDuration);
 
               // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-              if (!requiresPayment && time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current) {
+              if (!requiresPayment && time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -275,7 +322,7 @@ export default function ComunidadPage() {
       setCurrentTime(video.currentTime);
       
       // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-      if (!requiresPayment && video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current) {
+      if (!requiresPayment && video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
         video.pause();
         setIsPlaying(false);
         video.currentTime = 120; // Lock to exactly 120s
@@ -603,7 +650,6 @@ export default function ComunidadPage() {
       }));
       setIsLeadCaptured(true);
       setShowLeadModal(false);
-      setIsSubmitting(false); // keep standard backwards compatible mapping
       setIsCheckoutSubmitting(false);
       
       // Auto-resume video
@@ -680,7 +726,15 @@ export default function ComunidadPage() {
           url: uploaded.url,
           filename: uploaded.filename
         };
-        setTempFiles(prev => [...prev, newFile]);
+        const updatedFiles = [...tempFiles, newFile];
+        setTempFiles(updatedFiles);
+        setDownloadableFiles(updatedFiles);
+
+        // Auto-save immediately to DB to prevent session/save mismatches
+        await axios.post('/api/comunidad/config', {
+          downloadableFiles: updatedFiles
+        });
+
         setSelectedFile(null);
         setUploadFileName('');
         const fileInput = document.getElementById('comunidad-file-input') as HTMLInputElement;
@@ -694,9 +748,21 @@ export default function ComunidadPage() {
     }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setTempFiles(prev => prev.filter((_, idx) => idx !== index));
+  const handleRemoveFile = async (index: number) => {
+    const updatedFiles = tempFiles.filter((_, idx) => idx !== index);
+    setTempFiles(updatedFiles);
+    setDownloadableFiles(updatedFiles);
+
+    try {
+      await axios.post('/api/comunidad/config', {
+        downloadableFiles: updatedFiles
+      });
+    } catch (err) {
+      console.error('[Admin Remove] Remove error:', err);
+      alert('Hubo un error al eliminar el archivo del servidor.');
+    }
   };
+
 
   // --- Admin Dashboard (Leads & Purchases lists) ---
   const fetchDashboardData = async () => {
