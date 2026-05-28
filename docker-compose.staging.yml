@@ -10,7 +10,8 @@ services:
       - rag_api
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.multi
+      target: api-build
     image: librechat-wappy-test:latest
     restart: always
     user: "${UID}:${GID}"

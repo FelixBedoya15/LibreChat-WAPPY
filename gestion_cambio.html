@@ -300,13 +300,14 @@
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Categoría del Cambio</label>
-                        <select id="change-category" class="glass-input p-3 text-sm cursor-pointer">
+                        <select id="change-category" class="glass-input p-3 text-sm cursor-pointer" onchange="updateCategoryDescription()">
                             <option value="maquinaria">Tecnológico o Maquinaria</option>
                             <option value="locativo">Locativo o Infraestructura</option>
                             <option value="quimico">Químico o Sustancias Peligrosas</option>
                             <option value="organizacional">Organizacional o Personal</option>
                             <option value="procedimiento">Procedimientos de Trabajo</option>
                         </select>
+                        <p id="category-description-help" class="text-[11px] text-slate-400 dark:text-slate-400 italic mt-1 leading-relaxed min-h-[32px]"></p>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Proceso Afectado</label>
@@ -781,6 +782,7 @@
         let audioChunks = [];
 
         window.onload = function() {
+            populateSelectLists();
             loadDatabase();
             initializeCanvas();
             renderKanban();
@@ -1005,6 +1007,31 @@
                     procSelect.value = currentVal;
                 }
             }
+            
+            updateCategoryDescription();
+        }
+
+        function updateCategoryDescription() {
+            const catSelect = document.getElementById('change-category');
+            const helpText = document.getElementById('category-description-help');
+            if (!catSelect || !helpText) return;
+            
+            const selectedVal = catSelect.value;
+            let description = "";
+            
+            if (selectedVal === "Tecnológico o Maquinaria" || selectedVal === "maquinaria") {
+                description = "Nuevos equipos, herramientas, software, tecnologías o maquinaria que alteren la operación.";
+            } else if (selectedVal === "Locativo o Infraestructura" || selectedVal === "locativo") {
+                description = "Obras civiles, redistribución de espacios (layout), cambios de oficinas o adecuaciones físicas.";
+            } else if (selectedVal === "Químico o Sustancias Peligrosas" || selectedVal === "quimico") {
+                description = "Introducción, sustitución o cambio de materias primas, insumos químicos o reactivos.";
+            } else if (selectedVal === "Organizacional o Personal" || selectedVal === "organizacional") {
+                description = "Cambios de personal clave, turnos de trabajo, nuevos roles, o reestructuración de organigrama.";
+            } else if (selectedVal === "Procedimientos de Trabajo" || selectedVal === "procedimiento") {
+                description = "Modificaciones en métodos operativos, guías técnicas, estándares de seguridad o procesos establecidos.";
+            }
+            
+            helpText.innerText = description;
         }
 
         function saveDocHeader() {
@@ -1064,9 +1091,10 @@
         // Bind Wizard fields
         function bindWizardToUI() {
             document.getElementById('change-title').value = currentWizard.changeTitle;
-            document.getElementById('change-category').value = currentWizard.changeCategory || "maquinaria";
+            document.getElementById('change-category').value = currentWizard.changeCategory || appCategories[0];
             document.getElementById('change-process').value = currentWizard.changeProcess || "Direccionamiento Estratégico";
             document.getElementById('change-description').value = currentWizard.changeDescription;
+            updateCategoryDescription();
 
             document.querySelector(`input[name="affects-infra"][value="${currentWizard.affectsInfra}"]`).checked = true;
             document.querySelector(`input[name="has-contractors"][value="${currentWizard.hasContractors}"]`).checked = true;
