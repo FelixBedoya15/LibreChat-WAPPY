@@ -27,7 +27,7 @@ function getYouTubeId(url: string) {
 
 export default function ComunidadPage() {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, token } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
 
   // Config States (Loaded from Backend DB)
@@ -676,6 +676,8 @@ export default function ComunidadPage() {
         requiresPayment: tempRequiresPayment,
         price: tempPrice,
         downloadableFiles: tempFiles
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
         setVideoUrl(tempVideoUrl);
@@ -717,7 +719,10 @@ export default function ComunidadPage() {
 
     try {
       const response = await axios.post('/api/comunidad/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
       });
       if (response.data.success) {
         const uploaded = response.data.file;
@@ -733,6 +738,8 @@ export default function ComunidadPage() {
         // Auto-save immediately to DB to prevent session/save mismatches
         await axios.post('/api/comunidad/config', {
           downloadableFiles: updatedFiles
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
         });
 
         setSelectedFile(null);
@@ -756,6 +763,8 @@ export default function ComunidadPage() {
     try {
       await axios.post('/api/comunidad/config', {
         downloadableFiles: updatedFiles
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
       console.error('[Admin Remove] Remove error:', err);
@@ -769,8 +778,8 @@ export default function ComunidadPage() {
     setIsLoadingLeads(true);
     try {
       const [leadsRes, purchasesRes] = await Promise.all([
-        axios.get('/api/admin/leads'),
-        axios.get('/api/comunidad/purchases')
+        axios.get('/api/admin/leads', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/comunidad/purchases', { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setLeads(leadsRes.data || []);
       setPurchases(purchasesRes.data || []);
@@ -792,7 +801,7 @@ export default function ComunidadPage() {
       return;
     }
     try {
-      const response = await axios.delete(`/api/admin/leads/${leadId}`);
+      const response = await axios.delete(`/api/admin/leads/${leadId}`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.data.success) {
         setLeads(prev => prev.filter(l => l._id !== leadId));
       }
@@ -807,7 +816,7 @@ export default function ComunidadPage() {
       return;
     }
     try {
-      const response = await axios.delete(`/api/comunidad/purchases/${purchaseId}`);
+      const response = await axios.delete(`/api/comunidad/purchases/${purchaseId}`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.data.success) {
         setPurchases(prev => prev.filter(p => p._id !== purchaseId));
       }
