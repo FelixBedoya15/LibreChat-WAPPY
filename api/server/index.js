@@ -262,6 +262,8 @@ const startServer = async () => {
   app.use('/api/roadmap', routes.roadmap);
   app.use('/api/whatsapp', routes.whatsapp);
   app.use('/api/referrals', routes.referrals);
+  app.use('/api/comunidad', routes.comunidad);
+
 
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE

@@ -45,9 +45,11 @@ const liveDocuments = require('./liveDocuments');
 const roadmap = require('./roadmap');
 const whatsapp = require('./whatsapp');
 const referrals = require('./referrals');
+const comunidad = require('./comunidad');
 
 module.exports = {
   auth,
+
   keys,
   user,
   search,
@@ -94,4 +96,5 @@ module.exports = {
   roadmap,
   whatsapp,
   referrals,
+  comunidad,
 };

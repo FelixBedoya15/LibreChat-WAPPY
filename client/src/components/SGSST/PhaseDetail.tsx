@@ -40,6 +40,7 @@ import PerfilSociodemografico from './PerfilSociodemografico';
 import CondicionesSalud from './CondicionesSalud';
 import OraculoPredictivoH1 from './OraculoPredictivoH1';
 import AppBuilder from './AppBuilder';
+import HtmlSandboxApp from './HtmlSandboxApp';
 import { UpgradeWall } from './UpgradeWall';
 
 // Manual Icon Map to avoid dynamic import issues
@@ -589,6 +590,61 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                             </div>
                         );
                     })
+                )}
+
+                {/* Interactive HTML Sandbox Apps Collapsible Card */}
+                {['planear', 'hacer', 'verificar', 'actuar'].includes(phase.id) && (
+                    <div className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                        {/* Category Header */}
+                        <div
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02] transition-colors gap-5"
+                            onClick={() => toggleCategory('custom_html_sandbox')}
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 rounded-2xl bg-surface-secondary shadow-inner border border-white/20 dark:border-white/5 text-text-primary">
+                                    <Blocks className="h-5 w-5 text-teal-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">Aplicativos Personalizados HTML</h3>
+                                    <p className="text-xs font-semibold text-text-secondary">Monta, duplica y edita tus propios HTML interactivos con sincronización en la nube</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
+                                <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
+                                    {expandedCategories.includes('custom_html_sandbox') ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Category Content */}
+                        {expandedCategories.includes('custom_html_sandbox') && (
+                            <div className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
+                                {!hasAccessToSGSST ? (
+                                    <UpgradeWall
+                                        plan="USER_PLUS"
+                                        planBTitle="Plan Pro"
+                                        planBItems={[
+                                            'Somos SST',
+                                            'Chat con IA',
+                                            'Conversaciones ilimitadas',
+                                            '+ de 15 Agentes Expertos en SST',
+                                            '**Agente Matriz IPEVAR**',
+                                            'Aula de estudio',
+                                            'Blog WAPPY',
+                                            'Análisis en Vivo',
+                                            'Centro de Inteligencia Predictiva',
+                                            'Crea tus propios Agentes de IA',
+                                            'Editor de Archivos con IA',
+                                            'Acceso anticipado a nuevas funciones',
+                                        ]}
+                                    />
+                                ) : (
+                                    <HtmlSandboxApp phaseId={phase.id} phaseTitle={phase.title} />
+                                )}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

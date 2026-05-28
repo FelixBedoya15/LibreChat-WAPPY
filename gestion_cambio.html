@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copiloto SG-SST - Gestión del Cambio Inteligente</title>
+    
+    <!-- Meta tags for PWA look -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        wappy: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#10b981', /* Emerald/Green core */
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        },
+                        accent: {
+                            500: '#06b6d4', /* Cyan */
+                            600: '#0891b2',
+                            900: '#164e63',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Light / Dark Mode transition styling */
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .dark body {
+            background-color: #020617;
+            color: #f8fafc;
+        }
+
+        .light body {
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* Glassmorphism Classes Dark */
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 1rem;
+        }
+
+        /* Glassmorphism Classes Light */
+        .light .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+        }
+
+        .dark .glass-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.8);
+            color: #f8fafc;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .light .glass-input {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .glass-input:focus {
+            border-color: #10b981 !important;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        .light ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+
+        /* Ambient glowing backgrounds */
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.1; transform: scale(1); }
+            50% { opacity: 0.25; transform: scale(1.1); }
+        }
+        .bg-pulse-1 {
+            animation: pulse-slow 8s infinite alternate;
+        }
+
+        /* Active Navigation Tab */
+        .tab-active {
+            border-bottom: 2px solid #10b981;
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        /* Print styling rules */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-layout {
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                color: black !important;
+            }
+            .glass-card {
+                background: transparent !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                color: black !important;
+                backdrop-filter: none !important;
+            }
+        }
+
+        /* Focus states for editable elements in the header */
+        [contenteditable="true"]:focus {
+            outline: 2px solid #10b981;
+            outline-offset: 4px;
+            border-radius: 0.375rem;
+        }
+
+        #app-document-title:focus {
+            background: none !important;
+            -webkit-background-clip: initial !important;
+            background-clip: initial !important;
+            color: #10b981 !important;
+            -webkit-text-fill-color: #10b981 !important;
+        }
+
+        .dark #app-document-title:focus {
+            color: #34d399 !important;
+            -webkit-text-fill-color: #34d399 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative pb-12">
+
+    <!-- Ambient glowing backgrounds (Dark Mode Only) -->
+    <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px] bg-pulse-1 pointer-events-none z-0 dark:block hidden"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 w-full border-b dark:border-slate-800/80 light:border-slate-200 bg-slate-950/80 dark:bg-slate-950/80 light:bg-white/80 backdrop-blur-md px-6 py-4 flex items-center justify-between no-print transition-colors">
+        <div class="flex items-center gap-3">
+            <!-- Logo Uploader replacing default icon -->
+            <div class="relative group cursor-pointer no-print flex-shrink-0">
+                <div id="logo-container" class="bg-gradient-to-tr from-emerald-500 to-cyan-500 p-2 rounded-xl shadow-lg shadow-emerald-500/20 w-11 h-11 flex items-center justify-center overflow-hidden">
+                    <i data-lucide="git-branch" class="w-5 h-5 text-slate-950 stroke-[2.5]"></i>
+                </div>
+                <input type="file" id="logo-uploader" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onchange="uploadLogo(event)">
+            </div>
+            <div>
+                <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-lg font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 dark:from-white dark:to-emerald-400 bg-clip-text text-transparent focus:outline-none hover:underline">Acta de Gestión del Cambio en SST</h1>
+                <p contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase focus:outline-none hover:underline">Copiloto de Seguridad y Salud en el Trabajo</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Light/Dark Mode Switch -->
+            <button onclick="toggleTheme()" class="w-9 h-9 rounded-lg bg-slate-900 dark:bg-slate-900 light:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 border dark:border-slate-800 light:border-slate-200 flex items-center justify-center text-slate-400 dark:text-slate-400 light:text-slate-600 transition">
+                <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+            </button>
+
+
+            <!-- Toggle AI configuration drawer -->
+            <button onclick="toggleAISidebar()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 text-xs font-semibold text-emerald-600 dark:text-emerald-400 transition">
+                <i data-lucide="key" class="w-4 h-4"></i>
+                <span>Configurar IA API</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- App Layout Container -->
+    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6 relative z-10">
+        
+        <!-- Document Meta Header (Editable) -->
+        <div class="glass-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-emerald-500">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div class="flex-grow">
+                    <div class="flex items-center gap-2">
+                        <span contenteditable="true" id="company-name" onblur="saveField('company-name')" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-400 dark:hover:border-slate-700 focus:border-emerald-500">WAPPY SA</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-emerald-950/50 light:bg-emerald-100 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-800/40 no-print">NIT</span>
+                        <span contenteditable="true" id="company-nit" onblur="saveField('company-nit')" class="text-xs font-semibold text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-400 dark:hover:border-slate-700 focus:border-emerald-500">NIT: 901437310</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveField('company-arl')" class="dark:text-slate-300 light:text-slate-700 font-medium focus:outline-none hover:underline">Colmena</span></span>
+                        <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveField('company-workers')" class="dark:text-slate-300 light:text-slate-700 font-medium focus:outline-none hover:underline">30</span></span>
+                        <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveField('company-risk')" class="dark:text-slate-300 light:text-slate-700 font-medium focus:outline-none hover:underline">Clase III</span></span>
+                    </p>
+                </div>
+            </div>
+            <div class="text-left md:text-right w-full md:w-auto border-t md:border-t-0 dark:border-slate-800/80 light:border-slate-200 pt-4 md:pt-0">
+                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
+                <span contenteditable="true" id="change-code" onblur="saveField('change-code')" class="text-lg font-extrabold focus:outline-none hover:underline">GC-SST-2026-001</span>
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveField('last-updated-text')" class="font-medium text-slate-600 dark:text-slate-300 focus:outline-none hover:underline">2026-05-28</span></span>
+            </div>
+        </div>
+
+        <!-- Section: Create / Edit Change Wizard -->
+        <div class="glass-card p-6 flex flex-col gap-6 print-layout">
+            <div class="flex items-center justify-between border-b dark:border-slate-800 light:border-slate-200 pb-3 no-print">
+                <h2 class="text-md font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                    <span id="wizard-action-title">Registrar Nuevo Cambio</span>
+                </h2>
+                <div class="flex gap-2 items-center">
+                    <button onclick="loadDemoExamples()" class="px-2.5 py-1 text-[11px] font-semibold text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition flex items-center gap-1">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        Cargar 5 Ejemplos
+                    </button>
+                    <button onclick="clearFormWizard()" class="px-2.5 py-1 text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                        Limpiar Formulario
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Headers -->
+            <div class="flex border-b dark:border-slate-800 light:border-slate-200 overflow-x-auto no-print">
+                <button onclick="switchTab('tab-identification')" id="btn-tab-identification" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap tab-active flex items-center gap-1.5">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                    1. Identificación y Formulario
+                </button>
+                <button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5">
+                    <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+                    2. Evidencias y Firma
+                </button>
+                <button onclick="switchTab('tab-risk')" id="btn-tab-risk" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5">
+                    <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                    3. Análisis de Riesgos
+                </button>
+                <button onclick="switchTab('tab-plan')" id="btn-tab-plan" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5">
+                    <i data-lucide="kanban" class="w-3.5 h-3.5"></i>
+                    4. Plan de Acción (Kanban)
+                </button>
+            </div>
+
+            <!-- TAB 1: IDENTIFICACIÓN Y FORMULARIO DINÁMICO -->
+            <div id="tab-identification" class="tab-content flex flex-col gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Título del Cambio</label>
+                        <input type="text" id="change-title" class="glass-input p-3 text-sm" placeholder="Ej: Nueva banda transportadora de embalaje">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Categoría del Cambio</label>
+                        <select id="change-category" class="glass-input p-3 text-sm cursor-pointer" onchange="updateCategoryDescription()">
+                            <option value="maquinaria">Tecnológico o Maquinaria</option>
+                            <option value="locativo">Locativo o Infraestructura</option>
+                            <option value="quimico">Químico o Sustancias Peligrosas</option>
+                            <option value="organizacional">Organizacional o Personal</option>
+                            <option value="procedimiento">Procedimientos de Trabajo</option>
+                        </select>
+                        <p id="category-description-help" class="text-[11px] text-slate-400 dark:text-slate-400 italic mt-1 leading-relaxed min-h-[32px]"></p>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Proceso Afectado</label>
+                        <select id="change-process" class="glass-input p-3 text-sm cursor-pointer">
+                            <option value="Direccionamiento Estratégico">Direccionamiento Estratégico</option>
+                            <option value="Gestión de Operaciones">Gestión de Operaciones</option>
+                            <option value="Mantenimiento Industrial">Mantenimiento Industrial</option>
+                            <option value="Gestión Comercial y Ventas">Gestión Comercial y Ventas</option>
+                            <option value="Gestión Humana y Nómina">Gestión Humana y Nómina</option>
+                            <option value="Seguridad y Salud en el Trabajo (SST)">Seguridad y Salud en el Trabajo (SST)</option>
+                            <option value="Gestión de Compras y Proveedores">Gestión de Compras y Proveedores</option>
+                            <option value="Logística y Despacho">Logística y Despacho</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Descripción del cambio a realizar</label>
+                    <textarea id="change-description" rows="3" class="glass-input p-3 text-sm" placeholder="Describa el alcance del cambio, por qué es necesario y las áreas que afectará."></textarea>
+                </div>
+
+
+
+                <!-- Dynamic Toggles -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-t dark:border-slate-800 light:border-slate-200 pt-4">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase">¿Afecta infraestructura o procesos físicos?</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="radio" name="affects-infra" value="si" checked onchange="toggleDynamicFields()" class="text-emerald-500 focus:ring-emerald-500">
+                                <span>Sí</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="radio" name="affects-infra" value="no" onchange="toggleDynamicFields()" class="text-emerald-500 focus:ring-emerald-500">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase">¿Intervienen contratistas externos?</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="radio" name="has-contractors" value="si" checked onchange="toggleDynamicFields()" class="text-emerald-500 focus:ring-emerald-500">
+                                <span>Sí</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="radio" name="has-contractors" value="no" onchange="toggleDynamicFields()" class="text-emerald-500 focus:ring-emerald-500">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic block 1 -->
+                <div id="dynamic-infra-block" class="bg-slate-900/10 dark:bg-slate-950/60 border dark:border-slate-800/80 light:border-slate-200 rounded-xl p-4 flex flex-col gap-3 transition-all">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Validaciones de Infraestructura</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-slate-400 font-bold">Ubicación del cambio</label>
+                            <input type="text" id="infra-location" class="glass-input p-2 text-xs" placeholder="Ej: Sección empaque">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-slate-400 font-bold">Área afectada</label>
+                            <input type="text" id="infra-type" class="glass-input p-2 text-xs" placeholder="Ej: Piso de bodega B">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic block 2 -->
+                <div id="dynamic-contractor-block" class="bg-slate-900/10 dark:bg-slate-950/60 border dark:border-slate-800/80 light:border-slate-200 rounded-xl p-4 flex flex-col gap-3 transition-all">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Validaciones de Contratistas</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-slate-400 font-bold">Nombre del Contratista</label>
+                            <input type="text" id="contractor-name" class="glass-input p-2 text-xs" placeholder="Ej: Contratistas SAS">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-slate-400 font-bold">Número de Operarios</label>
+                            <input type="number" id="contractor-staff" class="glass-input p-2 text-xs" placeholder="Ej: 3">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next button -->
+                <div class="flex justify-end mt-2 no-print">
+                    <button onclick="switchTab('tab-evidences')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5">
+                        <span>Siguiente (Evidencias y Firma)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: EVIDENCIAS Y FIRMA DIGITAL -->
+            <div id="tab-evidences" class="tab-content hidden flex flex-col gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- Photo attachment -->
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Fotografías de Soporte</label>
+                        <div class="border border-dashed dark:border-slate-700 light:border-slate-300 rounded-xl bg-slate-900/20 light:bg-slate-50 p-4 flex flex-col items-center justify-center gap-2 min-h-[140px] relative transition hover:border-emerald-500">
+                            <i data-lucide="camera" class="w-6 h-6 text-slate-400"></i>
+                            <span class="text-xs text-slate-400 font-medium">Subir foto de soporte</span>
+                            <input type="file" id="evidence-photo" onchange="uploadEvidencePhoto(event)" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+                            <div id="evidence-preview-container" class="mt-2 hidden flex flex-col items-center gap-2 z-10">
+                                <img id="evidence-preview-img" src="" class="w-20 h-20 object-cover rounded-lg border border-slate-700" alt="Vista previa">
+                                <button onclick="removeEvidencePhoto(event)" class="text-xs text-red-500 font-bold hover:underline">Quitar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio record report -->
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Audio Notas de Inspección</label>
+                        <div class="border dark:border-slate-800 light:border-slate-300 rounded-xl bg-slate-900/20 light:bg-slate-50 p-4 flex flex-col items-center justify-center gap-3 min-h-[140px]">
+                            <div class="flex gap-3">
+                                <button onclick="startAudioRecording()" id="btn-record-start" class="w-10 h-10 rounded-full bg-slate-950 dark:bg-slate-950 light:bg-white text-slate-400 hover:text-emerald-500 border dark:border-slate-800 light:border-slate-200 flex items-center justify-center shadow-sm">
+                                    <i data-lucide="mic" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="stopAudioRecording()" id="btn-record-stop" class="w-10 h-10 rounded-full bg-slate-950 dark:bg-slate-950 light:bg-white text-slate-400 hover:text-red-500 border dark:border-slate-800 light:border-slate-200 flex items-center justify-center hidden">
+                                    <i data-lucide="square" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <span id="audio-record-status" class="text-[11px] text-slate-400 font-medium">Grabar nota de voz local</span>
+                            <audio id="audio-playback" controls class="w-full max-w-[260px] hidden"></audio>
+                            <button onclick="removeAudioRecording()" id="btn-audio-delete" class="text-xs text-red-500 font-bold hover:underline hidden">Eliminar Audio</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Digital Signature Pad -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-4 flex flex-col gap-3">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Firma de Aprobación de SST</label>
+                        <button onclick="clearSignatureCanvas()" class="text-xs text-slate-400 hover:text-red-500 transition font-semibold">Borrar Firma</button>
+                    </div>
+                    <div class="w-full max-w-[400px] mx-auto border dark:border-slate-700 light:border-slate-300 bg-slate-900/20 light:bg-slate-50 rounded-xl p-3 flex flex-col items-center gap-3">
+                        <canvas id="signature-pad" width="360" height="130" class="bg-slate-950 rounded-lg border dark:border-slate-800 light:border-slate-300 cursor-crosshair"></canvas>
+                        <div class="flex items-center gap-3">
+                            <button onclick="saveSignature()" class="px-4 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold transition">
+                                Registrar Firma
+                            </button>
+                            <span id="signature-saved-status" class="text-xs text-emerald-500 dark:text-emerald-400 font-semibold flex items-center gap-1 hidden">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i> Firma Guardada
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SPECIAL IA GENERATOR TRIGGER BUTTON (TAB 2 END) -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-6 flex flex-col items-center justify-center gap-3 no-print">
+                    <div class="text-center max-w-[480px]">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold">¿Quieres que nuestro Copiloto Inteligente redacte la evaluación de riesgos y proponga los controles y tareas del plan de acción automáticamente?</p>
+                    </div>
+                    <button onclick="triggerIAGenerationFromTab2()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-slate-950 font-extrabold text-xs transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>GENERAR ANÁLISIS Y PLAN CON IA</span>
+                    </button>
+                    <div id="tab2-ai-status" class="hidden text-xs text-emerald-500 dark:text-emerald-400 font-bold animate-pulse">
+                        Consultando API de Gemini... analizando cambio, generando matriz GTC45 y cronograma...
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-identification')" class="px-4 py-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-300 text-xs font-semibold transition">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-risk')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5">
+                        <span>Siguiente (Análisis de Riesgos)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: ANÁLISIS DE RIESGOS AUTOMÁTICO -->
+            <div id="tab-risk" class="tab-content hidden flex flex-col gap-5">
+                <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Evaluación GTC 45 de Riesgo Operativo</span>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500 font-bold uppercase">Nivel Deficiencia (ND)</label>
+                        <select id="risk-nd" onchange="calculateGTC45Risk()" class="glass-input p-2 text-xs cursor-pointer">
+                            <option value="0">0 - Bajo</option>
+                            <option value="2">2 - Medio</option>
+                            <option value="6" selected>6 - Alto</option>
+                            <option value="10">10 - Muy Alto</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500 font-bold uppercase">Nivel Exposición (NE)</label>
+                        <select id="risk-ne" onchange="calculateGTC45Risk()" class="glass-input p-2 text-xs cursor-pointer">
+                            <option value="1">1 - Esporádico</option>
+                            <option value="2">2 - Ocasional</option>
+                            <option value="3" selected>3 - Frecuente</option>
+                            <option value="4">4 - Continuo</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500 font-bold uppercase">Nivel Consecuencia (NC)</label>
+                        <select id="risk-nc" onchange="calculateGTC45Risk()" class="glass-input p-2 text-xs cursor-pointer">
+                            <option value="10">10 - Leve</option>
+                            <option value="25" selected>25 - Grave</option>
+                            <option value="60">60 - Muy Grave</option>
+                            <option value="100">100 - Mortal</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500 font-bold uppercase">Nivel Probabilidad (NP)</label>
+                        <input type="text" id="risk-np" class="glass-input p-2 text-xs bg-slate-900/40 text-slate-400 font-bold" readonly value="18">
+                    </div>
+                </div>
+
+                <!-- Risk Badge card -->
+                <div id="risk-result-card" class="bg-yellow-950/40 border border-yellow-700/50 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div id="risk-badge" class="w-12 h-12 rounded-full flex items-center justify-center font-extrabold text-lg text-yellow-300 bg-yellow-900/60 border border-yellow-700">
+                            II
+                        </div>
+                        <div>
+                            <h4 id="risk-level-title" class="text-sm font-bold text-yellow-300">Riesgo Alto (Nivel II)</h4>
+                            <p id="risk-level-desc" class="text-[11px] text-slate-300">Corregir y adoptar medidas de control de inmediato.</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] text-slate-400 font-bold block">Valor del Riesgo (NR)</span>
+                        <span id="risk-nr-value" class="text-2xl font-extrabold text-white">450</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5 border-t dark:border-slate-800 pt-4">
+                    <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Peligros Identificados y Controles Propuestos</label>
+                    <textarea id="risk-controls" rows="3" class="glass-input p-3 text-sm" placeholder="Ej: Peligro atrapamiento en partes móviles. Controles: Guardas fijas perimetrales e instructivo de operación segura."></textarea>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-evidences')" class="px-4 py-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-300 text-xs font-semibold transition">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-plan')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5">
+                        <span>Siguiente (Plan de Acción)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 4: PLAN DE ACCIÓN (KANBAN BOARD) -->
+            <div id="tab-plan" class="tab-content hidden flex flex-col gap-5">
+                <div class="flex items-center justify-between no-print">
+                    <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cronograma del Plan de Acción del Cambio</span>
+                    <button onclick="openAddTaskModal()" class="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        Añadir Acción
+                    </button>
+                </div>
+
+                <!-- Kanban Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="flex flex-col gap-2">
+                        <div class="px-2.5 py-1 bg-slate-900/50 rounded text-[10px] font-bold text-slate-400 border dark:border-slate-800 tracking-wide uppercase">
+                            Pendiente
+                        </div>
+                        <div id="kanban-col-todo" class="min-h-[160px] border border-dashed dark:border-slate-800 light:border-slate-300 rounded-xl p-2.5 flex flex-col gap-2" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'todo')"></div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="px-2.5 py-1 bg-slate-900/50 rounded text-[10px] font-bold text-slate-400 border dark:border-slate-800 tracking-wide uppercase">
+                            En Ejecución
+                        </div>
+                        <div id="kanban-col-doing" class="min-h-[160px] border border-dashed dark:border-slate-800 light:border-slate-300 rounded-xl p-2.5 flex flex-col gap-2" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'doing')"></div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="px-2.5 py-1 bg-slate-900/50 rounded text-[10px] font-bold text-slate-400 border dark:border-slate-800 tracking-wide uppercase">
+                            Cerrado
+                        </div>
+                        <div id="kanban-col-done" class="min-h-[160px] border border-dashed dark:border-slate-800 light:border-slate-300 rounded-xl p-2.5 flex flex-col gap-2" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'done')"></div>
+                    </div>
+                </div>
+
+                <!-- SAVE CHANGE TO MASTER MATRIX (CRITICAL UX BUTTON) -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-5 flex justify-between items-center no-print">
+                    <button onclick="switchTab('tab-risk')" class="px-4 py-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-300 text-xs font-semibold transition">
+                        Atrás
+                    </button>
+                    
+                    <button onclick="saveCurrentChangeToMatrix()" class="px-6 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-lg shadow-emerald-500/10 flex items-center gap-1.5">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span id="btn-save-wizard-text">GUARDAR Y CONSOLIDAR CAMBIO</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MASTER MATRIX LOG (MATRIZ CONSOLIDADA) ==================== -->
+        <div class="glass-card p-6 flex flex-col gap-5 print-layout">
+            <div class="flex items-center justify-between border-b dark:border-slate-800 light:border-slate-200 pb-3">
+                <div>
+                    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="table-properties" class="w-4 h-4 text-emerald-500"></i>
+                        Matriz General de Gestión del Cambio (Historial & Seguimiento)
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Haga clic en una fila para realizar el seguimiento, cerrar sus acciones o editar su información.</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="border-b dark:border-slate-850 light:border-slate-200 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
+                            <th class="py-2.5 px-3">Código</th>
+                            <th class="py-2.5 px-3">Título del Cambio</th>
+                            <th class="py-2.5 px-3">Categoría</th>
+                            <th class="py-2.5 px-3">Proceso</th>
+                            <th class="py-2.5 px-3">Riesgo</th>
+                            <th class="py-2.5 px-3">Firma</th>
+                            <th class="py-2.5 px-3">Avance</th>
+                            <th class="py-2.5 px-3 text-right no-print">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="master-matrix-tbody" class="divide-y dark:divide-slate-900 light:divide-slate-200">
+                        <!-- Dynamic rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT DRAWER: GEMINI CONFIGURATION (No-Print) -->
+    <aside id="ai-drawer" class="fixed top-0 right-0 z-50 h-full w-full max-w-[360px] bg-slate-900 border-l border-slate-800 shadow-2xl p-5 flex flex-col gap-4 translate-x-full transition-transform duration-300 no-print">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-5 h-5 text-emerald-400 animate-pulse"></i>
+                <h3 class="font-extrabold text-slate-100 text-sm">Configurar Copiloto IA</h3>
+            </div>
+            <button onclick="toggleAISidebar()" class="w-7 h-7 rounded bg-slate-950 hover:bg-slate-850 flex items-center justify-center text-slate-400 transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-1 bg-slate-950 p-3 rounded-lg border border-slate-800">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gemini API Key</label>
+            <input type="password" id="gemini-key" onchange="saveAPIKey()" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="AIzaSy...">
+            <a href="https://aistudio.google.com/" target="_blank" class="text-[9px] text-emerald-400 font-semibold hover:underline block mt-1">Conseguir Clave API Gratis</a>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modelo</label>
+            <select id="gemini-model" class="w-full bg-slate-950 border border-slate-850 rounded p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer">
+                <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                <option value="gemini-3.5-flash">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                <option value="gemini-3.1-pro">Wappy IA Cerebro (Auditoría Profunda y Leyes)</option>
+            </select>
+        </div>
+    </aside>
+
+    <!-- TASK EDIT/ADD MODAL (No-Print) -->
+    <div id="task-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print">
+        <div class="glass-card max-w-[460px] w-full p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b dark:border-slate-800 light:border-slate-200 pb-2">
+                <h3 id="modal-title" class="font-bold text-sm text-slate-950 dark:text-white">Agregar Acción</h3>
+                <button onclick="closeTaskModal()" class="w-8 h-8 rounded bg-slate-900 hover:bg-slate-850 text-slate-400 flex items-center justify-center">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            
+            <input type="hidden" id="modal-task-id">
+            <div class="flex flex-col gap-1">
+                <label class="text-[9px] font-bold text-slate-400 uppercase">Actividad</label>
+                <input type="text" id="modal-task-activity" class="glass-input p-2 text-xs">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">PHVA</label>
+                    <select id="modal-task-phva" class="glass-input p-2 text-xs cursor-pointer">
+                        <option value="P">Planear (P)</option>
+                        <option value="H">Hacer (H)</option>
+                        <option value="V">Verificar (V)</option>
+                        <option value="A">Actuar (A)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">Responsable</label>
+                    <input type="text" id="modal-task-responsible" class="glass-input p-2 text-xs">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">Fecha Límite</label>
+                    <input type="date" id="modal-task-deadline" class="glass-input p-2 text-xs">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">Recursos</label>
+                    <input type="text" id="modal-task-resources" class="glass-input p-2 text-xs">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-[9px] font-bold text-slate-400 uppercase">Marco Legal</label>
+                <input type="text" id="modal-task-legal" class="glass-input p-2 text-xs" placeholder="Ej: Decreto 1072 Art 26">
+            </div>
+
+            <div class="flex items-center gap-3 justify-end pt-2 border-t dark:border-slate-800 light:border-slate-200">
+                <button onclick="closeTaskModal()" class="px-3 py-1.5 rounded bg-slate-900 dark:bg-slate-800 text-[11px] font-semibold text-slate-400">Cancelar</button>
+                <button onclick="saveTaskModal()" class="px-3.5 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-[11px] transition">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- MAIN APP STATE JAVASCRIPT LOGIC -->
+    <script>
+        // Blank structures
+        const BLANK_WIZARD_CHANGE = {
+            id: null,
+            changeTitle: "",
+            changeCategory: "",
+            changeProcess: "",
+            changeDescription: "",
+            affectsInfra: "si",
+            hasContractors: "si",
+            
+            infraLocation: "",
+            infraType: "",
+            
+            contractorName: "",
+            contractorStaff: "",
+            
+            riskND: "6",
+            riskNE: "3",
+            riskNC: "25",
+            riskControls: "",
+            
+            evidencePhoto: "",
+            evidenceAudio: "",
+            signatureBase64: "",
+            tasks: []
+        };
+
+        let currentWizard = JSON.parse(JSON.stringify(BLANK_WIZARD_CHANGE));
+        
+        // Master Database (Array of saved changes)
+        let masterSavedChanges = [];
+
+        // Global app state
+        let appDocHeader = {
+            companyName: "WAPPY SA",
+            companyNit: "NIT: 901437310",
+            companyArl: "Colmena",
+            companyWorkers: "30",
+            companyRisk: "Clase III",
+            changeCode: "GC-SST-2026-001",
+            lastUpdated: "2026-05-28",
+            appTitle: "Acta de Gestión del Cambio en SST",
+            appSubtitle: "Copiloto de Seguridad y Salud en el Trabajo",
+            logoBase64: ""
+        };
+
+        // Theme and Navigation tabs
+        let activeTab = 'tab-identification';
+        let currentTheme = 'dark';
+
+        let appCategories = ["Tecnológico o Maquinaria", "Locativo o Infraestructura", "Químico o Sustancias Peligrosas", "Organizacional o Personal", "Procedimientos de Trabajo"];
+        let appProcesses = ["Direccionamiento Estratégico", "Gestión de Operaciones", "Mantenimiento Industrial", "Gestión Comercial y Ventas", "Gestión Humana y Nómina", "Seguridad y Salud en el Trabajo (SST)", "Gestión de Compras y Proveedores", "Logística y Despacho"];
+
+        // Signature Canvas variables
+        let canvas, ctx;
+        let isDrawing = false;
+
+        // Media recorder variables
+        let mediaRecorder;
+        let audioChunks = [];
+
+        window.onload = function() {
+            populateSelectLists();
+            loadDatabase();
+            initializeCanvas();
+            renderKanban();
+            renderMasterTable();
+            lucide.createIcons();
+        };
+
+        // LocalStorage loading & database management
+        function loadDatabase() {
+            try {
+                // Theme config
+                const storedTheme = localStorage.getItem('wappy_sst_theme');
+                if (storedTheme) {
+                    currentTheme = storedTheme;
+                }
+                applyTheme();
+
+                // Document Header info
+                const storedHeader = localStorage.getItem('wappy_sst_doc_header');
+                if (storedHeader) {
+                    appDocHeader = JSON.parse(storedHeader);
+                }
+                bindHeaderToUI();
+
+
+
+                // Master Matrix database
+                const storedMatrix = localStorage.getItem('wappy_sst_master_matrix');
+                if (storedMatrix) {
+                    masterSavedChanges = JSON.parse(storedMatrix);
+                } else {
+                    // Populate with 5 mock changes on first load
+                    masterSavedChanges = getDemoExamples();
+                    localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                }
+
+                // AI key
+                const geminiKey = localStorage.getItem('wappy_gemini_key') || '';
+                document.getElementById('gemini-key').value = geminiKey;
+
+            } catch (err) {
+                console.error("Error al cargar base de datos local:", err);
+            }
+            bindWizardToUI();
+        }
+
+        // Helper function to return 5 structured real examples
+        function getDemoExamples() {
+            return [
+                {
+                    id: "change-demo-1",
+                    changeTitle: "Instalación de nueva banda transportadora de embalaje",
+                    changeCategory: "Tecnológico o Maquinaria",
+                    changeProcess: "Mantenimiento Industrial",
+                    changeDescription: "Se realizará la remoción de la banda de rodillos manual anterior y la instalación de una banda transportadora motorizada automatizada para optimizar el flujo de despacho.",
+                    affectsInfra: "si",
+                    hasContractors: "si",
+                    infraLocation: "Nave B - Sección de Embalaje Final",
+                    infraType: "Piso de concreto y soportes metálicos",
+                    contractorName: "Ingeniería Mecatrónica del Norte",
+                    contractorStaff: "3",
+                    riskND: "6",
+                    riskNE: "3",
+                    riskNC: "25",
+                    riskControls: "Peligro mecánico por atrapamiento en partes móviles. Controles: Guardas fijas perimetrales, parada de emergencia de tirón, e inducción de seguridad LOTO.",
+                    evidencePhoto: "",
+                    evidenceAudio: "",
+                    signatureBase64: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='30'><text x='10' y='20' style='font: italic bold 12px sans-serif; fill: %2310b981;'>Firmado SST</text></svg>",
+                    tasks: [
+                        { id: "t1-1", activity: "Elaborar análisis pre-operativo de seguridad (ATS)", phva: "P", responsible: "Coordinador SST", deadline: "2026-06-05", resources: "Humano", legal: "Decreto 1072 Art 2.2.4.6.26", column: "done" },
+                        { id: "t1-2", activity: "Instalar guardas de protección mecánica perimetral", phva: "H", responsible: "Supervisor de Mantenimiento", deadline: "2026-06-12", resources: "Financiero / Materiales", legal: "Resolución 2400 de 1979", column: "doing" },
+                        { id: "t1-3", activity: "Inspección preoperativa de parada de emergencia y rodillos", phva: "V", responsible: "Copasst / SST", deadline: "2026-06-15", resources: "Humano", legal: "Decreto 1072", column: "todo" }
+                    ]
+                },
+                {
+                    id: "change-demo-2",
+                    changeTitle: "Sustitución de solventes base tolueno por biodegradable",
+                    changeCategory: "Químico o Sustancias Peligrosas",
+                    changeProcess: "Seguridad y Salud en el Trabajo (SST)",
+                    changeDescription: "Reemplazo químico completo del solvente industrial a base de tolueno por un agente limpiador biodegradable a base de agua en la sección de desengrase de piezas.",
+                    affectsInfra: "no",
+                    hasContractors: "no",
+                    infraLocation: "",
+                    infraType: "",
+                    contractorName: "",
+                    contractorStaff: "",
+                    riskND: "2",
+                    riskNE: "2",
+                    riskNC: "10",
+                    riskControls: "Disponer de fichas de datos de seguridad (FDS/SGA) actualizadas. Capacitar al personal en el nuevo producto. Suministrar guantes de nitrilo de manga larga.",
+                    evidencePhoto: "",
+                    evidenceAudio: "",
+                    signatureBase64: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='30'><text x='10' y='20' style='font: italic bold 12px sans-serif; fill: %2310b981;'>Firmado SST</text></svg>",
+                    tasks: [
+                        { id: "t2-1", activity: "Adquirir FDS e ingresar producto al inventario químico bajo SGA", phva: "P", responsible: "Líder de Compras", deadline: "2026-06-01", resources: "Tecnológico", legal: "Decreto 1496 de 2018 (SGA)", column: "done" },
+                        { id: "t2-2", activity: "Socializar la nueva ficha de seguridad y peligros con los operarios", phva: "H", responsible: "Coordinador SST", deadline: "2026-06-04", resources: "Humano (Capacitación)", legal: "Decreto 1072", column: "done" },
+                        { id: "t2-3", activity: "Monitorear la efectividad del limpiador y posibles irritaciones dérmicas", phva: "V", responsible: "Supervisor de Producion", deadline: "2026-06-20", resources: "Humano", legal: "N/A", column: "todo" }
+                    ]
+                },
+                {
+                    id: "change-demo-3",
+                    changeTitle: "Cambio de cubiertas de fibrocemento por tejas termoacústicas",
+                    changeCategory: "Locativo o Infraestructura",
+                    changeProcess: "Gestión de Operaciones",
+                    changeDescription: "Desmonte seguro de tejas viejas de asbesto-cemento y colocación de cubiertas termoacústicas nuevas. Implica trabajos de alto riesgo en alturas superiores a 2 metros.",
+                    affectsInfra: "si",
+                    hasContractors: "si",
+                    infraLocation: "Bodega Principal de Almacenamiento Central",
+                    infraType: "Estructura metálica y vigas de soporte de cubierta",
+                    contractorName: "Alturas y Techados del Pacífico SAS",
+                    contractorStaff: "5",
+                    riskND: "10",
+                    riskNE: "3",
+                    riskNC: "100",
+                    riskControls: "Permiso de trabajo en alturas obligatorio, uso de línea de vida móvil doble, arnés certificado, delimitación de la zona de caída de objetos y andamios certificados multidireccionales.",
+                    evidencePhoto: "",
+                    evidenceAudio: "",
+                    signatureBase64: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='30'><text x='10' y='20' style='font: italic bold 12px sans-serif; fill: %2310b981;'>Firmado SST</text></svg>",
+                    tasks: [
+                        { id: "t3-1", activity: "Aprobar el plan de trabajo en alturas y verificar certificaciones del personal", phva: "P", responsible: "Coordinador SST", deadline: "2026-06-02", resources: "Documental", legal: "Resolución 4272 de 2021", column: "done" },
+                        { id: "t3-2", activity: "Instalar líneas de vida temporales y delimitar zona de tránsito", phva: "H", responsible: "Coordinador de Alturas Contratista", deadline: "2026-06-05", resources: "Equipo anticaídas", legal: "Resolución 4272 de 2021", column: "done" },
+                        { id: "t3-3", activity: "Inspeccionar diariamente el uso correcto de EPP y puntos de anclaje", phva: "V", responsible: "Vigía / SST", deadline: "2026-06-10", resources: "Humano", legal: "Decreto 1072", column: "doing" }
+                    ]
+                },
+                {
+                    id: "change-demo-4",
+                    changeTitle: "Implementación de tercer turno laboral nocturno en empaque",
+                    changeCategory: "Organizacional o Personal",
+                    changeProcess: "Gestión Humana y Nómina",
+                    changeDescription: "Creación de un nuevo turno de trabajo nocturno (10:00 PM a 6:00 AM) para suplir necesidades urgentes de producción, aumentando la exposición a fatiga y factores psicosociales.",
+                    affectsInfra: "no",
+                    hasContractors: "no",
+                    infraLocation: "",
+                    infraType: "",
+                    contractorName: "",
+                    contractorStaff: "",
+                    riskND: "6",
+                    riskNE: "4",
+                    riskNC: "25",
+                    riskControls: "Exámenes médicos de aptitud nocturna previa. Rotación equitativa del personal cada dos semanas. Pausas activas con ejercicios de estiramiento y dinámicas a mitad del turno nocturno.",
+                    evidencePhoto: "",
+                    evidenceAudio: "",
+                    signatureBase64: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='30'><text x='10' y='20' style='font: italic bold 12px sans-serif; fill: %2310b981;'>Firmado SST</text></svg>",
+                    tasks: [
+                        { id: "t4-1", activity: "Realizar valoraciones médicas ocupacionales con énfasis psicosocial", phva: "P", responsible: "Médico Especialista Ocupacional", deadline: "2026-05-30", resources: "Presupuesto IPS", legal: "Resolución 2346 de 2007", column: "done" },
+                        { id: "t4-2", activity: "Charla sobre higiene del sueño y alimentación para turnos nocturnos", phva: "H", responsible: "Psicólogo Organizacional", deadline: "2026-06-08", resources: "Capacitación", legal: "Decreto 1072", column: "todo" },
+                        { id: "t4-3", activity: "Aplicar encuesta de fatiga y niveles de alerta al mes de iniciar", phva: "V", responsible: "Líder SST", deadline: "2026-06-30", resources: "Humano / Encuestas", legal: "Batería de Riesgo Psicosocial", column: "todo" }
+                    ]
+                },
+                {
+                    id: "change-demo-5",
+                    changeTitle: "Actualización de estándar LOTO con dispositivos digitales QR",
+                    changeCategory: "Procedimientos de Trabajo",
+                    changeProcess: "Mantenimiento Industrial",
+                    changeDescription: "Actualización del procedimiento manual de bloqueo y etiquetado eléctrico a un sistema moderno con candados de código QR y registro fotográfico digital en tabletas.",
+                    affectsInfra: "no",
+                    hasContractors: "no",
+                    infraLocation: "",
+                    infraType: "",
+                    contractorName: "",
+                    contractorStaff: "",
+                    riskND: "2",
+                    riskNE: "3",
+                    riskNC: "60",
+                    riskControls: "Candados codificados por colores y nombres asignados individualmente. Procedimientos de bloqueo digital integrados al software de mantenimiento. Capacitación teórica y práctica obligatoria.",
+                    evidencePhoto: "",
+                    evidenceAudio: "",
+                    signatureBase64: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='30'><text x='10' y='20' style='font: italic bold 12px sans-serif; fill: %2310b981;'>Firmado SST</text></svg>",
+                    tasks: [
+                        { id: "t5-1", activity: "Redactar la nueva versión del estándar LOTO Digital", phva: "P", responsible: "Ingeniero Eléctrico / SST", deadline: "2026-06-03", resources: "Documental", legal: "Resolución 5018 de 2019", column: "done" },
+                        { id: "t5-2", activity: "Dotar a cada electricista con kit físico LOTO y capacitar en el software", phva: "H", responsible: "Jefe de Mantenimiento", deadline: "2026-06-10", resources: "Físico (Candados/Módulos)", legal: "Resolución 5018 de 2019", column: "doing" },
+                        { id: "t5-3", activity: "Realizar auditoría en campo del correcto uso del aplicativo de bloqueo", phva: "V", responsible: "COPASST / Supervisor", deadline: "2026-06-18", resources: "Humano", legal: "Decreto 1072", column: "todo" }
+                    ]
+                }
+            ];
+        }
+
+        // Click handler to manually trigger demonstration load
+        function loadDemoExamples() {
+            if (confirm("¿Deseas restaurar/cargar los 5 ejemplos de gestión del cambio demo en la matriz? Los cambios existentes no duplicados se mantendrán y se agregarán los nuevos ejemplos.")) {
+                const demos = getDemoExamples();
+                demos.forEach(demo => {
+                    if (!masterSavedChanges.some(x => x.id === demo.id)) {
+                        masterSavedChanges.push(demo);
+                    }
+                });
+                localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                renderMasterTable();
+                lucide.createIcons();
+                alert("Se han cargado los 5 ejemplos demo correctamente en la Matriz General de Gestión del Cambio.");
+            }
+        }
+
+        function populateSelectLists() {
+            const catSelect = document.getElementById('change-category');
+            const procSelect = document.getElementById('change-process');
+            
+            if (catSelect) {
+                const currentVal = catSelect.value;
+                catSelect.innerHTML = '';
+                appCategories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.innerText = cat;
+                    catSelect.appendChild(opt);
+                });
+                if (currentVal && appCategories.includes(currentVal)) {
+                    catSelect.value = currentVal;
+                }
+            }
+            
+            if (procSelect) {
+                const currentVal = procSelect.value;
+                procSelect.innerHTML = '';
+                appProcesses.forEach(proc => {
+                    const opt = document.createElement('option');
+                    opt.value = proc;
+                    opt.innerText = proc;
+                    procSelect.appendChild(opt);
+                });
+                if (currentVal && appProcesses.includes(currentVal)) {
+                    procSelect.value = currentVal;
+                }
+            }
+            
+            updateCategoryDescription();
+        }
+
+        function updateCategoryDescription() {
+            const catSelect = document.getElementById('change-category');
+            const helpText = document.getElementById('category-description-help');
+            if (!catSelect || !helpText) return;
+            
+            const selectedVal = catSelect.value;
+            let description = "";
+            
+            if (selectedVal === "Tecnológico o Maquinaria" || selectedVal === "maquinaria") {
+                description = "Nuevos equipos, herramientas, software, tecnologías o maquinaria que alteren la operación.";
+            } else if (selectedVal === "Locativo o Infraestructura" || selectedVal === "locativo") {
+                description = "Obras civiles, redistribución de espacios (layout), cambios de oficinas o adecuaciones físicas.";
+            } else if (selectedVal === "Químico o Sustancias Peligrosas" || selectedVal === "quimico") {
+                description = "Introducción, sustitución o cambio de materias primas, insumos químicos o reactivos.";
+            } else if (selectedVal === "Organizacional o Personal" || selectedVal === "organizacional") {
+                description = "Cambios de personal clave, turnos de trabajo, nuevos roles, o reestructuración de organigrama.";
+            } else if (selectedVal === "Procedimientos de Trabajo" || selectedVal === "procedimiento") {
+                description = "Modificaciones en métodos operativos, guías técnicas, estándares de seguridad o procesos establecidos.";
+            }
+            
+            helpText.innerText = description;
+        }
+
+        function saveDocHeader() {
+            appDocHeader.appTitle = document.getElementById('app-document-title').innerText;
+            appDocHeader.appSubtitle = document.getElementById('app-document-subtitle').innerText;
+            localStorage.setItem('wappy_sst_doc_header', JSON.stringify(appDocHeader));
+        }
+
+        function saveField(id) {
+            const val = document.getElementById(id).innerText;
+            if (id === 'company-name') appDocHeader.companyName = val;
+            if (id === 'company-nit') appDocHeader.companyNit = val;
+            if (id === 'company-arl') appDocHeader.companyArl = val;
+            if (id === 'company-workers') appDocHeader.companyWorkers = val;
+            if (id === 'company-risk') appDocHeader.companyRisk = val;
+            if (id === 'change-code') appDocHeader.changeCode = val;
+            if (id === 'last-updated-text') appDocHeader.lastUpdated = val;
+            
+            localStorage.setItem('wappy_sst_doc_header', JSON.stringify(appDocHeader));
+        }
+
+        function bindHeaderToUI() {
+            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Acta de Gestión del Cambio en SST";
+            document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "Copiloto de Seguridad y Salud en el Trabajo";
+            document.getElementById('company-name').innerText = appDocHeader.companyName;
+            document.getElementById('company-nit').innerText = appDocHeader.companyNit;
+            document.getElementById('company-arl').innerText = appDocHeader.companyArl;
+            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers;
+            document.getElementById('company-risk').innerText = appDocHeader.companyRisk;
+            document.getElementById('change-code').innerText = appDocHeader.changeCode;
+            document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated;
+            renderLogo();
+        }
+
+        // Theme management
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('wappy_sst_theme', currentTheme);
+            applyTheme();
+        }
+
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (currentTheme === 'dark') {
+                html.classList.add('dark');
+                html.classList.remove('light');
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.add('light');
+                html.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        // Bind Wizard fields
+        function bindWizardToUI() {
+            document.getElementById('change-title').value = currentWizard.changeTitle;
+            document.getElementById('change-category').value = currentWizard.changeCategory || appCategories[0];
+            document.getElementById('change-process').value = currentWizard.changeProcess || "Direccionamiento Estratégico";
+            document.getElementById('change-description').value = currentWizard.changeDescription;
+            updateCategoryDescription();
+
+            document.querySelector(`input[name="affects-infra"][value="${currentWizard.affectsInfra}"]`).checked = true;
+            document.querySelector(`input[name="has-contractors"][value="${currentWizard.hasContractors}"]`).checked = true;
+
+            document.getElementById('infra-location').value = currentWizard.infraLocation;
+            document.getElementById('infra-type').value = currentWizard.infraType;
+
+            document.getElementById('contractor-name').value = currentWizard.contractorName;
+            document.getElementById('contractor-staff').value = currentWizard.contractorStaff;
+
+            document.getElementById('risk-nd').value = currentWizard.riskND;
+            document.getElementById('risk-ne').value = currentWizard.riskNE;
+            document.getElementById('risk-nc').value = currentWizard.riskNC;
+            document.getElementById('risk-controls').value = currentWizard.riskControls;
+
+            // Evidences render
+            renderEvidenceAssets();
+
+            // Set save button text
+            document.getElementById('btn-save-wizard-text').innerText = currentWizard.id ? "MODIFICAR Y ACTUALIZAR CAMBIO" : "GUARDAR Y CONSOLIDAR CAMBIO";
+            document.getElementById('wizard-action-title').innerText = currentWizard.id ? `Seguimiento / Modificación del Cambio: ${currentWizard.changeTitle.substring(0, 30)}` : "Registrar Nuevo Cambio";
+
+            toggleDynamicFields();
+            calculateGTC45Risk();
+            renderKanban();
+        }
+
+        function collectWizardState() {
+            currentWizard.changeTitle = document.getElementById('change-title').value;
+            currentWizard.changeCategory = document.getElementById('change-category').value;
+            currentWizard.changeProcess = document.getElementById('change-process').value;
+            currentWizard.changeDescription = document.getElementById('change-description').value;
+
+            currentWizard.affectsInfra = document.querySelector('input[name="affects-infra"]:checked').value;
+            currentWizard.hasContractors = document.querySelector('input[name="has-contractors"]:checked').value;
+
+            currentWizard.infraLocation = document.getElementById('infra-location').value;
+            currentWizard.infraType = document.getElementById('infra-type').value;
+
+            currentWizard.contractorName = document.getElementById('contractor-name').value;
+            currentWizard.contractorStaff = document.getElementById('contractor-staff').value;
+
+            currentWizard.riskND = document.getElementById('risk-nd').value;
+            currentWizard.riskNE = document.getElementById('risk-ne').value;
+            currentWizard.riskNC = document.getElementById('risk-nc').value;
+            currentWizard.riskControls = document.getElementById('risk-controls').value;
+        }
+
+        function toggleDynamicFields() {
+            const infraChecked = document.querySelector('input[name="affects-infra"]:checked').value === 'si';
+            const contractorChecked = document.querySelector('input[name="has-contractors"]:checked').value === 'si';
+
+            document.getElementById('dynamic-infra-block').style.display = infraChecked ? 'flex' : 'none';
+            document.getElementById('dynamic-contractor-block').style.display = contractorChecked ? 'flex' : 'none';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('[id^="btn-tab-"]').forEach(b => b.classList.remove('tab-active'));
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(`btn-${tabId}`).classList.add('tab-active');
+            activeTab = tabId;
+        }
+
+        // Risk calculations GTC45
+        function calculateGTC45Risk() {
+            const nd = parseInt(document.getElementById('risk-nd').value);
+            const ne = parseInt(document.getElementById('risk-ne').value);
+            const nc = parseInt(document.getElementById('risk-nc').value);
+
+            const np = nd * ne;
+            document.getElementById('risk-np').value = np;
+
+            const nr = np * nc;
+            document.getElementById('risk-nr-value').innerText = nr;
+
+            const badge = document.getElementById('risk-badge');
+            const title = document.getElementById('risk-level-title');
+            const desc = document.getElementById('risk-level-desc');
+            const card = document.getElementById('risk-result-card');
+
+            let valClass = "I";
+            let colorText = "text-red-400";
+            let bgClass = "bg-red-950/40 border-red-700/50";
+            let badgeStyle = "text-red-300 bg-red-900/60 border-red-700";
+            let textTitle = "Riesgo Crítico / Inaceptable (Nivel I)";
+            let textDesc = "Detener actividades hasta mitigar con controles.";
+
+            if (nr <= 40) {
+                valClass = "IV";
+                colorText = "text-emerald-500";
+                bgClass = "bg-emerald-950/40 border-emerald-700/50";
+                badgeStyle = "text-emerald-500 bg-emerald-900/60 border-emerald-700";
+                textTitle = "Riesgo Aceptable (Nivel IV)";
+                textDesc = "Mantener controles existentes y realizar seguimiento.";
+            } else if (nr <= 120) {
+                valClass = "III";
+                colorText = "text-yellow-500";
+                bgClass = "bg-yellow-950/40 border-yellow-700/50";
+                badgeStyle = "text-yellow-300 bg-yellow-900/60 border-yellow-700";
+                textTitle = "Riesgo Mejorable (Nivel III)";
+                textDesc = "Planificar medidas de protección complementarias.";
+            } else if (nr <= 500) {
+                valClass = "II";
+                colorText = "text-orange-500";
+                bgClass = "bg-orange-950/40 border-orange-700/50";
+                badgeStyle = "text-orange-300 bg-orange-900/60 border-orange-700";
+                textTitle = "Riesgo Alto (Nivel II)";
+                textDesc = "Mitigación inmediata. Programar acciones correctivas.";
+            }
+
+            badge.innerText = valClass;
+            badge.className = `w-12 h-12 rounded-full flex items-center justify-center font-extrabold text-lg border ${badgeStyle}`;
+            title.innerText = textTitle;
+            title.className = `text-sm font-bold ${colorText}`;
+            desc.innerText = textDesc;
+            card.className = `${bgClass} rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition`;
+        }
+
+        // Digital signature logic
+        function initializeCanvas() {
+            canvas = document.getElementById('signature-pad');
+            ctx = canvas.getContext('2d');
+
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(20, 110);
+            ctx.lineTo(340, 110);
+            ctx.stroke();
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startDrawing(e.touches[0]);
+            });
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                draw(e.touches[0]);
+            });
+            canvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignatureCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            initializeCanvas();
+            currentWizard.signatureBase64 = "";
+            document.getElementById('signature-saved-status').classList.add('hidden');
+        }
+
+        function saveSignature() {
+            const dataUrl = canvas.toDataURL();
+            currentWizard.signatureBase64 = dataUrl;
+            document.getElementById('signature-saved-status').classList.remove('hidden');
+        }
+
+        // Multimedia handlers
+        function uploadLogo(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                appDocHeader.logoBase64 = e.target.result;
+                renderLogo();
+                saveField('company-name');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderLogo() {
+            const cont = document.getElementById('logo-container');
+            if (!cont) return;
+            if (appDocHeader.logoBase64) {
+                cont.className = "relative rounded-xl w-11 h-11 overflow-hidden shadow-lg border border-slate-700/30 flex items-center justify-center bg-slate-900";
+                cont.innerHTML = `<img src="${appDocHeader.logoBase64}" class="w-full h-full object-cover">`;
+            } else {
+                cont.className = "bg-gradient-to-tr from-emerald-500 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20 w-11 h-11 flex items-center justify-center overflow-hidden";
+                cont.innerHTML = `<i data-lucide="git-branch" class="w-5 h-5 text-slate-950 stroke-[2.5]"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        function uploadEvidencePhoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentWizard.evidencePhoto = e.target.result;
+                renderEvidenceAssets();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeEvidencePhoto(event) {
+            event.stopPropagation();
+            currentWizard.evidencePhoto = "";
+            renderEvidenceAssets();
+        }
+
+        function renderEvidenceAssets() {
+            const container = document.getElementById('evidence-preview-container');
+            const img = document.getElementById('evidence-preview-img');
+            if (currentWizard.evidencePhoto) {
+                img.src = currentWizard.evidencePhoto;
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                img.src = "";
+            }
+
+            const audioPlayback = document.getElementById('audio-playback');
+            const btnDelete = document.getElementById('btn-audio-delete');
+            const statusText = document.getElementById('audio-record-status');
+            
+            if (currentWizard.evidenceAudio) {
+                audioPlayback.src = currentWizard.evidenceAudio;
+                audioPlayback.classList.remove('hidden');
+                btnDelete.classList.remove('hidden');
+                statusText.innerText = "Nota de voz grabada";
+            } else {
+                audioPlayback.classList.add('hidden');
+                btnDelete.classList.add('hidden');
+                audioPlayback.src = "";
+                statusText.innerText = "Grabar nota de voz local";
+            }
+        }
+
+        // Mic recording logic
+        function startAudioRecording() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("La grabación no está soportada en su navegador.");
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        currentWizard.evidenceAudio = e.target.result;
+                        renderEvidenceAssets();
+                    };
+                    reader.readAsDataURL(audioBlob);
+                };
+                mediaRecorder.start();
+                document.getElementById('btn-record-start').classList.add('hidden');
+                document.getElementById('btn-record-stop').classList.remove('hidden');
+                document.getElementById('audio-record-status').innerText = "Grabando nota de voz...";
+            }).catch(err => {
+                alert("No se pudo acceder al micrófono.");
+            });
+        }
+
+        function stopAudioRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                document.getElementById('btn-record-start').classList.remove('hidden');
+                document.getElementById('btn-record-stop').classList.add('hidden');
+            }
+        }
+
+        function removeAudioRecording() {
+            currentWizard.evidenceAudio = "";
+            renderEvidenceAssets();
+        }
+
+        // Kanban actions UI
+        function renderKanban() {
+            const colTodo = document.getElementById('kanban-col-todo');
+            const colDoing = document.getElementById('kanban-col-doing');
+            const colDone = document.getElementById('kanban-col-done');
+
+            colTodo.innerHTML = '';
+            colDoing.innerHTML = '';
+            colDone.innerHTML = '';
+
+            currentWizard.tasks.forEach(task => {
+                const el = document.createElement('div');
+                el.id = `kanban-task-${task.id}`;
+                el.draggable = true;
+                el.ondragstart = (e) => e.dataTransfer.setData('text/plain', task.id);
+                el.className = `p-3 rounded bg-slate-900 dark:bg-slate-950/90 border dark:border-slate-800 light:border-slate-300 transition flex flex-col gap-2 cursor-grab text-[11px]`;
+
+                const phvaColors = { 'P': 'text-cyan-400 bg-cyan-950/40', 'H': 'text-yellow-400 bg-yellow-950/40', 'V': 'text-purple-400 bg-purple-950/40', 'A': 'text-emerald-400 bg-emerald-950/40' };
+
+                el.innerHTML = `
+                    <div class="flex justify-between items-center gap-1">
+                        <span class="font-bold px-1.5 py-0.5 rounded border border-current ${phvaColors[task.phva] || 'bg-slate-800'} text-[9px]">${task.phva}</span>
+                        <div class="flex items-center gap-1">
+                            <button onclick="editTask('${task.id}')" class="text-slate-400 hover:text-cyan-400"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+                            <button onclick="deleteTask('${task.id}')" class="text-slate-400 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                    <p class="font-semibold text-slate-100 dark:text-slate-200">${task.activity}</p>
+                    <div class="flex flex-col gap-0.5 mt-1 border-t dark:border-slate-850 light:border-slate-200 pt-1.5 text-[9px] text-slate-400">
+                        <span><strong>Resp:</strong> ${task.responsible}</span>
+                        <span><strong>Límite:</strong> ${task.deadline}</span>
+                    </div>
+                `;
+
+                if (task.column === 'todo') colTodo.appendChild(el);
+                else if (task.column === 'doing') colDoing.appendChild(el);
+                else colDone.appendChild(el);
+            });
+
+            lucide.createIcons();
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e, targetCol) {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain');
+            const task = currentWizard.tasks.find(t => t.id === id);
+            if (task && task.column !== targetCol) {
+                task.column = targetCol;
+                renderKanban();
+            }
+        }
+
+        function openAddTaskModal() {
+            document.getElementById('modal-title').innerText = "Agregar Acción";
+            document.getElementById('modal-task-id').value = "";
+            document.getElementById('modal-task-activity').value = "";
+            document.getElementById('modal-task-phva').value = "P";
+            document.getElementById('modal-task-responsible').value = "Coordinador SST";
+            document.getElementById('modal-task-deadline').value = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-task-resources').value = "Humano";
+            document.getElementById('modal-task-legal').value = "Resolucion 0312 de 2019";
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function editTask(id) {
+            const task = currentWizard.tasks.find(t => t.id === id);
+            if (!task) return;
+            
+            document.getElementById('modal-title').innerText = "Editar Acción";
+            document.getElementById('modal-task-id').value = task.id;
+            document.getElementById('modal-task-activity').value = task.activity;
+            document.getElementById('modal-task-phva').value = task.phva;
+            document.getElementById('modal-task-responsible').value = task.responsible;
+            document.getElementById('modal-task-deadline').value = task.deadline;
+            document.getElementById('modal-task-resources').value = task.resources;
+            document.getElementById('modal-task-legal').value = task.legal;
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function deleteTask(id) {
+            currentWizard.tasks = currentWizard.tasks.filter(t => t.id !== id);
+            renderKanban();
+        }
+
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        function saveTaskModal() {
+            const id = document.getElementById('modal-task-id').value;
+            const activity = document.getElementById('modal-task-activity').value;
+            const phva = document.getElementById('modal-task-phva').value;
+            const responsible = document.getElementById('modal-task-responsible').value;
+            const deadline = document.getElementById('modal-task-deadline').value;
+            const resources = document.getElementById('modal-task-resources').value;
+            const legal = document.getElementById('modal-task-legal').value;
+
+            if (!activity) {
+                alert("Ingrese el título de la actividad.");
+                return;
+            }
+
+            if (id) {
+                const task = currentWizard.tasks.find(t => t.id === id);
+                if (task) {
+                    task.activity = activity;
+                    task.phva = phva;
+                    task.responsible = responsible;
+                    task.deadline = deadline;
+                    task.resources = resources;
+                    task.legal = legal;
+                }
+            } else {
+                currentWizard.tasks.push({
+                    id: 't-' + Date.now(),
+                    activity, phva, responsible, deadline, resources, legal,
+                    column: 'todo'
+                });
+            }
+            closeTaskModal();
+            renderKanban();
+        }
+
+        // Trigger AI analysis directly from the Tab 2 end-block
+        async function triggerIAGenerationFromTab2() {
+            const apiKey = localStorage.getItem('wappy_gemini_key') || '';
+            if (!apiKey) {
+                alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
+                toggleAISidebar();
+                return;
+            }
+
+            collectWizardState();
+
+            if (!currentWizard.changeTitle || !currentWizard.changeDescription) {
+                alert("Por favor llene el Título y la Descripción del cambio en la pestaña 1 antes de consultar con la IA.");
+                switchTab('tab-identification');
+                return;
+            }
+
+            const model = document.getElementById('gemini-model').value;
+            const statusEl = document.getElementById('tab2-ai-status');
+            statusEl.classList.remove('hidden');
+
+            const systemInstruction = `
+Actúas como un experto consultor de Seguridad y Salud en el Trabajo (SST) de Colombia.
+Analizarás el cambio propuesto por el usuario y devolverás OBLIGATORIAMENTE un JSON estructurado para rellenar la matriz de riesgos GTC45 y crear 3 o 4 tareas de control para el plan de acción (Kanban).
+
+NO utilices markdown ni bloques de código tipo \`\`\`json. Solo el objeto JSON plano.
+
+Estructura obligatoria del JSON:
+{
+  "riskControls": "string describiendo los controles del peligro principal para la matriz de riesgos",
+  "riskND": "string número entre '0', '2', '6' o '10'",
+  "riskNE": "string número entre '1', '2', '3' o '4'",
+  "riskNC": "string número entre '10', '25', '60' o '100'",
+  "newTasks": [
+    {
+      "activity": "descripción de la tarea",
+      "phva": "letra 'P', 'H', 'V' o 'A'",
+      "responsible": "cargo encargado",
+      "deadline": "fecha formato YYYY-MM-DD",
+      "resources": "recursos",
+      "legal": "norma o ley colombiana aplicable"
+    }
+  ]
+}
+            `;
+
+            const userPrompt = `
+Título del Cambio: "${currentWizard.changeTitle}"
+Categoría: "${currentWizard.changeCategory}"
+Descripción: "${currentWizard.changeDescription}"
+¿Afecta Infraestructura?: "${currentWizard.affectsInfra}"
+Ubicación/Área: "${currentWizard.infraLocation || 'No aplica'}"
+¿Contratistas?: "${currentWizard.hasContractors}"
+Empresa Contratista: "${currentWizard.contractorName || 'No aplica'}"
+            `;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        generationConfig: { responseMimeType: "application/json" },
+                        contents: [{ role: "user", parts: [{ text: userPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Error en API: ${response.status}`);
+                }
+
+                const resData = await response.json();
+                const textContent = resData.candidates[0].content.parts[0].text;
+                
+                const aiResult = JSON.parse(textContent);
+
+                // Populate Tab 3
+                if (aiResult.riskControls) currentWizard.riskControls = aiResult.riskControls;
+                if (aiResult.riskND) currentWizard.riskND = aiResult.riskND;
+                if (aiResult.riskNE) currentWizard.riskNE = aiResult.riskNE;
+                if (aiResult.riskNC) currentWizard.riskNC = aiResult.riskNC;
+
+                // Populate Tab 4
+                if (aiResult.newTasks && Array.isArray(aiResult.newTasks)) {
+                    currentWizard.tasks = []; // Clear existing for AI template
+                    aiResult.newTasks.forEach((t, i) => {
+                        currentWizard.tasks.push({
+                            id: 'ai-t-' + Date.now() + '-' + i,
+                            activity: t.activity,
+                            phva: t.phva || 'P',
+                            responsible: t.responsible || 'Coordinador SST',
+                            deadline: t.deadline || new Date().toISOString().split('T')[0],
+                            resources: t.resources || 'Humano',
+                            legal: t.legal || 'Normativa Nacional',
+                            column: 'todo'
+                        });
+                    });
+                }
+
+                // Sync and Switch
+                bindWizardToUI();
+                switchTab('tab-risk');
+                alert("¡IA Copiloto cargó exitosamente los análisis de riesgos y diseñó el plan de acción! Revisa los resultados en las pestañas 3 y 4.");
+            } catch (err) {
+                console.error("Error al consultar Gemini:", err);
+                alert(`Error en Copiloto IA: ${err.message}. Verifique su conexión y su API Key.`);
+            } finally {
+                statusEl.classList.add('hidden');
+            }
+        }
+
+        // Save current change to Master Matrix list
+        function saveCurrentChangeToMatrix() {
+            collectWizardState();
+
+            if (!currentWizard.changeTitle) {
+                alert("Por favor ingrese al menos el Título del Cambio.");
+                switchTab('tab-identification');
+                return;
+            }
+
+            // Generate temporary unique code if none exists
+            if (!currentWizard.id) {
+                currentWizard.id = 'change-' + Date.now();
+                // Add to array
+                masterSavedChanges.push(JSON.parse(JSON.stringify(currentWizard)));
+                alert("Cambio guardado y consolidado con éxito en la Matriz General.");
+            } else {
+                // Update existing
+                const index = masterSavedChanges.findIndex(c => c.id === currentWizard.id);
+                if (index !== -1) {
+                    masterSavedChanges[index] = JSON.parse(JSON.stringify(currentWizard));
+                    alert("Cambio actualizado con éxito en la Matriz General.");
+                }
+            }
+
+            // Sync matrix to localStorage
+            localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+            
+            // Clean up wizard and switch to Identification tab
+            clearFormWizard();
+            renderMasterTable();
+            switchTab('tab-identification');
+        }
+
+        // Master matrix actions
+        function renderMasterTable() {
+            const tbody = document.getElementById('master-matrix-tbody');
+            tbody.innerHTML = '';
+
+            if (masterSavedChanges.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-slate-500">No hay cambios registrados en la matriz.</td></tr>`;
+                return;
+            }
+
+            masterSavedChanges.forEach(change => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/10 dark:hover:bg-slate-900/40 cursor-pointer transition";
+                tr.onclick = () => loadChangeForEditing(change.id);
+
+                // Calc risk class
+                const nd = parseInt(change.riskND || "0");
+                const ne = parseInt(change.riskNE || "0");
+                const nc = parseInt(change.riskNC || "0");
+                const nr = nd * ne * nc;
+                
+                let riskBadge = '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold">IV - Aceptable</span>';
+                if (nr > 500) {
+                    riskBadge = '<span class="px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 text-[10px] font-bold">I - Crítico</span>';
+                } else if (nr > 120) {
+                    riskBadge = '<span class="px-2 py-0.5 rounded bg-orange-950 text-orange-400 border border-orange-800 text-[10px] font-bold">II - Alto</span>';
+                } else if (nr > 40) {
+                    riskBadge = '<span class="px-2 py-0.5 rounded bg-yellow-950 text-yellow-400 border border-yellow-800 text-[10px] font-bold">III - Medio</span>';
+                }
+
+                // Calc progress pct
+                const total = change.tasks.length;
+                const done = change.tasks.filter(t => t.column === 'done').length;
+                const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+                const hasSignature = change.signatureBase64 ? '<i data-lucide="signature" class="w-4 h-4 text-emerald-500"></i>' : '<span class="text-slate-500">-</span>';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-mono font-bold">${appDocHeader.changeCode}</td>
+                    <td class="py-3 px-3 font-semibold">${change.changeTitle}</td>
+                    <td class="py-3 px-3 capitalize">${change.changeCategory}</td>
+                    <td class="py-3 px-3">${change.changeProcess || '-'}</td>
+                    <td class="py-3 px-3">${riskBadge}</td>
+                    <td class="py-3 px-3">${hasSignature}</td>
+                    <td class="py-3 px-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${progress}%"></div>
+                            </div>
+                            <span class="font-bold">${progress}%</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 text-right no-print" onclick="event.stopPropagation();">
+                        <div class="flex items-center justify-end gap-2">
+                            <button onclick="loadChangeForEditing('${change.id}')" class="p-1 text-slate-400 hover:text-emerald-500" title="Ver / Editar"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                            <button onclick="deleteChangeFromMatrix('${change.id}')" class="p-1 text-slate-400 hover:text-red-500" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        function loadChangeForEditing(id) {
+            const change = masterSavedChanges.find(c => c.id === id);
+            if (!change) return;
+
+            // Load into wizard
+            currentWizard = JSON.parse(JSON.stringify(change));
+            bindWizardToUI();
+            
+            // Re-render signature
+            if (currentWizard.signatureBase64) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = currentWizard.signatureBase64;
+                document.getElementById('signature-saved-status').classList.remove('hidden');
+            } else {
+                clearSignatureCanvas();
+            }
+
+            // Scroll up to wizard
+            window.scrollTo({ top: 120, behavior: 'smooth' });
+        }
+
+        function deleteChangeFromMatrix(id) {
+            if (confirm("¿Está seguro de eliminar permanentemente este cambio de la matriz consolidada?")) {
+                masterSavedChanges = masterSavedChanges.filter(c => c.id !== id);
+                localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                renderMasterTable();
+                
+                // If current editing is the deleted one, clear it
+                if (currentWizard.id === id) {
+                    clearFormWizard();
+                }
+            }
+        }
+
+        function clearFormWizard() {
+            currentWizard = JSON.parse(JSON.stringify(BLANK_WIZARD_CHANGE));
+            bindWizardToUI();
+            clearSignatureCanvas();
+            document.getElementById('signature-saved-status').classList.add('hidden');
+        }
+
+        // API Key configs
+        function saveAPIKey() {
+            const key = document.getElementById('gemini-key').value.trim();
+            localStorage.setItem('wappy_gemini_key', key);
+        }
+
+        function toggleAISidebar() {
+            const drawer = document.getElementById('ai-drawer');
+            if (drawer.classList.contains('translate-x-full')) {
+                drawer.classList.remove('translate-x-full');
+            } else {
+                drawer.classList.add('translate-x-full');
+            }
+        }
+    </script>
+</body>
+</html>
