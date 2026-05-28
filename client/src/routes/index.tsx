@@ -20,6 +20,7 @@ import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
+import ComunidadPage from '~/components/Marketing/ComunidadPage';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -44,8 +45,19 @@ const baseHref = baseEl?.getAttribute('href') || '/';
 export const router = createBrowserRouter(
   [
     {
+      path: 'comunidad',
+      element: (
+        <AuthContextProvider>
+          <ComunidadPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'share/:shareId',
       element: <ShareRoute />,
+
       errorElement: <RouteErrorBoundary />,
     },
     {
