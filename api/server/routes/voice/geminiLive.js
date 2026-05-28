@@ -12,12 +12,38 @@ class GeminiLiveClient extends EventEmitter {
     constructor(apiKey, config = {}) {
         super();
         this.apiKey = apiKey;
+
+        const rawModel = config.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+        const mapModelToRealGoogleModel = (modelName) => {
+            if (!modelName) return 'gemini-3.1-flash-live-preview';
+            const name = modelName.toLowerCase().trim();
+            if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name === 'gemini-2.5-flash-native-audio-preview-09-2025') {
+                return name;
+            }
+            if (name.includes('3.1') || name.includes('live')) {
+                return 'gemini-3.1-flash-live-preview';
+            }
+            if (name.includes('09-2025')) {
+                return 'gemini-2.5-flash-native-audio-preview-09-2025';
+            }
+            if (name.includes('12-2025')) {
+                return 'gemini-2.5-flash-native-audio-preview-12-2025';
+            }
+            if (name.includes('2.5') || name.includes('native-audio') || name.includes('3.5')) {
+                return 'gemini-2.5-flash-native-audio-preview-12-2025';
+            }
+            return 'gemini-3.1-flash-live-preview';
+        };
+
+        const resolvedModel = mapModelToRealGoogleModel(rawModel);
+
         this.config = {
-            model: config.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview',
             voice: config.voice || 'Puck',
             language: config.language || 'es-ES',
             ...config,
+            model: resolvedModel,
         };
+        this.config.model = resolvedModel;
         this.ws = null;
         this.connected = false;
         this.sessionId = null;

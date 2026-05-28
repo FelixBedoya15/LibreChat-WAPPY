@@ -28,14 +28,14 @@ const { logger } = require('~/config');
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
-  'gemini-3.5-flash',
+  'gemini-2.5-flash',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
 const LIVE_FALLBACK_MODELS = [
   'gemini-3.1-flash-live-preview',
-  'gemini-3.5-flash-native-audio-preview-12-2025',
-  'gemini-3.5-flash-native-audio-preview-09-2025',
+  'gemini-2.5-flash-native-audio-preview-12-2025',
+  'gemini-2.5-flash-native-audio-preview-09-2025',
 ];
 
 

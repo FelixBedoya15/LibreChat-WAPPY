@@ -52,7 +52,7 @@ class VoiceSession {
         
         const isSupported = (name) => {
             if (!name) return false;
-            return ['gemini-2.0-flash-exp', 'native-audio', 'gemini-exp-1206', 'live-preview'].some(
+            return name.toLowerCase().includes('gemini-') || ['native-audio', 'live', 'preview'].some(
                 validModel => name.toLowerCase().includes(validModel)
             );
         };
@@ -140,10 +140,32 @@ class VoiceSession {
             let success = false;
             let lastError = null;
 
-            // Determinar los modelos a intentar en orden de preferencia
-            const preferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
-            const liveFallbacks = LIVE_FALLBACK_MODELS.filter(m => m !== preferredLiveModel);
-            const liveModelsToTry = [preferredLiveModel, ...liveFallbacks];
+            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+            
+            const mapModelToRealGoogleModel = (modelName) => {
+                if (!modelName) return 'gemini-3.1-flash-live-preview';
+                const name = modelName.toLowerCase().trim();
+                if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name === 'gemini-2.5-flash-native-audio-preview-09-2025') {
+                    return name;
+                }
+                if (name.includes('3.1') || name.includes('live')) {
+                    return 'gemini-3.1-flash-live-preview';
+                }
+                if (name.includes('09-2025')) {
+                    return 'gemini-2.5-flash-native-audio-preview-09-2025';
+                }
+                if (name.includes('12-2025')) {
+                    return 'gemini-2.5-flash-native-audio-preview-12-2025';
+                }
+                if (name.includes('2.5') || name.includes('native-audio') || name.includes('3.5')) {
+                    return 'gemini-2.5-flash-native-audio-preview-12-2025';
+                }
+                return 'gemini-3.1-flash-live-preview';
+            };
+
+            const preferredLiveModel = mapModelToRealGoogleModel(rawPreferredLiveModel);
+            const liveFallbacks = LIVE_FALLBACK_MODELS.map(m => mapModelToRealGoogleModel(m)).filter(m => m !== preferredLiveModel);
+            const liveModelsToTry = [...new Set([preferredLiveModel, ...liveFallbacks])];
 
             logger.info(`[VoiceSession] Modelos Live a intentar en la sesión: ${liveModelsToTry.join(', ')}`);
 
