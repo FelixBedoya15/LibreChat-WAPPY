@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('~/server/middleware');
 const { requireAdmin } = require('~/server/middleware/roles/admin');
-const { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails, getAllCompanyInfo } = require('~/server/controllers/AdminController');
+const { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails, getAllCompanyInfo, getUserReferralDetails } = require('~/server/controllers/AdminController');
 const { getPlans, updatePlan, getVisibilitySettings, updateVisibilitySettings } = require('~/server/controllers/AdminPlansController');
 const { getPromoCodes, createPromoCode, deletePromoCode, togglePromoCode } = require('~/server/controllers/AdminPromoCodeController');
 const { recordEvent, getSummary, getRecentEvents } = require('~/server/controllers/CheckoutAnalyticsController');
@@ -15,6 +15,7 @@ router.post('/users/delete', requireJwtAuth, requireAdmin, deleteUser);
 router.post('/users/bulk-update', requireJwtAuth, requireAdmin, bulkUpdateUsers);
 router.get('/users/:userId/conversations', requireJwtAuth, requireAdmin, getUserConversations);
 router.get('/users/:userId/conversations/:conversationId', requireJwtAuth, requireAdmin, getConversationDetails);
+router.get('/users/:userId/referral-details', requireJwtAuth, requireAdmin, getUserReferralDetails);
 
 router.get('/plans', requireJwtAuth, requireAdmin, getPlans);
 router.get('/plans-visibility', requireJwtAuth, requireAdmin, getVisibilitySettings);

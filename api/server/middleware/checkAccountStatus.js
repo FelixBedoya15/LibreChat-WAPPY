@@ -10,7 +10,8 @@ const { logger } = require('@librechat/data-schemas');
  */
 const checkAccountStatus = (req, res, next) => {
     // console.log('[checkAccountStatus] Middleware called for User:', req.user?._id, 'inactiveAt:', req.user?.inactiveAt);
-    if (req.user && req.user.role !== 'USER' && req.user.inactiveAt) {
+    const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+    if (req.user && !freeRoles.includes(req.user.role) && req.user.inactiveAt) {
         const now = new Date();
         const inactiveAt = new Date(req.user.inactiveAt);
         // console.log('[checkAccountStatus] Checking Inactive:', now, '>=', inactiveAt, 'Result:', now >= inactiveAt);
