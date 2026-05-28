@@ -257,6 +257,13 @@ const registerUser = async (user, additionalData = {}) => {
             });
           }
 
+          if (!referrer) {
+            // 4. Try matching by slugified name (replace hyphens with space or hyphen)
+            const cleanRef = ref.trim();
+            const nameRegex = new RegExp('^' + cleanRef.replace(/-/g, '[\\s-]') + '$', 'i');
+            referrer = await User.findOne({ name: { $regex: nameRegex } });
+          }
+
           if (referrer && referrer._id.toString() !== newUserId.toString()) {
             referredByUser = referrer._id;
           }

@@ -34,13 +34,27 @@ router.get('/stats', async (req, res) => {
         const userId = req.user.id || req.user._id;
         const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
 
-        // Fetch fresh user from DB to get real username
+        // Fetch fresh user from DB to get real username and name
         const User = mongoose.model('User');
-        const dbUser = await User.findById(userId, 'username').lean();
+        const dbUser = await User.findById(userId, 'username name').lean();
         
         let refIdentifier = userId;
         if (dbUser && dbUser.username && !dbUser.username.includes('@')) {
             refIdentifier = dbUser.username;
+        } else if (dbUser && dbUser.name) {
+            // Fallback to slugified display name to keep it pretty and secure
+            const slugifyName = (str) => {
+                return str.toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+                    .replace(/[^a-z0-9\s-]/g, '') // Keep alphanumeric, spaces and hyphens
+                    .trim()
+                    .replace(/\s+/g, '-') // Replace spaces with hyphens
+                    .replace(/-+/g, '-'); // Remove double hyphens
+            };
+            const slug = slugifyName(dbUser.name);
+            if (slug && slug.length > 2) {
+                refIdentifier = slug;
+            }
         }
 
         const referralLink = `${origin}/?ref=${refIdentifier}`;
