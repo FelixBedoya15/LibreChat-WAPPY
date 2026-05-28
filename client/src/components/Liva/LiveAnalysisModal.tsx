@@ -1208,57 +1208,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     </div>
                 )}
 
-                {/* HUD Overlay - Top Elements */}
-                <div className="absolute top-0 left-0 p-6 flex flex-col items-start gap-4 z-40 pointer-events-none w-full max-w-[250px]">
-                    {/* Top Group 1: LIVE Indicator & Setup */}
-                    <div className="flex flex-col gap-1.5 w-full">
-                        <div className="flex items-center justify-between bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-[12px] border border-white/5 shadow-xl w-full">
-                            <div className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
-                                </span>
-                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
-                            </div>
-                            <div className="w-[1px] h-3 bg-white/20"></div>
-                            <div className="text-[11px] font-mono text-white/70">
-                                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                            </div>
-                        </div>
 
-                        <div className="flex flex-col px-2">
-                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shadow-[0_0_8px_rgba(20,184,166,0.6)]"></span>
-                                <span className="truncate uppercase drop-shadow-md">ASISTENTE SST</span>
-                            </h2>
-                            {countdown > 0 && !isReady && (
-                                <p className="text-white/60 text-[10px] font-mono tracking-widest uppercase mt-0.5">
-                                    {countdown} SECONDS REMAINING
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Top Group 2: Call Info & Status */}
-                    <div className="flex flex-col items-start gap-1 w-full">
-                        <div className="bg-black/20 backdrop-blur-md px-3 py-2 rounded-[12px] border border-white/5 shadow-xl flex flex-col items-start gap-1 w-full">
-                            <div className="flex justify-between items-center w-full">
-                                <span className="text-[10px] text-white/60 font-mono tracking-widest">MODEL:</span>
-                                <span className="text-[10px] text-white/80 font-mono uppercase tracking-widest">{selectedModel?.split('-')[0] || 'GEMINI'}</span>
-                            </div>
-                            <div className="text-[10px] text-teal-400 font-mono uppercase tracking-widest font-bold self-end drop-shadow-sm">
-                                {statusText === 'Conectando...' ? 'CONNECTING...' : 
-                                 statusText === 'Generando Reporte...' ? 'GENERATING REPORT...' :
-                                 (isConnected ? 'CONNECTED' : 'DISCONNECTED')}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-white/60 ml-2 mt-0.5">
-                            <Monitor className="w-3 h-3" />
-                            <span className="text-[10px] font-mono tracking-widest uppercase">VOICE / 16KHz</span>
-                        </div>
-                    </div>
-                </div>
 
                 {selectedTemplate === 'biomecanico_mediapipe' && isReady && (
                     <div className="absolute top-6 right-6 z-40 w-80 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-white pointer-events-auto">
@@ -1402,7 +1352,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 <div className="flex-1 flex flex-col items-center justify-center z-10 relative">
                     <div 
                         onClick={handleOrbClick} 
-                        className={`cursor-pointer transition-all duration-500 transform ${status === 'speaking' ? 'scale-110' : 'scale-100'}`}
+                        className={`cursor-pointer transition-all duration-500 transform opacity-30 hover:opacity-80 ${status === 'speaking' ? 'scale-110' : 'scale-100'}`}
                     >
                         <VoiceOrb
                             status={status === 'ready' ? 'idle' : status}
@@ -1410,11 +1360,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]"
                         />
                     </div>
-                    
-                    {/* Localize Status Description */}
-                    <p className="mt-8 text-white/40 text-[10px] font-mono tracking-[0.5em] uppercase select-none">
-                        {status === 'speaking' ? 'AI Voice Active' : status === 'listening' ? 'Analyzing Audio' : 'Secure Channel Idle'}
-                    </p>
 
                     {showVoiceSelector && (
                         <div className="absolute top-full mt-8 bg-surface-primary border border-white/10 rounded-xl shadow-2xl p-2 min-w-[200px] z-50 overflow-hidden">
@@ -1564,14 +1509,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         />
                     </div>
 
-                    {/* Footer Info */}
-                    <div className="flex items-center gap-6 text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] pointer-events-none">
-                        <span>Encrypted Protocol SSL-V3</span>
-                        <span>•</span>
-                        <span>Forensic SST Audit Mode</span>
-                        <span>•</span>
-                        <span>Biometric Link Active</span>
-                    </div>
+
 
                     {/* Report Completion Toast */}
                     {reportNotification && (

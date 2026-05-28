@@ -241,13 +241,22 @@ const registerUser = async (user, additionalData = {}) => {
         if (partner) {
           referredByPartner = partner._id;
         } else {
-          // 2. Check if ref matches a user username or email
-          const referrer = await User.findOne({
-            $or: [
-              { username: ref.toLowerCase().trim() },
-              { email: ref.toLowerCase().trim() }
-            ]
-          });
+          // 2. Check if ref is a valid MongoDB ObjectId
+          let referrer = null;
+          if (mongoose.Types.ObjectId.isValid(ref)) {
+            referrer = await User.findById(ref);
+          }
+          
+          if (!referrer) {
+            // 3. Check if ref matches a user username or email
+            referrer = await User.findOne({
+              $or: [
+                { username: ref.toLowerCase().trim() },
+                { email: ref.toLowerCase().trim() }
+              ]
+            });
+          }
+
           if (referrer && referrer._id.toString() !== newUserId.toString()) {
             referredByUser = referrer._id;
           }

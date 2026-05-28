@@ -33,7 +33,17 @@ router.get('/stats', async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
         const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
-        const referralLink = `${origin}/?ref=${req.user.username || userId}`;
+
+        // Fetch fresh user from DB to get real username
+        const User = mongoose.model('User');
+        const dbUser = await User.findById(userId, 'username').lean();
+        
+        let refIdentifier = userId;
+        if (dbUser && dbUser.username && !dbUser.username.includes('@')) {
+            refIdentifier = dbUser.username;
+        }
+
+        const referralLink = `${origin}/?ref=${refIdentifier}`;
 
         // Calculate points
         const pointsBalance = await getPointsBalance(userId);
