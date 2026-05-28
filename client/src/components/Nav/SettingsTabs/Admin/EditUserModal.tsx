@@ -80,7 +80,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                         setPartnerPaymentDetails('');
                         setPartnerSupportContact('');
                     }
-                } catch (err) {
+                } catch (err: any) {
                     console.error('Error loading user referral details:', err);
                 } finally {
                     setLoadingReferrals(false);
@@ -114,7 +114,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const payload = { 
+            const payload: any = { 
                 ...formData,
                 commercialTier,
                 partnerSlug: commercialTier !== 'none' ? partnerSlug : '',
@@ -122,15 +122,15 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 partnerSupportContact: commercialTier === 'embajador' ? partnerSupportContact : '',
                 pointsAdjustment: pointsAdjustment
             };
-            if (!payload.password) delete payload.password; // Only send if changed
+            if (!payload.password) delete payload.password; // TypeScript safe with typing as 'any'
 
             await axios.post('/api/admin/users/update', payload);
-            showToast({ message: localize('com_ui_user_updated_success') || 'Usuario actualizado con éxito', status: 'success' });
+            showToast({ message: localize('com_ui_user_updated_success' as any) || 'Usuario actualizado con éxito', status: 'success' });
             onUserUpdated();
             onClose();
         } catch (error: any) {
             console.error('Error updating user:', error);
-            showToast({ message: error.response?.data?.message || localize('com_ui_user_update_error') || 'Error al actualizar usuario', status: 'error' });
+            showToast({ message: error.response?.data?.message || localize('com_ui_user_update_error' as any) || 'Error al actualizar usuario', status: 'error' });
         }
     };
 
@@ -172,6 +172,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         <p className="text-xs text-text-secondary mt-0.5">Administración de credenciales, roles y programas comerciales.</p>
                                     </div>
                                     <button 
+                                        type="button"
                                         onClick={onClose} 
                                         className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors text-sm font-bold bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-xl cursor-pointer"
                                     >
@@ -213,7 +214,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                     {activeTab === 'account' && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
                                             <div className="flex flex-col gap-1.5">
-                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_name')}</label>
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_name' as any)}</label>
                                                 <input
                                                     type="text"
                                                     name="name"
@@ -223,7 +224,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_username')}</label>
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_username' as any)}</label>
                                                 <input
                                                     type="text"
                                                     name="username"
@@ -233,7 +234,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_email')}</label>
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{localize('com_ui_email' as any)}</label>
                                                 <input
                                                     type="email"
                                                     name="email"
@@ -540,13 +541,13 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             className="inline-flex justify-center rounded-2xl border border-transparent bg-gray-100 dark:bg-gray-850 hover:bg-gray-200 dark:hover:bg-gray-800 px-5 py-2.5 text-xs font-bold text-gray-900 dark:text-white focus:outline-none cursor-pointer transition-colors active:scale-95"
                                             onClick={onClose}
                                         >
-                                            {localize('com_ui_cancel')}
+                                            {localize('com_ui_cancel' as any)}
                                         </button>
                                         <button
                                             type="submit"
                                             className="inline-flex justify-center rounded-2xl border border-transparent bg-blue-600 hover:bg-blue-700 active:scale-95 px-5 py-2.5 text-xs font-bold text-white focus:outline-none shadow-md shadow-blue-600/10 transition-colors cursor-pointer"
                                         >
-                                            {localize('com_ui_save_changes')}
+                                            {localize('com_ui_save_changes' as any)}
                                         </button>
                                     </div>
                                 </form>
