@@ -7,9 +7,10 @@ const partnerCommissionSchema = new mongoose.Schema({
     amount: { type: Number, required: true }, // Gross transaction amount in cents or COP
     commissionRate: { type: Number, required: true }, // e.g. 0.20
     commissionAmount: { type: Number, required: true }, // Calculated net payout amount
-    status: { type: String, enum: ['pending', 'approved', 'paid', 'cancelled'], default: 'pending', index: true },
+    status: { type: String, enum: ['pending', 'approved', 'requested', 'paid', 'cancelled'], default: 'pending', index: true },
     payoutDate: { type: Date, default: null }
 }, { timestamps: true });
 
 const PartnerCommission = mongoose.models.PartnerCommission || mongoose.model('PartnerCommission', partnerCommissionSchema);
 module.exports = PartnerCommission;
+

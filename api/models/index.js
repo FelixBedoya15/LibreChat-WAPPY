@@ -29,6 +29,7 @@ require('./Partner');
 require('./PartnerCommission');
 require('./ReferralRecord');
 require('./PointTransaction');
+require('./PayoutRequest');
 
 const seedDatabase = async () => {
   await methods.initializeRoles();

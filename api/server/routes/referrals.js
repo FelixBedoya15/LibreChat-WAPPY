@@ -9,6 +9,7 @@ const Partner = require('~/models/Partner');
 const PartnerCommission = require('~/models/PartnerCommission');
 const ReferralRecord = require('~/models/ReferralRecord');
 const PointTransaction = require('~/models/PointTransaction');
+const PayoutRequest = require('~/models/PayoutRequest');
 
 // All endpoints in this router are authenticated
 router.use(requireJwtAuth);
@@ -69,12 +70,29 @@ router.get('/stats', async (req, res) => {
             .limit(20)
             .lean();
 
+        // Check if this user was referred by a Wappy Embajador
+        let embajadorSupport = null;
+        const myReferral = await ReferralRecord.findOne({ referredUserId: userId }).lean();
+        if (myReferral && myReferral.referredByPartner) {
+            const partner = await Partner.findById(myReferral.referredByPartner).lean();
+            if (partner && partner.type === 'embajador' && partner.status === 'approved') {
+                const partnerUser = await User.findById(partner.userId, 'name email').lean();
+                embajadorSupport = {
+                    name: partnerUser?.name || partner.slug,
+                    email: partnerUser?.email || '',
+                    slug: partner.slug,
+                    supportContact: partner.supportContact || ''
+                };
+            }
+        }
+
         return res.json({
             referralLink,
             pointsBalance,
             totalEarned,
             referredFriends,
-            pointsHistory
+            pointsHistory,
+            embajadorSupport
         });
     } catch (err) {
         logger.error('[ReferralsStats] Error:', err);
@@ -164,7 +182,7 @@ router.post('/redeem', async (req, res) => {
 
 /**
  * GET /api/referrals/partner/stats
- * Returns KPIs and commission table for affiliates/partners
+ * Returns KPIs, commission table, and withdrawal requests for affiliates/partners
  */
 router.get('/partner/stats', async (req, res) => {
     try {
@@ -173,6 +191,14 @@ router.get('/partner/stats', async (req, res) => {
         const partner = await Partner.findOne({ userId }).lean();
         if (!partner) {
             return res.json({ isPartner: false });
+        }
+
+        // Return status detail if pending or rejected
+        if (partner.status === 'pending') {
+            return res.json({ isPartner: false, isPending: true, partner });
+        }
+        if (partner.status === 'rejected') {
+            return res.json({ isPartner: false, isRejected: true, partner });
         }
 
         const partnerId = partner._id;
@@ -196,6 +222,9 @@ router.get('/partner/stats', async (req, res) => {
                     approved: {
                         $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$commissionAmount', 0] }
                     },
+                    requested: {
+                        $sum: { $cond: [{ $eq: ['$status', 'requested'] }, '$commissionAmount', 0] }
+                    },
                     paid: {
                         $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$commissionAmount', 0] }
                     }
@@ -209,6 +238,7 @@ router.get('/partner/stats', async (req, res) => {
             totalEarned: commissionStats.length > 0 ? commissionStats[0].totalEarned : 0,
             pendingCommissions: commissionStats.length > 0 ? commissionStats[0].pending : 0,
             approvedCommissions: commissionStats.length > 0 ? commissionStats[0].approved : 0,
+            requestedCommissions: commissionStats.length > 0 ? commissionStats[0].requested : 0,
             paidCommissions: commissionStats.length > 0 ? commissionStats[0].paid : 0
         };
 
@@ -235,6 +265,11 @@ router.get('/partner/stats', async (req, res) => {
             })
         );
 
+        // Fetch Payout Requests history
+        const payoutRequests = await PayoutRequest.find({ partnerId })
+            .sort({ createdAt: -1 })
+            .lean();
+
         const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
         const partnerLink = `${origin}/?ref=${partner.slug}`;
 
@@ -243,7 +278,8 @@ router.get('/partner/stats', async (req, res) => {
             partnerLink,
             partner,
             stats,
-            commissions
+            commissions,
+            payoutRequests
         });
     } catch (err) {
         logger.error('[PartnerStats] Error:', err);
@@ -253,35 +289,175 @@ router.get('/partner/stats', async (req, res) => {
 
 /**
  * POST /api/referrals/partner/apply
- * Submits payout billing instructions for bank transfer
+ * Submits/updates payout billing and customer support configurations for approved partners
  */
 router.post('/partner/apply', async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
-        const { paymentDetails } = req.body;
+        const { paymentDetails, supportContact } = req.body;
 
-        if (!paymentDetails || paymentDetails.trim() === '') {
-            return res.status(400).json({ error: 'Los datos de facturación no pueden estar vacíos' });
+        const updateData = {};
+        if (paymentDetails !== undefined) {
+            updateData.paymentDetails = paymentDetails.trim();
+        }
+        if (supportContact !== undefined) {
+            updateData.supportContact = supportContact.trim();
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ error: 'No se enviaron datos válidos para actualizar.' });
         }
 
         const partner = await Partner.findOneAndUpdate(
             { userId },
-            { $set: { paymentDetails: paymentDetails.trim() } },
+            { $set: updateData },
             { new: true }
         );
 
         if (!partner) {
-            return res.status(404).json({ error: 'No eres socio partner registrado en el sistema.' });
+            return res.status(404).json({ error: 'No eres socio partner registrado en el sistema o tu solicitud no está aprobada.' });
         }
 
         return res.json({
             success: true,
-            message: 'Tus datos de cobro han sido actualizados con éxito.',
+            message: 'Tus configuraciones han sido actualizadas con éxito.',
             partner
         });
     } catch (err) {
         logger.error('[PartnerApply] Error:', err);
-        return res.status(500).json({ error: 'Error al actualizar datos de cobro' });
+        return res.status(500).json({ error: 'Error al actualizar configuraciones del socio' });
+    }
+});
+
+/**
+ * POST /api/referrals/partner/apply-new
+ * Lets a regular user apply to become a Partner or Embajador.
+ */
+router.post('/partner/apply-new', async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const { slug, type, paymentDetails, supportContact } = req.body;
+
+        if (!slug || slug.trim() === '') {
+            return res.status(400).json({ error: 'El código personalizado (slug) es obligatorio.' });
+        }
+
+        const normalizedSlug = slug.toLowerCase().trim();
+        // Alphanumeric + hyphens only
+        if (!/^[a-z0-9-]+$/.test(normalizedSlug)) {
+            return res.status(400).json({ error: 'El código de recomendación solo puede contener letras, números y guiones.' });
+        }
+
+        // Check availability
+        const existingSlug = await Partner.findOne({ slug: normalizedSlug });
+        if (existingSlug) {
+            return res.status(400).json({ error: 'Este código de recomendación ya está siendo usado por otro socio.' });
+        }
+
+        // Check if user already has a partner application
+        const existingPartner = await Partner.findOne({ userId });
+        if (existingPartner) {
+            if (existingPartner.status === 'pending') {
+                return res.status(400).json({ error: 'Ya tienes una solicitud de socio pendiente de revisión.' });
+            }
+            if (existingPartner.status === 'approved') {
+                return res.status(400).json({ error: 'Tu cuenta ya está activa como socio comercial.' });
+            }
+            
+            // If rejected, let them resubmit
+            existingPartner.slug = normalizedSlug;
+            existingPartner.type = type === 'embajador' ? 'embajador' : 'partner';
+            existingPartner.commissionRate = type === 'embajador' ? 0.30 : 0.20;
+            existingPartner.paymentDetails = paymentDetails ? paymentDetails.trim() : '';
+            existingPartner.supportContact = supportContact ? supportContact.trim() : '';
+            existingPartner.status = 'pending';
+            existingPartner.active = false;
+            await existingPartner.save();
+            return res.json({ success: true, message: 'Tu solicitud ha sido enviada nuevamente para revisión.', partner: existingPartner });
+        }
+
+        // Create new Partner record in pending status
+        const newPartner = await Partner.create({
+            userId,
+            slug: normalizedSlug,
+            type: type === 'embajador' ? 'embajador' : 'partner',
+            commissionRate: type === 'embajador' ? 0.30 : 0.20,
+            active: false,
+            status: 'pending',
+            paymentDetails: paymentDetails ? paymentDetails.trim() : '',
+            supportContact: supportContact ? supportContact.trim() : ''
+        });
+
+        return res.json({
+            success: true,
+            message: 'Tu solicitud para ser socio comercial ha sido enviada con éxito. Evaluaremos tu perfil y te notificaremos pronto.',
+            partner: newPartner
+        });
+    } catch (err) {
+        logger.error('[PartnerApplyNew] Error:', err);
+        return res.status(500).json({ error: 'Error al enviar tu solicitud de socio' });
+    }
+});
+
+/**
+ * POST /api/referrals/partner/withdraw
+ * Requests payout/withdrawal of accumulated approved commissions.
+ */
+router.post('/partner/withdraw', async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+
+        // 1. Get Partner
+        const partner = await Partner.findOne({ userId });
+        if (!partner || partner.status !== 'approved') {
+            return res.status(404).json({ error: 'No eres socio activo en el sistema.' });
+        }
+
+        // 2. Check if paymentDetails is configured
+        if (!partner.paymentDetails || partner.paymentDetails.trim() === '') {
+            return res.status(400).json({ error: 'Debes registrar tus datos bancarios o cuenta de cobro en el formulario de arriba antes de solicitar un retiro.' });
+        }
+
+        // 3. Find approved commissions
+        const approvedCommissions = await PartnerCommission.find({
+            partnerId: partner._id,
+            status: 'approved'
+        });
+
+        if (approvedCommissions.length === 0) {
+            return res.status(400).json({ error: 'No tienes comisiones acumuladas aprobadas (libres de hold) para retirar en este momento.' });
+        }
+
+        // 4. Calculate total amount
+        const totalAmount = approvedCommissions.reduce((sum, comm) => sum + comm.commissionAmount, 0);
+
+        // 5. Create PayoutRequest
+        const commissionIds = approvedCommissions.map(comm => comm._id);
+        const payoutRequest = await PayoutRequest.create({
+            partnerId: partner._id,
+            amount: totalAmount,
+            status: 'pending',
+            paymentDetails: partner.paymentDetails,
+            notes: `Retiro solicitado por el socio. Comisiones incluidas: ${approvedCommissions.length}.`,
+            commissionIds
+        });
+
+        // 6. Update commissions status to requested
+        await PartnerCommission.updateMany(
+            { _id: { $in: commissionIds } },
+            { $set: { status: 'requested' } }
+        );
+
+        logger.info(`[ReferralsWithdraw] Partner ${partner.slug} requested withdrawal of $${(totalAmount / 100).toLocaleString('es-CO')} COP. PayoutRequest: ${payoutRequest._id}`);
+
+        return res.json({
+            success: true,
+            message: `¡Solicitud de retiro registrada! Se ha enviado la solicitud de retiro por $${(totalAmount / 100).toLocaleString('es-CO')} COP. Tu pago se procesará en un plazo de 3 a 5 días hábiles.`,
+            payoutRequest
+        });
+    } catch (err) {
+        logger.error('[PartnerWithdraw] Error:', err);
+        return res.status(500).json({ error: 'Error al procesar la solicitud de retiro de comisiones' });
     }
 });
 
