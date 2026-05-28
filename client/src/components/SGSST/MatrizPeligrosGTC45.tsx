@@ -1,0 +1,1311 @@
+import React, {  useState, useEffect, useCallback, useRef } from 'react';
+import { UpgradeWall } from './UpgradeWall';
+import {
+    Loader2, AlertTriangle, Shield, Zap, Layers, Download, Sparkles
+} from 'lucide-react';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { useAuthContext } from '~/hooks/AuthContext';
+import { useToastContext } from '@librechat/client';
+import ModelSelector from './ModelSelector';
+import ExportDropdown from './ExportDropdown';
+import SGSSTToolbar from './SGSSTToolbar';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
+import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
+
+// ─── Styled Tooltip ───────────────────────────────────────────────────
+const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
+    <span className="relative group/tip inline-flex items-center">
+        {children}
+        <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-[100]
+            opacity-0 group-hover/tip:opacity-100 transition-all duration-200 scale-95 group-hover/tip:scale-100
+            w-64 max-w-xs px-3 py-2 rounded-xl text-[11px] leading-relaxed font-normal normal-case text-left
+            text-text-primary bg-surface-secondary border border-border-medium shadow-lg
+            backdrop-blur-sm">
+            {text}
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px] border-4 border-transparent border-b-border-medium" />
+        </span>
+    </span>
+);
+
+// ─── Types ────────────────────────────────────────────────────────────
+interface PeligroItem {
+    id: string;
+    descripcionPeligro: string;
+    clasificacion: string;
+    efectosPosibles: string;
+    nivelDeficiencia: number;
+    nivelExposicion: number;
+    nivelProbabilidad: number;
+    interpretacionNP: string;
+    nivelConsecuencia: number;
+    nivelRiesgo: number;
+    interpretacionNR: string;
+    aceptabilidad: string;
+    numExpuestos: number;
+    deficienciaHigienica: string;
+    valoracionCuantitativa: string;
+    nrFinal: number;
+    factorReduccion: number;
+    costoIntervencion: string;
+    factorCosto: number;
+    factorJustificacion: number;
+    medidaSeleccionada: string;
+    justificacion: string;
+
+    // Medidas de intervención individuales
+    eliminacion: string;
+    fr_eliminacion?: number; costo_eliminacion?: string; fc_eliminacion?: number; j_eliminacion?: number;
+
+    sustitucion: string;
+    fr_sustitucion?: number; costo_sustitucion?: string; fc_sustitucion?: number; j_sustitucion?: number;
+
+    controlIngenieria: string;
+    fr_ingenieria?: number; costo_ingenieria?: string; fc_ingenieria?: number; j_ingenieria?: number;
+
+    controlAdministrativo: string;
+    fr_administrativo?: number; costo_administrativo?: string; fc_administrativo?: number; j_administrativo?: number;
+
+    epp: string;
+    fr_epp?: number; costo_epp?: string; fc_epp?: number; j_epp?: number;
+
+    completedByAI: boolean;
+}
+
+interface ProcesoEntry {
+    id: string;
+    proceso: string;
+    zona: string;
+    actividad: string;
+    tarea: string;
+    rutinario: boolean;
+    fuenteGeneradora: string;
+    medioExistente: string;
+    individuoControl: string;
+    images?: {
+        foto1?: string | null;
+        foto2?: string | null;
+        foto3?: string | null;
+        foto1Desc?: string;
+        foto2Desc?: string;
+        foto3Desc?: string;
+    };
+    video?: string | null;
+    peligros: PeligroItem[];
+}
+
+const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
+    descripcionPeligro: '', clasificacion: '', efectosPosibles: '',
+    nivelDeficiencia: 0, nivelExposicion: 0, nivelProbabilidad: 0,
+    interpretacionNP: '', nivelConsecuencia: 0, nivelRiesgo: 0,
+    interpretacionNR: '', aceptabilidad: '', numExpuestos: 0,
+    deficienciaHigienica: '', valoracionCuantitativa: '',
+    nrFinal: 0, factorReduccion: 0, costoIntervencion: '', factorCosto: 0, factorJustificacion: 0, medidaSeleccionada: '', justificacion: '',
+
+    eliminacion: '', fr_eliminacion: 0, costo_eliminacion: '', fc_eliminacion: 0, j_eliminacion: 0,
+    sustitucion: '', fr_sustitucion: 0, costo_sustitucion: '', fc_sustitucion: 0, j_sustitucion: 0,
+    controlIngenieria: '', fr_ingenieria: 0, costo_ingenieria: '', fc_ingenieria: 0, j_ingenieria: 0,
+    controlAdministrativo: '', fr_administrativo: 0, costo_administrativo: '', fc_administrativo: 0, j_administrativo: 0,
+    epp: '', fr_epp: 0, costo_epp: '', fc_epp: 0, j_epp: 0,
+
+    completedByAI: false,
+};
+
+const EMPTY_PROCESO: Omit<ProcesoEntry, 'id' | 'peligros'> = {
+    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true,
+    fuenteGeneradora: '', medioExistente: '', individuoControl: '',
+    images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+    video: null,
+};
+
+const COST_FACTOR_OPTIONS = [
+    { label: 'Más de 150 SMMLV', d: 10 },
+    { label: '60 a 150 SMMLV', d: 8 },
+    { label: '30 a 59 SMMLV', d: 6 },
+    { label: '3 a 29 SMMLV', d: 4 },
+    { label: '0.3 a 2.9 SMMLV', d: 2 },
+    { label: '0.06 a 0.29 SMMLV', d: 1 },
+    { label: 'Menos de 0.06 SMMLV', d: 0.5 },
+];
+
+const GTC45_CATEGORIES: Record<string, string[]> = {
+    'Biológico': [
+        'Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras', 'Mordeduras', 'Fluidos o excrementos'
+    ],
+    'Físico': [
+        'Ruido (de impacto, intermitente, continuo)', 'Iluminación (luz visible por exceso o deficiencia)',
+        'Vibración (cuerpo entero, segmentaria)', 'Temperaturas extremas (calor y frío)',
+        'Presión atmosférica (normal y ajustada)', 'Radiaciones ionizantes (rayos x, gama, beta y alfa)',
+        'Radiaciones no ionizantes (láser, ultravioleta, infrarroja, radiofrecuencia, microondas)'
+    ],
+    'Químico': [
+        'Polvos orgánicos inorgánicos', 'Fibras', 'Líquidos (nieblas y rocíos)', 'Gases y vapores',
+        'Humos metálicos, no metálicos', 'Material particulado'
+    ],
+    'Psicosocial': [
+        'Gestión organizacional (estilo de mando, pago, contratación, participación, inducción y capacitación, bienestar social, evaluación del desempeño, manejo de cambios)',
+        'Características de la organización del trabajo (comunicación, tecnología, organización del trabajo, demandas cualitativas y cuantitativas de la labor)',
+        'Características del grupo social de trabajo (relaciones, cohesión, calidad de interacciones, trabajo en equipo)',
+        'Condiciones de la tarea (carga mental, contenido de la tarea, demandas emocionales, sistemas de control, definición de roles, monotonía, etc)',
+        'Interfase persona - tarea (conocimientos, habilidades en relación con la demanda de la tarea, iniciativa, autonomía y reconocimiento, identificación de la persona con la tarea y la organización)',
+        'Jornada de trabajo (pausas, trabajo nocturno, rotación, horas extras, descansos)'
+    ],
+    'Biomecánicos': [
+        'Postura (prolongada mantenida, forzada, antigravitacional)', 'Esfuerzo',
+        'Movimiento repetitivo', 'Manipulación manual de cargas'
+    ],
+    'Condiciones de seguridad': [
+        'Mecánico (elementos o partes de máquinas, herramientas, equipos, piezas a trabajar, materiales proyectados sólidos o fluidos)',
+        'Eléctrico (alta y baja tensión, estática)',
+        'Locativo (sistemas y medios de almacenamiento), superficies de trabajo (irregulares, deslizantes, con diferencia del nivel), condiciones de orden y aseo, (caídas de objeto)',
+        'Tecnológico (explosión, fuga, derrame, incendio)', 'Accidentes de tránsito',
+        'Públicos (robos, atracos, asaltos, atentados, de orden público, etc.)',
+        'Trabajo en alturas', 'Espacios confinados'
+    ],
+    'Fenómenos naturales': [
+        'Sismo', 'Terremoto', 'Vendaval', 'Inundación', 'Derrumbe', 'Precipitaciones (lluvias, granizadas, heladas)'
+    ]
+};
+
+const getRiskColor = (nr: number, h?: PeligroItem) => {
+    if (nr >= 600) return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-300', label: 'I - No Aceptable' };
+    if (nr >= 150) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-300', label: 'II - No Aceptable / Control' };
+    if (nr >= 40) return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', border: 'border-yellow-300', label: 'III - Aceptable' };
+    if (nr > 0) return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-300', label: 'IV - Aceptable' };
+    if (h && h.deficienciaHigienica === 'Bajo (B)' && nr === 0) return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-300', label: 'IV - Aceptable' };
+    return { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium', label: 'Sin Valorar' };
+};
+
+const getAcceptabilityBadge = (a: string) => {
+    if (!a) return 'bg-gray-100 text-gray-600';
+    if (a.includes('No Aceptable') && !a.includes('control')) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    if (a.includes('No Aceptable')) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+    return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+};
+
+const MatrizPeligrosGTC45 = () => {
+    const { token, user } = useAuthContext();
+    const { showToast } = useToastContext();
+
+    const [procesos, setProcesos] = useState<ProcesoEntry[]>([]);
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
+    const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+    const [expandedProcesos, setExpandedProcesos] = useState<Set<string>>(new Set());
+    const [expandedPeligros, setExpandedPeligros] = useState<Set<string>>(new Set());
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isGeneratingFull, setIsGeneratingFull] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [companyInfo, setCompanyInfo] = useState<any>(null);
+
+    // Report state
+    const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [conversationId, setConversationId] = useState('new');
+    const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+    const [perfilesData, setPerfilesData] = useState<any[]>([]);
+    const [cargosDisponibles, setCargosDisponibles] = useState<string[]>([]);
+    const [autofillingIds, setAutofillingIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const fetchCargos = async () => {
+            if (!token) return;
+            try {
+                const res = await fetch('/api/sgsst/perfiles-cargo/data', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.perfilesList) {
+                        setPerfilesData(data.perfilesList);
+                        setCargosDisponibles(data.perfilesList.map((c: any) => c.nombreCargo));
+                    }
+                }
+            } catch (err) {}
+        };
+        fetchCargos();
+    }, [token]);
+
+    const handleCargoSelection = async (procesoId: string, value: string) => {
+        const perfil = perfilesData.find(p => p.nombreCargo === value);
+        if (!perfil) {
+             updateProcesoField(procesoId, 'proceso', value);
+             return;
+        }
+
+        // Apply media immediately
+        setProcesos(prev => prev.map(p => p.id === procesoId ? {
+             ...p,
+             proceso: value,
+             images: perfil.images || p.images,
+             video: perfil.video || p.video
+        } : p));
+
+        // Call AI Autofill
+        setAutofillingIds(prev => new Set(prev).add(procesoId));
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/autofill-proceso', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                 body: JSON.stringify({ perfil, modelName: selectedModel })
+            });
+            if (!res.ok) throw new Error('Error en IA de auto-llamado');
+            const data = await res.json();
+            if (data.data) {
+                 setProcesos(prev => prev.map(p => p.id === procesoId ? {
+                      ...p,
+                      zona: data.data.zona || p.zona,
+                      actividad: data.data.actividad || p.actividad,
+                      tarea: data.data.tarea || p.tarea,
+                      rutinario: typeof data.data.rutinario === 'boolean' ? data.data.rutinario : p.rutinario,
+                      fuenteGeneradora: data.data.fuenteGeneradora || p.fuenteGeneradora,
+                      medioExistente: data.data.medioExistente || p.medioExistente,
+                      individuoControl: data.data.individuoControl || p.individuoControl
+                 } : p));
+                 showToast({ message: 'Datos básicos pre-llenados con IA', status: 'success', severity: 'success' });
+            }
+        } catch (err) {
+             showToast({ message: 'No se pudo auto-llenar con IA', status: 'warning' });
+        } finally {
+             setAutofillingIds(prev => { const n = new Set(prev); n.delete(procesoId); return n; });
+        }
+    };
+
+    useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user?.personalization?.geminiModels?.sstManagement]);
+
+    // ─── Load Data ──────────────────────────────────────────────
+    useEffect(() => {
+        const loadData = async () => {
+            if (!token) return;
+            setIsLoading(true);
+            try {
+                const res = await fetch('/api/sgsst/matriz-peligros/data', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.procesos?.length) setProcesos(data.procesos);
+                }
+            } catch (err) {
+                console.error('Error loading hazard matrix:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
+    }, [token]);
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+            .catch(() => { });
+    }, [token]);
+
+    // ─── Handlers ───────────────────────────────────────────────
+    const handleAddProceso = () => {
+        const newProc: ProcesoEntry = {
+            id: crypto.randomUUID(),
+            ...EMPTY_PROCESO,
+            peligros: [],
+        };
+        setProcesos(prev => [...prev, newProc]);
+        setExpandedProcesos(prev => new Set(prev).add(newProc.id));
+    };
+
+    const handleAddPeligro = (procesoId: string) => {
+        const newHazard: PeligroItem = {
+            id: crypto.randomUUID(),
+            ...EMPTY_HAZARD,
+        };
+        setProcesos(prev => prev.map(p =>
+            p.id === procesoId ? { ...p, peligros: [...p.peligros, newHazard] } : p
+        ));
+        setExpandedPeligros(prev => new Set(prev).add(newHazard.id));
+    };
+
+    const handleDeleteProceso = (procesoId: string) => {
+        setProcesos(prev => prev.filter(p => p.id !== procesoId));
+    };
+
+    const handleDeletePeligro = (procesoId: string, peligroId: string) => {
+        setProcesos(prev => prev.map(p =>
+            p.id === procesoId ? { ...p, peligros: p.peligros.filter(h => h.id !== peligroId) } : p
+        ));
+    };
+
+    const updateProcesoField = (procesoId: string, field: keyof ProcesoEntry, value: any) => {
+        setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
+    };
+
+    const handleImageUpload = (procesoId: string, key: string, file: File) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setProcesos(prev => prev.map(p => {
+                if (p.id !== procesoId) return p;
+                return {
+                    ...p,
+                    images: {
+                        ...(p.images || {}),
+                        [key]: base64
+                    }
+                };
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleVideoUpload = (procesoId: string, file: File) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(video.src);
+            if (video.duration > 10) {
+                showToast({ message: 'El video no debe superar los 10 segundos.', status: 'error' });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result as string;
+                updateProcesoField(procesoId, 'video', base64);
+            };
+            reader.readAsDataURL(file);
+        };
+        video.src = URL.createObjectURL(file);
+    };
+
+    const deleteMedia = (procesoId: string, type: 'video' | 'image', key?: string) => {
+        setProcesos(prev => prev.map(p => {
+            if (p.id !== procesoId) return p;
+            if (type === 'video') return { ...p, video: null };
+            const newImages = { ...(p.images || {}) };
+            if (key) {
+                newImages[key] = null;
+                newImages[`${key}Desc`] = '';
+            }
+            return { ...p, images: newImages };
+        }));
+    };
+
+    const recalculateHazard = (h: PeligroItem): PeligroItem => {
+        const nd = Number(h.nivelDeficiencia) || 0;
+        const ne = Number(h.nivelExposicion) || 0;
+        const nc = Number(h.nivelConsecuencia) || 0;
+
+        let np = nd * ne;
+        let nr = np * nc;
+
+        // Determine acceptability and interpretations
+        let acept = '';
+        let interp = '';
+
+        const isAnexoC = ['Muy Alto (MA)', 'Alto (A)', 'Medio (M)', 'Bajo (B)'].includes(h.deficienciaHigienica);
+
+        if (isAnexoC) {
+            if (h.deficienciaHigienica === 'Muy Alto (MA)') {
+                acept = 'No Aceptable (> Límite exposición ocupacional)';
+                interp = 'Zona de exposición muy alta: Valores superiores al límite de exposición ocupacional (VLP). Implica adopción de medidas correctivas ambientales y médicas urgentes.';
+            } else if (h.deficienciaHigienica === 'Alto (A)') {
+                acept = 'No Aceptable o Control (50% - 100% límite exposición)';
+                interp = 'Zona de exposición alta: Se requieren controles médicos y ambientales, con medidas técnicas correctoras de fácil ejecución.';
+            } else if (h.deficienciaHigienica === 'Medio (M)') {
+                acept = 'Aceptable (10% - 50% límite exposición)';
+                interp = 'Zona de exposición moderada: Comprendida entre el nivel de acción y el VLP. Deben ser muestreados con cierta frecuencia.';
+            } else if (h.deficienciaHigienica === 'Bajo (B)') {
+                acept = 'Aceptable (< 10% límite exposición)';
+                interp = 'Zona de exposición mínima/baja: Corresponde a los valores inferiores al 10% del límite de exposición. Los riesgos no existen o son leves, se toman como calidad de aire o medidas preventivas.';
+            }
+        } else {
+            if (nr >= 600) {
+                acept = 'No Aceptable';
+                interp = 'Valor NR I (4000 - 600): Situación crítica. Suspender actividades hasta que el riesgo esté bajo control. Intervención urgente.';
+            } else if (nr >= 150) {
+                acept = 'No Aceptable o Aceptable con control específico';
+                interp = 'Valor NR II (500 - 150): Corregir y adoptar medidas de control de inmediato. Sin embargo, suspenda actividades si el nivel de riesgo está por encima o igual de 360.';
+            } else if (nr >= 40) {
+                acept = 'Aceptable';
+                interp = 'Valor NR III (120 - 40): Mejorar si es posible. Sería conveniente justificar la intervención y su rentabilidad.';
+            } else if (nr > 0) {
+                acept = 'Aceptable';
+                interp = 'Valor NR IV (20): Mantener las medidas de control existentes, pero se deberían considerar soluciones o mejoras y se deben hacer comprobaciones periódicas.';
+            }
+        }
+
+        // Calculate Justification Factor (J) = (NR * FR) / FC for each intervention
+        const calcJ = (fr?: number, fc?: number) => {
+            const frNum = (Number(fr) || 0) / 100; // Treat FR as a percentage decimal
+            const fcNum = Number(fc) || 1;
+            return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
+        };
+
+        return {
+            ...h,
+            nivelProbabilidad: np,
+            nivelRiesgo: nr,
+            aceptabilidad: acept,
+            interpretacionNR: interp,
+            j_eliminacion: calcJ(h.fr_eliminacion, h.fc_eliminacion),
+            j_sustitucion: calcJ(h.fr_sustitucion, h.fc_sustitucion),
+            j_ingenieria: calcJ(h.fr_ingenieria, h.fc_ingenieria),
+            j_administrativo: calcJ(h.fr_administrativo, h.fc_administrativo),
+            j_epp: calcJ(h.fr_epp, h.fc_epp),
+        };
+    };
+
+    const updatePeligroField = (procesoId: string, peligroId: string, field: keyof PeligroItem, value: any) => {
+        setProcesos(prev => prev.map(p => {
+            if (p.id !== procesoId) return p;
+            return {
+                ...p,
+                peligros: p.peligros.map(h => {
+                    if (h.id !== peligroId) return h;
+                    let updatedH = { ...h, [field]: value };
+
+                    // Specific mapping for Anexo C Qualitative -> ND
+                    if (field === 'deficienciaHigienica') {
+                        if (value === 'Muy Alto (MA)') updatedH.nivelDeficiencia = 10;
+                        else if (value === 'Alto (A)') updatedH.nivelDeficiencia = 6;
+                        else if (value === 'Medio (M)') updatedH.nivelDeficiencia = 2;
+                        else if (value === 'Bajo (B)') updatedH.nivelDeficiencia = 0;
+                    }
+
+                    // For fields that require recalculation
+                    const recalcFields = [
+                        'nivelDeficiencia', 'nivelExposicion', 'nivelConsecuencia', 'deficienciaHigienica',
+                        'fr_eliminacion', 'fc_eliminacion',
+                        'fr_sustitucion', 'fc_sustitucion',
+                        'fr_ingenieria', 'fc_ingenieria',
+                        'fr_administrativo', 'fc_administrativo',
+                        'fr_epp', 'fc_epp'
+                    ];
+                    if (recalcFields.includes(field)) {
+                        updatedH = recalculateHazard(updatedH);
+                    }
+
+                    return updatedH;
+                })
+            };
+        }));
+    };
+
+    // ─── AI Logic ───────────────────────────────────────────────
+    const handleGenerateFull = async () => {
+        if (!token) return;
+        setIsGeneratingFull(true);
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/generate-full', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ modelName: selectedModel }),
+            });
+            if (!res.ok) throw new Error('Error al generar matriz');
+            const data = await res.json();
+            if (data.procesos) {
+                const refreshedProcesos = data.procesos.map((p: any) => ({
+                    ...EMPTY_PROCESO,
+                    ...p,
+                    peligros: (p.peligros || []).map((h: any) => recalculateHazard({ ...EMPTY_HAZARD, ...h }))
+                }));
+                setProcesos(refreshedProcesos);
+                showToast({ message: 'Matriz generada con éxito (7 procesos)', status: 'success', severity: 'success' });
+            }
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setIsGeneratingFull(false);
+        }
+    };
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.matrizPeligros();
+        setProcesos(prev => [...prev, ...dummy.procesos]);
+        showToast({ message: 'Datos de prueba (IPEVAR Bio-Individual) generados con éxito', status: 'success', severity: 'success' });
+    };
+
+    const handleCompletePeligro = async (proceso: ProcesoEntry, peligro: PeligroItem) => {
+        if (!token) return;
+        setLoadingIds(prev => new Set(prev).add(peligro.id));
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ proceso, peligro, modelName: selectedModel }),
+            });
+            if (!res.ok) throw new Error('Error al completar peligro');
+            const data = await res.json();
+            const completed = data.completed || {};
+
+            setProcesos(prev => prev.map(p => {
+                if (p.id !== proceso.id) return p;
+
+                // Extract process-level controls mapped by AI, default to existing if empty
+                const { fuenteGeneradora, medioExistente, individuoControl, ...hazardFields } = completed;
+
+                return {
+                    ...p,
+                    fuenteGeneradora: fuenteGeneradora || p.fuenteGeneradora || '',
+                    medioExistente: medioExistente || p.medioExistente || '',
+                    individuoControl: individuoControl || p.individuoControl || '',
+                    peligros: p.peligros.map(h => h.id === peligro.id ? recalculateHazard({ ...h, ...hazardFields }) : h)
+                };
+            }));
+            showToast({ message: 'Peligro valorado con IA', status: 'success', severity: 'success' });
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setLoadingIds(prev => { const n = new Set(prev); n.delete(peligro.id); return n; });
+        }
+    };
+
+    const handleSaveData = async () => {
+        if (!token) return;
+        setIsSaving(true);
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ procesos }),
+            });
+            if (res.ok) showToast({ message: 'Matriz guardada', status: 'success', severity: 'success' });
+            else throw new Error('Error al guardar');
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // ─── Report Logic ───────────────────────────────────────────
+    const handleAnalyze = useCallback(async () => {
+
+        if (!isPro && (!conversationId || conversationId === 'new')) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-matriz-peligros`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        if (!procesos.length) {
+            showToast({ message: 'No hay procesos para generar reporte', status: 'warning' });
+            return;
+        }
+
+        setIsAnalyzing(true);
+        try {
+            const payload = {
+                procesos,
+                currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                userName: user?.name || user?.username || 'Usuario',
+                modelName: selectedModel,
+            };
+
+            const res = await fetch('/api/sgsst/matriz-peligros/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) throw new Error('Error al generar informe con IA');
+            const data = await res.json();
+
+            // The backend now generates the full report including the detailed anexo and signatures at the end.
+            const html = data.report;
+
+            setGeneratedReport(html);
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
+            setConversationId('new');
+            setReportMessageId(null);
+            showToast({ message: 'Informe gerencial generado con éxito', status: 'success', severity: 'success' });
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }, [procesos, companyInfo, showToast, token, user, selectedModel]);
+
+    const handleSaveReport = useCallback(async () => {
+        const content = editorContentRef.current || generatedReport;
+        if (!content || !token) return;
+        
+        const isNew = !conversationId || conversationId === 'new';
+        if (!isPro && isNew) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-matriz-peligros`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        try {
+            const isNew = !conversationId || conversationId === 'new';
+            const res = await fetch('/api/sgsst/diagnostico/save-report', {
+                method: isNew ? 'POST' : 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(isNew ? {
+                    content,
+                    title: `IPEVAR Bio-Individual - ${new Date().toLocaleDateString('es-CO')}`,
+                    tags: ['sgsst-matriz-peligros'],
+                } : { conversationId, messageId: reportMessageId, content }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
+                setRefreshTrigger(prev => prev + 1);
+                setIsHistoryOpen(false); // Hide the history panel
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+            }
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        }
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
+
+    const handleSelectReport = async (reportOrId: any) => {
+        let content = '', convId = '', msgId = '';
+        if (typeof reportOrId === 'string') {
+            convId = reportOrId;
+            try {
+                const res = await fetch(`/api/messages/${convId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const messages = await res.json();
+                    const reportMsg = messages.reverse().find((m: any) =>
+                        m.sender === 'SGSST Diagnóstico' || (m.isCreatedByUser === false && m.text?.length > 100)
+                    );
+                    if (reportMsg) { content = reportMsg.text; msgId = reportMsg.messageId; }
+                }
+            } catch { /* ignore */ }
+        } else if (reportOrId?.content) {
+            content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
+        }
+        if (content) {
+            setGeneratedReport(content); editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
+            setConversationId(convId); setReportMessageId(msgId);
+            setIsHistoryOpen(false);
+        }
+    };
+
+    const toggleProceso = (id: string) => {
+        setExpandedProcesos(prev => {
+            const n = new Set(prev);
+            n.has(id) ? n.delete(id) : n.add(id);
+            return n;
+        });
+    };
+
+    const togglePeligro = (id: string) => {
+        setExpandedPeligros(prev => {
+            const n = new Set(prev);
+            n.has(id) ? n.delete(id) : n.add(id);
+            return n;
+        });
+    };
+
+    // ─── Render ──────────────────────────────────────────────────
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-matriz-peligros'],
+        generatedReport: generatedReport,
+        handleSelectReport
+    });
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <SGSSTToolbar
+                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                isHistoryOpen={isHistoryOpen}
+                aiButtons={[
+                    {
+                        id: 'generate-full',
+                        onClick: handleGenerateFull,
+                        disabled: isGeneratingFull,
+                        label: "Generar IPEVAR IA",
+                        icon: "sparkles",
+                        variant: "ai",
+                        isLoading: isGeneratingFull
+                    },
+                    {
+                        id: 'analyze-report',
+                        onClick: handleAnalyze,
+                        disabled: isAnalyzing,
+                        label: "Generar IA",
+                        icon: "sparkles",
+                        variant: "ai",
+                        isLoading: isAnalyzing
+                    }
+                ]}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                onSaveLocal={handleSaveData}
+                hasContent={!!(generatedReport || editorContentRef.current)}
+                exportContent={editorContentRef.current || generatedReport || ''}
+                exportFileName="IPEVAR_Bio_Individual"
+                onDummy={handleDummyData}
+            />
+
+
+            {/* ═══ History Panel ═══ */}
+            {isHistoryOpen && (
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                    <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
+                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger}
+                        tags={['sgsst-matriz-peligros']} />
+                </div>
+            )}
+
+            {/* AI Advisory Notice */}
+            <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center gap-2">
+                    <AnimatedIcon name="sparkles" size={20} className="animate-pulse text-teal-500" />
+                    Generación Inteligente
+                </h4>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                    La IA puede generar automáticamente los procesos, peligros y valoraciones basándose en el perfil de su empresa.
+                </p>
+            </div>
+
+            {/* ═══ Processes List ═══ */}
+            <div className="space-y-4">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-12 text-text-secondary">
+                        <Loader2 className="h-8 w-8 animate-spin mr-3 text-teal-500" /> Cargando matriz...
+                    </div>
+                ) : (
+                    <>
+                        {procesos.map((p, pIdx) => (
+                            <div key={p.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
+                                {/* Proceso Header */}
+                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleProceso(p.id)}>
+                                    <div className="flex flex-wrap items-center gap-3 w-full">
+                                        <div className="text-teal-500">
+                                            {expandedProcesos.has(p.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-text-primary text-base">
+                                                {pIdx + 1}. Cargo: {p.proceso || 'Nuevo Perfil'}
+                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {p.actividad || 'Sin actividad'}</span>
+                                            </h3>
+                                            <p className="text-xs text-text-secondary mt-0.5">{p.peligros.length} peligros identificados para este perfil</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 w-full">
+                                        <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
+                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-100 transition-colors">
+                                            <AnimatedIcon name="plus" size={16} />
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteProceso(p.id); }}
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                                            <AnimatedIcon name="trash" size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Proceso Body */}
+                                {expandedProcesos.has(p.id) && (
+                                    <div className="p-4 space-y-4 animate-in fade-in duration-300">
+                                        {/* Process Details Inputs */}
+                                        <div className="overflow-x-auto overflow-y-hidden pb-4 mb-4 border-bottom border-border-light classic-scrollbar">
+                                            <div className="flex flex-nowrap gap-4 min-w-[800px] pb-2">
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight flex items-center gap-2">
+                                                        Perfil del Cargo
+                                                        {autofillingIds.has(p.id) && <Loader2 className="h-3 w-3 animate-spin text-teal-500" />}
+                                                    </label>
+                                                    <SingleSelect 
+                                                        value={p.proceso}
+                                                        onChange={val => handleCargoSelection(p.id, val)}
+                                                        options={cargosDisponibles}
+                                                        placeholder="Ej: Conductor, Auxiliar..."
+                                                        allowCustomInput={true}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1 flex-1">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
+                                                    <input type="text" value={p.zona} onChange={e => updateProcesoField(p.id, 'zona', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                </div>
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Actividad</label>
+                                                    <input type="text" value={p.actividad} onChange={e => updateProcesoField(p.id, 'actividad', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                </div>
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Tarea / Rut.</label>
+                                                    <div className="flex gap-2">
+                                                        <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
+                                                            className="flex-1 text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                        <div className="w-20">
+                                                            <SingleSelect 
+                                                                value={p.rutinario ? 'si' : 'no'}
+                                                                onChange={val => updateProcesoField(p.id, 'rutinario', val === 'si')}
+                                                                options={[
+                                                                    { label: 'SÍ', value: 'si' },
+                                                                    { label: 'NO', value: 'no' }
+                                                                ]}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Controles Existentes del Proceso */}
+                                        <div className="pt-2 pb-4">
+                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Cargo)</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En la Fuente</label>
+                                                    <textarea value={p.fuenteGeneradora || ''} onChange={e => updateProcesoField(p.id, 'fuenteGeneradora', e.target.value)}
+                                                        placeholder="Ej: Aislamiento acústico de la máquina..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En el Medio</label>
+                                                    <textarea value={p.medioExistente || ''} onChange={e => updateProcesoField(p.id, 'medioExistente', e.target.value)}
+                                                        placeholder="Ej: Extractores, mamparas..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En el Individuo</label>
+                                                    <textarea value={p.individuoControl || ''} onChange={e => updateProcesoField(p.id, 'individuoControl', e.target.value)}
+                                                        placeholder="Ej: EPP suministrado (casco, guantes)..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Registro Multimedia del Proceso */}
+                                        <div className="pt-2 pb-4 border-t border-border-light mt-2 bg-surface-tertiary/20 rounded-xl px-3">
+                                            <div className="flex items-center gap-2 mb-4 border-b border-border-light pb-1 mt-2">
+                                                <AnimatedIcon name="camera" size={16} className="text-teal-500" />
+                                                <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase">Evidencia Multimedia (Fotos y Video de la Actividad)</label>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                {/* Images */}
+                                                {[
+                                                    { key: 'foto1', label: 'Actividad', descKey: 'foto1Desc' },
+                                                    { key: 'foto2', label: 'Ambiente', descKey: 'foto2Desc' },
+                                                    { key: 'foto3', label: 'Controles', descKey: 'foto3Desc' }
+                                                ].map((img) => (
+                                                    <div key={img.key} className="space-y-2">
+                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">{img.label}</label>
+                                                        <div className="relative group aspect-video rounded-xl border-2 border-dashed border-border-medium hover:border-teal-500 transition-all overflow-hidden bg-surface-primary">
+                                                            {p.images?.[img.key] ? (
+                                                                <>
+                                                                    <img src={p.images[img.key]} className="w-full h-full object-cover" />
+                                                                    <button onClick={() => deleteMedia(p.id, 'image', img.key)}
+                                                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <AnimatedIcon name="trash" size={14} />
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/10">
+                                                                    <AnimatedIcon name="upload" size={20} className="text-text-secondary" />
+                                                                    <span className="text-[10px] text-text-secondary mt-1">Cargar Foto</span>
+                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleImageUpload(p.id, img.key, e.target.files[0])} />
+                                                                </label>
+                                                            )}
+                                                        </div>
+                                                        <input type="text" value={p.images?.[img.descKey] || ''}
+                                                            onChange={e => {
+                                                                const newImages = { ...(p.images || {}), [img.descKey]: e.target.value };
+                                                                updateProcesoField(p.id, 'images', newImages);
+                                                            }}
+                                                            placeholder="Descripción breve..."
+                                                            className="w-full text-[10px] p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                ))}
+
+                                                {/* Video */}
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">Video de Evidencia (Máx 10s)</label>
+                                                    <div className="relative group aspect-video rounded-xl border-2 border-dashed border-border-medium hover:border-teal-500 transition-all overflow-hidden bg-surface-primary">
+                                                        {p.video ? (
+                                                            <>
+                                                                <video src={p.video} className="w-full h-full object-cover" controls />
+                                                                <button onClick={() => deleteMedia(p.id, 'video')}
+                                                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                                    <AnimatedIcon name="trash" size={14} />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/10">
+                                                                <AnimatedIcon name="video" size={20} className="text-text-secondary" />
+                                                                <span className="text-[10px] text-text-secondary mt-1">Cargar Video</span>
+                                                                <input type="file" accept="video/*" className="hidden" onChange={e => e.target.files?.[0] && handleVideoUpload(p.id, e.target.files[0])} />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[9px] text-text-secondary italic text-center">Video corto de la actividad o controles</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Hazards Sub-List */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between border-b border-border-medium pb-1">
+                                                <h5 className="text-[11px] font-black text-teal-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Layers className="h-3.5 w-3.5" /> Ficha IPEVAR del Cargo
+                                                </h5>
+                                                {p.peligros.length === 0 && (
+                                                    <span className="text-[10px] text-text-secondary italic">Haz clic en + para agregar un peligro</span>
+                                                )}
+                                            </div>
+                                            {p.peligros.map((h, hIdx) => {
+                                                const hStyle = h.completedByAI ? getRiskColor(h.nivelRiesgo, h) : { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium' };
+                                                const isHExp = expandedPeligros.has(h.id);
+                                                return (
+                                                    <div key={h.id} className={`rounded-xl border ${hStyle.border} overflow-hidden transition-all duration-200`}>
+                                                        <div className={`p-3 flex items-center justify-between cursor-pointer ${hStyle.bg}`} onClick={() => togglePeligro(h.id)}>
+                                                            <div className="flex flex-wrap items-center gap-3 w-full">
+                                                                <div className="text-text-secondary">{isHExp ? <AnimatedIcon name="chevron-down" size={16} /> : <AnimatedIcon name="chevron-right" size={16} />}</div>
+                                                                <div>
+                                                                    <span className="text-sm font-bold text-text-primary">{hIdx + 1}. {h.descripcionPeligro || 'Peligro No Identificado'}</span>
+                                                                    {h.completedByAI && (
+                                                                        <div className="flex gap-2 mt-0.5">
+                                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${getAcceptabilityBadge(h.aceptabilidad)}`}>
+                                                                                NR: {h.nivelRiesgo}
+                                                                            </span>
+                                                                            <span className="text-[10px] text-text-secondary font-medium tracking-tight bg-white/30 dark:bg-black/20 px-1.5 rounded-full">{h.clasificacion}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-2 w-full">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
+                                                                    className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1">
+                                                                    {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <AnimatedIcon name="sparkles" size={12} />}
+                                                                    IA
+                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleDeletePeligro(p.id, h.id); }}
+                                                                    className="text-red-400 hover:text-red-600 p-1">
+                                                                    <AnimatedIcon name="trash" size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {isHExp && (
+                                                            <div className="p-4 bg-surface-primary animate-in zoom-in-95 duration-200 space-y-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Clasificación</label>
+                                                                        <div className="flex flex-col gap-2">
+                                                                            <SingleSelect
+                                                                                value={GTC45_CATEGORIES[h.clasificacion] ? h.clasificacion : (h.clasificacion ? "OTRO" : "")}
+                                                                                onChange={val => {
+                                                                                    if (val === 'OTRO') {
+                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', 'Otro');
+                                                                                    } else {
+                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', val);
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', '');
+                                                                                    }
+                                                                                }}
+                                                                                placeholder="Seleccionar Clasificación..."
+                                                                                options={[
+                                                                                    { label: 'Seleccionar Clasificación...', value: '' },
+                                                                                    ...Object.keys(GTC45_CATEGORIES).map(c => ({ label: c, value: c })),
+                                                                                    { label: '✏️ Edición Manual / Generado por IA', value: 'OTRO' }
+                                                                                ]}
+                                                                            />
+                                                                            {(!GTC45_CATEGORIES[h.clasificacion] && h.clasificacion !== '') && (
+                                                                                <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
+                                                                                    placeholder="Especifique la clasificación manual..."
+                                                                                    className="w-full text-xs p-2 rounded-xl border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary" />
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Descripción del Peligro</label>
+                                                                        <div className="flex flex-col gap-2">
+                                                                            <SingleSelect
+                                                                                value={
+                                                                                    (h.clasificacion && GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro))
+                                                                                        ? h.descripcionPeligro
+                                                                                        : (h.descripcionPeligro ? "OTRO" : "")
+                                                                                }
+                                                                                onChange={val => {
+                                                                                    if (val === 'OTRO') {
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', 'Otro...');
+                                                                                    } else {
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', val);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={!h.clasificacion && !h.descripcionPeligro}
+                                                                                placeholder="Seleccionar Componente..."
+                                                                                options={
+                                                                                    (!h.clasificacion && !h.descripcionPeligro) ? [] : [
+                                                                                        { label: 'Seleccionar Componente...', value: '' },
+                                                                                        ...(h.clasificacion && GTC45_CATEGORIES[h.clasificacion] ? GTC45_CATEGORIES[h.clasificacion].map(d => ({ label: d, value: d })) : []),
+                                                                                        { label: '✏️ Edición Manual / Generado por IA', value: 'OTRO' }
+                                                                                    ]
+                                                                                }
+                                                                            />
+
+                                                                            {(!h.clasificacion || !GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro)) && h.descripcionPeligro !== '' && (
+                                                                                <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
+                                                                                    placeholder="Describa el peligro aquí..."
+                                                                                    rows={2} className="w-full text-xs p-2 rounded-xl border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary resize-none" />
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {h.completedByAI && (
+                                                                    <>
+                                                                        {/* Simple valuation grid */}
+                                                                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2 border-t border-border-light">
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">ND</label>
+                                                                                <input type="number" value={h.nivelDeficiencia} onChange={e => updatePeligroField(p.id, h.id, 'nivelDeficiencia', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NE</label>
+                                                                                <input type="number" value={h.nivelExposicion} onChange={e => updatePeligroField(p.id, h.id, 'nivelExposicion', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            {h.clasificacion && (h.clasificacion.toLowerCase().includes('físico') || h.clasificacion.toLowerCase().includes('químico') || h.clasificacion.toLowerCase().includes('biológico')) && (
+                                                                                <div className="space-y-1 col-span-2">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-teal-500">Deficiencia Higiénica (Anexo C)</label>
+                                                                                    <SingleSelect
+                                                                                        value={h.deficienciaHigienica || ''}
+                                                                                        onChange={val => updatePeligroField(p.id, h.id, 'deficienciaHigienica', val)}
+                                                                                        options={[
+                                                                                            { label: 'Seleccionar...', value: '' },
+                                                                                            { label: 'Muy Alto (MA)', value: 'Muy Alto (MA)' },
+                                                                                            { label: 'Alto (A)', value: 'Alto (A)' },
+                                                                                            { label: 'Medio (M)', value: 'Medio (M)' },
+                                                                                            { label: 'Bajo (B)', value: 'Bajo (B)' }
+                                                                                        ]}
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NC</label>
+                                                                                <input type="number" value={h.nivelConsecuencia} onChange={e => updatePeligroField(p.id, h.id, 'nivelConsecuencia', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NR</label>
+                                                                                <div className={`w-full text-sm p-1.5 rounded font-black text-center ${hStyle.text}`}>{h.nivelRiesgo}</div>
+                                                                            </div>
+                                                                            <div className="sm:col-span-2 space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">Aceptabilidad</label>
+                                                                                <div className={`w-full text-xs p-1.5 rounded font-bold text-center ${getAcceptabilityBadge(h.aceptabilidad)}`}>{h.aceptabilidad}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        {h.interpretacionNR && (
+                                                                            <div className="pt-3 px-1 pb-1">
+                                                                                <p className="text-[11px] text-text-secondary leading-snug italic border-l-2 border-indigo-400 pl-2">
+                                                                                    <strong className="text-indigo-600 dark:text-indigo-400">Interpretación GTC 45: </strong>
+                                                                                    {h.interpretacionNR}
+                                                                                </p>
+                                                                            </div>
+                                                                        )}
+                                                                        {/* Hierarchy of controls */}
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-2 border-t border-border-light">
+                                                                            {['eliminacion', 'sustitucion', 'controlIngenieria', 'controlAdministrativo', 'epp'].map(field => (
+                                                                                <div key={field} className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">{field.replace('control', '')}</label>
+                                                                                    <textarea value={(h as any)[field]} onChange={e => updatePeligroField(p.id, h.id, field as any, e.target.value)}
+                                                                                        className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        {/* Anexo E: Justificacion y Reduccion (only show if completed by AI or heavily evaluated) */}
+                                                                        <div className="pt-4 mt-2 border-t border-border-light">
+                                                                            <h5 className="text-[10px] font-black text-fuchsia-600 uppercase mb-3 flex items-center justify-between">
+                                                                                Anexo E: Justificación de Intervención (J) Individual
+                                                                            </h5>
+                                                                            <div className="space-y-4">
+                                                                                {['eliminacion', 'sustitucion', 'controlIngenieria', 'controlAdministrativo', 'epp'].map(measure => {
+                                                                                    const textMeasure = (h as any)[measure];
+                                                                                    if (!textMeasure || textMeasure.trim() === '' || textMeasure.toLowerCase() === 'no aplica' || textMeasure.toLowerCase() === 'ninguno') return null;
+
+                                                                                    // Helper names
+                                                                                    const suffix = measure.replace('control', '').toLowerCase();
+                                                                                    const frKey = `fr_${suffix}` as keyof PeligroItem;
+                                                                                    const fcKey = `fc_${suffix}` as keyof PeligroItem;
+                                                                                    const jKey = `j_${suffix}` as keyof PeligroItem;
+
+                                                                                    return (
+                                                                                        <div key={measure} className="bg-surface-secondary/50 rounded p-2.5 border border-border-light">
+                                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                                <span className="text-[10px] font-extrabold text-teal-500 uppercase">{measure.replace('control', '')}</span>
+                                                                                                <span className="bg-fuchsia-100 dark:bg-fuchsia-900/30 px-2 py-0.5 rounded text-[10px] font-bold text-fuchsia-700 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800">
+                                                                                                    J = {(h as any)[jKey] || 0}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <p className="text-[11px] text-text-primary mb-3 bg-surface-primary p-1.5 rounded border border-border-light">{textMeasure}</p>
+                                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                                                <div className="space-y-1">
+                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">% FACTOR DE REDUCCIÓN (FR)</label>
+                                                                                                    <SingleSelect
+                                                                                                        value={String((h as any)[frKey] || 0)}
+                                                                                                        onChange={val => updatePeligroField(p.id, h.id, frKey, Number(val))}
+                                                                                                        options={[
+                                                                                                            { label: 'Seleccione (0%)', value: '0' },
+                                                                                                            { label: '100% - Eliminación Total', value: '100' },
+                                                                                                            { label: '75% - Alto (Ingeniería)', value: '75' },
+                                                                                                            { label: '50% - Medio (Administrativo)', value: '50' },
+                                                                                                            { label: '25% - Bajo (EPP)', value: '25' }
+                                                                                                        ]}
+                                                                                                    />
+                                                                                                </div>
+                                                                                                <div className="space-y-1">
+                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
+                                                                                                    <SingleSelect
+                                                                                                        value={String((h as any)[fcKey] || 1)}
+                                                                                                        onChange={val => updatePeligroField(p.id, h.id, fcKey, Number(val))}
+                                                                                                        options={COST_FACTOR_OPTIONS.map(opt => ({
+                                                                                                            label: `${opt.label} (d=${opt.d})`,
+                                                                                                            value: String(opt.d)
+                                                                                                        }))}
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                            <div className="mt-3 space-y-3">
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                                                        <Zap className="h-3 w-3" />
+                                                                                        Medida Seleccionada (Mayor Costo-Beneficio)
+                                                                                    </label>
+                                                                                    <input type="text" value={h.medidaSeleccionada || ''} onChange={e => updatePeligroField(p.id, h.id, 'medidaSeleccionada', e.target.value)}
+                                                                                        placeholder="Ej: Dotar a los trabajadores con guantes..."
+                                                                                        className="w-full text-xs p-1.5 rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 text-text-primary" />
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Justificación Descriptiva</label>
+                                                                                    <textarea value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
+                                                                                        placeholder="Ej: Controles recomendados tienen un J > 20..." rows={3}
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-y" />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </>
+                )}
+
+                <button onClick={handleAddProceso}
+                    className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-teal-500 transition-all">
+                    <AnimatedIcon name="plus" size={20} />
+                    <span className="font-bold">Agregar Nuevo Cargo</span>
+                </button>
+            </div>
+
+            <div className="mt-8 space-y-4">
+                    <CollapsibleReportBox onSave={handleSaveReport}
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
+                        title="Matriz Resumen de Recomendaciones IPEVAR"
+                        icon={<AlertTriangle className="h-5 w-5" />}
+                    actions={
+                        <ExportDropdown
+                            content={editorContentRef.current || generatedReport || ''}
+                            fileName="Informe_MatrizPeligrosGTC45"
+                            reportType="general"
+                        />
+                    }
+                >
+                        <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                            <div style={{ minWidth: '900px', padding: '16px' }}>
+                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={procesos} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
+                            </div>
+                        </div>
+                        <style>{`
+                            [contenteditable] table {
+                                width: 100%;
+                                min-width: 650px;
+                                border-collapse: separate;
+                                border-spacing: 0;
+                                table-layout: auto;
+                                border-radius: 12px;
+                                overflow: hidden;
+                                border: 1px solid var(--border-medium, #ddd);
+                            }
+                            [contenteditable] table td,
+                            [contenteditable] table th {
+                                padding: 8px 12px;
+                                border-bottom: 1px solid var(--border-medium, #ddd);
+                                border-right: 1px solid var(--border-medium, #eee);
+                                word-wrap: break-word;
+                            }
+                            [contenteditable] table td:last-child,
+                            [contenteditable] table th:last-child {
+                                border-right: none;
+                            }
+                            [contenteditable] table tr:last-child td {
+                                border-bottom: none;
+                            }
+                        `}</style>
+                    </CollapsibleReportBox>
+            </div>
+        
+            {/* Upgrade Modal (Freemium Teaser) */}
+            {showUpgradeModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setShowUpgradeModal(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title="Límite Gratuito Alcanzado"
+                                description="Has alcanzado el límite para este módulo. Adquiere Premium para generar registros ilimitados."
+                                plan="USER_PRO"
+                                isCompact={true}
+                                hideFeatures={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MatrizPeligrosGTC45;
