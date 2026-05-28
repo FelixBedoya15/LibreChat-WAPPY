@@ -136,7 +136,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
 
     return (
         <Transition appear show={isOpen} as={React.Fragment}>
-            <Dialog as="div" className="relative z-50 animate-fadeIn" onClose={onClose}>
+            <Dialog as="div" className="relative z-50" onClose={onClose}>
                 <TransitionChild
                     as={React.Fragment}
                     enter="ease-out duration-300"
@@ -146,7 +146,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div className="fixed inset-0 bg-black/25" />
                 </TransitionChild>
 
                 <div className="fixed inset-0 overflow-y-auto">
@@ -160,7 +160,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <DialogPanel className="w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-6 text-left align-middle shadow-2xl transition-all">
+                            <DialogPanel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-850 p-6 text-left align-middle shadow-xl transition-all border border-gray-150 dark:border-gray-800">
                                 
                                 {/* Header */}
                                 <div className="flex justify-between items-start border-b border-gray-100 dark:border-gray-800 pb-4 mb-4">
