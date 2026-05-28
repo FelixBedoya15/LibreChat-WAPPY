@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
+import { useRecoilValue } from 'recoil';
 import { TooltipAnchor } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
+import store from '~/store';
 
 export default function NavToggle({
   onToggle,
@@ -21,6 +23,12 @@ export default function NavToggle({
   translateX?: boolean;
 }) {
   const localize = useLocalize();
+  const showVoiceModal = useRecoilValue(store.showVoiceModal);
+  const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
+
+  if (showVoiceModal || showLiveAnalysisModal) {
+    return null;
+  }
   
   return (
     <div

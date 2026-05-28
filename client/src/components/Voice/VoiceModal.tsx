@@ -491,15 +491,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <VoiceOrb status={status === 'ready' ? 'idle' : status} amplitude={audioAmplitude} className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" />
                     </div>
 
-                    {/* ── USER TRANSCRIPTION DISPLAY ── */}
-                    {lastUserTranscript && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
-                            <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-3 text-center shadow-2xl">
-                                <p className="text-[10px] text-teal-400 font-mono uppercase tracking-widest mb-1">Tu transcripción</p>
-                                <p className="text-white text-sm font-medium leading-snug">{lastUserTranscript}</p>
-                            </div>
-                        </div>
-                    )}
+
 
                     <p className="mt-8 text-white/40 text-[10px] font-mono tracking-[0.5em] uppercase select-none">
                         {status === 'speaking' ? 'AI Voice Active' : status === 'listening' ? 'Analyzing Audio' : 'Secure Channel Idle'}
