@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report';
     data: any;
 }
 
 interface UseVoiceSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
+    onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[]) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
@@ -19,6 +20,7 @@ interface UseVoiceSessionOptions {
     initialVoice?: string;
     model?: string;
     endpoint?: string;
+    template?: string;
 }
 
 
@@ -260,6 +262,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             if (options.endpoint) {
                 wsUrl += `&endpoint=${encodeURIComponent(options.endpoint)}`;
             }
+            if (options.template) {
+                wsUrl += `&template=${encodeURIComponent(options.template)}`;
+            }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
@@ -341,6 +346,21 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'text':
                 if (message.data.text) {
                     optionsRef.current.onTextReceived?.(message.data.text, message.data.isUserTranscription ?? false);
+                }
+                break;
+
+            case 'report':
+                if (message.data.html) {
+                    console.log('[VoiceSession] Report received');
+                    optionsRef.current.onReportReceived?.(
+                        message.data.html,
+                        message.data.messageId,
+                        message.data.evaluatedFrames
+                    );
+                    
+                    // Force state back to ready to unfreeze UI
+                    setStatus('ready');
+                    optionsRef.current.onStatusChange?.('turn_complete');
                 }
                 break;
 

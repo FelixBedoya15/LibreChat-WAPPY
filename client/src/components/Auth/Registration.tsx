@@ -163,9 +163,14 @@ const Registration: React.FC = () => {
             className="mt-6"
             aria-label="Registration form"
             method="POST"
-            onSubmit={handleSubmit((data: TRegisterUser) =>
-              registerUser.mutate({ ...data, token: token ?? undefined }),
-            )}
+            onSubmit={handleSubmit((data: TRegisterUser) => {
+              const referral = localStorage.getItem('wappy_ref') || undefined;
+              registerUser.mutate({
+                ...data,
+                token: token ?? undefined,
+                ref: referral,
+              } as any);
+            })}
           >
             {renderInput('name', 'com_auth_full_name', 'text', {
               required: localize('com_auth_name_required'),

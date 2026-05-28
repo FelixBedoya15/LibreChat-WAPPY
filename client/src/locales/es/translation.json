@@ -909,6 +909,7 @@
   "com_ui_download_backup_tooltip": "Before you continue, download your backup codes. You will need them to regain access if you lose your authenticator device",
   "com_ui_download_error": "Hubo un error al descargar el archivo. Es posible que el archivo haya sido eliminado.",
   "com_ui_download_error_logs": "Descargar error logs",
+  "com_ui_install_pwa": "Descargar APP",
   "com_ui_drag_drop": "Drop any file here to add it to the conversation",
   "com_ui_dropdown_variables": "Variables desplegables:",
   "com_ui_dropdown_variables_info": "Cree menús desplegables personalizados para sus prompts: `{{nombre_variable:opción1|opción2|opción3}}`",

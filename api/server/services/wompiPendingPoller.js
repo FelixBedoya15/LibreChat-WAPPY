@@ -145,6 +145,20 @@ const runPollCycle = async () => {
                     }
 
                     console.log(`[WompiPoller] ✅ APPROVED (async): plan ${tx.planId} provisioned for user ${tx.userId}. Expiry: ${expiryDate.toISOString()}`);
+
+                    // Trigger referral/affiliate commission & points processing
+                    try {
+                        const { processSuccessfulPurchase } = require('~/server/services/ReferralService');
+                        await processSuccessfulPurchase({
+                            userId: tx.userId,
+                            transactionId: tx.transactionId,
+                            planId: tx.planId,
+                            interval: tx.interval,
+                            amountInCents: tx.amountInCents
+                        });
+                    } catch (refErr) {
+                        console.error('[WompiPoller] Error triggering processSuccessfulPurchase:', refErr);
+                    }
                 } else {
                     console.log(`[WompiPoller] ❌ Transaction ${tx.transactionId} ended with status ${newStatus} for user ${tx.userId}. No plan provisioned.`);
                 }

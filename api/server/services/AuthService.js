@@ -175,7 +175,7 @@ const registerUser = async (user, additionalData = {}) => {
     return { status: 404, message: errorMessage };
   }
 
-  const { email, password, name, username, phoneNumber } = user;
+  const { email, password, name, username, phoneNumber, ref } = user;
 
   let newUserId;
   try {
@@ -223,6 +223,73 @@ const registerUser = async (user, additionalData = {}) => {
 
     const newUser = await createUser(newUserData, appConfig.balance, disableTTL, true);
     newUserId = newUser._id;
+
+    // Process referral/partner ref parameter
+    if (ref) {
+      try {
+        const Partner = require('~/models/Partner');
+        const ReferralRecord = require('~/models/ReferralRecord');
+        const mongoose = require('mongoose');
+        const User = mongoose.model('User');
+        const UserPlan = require('~/db/models/UserPlan');
+
+        let referredByPartner = null;
+        let referredByUser = null;
+
+        // 1. Check if ref matches a partner slug
+        const partner = await Partner.findOne({ slug: ref.toLowerCase().trim(), active: true });
+        if (partner) {
+          referredByPartner = partner._id;
+        } else {
+          // 2. Check if ref matches a user username or email
+          const referrer = await User.findOne({
+            $or: [
+              { username: ref.toLowerCase().trim() },
+              { email: ref.toLowerCase().trim() }
+            ]
+          });
+          if (referrer && referrer._id.toString() !== newUserId.toString()) {
+            referredByUser = referrer._id;
+          }
+        }
+
+        if (referredByPartner || referredByUser) {
+          // Create ReferralRecord
+          await ReferralRecord.create({
+            referredUserId: newUserId,
+            referredByUser,
+            referredByPartner,
+            status: 'registered'
+          });
+
+          // Give 3 days of Plan PRO free as welcome incentive!
+          const PRO_TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
+          const expiryDate = new Date(Date.now() + PRO_TRIAL_MS);
+
+          // Update/Create UserPlan
+          await UserPlan.findOneAndUpdate(
+            { userId: newUserId },
+            {
+              plan: 'pro',
+              planExpiresAt: expiryDate,
+              cancelAtPeriodEnd: false
+            },
+            { upsert: true, new: true }
+          );
+
+          // Update User role to USER_PRO, accountStatus to active, and inactiveAt to the expiry Date
+          await User.findByIdAndUpdate(newUserId, {
+            role: 'USER_PRO',
+            accountStatus: 'active',
+            inactiveAt: expiryDate
+          });
+
+          logger.info(`[Referral] Referral recorded for new user ${email}. Referrer: ${referredByPartner ? 'Partner ' + ref : 'User ' + ref}. 3-day PRO trial activated.`);
+        }
+      } catch (refErr) {
+        logger.error('[registerUser] Error recording referral / PRO trial:', refErr);
+      }
+    }
     
     // Inject Welcome Promo Notification if active
     try {

@@ -99,6 +99,19 @@ export default function Root() {
     };
   }, []);
 
+  // Capture referral parameter
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const referral = searchParams.get('ref');
+      if (referral) {
+        localStorage.setItem('wappy_ref', referral.trim());
+      }
+    } catch (e) {
+      console.warn('Error capturing referral parameter:', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (termsData) {
       setShowTerms(!termsData.termsAccepted);

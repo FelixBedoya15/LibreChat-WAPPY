@@ -817,25 +817,26 @@ class VoiceSession {
             logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
-            Act as a spelling and grammar corrector for a voice transcription.
-            
-            CONTEXT (Previous conversation):
+            Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
+            Tu tarea es corregir y pulir los errores fonéticos o de puntuación de la transcripción de voz para hacerla fluida y profesional.
+
+            CONTEXTO (Anterior conversación):
             """
             ${this.config.conversationContext || ''}
             AI Last Response: ${aiResponseText}
             """
-            
-            RAW TRANSCRIPTION (Needs correction):
+
+            TRANSCRIPCIÓN DE VOZ A CORREGIR:
             """
             ${userText}
             """
-            
-            INSTRUCTIONS:
-            1. Correct phonetic errors (e.g., "Comprece" -> "Comprendo" or "Cómprese", depending on context).
-            2. Fix capitalization and punctuation.
-            3. Keep the intent and meaning exactly the same.
-            4. If the text is in Spanish, keep it in Spanish.
-            5. OUTPUT ONLY THE CORRECTED TEXT. NO EXPLANATIONS.
+
+            REGLAS DE ORO:
+            1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés.
+            2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP").
+            3. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
+            4. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
+            5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.
             `;
 
             const result = await generateWithKeyRotation(correctionModelName, this.userId, prompt);

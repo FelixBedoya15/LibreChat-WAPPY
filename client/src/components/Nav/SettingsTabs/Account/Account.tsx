@@ -12,6 +12,8 @@ import EnableTwoFactorItem from './TwoFactorAuthentication';
 import BackupCodesItem from './BackupCodesItem';
 import WhatsAppConnect from './WhatsAppConnect';
 import TicketForm from '~/components/Tickets/TicketForm';
+import ReferralPanel from './ReferralPanel';
+
 
 function Account() {
   const localize = useLocalize();
@@ -101,6 +103,10 @@ function Account() {
           </>
         )}
       </div>
+
+      {/* REFERRAL & PARTNERS SYSTEM */}
+      <ReferralPanel />
+
 
       {/* MIDDLE: Editar Perfil */}
       <div className="flex flex-col gap-6 p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm h-fit">

@@ -230,6 +230,22 @@ const handleWebhook = async (req, res) => {
                     { upsert: true, new: true },
                 );
                 console.log(`[Stripe] ✅ Plan updated: user=${userId} plan=${plan}`);
+
+                // Trigger referral/affiliate commission & points processing
+                try {
+                    const { processSuccessfulPurchase } = require('~/server/services/ReferralService');
+                    const interval = session.metadata?.interval || 'monthly';
+                    const amountInCents = session.amount_total || 0;
+                    await processSuccessfulPurchase({
+                        userId,
+                        transactionId: session.id,
+                        planId: plan,
+                        interval,
+                        amountInCents
+                    });
+                } catch (refErr) {
+                    console.error('[Stripe Webhook] Error triggering processSuccessfulPurchase:', refErr);
+                }
                 break;
             }
 

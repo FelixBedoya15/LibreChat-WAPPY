@@ -47,7 +47,7 @@ async function passportLogin(req, email, password, done) {
 
     // Check for Inactivation/Activation Dates
     const now = new Date();
-    if (user.inactiveAt && now >= new Date(user.inactiveAt)) {
+    if (user.role !== 'USER' && user.inactiveAt && now >= new Date(user.inactiveAt)) {
       logger.info(`[Login] [Login denied] User ${identifier} account is inactive since ${user.inactiveAt}`);
       return done(null, false, { message: 'Account is inactive.' });
     }

@@ -24,6 +24,12 @@ const { getConvoTitle, getConvo, saveConvo, deleteConvos } = require('./Conversa
 const { getPreset, getPresets, savePreset, deletePresets } = require('./Preset');
 const { File } = require('~/db/models');
 
+// Register custom referral & affiliate partner models
+require('./Partner');
+require('./PartnerCommission');
+require('./ReferralRecord');
+require('./PointTransaction');
+
 const seedDatabase = async () => {
   await methods.initializeRoles();
   await methods.seedDefaultRoles();

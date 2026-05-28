@@ -44,6 +44,7 @@ const liveAiEdit = require('./liveAiEdit');
 const liveDocuments = require('./liveDocuments');
 const roadmap = require('./roadmap');
 const whatsapp = require('./whatsapp');
+const referrals = require('./referrals');
 
 module.exports = {
   auth,
@@ -92,4 +93,5 @@ module.exports = {
   liveDocuments,
   roadmap,
   whatsapp,
+  referrals,
 };

@@ -365,37 +365,26 @@ class STTService {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: correctionModelName });
 
-      const contextPrompt = chatHistory
-        ? `\nRecent conversation history:\n${chatHistory}\n`
-        : '';
-
       const prompt = `
-      You are a transcription correction expert.
-      
-      CONTEXT:
-      - Recent conversation history (for reference ONLY):
+      Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
+      Tu tarea es corregir y refinar la transcripción de voz utilizando el contexto del chat.
+
+      CONTEXTO (Historial reciente del chat):
       """
-      ${chatHistory || 'No history available.'}
+      ${chatHistory || 'No hay historial disponible.'}
       """
-      
-      - User's raw audio transcription (needs correction):
+
+      TRANSCRIPCIÓN DE VOZ A CORREGIR:
       """
       ${userText}
       """
-      
-      TASK:
-      1. Analyze the user's raw transcription.
-      2. Use the context to understand specific terms (like SST, technical words) or the flow of conversation.
-      3. Correct phonetic errors, misinterpretations, spelling, and punctuation.
-      4. Structure the sentence naturally and grammatically while preserving the original meaning.
-      5. OUTPUT ONLY THE CORRECTED USER TEXT.
-      
-      RULES:
-      - OUTPUT ONLY THE CORRECTED USER TEXT. NO PREAMBLE. NO POSTSCRIPT.
-      - ABSOLUTELY FORBIDDEN to include the "Recent conversation history" in your output.
-      - The history is ONLY for context (understanding acronyms like SST).
-      - If the user text is short (e.g., "Hola"), DO NOT append the history.
-      - If the raw transcription is already correct, return it exactly as is.
+
+      REGLAS DE ORO:
+      1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés o cambiar su idioma.
+      2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP").
+      3. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
+      4. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
+      5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.
       `;
 
       const result = await model.generateContent(prompt);

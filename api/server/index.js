@@ -170,7 +170,9 @@ const startServer = async () => {
     ['publicReports', routes.publicReports],
     ['liveDocuments', routes.liveDocuments],
     ['whatsapp', routes.whatsapp],
+    ['referrals', routes.referrals],
   ];
+
 
   for (const [name, route] of routeChecks) {
     if (!route) {
@@ -259,6 +261,8 @@ const startServer = async () => {
   app.use('/api/live', routes.liveAiEdit);
   app.use('/api/roadmap', routes.roadmap);
   app.use('/api/whatsapp', routes.whatsapp);
+  app.use('/api/referrals', routes.referrals);
+
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {

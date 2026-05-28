@@ -459,6 +459,21 @@ const handleWebhook = async (req, res) => {
 
             console.log(`[Wompi Webhook] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), role ${newRole}, expiry ${expiryDate.toISOString()} for user ${wompiTx.userId} via tx ${transactionId}`);
             
+            // Trigger referral/affiliate commission & points processing
+            try {
+                const { processSuccessfulPurchase } = require('~/server/services/ReferralService');
+                await processSuccessfulPurchase({
+                    userId: wompiTx.userId,
+                    transactionId: transactionId,
+                    planId: wompiTx.planId,
+                    interval: wompiTx.interval,
+                    amountInCents: wompiTx.amountInCents
+                });
+            } catch (refErr) {
+                console.error('[Wompi Webhook] Error triggering processSuccessfulPurchase:', refErr);
+            }
+
+            
             // Notify admins
             try {
                 const userDoc = await User.findById(wompiTx.userId).lean();
@@ -544,6 +559,21 @@ const verifyTransaction = async (req, res) => {
                     );
                 }
                 console.log(`[Wompi VerifyTransaction] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), expiry ${expiryDate.toISOString()} for user ${wompiTx.userId}`);
+
+                // Trigger referral/affiliate commission & points processing
+                try {
+                    const { processSuccessfulPurchase } = require('~/server/services/ReferralService');
+                    await processSuccessfulPurchase({
+                        userId: wompiTx.userId,
+                        transactionId: transactionId,
+                        planId: wompiTx.planId,
+                        interval: wompiTx.interval,
+                        amountInCents: wompiTx.amountInCents
+                    });
+                } catch (refErr) {
+                    console.error('[Wompi VerifyTransaction] Error triggering processSuccessfulPurchase:', refErr);
+                }
+
                 
                 try {
                     const userDoc = await User.findById(wompiTx.userId).lean();
@@ -889,6 +919,21 @@ const guestVerifyTransaction = async (req, res) => {
                     );
                 }
                 console.log(`[GuestVerify] Plan ${wompiTx.planId} activated for user ${wompiTx.userId}`);
+
+                // Trigger referral/affiliate commission & points processing
+                try {
+                    const { processSuccessfulPurchase } = require('~/server/services/ReferralService');
+                    await processSuccessfulPurchase({
+                        userId: wompiTx.userId,
+                        transactionId: transactionId,
+                        planId: wompiTx.planId,
+                        interval: wompiTx.interval,
+                        amountInCents: wompiTx.amountInCents
+                    });
+                } catch (refErr) {
+                    console.error('[Wompi GuestVerify] Error triggering processSuccessfulPurchase:', refErr);
+                }
+
                 
                 try {
                     const userDoc = await User.findById(wompiTx.userId).lean();
