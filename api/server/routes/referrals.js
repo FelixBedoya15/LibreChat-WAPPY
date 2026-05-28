@@ -70,7 +70,6 @@ router.get('/stats', async (req, res) => {
         const totalEarned = lifetimeResult.length > 0 ? lifetimeResult[0].total : 0;
 
         // Get referred friends
-        const User = mongoose.model('User');
         const referredRecords = await ReferralRecord.find({ referredByUser: userId })
             .sort({ createdAt: -1 })
             .lean();
