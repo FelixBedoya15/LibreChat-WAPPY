@@ -593,7 +593,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 )}
 
                 {/* Interactive HTML Sandbox Apps Collapsible Card */}
-                {['planear', 'hacer', 'verificar', 'actuar'].includes(phase.id) && (
+                {['planear', 'hacer', 'verificar', 'actuar'].includes(phase.id) && (isAdmin || !disabledApps.includes('custom_html_sandbox')) && (
                     <div className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
                         {/* Category Header */}
                         <div
@@ -611,6 +611,22 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                             </div>
 
                             <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
+                                {isAdmin && (
+                                    <div 
+                                        className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm"
+                                        onClick={(e) => handleToggleApp('custom_html_sandbox', e)}
+                                        title={disabledApps.includes('custom_html_sandbox') ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
+                                    >
+                                        <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
+                                            <div className={`w-9 h-5 rounded-full transition-colors ${!disabledApps.includes('custom_html_sandbox') ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
+                                            <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!disabledApps.includes('custom_html_sandbox') ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!disabledApps.includes('custom_html_sandbox') ? 'text-teal-600 dark:text-teal-400' : 'text-text-secondary text-opacity-50'}`}>
+                                            {!disabledApps.includes('custom_html_sandbox') ? 'ACTIVO' : 'INACT.'}
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
                                     {expandedCategories.includes('custom_html_sandbox') ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                                 </div>
