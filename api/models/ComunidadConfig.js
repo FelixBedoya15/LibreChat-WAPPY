@@ -20,6 +20,14 @@ const ComunidadConfigSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    gatingSeconds: {
+        type: Number,
+        default: 120
+    },
+    gatingEnabled: {
+        type: Boolean,
+        default: true
+    },
     downloadableFiles: [
         {
             name: { type: String, required: true },

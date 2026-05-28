@@ -35,6 +35,8 @@ export default function ComunidadPage() {
   const [requiresPayment, setRequiresPayment] = useState(false);
   const [price, setPrice] = useState(0);
   const actualRequiresPayment = requiresPayment && price > 0;
+  const [gatingSeconds, setGatingSeconds] = useState(120);
+  const [gatingEnabled, setGatingEnabled] = useState(true);
   const [downloadableFiles, setDownloadableFiles] = useState<any[]>([]);
   const [videoUrl, setVideoUrl] = useState('https://www.w3schools.com/html/mov_bbb.mp4');
 
@@ -87,6 +89,8 @@ export default function ComunidadPage() {
   const [tempVideoUrl, setTempVideoUrl] = useState(videoUrl);
   const [tempRequiresPayment, setTempRequiresPayment] = useState(requiresPayment);
   const [tempPrice, setTempPrice] = useState(price);
+  const [tempGatingSeconds, setTempGatingSeconds] = useState(120);
+  const [tempGatingEnabled, setTempGatingEnabled] = useState(true);
   const [tempFiles, setTempFiles] = useState<any[]>([]);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
@@ -130,6 +134,12 @@ export default function ComunidadPage() {
         setTempRequiresPayment(data.requiresPayment);
         setPrice(data.price);
         setTempPrice(data.price);
+        const gatingSecs = data.gatingSeconds !== undefined ? data.gatingSeconds : 120;
+        const gatingActive = data.gatingEnabled !== undefined ? data.gatingEnabled : true;
+        setGatingSeconds(gatingSecs);
+        setTempGatingSeconds(gatingSecs);
+        setGatingEnabled(gatingActive);
+        setTempGatingEnabled(gatingActive);
         setDownloadableFiles(data.downloadableFiles || []);
         setTempFiles(data.downloadableFiles || []);
       }
@@ -274,8 +284,8 @@ export default function ComunidadPage() {
               const totalDuration = ytPlayer.getDuration();
               if (totalDuration > 0) setDuration(totalDuration);
 
-              // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-              if (!actualRequiresPayment && time >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+              // Standard Lead capture modal logic: lock at gatingSeconds if in Free Mode and lead not captured
+              if (!actualRequiresPayment && gatingEnabled && time >= gatingSeconds && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -310,7 +320,7 @@ export default function ComunidadPage() {
         ytPlayer.destroy();
       }
     };
-  }, [isYouTube, videoUrl, actualRequiresPayment]);
+  }, [isYouTube, videoUrl, actualRequiresPayment, gatingSeconds, gatingEnabled]);
 
   // Monitor playback time for HTML5 video
   useEffect(() => {
@@ -322,11 +332,11 @@ export default function ComunidadPage() {
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
       
-      // Standard Lead capture modal logic: lock at 120s if in Free Mode and lead not captured
-      if (!actualRequiresPayment && video.currentTime >= 120 && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+      // Standard Lead capture modal logic: lock at gatingSeconds if in Free Mode and lead not captured
+      if (!actualRequiresPayment && gatingEnabled && video.currentTime >= gatingSeconds && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
         video.pause();
         setIsPlaying(false);
-        video.currentTime = 120; // Lock to exactly 120s
+        video.currentTime = gatingSeconds; // Lock to exactly gatingSeconds
         setShowLeadModal(true);
       }
     };
@@ -349,7 +359,7 @@ export default function ComunidadPage() {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [videoUrl, isYouTube, actualRequiresPayment]);
+  }, [videoUrl, isYouTube, actualRequiresPayment, gatingSeconds, gatingEnabled]);
 
   // Sync fullscreen state
   useEffect(() => {
@@ -466,8 +476,8 @@ export default function ComunidadPage() {
 
   // Custom visual progress bar math
   const getProgressBarWidth = () => {
-    const isUnlocked = isAdmin || isAccessGranted || isLeadCaptured;
-    const targetDuration = isUnlocked ? duration : 120;
+    const isUnlocked = isAdmin || isAccessGranted || isLeadCaptured || !gatingEnabled;
+    const targetDuration = isUnlocked ? duration : gatingSeconds;
     if (targetDuration <= 0) return 0;
     
     const x = Math.min(Math.max(currentTime / targetDuration, 0), 1);
@@ -676,6 +686,8 @@ export default function ComunidadPage() {
         videoUrl: tempVideoUrl,
         requiresPayment: tempRequiresPayment,
         price: tempPrice,
+        gatingSeconds: tempGatingSeconds,
+        gatingEnabled: tempGatingEnabled,
         downloadableFiles: tempFiles
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -684,6 +696,8 @@ export default function ComunidadPage() {
         setVideoUrl(tempVideoUrl);
         setRequiresPayment(tempRequiresPayment);
         setPrice(tempPrice);
+        setGatingSeconds(tempGatingSeconds);
+        setGatingEnabled(tempGatingEnabled);
         setDownloadableFiles(tempFiles);
         setIsAdminPanelOpen(false);
         setIsVideoFinished(false);
@@ -867,7 +881,7 @@ export default function ComunidadPage() {
     document.body.removeChild(link);
   };
 
-  const isUnlocked = isAdmin || isAccessGranted || (!actualRequiresPayment && isLeadCaptured);
+  const isUnlocked = isAdmin || isAccessGranted || !gatingEnabled || (!actualRequiresPayment && isLeadCaptured);
 
   return (
     <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
@@ -1156,6 +1170,41 @@ export default function ComunidadPage() {
                         placeholder="Ej. 49000"
                       />
                     </div>
+                  )}
+
+                  {!tempRequiresPayment && (
+                    <>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-border-medium">
+                        <div>
+                          <h5 className="text-xs font-bold text-text-primary">¿Activar Bloqueo de Leads en Video?</h5>
+                          <p className="text-[10px] text-text-secondary mt-0.5">Si se activa, el video se pausará en el minuto indicado para solicitar los datos del usuario.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={tempGatingEnabled} 
+                            onChange={(e) => setTempGatingEnabled(e.target.checked)} 
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-border-medium peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+
+                      {tempGatingEnabled && (
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1">Minuto del Video para Solicitar Datos</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            value={tempGatingSeconds / 60}
+                            onChange={(e) => setTempGatingSeconds(Math.max(6, Math.round(Number(e.target.value) * 60)))}
+                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
+                            placeholder="Ej: 2 para el minuto 2:00, o 1.5 para el minuto 1:30"
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <button

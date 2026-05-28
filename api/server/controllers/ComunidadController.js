@@ -15,6 +15,8 @@ const getComunidadConfig = async (req, res) => {
                 videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
                 requiresPayment: false,
                 price: 0,
+                gatingSeconds: 120,
+                gatingEnabled: true,
                 downloadableFiles: []
             });
             await config.save();
@@ -28,7 +30,7 @@ const getComunidadConfig = async (req, res) => {
 
 const updateComunidadConfig = async (req, res) => {
     try {
-        const { videoUrl, requiresPayment, price, downloadableFiles } = req.body;
+        const { videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles } = req.body;
         
         let config = await ComunidadConfig.findOne({ isGlobalSetting: true });
         if (!config) {
@@ -38,6 +40,8 @@ const updateComunidadConfig = async (req, res) => {
         if (videoUrl !== undefined) config.videoUrl = videoUrl;
         if (requiresPayment !== undefined) config.requiresPayment = requiresPayment;
         if (price !== undefined) config.price = Number(price) || 0;
+        if (gatingSeconds !== undefined) config.gatingSeconds = Number(gatingSeconds) || 120;
+        if (gatingEnabled !== undefined) config.gatingEnabled = gatingEnabled;
         if (downloadableFiles !== undefined) config.downloadableFiles = downloadableFiles;
 
         await config.save();
