@@ -955,16 +955,27 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             globalFields.forEach(field => {
                 const val = findValueForKeywords(field.keywords);
                 if (val && !isPlaceholderText(val)) {
-                    const el = document.getElementById(field.id);
-                    if (el) {
-                        const cleanVal = val.trim();
-                        if (field.type === 'text') {
-                            el.innerText = cleanVal;
-                            appDocHeader[field.key] = cleanVal;
-                        } else {
-                            el.value = cleanVal;
+                    const cleanVal = val.trim();
+                    let maxLimit = 50;
+                    if (field.id === 'company-name') maxLimit = 60;
+                    else if (field.id === 'company-nit') maxLimit = 30;
+                    else if (field.id === 'company-arl') maxLimit = 30;
+                    else if (field.id === 'company-workers') maxLimit = 15;
+                    else if (field.id === 'company-risk') maxLimit = 20;
+                    else if (field.id === 'change-code') maxLimit = 30;
+                    else if (field.id === 'last-updated-text') maxLimit = 20;
+
+                    if (cleanVal.length <= maxLimit) {
+                        const el = document.getElementById(field.id);
+                        if (el) {
+                            if (field.type === 'text') {
+                                el.innerText = cleanVal;
+                                appDocHeader[field.key] = cleanVal;
+                            } else {
+                                el.value = cleanVal;
+                            }
+                            injectedAny = true;
                         }
-                        injectedAny = true;
                     }
                 }
             });
