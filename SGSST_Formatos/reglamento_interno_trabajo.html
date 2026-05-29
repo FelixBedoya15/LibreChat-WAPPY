@@ -583,15 +583,159 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
             }`;
 
             let actionBtnHtml = "";
-            if (sender === 'assistant' && text.includes('[') && text.includes(']')) {
-                // Base64 encode the text to avoid HTML quote escaping or V8 syntax errors
-                const base64Text = btoa(unescape(encodeURIComponent(text)));
-                actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob(\'' + base64Text + '\'))))" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Inyectar en Formulario</button>';
+            let autoInjectNotice = "";
+            
+            if (sender === 'assistant' && text !== "🤖 Pensando...") {
+                const injected = autoInjectSSTData(text);
+                if (injected) {
+                    autoInjectNotice = '<div class="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Sugerencias de IA aplicadas automáticamente</div>';
+                } else if (text.includes('[') && text.includes(']')) {
+                    const base64Text = btoa(unescape(encodeURIComponent(text)));
+                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob('' + base64Text + ''))))" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Re-inyectar en Formulario</button>';
+                }
             }
 
-            messageEl.innerHTML = `<div>${text}</div>${actionBtnHtml}`;
+            messageEl.innerHTML = `<div>${text}</div>${autoInjectNotice}${actionBtnHtml}`;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function autoInjectSSTData(text) {
+            const id = "reglamento_interno_trabajo";
+            let injectedAny = false;
+            
+            function extractSection(keywords, text) {
+                const lines = text.split('\n');
+                let capturing = false;
+                let resultLines = [];
+                
+                for (let line of lines) {
+                    const cleanLine = line.trim();
+                    if (!cleanLine) continue;
+                    
+                    const isMatch = keywords.some(kw => {
+                        const cleanKw = kw.toLowerCase();
+                        return cleanLine.toLowerCase().includes(cleanKw) && (cleanLine.includes(':') || cleanLine.startsWith('#') || cleanLine.startsWith('*'));
+                    });
+                    
+                    if (isMatch) {
+                        capturing = true;
+                        const colonIdx = cleanLine.indexOf(':');
+                        if (colonIdx !== -1 && colonIdx < cleanLine.length - 1) {
+                            const content = cleanLine.substring(colonIdx + 1).trim();
+                            if (content) resultLines.push(content);
+                        }
+                        continue;
+                    }
+                    
+                    const isOtherSection = capturing && (
+                        cleanLine.startsWith('#') || 
+                        (cleanLine.startsWith('**') && cleanLine.endsWith('**')) ||
+                        (cleanLine.includes(':') && (cleanLine.toLowerCase().includes('causa') || cleanLine.toLowerCase().includes('porqué') || cleanLine.toLowerCase().includes('conclusion') || cleanLine.toLowerCase().includes('medida') || cleanLine.toLowerCase().includes('control') || cleanLine.toLowerCase().includes('área') || cleanLine.toLowerCase().includes('proceso') || cleanLine.toLowerCase().includes('peligro') || cleanLine.toLowerCase().includes('norma') || cleanLine.toLowerCase().includes('requisito') || cleanLine.toLowerCase().includes('evidencia') || cleanLine.toLowerCase().includes('amenaza') || cleanLine.toLowerCase().includes('vulnerabilidad') || cleanLine.toLowerCase().includes('reporte') || cleanLine.toLowerCase().includes('corrección') || cleanLine.toLowerCase().includes('cambio') || cleanLine.toLowerCase().includes('horario') || cleanLine.toLowerCase().includes('comité') || cleanLine.toLowerCase().includes('bienestar') || cleanLine.toLowerCase().includes('objetivo') || cleanLine.toLowerCase().includes('responsable') || cleanLine.toLowerCase().includes('presupuesto') || cleanLine.toLowerCase().includes('tema') || cleanLine.toLowerCase().includes('dirigido') || cleanLine.toLowerCase().includes('facilitador') || cleanLine.toLowerCase().includes('tarea') || cleanLine.toLowerCase().includes('herramienta') || cleanLine.toLowerCase().includes('epp') || cleanLine.toLowerCase().includes('coordinador') || cleanLine.toLowerCase().includes('metro') || cleanLine.toLowerCase().includes('sistema')))
+                    );
+                    
+                    if (isOtherSection) {
+                        break;
+                    }
+                    
+                    if (capturing) {
+                        resultLines.push(cleanLine);
+                    }
+                }
+                
+                return resultLines.join('\n').replace(/\*\*/g, '').trim();
+            }
+
+            if (id === "matriz_peligros") {
+                const area = text.match(/\[Área:\s*([\s\S]*?)\]/i) || [null, extractSection(['proceso', 'área', 'area'], text)];
+                const peligro = text.match(/\[Peligro:\s*([\s\S]*?)\]/i) || [null, extractSection(['peligro', 'riesgo', 'identificado'], text)];
+                const controles = text.match(/\[Controles:\s*([\s\S]*?)\]/i) || [null, extractSection(['controles', 'control', 'existentes', 'recomendados'], text)];
+                if (area && area[1]) { document.getElementById('area-proceso').value = area[1].trim(); injectedAny = true; }
+                if (peligro && peligro[1]) { document.getElementById('peligro-desc').value = peligro[1].trim(); injectedAny = true; }
+                if (controles && controles[1]) { document.getElementById('controles-existentes').value = controles[1].trim(); injectedAny = true; }
+            } else if (id === "matriz_requisitos_legales") {
+                const norma = text.match(/\[Norma:\s*([\s\S]*?)\]/i) || [null, extractSection(['norma', 'entidad', 'año'], text)];
+                const requisito = text.match(/\[Requisito:\s*([\s\S]*?)\]/i) || [null, extractSection(['requisito', 'artículo', 'descripcion'], text)];
+                const evidencia = text.match(/\[Evidencia:\s*([\s\S]*?)\]/i) || [null, extractSection(['evidencia', 'responsable', 'cumplimiento'], text)];
+                if (norma && norma[1]) { document.getElementById('norma-ano').value = norma[1].trim(); injectedAny = true; }
+                if (requisito && requisito[1]) { document.getElementById('requisito-desc').value = requisito[1].trim(); injectedAny = true; }
+                if (evidencia && evidencia[1]) { document.getElementById('evidencia-cumplimiento').value = evidencia[1].trim(); injectedAny = true; }
+            } else if (id === "matriz_acpm") {
+                const ncf = text.match(/\[No Conformidad:\s*([\s\S]*?)\]/i) || [null, extractSection(['no conformidad', 'hallazgo', 'descripción'], text)];
+                const causa = text.match(/\[Causa:\s*([\s\S]*?)\]/i) || [null, extractSection(['causa', 'raíz', 'análisis'], text)];
+                const plan = text.match(/\[Plan:\s*([\s\S]*?)\]/i) || [null, extractSection(['plan', 'acción', 'medida', 'correctivo'], text)];
+                if (ncf && ncf[1]) { document.getElementById('no-conformidad').value = ncf[1].trim(); injectedAny = true; }
+                if (causa && causa[1]) { document.getElementById('analisis-causa').value = causa[1].trim(); injectedAny = true; }
+                if (plan && plan[1]) { document.getElementById('plan-accion').value = plan[1].trim(); injectedAny = true; }
+            } else if (id === "analisis_vulnerabilidad") {
+                const amenaza = text.match(/\[Amenaza:\s*([\s\S]*?)\]/i) || [null, extractSection(['amenaza', 'ubicación', 'identificada'], text)];
+                const analisis = text.match(/\[Análisis:\s*([\s\S]*?)\]/i) || [null, extractSection(['análisis', 'personas', 'recursos', 'sistemas'], text)];
+                const medidas = text.match(/\[Medidas:\s*([\s\S]*?)\]/i) || [null, extractSection(['medidas', 'prevención', 'mitigación'], text)];
+                if (amenaza && amenaza[1]) { document.getElementById('amenaza-ident').value = amenaza[1].trim(); injectedAny = true; }
+                if (analisis && analisis[1]) { document.getElementById('vuln-analisis').value = analisis[1].trim(); injectedAny = true; }
+                if (medidas && medidas[1]) { document.getElementById('vuln-medidas').value = medidas[1].trim(); injectedAny = true; }
+            } else if (id === "reporte_actos_inseguros") {
+                const desc = text.match(/\[Reporte:\s*([\s\S]*?)\]/i) || [null, extractSection(['reporte', 'hallazgo', 'acto', 'condición', 'descripción'], text)];
+                const area = text.match(/\[Área:\s*([\s\S]*?)\]/i) || [null, extractSection(['área', 'puesto', 'trabajo'], text)];
+                const corr = text.match(/\[Corrección:\s*([\s\S]*?)\]/i) || [null, extractSection(['corrección', 'inmediata', 'aplicada'], text)];
+                if (desc && desc[1]) { document.getElementById('acto-condicion-desc').value = desc[1].trim(); injectedAny = true; }
+                if (area && area[1]) { document.getElementById('acto-area').value = area[1].trim(); injectedAny = true; }
+                if (corr && corr[1]) { document.getElementById('acto-correccion').value = corr[1].trim(); injectedAny = true; }
+            } else if (id === "gestion_cambio") {
+                const cambio = text.match(/\[Cambio:\s*([\s\S]*?)\]/i) || [null, extractSection(['cambio', 'propuesto', 'descripción'], text)];
+                const peligros = text.match(/\[Peligros:\s*([\s\S]*?)\]/i) || [null, extractSection(['peligros', 'nuevos', 'identificación'], text)];
+                const controles = text.match(/\[Controles:\s*([\s\S]*?)\]/i) || [null, extractSection(['controles', 'prevención', 'medidas'], text)];
+                if (cambio && cambio[1]) { document.getElementById('cambio-desc').value = cambio[1].trim(); injectedAny = true; }
+                if (peligros && peligros[1]) { document.getElementById('cambio-peligros').value = peligros[1].trim(); injectedAny = true; }
+                if (controles && controles[1]) { document.getElementById('cambio-controles').value = controles[1].trim(); injectedAny = true; }
+            } else if (id === "reglamento_interno_trabajo") {
+                const horarios = text.match(/\[Horarios:\s*([\s\S]*?)\]/i) || [null, extractSection(['horarios', 'jornada', 'desconexión'], text)];
+                const comite = text.match(/\[Comité:\s*([\s\S]*?)\]/i) || [null, extractSection(['comité', 'convivencia', 'acoso'], text)];
+                const bienestar = text.match(/\[Bienestar:\s*([\s\S]*?)\]/i) || [null, extractSection(['bienestar', 'higiene', 'condiciones'], text)];
+                if (horarios && horarios[1]) { document.getElementById('rit-horarios').value = horarios[1].trim(); injectedAny = true; }
+                if (comite && comite[1]) { document.getElementById('rit-comite').value = comite[1].trim(); injectedAny = true; }
+                if (bienestar && bienestar[1]) { document.getElementById('rit-bienestar').value = bienestar[1].trim(); injectedAny = true; }
+            } else if (id === "plan_trabajo") {
+                const obj = text.match(/\[Objetivo:\s*([\s\S]*?)\]/i) || [null, extractSection(['objetivo', 'general', 'meta'], text)];
+                const resp = text.match(/\[Responsables:\s*([\s\S]*?)\]/i) || [null, extractSection(['responsables', 'ejecución'], text)];
+                const pres = text.match(/\[Presupuesto:\s*([\s\S]*?)\]/i) || [null, extractSection(['presupuesto', 'estimado'], text)];
+                if (obj && obj[1]) { document.getElementById('plan-objetivo').value = obj[1].trim(); injectedAny = true; }
+                if (resp && resp[1]) { document.getElementById('plan-responsables').value = resp[1].trim(); injectedAny = true; }
+                if (pres && pres[1]) { document.getElementById('plan-presupuesto').value = pres[1].trim(); injectedAny = true; }
+            } else if (id === "plan_capacitacion") {
+                const tema = text.match(/\[Tema:\s*([\s\S]*?)\]/i) || [null, extractSection(['tema', 'principal', 'capacitación'], text)];
+                const dir = text.match(/\[Dirigido:\s*([\s\S]*?)\]/i) || [null, extractSection(['dirigido', 'población', 'objeto'], text)];
+                const fac = text.match(/\[Facilitador:\s*([\s\S]*?)\]/i) || [null, extractSection(['facilitador', 'docente', 'entidad'], text)];
+                if (tema && tema[1]) { document.getElementById('cap-tema').value = tema[1].trim(); injectedAny = true; }
+                if (dir && dir[1]) { document.getElementById('cap-dirigido').value = dir[1].trim(); injectedAny = true; }
+                if (fac && fac[1]) { document.getElementById('cap-facilitador').value = fac[1].trim(); injectedAny = true; }
+            } else if (id === "analisis_trabajo_seguro") {
+                const tarea = text.match(/\[Tarea:\s*([\s\S]*?)\]/i) || [null, extractSection(['tarea', 'crítica', 'analizar', 'descripción'], text)];
+                const herr = text.match(/\[Herramientas:\s*([\s\S]*?)\]/i) || [null, extractSection(['herramientas', 'equipos'], text)];
+                const epp = text.match(/\[EPP:\s*([\s\S]*?)\]/i) || [null, extractSection(['epp', 'protección', 'elementos'], text)];
+                if (tarea && tarea[1]) { document.getElementById('ats-tarea').value = tarea[1].trim(); injectedAny = true; }
+                if (herr && herr[1]) { document.getElementById('ats-herramientas').value = herr[1].trim(); injectedAny = true; }
+                if (epp && epp[1]) { document.getElementById('ats-epp').value = epp[1].trim(); injectedAny = true; }
+            } else if (id === "permiso_alturas") {
+                const coord = text.match(/\[Coordinador:\s*([\s\S]*?)\]/i) || [null, extractSection(['coordinador', 'responsable'], text)];
+                const metros = text.match(/\[Metros:\s*([\s\S]*?)\]/i) || [null, extractSection(['altura', 'metros'], text)];
+                const sist = text.match(/\[Sistema:\s*([\s\S]*?)\]/i) || [null, extractSection(['sistema', 'acceso', 'protección'], text)];
+                if (coord && coord[1]) { document.getElementById('alturas-coordinador').value = coord[1].trim(); injectedAny = true; }
+                if (metros && metros[1]) { document.getElementById('alturas-metros').value = metros[1].trim(); injectedAny = true; }
+                if (sist && sist[1]) { document.getElementById('alturas-sistema').value = sist[1].trim(); injectedAny = true; }
+            } else if (id === "investigacion_accidentes") {
+                const evento = text.match(/\[(?:Evento|Descripción):\s*([\s\S]*?)\]/i) || [null, extractSection(['evento', 'lesión', 'descripción', 'accidente', 'incidente'], text)];
+                const porques = text.match(/\[(?:Porqués|Análisis):\s*([\s\S]*?)\]/i) || [null, extractSection(['porqué', '5 porqués', 'análisis', 'causa', 'raíz'], text)];
+                const conclusiones = text.match(/\[Conclusiones:\s*([\s\S]*?)\]/i) || [null, extractSection(['conclusiones', 'conclusión', 'medidas', 'recomendaciones'], text)];
+                if (evento && evento[1]) { document.getElementById('at-evento-desc').value = evento[1].trim(); injectedAny = true; }
+                if (porques && porques[1]) { document.getElementById('at-5-porques').value = porques[1].trim(); injectedAny = true; }
+                if (conclusiones && conclusiones[1]) { document.getElementById('at-conclusiones').value = conclusiones[1].trim(); injectedAny = true; }
+            }
+            
+            if (injectedAny) {
+                saveLocalData();
+            }
+            return injectedAny;
         }
 
         function applyAITextSuggestions(text) {
