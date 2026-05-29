@@ -282,10 +282,14 @@
 
     <!-- Fixed Bottom Footer (By WAPPY IA brand) -->
     <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-850 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400">
-        <div class="flex items-center">
+        <div class="flex items-center gap-2">
             <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 border border-slate-200 dark:border-slate-700" title="Alternar Modo Claro/Oscuro">
                 <i id="theme-float-icon" data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
                 <span id="theme-text">Modo Claro</span>
+            </button>
+            <button onclick="resetSSTForm()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-650 dark:text-red-400 transition active:scale-95 border border-red-500/20 dark:border-red-500/30 font-bold" title="Reiniciar Formulario">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                <span>Reiniciar Formulario</span>
             </button>
         </div>
         <div class="text-center font-bold tracking-wider uppercase text-slate-650 dark:text-slate-300 flex-1">
@@ -624,7 +628,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                 }
             }
 
-            messageEl.innerHTML = `<div>\${text}</div>\${autoInjectNotice}\${actionBtnHtml}`;
+            messageEl.innerHTML = `<div>${text}</div>${autoInjectNotice}${actionBtnHtml}`;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -989,7 +993,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             if (grid.children.length >= 3) return alert("Máximo 3 fotos.");
             const el = document.createElement('div');
             el.className = 'h-14 w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-500 dark:text-slate-400 font-mono shadow-inner';
-            el.innerText = `Evidencia Foto \${grid.children.length + 1}`;
+            el.innerText = `Evidencia Foto ${grid.children.length + 1}`;
             grid.appendChild(el);
         }
 
@@ -1020,7 +1024,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             let seconds = 10;
             const interval = setInterval(() => {
                 seconds--;
-                timer.innerText = `00:0\${seconds}`;
+                timer.innerText = `00:0${seconds}`;
                 if (seconds <= 0) {
                     clearInterval(interval);
                     btn.innerText = 'Grabar Video 10s';
@@ -1068,6 +1072,13 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
         function toggleAISidebar() {
             const drawer = document.getElementById('ai-drawer');
             drawer.classList.toggle('translate-x-full');
+        }
+
+        function resetSSTForm() {
+            if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
+                localStorage.removeItem(storageKey);
+                window.location.reload();
+            }
         }
 
         const storageKey = 'wappy_sst_investigacion_accidentes';
