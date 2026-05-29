@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matriz de Identificación de Peligros (GTC-45) - SG-SST</title>
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.top = '0';
+            errDiv.style.left = '0';
+            errDiv.style.width = '100%';
+            errDiv.style.backgroundColor = '#f87171';
+            errDiv.style.color = '#7f1d1d';
+            errDiv.style.padding = '16px';
+            errDiv.style.zIndex = '99999';
+            errDiv.style.fontWeight = 'bold';
+            errDiv.style.borderBottom = '4px solid #b91c1c';
+            errDiv.innerHTML = '⚠️ ERROR DE JAVASCRIPT DETECTADO:<br><span style="font-family: monospace; font-size: 11px;">' + e.message + ' en ' + e.filename + ':' + e.lineno + '</span>';
+            document.body.appendChild(errDiv);
+        });
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
