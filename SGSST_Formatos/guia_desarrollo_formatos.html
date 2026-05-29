@@ -198,6 +198,7 @@ function closeLegalModal() {
             const themeText = document.getElementById('theme-text');
             
             if (currentTheme === 'dark') {
+                document.documentElement.classList.remove('dark');
                 body.classList.remove('dark');
                 body.classList.add('light');
                 floatIcon.setAttribute('data-lucide', 'moon');
@@ -206,6 +207,7 @@ function closeLegalModal() {
                 themeText.innerText = 'Modo Oscuro';
                 currentTheme = 'light';
             } else {
+                document.documentElement.classList.add('dark');
                 body.classList.remove('light');
                 body.classList.add('dark');
                 floatIcon.setAttribute('data-lucide', 'sun');

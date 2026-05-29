@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +17,7 @@
             transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
         .gradient-banner {
-            background: linear-gradient(135deg, 0d9488 0%, 06b6d4 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%);
         }
         .glass-card {
             transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
@@ -669,18 +669,20 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
             const themeText = document.getElementById('theme-text');
             
             if (currentTheme === 'dark') {
+                document.documentElement.classList.remove('dark');
                 body.classList.remove('dark');
                 body.classList.add('light');
                 floatIcon.setAttribute('data-lucide', 'moon');
-                floatIcon.classList.remove('text-amber-450', 'text-amber-400');
-                floatIcon.classList.add('text-slate-600');
+                floatIcon.classList.remove('text-amber-500', 'text-amber-450', 'text-amber-400');
+                floatIcon.classList.add('text-slate-650');
                 themeText.innerText = 'Modo Oscuro';
                 currentTheme = 'light';
             } else {
+                document.documentElement.classList.add('dark');
                 body.classList.remove('light');
                 body.classList.add('dark');
                 floatIcon.setAttribute('data-lucide', 'sun');
-                floatIcon.classList.remove('text-slate-600');
+                floatIcon.classList.remove('text-slate-650');
                 floatIcon.classList.add('text-amber-400');
                 themeText.innerText = 'Modo Claro';
                 currentTheme = 'dark';
