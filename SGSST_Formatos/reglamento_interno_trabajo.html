@@ -6,34 +6,28 @@
     <title>Reglamento Interno de Trabajo (CST) - SG-SST</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
-        .dark { background-color: #080c14; color: #f8fafc; }
-        .light { background-color: #f1f5f9; color: #0f172a; }
         .gradient-banner {
             background: linear-gradient(135deg, 10b981 0%, 06b6d4 100%);
         }
         .glass-card {
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(59, 130, 246, 0.15);
-            transition: background-color 0.3s, border-color 0.3s;
-        }
-        .light .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(59, 130, 246, 0.1);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
     </style>
 </head>
-<body class="dark min-h-screen">
+<body class="dark bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen pb-24">
 
     <!-- Header Panel (Exact UI Copy with editable titles) -->
     <header class="max-w-[1400px] mx-auto px-4 md:px-6 pt-6">
@@ -66,7 +60,6 @@
                 <span contenteditable="true" id="app-document-badge" onblur="saveDocHeader()" class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase focus:outline-none">
                     PROCESO: SG-SST | V.02
                 </span>
-                <span class="text-[10px] text-blue-100 opacity-80 font-bold uppercase tracking-widest">WAPPY NO-CODE TEMPLATE</span>
             </div>
         </div>
     </header>
@@ -75,70 +68,70 @@
     <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
 
         <!-- Doc Header Meta -->
-        <div class="glass-card p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-blue-500">
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-blue-500">
             <div class="flex items-center gap-4 w-full md:w-auto">
                 <div class="flex-grow">
                     <div class="flex items-center gap-2">
-                        <span contenteditable="true" id="company-name" onblur="saveDocHeader()" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-700 dark:hover:border-slate-500 focus:border-blue-500">WAPPY SA</span>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-blue-950/50 dark:text-blue-400 rounded border border-blue-800/40">NIT</span>
-                        <span contenteditable="true" id="company-nit" onblur="saveDocHeader()" class="text-xs font-semibold text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-700 dark:hover:border-slate-500 focus:border-blue-500">NIT: 901437310</span>
+                        <span contenteditable="true" id="company-name" onblur="saveDocHeader()" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500 text-slate-900 dark:text-white">WAPPY SA</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800/40">NIT</span>
+                        <span contenteditable="true" id="company-nit" onblur="saveDocHeader()" class="text-xs font-semibold text-slate-500 dark:text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500">NIT: 901437310</span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                        <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">Colmena</span></span>
-                        <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">30</span></span>
-                        <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">Clase III</span></span>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">Colmena</span></span>
+                        <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">30</span></span>
+                        <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">Clase III</span></span>
                     </p>
                 </div>
             </div>
-            <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0">
-                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
-                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">GC-SST-RIT-01</span>
-                <span class="text-[10px] text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
+            <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0 border-t border-slate-200 dark:border-0 md:border-t-0">
+                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
+                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-RIT-01</span>
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-700 dark:text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
             </div>
         </div>
 
         <!-- Custom Fields Section -->
-        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
                 <i data-lucide="file-text" class="w-4 h-4"></i> Datos Específicos del Formato
             </h3>
             
             <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-400 mb-1">JORNADA DE TRABAJO Y DESCONEXIÓN LABORAL (ENFOQUE HUMANISTA)</label>
-                <textarea id="rit-horarios" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Establecer jornadas justas con total respeto al descanso familiar y desconexión tecnológica..."></textarea>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">JORNADA DE TRABAJO Y DESCONEXIÓN LABORAL (ENFOQUE HUMANISTA)</label>
+                <textarea id="rit-horarios" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Establecer jornadas justas con total respeto al descanso familiar y desconexión tecnológica...">Lunes a Viernes de 8:00 AM a 5:30 PM. Queda terminantemente prohibido el envío de comunicaciones, correos electrónicos o llamadas laborales fuera de este horario, garantizando el derecho constitucional al descanso y el bienestar familiar.</textarea>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">COMITÉ DE CONVIVENCIA LABORAL (PREVENCIÓN ACOSO)</label>
-                    <textarea id="rit-comite" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Líneas de mediación pacífica, tolerancia cero frente al acoso y discriminación..."></textarea>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMITÉ DE CONVIVENCIA LABORAL (PREVENCIÓN ACOSO)</label>
+                    <textarea id="rit-comite" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Líneas de mediación pacífica, tolerancia cero frente al acoso y discriminación...">Se establece una política de tolerancia cero ante cualquier conducta de acoso laboral, acoso sexual, discriminación o maltrato. El Comité de Convivencia sesionará trimestralmente de manera ordinaria y garantizará total confidencialidad.</textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">CONDICIONES DE HIGIENE Y BIENESTAR</label>
-                    <textarea id="rit-bienestar" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Suministro de agua potable, áreas de alimentación y ergonomía integral..."></textarea>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CONDICIONES DE HIGIENE Y BIENESTAR</label>
+                    <textarea id="rit-bienestar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Suministro de agua potable, áreas de alimentación y ergonomía integral...">Garantizar el suministro permanente de agua potable, áreas físicas dignas e higiénicas para la alimentación, y la realización obligatoria de pausas activas ergonómicas guiadas cada 4 horas.</textarea>
                 </div>
             </div>
         
         </div>
 
         <!-- Multimedia Section -->
-        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
                 <i data-lucide="video" class="w-4 h-4"></i> Evidencia Multimedia en Terreno
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4 text-blue-400"></i> Fotos (Hasta 3)</span>
-                    <button onclick="capturePhoto()" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Capturar Foto</button>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4 text-blue-500"></i> Fotos (Hasta 3)</span>
+                    <button onclick="capturePhoto()" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Capturar Foto</button>
                     <div id="photos-grid" class="grid grid-cols-3 gap-2"></div>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-blue-400"></i> Notas de Audio</span>
-                    <button onclick="toggleAudioRecording()" id="btn-audio-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Iniciar Grabación</button>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-blue-500"></i> Notas de Audio</span>
+                    <button onclick="toggleAudioRecording()" id="btn-audio-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Iniciar Grabación</button>
                     <audio id="audio-playback" controls class="w-full hidden mt-2"></audio>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 relative">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4 text-blue-400"></i> Video Corto (10s Máx)</span>
-                    <button onclick="startVideoRecording()" id="btn-video-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Grabar Video 10s</button>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 relative">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4 text-blue-500"></i> Video Corto (10s Máx)</span>
+                    <button onclick="startVideoRecording()" id="btn-video-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Grabar Video 10s</button>
                     <div id="video-timer" class="hidden absolute top-4 right-4 text-xs text-red-500 font-bold tracking-widest animate-pulse">00:10</div>
                     <video id="video-playback" controls class="w-full hidden mt-2 rounded-lg"></video>
                 </div>
@@ -146,51 +139,51 @@
         </div>
 
         <!-- Kanban Board Section -->
-        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
             <div class="flex justify-between items-center">
-                <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
                     <i data-lucide="kanban" class="w-4 h-4"></i> Kanban de Planes de Acción
                 </h3>
-                <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-xs font-bold border border-emerald-500/30 transition active:scale-95">Agregar Tarea</button>
+                <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Agregar Tarea</button>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">Por Hacer</span>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Por Hacer</span>
                     <div id="kanban-todo" class="flex flex-col gap-2"></div>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">En Progreso</span>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">En Progreso</span>
                     <div id="kanban-progress" class="flex flex-col gap-2"></div>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">Completado</span>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Completado</span>
                     <div id="kanban-done" class="flex flex-col gap-2"></div>
                 </div>
             </div>
         </div>
 
         <!-- Digital Signatures Canvas -->
-        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
                 <i data-lucide="signature" class="w-4 h-4"></i> Firma de Validación Legal
             </h3>
             <div class="flex flex-col md:flex-row items-center gap-6">
-                <div class="relative bg-slate-950 rounded-2xl border border-slate-850 p-2 shadow-inner">
-                    <canvas id="signature-canvas" width="400" height="150" class="bg-black/60 rounded-xl cursor-crosshair"></canvas>
-                    <button onclick="clearSignatureCanvas()" class="absolute bottom-4 right-4 py-1 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-xs transition">Limpiar</button>
+                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                    <canvas id="signature-canvas" width="400" height="150" class="bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                    <button onclick="clearSignatureCanvas()" class="absolute bottom-4 right-4 py-1 px-2.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-xs transition">Limpiar</button>
                 </div>
-                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full text-slate-900 dark:text-white">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 mb-1">NOMBRE DE QUIEN VALIDA</label>
-                        <input type="text" id="signer-name" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Felix Bedoya">
+                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE DE QUIEN VALIDA</label>
+                        <input type="text" id="signer-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Felix Bedoya" value="Félix Bedoya">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 mb-1">CARGO / ROL</label>
-                        <input type="text" id="signer-role" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Responsable SG-SST">
+                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">CARGO / ROL</label>
+                        <input type="text" id="signer-role" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Responsable SG-SST" value="Responsable SG-SST">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 mb-1">LICENCIA EN SST #</label>
-                        <input type="text" id="signer-license" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Res #12345 de 2024">
+                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">LICENCIA EN SST #</label>
+                        <input type="text" id="signer-license" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Res #12345 de 2024" value="Lic. #987654321 de la Sec. Salud">
                     </div>
                     <div class="flex items-end">
                         <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-2.5 px-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full">
@@ -203,44 +196,71 @@
 
     </main>
 
+    <!-- Legal Requirements Modal -->
+    <div id="legal-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 max-w-[600px] w-full p-6 shadow-2xl relative">
+            <button onclick="closeLegalModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg">✕</button>
+            <h3 class="text-lg font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mb-3">
+                <i data-lucide="info" class="w-5 h-5"></i> CUMPLIMIENTO LEGAL COLOMBIANO
+            </h3>
+            <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-300 font-medium">
+                Debe cumplir con el Código Sustantivo del Trabajo (CST) en sus Artículos 104 al 125, y la normatividad complementaria (Ley 1010 de 2006 sobre acoso laboral y Ley 2191 de 2022 sobre desconexión laboral). Define las normas obligatorias a las que se sujetan el empleador y los trabajadores.
+            </p>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeLegalModal()" class="py-2 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Conversational AI Copiloto Chat Sidebar -->
-    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] bg-slate-900/95 border-l border-slate-800 z-50 p-6 transform translate-x-full transition-transform duration-300 flex flex-col gap-4 shadow-2xl backdrop-blur-md">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
-            <h3 class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="sparkles"></i> Wappy IA Copiloto</h3>
-            <button onclick="toggleAISidebar()" class="p-1 rounded hover:bg-slate-800 text-slate-400">✕</button>
+    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] bg-white/95 dark:bg-slate-900/95 border-l border-slate-200 dark:border-slate-800 z-50 p-6 transform translate-x-full transition-transform duration-300 flex flex-col gap-4 shadow-2xl backdrop-blur-md">
+        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="sparkles"></i> Wappy IA Copiloto</h3>
+            <button onclick="toggleAISidebar()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400">✕</button>
         </div>
         
-        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+        <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
             <label class="block text-[9px] font-bold text-slate-400 mb-1">GEMINI API KEY</label>
             <div class="flex gap-2">
-                <input type="password" id="gemini-key" class="flex-1 rounded bg-slate-800 border border-slate-700 p-1.5 text-xs text-white" placeholder="AIzaSy...">
+                <input type="password" id="gemini-key" class="flex-1 rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white" placeholder="AIzaSy...">
                 <button onclick="saveAPIKey()" class="py-1 px-3 rounded bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition">Guardar</button>
             </div>
         </div>
 
-        <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3 max-h-[300px]">
-            <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] leading-relaxed text-slate-300">
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col gap-3 max-h-[320px]">
+            <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] leading-relaxed text-slate-650 dark:text-slate-300">
                 ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para este formato. ¡Podrás aplicarlas con un solo clic!
             </div>
         </div>
 
         <div class="flex flex-col gap-2">
-            <textarea id="ai-chat-input" class="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
+            <textarea id="ai-chat-input" class="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-900 dark:text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
             <button onclick="sendChatMessage()" class="w-full py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow">
                 <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar Mensaje
             </button>
         </div>
     </div>
 
-    <!-- Toggle AI & Theme Floating Actions -->
-    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
-        <button onclick="toggleTheme()" class="p-3.5 rounded-full bg-slate-800 border border-slate-700 text-amber-400 shadow-2xl hover:scale-115 transition active:scale-95" title="Alternar Modo Claro/Oscuro">
-            <i id="theme-float-icon" data-lucide="sun" class="w-5 h-5"></i>
-        </button>
-        <button onclick="toggleAISidebar()" class="p-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-2xl hover:scale-115 transition active:scale-95 animate-bounce" title="Copiloto IA">
-            <i data-lucide="sparkles" class="w-6 h-6"></i>
-        </button>
-    </div>
+    <!-- Fixed Bottom Footer (By WAPPY IA brand) -->
+    <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-850 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <div class="flex items-center">
+            <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 border border-slate-200 dark:border-slate-700">
+                <i id="theme-float-icon" data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+                <span id="theme-text">Modo Claro</span>
+            </button>
+        </div>
+        <div class="text-center font-bold tracking-wider uppercase text-slate-650 dark:text-slate-300 flex-1">
+            By WAPPY IA - <span id="footer-current-date">2026-05-29</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="showLegalRequirements()" class="flex items-center gap-1 py-1 px-2.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 text-[10px] uppercase font-bold tracking-wider transition active:scale-95" title="Requisitos Legales">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i> Requisitos Legales
+            </button>
+            <button onclick="toggleAISidebar()" class="p-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow hover:scale-105 transition active:scale-95 flex items-center justify-center" title="Copiloto IA">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </footer>
 
     <script>
         let masterSavedChanges = [];
@@ -259,6 +279,7 @@
             logoBase64: ""
         };
         
+        let currentTheme = 'dark';
         let currentWizard = {
             id: null,
             tasks: []
@@ -266,12 +287,15 @@
 
         let canvas, ctx;
         let isDrawing = false;
-        let currentTheme = 'dark';
 
         window.onload = function() {
             lucide.createIcons();
             initializeCanvas();
             loadState();
+            
+            // Set footer date dynamically
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('footer-current-date').innerText = today;
         }
 
         function uploadLogoImage() {
@@ -330,7 +354,7 @@
         function initializeCanvas() {
             canvas = document.getElementById('signature-canvas');
             ctx = canvas.getContext('2d');
-            ctx.strokeStyle = '#ffffff';
+            ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
             ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -387,6 +411,14 @@
             ctx.beginPath();
         }
 
+        function showLegalRequirements() {
+            document.getElementById('legal-modal').classList.remove('hidden');
+        }
+
+        function closeLegalModal() {
+            document.getElementById('legal-modal').classList.add('hidden');
+        }
+
         function addNewKanbanTask() {
             const title = prompt("Describa la acción correctiva / preventiva:");
             if (title) {
@@ -408,12 +440,12 @@
                 const colTasks = currentWizard.tasks.filter(t => t.column === col);
                 colTasks.forEach(task => {
                     const el = document.createElement('div');
-                    el.className = 'p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs cursor-pointer hover:bg-slate-850';
+                    el.className = 'p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-800 dark:text-slate-200';
                     el.innerHTML = `
-                        <span>\${task.title}</span>
+                        <span>${task.title}</span>
                         <div class="flex gap-1.5">
-                            \${col !== 'done' ? `<button onclick="moveTask(\${task.id}, '\${col}')" class="p-1 hover:text-blue-400">➔</button>` : ''}
-                            <button onclick="deleteTask(\${task.id})" class="p-1 hover:text-red-400">✕</button>
+                            ${col !== 'done' ? `<button onclick="moveTask(${task.id}, '${col}')" class="p-1 hover:text-blue-500">➔</button>` : ''}
+                            <button onclick="deleteTask(${task.id})" class="p-1 hover:text-red-500">✕</button>
                         </div>
                     `;
                     listEl.appendChild(el);
@@ -434,7 +466,6 @@
             saveLocalData();
         }
 
-        let chatMessages = [];
         async function sendChatMessage() {
             const inputEl = document.getElementById('ai-chat-input');
             const messageText = inputEl.value.trim();
@@ -449,18 +480,19 @@
                 return;
             }
 
-            const systemContext = `Estás ayudando a redactar y analizar el formato de SST: Reglamento Interno de Trabajo (CST).
-Responde de forma concisa y profesional en materia de SST. Si sugieres texto para inyectar en los campos, encierra las sugerencias en corchetes especificando el campo de forma entendible.`;
+            const systemContext = `Estás ayudando a redactar y estructurar la información del formato: Reglamento Interno de Trabajo (CST).
+Normatividad aplicable: Debe cumplir con el Código Sustantivo del Trabajo (CST) en sus Artículos 104 al 125, y la normatividad complementaria (Ley 1010 de 2006 sobre acoso laboral y Ley 2191 de 2022 sobre desconexión laboral). Define las normas obligatorias a las que se sujetan el empleador y los trabajadores..
+Responde de forma concisa y profesional en materia de SST. Si sugieres textos para completar los campos, enciérralos en corchetes especificando el campo (Ej. [Área: ...] o [Peligro: ...] o [Controles: ...]).`;
 
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${apiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [
-                            { role: 'user', parts: [{ text: `\${systemContext}\n\nMensaje del usuario: \${messageText}` }] }
+                            { role: 'user', parts: [{ text: `${systemContext}\n\nMensaje del usuario: ${messageText}` }] }
                         ]
                     })
                 });
@@ -474,30 +506,111 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
             } catch (err) {
                 const messagesContainer = document.getElementById('ai-chat-messages');
                 messagesContainer.removeChild(messagesContainer.lastChild);
-                addChatMessage('assistant', "⚠️ Error al conectar con la API de Gemini. Verifique su API Key e intente nuevamente.");
+                addChatMessage('assistant', "⚠️ Error al conectar con la API de Gemini. Verifique su API Key.");
             }
         }
 
         function addChatMessage(sender, text) {
             const messagesContainer = document.getElementById('ai-chat-messages');
             const messageEl = document.createElement('div');
-            messageEl.className = `p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] \${
+            messageEl.className = `p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] ${
                 sender === 'user' 
-                    ? 'bg-blue-500/20 text-blue-300 self-end ml-auto border border-blue-500/20' 
-                    : 'bg-slate-900 border border-slate-800 text-slate-300'
+                    ? 'bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20' 
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300'
             }`;
 
             let actionBtnHtml = "";
             if (sender === 'assistant' && text.includes('[') && text.includes(']')) {
-                actionBtnHtml = `<button onclick="applyAITextSuggestions(\`\${text.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold block text-[10px] transition active:scale-95">Inyectar en Formulario</button>`;
+                actionBtnHtml = `<button onclick="applyAITextSuggestions(\\`${text.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\\`)" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Inyectar en Formulario</button>`;
             }
 
-            messageEl.innerHTML = `<div>\${text}</div>\${actionBtnHtml}`;
+            messageEl.innerHTML = `<div>${text}</div>${actionBtnHtml}`;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         function applyAITextSuggestions(text) {
+            // Custom input field assignments based on format id
+            const id = "reglamento_interno_trabajo";
+            if (id === "matriz_peligros") {
+                const areaMatch = text.match(/\[Área:\s*([\s\S]*?)\]/);
+                const peligroMatch = text.match(/\[Peligro:\s*([\s\S]*?)\]/);
+                const controlesMatch = text.match(/\[Controles:\s*([\s\S]*?)\]/);
+                if (areaMatch) document.getElementById('area-proceso').value = areaMatch[1].trim();
+                if (peligroMatch) document.getElementById('peligro-desc').value = peligroMatch[1].trim();
+                if (controlesMatch) document.getElementById('controles-existentes').value = controlesMatch[1].trim();
+            } else if (id === "matriz_requisitos_legales") {
+                const normaMatch = text.match(/\[Norma:\s*([\s\S]*?)\]/);
+                const requisitoMatch = text.match(/\[Requisito:\s*([\s\S]*?)\]/);
+                const evidenciaMatch = text.match(/\[Evidencia:\s*([\s\S]*?)\]/);
+                if (normaMatch) document.getElementById('norma-ano').value = normaMatch[1].trim();
+                if (requisitoMatch) document.getElementById('requisito-desc').value = requisitoMatch[1].trim();
+                if (evidenciaMatch) document.getElementById('evidencia-cumplimiento').value = evidenciaMatch[1].trim();
+            } else if (id === "matriz_acpm") {
+                const ncfMatch = text.match(/\[No Conformidad:\s*([\s\S]*?)\]/);
+                const causaMatch = text.match(/\[Causa:\s*([\s\S]*?)\]/);
+                const planMatch = text.match(/\[Plan:\s*([\s\S]*?)\]/);
+                if (ncfMatch) document.getElementById('no-conformidad').value = ncfMatch[1].trim();
+                if (causaMatch) document.getElementById('analisis-causa').value = causaMatch[1].trim();
+                if (planMatch) document.getElementById('plan-accion').value = planMatch[1].trim();
+            } else if (id === "analisis_vulnerabilidad") {
+                const amenazaMatch = text.match(/\[Amenaza:\s*([\s\S]*?)\]/);
+                const analisisMatch = text.match(/\[Análisis:\s*([\s\S]*?)\]/);
+                const medidasMatch = text.match(/\[Medidas:\s*([\s\S]*?)\]/);
+                if (amenazaMatch) document.getElementById('amenaza-ident').value = amenazaMatch[1].trim();
+                if (analisisMatch) document.getElementById('vuln-analisis').value = analisisMatch[1].trim();
+                if (medidasMatch) document.getElementById('vuln-medidas').value = medidasMatch[1].trim();
+            } else if (id === "reporte_actos_inseguros") {
+                const descMatch = text.match(/\[Reporte:\s*([\s\S]*?)\]/);
+                const areaMatch = text.match(/\[Área:\s*([\s\S]*?)\]/);
+                const corrMatch = text.match(/\[Corrección:\s*([\s\S]*?)\]/);
+                if (descMatch) document.getElementById('acto-condicion-desc').value = descMatch[1].trim();
+                if (areaMatch) document.getElementById('acto-area').value = areaMatch[1].trim();
+                if (corrMatch) document.getElementById('acto-correccion').value = corrMatch[1].trim();
+            } else if (id === "gestion_cambio") {
+                const cambioMatch = text.match(/\[Cambio:\s*([\s\S]*?)\]/);
+                const peligrosMatch = text.match(/\[Peligros:\s*([\s\S]*?)\]/);
+                const controlesMatch = text.match(/\[Controles:\s*([\s\S]*?)\]/);
+                if (cambioMatch) document.getElementById('cambio-desc').value = cambioMatch[1].trim();
+                if (peligrosMatch) document.getElementById('cambio-peligros').value = peligrosMatch[1].trim();
+                if (controlesMatch) document.getElementById('cambio-controles').value = controlesMatch[1].trim();
+            } else if (id === "reglamento_interno_trabajo") {
+                const horariosMatch = text.match(/\[Horarios:\s*([\s\S]*?)\]/);
+                const comiteMatch = text.match(/\[Comité:\s*([\s\S]*?)\]/);
+                const bienestarMatch = text.match(/\[Bienestar:\s*([\s\S]*?)\]/);
+                if (horariosMatch) document.getElementById('rit-horarios').value = horariosMatch[1].trim();
+                if (comiteMatch) document.getElementById('rit-comite').value = comiteMatch[1].trim();
+                if (bienestarMatch) document.getElementById('rit-bienestar').value = bienestarMatch[1].trim();
+            } else if (id === "plan_trabajo") {
+                const objMatch = text.match(/\[Objetivo:\s*([\s\S]*?)\]/);
+                const respMatch = text.match(/\[Responsables:\s*([\s\S]*?)\]/);
+                const presMatch = text.match(/\[Presupuesto:\s*([\s\S]*?)\]/);
+                if (objMatch) document.getElementById('plan-objetivo').value = objMatch[1].trim();
+                if (respMatch) document.getElementById('plan-responsables').value = respMatch[1].trim();
+                if (presMatch) document.getElementById('plan-presupuesto').value = presMatch[1].trim();
+            } else if (id === "plan_capacitacion") {
+                const temaMatch = text.match(/\[Tema:\s*([\s\S]*?)\]/);
+                const dirMatch = text.match(/\[Dirigido:\s*([\s\S]*?)\]/);
+                const facMatch = text.match(/\[Facilitador:\s*([\s\S]*?)\]/);
+                if (temaMatch) document.getElementById('cap-tema').value = temaMatch[1].trim();
+                if (dirMatch) document.getElementById('cap-dirigido').value = dirMatch[1].trim();
+                if (facMatch) document.getElementById('cap-facilitador').value = facMatch[1].trim();
+            } else if (id === "analisis_trabajo_seguro") {
+                const tareaMatch = text.match(/\[Tarea:\s*([\s\S]*?)\]/);
+                const herrMatch = text.match(/\[Herramientas:\s*([\s\S]*?)\]/);
+                const eppMatch = text.match(/\[EPP:\s*([\s\S]*?)\]/);
+                if (tareaMatch) document.getElementById('ats-tarea').value = tareaMatch[1].trim();
+                if (herrMatch) document.getElementById('ats-herramientas').value = herrMatch[1].trim();
+                if (eppMatch) document.getElementById('ats-epp').value = eppMatch[1].trim();
+            } else if (id === "permiso_alturas") {
+                const coordMatch = text.match(/\[Coordinador:\s*([\s\S]*?)\]/);
+                const metrosMatch = text.match(/\[Metros:\s*([\s\S]*?)\]/);
+                const sistMatch = text.match(/\[Sistema:\s*([\s\S]*?)\]/);
+                if (coordMatch) document.getElementById('alturas-coordinador').value = coordMatch[1].trim();
+                if (metrosMatch) document.getElementById('alturas-metros').value = metrosMatch[1].trim();
+                if (sistMatch) document.getElementById('alturas-sistema').value = sistMatch[1].trim();
+            }
+
             alert("Sugerencias inyectadas con éxito en el formulario.");
             saveLocalData();
         }
@@ -506,7 +619,7 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
             const grid = document.getElementById('photos-grid');
             if (grid.children.length >= 3) return alert("Máximo 3 fotos.");
             const el = document.createElement('div');
-            el.className = 'h-14 w-full rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400 font-mono shadow-inner';
+            el.className = 'h-14 w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-500 dark:text-slate-400 font-mono shadow-inner';
             el.innerText = `Evidencia Foto \${grid.children.length + 1}`;
             grid.appendChild(el);
         }
@@ -518,10 +631,10 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
             const player = document.getElementById('audio-playback');
             if (isAudioRec) {
                 btn.innerText = 'Grabando (Parar)';
-                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition active:scale-95';
+                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 transition active:scale-95';
             } else {
                 btn.innerText = 'Iniciar Grabación';
-                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95';
+                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95';
                 player.classList.remove('hidden');
             }
         }
@@ -553,13 +666,15 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
         function toggleTheme() {
             const body = document.body;
             const floatIcon = document.getElementById('theme-float-icon');
+            const themeText = document.getElementById('theme-text');
             
             if (currentTheme === 'dark') {
                 body.classList.remove('dark');
                 body.classList.add('light');
                 floatIcon.setAttribute('data-lucide', 'moon');
-                floatIcon.classList.remove('text-amber-400');
+                floatIcon.classList.remove('text-amber-450', 'text-amber-400');
                 floatIcon.classList.add('text-slate-600');
+                themeText.innerText = 'Modo Oscuro';
                 currentTheme = 'light';
             } else {
                 body.classList.remove('light');
@@ -567,8 +682,15 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
                 floatIcon.setAttribute('data-lucide', 'sun');
                 floatIcon.classList.remove('text-slate-600');
                 floatIcon.classList.add('text-amber-400');
+                themeText.innerText = 'Modo Claro';
                 currentTheme = 'dark';
             }
+            
+            // Adjust canvas drawing stroke color on theme toggle
+            if (ctx) {
+                ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+            }
+            
             lucide.createIcons();
         }
 
@@ -600,9 +722,9 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres texto par
                     if (data.appDocHeader) appDocHeader = data.appDocHeader;
                     if (data.currentWizard) currentWizard = data.currentWizard;
                     
-                    document.getElementById('signer-name').value = data.signer_name || '';
-                    document.getElementById('signer-role').value = data.signer_role || '';
-                    document.getElementById('signer-license').value = data.signer_license || '';
+                    document.getElementById('signer-name').value = data.signer_name || 'Félix Bedoya';
+                    document.getElementById('signer-role').value = data.signer_role || 'Responsable SG-SST';
+                    document.getElementById('signer-license').value = data.signer_license || 'Lic. #987654321 de la Sec. Salud';
                 }
             } catch(e) {
                 console.error("Error loading local state", e);
