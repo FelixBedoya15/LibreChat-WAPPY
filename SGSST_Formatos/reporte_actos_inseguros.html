@@ -620,14 +620,85 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                 }
             }
 
-            messageEl.innerHTML = `<div>${text}</div>${autoInjectNotice}${actionBtnHtml}`;
+            messageEl.innerHTML = `<div>\${text}</div>\${autoInjectNotice}\${actionBtnHtml}`;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function isPlaceholderText(str) {
+            if (!str) return true;
+            const s = str.trim();
+            if (s === '...' || s === '..]' || s === '...]' || s === ']' || s === '[]') return true;
+            if (/^\[?\.+\s*\.?\]?$/.test(s)) return true;
+            if (s.toLowerCase().includes('ej:') && s.length < 30) return true;
+            if (s.toLowerCase().includes('nombre de') && s.length < 30) return true;
+            if (s.toLowerCase().includes('ingrese aquí') && s.length < 30) return true;
+            if (s.toLowerCase().includes('describa ') && s.length < 30) return true;
+            return false;
+        }
+
+        function cleanTaskTitle(title) {
+            if (!title) return "";
+            let t = title.trim();
+            t = t.replace(/^[-*+\s]+/, '');
+            t = t.replace(/^\[?(?:Acción correctiva\/preventiva|Acción preventiva|Acción correctiva|Acción|Tarea|Medida):\s*/i, '');
+            if (t.startsWith('[') && t.endsWith(']')) {
+                t = t.substring(1, t.length - 1).trim();
+            }
+            if (t.endsWith(']')) {
+                t = t.substring(0, t.length - 1).trim();
+            }
+            if (t.startsWith(']')) {
+                t = t.substring(1).trim();
+            }
+            return t.trim();
         }
 
         function autoInjectSSTData(text) {
             const id = "reporte_actos_inseguros";
             let injectedAny = false;
+            
+            const extractedKVs = {};
+            const lines = text.split('\n');
+            for (let line of lines) {
+                const cleanLine = line.trim();
+                if (!cleanLine) continue;
+                
+                const doubleBracketMatch = cleanLine.match(/^(?:\*|-|\d+\.)?\s*(?:\*\*)?\[([^\]]+?):?\](?:\*\*)?:?\s*\[([^\]]+?)\]/);
+                if (doubleBracketMatch) {
+                    const key = doubleBracketMatch[1].replace(/:$/, '').trim().toLowerCase();
+                    const val = doubleBracketMatch[2].trim();
+                    extractedKVs[key] = val;
+                    continue;
+                }
+                
+                const singleBracketMatch = cleanLine.match(/\[([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\/\-\(\):]{3,50}?):\s*([^\]]{3,})\]/);
+                if (singleBracketMatch) {
+                    const key = singleBracketMatch[1].replace(/:$/, '').trim().toLowerCase();
+                    const val = singleBracketMatch[2].trim();
+                    extractedKVs[key] = val;
+                    continue;
+                }
+                
+                const standardMatch = cleanLine.match(/^(?:\*|-|\d+\.)?\s*(?:\*\*)?\[?([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\/\-\(\):]{3,50}?)\]?(?:\*\*)?:\s*(.+)$/);
+                if (standardMatch) {
+                    const key = standardMatch[1].replace(/:$/, '').trim().toLowerCase();
+                    const val = standardMatch[2].trim();
+                    extractedKVs[key] = val;
+                    continue;
+                }
+            }
+
+            function findValueForKeywords(keywords) {
+                for (const [key, val] of Object.entries(extractedKVs)) {
+                    if (keywords.some(kw => key.includes(kw.toLowerCase()))) {
+                        if (!isPlaceholderText(val)) {
+                            return val;
+                        }
+                    }
+                }
+                return null;
+            }
             
             function extractSection(keywords, text) {
                 const lines = text.split('\n');
@@ -647,8 +718,14 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                         capturing = true;
                         const colonIdx = cleanLine.indexOf(':');
                         if (colonIdx !== -1 && colonIdx < cleanLine.length - 1) {
-                            const content = cleanLine.substring(colonIdx + 1).trim();
-                            if (content) resultLines.push(content);
+                            let content = cleanLine.substring(colonIdx + 1).trim();
+                            if (content.startsWith(']')) content = content.substring(1).trim();
+                            if (content.endsWith(']')) content = content.substring(0, content.length - 1).trim();
+                            if (content.startsWith('[')) content = content.substring(1).trim();
+                            
+                            if (content && !isPlaceholderText(content)) {
+                                resultLines.push(content);
+                            }
                         }
                         continue;
                     }
@@ -664,7 +741,23 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                     }
                     
                     if (capturing) {
-                        resultLines.push(cleanLine);
+                        let content = cleanLine;
+                        if (content.startsWith('*') || content.startsWith('-')) {
+                            content = content.replace(/^[-*+\s]+/, '');
+                        }
+                        if (content.startsWith('[') && content.endsWith(']')) {
+                            content = content.substring(1, content.length - 1).trim();
+                        }
+                        if (content.endsWith(']')) {
+                            content = content.substring(0, content.length - 1).trim();
+                        }
+                        if (content.startsWith(']')) {
+                            content = content.substring(1).trim();
+                        }
+                        
+                        if (content && !isPlaceholderText(content)) {
+                            resultLines.push(content);
+                        }
                     }
                 }
                 
@@ -672,109 +765,108 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             }
 
             if (id === "matriz_peligros") {
-                const area = text.match(/\[Área:\s*([\s\S]*?)\]/i) || [null, extractSection(['proceso', 'área', 'area'], text)];
-                const peligro = text.match(/\[Peligro:\s*([\s\S]*?)\]/i) || [null, extractSection(['peligro', 'riesgo', 'identificado'], text)];
-                const controles = text.match(/\[Controles:\s*([\s\S]*?)\]/i) || [null, extractSection(['controles', 'control', 'existentes', 'recomendados'], text)];
-                if (area && area[1]) { document.getElementById('area-proceso').value = area[1].trim(); injectedAny = true; }
-                if (peligro && peligro[1]) { document.getElementById('peligro-desc').value = peligro[1].trim(); injectedAny = true; }
-                if (controles && controles[1]) { document.getElementById('controles-existentes').value = controles[1].trim(); injectedAny = true; }
+                const area = findValueForKeywords(['proceso', 'área', 'area']) || extractSection(['proceso', 'área', 'area'], text);
+                const peligro = findValueForKeywords(['peligro', 'riesgo', 'identificado']) || extractSection(['peligro', 'riesgo', 'identificado'], text);
+                const controles = findValueForKeywords(['controles', 'control', 'existentes', 'recomendados']) || extractSection(['controles', 'control', 'existentes', 'recomendados'], text);
+                if (area && !isPlaceholderText(area)) { document.getElementById('area-proceso').value = area.trim(); injectedAny = true; }
+                if (peligro && !isPlaceholderText(peligro)) { document.getElementById('peligro-desc').value = peligro.trim(); injectedAny = true; }
+                if (controles && !isPlaceholderText(controles)) { document.getElementById('controles-existentes').value = controles.trim(); injectedAny = true; }
             } else if (id === "matriz_requisitos_legales") {
-                const norma = text.match(/\[Norma:\s*([\s\S]*?)\]/i) || [null, extractSection(['norma', 'entidad', 'año'], text)];
-                const requisito = text.match(/\[Requisito:\s*([\s\S]*?)\]/i) || [null, extractSection(['requisito', 'artículo', 'descripcion'], text)];
-                const evidencia = text.match(/\[Evidencia:\s*([\s\S]*?)\]/i) || [null, extractSection(['evidencia', 'responsable', 'cumplimiento'], text)];
-                if (norma && norma[1]) { document.getElementById('norma-ano').value = norma[1].trim(); injectedAny = true; }
-                if (requisito && requisito[1]) { document.getElementById('requisito-desc').value = requisito[1].trim(); injectedAny = true; }
-                if (evidencia && evidencia[1]) { document.getElementById('evidencia-cumplimiento').value = evidencia[1].trim(); injectedAny = true; }
+                const norma = findValueForKeywords(['norma', 'entidad', 'año', 'ano']) || extractSection(['norma', 'entidad', 'año', 'ano'], text);
+                const requisito = findValueForKeywords(['requisito', 'artículo', 'articulo', 'descripcion', 'descripción']) || extractSection(['requisito', 'artículo', 'articulo', 'descripcion', 'descripción'], text);
+                const evidencia = findValueForKeywords(['evidencia', 'responsable', 'cumplimiento']) || extractSection(['evidencia', 'responsable', 'cumplimiento'], text);
+                if (norma && !isPlaceholderText(norma)) { document.getElementById('norma-ano').value = norma.trim(); injectedAny = true; }
+                if (requisito && !isPlaceholderText(requisito)) { document.getElementById('requisito-desc').value = requisito.trim(); injectedAny = true; }
+                if (evidencia && !isPlaceholderText(evidencia)) { document.getElementById('evidencia-cumplimiento').value = evidencia.trim(); injectedAny = true; }
             } else if (id === "matriz_acpm") {
-                const ncf = text.match(/\[No Conformidad:\s*([\s\S]*?)\]/i) || [null, extractSection(['no conformidad', 'hallazgo', 'descripción'], text)];
-                const causa = text.match(/\[Causa:\s*([\s\S]*?)\]/i) || [null, extractSection(['causa', 'raíz', 'análisis'], text)];
-                const plan = text.match(/\[Plan:\s*([\s\S]*?)\]/i) || [null, extractSection(['plan', 'acción', 'medida', 'correctivo'], text)];
-                if (ncf && ncf[1]) { document.getElementById('no-conformidad').value = ncf[1].trim(); injectedAny = true; }
-                if (causa && causa[1]) { document.getElementById('analisis-causa').value = causa[1].trim(); injectedAny = true; }
-                if (plan && plan[1]) { document.getElementById('plan-accion').value = plan[1].trim(); injectedAny = true; }
+                const ncf = findValueForKeywords(['no conformidad', 'hallazgo', 'descripción', 'descripcion']) || extractSection(['no conformidad', 'hallazgo', 'descripción', 'descripcion'], text);
+                const causa = findValueForKeywords(['causa', 'raíz', 'raiz', 'análisis', 'analisis']) || extractSection(['causa', 'raíz', 'raiz', 'análisis', 'analisis'], text);
+                const plan = findValueForKeywords(['plan', 'acción', 'accion', 'medida', 'correctivo']) || extractSection(['plan', 'acción', 'accion', 'medida', 'correctivo'], text);
+                if (ncf && !isPlaceholderText(ncf)) { document.getElementById('no-conformidad').value = ncf.trim(); injectedAny = true; }
+                if (causa && !isPlaceholderText(causa)) { document.getElementById('analisis-causa').value = causa.trim(); injectedAny = true; }
+                if (plan && !isPlaceholderText(plan)) { document.getElementById('plan-accion').value = plan.trim(); injectedAny = true; }
             } else if (id === "analisis_vulnerabilidad") {
-                const amenaza = text.match(/\[Amenaza:\s*([\s\S]*?)\]/i) || [null, extractSection(['amenaza', 'ubicación', 'identificada'], text)];
-                const analisis = text.match(/\[Análisis:\s*([\s\S]*?)\]/i) || [null, extractSection(['análisis', 'personas', 'recursos', 'sistemas'], text)];
-                const medidas = text.match(/\[Medidas:\s*([\s\S]*?)\]/i) || [null, extractSection(['medidas', 'prevención', 'mitigación'], text)];
-                if (amenaza && amenaza[1]) { document.getElementById('amenaza-ident').value = amenaza[1].trim(); injectedAny = true; }
-                if (analisis && analisis[1]) { document.getElementById('vuln-analisis').value = analisis[1].trim(); injectedAny = true; }
-                if (medidas && medidas[1]) { document.getElementById('vuln-medidas').value = medidas[1].trim(); injectedAny = true; }
+                const amenaza = findValueForKeywords(['amenaza', 'ubicación', 'ubicacion', 'identificada']) || extractSection(['amenaza', 'ubicación', 'ubicacion', 'identificada'], text);
+                const analisis = findValueForKeywords(['análisis', 'analisis', 'personas', 'recursos', 'sistemas']) || extractSection(['análisis', 'analisis', 'personas', 'recursos', 'sistemas'], text);
+                const medidas = findValueForKeywords(['medidas', 'prevención', 'prevencion', 'mitigación', 'mitigacion']) || extractSection(['medidas', 'prevención', 'prevencion', 'mitigación', 'mitigacion'], text);
+                if (amenaza && !isPlaceholderText(amenaza)) { document.getElementById('amenaza-ident').value = amenaza.trim(); injectedAny = true; }
+                if (analisis && !isPlaceholderText(analisis)) { document.getElementById('vuln-analisis').value = analisis.trim(); injectedAny = true; }
+                if (medidas && !isPlaceholderText(medidas)) { document.getElementById('vuln-medidas').value = medidas.trim(); injectedAny = true; }
             } else if (id === "reporte_actos_inseguros") {
-                const desc = text.match(/\[Reporte:\s*([\s\S]*?)\]/i) || [null, extractSection(['reporte', 'hallazgo', 'acto', 'condición', 'descripción'], text)];
-                const area = text.match(/\[Área:\s*([\s\S]*?)\]/i) || [null, extractSection(['área', 'puesto', 'trabajo'], text)];
-                const corr = text.match(/\[Corrección:\s*([\s\S]*?)\]/i) || [null, extractSection(['corrección', 'inmediata', 'aplicada'], text)];
-                if (desc && desc[1]) { document.getElementById('acto-condicion-desc').value = desc[1].trim(); injectedAny = true; }
-                if (area && area[1]) { document.getElementById('acto-area').value = area[1].trim(); injectedAny = true; }
-                if (corr && corr[1]) { document.getElementById('acto-correccion').value = corr[1].trim(); injectedAny = true; }
+                const desc = findValueForKeywords(['reporte', 'hallazgo', 'acto', 'condición', 'condicion', 'descripción', 'descripcion']) || extractSection(['reporte', 'hallazgo', 'acto', 'condición', 'condicion', 'descripción', 'descripcion'], text);
+                const area = findValueForKeywords(['área', 'area', 'puesto', 'trabajo']) || extractSection(['área', 'area', 'puesto', 'trabajo'], text);
+                const corr = findValueForKeywords(['corrección', 'correccion', 'inmediata', 'aplicada']) || extractSection(['corrección', 'correccion', 'inmediata', 'aplicada'], text);
+                if (desc && !isPlaceholderText(desc)) { document.getElementById('acto-condicion-desc').value = desc.trim(); injectedAny = true; }
+                if (area && !isPlaceholderText(area)) { document.getElementById('acto-area').value = area.trim(); injectedAny = true; }
+                if (corr && !isPlaceholderText(corr)) { document.getElementById('acto-correccion').value = corr.trim(); injectedAny = true; }
             } else if (id === "gestion_cambio") {
-                const cambio = text.match(/\[Cambio:\s*([\s\S]*?)\]/i) || [null, extractSection(['cambio', 'propuesto', 'descripción'], text)];
-                const peligros = text.match(/\[Peligros:\s*([\s\S]*?)\]/i) || [null, extractSection(['peligros', 'nuevos', 'identificación'], text)];
-                const controles = text.match(/\[Controles:\s*([\s\S]*?)\]/i) || [null, extractSection(['controles', 'prevención', 'medidas'], text)];
-                if (cambio && cambio[1]) { document.getElementById('cambio-desc').value = cambio[1].trim(); injectedAny = true; }
-                if (peligros && peligros[1]) { document.getElementById('cambio-peligros').value = peligros[1].trim(); injectedAny = true; }
-                if (controles && controles[1]) { document.getElementById('cambio-controles').value = controles[1].trim(); injectedAny = true; }
+                const cambio = findValueForKeywords(['cambio', 'propuesto', 'descripción', 'descripcion']) || extractSection(['cambio', 'propuesto', 'descripción', 'descripcion'], text);
+                const peligros = findValueForKeywords(['peligros', 'nuevos', 'identificación', 'identificacion']) || extractSection(['peligros', 'nuevos', 'identificación', 'identificacion'], text);
+                const controles = findValueForKeywords(['controles', 'prevención', 'prevencion', 'medidas']) || extractSection(['controles', 'prevención', 'prevencion', 'medidas'], text);
+                if (cambio && !isPlaceholderText(cambio)) { document.getElementById('cambio-desc').value = cambio.trim(); injectedAny = true; }
+                if (peligros && !isPlaceholderText(peligros)) { document.getElementById('cambio-peligros').value = peligros.trim(); injectedAny = true; }
+                if (controles && !isPlaceholderText(controles)) { document.getElementById('cambio-controles').value = controles.trim(); injectedAny = true; }
             } else if (id === "reglamento_interno_trabajo") {
-                const horarios = text.match(/\[Horarios:\s*([\s\S]*?)\]/i) || [null, extractSection(['horarios', 'jornada', 'desconexión'], text)];
-                const comite = text.match(/\[Comité:\s*([\s\S]*?)\]/i) || [null, extractSection(['comité', 'convivencia', 'acoso'], text)];
-                const bienestar = text.match(/\[Bienestar:\s*([\s\S]*?)\]/i) || [null, extractSection(['bienestar', 'higiene', 'condiciones'], text)];
-                if (horarios && horarios[1]) { document.getElementById('rit-horarios').value = horarios[1].trim(); injectedAny = true; }
-                if (comite && comite[1]) { document.getElementById('rit-comite').value = comite[1].trim(); injectedAny = true; }
-                if (bienestar && bienestar[1]) { document.getElementById('rit-bienestar').value = bienestar[1].trim(); injectedAny = true; }
+                const horarios = findValueForKeywords(['horarios', 'jornada', 'desconexión', 'desconexion']) || extractSection(['horarios', 'jornada', 'desconexión', 'desconexion'], text);
+                const comite = findValueForKeywords(['comité', 'comite', 'convivencia', 'acoso']) || extractSection(['comité', 'comite', 'convivencia', 'acoso'], text);
+                const bienestar = findValueForKeywords(['bienestar', 'higiene', 'condiciones']) || extractSection(['bienestar', 'higiene', 'condiciones'], text);
+                if (horarios && !isPlaceholderText(horarios)) { document.getElementById('rit-horarios').value = horarios.trim(); injectedAny = true; }
+                if (comite && !isPlaceholderText(comite)) { document.getElementById('rit-comite').value = comite.trim(); injectedAny = true; }
+                if (bienestar && !isPlaceholderText(bienestar)) { document.getElementById('rit-bienestar').value = bienestar.trim(); injectedAny = true; }
             } else if (id === "plan_trabajo") {
-                const obj = text.match(/\[Objetivo:\s*([\s\S]*?)\]/i) || [null, extractSection(['objetivo', 'general', 'meta'], text)];
-                const resp = text.match(/\[Responsables:\s*([\s\S]*?)\]/i) || [null, extractSection(['responsables', 'ejecución'], text)];
-                const pres = text.match(/\[Presupuesto:\s*([\s\S]*?)\]/i) || [null, extractSection(['presupuesto', 'estimado'], text)];
-                if (obj && obj[1]) { document.getElementById('plan-objetivo').value = obj[1].trim(); injectedAny = true; }
-                if (resp && resp[1]) { document.getElementById('plan-responsables').value = resp[1].trim(); injectedAny = true; }
-                if (pres && pres[1]) { document.getElementById('plan-presupuesto').value = pres[1].trim(); injectedAny = true; }
+                const obj = findValueForKeywords(['objetivo', 'general', 'meta']) || extractSection(['objetivo', 'general', 'meta'], text);
+                const resp = findValueForKeywords(['responsables', 'ejecución', 'ejecucion']) || extractSection(['responsables', 'ejecución', 'ejecucion'], text);
+                const pres = findValueForKeywords(['presupuesto', 'estimado']) || extractSection(['presupuesto', 'estimado'], text);
+                if (obj && !isPlaceholderText(obj)) { document.getElementById('plan-objetivo').value = obj.trim(); injectedAny = true; }
+                if (resp && !isPlaceholderText(resp)) { document.getElementById('plan-responsables').value = resp.trim(); injectedAny = true; }
+                if (pres && !isPlaceholderText(pres)) { document.getElementById('plan-presupuesto').value = pres.trim(); injectedAny = true; }
             } else if (id === "plan_capacitacion") {
-                const tema = text.match(/\[Tema:\s*([\s\S]*?)\]/i) || [null, extractSection(['tema', 'principal', 'capacitación'], text)];
-                const dir = text.match(/\[Dirigido:\s*([\s\S]*?)\]/i) || [null, extractSection(['dirigido', 'población', 'objeto'], text)];
-                const fac = text.match(/\[Facilitador:\s*([\s\S]*?)\]/i) || [null, extractSection(['facilitador', 'docente', 'entidad'], text)];
-                if (tema && tema[1]) { document.getElementById('cap-tema').value = tema[1].trim(); injectedAny = true; }
-                if (dir && dir[1]) { document.getElementById('cap-dirigido').value = dir[1].trim(); injectedAny = true; }
-                if (fac && fac[1]) { document.getElementById('cap-facilitador').value = fac[1].trim(); injectedAny = true; }
+                const tema = findValueForKeywords(['tema', 'principal', 'capacitación', 'capacitacion']) || extractSection(['tema', 'principal', 'capacitación', 'capacitacion'], text);
+                const dir = findValueForKeywords(['dirigido', 'población', 'poblacion', 'objeto']) || extractSection(['dirigido', 'población', 'poblacion', 'objeto'], text);
+                const fac = findValueForKeywords(['facilitador', 'docente', 'entidad']) || extractSection(['facilitador', 'docente', 'entidad'], text);
+                if (tema && !isPlaceholderText(tema)) { document.getElementById('cap-tema').value = tema.trim(); injectedAny = true; }
+                if (dir && !isPlaceholderText(dir)) { document.getElementById('cap-dirigido').value = dir.trim(); injectedAny = true; }
+                if (fac && !isPlaceholderText(fac)) { document.getElementById('cap-facilitador').value = fac.trim(); injectedAny = true; }
             } else if (id === "analisis_trabajo_seguro") {
-                const tarea = text.match(/\[Tarea:\s*([\s\S]*?)\]/i) || [null, extractSection(['tarea', 'crítica', 'analizar', 'descripción'], text)];
-                const herr = text.match(/\[Herramientas:\s*([\s\S]*?)\]/i) || [null, extractSection(['herramientas', 'equipos'], text)];
-                const epp = text.match(/\[EPP:\s*([\s\S]*?)\]/i) || [null, extractSection(['epp', 'protección', 'elementos'], text)];
-                if (tarea && tarea[1]) { document.getElementById('ats-tarea').value = tarea[1].trim(); injectedAny = true; }
-                if (herr && herr[1]) { document.getElementById('ats-herramientas').value = herr[1].trim(); injectedAny = true; }
-                if (epp && epp[1]) { document.getElementById('ats-epp').value = epp[1].trim(); injectedAny = true; }
+                const tarea = findValueForKeywords(['tarea', 'crítica', 'critica', 'analizar', 'descripción', 'descripcion']) || extractSection(['tarea', 'crítica', 'critica', 'analizar', 'descripción', 'descripcion'], text);
+                const herr = findValueForKeywords(['herramientas', 'equipos']) || extractSection(['herramientas', 'equipos'], text);
+                const epp = findValueForKeywords(['epp', 'protección', 'proteccion', 'elementos']) || extractSection(['epp', 'protección', 'proteccion', 'elementos'], text);
+                if (tarea && !isPlaceholderText(tarea)) { document.getElementById('ats-tarea').value = tarea.trim(); injectedAny = true; }
+                if (herr && !isPlaceholderText(herr)) { document.getElementById('ats-herramientas').value = herr.trim(); injectedAny = true; }
+                if (epp && !isPlaceholderText(epp)) { document.getElementById('ats-epp').value = epp.trim(); injectedAny = true; }
             } else if (id === "permiso_alturas") {
-                const coord = text.match(/\[Coordinador:\s*([\s\S]*?)\]/i) || [null, extractSection(['coordinador', 'responsable'], text)];
-                const metros = text.match(/\[Metros:\s*([\s\S]*?)\]/i) || [null, extractSection(['altura', 'metros'], text)];
-                const sist = text.match(/\[Sistema:\s*([\s\S]*?)\]/i) || [null, extractSection(['sistema', 'acceso', 'protección'], text)];
-                if (coord && coord[1]) { document.getElementById('alturas-coordinador').value = coord[1].trim(); injectedAny = true; }
-                if (metros && metros[1]) { document.getElementById('alturas-metros').value = metros[1].trim(); injectedAny = true; }
-                if (sist && sist[1]) { document.getElementById('alturas-sistema').value = sist[1].trim(); injectedAny = true; }
+                const coord = findValueForKeywords(['coordinador', 'responsable']) || extractSection(['coordinador', 'responsable'], text);
+                const metros = findValueForKeywords(['altura', 'metros']) || extractSection(['altura', 'metros'], text);
+                const sist = findValueForKeywords(['sistema', 'acceso', 'protección', 'proteccion']) || extractSection(['sistema', 'acceso', 'protección', 'proteccion'], text);
+                if (coord && !isPlaceholderText(coord)) { document.getElementById('alturas-coordinador').value = coord.trim(); injectedAny = true; }
+                if (metros && !isPlaceholderText(metros)) { document.getElementById('alturas-metros').value = metros.trim(); injectedAny = true; }
+                if (sist && !isPlaceholderText(sist)) { document.getElementById('alturas-sistema').value = sist.trim(); injectedAny = true; }
             } else if (id === "investigacion_accidentes") {
-                const evento = text.match(/\[(?:Evento|Descripción):\s*([\s\S]*?)\]/i) || [null, extractSection(['evento', 'lesión', 'descripción', 'accidente', 'incidente'], text)];
-                const porques = text.match(/\[(?:Porqués|Análisis):\s*([\s\S]*?)\]/i) || [null, extractSection(['porqué', '5 porqués', 'análisis', 'causa', 'raíz'], text)];
-                const conclusiones = text.match(/\[Conclusiones:\s*([\s\S]*?)\]/i) || [null, extractSection(['conclusiones', 'conclusión', 'medidas', 'recomendaciones'], text)];
-                if (evento && evento[1]) { document.getElementById('at-evento-desc').value = evento[1].trim(); injectedAny = true; }
-                if (porques && porques[1]) { document.getElementById('at-5-porques').value = porques[1].trim(); injectedAny = true; }
-                if (conclusiones && conclusiones[1]) { document.getElementById('at-conclusiones').value = conclusiones[1].trim(); injectedAny = true; }
+                const evento = findValueForKeywords(['evento', 'lesión', 'lesion', 'descripción', 'descripcion', 'accidente', 'incidente']) || extractSection(['evento', 'lesión', 'lesion', 'descripción', 'descripcion', 'accidente', 'incidente'], text);
+                const porques = findValueForKeywords(['porqué', 'porque', '5 porqués', 'análisis', 'analisis', 'causa', 'raíz', 'raiz']) || extractSection(['porqué', 'porque', '5 porqués', 'análisis', 'analisis', 'causa', 'raíz', 'raiz'], text);
+                const conclusiones = findValueForKeywords(['conclusiones', 'conclusión', 'conclusion', 'medidas', 'recomendaciones']) || extractSection(['conclusiones', 'conclusión', 'conclusion', 'medidas', 'recomendaciones'], text);
+                if (evento && !isPlaceholderText(evento)) { document.getElementById('at-evento-desc').value = evento.trim(); injectedAny = true; }
+                if (porques && !isPlaceholderText(porques)) { document.getElementById('at-5-porques').value = porques.trim(); injectedAny = true; }
+                if (conclusiones && !isPlaceholderText(conclusiones)) { document.getElementById('at-conclusiones').value = conclusiones.trim(); injectedAny = true; }
             }
             
             // Extract and inject Kanban tasks dynamically!
             const tasksList = [];
             
             // 1. Check for explicit bracketed actions like [Acción: ...] or [Acción correctiva/preventiva: ...]
-            const actionRegex = /\[(?:Acción correctiva\/preventiva|Acción|Tarea|Medida):\s*([\s\S]*?)\]/gi;
+            const actionRegex = /\[(?:Acción correctiva\/preventiva|Acción preventiva|Acción correctiva|Acción|Tarea|Medida):\s*([\s\S]*?)\]/gi;
             let actionMatch;
             while ((actionMatch = actionRegex.exec(text)) !== null) {
-                const taskTitle = actionMatch[1].trim();
-                // Exclude placeholders and templates
-                if (taskTitle && !taskTitle.includes('Ej:') && !taskTitle.includes('Nombre') && !taskTitle.includes('cargo') && !taskTitle.includes('...')) {
+                const taskTitle = cleanTaskTitle(actionMatch[1]);
+                if (taskTitle && !isPlaceholderText(taskTitle)) {
                     tasksList.push(taskTitle);
                 }
             }
 
             // 2. Fallback: Parse bullet points under sections related to "Plan de Acción"
-            const lines = text.split('\n');
+            const linesList = text.split('\n');
             let insideActionSection = false;
-            for (let line of lines) {
+            for (let line of linesList) {
                 const cleanLine = line.trim();
                 if (!cleanLine) continue;
                 
@@ -798,8 +890,11 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                 if (insideActionSection) {
                     const bulletMatch = cleanLine.match(/^(?:\*|-|\d+\.)\s*(.*)$/);
                     if (bulletMatch) {
-                        let bulletText = bulletMatch[1].trim();
-                        bulletText = bulletText.replace(/\*\*/g, '').replace(/\[|\]/g, '').trim();
+                        let bulletText = cleanTaskTitle(bulletMatch[1]);
+                        
+                        if (bulletText.endsWith(':') || bulletText.toLowerCase().startsWith('si ')) {
+                            continue;
+                        }
                         
                         const isMeta = bulletText.toLowerCase().includes('tipo de control') || 
                                        bulletText.toLowerCase().includes('descripción técnica') || 
@@ -808,8 +903,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                                        bulletText.toLowerCase().includes('recursos') || 
                                        bulletText.toLowerCase().includes('fecha') || 
                                        bulletText.toLowerCase().includes('indicador') ||
-                                       bulletText.includes('Ej:') ||
-                                       bulletText.includes('...') ||
+                                       isPlaceholderText(bulletText) ||
                                        bulletText.length < 5;
                                        
                         if (!isMeta) {
@@ -838,41 +932,33 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             
             // Global metadata fields auto-injection
             const globalFields = [
-                { match: /\[(?:Título|Title):\s*([\s\S]*?)\]/i, id: 'app-document-title', type: 'text', key: 'appTitle' },
-                { match: /\[(?:Subtítulo|Subtitle):\s*([\s\S]*?)\]/i, id: 'app-document-subtitle', type: 'text', key: 'appSubtitle' },
-                { match: /\[(?:Descripción Documento|Desc):\s*([\s\S]*?)\]/i, id: 'app-document-desc', type: 'text', key: 'appDesc' },
-                { match: /\[(?:Proceso|Badge):\s*([\s\S]*?)\]/i, id: 'app-document-badge', type: 'text', key: 'appBadge' },
-                { match: /\[(?:Empresa|Nombre Empresa):\s*([\s\S]*?)\]/i, id: 'company-name', type: 'text', key: 'companyName' },
-                { match: /\[NIT:\s*([\s\S]*?)\]/i, id: 'company-nit', type: 'text', key: 'companyNit' },
-                { match: /\[ARL:\s*([\s\S]*?)\]/i, id: 'company-arl', type: 'text', key: 'companyArl' },
-                { match: /\[Trabajadores:\s*([\s\S]*?)\]/i, id: 'company-workers', type: 'text', key: 'companyWorkers' },
-                { match: /\[Riesgo:\s*([\s\S]*?)\]/i, id: 'company-risk', type: 'text', key: 'companyRisk' },
-                { match: /\[(?:Código|Registro):\s*([\s\S]*?)\]/i, id: 'change-code', type: 'text', key: 'changeCode' },
-                { match: /\[(?:Vigencia|Fecha):\s*([\s\S]*?)\]/i, id: 'last-updated-text', type: 'text', key: 'lastUpdated' },
-                { match: /\[(?:Validador|Nombre Validador):\s*([\s\S]*?)\]/i, id: 'signer-name', type: 'val', key: 'signer_name' },
-                { match: /\[(?:Cargo|Rol):\s*([\s\S]*?)\]/i, id: 'signer-role', type: 'val', key: 'signer_role' },
-                { match: /\[Licencia:\s*([\s\S]*?)\]/i, id: 'signer-license', type: 'val', key: 'signer_license' }
+                { keywords: ['título', 'title'], id: 'app-document-title', type: 'text', key: 'appTitle' },
+                { keywords: ['subtítulo', 'subtitle'], id: 'app-document-subtitle', type: 'text', key: 'appSubtitle' },
+                { keywords: ['descripción documento', 'descripcion documento', 'desc'], id: 'app-document-desc', type: 'text', key: 'appDesc' },
+                { keywords: ['proceso', 'badge'], id: 'app-document-badge', type: 'text', key: 'appBadge' },
+                { keywords: ['empresa', 'nombre empresa'], id: 'company-name', type: 'text', key: 'companyName' },
+                { keywords: ['nit'], id: 'company-nit', type: 'text', key: 'companyNit' },
+                { keywords: ['arl'], id: 'company-arl', type: 'text', key: 'companyArl' },
+                { keywords: ['trabajadores'], id: 'company-workers', type: 'text', key: 'companyWorkers' },
+                { keywords: ['riesgo'], id: 'company-risk', type: 'text', key: 'companyRisk' },
+                { keywords: ['código', 'codigo', 'registro'], id: 'change-code', type: 'text', key: 'changeCode' },
+                { keywords: ['vigencia', 'fecha'], id: 'last-updated-text', type: 'text', key: 'lastUpdated' },
+                { keywords: ['validador', 'nombre validador', 'nombre de quien valida'], id: 'signer-name', type: 'val', key: 'signerName' },
+                { keywords: ['cargo', 'rol'], id: 'signer-role', type: 'val', key: 'signerRole' },
+                { keywords: ['licencia'], id: 'signer-license', type: 'val', key: 'signerLicense' }
             ];
             
             globalFields.forEach(field => {
-                let m = text.match(field.match);
-                if (!m) {
-                    const kw = field.id.replace('app-document-', '').replace('company-', '').replace('signer-', '').replace('change-', '').replace('last-updated-', '');
-                    const fallbackVal = extractSection([kw], text);
-                    if (fallbackVal) {
-                        m = [null, fallbackVal];
-                    }
-                }
-                
-                if (m && m[1]) {
+                const val = findValueForKeywords(field.keywords) || extractSection(field.keywords, text);
+                if (val && !isPlaceholderText(val)) {
                     const el = document.getElementById(field.id);
                     if (el) {
-                        const val = m[1].trim();
+                        const cleanVal = val.trim();
                         if (field.type === 'text') {
-                            el.innerText = val;
-                            appDocHeader[field.key] = val;
+                            el.innerText = cleanVal;
+                            appDocHeader[field.key] = cleanVal;
                         } else {
-                            el.value = val;
+                            el.value = cleanVal;
                         }
                         injectedAny = true;
                     }
