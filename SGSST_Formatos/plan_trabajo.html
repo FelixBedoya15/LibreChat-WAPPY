@@ -614,7 +614,7 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
                     autoInjectNotice = '<div class="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Sugerencias de IA aplicadas automáticamente</div>';
                 } else if (text.includes('[') && text.includes(']')) {
                     const base64Text = btoa(unescape(encodeURIComponent(text)));
-                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob('' + base64Text + ''))))" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Re-inyectar en Formulario</button>';
+                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob(\x27' + base64Text + '\x27))))" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Re-inyectar en Formulario</button>';
                 }
             }
 
