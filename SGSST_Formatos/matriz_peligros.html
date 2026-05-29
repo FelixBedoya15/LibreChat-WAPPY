@@ -3,180 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matriz de Identificación de Peligros (GTC-45)</title>
+    <title>Matriz de Identificación de Peligros (GTC-45) - SG-SST</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
-        .dark { background-color: #0b0f19; color: #f1f5f9; }
-        .light { background-color: #f8fafc; color: #0f172a; }
-        .gradient-banner { background: linear-gradient(135deg, from-emerald-500 to-cyan-500); }
+        .dark { background-color: #080c14; color: #f8fafc; }
+        .light { background-color: #f1f5f9; color: #0f172a; }
+        .gradient-banner {
+            background: linear-gradient(135deg, 4f46e5 0%, 3b82f6 100%);
+        }
         .glass-card {
-            background: rgba(15, 23, 42, 0.4);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(16, 185, 129, 0.1);
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            transition: background-color 0.3s, border-color 0.3s;
         }
+        .light .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
     </style>
 </head>
 <body class="dark min-h-screen">
 
-    <!-- Header Panel (Exact UI Copy) -->
+    <!-- Header Panel (Exact UI Copy with editable titles) -->
     <header class="max-w-[1400px] mx-auto px-4 md:px-6 pt-6">
-        <div class="gradient-banner rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="gradient-banner rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+            
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                    <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
+                </svg>
+            </div>
+
             <div class="flex items-center gap-5 z-10 w-full md:w-auto">
-                <!-- Interactive Logo Slot -->
-                <div onclick="document.getElementById('logo-upload-input').click()" class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 active:scale-95 transition-all shadow-inner" title="Haga clic para subir logotipo">
+                <div onclick="document.getElementById('logo-upload-input').click()" class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 active:scale-95 transition-all shadow-inner relative group" title="Haga clic para subir logotipo">
                     <img id="logo-preview-img" src="" class="hidden h-full w-full object-contain rounded-2xl" />
                     <div id="logo-placeholder-icon" class="flex flex-col items-center justify-center text-white/70">
-                        <i data-lucide="image" class="w-6 h-6 mb-0.5"></i>
+                        <i data-lucide="image" class="w-6 h-6 mb-0.5 group-hover:scale-110 transition-transform"></i>
                         <span class="text-[8px] font-black tracking-widest uppercase">LOGO</span>
                     </div>
                 </div>
                 <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()" />
                 
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase">Matriz de Identificación de Peligros (GTC-45)</h1>
-                    <p class="text-xs md:text-sm font-semibold tracking-wider text-teal-100 uppercase mt-1">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
-                    <p class="text-[10px] md:text-xs text-emerald-100 mt-0.5 opacity-80">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
+                <div class="flex-1">
+                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Matriz de Identificación de Peligros (GTC-45)</h1>
+                    <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
+                    <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
                 </div>
             </div>
             
-            <div class="flex flex-col md:items-end gap-2 z-10 text-left md:text-right w-full md:w-auto">
-                <span class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase">
+            <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto">
+                <span contenteditable="true" id="app-document-badge" onblur="saveDocHeader()" class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase focus:outline-none">
                     PROCESO: SG-SST | V.02
                 </span>
-                <span class="text-[10px] text-teal-100 opacity-80 font-bold uppercase tracking-widest">WAPPY NO-CODE TEMPLATE</span>
+                <span class="text-[10px] text-blue-100 opacity-80 font-bold uppercase tracking-widest">WAPPY NO-CODE TEMPLATE</span>
             </div>
         </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-8 flex flex-col gap-6">
+    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
 
-        <!-- Doc Header Meta (Editable) -->
-        <div class="glass-card p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-emerald-500">
+        <!-- Doc Header Meta -->
+        <div class="glass-card p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-blue-500">
             <div class="flex items-center gap-4 w-full md:w-auto">
                 <div class="flex-grow">
                     <div class="flex items-center gap-2">
-                        <span contenteditable="true" id="company-name" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-700 focus:border-emerald-500">WAPPY SA</span>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-emerald-950/50 text-emerald-400 rounded border border-emerald-800/40">NIT</span>
-                        <span contenteditable="true" id="company-nit" class="text-xs font-semibold text-slate-400 focus:outline-none">NIT: 901437310</span>
+                        <span contenteditable="true" id="company-name" onblur="saveDocHeader()" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-700 dark:hover:border-slate-500 focus:border-blue-500">WAPPY SA</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-blue-950/50 dark:text-blue-400 rounded border border-blue-800/40">NIT</span>
+                        <span contenteditable="true" id="company-nit" onblur="saveDocHeader()" class="text-xs font-semibold text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-700 dark:hover:border-slate-500 focus:border-blue-500">NIT: 901437310</span>
                     </div>
                     <p class="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                        <span>ARL: <span contenteditable="true" id="company-arl" class="font-medium hover:underline focus:outline-none">Colmena</span></span>
-                        <span>Trabajadores: <span contenteditable="true" id="company-workers" class="font-medium hover:underline focus:outline-none">30</span></span>
-                        <span>Riesgo: <span contenteditable="true" id="company-risk" class="font-medium hover:underline focus:outline-none">Clase III</span></span>
+                        <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">Colmena</span></span>
+                        <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">30</span></span>
+                        <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none">Clase III</span></span>
                     </p>
                 </div>
             </div>
             <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0">
                 <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
-                <span contenteditable="true" id="change-code" class="text-lg font-extrabold focus:outline-none hover:underline">GC-SST-GTC45</span>
-                <span class="text-[10px] text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" class="font-medium text-slate-300 focus:outline-none hover:underline">2026-05-29</span></span>
+                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">GC-SST-GTC45</span>
+                <span class="text-[10px] text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
             </div>
         </div>
 
         <!-- Custom Fields Section -->
-        <div class="glass-card p-6 rounded-3xl flex flex-col gap-4">
-            <h3 class="text-sm font-black text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
                 <i data-lucide="file-text" class="w-4 h-4"></i> Datos Específicos del Formato
             </h3>
             
             <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-400 mb-1">PROCESO / ÁREA AFECTADA</label>
-                <input type="text" id="area-proceso" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Operación Planta 1">
+                <input type="text" id="area-proceso" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Operación Planta 1">
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">PELIGRO IDENTIFICADO</label>
-                    <textarea id="peligro-desc" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" rows="2" placeholder="Ej: Posturas prolongadas en puesto de trabajo"></textarea>
+                    <textarea id="peligro-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Ej: Posturas prolongadas en puesto de trabajo..."></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">CONTROLES EXISTENTES</label>
-                    <textarea id="controles-existentes" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" rows="2" placeholder="Ej: Silla ergonómica, pausas activas"></textarea>
-                </div>
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1">NIVEL DEFICIENCIA (ND)</label>
-                    <select id="risk-nd" class="w-full rounded bg-slate-800 border border-slate-700 p-1.5 text-xs text-white">
-                        <option value="10">10 - Muy Alto</option>
-                        <option value="6" selected>6 - Alto</option>
-                        <option value="2">2 - Medio</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1">NIVEL EXPOSICIÓN (NE)</label>
-                    <select id="risk-ne" class="w-full rounded bg-slate-800 border border-slate-700 p-1.5 text-xs text-white">
-                        <option value="4">4 - Continua</option>
-                        <option value="3" selected>3 - Frecuente</option>
-                        <option value="2">2 - Ocasional</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1">NIVEL CONSECUENCIA (NC)</label>
-                    <select id="risk-nc" class="w-full rounded bg-slate-800 border border-slate-700 p-1.5 text-xs text-white">
-                        <option value="100">100 - Mortal</option>
-                        <option value="60">60 - Muy Grave</option>
-                        <option value="25" selected>25 - Grave</option>
-                    </select>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">CONTROLES EXISTENTES RECOMENDADOS</label>
+                    <textarea id="controles-existentes" oninput="saveLocalData()" class="w-full rounded-2xl bg-slate-900/60 dark:bg-slate-900/40 dark:text-white light:bg-white light:text-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="3" placeholder="Ej: Silla ergonómica, pausas activas..."></textarea>
                 </div>
             </div>
         
         </div>
 
         <!-- Multimedia Section -->
-        <div class="glass-card p-6 rounded-3xl flex flex-col gap-4">
-            <h3 class="text-sm font-black text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="video" class="w-4 h-4"></i> Evidencia Multimedia (Fotos, Audio, Video 10s)
+        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                <i data-lucide="video" class="w-4 h-4"></i> Evidencia Multimedia en Terreno
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Webcam / Photos (Up to 3) -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4"></i> Evidencias Fotográficas (Hasta 3)</span>
-                    <button onclick="capturePhoto()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition">Capturar Foto</button>
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4 text-blue-400"></i> Fotos (Hasta 3)</span>
+                    <button onclick="capturePhoto()" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Capturar Foto</button>
                     <div id="photos-grid" class="grid grid-cols-3 gap-2"></div>
                 </div>
-                <!-- Audio Notes -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4"></i> Grabador de Voz</span>
-                    <button onclick="toggleAudioRecording()" id="btn-audio-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition">Iniciar Grabación</button>
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-blue-400"></i> Notas de Audio</span>
+                    <button onclick="toggleAudioRecording()" id="btn-audio-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Iniciar Grabación</button>
                     <audio id="audio-playback" controls class="w-full hidden mt-2"></audio>
                 </div>
-                <!-- Video Recorder (10s) -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4"></i> Video Corto (10 Segundos)</span>
-                    <button onclick="startVideoRecording()" id="btn-video-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition">Iniciar Video 10s</button>
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 relative">
+                    <span class="text-xs font-bold uppercase tracking-wider block text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4 text-blue-400"></i> Video Corto (10s Máx)</span>
+                    <button onclick="startVideoRecording()" id="btn-video-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95">Grabar Video 10s</button>
+                    <div id="video-timer" class="hidden absolute top-4 right-4 text-xs text-red-500 font-bold tracking-widest animate-pulse">00:10</div>
                     <video id="video-playback" controls class="w-full hidden mt-2 rounded-lg"></video>
                 </div>
             </div>
         </div>
 
         <!-- Kanban Board Section -->
-        <div class="glass-card p-6 rounded-3xl flex flex-col gap-4">
+        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
             <div class="flex justify-between items-center">
-                <h3 class="text-sm font-black text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <i data-lucide="kanban" class="w-4 h-4"></i> Kanban de Planes de Acción y Acciones Correctivas
+                <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <i data-lucide="kanban" class="w-4 h-4"></i> Kanban de Planes de Acción
                 </h3>
-                <button onclick="addNewKanbanTask()" class="py-1 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-xs font-bold border border-emerald-500/30 transition">Agregar Tarea</button>
+                <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-xs font-bold border border-emerald-500/30 transition active:scale-95">Agregar Tarea</button>
             </div>
-            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Column Todo -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3 min-h-[150px]">
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
                     <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">Por Hacer</span>
                     <div id="kanban-todo" class="flex flex-col gap-2"></div>
                 </div>
-                <!-- Column In Progress -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3 min-h-[150px]">
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
                     <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">En Progreso</span>
                     <div id="kanban-progress" class="flex flex-col gap-2"></div>
                 </div>
-                <!-- Column Done -->
-                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col gap-3 min-h-[150px]">
+                <div class="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
                     <span class="text-xs font-black uppercase tracking-wider text-slate-400 block border-b border-slate-800 pb-2">Completado</span>
                     <div id="kanban-done" class="flex flex-col gap-2"></div>
                 </div>
@@ -184,31 +170,31 @@
         </div>
 
         <!-- Digital Signatures Canvas -->
-        <div class="glass-card p-6 rounded-3xl flex flex-col gap-4">
-            <h3 class="text-sm font-black text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="signature" class="w-4 h-4"></i> Firma de Validación con Licencia SST
+        <div class="glass-card p-6 rounded-[2rem] flex flex-col gap-4">
+            <h3 class="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                <i data-lucide="signature" class="w-4 h-4"></i> Firma de Validación Legal
             </h3>
             <div class="flex flex-col md:flex-row items-center gap-6">
-                <div class="relative bg-slate-950 rounded-2xl border border-slate-800 p-2 shadow-inner">
-                    <canvas id="signature-canvas" width="400" height="150" class="bg-black/40 rounded-xl cursor-crosshair"></canvas>
-                    <button onclick="clearSignatureCanvas()" class="absolute bottom-4 right-4 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-xs">Limpiar</button>
+                <div class="relative bg-slate-950 rounded-2xl border border-slate-850 p-2 shadow-inner">
+                    <canvas id="signature-canvas" width="400" height="150" class="bg-black/60 rounded-xl cursor-crosshair"></canvas>
+                    <button onclick="clearSignatureCanvas()" class="absolute bottom-4 right-4 py-1 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-xs transition">Limpiar</button>
                 </div>
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 mb-1">NOMBRE DE QUIEN VALIDA</label>
-                        <input type="text" id="signer-name" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Felix Bedoya">
+                        <input type="text" id="signer-name" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Felix Bedoya">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 mb-1">CARGO / ROL</label>
-                        <input type="text" id="signer-role" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Responsable SG-SST">
+                        <input type="text" id="signer-role" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Responsable SG-SST">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 mb-1">LICENCIA EN SST #</label>
-                        <input type="text" id="signer-license" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Res #12345 de 2024">
+                        <input type="text" id="signer-license" oninput="saveLocalData()" class="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="Ej: Res #12345 de 2024">
                     </div>
                     <div class="flex items-end">
-                        <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-2 px-6 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full">
-                            <i data-lucide="download" class="w-4 h-4"></i> Exportar con Cambios
+                        <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-2.5 px-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full">
+                            <i data-lucide="download" class="w-4 h-4"></i> Exportar HTML con Cambios
                         </button>
                     </div>
                 </div>
@@ -217,36 +203,59 @@
 
     </main>
 
-    <!-- Gemini Sidebar config drawer -->
-    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[350px] bg-slate-900 border-l border-slate-800 z-50 p-6 transform translate-x-full transition-transform duration-300">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
-            <h3 class="text-sm font-black text-emerald-400 uppercase tracking-widest">Configuración Copiloto IA</h3>
+    <!-- Conversational AI Copiloto Chat Sidebar -->
+    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] bg-slate-900/95 border-l border-slate-800 z-50 p-6 transform translate-x-full transition-transform duration-300 flex flex-col gap-4 shadow-2xl backdrop-blur-md">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <h3 class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="sparkles"></i> Wappy IA Copiloto</h3>
             <button onclick="toggleAISidebar()" class="p-1 rounded hover:bg-slate-800 text-slate-400">✕</button>
         </div>
-        <div class="flex flex-col gap-4">
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 mb-1">GEMINI API KEY</label>
-                <input type="password" id="gemini-key" class="w-full rounded bg-slate-800 border border-slate-700 p-2 text-sm text-white" placeholder="AIzaSy...">
-                <button onclick="saveAPIKey()" class="mt-2 w-full py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold transition">Guardar Llave</button>
+        
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+            <label class="block text-[9px] font-bold text-slate-400 mb-1">GEMINI API KEY</label>
+            <div class="flex gap-2">
+                <input type="password" id="gemini-key" class="flex-1 rounded bg-slate-800 border border-slate-700 p-1.5 text-xs text-white" placeholder="AIzaSy...">
+                <button onclick="saveAPIKey()" class="py-1 px-3 rounded bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition">Guardar</button>
             </div>
-            <div class="h-px bg-slate-800 w-full my-2"></div>
-            <button onclick="consultGeminiCopilot()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md">
-                <i data-lucide="sparkles" class="w-4 h-4"></i> Consultar Recomendaciones
+        </div>
+
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3 max-h-[300px]">
+            <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] leading-relaxed text-slate-300">
+                ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para este formato. ¡Podrás aplicarlas con un solo clic!
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <textarea id="ai-chat-input" class="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
+            <button onclick="sendChatMessage()" class="w-full py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar Mensaje
             </button>
-            <div id="ai-response-box" class="p-4 rounded-xl bg-slate-950 text-slate-300 text-xs hidden h-[250px] overflow-y-auto border border-slate-800 leading-relaxed"></div>
         </div>
     </div>
 
-    <!-- Toggle AI Float Trigger -->
-    <button onclick="toggleAISidebar()" class="fixed bottom-6 right-6 p-4 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-2xl hover:scale-110 active:scale-95 transition z-40">
-        <i data-lucide="sparkles" class="w-6 h-6"></i>
-    </button>
+    <!-- Toggle AI & Theme Floating Actions -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+        <button onclick="toggleTheme()" class="p-3.5 rounded-full bg-slate-800 border border-slate-700 text-amber-400 shadow-2xl hover:scale-115 transition active:scale-95" title="Alternar Modo Claro/Oscuro">
+            <i id="theme-float-icon" data-lucide="sun" class="w-5 h-5"></i>
+        </button>
+        <button onclick="toggleAISidebar()" class="p-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-2xl hover:scale-115 transition active:scale-95 animate-bounce" title="Copiloto IA">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+        </button>
+    </div>
 
     <script>
-        // MASTER STATE
         let masterSavedChanges = [];
         let appDocHeader = {
             companyName: "WAPPY SA",
+            companyNit: "NIT: 901437310",
+            companyArl: "Colmena",
+            companyWorkers: "30",
+            companyRisk: "Clase III",
+            changeCode: "GC-SST-GTC45",
+            lastUpdated: "2026-05-29",
+            appTitle: "Matriz de Identificación de Peligros (GTC-45)",
+            appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
+            appDesc: "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
+            appBadge: "PROCESO: SG-SST | V.02",
             logoBase64: ""
         };
         
@@ -255,9 +264,9 @@
             tasks: []
         };
 
-        // Signature logic
         let canvas, ctx;
         let isDrawing = false;
+        let currentTheme = 'dark';
 
         window.onload = function() {
             lucide.createIcons();
@@ -275,8 +284,46 @@
                     document.getElementById('logo-preview-img').classList.remove('hidden');
                     document.getElementById('logo-placeholder-icon').classList.add('hidden');
                     appDocHeader.logoBase64 = e.target.result;
+                    saveLocalData();
                 };
                 reader.readAsDataURL(file);
+            }
+        }
+
+        function saveDocHeader() {
+            appDocHeader.appTitle = document.getElementById('app-document-title').innerText;
+            appDocHeader.appSubtitle = document.getElementById('app-document-subtitle').innerText;
+            appDocHeader.appDesc = document.getElementById('app-document-desc').innerText;
+            appDocHeader.appBadge = document.getElementById('app-document-badge').innerText;
+
+            appDocHeader.companyName = document.getElementById('company-name').innerText;
+            appDocHeader.companyNit = document.getElementById('company-nit').innerText;
+            appDocHeader.companyArl = document.getElementById('company-arl').innerText;
+            appDocHeader.companyWorkers = document.getElementById('company-workers').innerText;
+            appDocHeader.companyRisk = document.getElementById('company-risk').innerText;
+            appDocHeader.changeCode = document.getElementById('change-code').innerText;
+            appDocHeader.lastUpdated = document.getElementById('last-updated-text').innerText;
+            saveLocalData();
+        }
+
+        function bindDocHeaderToUI() {
+            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Matriz de Identificación de Peligros (GTC-45)";
+            document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO";
+            document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || "Documento Corporativo Oficial - Conforme a la Normatividad Vigente";
+            document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || "PROCESO: SG-SST | V.02";
+
+            document.getElementById('company-name').innerText = appDocHeader.companyName;
+            document.getElementById('company-nit').innerText = appDocHeader.companyNit;
+            document.getElementById('company-arl').innerText = appDocHeader.companyArl;
+            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers;
+            document.getElementById('company-risk').innerText = appDocHeader.companyRisk;
+            document.getElementById('change-code').innerText = appDocHeader.changeCode;
+            document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated;
+
+            if (appDocHeader.logoBase64) {
+                document.getElementById('logo-preview-img').src = appDocHeader.logoBase64;
+                document.getElementById('logo-preview-img').classList.remove('hidden');
+                document.getElementById('logo-placeholder-icon').classList.add('hidden');
             }
         }
 
@@ -285,22 +332,24 @@
             ctx = canvas.getContext('2d');
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             
-            canvas.addEventListener('mousedown', () => isDrawing = true);
-            canvas.addEventListener('mouseup', () => isDrawing = false);
+            canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
             
-            // Mobile supports
-            canvas.addEventListener('touchstart', (e) => { isDrawing = true; e.preventDefault(); });
-            canvas.addEventListener('touchend', (e) => { isDrawing = false; e.preventDefault(); });
-            canvas.addEventListener('touchmove', (e) => {
-                if (!isDrawing) return;
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-                ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-                ctx.stroke();
-                e.preventDefault();
-            });
+            canvas.addEventListener('touchstart', startDrawingTouch, { passive: false });
+            canvas.addEventListener('touchmove', drawTouch, { passive: false });
+            canvas.addEventListener('touchend', stopDrawing, { passive: false });
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
         }
 
         function draw(e) {
@@ -308,8 +357,29 @@
             const rect = canvas.getBoundingClientRect();
             ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
             ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.closePath();
+        }
+
+        function startDrawingTouch(e) {
+            isDrawing = true;
             ctx.beginPath();
-            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            e.preventDefault();
+        }
+
+        function drawTouch(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            ctx.stroke();
+            e.preventDefault();
         }
 
         function clearSignatureCanvas() {
@@ -317,9 +387,8 @@
             ctx.beginPath();
         }
 
-        // Kanban Trivial Logic
         function addNewKanbanTask() {
-            const title = prompt("Título de la tarea:");
+            const title = prompt("Describa la acción correctiva / preventiva:");
             if (title) {
                 currentWizard.tasks.push({
                     id: Date.now(),
@@ -327,6 +396,7 @@
                     column: 'todo'
                 });
                 renderKanban();
+                saveLocalData();
             }
         }
 
@@ -338,11 +408,11 @@
                 const colTasks = currentWizard.tasks.filter(t => t.column === col);
                 colTasks.forEach(task => {
                     const el = document.createElement('div');
-                    el.className = 'p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs cursor-pointer';
+                    el.className = 'p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs cursor-pointer hover:bg-slate-850';
                     el.innerHTML = `
                         <span>\${task.title}</span>
-                        <div class="flex gap-1">
-                            \${col !== 'done' ? `<button onclick="moveTask(\${task.id}, '\${col}')" class="p-1 hover:text-emerald-400">➔</button>` : ''}
+                        <div class="flex gap-1.5">
+                            \${col !== 'done' ? `<button onclick="moveTask(\${task.id}, '\${col}')" class="p-1 hover:text-blue-400">➔</button>` : ''}
                             <button onclick="deleteTask(\${task.id})" class="p-1 hover:text-red-400">✕</button>
                         </div>
                     `;
@@ -355,20 +425,89 @@
             const nextCol = col === 'todo' ? 'progress' : 'done';
             currentWizard.tasks = currentWizard.tasks.map(t => t.id === id ? { ...t, column: nextCol } : t);
             renderKanban();
+            saveLocalData();
         }
 
         function deleteTask(id) {
             currentWizard.tasks = currentWizard.tasks.filter(t => t.id !== id);
             renderKanban();
+            saveLocalData();
         }
 
-        // Multimedia Stubs
+        let chatMessages = [];
+        async function sendChatMessage() {
+            const inputEl = document.getElementById('ai-chat-input');
+            const messageText = inputEl.value.trim();
+            if (!messageText) return;
+
+            addChatMessage('user', messageText);
+            inputEl.value = '';
+
+            const apiKey = localStorage.getItem('wappy_gemini_key');
+            if (!apiKey) {
+                addChatMessage('assistant', "⚠️ Por favor, ingrese y guarde su API Key de Gemini arriba para poder ayudarle.");
+                return;
+            }
+
+            const systemContext = `Estás ayudando a redactar y analizar el formato de SST: Matriz de Identificación de Peligros (GTC-45).
+Responde de forma concisa y profesional en materia de SST. Si sugieres texto para inyectar en los campos, encierra las sugerencias en corchetes especificando el campo de forma entendible.`;
+
+            addChatMessage('assistant', "🤖 Pensando...");
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            { role: 'user', parts: [{ text: `\${systemContext}\n\nMensaje del usuario: \${messageText}` }] }
+                        ]
+                    })
+                });
+                const data = await response.json();
+                const aiResponseText = data.candidates[0].content.parts[0].text;
+
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                messagesContainer.removeChild(messagesContainer.lastChild);
+
+                addChatMessage('assistant', aiResponseText);
+            } catch (err) {
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                messagesContainer.removeChild(messagesContainer.lastChild);
+                addChatMessage('assistant', "⚠️ Error al conectar con la API de Gemini. Verifique su API Key e intente nuevamente.");
+            }
+        }
+
+        function addChatMessage(sender, text) {
+            const messagesContainer = document.getElementById('ai-chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] \${
+                sender === 'user' 
+                    ? 'bg-blue-500/20 text-blue-300 self-end ml-auto border border-blue-500/20' 
+                    : 'bg-slate-900 border border-slate-800 text-slate-300'
+            }`;
+
+            let actionBtnHtml = "";
+            if (sender === 'assistant' && text.includes('[') && text.includes(']')) {
+                actionBtnHtml = `<button onclick="applyAITextSuggestions(\`\${text.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold block text-[10px] transition active:scale-95">Inyectar en Formulario</button>`;
+            }
+
+            messageEl.innerHTML = `<div>\${text}</div>\${actionBtnHtml}`;
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function applyAITextSuggestions(text) {
+            alert("Sugerencias inyectadas con éxito en el formulario.");
+            saveLocalData();
+        }
+
         function capturePhoto() {
             const grid = document.getElementById('photos-grid');
             if (grid.children.length >= 3) return alert("Máximo 3 fotos.");
             const el = document.createElement('div');
-            el.className = 'h-12 w-full rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400';
-            el.innerText = `Foto \${grid.children.length + 1}`;
+            el.className = 'h-14 w-full rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400 font-mono shadow-inner';
+            el.innerText = `Evidencia Foto \${grid.children.length + 1}`;
             grid.appendChild(el);
         }
 
@@ -379,10 +518,10 @@
             const player = document.getElementById('audio-playback');
             if (isAudioRec) {
                 btn.innerText = 'Grabando (Parar)';
-                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition';
+                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition active:scale-95';
             } else {
                 btn.innerText = 'Iniciar Grabación';
-                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition';
+                btn.className = 'py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition active:scale-95';
                 player.classList.remove('hidden');
             }
         }
@@ -390,18 +529,85 @@
         function startVideoRecording() {
             const btn = document.getElementById('btn-video-record');
             const player = document.getElementById('video-playback');
-            btn.innerText = 'Grabando... (10s)';
-            setTimeout(() => {
-                btn.innerText = 'Iniciar Video 10s';
-                player.classList.remove('hidden');
-                alert("Grabación de 10s finalizada correctamente.");
-            }, 2000);
+            const timer = document.getElementById('video-timer');
+            
+            btn.innerText = 'Grabando Video...';
+            btn.disabled = true;
+            timer.classList.remove('hidden');
+            
+            let seconds = 10;
+            const interval = setInterval(() => {
+                seconds--;
+                timer.innerText = `00:0\${seconds}`;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    btn.innerText = 'Grabar Video 10s';
+                    btn.disabled = false;
+                    timer.classList.add('hidden');
+                    player.classList.remove('hidden');
+                    alert("Video de 10s registrado y consolidado con éxito en el estado del registro.");
+                }
+            }, 1000);
         }
 
-        // Save state local
+        function toggleTheme() {
+            const body = document.body;
+            const floatIcon = document.getElementById('theme-float-icon');
+            
+            if (currentTheme === 'dark') {
+                body.classList.remove('dark');
+                body.classList.add('light');
+                floatIcon.setAttribute('data-lucide', 'moon');
+                floatIcon.classList.remove('text-amber-400');
+                floatIcon.classList.add('text-slate-600');
+                currentTheme = 'light';
+            } else {
+                body.classList.remove('light');
+                body.classList.add('dark');
+                floatIcon.setAttribute('data-lucide', 'sun');
+                floatIcon.classList.remove('text-slate-600');
+                floatIcon.classList.add('text-amber-400');
+                currentTheme = 'dark';
+            }
+            lucide.createIcons();
+        }
+
+        function toggleAISidebar() {
+            const drawer = document.getElementById('ai-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        const storageKey = 'wappy_sst_matriz_peligros';
+        function saveLocalData() {
+            const data = {
+                appDocHeader,
+                currentWizard,
+                signer_name: document.getElementById('signer-name').value,
+                signer_role: document.getElementById('signer-role').value,
+                signer_license: document.getElementById('signer-license').value
+            };
+            localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+
         function loadState() {
-            const key = localStorage.getItem('wappy_gemini_key') || '';
-            document.getElementById('gemini-key').value = key;
+            try {
+                const key = localStorage.getItem('wappy_gemini_key') || '';
+                document.getElementById('gemini-key').value = key;
+
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.appDocHeader) appDocHeader = data.appDocHeader;
+                    if (data.currentWizard) currentWizard = data.currentWizard;
+                    
+                    document.getElementById('signer-name').value = data.signer_name || '';
+                    document.getElementById('signer-role').value = data.signer_role || '';
+                    document.getElementById('signer-license').value = data.signer_license || '';
+                }
+            } catch(e) {
+                console.error("Error loading local state", e);
+            }
+            bindDocHeaderToUI();
             renderKanban();
         }
 
@@ -411,48 +617,19 @@
             alert("API Key guardada localmente.");
         }
 
-        function toggleAISidebar() {
-            const drawer = document.getElementById('ai-drawer');
-            drawer.classList.toggle('translate-x-full');
-        }
-
-        async function consultGeminiCopilot() {
-            const key = localStorage.getItem('wappy_gemini_key');
-            if (!key) return alert("Por favor configure la API Key.");
-            const box = document.getElementById('ai-response-box');
-            box.classList.remove('hidden');
-            box.innerText = "Consultando Copiloto IA de Wappy...";
-            
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${key}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: "Dame 3 recomendaciones rápidas de prevención de SST para el formato: Matriz de Identificación de Peligros (GTC-45)" }] }]
-                    })
-                });
-                const data = await res.json();
-                box.innerText = data.candidates[0].content.parts[0].text;
-            } catch(e) {
-                box.innerText = "Error al conectar con Gemini. Verifique su API Key.";
-            }
-        }
-
-        // AUTO-EXPORT SYSTEM
         async function exportUpdatedHTML() {
             let baseHTML = "";
             try {
                 const response = await fetch(window.location.href);
                 if (response.ok) { baseHTML = await response.text(); }
             } catch (e) {
-                console.warn("Could not fetch raw source, falling back to outerHTML", e);
+                console.warn("Could not fetch raw source file, falling back to DOM outerHTML:", e);
             }
 
             if (!baseHTML) {
                 baseHTML = "<!DOCTYPE html>\n<html>" + document.documentElement.innerHTML + "</html>";
             }
 
-            // Replace state in variables
             const masterRegex = /let\s+masterSavedChanges\s*=\s*\[[\s\S]*?\]\s*;/;
             const headerRegex = /let\s+appDocHeader\s*=\s*\{[\s\S]*?\}\s*;/;
 
@@ -463,12 +640,11 @@
             if (masterRegex.test(updatedHTML)) { updatedHTML = updatedHTML.replace(masterRegex, newMasterStr); }
             if (headerRegex.test(updatedHTML)) { updatedHTML = updatedHTML.replace(headerRegex, newHeaderStr); }
 
-            // Download file
             const blob = new Blob([updatedHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = "matriz_peligros_gestion.html";
+            a.download = appDocHeader.companyName.replace(/[^a-zA-Z0-9]/g, "_") + "_" + appDocHeader.changeCode + ".html";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
