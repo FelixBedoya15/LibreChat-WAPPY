@@ -241,21 +241,25 @@
         </div>
     </div>
 
-    <!-- Toggle AI & Theme Floating Actions (Las bolitas sueltas) -->
-    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
-        <button onclick="toggleTheme()" class="p-3.5 rounded-full bg-slate-800 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-750 text-amber-500 dark:text-amber-400 shadow-2xl hover:scale-110 transition active:scale-95 border border-slate-200 dark:border-slate-700" title="Alternar Modo Claro/Oscuro">
-            <i id="theme-float-icon" data-lucide="sun" class="w-5 h-5"></i>
-        </button>
+    <!-- Conversational AI Copiloto Floating Action (La única bolita suelta) -->
+    <div class="fixed bottom-6 right-6 z-40">
         <button onclick="toggleAISidebar()" class="p-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-2xl hover:scale-110 transition active:scale-95 animate-bounce flex items-center justify-center" title="Copiloto IA">
             <i data-lucide="sparkles" class="w-6 h-6"></i>
         </button>
     </div>
 
-    <!-- Scrolling Non-fixed Footer -->
-    <footer class="max-w-[1400px] mx-auto px-6 py-8 mt-6 text-center border-t border-slate-250 dark:border-slate-850 text-xs font-semibold text-slate-500 dark:text-slate-400">
-        By WAPPY IA - <span id="footer-current-date">2026-05-29</span>
+    <!-- Scrolling Non-fixed Footer with Theme Toggle inside -->
+    <footer class="max-w-[1400px] mx-auto px-6 py-8 mt-6 border-t border-slate-250 dark:border-slate-850 text-xs font-semibold text-slate-500 dark:text-slate-400 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+            By WAPPY IA - <span id="footer-current-date">2026-05-29</span>
+        </div>
+        <div>
+            <button onclick="toggleTheme()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-900/60 dark:hover:bg-slate-800/80 border border-slate-300 dark:border-slate-850 text-slate-750 dark:text-slate-300 transition" title="Alternar Modo Claro/Oscuro">
+                <i id="theme-float-icon" data-lucide="sun" class="w-4 h-4 text-amber-500"></i>
+                <span id="theme-text">Modo Claro</span>
+            </button>
+        </div>
     </footer>
-
 
     <script>
         let masterSavedChanges = [];
@@ -284,13 +288,26 @@
         let isDrawing = false;
 
         window.onload = function() {
-            lucide.createIcons();
-            initializeCanvas();
-            loadState();
+            try {
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (e) { console.error("Error creating Lucide icons:", e); }
+            
+            try {
+                initializeCanvas();
+            } catch (e) { console.error("Error initializing signature canvas:", e); }
+            
+            try {
+                loadState();
+            } catch (e) { console.error("Error loading state:", e); }
             
             // Set footer date dynamically
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('footer-current-date').innerText = today;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const dateEl = document.getElementById('footer-current-date');
+                if (dateEl) dateEl.innerText = today;
+            } catch (e) { console.error("Error setting footer date:", e); }
         }
 
         function uploadLogoImage() {
@@ -299,9 +316,15 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById('logo-preview-img').src = e.target.result;
-                    document.getElementById('logo-preview-img').classList.remove('hidden');
-                    document.getElementById('logo-placeholder-icon').classList.add('hidden');
+                    const previewImg = document.getElementById('logo-preview-img');
+                    const placeholderIcon = document.getElementById('logo-placeholder-icon');
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                    }
+                    if (placeholderIcon) {
+                        placeholderIcon.classList.add('hidden');
+                    }
                     appDocHeader.logoBase64 = e.target.result;
                     saveLocalData();
                 };
@@ -310,18 +333,31 @@
         }
 
         function saveDocHeader() {
-            appDocHeader.appTitle = document.getElementById('app-document-title').innerText;
-            appDocHeader.appSubtitle = document.getElementById('app-document-subtitle').innerText;
-            appDocHeader.appDesc = document.getElementById('app-document-desc').innerText;
-            appDocHeader.appBadge = document.getElementById('app-document-badge').innerText;
+            const titleEl = document.getElementById('app-document-title');
+            const subtitleEl = document.getElementById('app-document-subtitle');
+            const descEl = document.getElementById('app-document-desc');
+            const badgeEl = document.getElementById('app-document-badge');
 
-            appDocHeader.companyName = document.getElementById('company-name').innerText;
-            appDocHeader.companyNit = document.getElementById('company-nit').innerText;
-            appDocHeader.companyArl = document.getElementById('company-arl').innerText;
-            appDocHeader.companyWorkers = document.getElementById('company-workers').innerText;
-            appDocHeader.companyRisk = document.getElementById('company-risk').innerText;
-            appDocHeader.changeCode = document.getElementById('change-code').innerText;
-            appDocHeader.lastUpdated = document.getElementById('last-updated-text').innerText;
+            if (titleEl) appDocHeader.appTitle = titleEl.innerText;
+            if (subtitleEl) appDocHeader.appSubtitle = subtitleEl.innerText;
+            if (descEl) appDocHeader.appDesc = descEl.innerText;
+            if (badgeEl) appDocHeader.appBadge = badgeEl.innerText;
+
+            const cName = document.getElementById('company-name');
+            const cNit = document.getElementById('company-nit');
+            const cArl = document.getElementById('company-arl');
+            const cWorkers = document.getElementById('company-workers');
+            const cRisk = document.getElementById('company-risk');
+            const cCode = document.getElementById('change-code');
+            const cUpdated = document.getElementById('last-updated-text');
+
+            if (cName) appDocHeader.companyName = cName.innerText;
+            if (cNit) appDocHeader.companyNit = cNit.innerText;
+            if (cArl) appDocHeader.companyArl = cArl.innerText;
+            if (cWorkers) appDocHeader.companyWorkers = cWorkers.innerText;
+            if (cRisk) appDocHeader.companyRisk = cRisk.innerText;
+            if (cCode) appDocHeader.changeCode = cCode.innerText;
+            if (cUpdated) appDocHeader.lastUpdated = cUpdated.innerText;
             saveLocalData();
         }
 
