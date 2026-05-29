@@ -389,6 +389,7 @@
             if (cRisk) appDocHeader.companyRisk = cRisk.innerText;
             if (cCode) appDocHeader.changeCode = cCode.innerText;
             if (cUpdated) appDocHeader.lastUpdated = cUpdated.innerText;
+            
             saveLocalData();
         }
 
@@ -398,18 +399,40 @@
             document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || "Documento Corporativo Oficial - Conforme a la Normatividad Vigente";
             document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || "PROCESO: SG-SST | V.02";
 
-            document.getElementById('company-name').innerText = appDocHeader.companyName;
-            document.getElementById('company-nit').innerText = appDocHeader.companyNit;
-            document.getElementById('company-arl').innerText = appDocHeader.companyArl;
-            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers;
-            document.getElementById('company-risk').innerText = appDocHeader.companyRisk;
-            document.getElementById('change-code').innerText = appDocHeader.changeCode;
-            document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated;
+            document.getElementById('company-name').innerText = appDocHeader.companyName || "WAPPY SA";
+            document.getElementById('company-nit').innerText = appDocHeader.companyNit || "NIT: 901437310";
+            document.getElementById('company-arl').innerText = appDocHeader.companyArl || "Colmena";
+            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers || "30";
+            document.getElementById('company-risk').innerText = appDocHeader.companyRisk || "Clase III";
+            document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-RIT-01";
+            document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated || "2026-05-29";
 
             if (appDocHeader.logoBase64) {
                 document.getElementById('logo-preview-img').src = appDocHeader.logoBase64;
                 document.getElementById('logo-preview-img').classList.remove('hidden');
                 document.getElementById('logo-placeholder-icon').classList.add('hidden');
+            }
+
+            if (appDocHeader.signerName !== undefined) {
+                const sName = document.getElementById('signer-name');
+                if (sName) sName.value = appDocHeader.signerName;
+            }
+            if (appDocHeader.signerRole !== undefined) {
+                const sRole = document.getElementById('signer-role');
+                if (sRole) sRole.value = appDocHeader.signerRole;
+            }
+            if (appDocHeader.signerLicense !== undefined) {
+                const sLicense = document.getElementById('signer-license');
+                if (sLicense) sLicense.value = appDocHeader.signerLicense;
+            }
+
+            if (appDocHeader.customFields) {
+                for (const [id, val] of Object.entries(appDocHeader.customFields)) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.value = val;
+                    }
+                }
             }
         }
 
@@ -732,6 +755,49 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
                 if (conclusiones && conclusiones[1]) { document.getElementById('at-conclusiones').value = conclusiones[1].trim(); injectedAny = true; }
             }
             
+            // Global metadata fields auto-injection
+            const globalFields = [
+                { match: /\[(?:Título|Title):\s*([\s\S]*?)\]/i, id: 'app-document-title', type: 'text', key: 'appTitle' },
+                { match: /\[(?:Subtítulo|Subtitle):\s*([\s\S]*?)\]/i, id: 'app-document-subtitle', type: 'text', key: 'appSubtitle' },
+                { match: /\[(?:Descripción Documento|Desc):\s*([\s\S]*?)\]/i, id: 'app-document-desc', type: 'text', key: 'appDesc' },
+                { match: /\[(?:Proceso|Badge):\s*([\s\S]*?)\]/i, id: 'app-document-badge', type: 'text', key: 'appBadge' },
+                { match: /\[(?:Empresa|Nombre Empresa):\s*([\s\S]*?)\]/i, id: 'company-name', type: 'text', key: 'companyName' },
+                { match: /\[NIT:\s*([\s\S]*?)\]/i, id: 'company-nit', type: 'text', key: 'companyNit' },
+                { match: /\[ARL:\s*([\s\S]*?)\]/i, id: 'company-arl', type: 'text', key: 'companyArl' },
+                { match: /\[Trabajadores:\s*([\s\S]*?)\]/i, id: 'company-workers', type: 'text', key: 'companyWorkers' },
+                { match: /\[Riesgo:\s*([\s\S]*?)\]/i, id: 'company-risk', type: 'text', key: 'companyRisk' },
+                { match: /\[(?:Código|Registro):\s*([\s\S]*?)\]/i, id: 'change-code', type: 'text', key: 'changeCode' },
+                { match: /\[(?:Vigencia|Fecha):\s*([\s\S]*?)\]/i, id: 'last-updated-text', type: 'text', key: 'lastUpdated' },
+                { match: /\[(?:Validador|Nombre Validador):\s*([\s\S]*?)\]/i, id: 'signer-name', type: 'val', key: 'signer_name' },
+                { match: /\[(?:Cargo|Rol):\s*([\s\S]*?)\]/i, id: 'signer-role', type: 'val', key: 'signer_role' },
+                { match: /\[Licencia:\s*([\s\S]*?)\]/i, id: 'signer-license', type: 'val', key: 'signer_license' }
+            ];
+            
+            globalFields.forEach(field => {
+                let m = text.match(field.match);
+                if (!m) {
+                    const kw = field.id.replace('app-document-', '').replace('company-', '').replace('signer-', '').replace('change-', '').replace('last-updated-', '');
+                    const fallbackVal = extractSection([kw], text);
+                    if (fallbackVal) {
+                        m = [null, fallbackVal];
+                    }
+                }
+                
+                if (m && m[1]) {
+                    const el = document.getElementById(field.id);
+                    if (el) {
+                        const val = m[1].trim();
+                        if (field.type === 'text') {
+                            el.innerText = val;
+                            appDocHeader[field.key] = val;
+                        } else {
+                            el.value = val;
+                        }
+                        injectedAny = true;
+                    }
+                }
+            });
+            
             if (injectedAny) {
                 saveLocalData();
             }
@@ -739,96 +805,12 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
         }
 
         function applyAITextSuggestions(text) {
-            // Custom input field assignments based on format id
-            const id = "reglamento_interno_trabajo";
-            if (id === "matriz_peligros") {
-                const areaMatch = text.match(/\[Área:\s*([\s\S]*?)\]/);
-                const peligroMatch = text.match(/\[Peligro:\s*([\s\S]*?)\]/);
-                const controlesMatch = text.match(/\[Controles:\s*([\s\S]*?)\]/);
-                if (areaMatch) document.getElementById('area-proceso').value = areaMatch[1].trim();
-                if (peligroMatch) document.getElementById('peligro-desc').value = peligroMatch[1].trim();
-                if (controlesMatch) document.getElementById('controles-existentes').value = controlesMatch[1].trim();
-            } else if (id === "matriz_requisitos_legales") {
-                const normaMatch = text.match(/\[Norma:\s*([\s\S]*?)\]/);
-                const requisitoMatch = text.match(/\[Requisito:\s*([\s\S]*?)\]/);
-                const evidenciaMatch = text.match(/\[Evidencia:\s*([\s\S]*?)\]/);
-                if (normaMatch) document.getElementById('norma-ano').value = normaMatch[1].trim();
-                if (requisitoMatch) document.getElementById('requisito-desc').value = requisitoMatch[1].trim();
-                if (evidenciaMatch) document.getElementById('evidencia-cumplimiento').value = evidenciaMatch[1].trim();
-            } else if (id === "matriz_acpm") {
-                const ncfMatch = text.match(/\[No Conformidad:\s*([\s\S]*?)\]/);
-                const causaMatch = text.match(/\[Causa:\s*([\s\S]*?)\]/);
-                const planMatch = text.match(/\[Plan:\s*([\s\S]*?)\]/);
-                if (ncfMatch) document.getElementById('no-conformidad').value = ncfMatch[1].trim();
-                if (causaMatch) document.getElementById('analisis-causa').value = causaMatch[1].trim();
-                if (planMatch) document.getElementById('plan-accion').value = planMatch[1].trim();
-            } else if (id === "analisis_vulnerabilidad") {
-                const amenazaMatch = text.match(/\[Amenaza:\s*([\s\S]*?)\]/);
-                const analisisMatch = text.match(/\[Análisis:\s*([\s\S]*?)\]/);
-                const medidasMatch = text.match(/\[Medidas:\s*([\s\S]*?)\]/);
-                if (amenazaMatch) document.getElementById('amenaza-ident').value = amenazaMatch[1].trim();
-                if (analisisMatch) document.getElementById('vuln-analisis').value = analisisMatch[1].trim();
-                if (medidasMatch) document.getElementById('vuln-medidas').value = medidasMatch[1].trim();
-            } else if (id === "reporte_actos_inseguros") {
-                const descMatch = text.match(/\[Reporte:\s*([\s\S]*?)\]/);
-                const areaMatch = text.match(/\[Área:\s*([\s\S]*?)\]/);
-                const corrMatch = text.match(/\[Corrección:\s*([\s\S]*?)\]/);
-                if (descMatch) document.getElementById('acto-condicion-desc').value = descMatch[1].trim();
-                if (areaMatch) document.getElementById('acto-area').value = areaMatch[1].trim();
-                if (corrMatch) document.getElementById('acto-correccion').value = corrMatch[1].trim();
-            } else if (id === "gestion_cambio") {
-                const cambioMatch = text.match(/\[Cambio:\s*([\s\S]*?)\]/);
-                const peligrosMatch = text.match(/\[Peligros:\s*([\s\S]*?)\]/);
-                const controlesMatch = text.match(/\[Controles:\s*([\s\S]*?)\]/);
-                if (cambioMatch) document.getElementById('cambio-desc').value = cambioMatch[1].trim();
-                if (peligrosMatch) document.getElementById('cambio-peligros').value = peligrosMatch[1].trim();
-                if (controlesMatch) document.getElementById('cambio-controles').value = controlesMatch[1].trim();
-            } else if (id === "reglamento_interno_trabajo") {
-                const horariosMatch = text.match(/\[Horarios:\s*([\s\S]*?)\]/);
-                const comiteMatch = text.match(/\[Comité:\s*([\s\S]*?)\]/);
-                const bienestarMatch = text.match(/\[Bienestar:\s*([\s\S]*?)\]/);
-                if (horariosMatch) document.getElementById('rit-horarios').value = horariosMatch[1].trim();
-                if (comiteMatch) document.getElementById('rit-comite').value = comiteMatch[1].trim();
-                if (bienestarMatch) document.getElementById('rit-bienestar').value = bienestarMatch[1].trim();
-            } else if (id === "plan_trabajo") {
-                const objMatch = text.match(/\[Objetivo:\s*([\s\S]*?)\]/);
-                const respMatch = text.match(/\[Responsables:\s*([\s\S]*?)\]/);
-                const presMatch = text.match(/\[Presupuesto:\s*([\s\S]*?)\]/);
-                if (objMatch) document.getElementById('plan-objetivo').value = objMatch[1].trim();
-                if (respMatch) document.getElementById('plan-responsables').value = respMatch[1].trim();
-                if (presMatch) document.getElementById('plan-presupuesto').value = presMatch[1].trim();
-            } else if (id === "plan_capacitacion") {
-                const temaMatch = text.match(/\[Tema:\s*([\s\S]*?)\]/);
-                const dirMatch = text.match(/\[Dirigido:\s*([\s\S]*?)\]/);
-                const facMatch = text.match(/\[Facilitador:\s*([\s\S]*?)\]/);
-                if (temaMatch) document.getElementById('cap-tema').value = temaMatch[1].trim();
-                if (dirMatch) document.getElementById('cap-dirigido').value = dirMatch[1].trim();
-                if (facMatch) document.getElementById('cap-facilitador').value = facMatch[1].trim();
-            } else if (id === "analisis_trabajo_seguro") {
-                const tareaMatch = text.match(/\[Tarea:\s*([\s\S]*?)\]/);
-                const herrMatch = text.match(/\[Herramientas:\s*([\s\S]*?)\]/);
-                const eppMatch = text.match(/\[EPP:\s*([\s\S]*?)\]/);
-                if (tareaMatch) document.getElementById('ats-tarea').value = tareaMatch[1].trim();
-                if (herrMatch) document.getElementById('ats-herramientas').value = herrMatch[1].trim();
-                if (eppMatch) document.getElementById('ats-epp').value = eppMatch[1].trim();
-            } else if (id === "permiso_alturas") {
-                const coordMatch = text.match(/\[Coordinador:\s*([\s\S]*?)\]/);
-                const metrosMatch = text.match(/\[Metros:\s*([\s\S]*?)\]/);
-                const sistMatch = text.match(/\[Sistema:\s*([\s\S]*?)\]/);
-                if (coordMatch) document.getElementById('alturas-coordinador').value = coordMatch[1].trim();
-                if (metrosMatch) document.getElementById('alturas-metros').value = metrosMatch[1].trim();
-                if (sistMatch) document.getElementById('alturas-sistema').value = sistMatch[1].trim();
-            } else if (id === "investigacion_accidentes") {
-                const eventoMatch = text.match(/\[(?:Evento|Descripción):\s*([\s\S]*?)\]/i);
-                const porquesMatch = text.match(/\[(?:Porqués|Análisis):\s*([\s\S]*?)\]/i);
-                const conclusionesMatch = text.match(/\[Conclusiones:\s*([\s\S]*?)\]/i);
-                if (eventoMatch) document.getElementById('at-evento-desc').value = eventoMatch[1].trim();
-                if (porquesMatch) document.getElementById('at-5-porques').value = porquesMatch[1].trim();
-                if (conclusionesMatch) document.getElementById('at-conclusiones').value = conclusionesMatch[1].trim();
+            const injected = autoInjectSSTData(text);
+            if (injected) {
+                alert("Sugerencias inyectadas con éxito en el formulario.");
+            } else {
+                alert("No se detectaron sugerencias estructuradas en el texto.");
             }
-
-            alert("Sugerencias inyectadas con éxito en el formulario.");
-            saveLocalData();
         }
 
         function capturePhoto() {
@@ -919,12 +901,25 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
 
         const storageKey = 'wappy_sst_reglamento_interno_trabajo';
         function saveLocalData() {
+            const sName = document.getElementById('signer-name');
+            const sRole = document.getElementById('signer-role');
+            const sLicense = document.getElementById('signer-license');
+            if (sName) appDocHeader.signerName = sName.value;
+            if (sRole) appDocHeader.signerRole = sRole.value;
+            if (sLicense) appDocHeader.signerLicense = sLicense.value;
+
+            appDocHeader.customFields = {};
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'signature-canvas', 'signer-name', 'signer-role', 'signer-license'];
+                if (!excluded.includes(input.id)) {
+                    appDocHeader.customFields[input.id] = input.value;
+                }
+            });
+
             const data = {
                 appDocHeader,
-                currentWizard,
-                signer_name: document.getElementById('signer-name').value,
-                signer_role: document.getElementById('signer-role').value,
-                signer_license: document.getElementById('signer-license').value
+                currentWizard
             };
             localStorage.setItem(storageKey, JSON.stringify(data));
         }
@@ -932,7 +927,8 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
         function loadState() {
             try {
                 const key = localStorage.getItem('wappy_gemini_key') || '';
-                document.getElementById('gemini-key').value = key;
+                const keyEl = document.getElementById('gemini-key');
+                if (keyEl) keyEl.value = key;
 
                 const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.5-flash';
                 const modelEl = document.getElementById('gemini-model');
@@ -943,10 +939,6 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
                     const data = JSON.parse(saved);
                     if (data.appDocHeader) appDocHeader = data.appDocHeader;
                     if (data.currentWizard) currentWizard = data.currentWizard;
-                    
-                    document.getElementById('signer-name').value = data.signer_name || 'Félix Bedoya';
-                    document.getElementById('signer-role').value = data.signer_role || 'Responsable SG-SST';
-                    document.getElementById('signer-license').value = data.signer_license || 'Lic. #987654321 de la Sec. Salud';
                 }
             } catch(e) {
                 console.error("Error loading local state", e);
