@@ -616,19 +616,15 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             }`;
 
             let actionBtnHtml = "";
-            let autoInjectNotice = "";
             
             if (sender === 'assistant' && text !== "🤖 Pensando...") {
-                const injected = autoInjectSSTData(text);
-                if (injected) {
-                    autoInjectNotice = '<div class="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Sugerencias de IA aplicadas automáticamente</div>';
-                } else if (text.includes('[') && text.includes(']')) {
+                if (text.includes('[') || text.includes('**') || text.includes('###') || text.includes('*')) {
                     const base64Text = btoa(unescape(encodeURIComponent(text)));
-                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob(\x27' + base64Text + '\x27))))" class="mt-2 py-1 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold block text-[10px] transition active:scale-95">Re-inyectar en Formulario</button>';
+                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob(\x27' + base64Text + '\x27))))" class="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold uppercase tracking-wider text-[10px] shadow-md hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">⚡ Aplicar en Formulario y Kanban</button>';
                 }
             }
 
-            messageEl.innerHTML = `<div>${text}</div>${autoInjectNotice}${actionBtnHtml}`;
+            messageEl.innerHTML = `<div>${text}</div>${actionBtnHtml}`;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
