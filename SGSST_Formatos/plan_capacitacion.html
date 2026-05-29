@@ -567,7 +567,9 @@
 
             const systemContext = `Estás ayudando a redactar y estructurar la información del formato: Plan de Capacitación y Entrenamiento.
 Normatividad aplicable: Debe cumplir con el Decreto 1072 de 2015 (Art. 2.2.4.6.11). Exige la definición y ejecución de un programa de capacitación anual en seguridad y salud ocupacional aplicable a todos los niveles de la empresa, incluyendo inducción, reinducción y entrenamientos especializados..
-Responde de forma concisa y profesional en materia de SST. Si sugieres textos para completar los campos, enciérralos en corchetes especificando el campo (Ej. [Área: ...] o [Peligro: ...] o [Controles: ...]).`;
+Responde de forma concisa y profesional en materia de SST.
+Si sugieres textos para completar los campos, enciérralos en corchetes especificando el campo (Ej. [Área: ...] o [Peligro: ...] o [Controles: ...], o [Nombre Empresa: ...]).
+Si recomiendas tareas o planes de acción concretos para el Kanban de planes de acción, enciérralos como [Acción: Realizar tal actividad...] para que la plataforma los agregue automáticamente al tablero Kanban (Ej: [Acción: Capacitar al personal en el uso correcto de EPP]). Evita agregar ejemplos genéricos del formato en corchetes.`;
 
             addChatMessage('assistant', "🤖 Pensando...");
 
@@ -753,6 +755,85 @@ Responde de forma concisa y profesional en materia de SST. Si sugieres textos pa
                 if (evento && evento[1]) { document.getElementById('at-evento-desc').value = evento[1].trim(); injectedAny = true; }
                 if (porques && porques[1]) { document.getElementById('at-5-porques').value = porques[1].trim(); injectedAny = true; }
                 if (conclusiones && conclusiones[1]) { document.getElementById('at-conclusiones').value = conclusiones[1].trim(); injectedAny = true; }
+            }
+            
+            // Extract and inject Kanban tasks dynamically!
+            const tasksList = [];
+            
+            // 1. Check for explicit bracketed actions like [Acción: ...] or [Acción correctiva/preventiva: ...]
+            const actionRegex = /\[(?:Acción correctiva\/preventiva|Acción|Tarea|Medida):\s*([\s\S]*?)\]/gi;
+            let actionMatch;
+            while ((actionMatch = actionRegex.exec(text)) !== null) {
+                const taskTitle = actionMatch[1].trim();
+                // Exclude placeholders and templates
+                if (taskTitle && !taskTitle.includes('Ej:') && !taskTitle.includes('Nombre') && !taskTitle.includes('cargo') && !taskTitle.includes('...')) {
+                    tasksList.push(taskTitle);
+                }
+            }
+
+            // 2. Fallback: Parse bullet points under sections related to "Plan de Acción"
+            const lines = text.split('\n');
+            let insideActionSection = false;
+            for (let line of lines) {
+                const cleanLine = line.trim();
+                if (!cleanLine) continue;
+                
+                const isActionHeader = cleanLine.startsWith('#') && (
+                    cleanLine.toLowerCase().includes('plan de acci') || 
+                    cleanLine.toLowerCase().includes('medidas de intervenci') || 
+                    cleanLine.toLowerCase().includes('acciones correctivas') || 
+                    cleanLine.toLowerCase().includes('kanban') || 
+                    cleanLine.toLowerCase().includes('tareas')
+                );
+                
+                if (isActionHeader) {
+                    insideActionSection = true;
+                    continue;
+                }
+                
+                if (insideActionSection && cleanLine.startsWith('#')) {
+                    insideActionSection = false;
+                }
+                
+                if (insideActionSection) {
+                    const bulletMatch = cleanLine.match(/^(?:\*|-|\d+\.)\s*(.*)$/);
+                    if (bulletMatch) {
+                        let bulletText = bulletMatch[1].trim();
+                        bulletText = bulletText.replace(/\*\*/g, '').replace(/\[|\]/g, '').trim();
+                        
+                        const isMeta = bulletText.toLowerCase().includes('tipo de control') || 
+                                       bulletText.toLowerCase().includes('descripción técnica') || 
+                                       bulletText.toLowerCase().includes('descripci') || 
+                                       bulletText.toLowerCase().includes('responsable') || 
+                                       bulletText.toLowerCase().includes('recursos') || 
+                                       bulletText.toLowerCase().includes('fecha') || 
+                                       bulletText.toLowerCase().includes('indicador') ||
+                                       bulletText.includes('Ej:') ||
+                                       bulletText.includes('...') ||
+                                       bulletText.length < 5;
+                                       
+                        if (!isMeta) {
+                            tasksList.push(bulletText);
+                        }
+                    }
+                }
+            }
+
+            if (tasksList.length > 0) {
+                tasksList.forEach(title => {
+                    const exists = currentWizard.tasks.some(t => t.title.toLowerCase() === title.toLowerCase());
+                    if (!exists) {
+                        currentWizard.tasks.push({
+                            id: Date.now() + Math.random(),
+                            title: title,
+                            column: 'todo'
+                        });
+                        injectedAny = true;
+                    }
+                });
+                if (injectedAny) {
+                    renderKanban();
+                }
             }
             
             // Global metadata fields auto-injection
