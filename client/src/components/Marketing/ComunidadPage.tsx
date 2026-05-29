@@ -284,8 +284,14 @@ export default function ComunidadPage() {
               const totalDuration = ytPlayer.getDuration();
               if (totalDuration > 0) setDuration(totalDuration);
 
-              // Standard Lead capture modal logic: lock at gatingSeconds if in Free Mode and lead not captured
-              if (!actualRequiresPayment && gatingEnabled && time >= gatingSeconds && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+              // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
+              const shouldGate = gatingEnabled && time >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
+                actualRequiresPayment 
+                  ? !isAccessGrantedRef.current 
+                  : (!isLeadCapturedRef.current && !user)
+              );
+
+              if (shouldGate) {
                 ytPlayer.pauseVideo();
                 setIsPlaying(false);
                 setShowLeadModal(true);
@@ -332,8 +338,14 @@ export default function ComunidadPage() {
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
       
-      // Standard Lead capture modal logic: lock at gatingSeconds if in Free Mode and lead not captured
-      if (!actualRequiresPayment && gatingEnabled && video.currentTime >= gatingSeconds && !isLeadCapturedRef.current && !showLeadModalRef.current && !user) {
+      // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
+      const shouldGate = gatingEnabled && video.currentTime >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
+        actualRequiresPayment 
+          ? !isAccessGrantedRef.current 
+          : (!isLeadCapturedRef.current && !user)
+      );
+
+      if (shouldGate) {
         video.pause();
         setIsPlaying(false);
         video.currentTime = gatingSeconds; // Lock to exactly gatingSeconds
@@ -374,7 +386,7 @@ export default function ComunidadPage() {
 
   // Prevent seeking via keyboard
   useEffect(() => {
-    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin)) return;
+    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -438,7 +450,7 @@ export default function ComunidadPage() {
   };
 
   const togglePlay = () => {
-    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin)) return;
+    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
 
     if (isYouTube) {
       if (isPlaying) {
@@ -520,6 +532,7 @@ export default function ComunidadPage() {
         localStorage.setItem('wappy_comunidad_email', checkoutEmail.trim());
         setUserEmail(checkoutEmail.trim());
         setIsAccessGranted(true);
+        setShowLeadModal(false);
         if (data.videoWatched) {
           setIsVideoFinished(true);
         }
@@ -568,6 +581,7 @@ export default function ComunidadPage() {
             localStorage.setItem('wappy_comunidad_email', email);
             setUserEmail(email);
             setIsAccessGranted(true);
+            setShowLeadModal(false);
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -1172,39 +1186,43 @@ export default function ComunidadPage() {
                     </div>
                   )}
 
-                  {!tempRequiresPayment && (
-                    <>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-border-medium">
-                        <div>
-                          <h5 className="text-xs font-bold text-text-primary">¿Activar Bloqueo de Leads en Video?</h5>
-                          <p className="text-[10px] text-text-secondary mt-0.5">Si se activa, el video se pausará en el minuto indicado para solicitar los datos del usuario.</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={tempGatingEnabled} 
-                            onChange={(e) => setTempGatingEnabled(e.target.checked)} 
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-border-medium peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                        </label>
-                      </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-border-medium">
+                    <div>
+                      <h5 className="text-xs font-bold text-text-primary">
+                        {tempRequiresPayment ? '¿Activar Vista Previa de Video (Pago)?' : '¿Activar Bloqueo de Leads en Video?'}
+                      </h5>
+                      <p className="text-[10px] text-text-secondary mt-0.5">
+                        {tempRequiresPayment 
+                          ? 'Si se activa, el usuario verá una parte del video antes de requerir el pago. Si se desactiva, se paywalleará inmediatamente al inicio.' 
+                          : 'Si se activa, el video se pausará en el minuto indicado para solicitar los datos del usuario para poder continuar.'}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={tempGatingEnabled} 
+                        onChange={(e) => setTempGatingEnabled(e.target.checked)} 
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-border-medium peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
 
-                      {tempGatingEnabled && (
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1">Minuto del Video para Solicitar Datos</label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={tempGatingSeconds / 60}
-                            onChange={(e) => setTempGatingSeconds(Math.max(6, Math.round(Number(e.target.value) * 60)))}
-                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
-                            placeholder="Ej: 2 para el minuto 2:00, o 1.5 para el minuto 1:30"
-                          />
-                        </div>
-                      )}
-                    </>
+                  {tempGatingEnabled && (
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1">
+                        {tempRequiresPayment ? 'Minuto del Video para Solicitar Pago' : 'Minuto del Video para Solicitar Datos'}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        value={tempGatingSeconds / 60}
+                        onChange={(e) => setTempGatingSeconds(Math.max(6, Math.round(Number(e.target.value) * 60)))}
+                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
+                        placeholder="Ej: 2 para el minuto 2:00, o 1.5 para el minuto 1:30"
+                      />
+                    </div>
                   )}
 
                   <button
@@ -1287,7 +1305,7 @@ export default function ComunidadPage() {
             <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
             <h3 className="font-bold text-text-primary text-base">Cargando embudo interactivo...</h3>
           </div>
-        ) : (actualRequiresPayment && !isAccessGranted && !isAdmin) ? (
+        ) : (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled) ? (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center justify-center relative z-10 text-center">
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
@@ -1610,77 +1628,162 @@ export default function ComunidadPage() {
                     
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
-                        <Lock className="w-5 h-5" />
+                        {showRecoveryView ? <Key className="w-5 h-5 text-emerald-500" /> : <Lock className="w-5 h-5 text-emerald-500" />}
                       </div>
                       <div>
-                        <h3 className="text-base font-bold text-text-primary leading-tight outfit">Acceso Exclusivo WAPPY</h3>
-                        <p className="text-[10px] text-text-secondary">Registra tus datos para desbloquear el video curso</p>
+                        <h3 className="text-base font-bold text-text-primary leading-tight outfit">
+                          {showRecoveryView 
+                            ? 'Recuperar Acceso Autorizado' 
+                            : (actualRequiresPayment ? 'Desbloquear Capacitación Completa' : 'Acceso Exclusivo WAPPY')
+                          }
+                        </h3>
+                        <p className="text-[10px] text-text-secondary">
+                          {showRecoveryView 
+                            ? 'Valida tu correo de compra para desbloquear al instante'
+                            : (actualRequiresPayment 
+                                ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                                : 'Registra tus datos para desbloquear el video curso'
+                              )
+                          }
+                        </p>
                       </div>
                     </div>
 
-                    <form onSubmit={handleLeadFormSubmit} className="space-y-3.5">
-                      {checkoutError && (
-                        <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{checkoutError}</span>
-                        </div>
-                      )}
+                    {!showRecoveryView ? (
+                      <form onSubmit={actualRequiresPayment ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
+                        {checkoutError && (
+                          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{checkoutError}</span>
+                          </div>
+                        )}
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Nombre Completo</label>
-                        <input
-                          type="text"
-                          value={checkoutFullName}
-                          onChange={(e) => setCheckoutFullName(e.target.value)}
-                          placeholder="Juan Pérez"
-                          className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo</label>
+                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Nombre Completo</label>
+                          <input
+                            type="text"
+                            value={checkoutFullName}
+                            onChange={(e) => setCheckoutFullName(e.target.value)}
+                            placeholder="Juan Pérez"
+                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo</label>
+                            <input
+                              type="email"
+                              value={checkoutEmail}
+                              onChange={(e) => setCheckoutEmail(e.target.value)}
+                              placeholder="juan@correo.com"
+                              className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Celular</label>
+                            <input
+                              type="tel"
+                              value={checkoutPhone}
+                              onChange={(e) => setCheckoutPhone(e.target.value)}
+                              placeholder="Ej. 3001234567"
+                              className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
+                          <input
+                            type="checkbox"
+                            checked={acceptedPolicies}
+                            onChange={(e) => setAcceptedPolicies(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-border-medium bg-surface-secondary text-emerald-500 focus:ring-emerald-500/20"
+                          />
+                          <span className="text-[10px] text-text-secondary leading-normal group-hover:text-text-primary">
+                            Acepto las <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">políticas de privacidad</a> y el tratamiento de datos de WAPPY.
+                          </span>
+                        </label>
+
+                        <button
+                          type="submit"
+                          disabled={isCheckoutSubmitting}
+                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                        >
+                          {isCheckoutSubmitting ? (
+                            <span>Procesando...</span>
+                          ) : (
+                            <>
+                              <span>{actualRequiresPayment ? 'Pagar y Desbloquear Curso' : 'Continuar con el video'}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </button>
+
+                        {actualRequiresPayment && (
+                          <div className="pt-3 text-center border-t border-border-medium/60 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowRecoveryView(true)}
+                              className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                              ¿Ya compraste? Recupera tu acceso
+                            </button>
+                          </div>
+                        )}
+                      </form>
+                    ) : (
+                      <form onSubmit={handleRecoverAccess} className="space-y-3.5">
+                        <p className="text-[11px] text-text-secondary leading-normal">
+                          Ingresa el correo electrónico que utilizaste al realizar el pago del curso. Si tu compra fue aprobada, recuperarás el acceso de inmediato.
+                        </p>
+
+                        {recoveryError && (
+                          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{recoveryError}</span>
+                          </div>
+                        )}
+
+                        {recoverySuccess && (
+                          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                            <Check className="w-4 h-4 shrink-0" />
+                            <span>{recoverySuccess}</span>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo registrado</label>
                           <input
                             type="email"
-                            value={checkoutEmail}
-                            onChange={(e) => setCheckoutEmail(e.target.value)}
+                            value={recoveryEmail}
+                            onChange={(e) => setRecoveryEmail(e.target.value)}
                             placeholder="juan@correo.com"
-                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
                           />
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Celular</label>
-                          <input
-                            type="tel"
-                            value={checkoutPhone}
-                            onChange={(e) => setCheckoutPhone(e.target.value)}
-                            placeholder="Ej. 3001234567"
-                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
-                          />
-                        </div>
-                      </div>
 
-                      <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
-                        <input
-                          type="checkbox"
-                          checked={acceptedPolicies}
-                          onChange={(e) => setAcceptedPolicies(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-border-medium bg-surface-secondary text-emerald-500 focus:ring-emerald-500/20"
-                        />
-                        <span className="text-[10px] text-text-secondary leading-normal group-hover:text-text-primary">
-                          Acepto las <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">políticas de privacidad</a> y el tratamiento de datos de WAPPY.
-                        </span>
-                      </label>
+                        <button
+                          type="submit"
+                          disabled={isRecovering}
+                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                        >
+                          {isRecovering ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                          Verificar Acceso de Compra
+                        </button>
 
-                      <button
-                        type="submit"
-                        disabled={isCheckoutSubmitting}
-                        className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
-                      >
-                        {isCheckoutSubmitting ? 'Registrando...' : 'Continuar con el video'}
-                        {!isCheckoutSubmitting && <ArrowRight className="w-3.5 h-3.5" />}
-                      </button>
-                    </form>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowRecoveryView(false);
+                            setRecoveryError('');
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-hover text-text-secondary text-xs font-semibold border border-border-medium transition-all"
+                        >
+                          Volver al Formulario de Compra
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </div>
               )}
