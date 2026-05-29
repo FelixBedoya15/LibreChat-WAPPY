@@ -520,6 +520,7 @@ export default function ComunidadPage() {
         localStorage.setItem('wappy_comunidad_email', checkoutEmail.trim());
         setUserEmail(checkoutEmail.trim());
         setIsAccessGranted(true);
+        setShowLeadModal(false);
         if (data.videoWatched) {
           setIsVideoFinished(true);
         }
@@ -568,6 +569,7 @@ export default function ComunidadPage() {
             localStorage.setItem('wappy_comunidad_email', email);
             setUserEmail(email);
             setIsAccessGranted(true);
+            setShowLeadModal(false);
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -1613,12 +1615,19 @@ export default function ComunidadPage() {
                         <Lock className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-bold text-text-primary leading-tight outfit">Acceso Exclusivo WAPPY</h3>
-                        <p className="text-[10px] text-text-secondary">Registra tus datos para desbloquear el video curso</p>
+                        <h3 className="text-base font-bold text-text-primary leading-tight outfit">
+                          {actualRequiresPayment ? 'Desbloquear Capacitación Completa' : 'Acceso Exclusivo WAPPY'}
+                        </h3>
+                        <p className="text-[10px] text-text-secondary">
+                          {actualRequiresPayment 
+                            ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                            : 'Registra tus datos para desbloquear el video curso'
+                          }
+                        </p>
                       </div>
                     </div>
 
-                    <form onSubmit={handleLeadFormSubmit} className="space-y-3.5">
+                    <form onSubmit={actualRequiresPayment ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
                       {checkoutError && (
                         <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
                           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1677,8 +1686,14 @@ export default function ComunidadPage() {
                         disabled={isCheckoutSubmitting}
                         className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
                       >
-                        {isCheckoutSubmitting ? 'Registrando...' : 'Continuar con el video'}
-                        {!isCheckoutSubmitting && <ArrowRight className="w-3.5 h-3.5" />}
+                        {isCheckoutSubmitting ? (
+                          <span>Procesando...</span>
+                        ) : (
+                          <>
+                            <span>{actualRequiresPayment ? 'Pagar y Desbloquear Curso' : 'Continuar con el video'}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </>
+                        )}
                       </button>
                     </form>
                   </div>
