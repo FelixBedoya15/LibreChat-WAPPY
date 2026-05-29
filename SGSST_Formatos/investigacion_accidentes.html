@@ -957,7 +957,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             ];
             
             globalFields.forEach(field => {
-                const val = findValueForKeywords(field.keywords) || extractSection(field.keywords, text);
+                const val = findValueForKeywords(field.keywords);
                 if (val && !isPlaceholderText(val)) {
                     const el = document.getElementById(field.id);
                     if (el) {
