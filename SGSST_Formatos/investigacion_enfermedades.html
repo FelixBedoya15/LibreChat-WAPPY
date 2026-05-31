@@ -2,7 +2,7 @@
 <html><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión del Cambio - SG-SST</title>
+    <title>Investigación de Enfermedades Laborales - SG-SST</title>
     <script>
         window.addEventListener('error', function(e) {
             console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
@@ -79,7 +79,7 @@
                 <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()">
                 
                 <div class="flex-1">
-                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Gestión del Cambio</h1>
+                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Investigación de Enfermedades Laborales</h1>
                     <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
                     <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
                 </div>
@@ -112,7 +112,7 @@
             </div>
             <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0 border-t border-slate-200 dark:border-0 md:border-t-0">
                 <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
-                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-AT-GC-01</span>
+                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-AT-IEL-01</span>
                 <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-700 dark:text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
             </div>
         </div>
@@ -124,29 +124,29 @@
             <div class="flex border-b dark:border-slate-800 light:border-slate-200 overflow-x-auto no-print mb-4">
                 <button onclick="switchTab('tab-identification')" id="btn-tab-identification" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer tab-active">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="file-text" aria-hidden="true" class="lucide lucide-file-text w-3.5 h-3.5"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
-                    1. Identificación del Cambio
+                    1. Identificación del Diagnóstico
                 </button>
                 <button onclick="switchTab('tab-description')" id="btn-tab-description" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-3.5 h-3.5"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg>
-                    2. Detalles del Cambio
+                    2. Historial de Exposición
                 </button>
                 <button onclick="switchTab('tab-analysis')" id="btn-tab-analysis" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-3.5 h-3.5"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
-                    3. Evaluación de Riesgos y Controles
+                    3. Análisis de Causa Raíz
                 </button>
                 <button onclick="switchTab('tab-plan')" id="btn-tab-plan" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="kanban" aria-hidden="true" class="lucide lucide-kanban w-3.5 h-3.5"><path d="M5 3v14"></path><path d="M12 3v8"></path><path d="M19 3v18"></path></svg>
-                    4. Plan de Acción (Kanban)
+                    4. Plan de Acción y Rehabilitación
                 </button>
                 <button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="paperclip" aria-hidden="true" class="lucide lucide-paperclip w-3.5 h-3.5"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"></path></svg>
-                    5. Evidencias y Firmas
+                    5. Resumen y Firmas
                 </button>
             </div>
 
 
             
-            <!-- TAB 1: IDENTIFICACIÓN DEL CAMBIO -->
+            <!-- TAB 1: IDENTIFICACIÓN Y APORTANTE -->
             <div id="tab-identification" class="tab-content flex flex-col gap-5 hidden">
                 <div class="flex flex-col gap-4">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -168,16 +168,16 @@
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 1.2 Datos del Solicitante / Líder del Cambio
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 1.2 Datos del Trabajador Diagnosticado
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE COMPLETO DEL SOLICITANTE</label>
-                            <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Juan Pérez" value="Juan Carlos Gómez Bedoya">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE COMPLETO</label>
+                            <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Juan Pérez" value="María Camila Restrepo Palacio">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÉDULA / DOCUMENTO</label>
-                            <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 10234567" value="1.018.452.963">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÉDULA / C.C.</label>
+                            <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 10234567" value="1.034.567.890">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">VINCULACIÓN</label>
@@ -192,36 +192,47 @@
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CARGO / PUESTO DE TRABAJO</label>
-                            <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Operario de Despacho" value="Auxiliar de Almacenamiento y Despacho">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CARGO / OFICIO</label>
+                            <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Operario de Despacho" value="Operadora de Ensamble y Digitación">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ÁREA / DEPARTAMENTO</label>
-                            <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Logística y Distribución">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ÁREA DE ADSCRIPCIÓN</label>
+                            <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Producción y Operaciones">
                         </div>
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Datos Generales del Cambio Solicitado
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-alert" aria-hidden="true" class="lucide lucide-shield-alert w-4 h-4"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg> 1.3 Datos del Diagnóstico de Enfermedad Laboral
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE LA SOLICITUD</label>
-                            <input type="date" id="evento-fecha" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-05-29">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓDIGO CIE-10</label>
+                            <input type="text" id="enfermedad-diagnostico-cie10" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: M75.1" value="G56.0">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">DESCRIPCIÓN DEL DIAGNÓSTICO MÉDICO</label>
+                            <input type="text" id="enfermedad-diagnostico-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Síndrome de manguito rotador" value="Síndrome del Túnel Carpiano Bilateral">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HORA DE LA SOLICITUD</label>
-                            <input type="time" id="evento-hora" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="09:30">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE DIAGNÓSTICO / CALIFICACIÓN</label>
+                            <input type="date" id="enfermedad-fecha-diagnostico" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-05-15">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ENTIDAD CALIFICADORA EN PRIMERA INSTANCIA</label>
+                            <select id="enfermedad-calificadora" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
+                                <option value="EPS" selected="">EPS (Entidad Promotora de Salud)</option>
+                                <option value="ARL">ARL (Administradora de Riesgos Laborales)</option>
+                                <option value="Junta_Regional">Junta Regional de Calificación de Invalidez</option>
+                                <option value="Junta_Nacional">Junta Nacional de Calificación de Invalidez</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ÁREA O LUGAR AFECTADO</label>
-                            <input type="text" id="evento-lugar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Pasillo 2 de despacho" value="Bodega Central - Pasillo 2 de Distribución">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ZONA AFECTADA</label>
-                            <select id="evento-zona" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Urbana" selected="">Urbana</option>
-                                <option value="Rural">Rural</option>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ORIGEN DETERMINADO</label>
+                            <select id="enfermedad-origen" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
+                                <option value="Laboral" selected="">Laboral / Ocupacional</option>
+                                <option value="Comun">Común / No Laboral</option>
                             </select>
                         </div>
                     </div>
@@ -236,40 +247,87 @@
                 </div>
             </div>
 
-            <!-- TAB 2: DETALLES DEL CAMBIO Propuesto -->
+            <!-- TAB 2: HISTORIAL DE EXPOSICIÓN Y EVALUACIONES -->
             <div id="tab-description" class="tab-content flex flex-col gap-5 hidden">
                 <div class="flex flex-col gap-4">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-4 h-4"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg> 2.1 Clasificación y Detalles del Cambio Propuesto
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-4 h-4"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg> 2.1 Historial de Exposición y Síntomas Ocupacionales
                     </h3>
+                    <!-- Side-by-side Symptom/Exposure history and Technical Analysis -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CLASIFICACIÓN / TIPO DE CAMBIO</label>
-                            <select id="cambio-clasificacion" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Fisico_Tecnico" selected="">Físico / Infraestructura (Ej: Instalaciones, puestos de trabajo)</option>
-                                <option value="Tecnologico">Tecnológico / Técnico (Ej: Nueva maquinaria, herramientas, software)</option>
-                                <option value="Organizacional">Organizacional / Personal (Ej: Reestructuración, nuevos cargos)</option>
-                                <option value="Procesos">Procedimientos / Procesos (Ej: Modificación de tareas, métodos de trabajo)</option>
-                                <option value="Normativo">Normativo / Legal (Ej: Nuevas regulaciones o leyes de obligatorio cumplimiento)</option>
-                            </select>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">HISTORIAL DE EXPOSICIÓN Y SÍNTOMAS DEL TRABAJADOR</label>
+                            <textarea id="at-version-trabajador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Ingrese el relato del trabajador diagnosticado en sus propias palabras, detallando cuándo iniciaron los síntomas, en qué tareas siente mayor molestia y antecedentes ocupacionales..."></textarea>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ALCANCE / DURACIÓN DEL CAMBIO</label>
-                            <select id="cambio-duracion" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Permanente" selected="">Permanente (Modificación definitiva)</option>
-                                <option value="Temporal">Temporal / Provisional (Pruebas, contingencias o pilotos)</option>
-                            </select>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">ANÁLISIS DE EXPOSICIÓN OCUPACIONAL EN EL PUESTO DE TRABAJO (SEGÚN EQUIPO INVESTIGADOR)</label>
+                            <textarea id="at-evento-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Describa de forma extremadamente detallada el análisis del puesto de trabajo actual, identificando peligros higiénicos (físicos, químicos) o biomecánicos y la frecuencia de la exposición..."></textarea>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">DESCRIPCIÓN DETALLADA DEL CAMBIO PROPUESTO (¿En qué consiste el cambio?)</label>
-                            <textarea id="at-version-trabajador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="6" placeholder="Describa detalladamente qué se va a modificar, quiénes intervienen, qué áreas o procesos se verán afectados y el paso a paso propuesto para realizar la transición..."></textarea>
+                    <!-- HISTORIAL DE CARGOS Y EXPOSICIÓN (REUTILIZA WITNESSES) -->
+                    <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="history" aria-hidden="true" class="lucide lucide-history w-4 h-4 text-emerald-500"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg> Cronología de Cargos Ocupados y Exposición Ocupacional
+                        </span>
+                        
+                        <!-- List of occupational history items -->
+                        <div id="witnesses-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="col-span-2 text-xs text-slate-400 italic">No se han registrado cargos.</div></div>
+                        
+                        <!-- Add occupational history item Form -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">EMPRESA / APORTANTE</label>
+                                <input type="text" id="witness-name-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Wappy SA">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">CARGO OCUPADO</label>
+                                <input type="text" id="witness-doc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Auxiliar de Despacho">
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">FACTORES DE RIESGO Y TIEMPO DE EXPOSICIÓN</label>
+                                <textarea id="witness-testimony-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white resize-none" rows="2" placeholder="Ej: Movimientos repetitivos y levantamiento de cargas (> 15 kg). Flexoextensión de muñeca. Exposición durante 3 años."></textarea>
+                            </div>
+                            <div class="md:col-span-3 flex justify-end">
+                                <button type="button" onclick="addWitness()" class="py-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Cargo
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">JUSTIFICACIÓN Y OBJETIVOS DEL CAMBIO (¿Por qué es necesario y qué beneficios aporta?)</label>
-                            <textarea id="at-evento-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="6" placeholder="Describa los motivos que sustentan la solicitud del cambio (ej: obsolescencia de equipos, mejora en la productividad, mandatos legales) y el objetivo general de la modificación..."></textarea>
+                    </div>
+
+                    <!-- MEDICIONES HIGIÉNICAS / ERGONÓMICAS (REUTILIZA AVERIAS) -->
+                    <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-4 h-4 text-emerald-500"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg> Evaluaciones Ergonómicas y Mediciones Higiénicas Realizadas
+                        </span>
+                        
+                        <!-- List of Measurements -->
+                        <div id="averias-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="col-span-2 text-xs text-slate-400 italic">No se han registrado evaluaciones.</div></div>
+                        
+                        <!-- Add Measurement Form -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">TIPO DE EVALUACIÓN / MEDICIÓN</label>
+                                <input type="text" id="averia-equipment-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Ergonomía (REBA / RULA)">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">RESULTADOS Y CONCLUSIONES</label>
+                                <input type="text" id="averia-desc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Puntuación 9 (Riesgo Alto), requiere intervención">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">NIVEL DE RIESGO / CRITICIDAD</label>
+                                <select id="averia-criticality-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Baja">Baja - Riesgo Controlado</option>
+                                    <option value="Media">Media - Riesgo Moderado</option>
+                                    <option value="Alta">Alta - Riesgo Crítico</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3 flex justify-end">
+                                <button type="button" onclick="addAveria()" class="py-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Registro
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -352,80 +410,269 @@
                 </div>
             </div>
 
-            <!-- TAB 3: EVALUACIÓN DE RIESGOS Y CONTROLES -->
+            <!-- TAB 3: ANÁLISIS DE CAUSAS -->
             <div id="tab-analysis" class="tab-content flex flex-col gap-6 hidden">
                 <!-- Legal Banner -->
                 <div class="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-xs leading-relaxed text-slate-650 dark:text-slate-350">
                     <h4 class="font-bold text-blue-650 dark:text-blue-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Gestión del Cambio - Evaluación de Impacto en SST (Decreto 1072 de 2015)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Metodologías de Análisis Exigidas por la Resolución 1401 de 2007
                     </h4>
-                    <p>Evalúe preventivamente el impacto que el cambio propuesto (físico, tecnológico, de personal, procesal o legal) tendrá sobre la seguridad y salud de los trabajadores. Identifique de forma oportuna si se generan nuevos peligros o requisitos normativos y plantee las medidas de control pertinentes antes de autorizar su ejecución.</p>
+
                 </div>
 
-                <!-- 3.1 Identificación y Valoración del Cambio -->
+                <!-- 3.1 Determinación Técnica de Causas (Textareas) -->
                 <div class="flex flex-col gap-4">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-4 h-4"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg> 3.1 Identificación de Peligros y Valoración de Impacto
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="settings" aria-hidden="true" class="lucide lucide-settings w-4 h-4"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path><circle cx="12" cy="12" r="3"></circle></svg> 3.1 Determinación Técnica de Causas (Causas Inmediatas y Básicas)
                     </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">¿EL CAMBIO GENERA NUEVOS PELIGROS O RIESGOS EN SST?</label>
-                            <select id="cambio-nuevos-peligros-sn" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Si" selected="">SÍ (Se requiere análisis técnico y controles específicos)</option>
-                                <option value="No">NO (El cambio no altera las condiciones de seguridad existentes)</option>
-                            </select>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CAUSAS INMEDIATAS: ACTOS SUBESTÁNDAR</label>
+                            <textarea id="causas-inmediatas-actos" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="3" placeholder="Ej: Operar montacargas con fuga activa sin previo reporte..."></textarea>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NIVEL DE RIESGO ESTIMADO DEL CAMBIO</label>
-                            <select id="cambio-nivel-riesgo" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Bajo">Bajo (Impacto nulo o mínimo en las condiciones de SST)</option>
-                                <option value="Medio" selected="">Medio (Riesgos controlables mediante estándares normales)</option>
-                                <option value="Alto">Alto (Nuevas tareas críticas de alta peligrosidad / requiere supervisión especial)</option>
-                            </select>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CAUSAS INMEDIATAS: CONDICIONES SUBESTÁNDAR</label>
+                            <textarea id="causas-inmediatas-condiciones" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="3" placeholder="Ej: Derrame de aceite hidráulico no señalizado..."></textarea>
                         </div>
                     </div>
-
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">DESCRIPCIÓN DE LOS NUEVOS PELIGROS IDENTIFICADOS (GTC-45)</label>
-                            <textarea id="cambio-peligros" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="4" placeholder="Describa qué nuevos peligros (físicos, mecánicos, biomecánicos, etc.) se introducen con la ejecución de este cambio..."></textarea>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CAUSAS BÁSICAS: FACTORES PERSONALES</label>
+                            <textarea id="causas-basicas-personales" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="3" placeholder="Ej: Falta de entrenamiento específico o cansancio..."></textarea>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">REQUISITOS LEGALES Y NORMATIVOS AFECTADOS</label>
-                            <textarea id="cambio-requisitos-legales" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="4" placeholder="Identifique si este cambio requiere cumplir con nuevas normativas o resoluciones específicas (ej: trabajo en alturas, riesgo químico, etc.)..."></textarea>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CAUSAS BÁSICAS: FACTORES DEL TRABAJO</label>
+                            <textarea id="causas-basicas-trabajo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="3" placeholder="Ej: Fallas en mantenimiento preventivo, supervisión ausente..."></textarea>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3.2 Jerarquía de Controles Preventivos -->
+                <!-- 3.2 Metodología de los 5 Porqués -->
                 <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield" aria-hidden="true" class="lucide lucide-shield w-4 h-4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> 3.2 Jerarquía de Medidas de Control Preventivas (GTC-45)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="help-circle" aria-hidden="true" class="lucide lucide-help-circle w-4 h-4"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg> 3.2 Metodología de los 5 Porqués
                     </h3>
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold mb-1">Especifique las medidas necesarias para mitigar los nuevos riesgos del cambio antes de su inicio formal:</span>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="flex flex-col gap-4">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Responda secuencialmente la causa raíz partiendo del diagnóstico:</span>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/50">
+                                    <label id="at-why-1-question-label" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">¿Por qué se desarrolló la enfermedad o diagnóstico laboral?</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-emerald-500 shrink-0">¿1?</span>
+                                        <input type="text" id="at-why-1" oninput="updateFiveWhys()" class="flex-grow rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-medium" value="">
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/50">
+                                    <label id="at-why-2-question-label" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">¿Por qué ocurrió el hecho anterior?</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-emerald-500 shrink-0">¿2?</span>
+                                        <input type="text" id="at-why-2" oninput="updateFiveWhys()" class="flex-grow rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-medium" value="">
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/50">
+                                    <label id="at-why-3-question-label" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">¿Por qué ocurrió el hecho anterior?</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-emerald-500 shrink-0">¿3?</span>
+                                        <input type="text" id="at-why-3" oninput="updateFiveWhys()" class="flex-grow rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-medium" value="">
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/50">
+                                    <label id="at-why-4-question-label" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">¿Por qué ocurrió el hecho anterior?</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-emerald-500 shrink-0">¿4?</span>
+                                        <input type="text" id="at-why-4" oninput="updateFiveWhys()" class="flex-grow rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-medium" value="">
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/50">
+                                    <label id="at-why-5-question-label" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">¿Por qué ocurrió el hecho anterior?</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-emerald-500 shrink-0">¿5?</span>
+                                        <input type="text" id="at-why-5" oninput="updateFiveWhys()" class="flex-grow rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-medium" value="">
+                                    </div>
+                                </div>
+                            </div>
+                            <textarea id="at-5-porques" class="hidden"></textarea>
+                        </div>
+                        <div id="five-whys-visual" class="flex flex-col gap-4 bg-slate-50 dark:bg-slate-950/20 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner max-h-[380px] overflow-y-auto">
+                    <div class="flex items-start gap-4 relative">
+                        <div class="flex flex-col items-center h-full shrink-0">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-xs shadow-md z-10">1</div>
+                            <div class="w-[1.5px] bg-gradient-to-b from-emerald-500/30 to-slate-200 dark:to-slate-800/40 min-h-[45px] flex-grow"></div>
+                        </div>
+                        <div class="flex-grow p-3 rounded-xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col gap-1 text-[11px]">
+                            <span class="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Primer Porqué</span>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">¿Por qué se desarrolló la enfermedad o diagnóstico laboral principal?</div>
+                            <p class="text-xs text-slate-700 dark:text-slate-350 font-semibold italic">"Aún no completado..."</p>
+                        </div>
+                    </div>
+                
+                    <div class="flex items-start gap-4 relative">
+                        <div class="flex flex-col items-center h-full shrink-0">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-xs shadow-md z-10">2</div>
+                            <div class="w-[1.5px] bg-gradient-to-b from-emerald-500/30 to-slate-200 dark:to-slate-800/40 min-h-[45px] flex-grow"></div>
+                        </div>
+                        <div class="flex-grow p-3 rounded-xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col gap-1 text-[11px]">
+                            <span class="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Segundo Porqué</span>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">¿Por qué ocurrió el hecho anterior?</div>
+                            <p class="text-xs text-slate-700 dark:text-slate-350 font-semibold italic">"Aún no completado..."</p>
+                        </div>
+                    </div>
+                
+                    <div class="flex items-start gap-4 relative">
+                        <div class="flex flex-col items-center h-full shrink-0">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-xs shadow-md z-10">3</div>
+                            <div class="w-[1.5px] bg-gradient-to-b from-emerald-500/30 to-slate-200 dark:to-slate-800/40 min-h-[45px] flex-grow"></div>
+                        </div>
+                        <div class="flex-grow p-3 rounded-xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col gap-1 text-[11px]">
+                            <span class="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Tercer Porqué</span>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">¿Por qué ocurrió el hecho anterior?</div>
+                            <p class="text-xs text-slate-700 dark:text-slate-350 font-semibold italic">"Aún no completado..."</p>
+                        </div>
+                    </div>
+                
+                    <div class="flex items-start gap-4 relative">
+                        <div class="flex flex-col items-center h-full shrink-0">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-xs shadow-md z-10">4</div>
+                            <div class="w-[1.5px] bg-gradient-to-b from-emerald-500/30 to-slate-200 dark:to-slate-800/40 min-h-[45px] flex-grow"></div>
+                        </div>
+                        <div class="flex-grow p-3 rounded-xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col gap-1 text-[11px]">
+                            <span class="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Cuarto Porqué</span>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">¿Por qué ocurrió el hecho anterior?</div>
+                            <p class="text-xs text-slate-700 dark:text-slate-350 font-semibold italic">"Aún no completado..."</p>
+                        </div>
+                    </div>
+                
+                    <div class="flex items-start gap-4 relative">
+                        <div class="flex flex-col items-center h-full shrink-0">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-xs shadow-md z-10">5</div>
+                            
+                        </div>
+                        <div class="flex-grow p-3 rounded-xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col gap-1 text-[11px]">
+                            <span class="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Quinto Porqué</span>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">¿Por qué ocurrió el hecho anterior?</div>
+                            <p class="text-xs text-slate-700 dark:text-slate-350 font-semibold italic">"Aún no completado..."</p>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                </div>
+
+                <!-- 3.3 Metodología Ishikawa (6M) -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="git-branch" aria-hidden="true" class="lucide lucide-git-branch w-4 h-4"><path d="M15 6a9 9 0 0 0-9 9V3"></path><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle></svg> 3.3 Metodología de Espina de Pescado (Ishikawa 6M)
+                    </h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 grid grid-cols-1 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">FACTOR HUMANO (Conductas, Fatiga, Capacitación)</label>
+                                <textarea id="at-ishikawa-mano-obra" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">EQUIPOS Y HERRAMIENTAS (Maquinaria, Vibración, Ergonomía de Herramientas)</label>
+                                <textarea id="at-ishikawa-maquinaria" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">PROCEDIMIENTOS Y TAREAS (Rotación, Carga Mental, Ritmo de Trabajo)</label>
+                                <textarea id="at-ishikawa-metodo" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">DISEÑO DEL PUESTO (Altura de plano, Movimientos Repetitivos, Mobiliario)</label>
+                                <textarea id="at-ishikawa-materiales" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">ENTORNO DE TRABAJO (Iluminación, Ruido, Temperatura, Riesgo Químico/Físico)</label>
+                                <textarea id="at-ishikawa-medio-ambiente" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MONITOREO Y CONTROL (Vigilancia Epidemiológica, Evaluaciones Médicas)</label>
+                                <textarea id="at-ishikawa-medida" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">EFECTO (CABEZA)</label>
+                                <textarea id="at-ishikawa-efecto" oninput="updateIshikawa()" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs resize-none" rows="3"></textarea>
+                            </div>
+                            <textarea id="at-ishikawa" class="hidden"></textarea>
+                        </div>
+                        <div class="lg:col-span-2 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950/20 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                            <div class="w-full overflow-x-auto">
+                                <div id="ishikawa-visual" class="min-w-[650px] flex items-center justify-center">
+                <svg viewBox="0 0 700 350" class="w-full h-[320px] bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner">
+                    <defs>
+                        <marker id="fish-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"></path>
+                        </marker>
+                    </defs>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase">Fuente</span>
-                                CONTROL EN LA FUENTE / ELIMINACIÓN
-                            </label>
-                            <textarea id="control-fuente" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="5" placeholder="¿Cómo eliminar o sustituir el peligro en su origen? (Ej: Modificar el diseño de la máquina, retirar químicos)..."></textarea>
+                    <!-- Central Spine -->
+                    <line x1="50" y1="175" x2="570" y2="175" stroke="#10b981" stroke-width="4" marker-end="url(#fish-arrow)"></line>
+            </svg></div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase">Medio</span>
-                                CONTROL EN EL MEDIO / INGENIERÍA
-                            </label>
-                            <textarea id="control-medio" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="5" placeholder="¿Cómo aislar el peligro o modificar el medio ambiente? (Ej: Guardas de seguridad, extractores, barreras acústicas, señalización)..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 3.4 Metodología Árbol de Causas -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="git-commit" aria-hidden="true" class="lucide lucide-git-commit w-4 h-4"><circle cx="12" cy="12" r="3"></circle><line x1="3" x2="9" y1="12" y2="12"></line><line x1="15" x2="21" y1="12" y2="12"></line></svg> 3.4 Metodología de Árbol de Causas
+                    </h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 flex flex-col gap-4">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Cree y vincule las causas del evento (los hechos son círculos y las condiciones son rectángulos):</span>
+                            
+                            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 flex flex-col gap-3 shadow-sm">
+                                <div class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Añadir Hecho o Condición</div>
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-400 mb-1">DESCRIPCIÓN</label>
+                                    <input type="text" id="tree-node-text" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Fuga de aceite hidráulico">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 mb-1">TIPO DE NODO</label>
+                                        <select id="tree-node-type" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none">
+                                            <option value="hecho">Hecho (Círculo)</option>
+                                            <option value="estado">Estado (Rectángulo)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 mb-1">CAUSADO POR</label>
+                                        <select id="tree-node-parent" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none"><option value="root">Ninguno (Es el Efecto Final / Lesión)</option></select>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end mt-1">
+                                    <button type="button" onclick="addTreeNode()" class="py-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Añadir al Árbol
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mt-2 mb-1">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Nodos Creados</span>
+                                <button type="button" onclick="clearTreeNodes()" class="text-[9px] text-red-500 hover:text-red-700 font-bold uppercase transition flex items-center gap-1"><i data-lucide="trash" class="w-3 h-3"></i> Limpiar Árbol</button>
+                            </div>
+                            <div id="tree-nodes-list" class="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                            </div>
+                            <textarea id="at-arbol-causas" class="hidden"></textarea>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase">Individuo</span>
-                                CONTROL EN EL INDIVIDUO / EPP
-                            </label>
-                            <textarea id="control-individuo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-xs font-medium resize-none shadow-sm" rows="5" placeholder="¿Qué elementos de protección personal (EPP) proveer o qué capacitaciones y estándares de trabajo seguro dictar?..."></textarea>
+                        
+                        <div class="lg:col-span-2 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950/20 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                            <div class="w-full overflow-x-auto">
+                                <div id="causes-tree-visual" class="min-w-[650px] flex items-center justify-center">
+                <svg viewBox="0 0 700 350" class="w-full h-[320px] bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner">
+                    <defs>
+                        <marker id="tree-arrow" viewBox="0 0 10 10" refX="28" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"></path>
+                        </marker>
+                    </defs>
+                    </svg></div>
+                            </div>
+                            <div class="flex gap-4 mt-2 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500"></span> Hechos (Círculos)</div>
+                                <div class="flex items-center gap-1"><span class="w-4 h-3 rounded bg-blue-500/20 border border-blue-500"></span> Estados / Condiciones (Rectángulos)</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -483,102 +730,85 @@
             <!-- TAB 5: EVIDENCIAS Y FIRMAS -->
             <div id="tab-evidences" class="tab-content flex flex-col gap-5">
                 
-                <!-- RESUMEN DE GESTIÓN DEL CAMBIO Y EVIDENCIAS -->
+                <!-- RESUMEN DE HECHOS Y EVIDENCIAS -->
                 <div class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs flex flex-col gap-4 text-slate-800 dark:text-slate-200">
                     <h4 class="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen de la Gestión del Cambio y Evidencias
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen de Diagnóstico, Exposición y Evidencias para Firmas
                     </h4>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Descripción del Cambio:</span>
-                            <p id="summary-worker-version" class="italic text-slate-650 dark:text-slate-450 font-medium">Ninguna ingresada</p>
-                        </div>
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Justificación del Cambio:</span>
-                            <p id="summary-investigator-desc" class="italic text-slate-650 dark:text-slate-450 font-medium">Ninguna ingresada</p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Clasificación y Duración del Cambio:</span>
-                            <p class="text-slate-650 dark:text-slate-450 font-medium">
-                                <strong>Clasificación:</strong> <span id="summary-cambio-clasificacion">No especificada</span><br>
-                                <strong>Duración:</strong> <span id="summary-cambio-duracion">No especificada</span>
-                            </p>
-                        </div>
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Evaluación de Riesgo (GTC-45):</span>
-                            <p class="text-slate-650 dark:text-slate-450 font-medium">
-                                <strong>¿Genera Nuevos Peligros?:</strong> <span id="summary-cambio-nuevos-peligros">No especificado</span><br>
-                                <strong>Nivel de Riesgo Estimado:</strong> <span id="summary-cambio-nivel-riesgo">No especificado</span>
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nuevos Peligros & Requisitos Legales:</span>
-                            <p class="text-slate-650 dark:text-slate-450 font-medium">
-                                <strong>Peligros:</strong> <span id="summary-cambio-peligros" class="italic">Ninguno identificado</span><br>
-                                <strong>Requisitos Legales:</strong> <span id="summary-cambio-requisitos-legales" class="italic">Ninguno identificado</span>
-                            </p>
-                        </div>
-                        <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Jerarquía de Controles Preventivos:</span>
-                            <div class="text-slate-650 dark:text-slate-450 text-[11px] font-medium leading-relaxed">
-                                <div><strong>1. Fuente/Eliminación:</strong> <span id="summary-control-fuente">Ninguno</span></div>
-                                <div><strong>2. Medio/Ingeniería:</strong> <span id="summary-control-medio">Ninguno</span></div>
-                                <div><strong>3. Individuo/EPP:</strong> <span id="summary-control-individuo">Ninguno</span></div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <!-- 1. Diagnostic Metadata -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 border-b dark:border-slate-800 pb-4 mb-2">
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-0.5 text-[10px]">CÓDIGO CIE-10:</span>
+                            <p id="summary-cie-10" class="font-semibold text-emerald-600 dark:text-emerald-400 text-xs">M75.1</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-0.5 text-[10px]">DIAGNÓSTICO MÉDICO:</span>
+                            <p id="summary-diagnostico" class="font-semibold text-slate-850 dark:text-slate-200 text-xs">Síndrome de Manguito Rotador Bilateral</p>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-0.5 text-[10px]">FECHA Y CALIFICADORA:</span>
+                            <p id="summary-fecha-calificadora" class="font-semibold text-slate-850 dark:text-slate-200 text-xs">2026-05-15 (EPS)</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Historial de Exposición y Síntomas (Trabajador):</span>
+                            <p id="summary-worker-version" class="italic text-slate-650 dark:text-slate-450 font-medium">Estaba sintiendo dolor intenso y hormigueo crónico en ambos hombros al levantar cargas y realizar alcances verticales. Llevo 3 años de evolución y los síntomas se acentúan al final de la jornada laboral en la bodega.</p>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Análisis de Exposición Ocupacional (Investigador):</span>
+                            <p id="summary-investigator-desc" class="italic text-slate-650 dark:text-slate-450 font-medium">Se evidenció exposición biomecánica por movimientos repetitivos de flexoextensión y elevación de brazos por encima del nivel de los hombros de forma continua durante la manipulación y despacho de pedidos. Se ratifica origen laboral calificado.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Cargos Ocupados Registrados:</span>
+                            <div id="summary-witnesses" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguno registrado</div>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Evaluaciones Higiénicas y Ergonómicas:</span>
+                            <div id="summary-averias" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguna registrada</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t dark:border-slate-800 pt-4 mt-2">
                         <div>
                             <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Fotos de Evidencia:</span>
-                            <div id="summary-photos" class="flex flex-wrap gap-2 italic text-slate-650 dark:text-slate-450 font-medium font-medium">Ninguna cargada</div>
+                            <div id="summary-photos" class="flex flex-wrap gap-2 italic text-slate-650 dark:text-slate-450">Ninguna cargada</div>
                         </div>
                         <div>
                             <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Audio y Video de Evidencia:</span>
-                            <div id="summary-audio-video" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450 font-medium font-medium font-medium">Ninguno registrado</div>
+                            <div id="summary-audio-video" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguno registrado</div>
                         </div>
                     </div>
-                    
-                    <!-- Hidden elements for backward compatibility -->
-                    <div id="summary-witnesses" class="hidden"></div>
-                    <div id="summary-averias" class="hidden"></div>
                 </div>
 
-                <!-- Digital Signatures Canvas (Gestión del Cambio Autorizada) -->
-                
+                <!-- Digital Signatures Canvas (Trabajador y SG-SST Investigador) -->
                 <div class="flex flex-col gap-6 border-t dark:border-slate-800 light:border-slate-200 pt-6">
                     <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
                         <h3 class="text-sm font-black text-blue-600 dark:text-blue-455 uppercase tracking-widest flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Firmas Autorizadas de la Gestión del Cambio
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Firmas de la Investigación de Enfermedad Laboral
                         </h3>
-                        <button type="button" onclick="addAdditionalSignatureCard()" class="py-1 px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-455 border border-blue-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer no-print">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3 h-3"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Firma Adicional
-                        </button>
                     </div>
-                    <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                    <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
-                        <!-- 1. Solicitante / Líder del Cambio (trabajador) -->
+                        <!-- 1. Trabajador Diagnosticado -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="m16 11 2 2 4-4"></path><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> Solicitante / Líder del Cambio
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4 text-emerald-500"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Trabajador Diagnosticado
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
                                 <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
-                                <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
-                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                                <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
                             </div>
                             <div class="flex flex-col gap-2">
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del líder del cambio">
+                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del trabajador">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA DE CIUDADANÍA</label>
@@ -587,16 +817,16 @@
                             </div>
                         </div>
 
-                        <!-- 2. Responsable del SG-SST (sgsst) -->
+                        <!-- 2. Responsable del SG-SST / Investigador -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Responsable SG-SST / Aprobador
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Responsable SG-SST / Investigador
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
                                 <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-sgsst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-sgsst')">
-                                <button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
-                                <button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                                <button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
                             </div>
                             <div class="flex flex-col gap-2">
                                 <div>
@@ -627,11 +857,10 @@
                     <!-- Botón de Exportar (Centrado en la parte inferior de firmas) -->
                     <div class="mt-4 flex justify-center">
                         <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-3 px-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full md:w-auto cursor-pointer no-print">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg> Exportar Gestión del Cambio Firmado
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg> Exportar Investigación de Enfermedad Laboral Firmada
                         </button>
                     </div>
                 </div>
-
 
                 <!-- Navigation buttons -->
                 <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
@@ -654,7 +883,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="info" aria-hidden="true" class="lucide lucide-info w-5 h-5"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> CUMPLIMIENTO LEGAL COLOMBIANO
             </h3>
             <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-300 font-medium">
-                Debe cumplir con la ISO 45001:2018 y Decreto 1072 de 2015 de Colombia. Exige a todo empleador evaluar y controlar los riesgos asociados a cambios en procesos, equipos, materiales, infraestructura o estructura organizacional antes de su implementación.
+                Debe cumplir con la Resolución 1401 de 2007 de Colombia. Exige a todo empleador investigar todos los incidentes y accidentes de trabajo dentro de los quince (15) días calendario siguientes a su ocurrencia, conformando un equipo investigador que determine las causas básicas e inmediatas empleando metodologías reconocidas (ej. 5 Porqués).
             </p>
             <div class="mt-6 flex justify-end">
                 <button onclick="closeLegalModal()" class="py-2 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition">Cerrar</button>
@@ -690,52 +919,36 @@
             <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] leading-relaxed text-slate-650 dark:text-slate-300">
                 ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para este formato. ¡Podrás aplicarlas con un solo clic!
             </div>
-        <div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20"><div>Hola sabes que sucedio en el accidente?</div></div><div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300"><div>¡Absolutamente! Con gusto le brindaré un detalle exhaustivo sobre lo ocurrido en el accidente de trabajo que ha sido objeto de investigación en WAPPY SA, bajo los lineamientos de la ISO 45001:2018 y Decreto 1072 de 2015 y demás normativa aplicable en Colombia.
+        <div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20"><div>Hola, ¿sabes qué sucedió en la investigación de esta enfermedad laboral?</div></div><div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300"><div>¡Absolutamente! Con gusto le brindaré un detalle exhaustivo sobre lo ocurrido en la investigación de la enfermedad laboral (EL) que ha sido calificada en WAPPY SA, bajo los lineamientos del Decreto 1072 de 2015 y la Resolución 0312 de 2019 en Colombia.
 
-El evento se registró el día **29 de mayo de 2026, a las 09:30 horas**, en la **Bodega Central, específicamente en el Pasillo 2 de Distribución**, dentro de las instalaciones de WAPPY SA, una empresa clasificada con riesgo III ante su ARL Colmena Seguros.
+La trabajadora afectada, **María Camila Restrepo Palacio**, con número de cédula **1.034.567.890**, quien se desempeña como **Operadora de Ensamble y Digitación** en el área de Producción y Operaciones, recibió el dictamen oficial de origen **Laboral** calificado por su **EPS** el día **15 de mayo de 2026** para el diagnóstico principal: **Síndrome del Túnel Carpiano Bilateral (Código CIE-10: G56.0)**.
 
-El trabajador implicado, con número de cédula 1.018.452.963, quien se desempeña como **Auxiliar de Almacenamiento y Despacho** en el área de Logística y Distribución, sufrió un accidente de trabajo de tipo **caída a nivel por resbalón**.
+De acuerdo con el historial de exposición recolectado, la trabajadora realiza tareas continuas de ensamble micromecánico y digitación de reportes de producción con una jornada de 8 horas, de las cuales aproximadamente 6 horas implican movimientos altamente repetitivos de flexoextensión de ambas muñecas y desviación cubital-radial. La trabajadora refiere que los síntomas de dolor, adormecimiento nocturno, parestesias crónicas y pérdida progresiva de fuerza de agarre se iniciaron hace aproximadamente 2 años, habiéndose intensificado severamente en los últimos 6 meses.
 
-Según la versión de los hechos proporcionada por el trabajador, en el momento del incidente, él se encontraba transitando por el pasillo llevando una caja que limitaba parcialmente su campo visual hacia el suelo. Fue en ese instante cuando pisó una sustancia muy resbalosa, lo que le hizo perder el equilibrio. Al caer de lado y en un intento por amortiguar el golpe, apoyó su mano izquierda contra el concreto, sintiendo un fuerte tirón y dolor en la muñeca.
+El análisis técnico del puesto de trabajo ratificó una alta repetibilidad biomecánica de movimientos finos y la adopción de posturas forzadas de flexión extrema.
 
-La investigación del equipo de SST de WAPPY SA, con base en la descripción del accidente y la recolección de evidencia (incluyendo el testimonio del operario Carlos Ortiz, quien presenció el hecho), corroboró que el operario efectivamente transitaba transportando una caja de pedidos cuando **resbaló de manera imprevista**. La causa directa del resbalón fue la presencia de **una fuga de aceite hidráulico acumulada en el suelo, proveniente del montacargas #03**. Es crucial destacar que esta condición peligrosa no había sido reportada ni señalizada de manera preventiva al momento del accidente. Como consecuencia de la caída, el operario sufrió un **trauma menor en el miembro superior izquierdo (muñeca)**. La criticidad del evento fue clasificada como **Baja**.
+Profundizando en las causas técnicas y organizacionales mediante la metodología Ishikawa y los 5 Porqués, se identificaron:
 
-Profundizando en las causas, y utilizando metodologías reconocidas para determinar las raíces del evento, se identificaron:
+**Causas Inmediatas (Factores de Exposición Directa):**
+1. **Actos Subestándar / Comportamientos desfavorables:** Adopción de posturas extremas de flexión voluntaria por falta de ajuste del puesto y omisión de pausas activas programadas.
+2. **Condiciones Subestándar / Físicas:** Estación de ensamble no ergonómica, teclado y ratón sin soporte de apoyo de antebrazo, silla con apoyabrazos rotos o no ajustables que impiden mantener un ángulo de 90° en codos.
 
-**Causas Inmediatas:**
+**Causas Básicas (Fallas en Gestión y Factores Personales):**
+1. **Factores Personales:** Falta de capacitación en autocuidado ergonómico, higiene postural y concientización sobre el reporte temprano de síntomas osteomusculares.
+2. **Factores del Trabajo:** Ausencia de un Programa de Vigilancia Epidemiológica (PVE) osteomuscular eficaz, nula rotación de puestos entre las líneas de ensamble para variar los grupos musculares expuestos, y falta de evaluaciones de puestos de trabajo periódicas.
 
-1.  **Actos Subestándar:**
-    *   Transitar por áreas con fluidos derramados sin el calzado con suela antideslizante adecuado.
-    *   No reportar ni señalizar de manera inmediata la presencia de un derrame de aceite en una zona peatonal al momento de su detección.
-2.  **Condiciones Subestándar:**
-    *   Presencia de aceite hidráulico derramado sobre un pasillo de tránsito peatonal continuo en la bodega.
-    *   Ausencia de cintas de delimitación o avisos de advertencia en el área con riesgo de resbalón.
+**Secuencia Causal (5 Porqués):**
+* **Primer Porqué:** *¿Por qué se desarrolló el Síndrome del Túnel Carpiano Bilateral?* Por compresión mecánica prolongada del nervio mediano a nivel del canal carpiano.
+* **Segundo Porqué:** *¿Por qué ocurrió la compresión?* Debido a movimientos continuos de flexoextensión y presión estática de muñecas por más de 6 horas diarias.
+* **Tercer Porqué:** *¿Por qué el esfuerzo continuó sin mitigación?* Por falta de un programa de pausas activas de estiramiento programado y nula rotación de tareas.
+* **Cuarto Porqué:** *¿Por qué no se implementó la rotación ni se ajustó el puesto de ensamble?* Por la ausencia de evaluaciones ergonómicas de puestos y de inspecciones higiénicas de diseño físico.
+* **Quinto Porqué (Causa Raíz):** *¿Por qué no se realizaron evaluaciones ni se ajustó el puesto?* Por falla en el sistema de gestión; el Programa de Vigilancia Epidemiológica de Riesgo Biomecánico no contaba con asignación de presupuesto ni con ejecución de actividades de control de ingeniería ergonómica.
 
-**Causas Básicas:**
+En resumen, la enfermedad laboral fue consecuencia de una exposición continuada a factores de riesgo biomecánico sin los debidos controles ergonómicos de ingeniería en el puesto de trabajo y una falla en el seguimiento médico preventivo por parte del SG-SST.
 
-1.  **Factores Personales:**
-    *   Baja concientización y falta de capacitación práctica efectiva en el autocuidado y la obligatoriedad del reporte temprano de condiciones peligrosas.
-    *   Un posible hábito arraigado de ignorar riesgos menores al considerar que no causarán accidentes severos.
-2.  **Factores del Trabajo:**
-    *   Ausencia o deficiencia de un plan de mantenimiento preventivo y de inspecciones periódicas exhaustivas sobre los sellos hidráulicos del montacargas #03.
-    *   Inexistencia de un kit de derrames visible y accesible en las bodegas del almacén central para una respuesta inmediata.
+Como parte de la investigación, el equipo formuló acciones correctivas y de mejora orientadas al rediseño ergonómico de la estación de ensamble, la capacitación en pausas activas específicas y el inicio del Programa de Vigilancia Epidemiológica osteomuscular.
 
-Para entender la secuencia de los hechos hasta las causas raíz, se empleó la metodología del "Árbol de Causas" y los "5 Porqués", que nos permitieron establecer la siguiente cadena causal:
-
-*   El **Trauma en la muñeca y miembro superior izquierdo** fue el resultado directo de una **Caída a nivel por pérdida de sustentación (resbalón)**.
-*   El resbalón se produjo debido a la **Contaminación del pasillo peatonal con derrame de aceite** y el **Calzado del trabajador con suela inadecuada (lisa)**, sumado al **Transporte de carga que obstruía la visual del suelo**.
-*   La contaminación del pasillo se debió a la **Pérdida de estanqueidad y goteo del montacargas #03**, y la **Falta de delimitación y aviso de advertencia del derrame**, así como la **Omisión del reporte inmediato del derrame por el personal**.
-*   El goteo del montacargas fue consecuencia del **Desgaste y rotura de sellos hidráulicos por fin de ciclo de vida**, exacerbado por un **Plan de mantenimiento preventivo extemporáneo o inexistente** y la **Inexistencia de repuestos específicos para sellos en inventario**. Además, se identificó la **no aplicación del preoperacional diario de la maquinaria**.
-*   La falta de delimitación se relacionó con la **Ausencia de protocolo de señalización y bloqueo de derrames**.
-*   La omisión del reporte se asoció a una **Baja concientización y falta de capacitación en reporte de riesgos**.
-*   El calzado inadecuado responde a una **Especificación inadecuada de EPP (calzado)**.
-*   La obstrucción visual sugiere un **Procedimiento de manejo de cargas deficiente o no aplicado**.
-
-En resumen, el accidente fue una concatenación de fallas en el mantenimiento preventivo del equipo (montacargas), deficiencias en los procedimientos de reporte y señalización de condiciones peligrosas, falta de capacitación y concientización del personal, y especificaciones inadecuadas de EPP, que culminaron en un resbalón y caída con lesión para el trabajador.
-
-Como parte del proceso de investigación, se han formulado acciones de mejora, las cuales ya están plasmadas en un plan de acción para prevenir la recurrencia de este tipo de eventos.
-
-¿Hay algún aspecto adicional sobre este accidente que le gustaría que profundicemos o alguna pregunta específica sobre la metodología utilizada? Estoy aquí para orientarle.</div></div></div>
+¿Desea que analicemos algún aspecto en particular de esta cadena causal o que propongamos tareas adicionales para el plan de acción (Kanban)? Estoy a su entera disposición.</div></div></div>
 
         <div class="flex flex-col gap-2">
             <textarea id="ai-chat-input" class="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-900 dark:text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
@@ -767,8 +980,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                         ¿Cómo usar esta herramienta?
                     </h4>
                     <p>
-                        Este formato premium de <strong>Gestión del Cambio</strong> te permite registrar y gestionar los cambios internos o externos que pueden impactar la seguridad y salud en el trabajo. Utiliza las pestañas superiores para navegar entre los módulos: 
-                        1. Identificación del Cambio, 2. Evaluación de Impacto en SST, 3. Plan de Implementación, 4. Plan de Acción (Tablero Kanban) y 5. Evidencias y Firmas.
+                        Este formato premium de <strong>Investigación de Accidentes</strong> te permite registrar toda la información legal e investigativa de un evento de SST. Utiliza las pestañas superiores para navegar entre los módulos: 
+                        1. Identificación y Formulario, 2. Descripción y Testigos, 3. Análisis de Causa Raíz (Árbol de causas e Ishikawa) y 4. Plan de Acción (Tablero Kanban).
                     </p>
                 </div>
 
@@ -872,27 +1085,28 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
     "companyArl": "Colmena",
     "companyWorkers": "30",
     "companyRisk": "Clase III",
-    "changeCode": "GC-SST-AT-GC-01",
+    "changeCode": "GC-SST-AT-IEL-01",
     "lastUpdated": "2026-05-29",
-    "appTitle": "Gestión del Cambio",
+    "appTitle": "Investigación de Enfermedades Laborales",
     "appSubtitle": "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
-    "appDesc": "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
+    "appDesc": "Investigación Técnica de Patologías de Origen Laboral",
     "appBadge": "PROCESO: SG-SST | V.02",
     "customFields": {
         "aportante-razon": "WAPPY SA",
         "aportante-nit": "901437310-8",
         "aportante-arl": "Colmena Seguros",
-        "trabajador-nombre": "Juan Carlos Gómez Bedoya",
-        "trabajador-cedula": "1.018.452.963",
+        "trabajador-nombre": "María Camila Restrepo Palacio",
+        "trabajador-cedula": "1.034.567.890",
         "trabajador-vinculacion": "Planta",
-        "trabajador-cargo": "Auxiliar de Almacenamiento y Despacho",
-        "trabajador-area": "Logística y Distribución",
-        "evento-fecha": "2026-05-29",
-        "evento-hora": "09:30",
-        "evento-lugar": "Bodega Central - Pasillo 2 de Distribución",
-        "evento-zona": "Urbana",
-        "at-version-trabajador": "Estaba caminando por el pasillo llevando una caja pesada que me tapaba un poco la visual hacia abajo, cuando de repente pisé algo muy resbaloso y perdí el equilibrio. Sentí que me resbalé y caí de lado. Al intentar amortiguar el golpe apoyé la mano izquierda contra el concreto y sentí un fuerte tirón y dolor en la muñeca.",
-        "at-evento-desc": "El operario transitaba a las 09:30 AM por el pasillo 2 de la Bodega Central transportando una caja de pedidos, cuando resbaló de manera imprevista debido a una fuga de aceite hidráulico acumulada en el suelo proveniente del montacargas #03, la cual no había sido reportada ni señalizada preventivamente. Al caer al suelo, el operario apoyó fuertemente su mano izquierda, sufriendo un trauma menor en miembro superior izquierdo. Presenciado por el operario Carlos Ortiz.",
+        "trabajador-cargo": "Operadora de Ensamble y Digitación",
+        "trabajador-area": "Producción y Operaciones",
+        "enfermedad-diagnostico-cie10": "G56.0",
+        "enfermedad-diagnostico-desc": "Síndrome del Túnel Carpiano Bilateral",
+        "enfermedad-fecha-diagnostico": "2026-05-15",
+        "enfermedad-calificadora": "EPS",
+        "enfermedad-origen": "Laboral",
+        "at-version-trabajador": "Siento dolor continuo, hormigueo y pérdida de fuerza en ambas manos, especialmente en la mano derecha, desde hace más de 2 años. El dolor se intensifica durante la noche y al realizar tareas repetitivas de digitación y ensamble de componentes en mi puesto de trabajo.",
+        "at-evento-desc": "Trabajador expuesto a factores de riesgo biomecánico debido a movimientos repetitivos de flexo-extensión de muñeca, posturas forzadas y digitación continua durante más de 6 horas diarias. El estudio de puesto de trabajo confirma alta repetitividad sin pausas de descanso programadas, lo que desencadenó la patología osteomuscular calificada de origen laboral.",
         "witness-name-input": "",
         "witness-doc-input": "",
         "witness-testimony-input": "",
@@ -919,7 +1133,7 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
         "at-ishikawa-materiales": "",
         "at-ishikawa-medio-ambiente": "",
         "at-ishikawa-medida": "",
-        "at-ishikawa": "- MANO DE OBRA: \n- MAQUINARIA: \n- MÉTODO: \n- MATERIALES: \n- MEDIO AMBIENTE: \n- MEDIDA: ",
+        "at-ishikawa": "- HÁBITOS/PAUSAS/AUTOCUIDADO: \n- DISEÑO DE PUESTOS/SILLAS/HERRAMIENTAS: \n- RITMO/ROTACIÓN/PROCEDIMIENTOS: \n- EPP/AYUDAS MECÁNICAS: \n- RUIDO/ILUMINACIÓN/ENTORNO FÍSICO: \n- EXÁMENES PERIÓDICOS/VIGILANCIA MÉDICA: ",
         "tree-node-text": "",
         "tree-node-type": "hecho",
         "tree-node-parent": "root",
@@ -949,17 +1163,17 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
     "witnesses": [
         {
             "id": 1,
-            "name": "Carlos Ortiz",
-            "doc": "71.345.678",
-            "testimony": "Observé cuando Juan Gómez iba caminando por el pasillo central llevando la caja de repuestos. De repente pisó un charco de aceite que provenía del montacargas #03, el cual estaba perdiendo líquido sin que nos diéramos cuenta. Juan resbaló y cayó de medio lado, apoyando todo el peso en su mano izquierda. De inmediato fuimos a socorrerlo porque se quejaba de un dolor agudo en la muñeca."
+            "name": "WAPPY SA",
+            "doc": "Auxiliar de Logística y Almacenamiento",
+            "testimony": "Movimientos repetitivos de extremidad superior, posturas forzadas y flexoextensión continuada de muñecas. Exposición de 3 años."
         }
     ],
     "averias": [
         {
             "id": 1,
-            "equipment": "Montacargas #03",
-            "desc": "Válvula rota con fuga activa",
-            "criticality": "Baja - Operación normal"
+            "equipment": "Evaluación Ergonómica de Puesto (Método RULA)",
+            "desc": "Puntuación final RULA de 7 (Riesgo Alto), requiere cambios ergonómicos y ajustes mecánicos inmediatos.",
+            "criticality": "Alta"
         }
     ],
     "photos": [],
@@ -1114,7 +1328,7 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
         }
 
         function bindDocHeaderToUI() {
-            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Gestión del Cambio";
+            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Investigación de Incidentes y Accidentes de Trabajo";
             document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO";
             document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || "Documento Corporativo Oficial - Conforme a la Normatividad Vigente";
             document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || "PROCESO: SG-SST | V.02";
@@ -1124,7 +1338,7 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             document.getElementById('company-arl').innerText = appDocHeader.companyArl || "Colmena";
             document.getElementById('company-workers').innerText = appDocHeader.companyWorkers || "30";
             document.getElementById('company-risk').innerText = appDocHeader.companyRisk || "Clase III";
-            document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-AT-GC-01";
+            document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-AT-INV-01";
             document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated || "2026-05-29";
 
             if (appDocHeader.logoBase64) {
@@ -1437,53 +1651,6 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                 const investigatorVal = getEl('at-evento-desc') ? getEl('at-evento-desc').value.trim() : '';
                 getEl('summary-worker-version').innerText = workerVal || 'Ninguna ingresada';
                 getEl('summary-investigator-desc').innerText = investigatorVal || 'Ninguna ingresada';
-
-                // MOC extra summaries sync
-                if (getEl('summary-cambio-clasificacion')) {
-                    const classMap = {
-                        'Fisico_Tecnico': 'Físico / Infraestructura',
-                        'Tecnologico': 'Tecnológico / Técnico',
-                        'Organizacional': 'Organizacional / Personal',
-                        'Procesos': 'Procedimientos / Procesos',
-                        'Normativo': 'Normativo / Legal'
-                    };
-                    const rawClass = getEl('cambio-clasificacion') ? getEl('cambio-clasificacion').value : '';
-                    getEl('summary-cambio-clasificacion').innerText = classMap[rawClass] || rawClass || 'No especificada';
-                }
-                if (getEl('summary-cambio-duracion')) {
-                    const durMap = {
-                        'Permanente': 'Permanente',
-                        'Temporal': 'Temporal / Provisional'
-                    };
-                    const rawDur = getEl('cambio-duracion') ? getEl('cambio-duracion').value : '';
-                    getEl('summary-cambio-duracion').innerText = durMap[rawDur] || rawDur || 'No especificada';
-                }
-                if (getEl('summary-cambio-nuevos-peligros')) {
-                    const ynMap = {
-                        'Si': 'SÍ',
-                        'No': 'NO'
-                    };
-                    const rawYN = getEl('cambio-nuevos-peligros-sn') ? getEl('cambio-nuevos-peligros-sn').value : '';
-                    getEl('summary-cambio-nuevos-peligros').innerText = ynMap[rawYN] || rawYN || 'No especificado';
-                }
-                if (getEl('summary-cambio-nivel-riesgo')) {
-                    getEl('summary-cambio-nivel-riesgo').innerText = getEl('cambio-nivel-riesgo') ? getEl('cambio-nivel-riesgo').value : 'No especificado';
-                }
-                if (getEl('summary-cambio-peligros')) {
-                    getEl('summary-cambio-peligros').innerText = getEl('cambio-peligros') ? getEl('cambio-peligros').value.trim() : 'Ninguno identificado';
-                }
-                if (getEl('summary-cambio-requisitos-legales')) {
-                    getEl('summary-cambio-requisitos-legales').innerText = getEl('cambio-requisitos-legales') ? getEl('cambio-requisitos-legales').value.trim() : 'Ninguno identificado';
-                }
-                if (getEl('summary-control-fuente')) {
-                    getEl('summary-control-fuente').innerText = getEl('control-fuente') ? getEl('control-fuente').value.trim() : 'Ninguno';
-                }
-                if (getEl('summary-control-medio')) {
-                    getEl('summary-control-medio').innerText = getEl('control-medio') ? getEl('control-medio').value.trim() : 'Ninguno';
-                }
-                if (getEl('summary-control-individuo')) {
-                    getEl('summary-control-individuo').innerText = getEl('control-individuo') ? getEl('control-individuo').value.trim() : 'Ninguno';
-                }
             }
         }
 
@@ -1588,8 +1755,8 @@ Plan de Acción (Tareas Kanban):
             }
 
             const systemContext = `Actúas como un experto consultor de Seguridad y Salud en el Trabajo (SST) de Colombia.
-Tu especialidad específica para esta sesión es el formato: Gestión del Cambio.
-Normatividad aplicable: Debe cumplir con la ISO 45001:2018 y Decreto 1072 de 2015 de Colombia. Exige a todo empleador evaluar y controlar los riesgos asociados a cambios en procesos, equipos, materiales, infraestructura o estructura organizacional antes de su implementación..
+Tu especialidad específica para esta sesión es el formato: Investigación de Incidentes y Accidentes de Trabajo.
+Normatividad aplicable: Debe cumplir con la Resolución 1401 de 2007 de Colombia. Exige a todo empleador investigar todos los incidentes y accidentes de trabajo dentro de los quince (15) días calendario siguientes a su ocurrencia, conformando un equipo investigador que determine las causas básicas e inmediatas empleando metodologías reconocidas (ej. 5 Porqués)..
 Responde siempre de forma extremadamente profesional, técnica y detallada con terminología de SST colombiana (Resolución 0312, Decreto 1072, etc.).
 Tu rol es puramente conversacional y de asesoría: responde dudas, explica metodologías (como árbol de causas, espina de pescado/Ishikawa, jerarquía de controles, GTC-45 según corresponda al formato), brinda recomendaciones de prevención y responde preguntas del usuario.
 No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, claro y constructivo.
@@ -1708,7 +1875,7 @@ Mensaje del usuario: ${messageText}` }] }
             const loader = document.getElementById('ai-status-loader');
             loader.classList.remove('hidden');
 
-            const id = "gestion_cambio";
+            const id = "investigacion_enfermedades";
             let jsonSchema = {};
             let sstInstructions = "";
 
@@ -1774,29 +1941,17 @@ Mensaje del usuario: ${messageText}` }] }
                 sstInstructions = "Actúas como un inspector de SST experto en reportes de actos y condiciones inseguras.";
             } else if (id === "gestion_cambio") {
                 jsonSchema = {
-                    "cambio-clasificacion": "Uno de los siguientes valores exactos: Fisico_Tecnico, Tecnologico, Organizacional, Procesos, Normativo",
-                    "cambio-duracion": "Uno de los siguientes valores exactos: Permanente, Temporal",
-                    "cambio-nuevos-peligros-sn": "Uno de los siguientes valores exactos: Si, No",
-                    "cambio-nivel-riesgo": "Uno de los siguientes valores exactos: Bajo, Medio, Alto",
-                    "cambio-peligros": "Descripción técnica detallada de nuevos peligros identificados conforme a la guía GTC-45",
-                    "cambio-requisitos-legales": "Leyes, estándares mínimos y resoluciones colombianas de SST afectadas por esta modificación",
-                    "control-fuente": "Medidas preventivas concretas propuestas a nivel de Fuente o Eliminación",
-                    "control-medio": "Medidas preventivas concretas propuestas a nivel de Medio o Ingeniería",
-                    "control-individuo": "Medidas preventivas concretas a nivel de Individuo, tales como capacitación, procedimientos y EPP",
+                    "cambio-tipo": "Uno de los siguientes valores exactos: Fisico_Tecnico, Organizacional, Normativo, Tecnologico",
+                    "cambio-desc-resumen": "Resumen conciso y claro del cambio planteado",
+                    "cambio-desc": "Descripción física, técnica y de procesos exhaustiva del cambio organizacional propuesto",
+                    "cambio-peligros": "Identificación de nuevos peligros",
+                    "cambio-controles": "Medidas de control y prevención del cambio",
                     "newTasks": [
-                        { "title": "Socializar nuevo procedimiento operativo estándar" },
-                        { "title": "Actualizar la Matriz de Identificación de Peligros (GTC-45)" },
-                        { "title": "Realizar inspección pre-operativa de los nuevos elementos" }
+                        { "title": "Actualizar matriz GTC-45 con peligros del nuevo cambio" },
+                        { "title": "Capacitar a operadores en nueva maquinaria instalada" }
                     ]
                 };
-                sstInstructions = `Actúas como un experto consultor de SG-SST en Colombia, especialista en Gestión del Cambio (MOC) bajo el artículo 2.2.4.6.26 del Decreto 1072 de 2015 e ISO 45001:2018.
-                Tu tarea es realizar una evaluación de impacto preventivo del cambio propuesto.
-                Es OBLIGATORIO y CRÍTICO que utilices exactamente las siguientes cadenas de texto para los campos de selección select:
-                - "cambio-clasificacion": Fisico_Tecnico, Tecnologico, Organizacional, Procesos, o Normativo
-                - "cambio-duracion": Permanente, o Temporal
-                - "cambio-nuevos-peligros-sn": Si, o No
-                - "cambio-nivel-riesgo": Bajo, Medio, o Alto
-                Propondrás una jerarquía de controles detallada (fuente, medio, individuo) y al menos 3 a 4 tareas críticas de implementación para el plan de acción (Kanban).`;
+                sstInstructions = "Actúas como un experto consultor de SST en gestión del cambio bajo Decreto 1072.";
             } else if (id === "reglamento_interno_trabajo") {
                 jsonSchema = {
                     "rit-comite": "Políticas del Comité de Convivencia y prevención de acoso",
@@ -1846,41 +2001,45 @@ Mensaje del usuario: ${messageText}` }] }
                     ]
                 };
                 sstInstructions = "Actúas como un coordinador e instructor experto en trabajo en alturas bajo Resolución 4272.";
-            } else if (id === "investigacion_accidentes") {
+            } else if (id === "investigacion_enfermedades") {
                 jsonSchema = {
-                    "causas-inmediatas-actos": "Acciones y comportamientos inseguros (Actos Subestándar) que provocaron el accidente",
-                    "causas-inmediatas-condiciones": "Defectos en herramientas, equipos o instalaciones (Condiciones Subestándar) que provocaron el accidente",
-                    "causas-basicas-personales": "Limitaciones de capacidad, entrenamiento o fatiga del trabajador (Factores Personales)",
-                    "causas-basicas-trabajo": "Fallas en supervisión, mantenimiento preventivo o diseño (Factores del Trabajo)",
-                    "at-why-1": "Primer porqué: ¿Por qué se lesionó el trabajador?",
-                    "at-why-2": "Segundo porqué: Causa directa de la lesión",
-                    "at-why-3": "Tercer porqué: Causa inmediata indirecta",
-                    "at-why-4": "Cuarto porqué: Causa básica de la falla",
-                    "at-why-5": "Quinto porqué: Causa básica organizacional raíz",
-                    "at-ishikawa-mano-obra": "Causa en Mano de Obra",
-                    "at-ishikawa-maquinaria": "Causa en Maquinaria/Equipos",
-                    "at-ishikawa-metodo": "Causa en Método/Procedimiento",
-                    "at-ishikawa-materiales": "Causa en Materiales/Repuestos",
-                    "at-ishikawa-medio-ambiente": "Causa en Medio Ambiente/Área",
-                    "at-ishikawa-medida": "Causa en Medición/Inspección",
+                    "enfermedad-diagnostico-cie10": "Código CIE-10 del diagnóstico principal (Ej: M75.1, G56.0)",
+                    "enfermedad-diagnostico-desc": "Descripción técnica clara del diagnóstico médico (Ej: Síndrome del túnel carpiano bilateral)",
+                    "enfermedad-fecha-diagnostico": "Fecha del diagnóstico calificado en formato AAAA-MM-DD",
+                    "enfermedad-calificadora": "Uno de los siguientes valores exactos: EPS, ARL, Junta_Regional, Junta_Nacional",
+                    "enfermedad-origen": "Uno de los siguientes valores exactos: Laboral, Comun",
+                    "causas-inmediatas-actos": "Condiciones y hábitos desfavorables en la ejecución del trabajo, posturas forzadas voluntarias u omisión de descansos",
+                    "causas-inmediatas-condiciones": "Falta de diseño ergonómico en herramientas, sillas desajustadas o condiciones higiénicas desfavorables",
+                    "causas-basicas-personales": "Falta de capacitación en autocuidado ergonómico, predisposición física no detectada o hábitos de salud",
+                    "causas-basicas-trabajo": "Falta de programas de vigilancia epidemiológica eficaces, nula rotación de puestos o carencia de mediciones higiénicas",
+                    "at-why-1": "Primer porqué: ¿Por qué se desarrolló la enfermedad o diagnóstico laboral principal?",
+                    "at-why-2": "Segundo porqué: Causa directa de la exposición continuada",
+                    "at-why-3": "Tercer porqué: Falla o ausencia en el control preventivo en la tarea",
+                    "at-why-4": "Cuarto porqué: Falla técnica en los programas de vigilancia de la salud",
+                    "at-why-5": "Quinto porqué: Causa organizacional raíz (ej: falta de presupuesto para ingeniería ergonómica)",
+                    "at-ishikawa-mano-obra": "Causa en Hábitos/Pausas/Autocuidado",
+                    "at-ishikawa-maquinaria": "Causa en Diseño de Puestos/Sillas/Herramientas",
+                    "at-ishikawa-metodo": "Causa en Ritmo/Rotación/Procedimientos",
+                    "at-ishikawa-materiales": "Causa en EPP/Ayudas Mecánicas",
+                    "at-ishikawa-medio-ambiente": "Causa en Ruido/Iluminación/Entorno Físico",
+                    "at-ishikawa-medida": "Causa en Exámenes Periódicos/Vigilancia Médica",
                     "arbolCausasNodes": [
-                        { "id": 1, "text": "Trauma en muñeca y miembro superior izquierdo", "type": "hecho", "parentId": null },
-                        { "id": 2, "text": "Caída a nivel por pérdida de sustentación (resbalón)", "type": "hecho", "parentId": 1 },
-                        { "id": 3, "text": "Contaminación del pasillo peatonal con derrame de aceite", "type": "estado", "parentId": 2 },
-                        { "id": 4, "text": "Calzado del trabajador con suela lisa y sin adherencia", "type": "estado", "parentId": 2 },
-                        { "id": 5, "text": "Pérdida de estanqueidad y goteo constante de fluido en montacargas", "type": "hecho", "parentId": 3 },
-                        { "id": 6, "text": "Falta de delimitación y aviso de advertencia del riesgo", "type": "estado", "parentId": 3 },
-                        { "id": 7, "text": "Desgaste y rotura de sellos por superación de ciclo de vida", "type": "hecho", "parentId": 5 }
+                        { "id": 1, "text": "Síndrome de Túnel Carpiano Calificado como Laboral", "type": "hecho", "parentId": null },
+                        { "id": 2, "text": "Exposición prolongada a movimientos repetitivos de flexión de muñeca", "type": "hecho", "parentId": 1 },
+                        { "id": 3, "text": "Estación de trabajo sin soporte de antebrazo y teclado rígido", "type": "estado", "parentId": 2 },
+                        { "id": 4, "text": "Ritmo de digitación continuo sin pausas organizadas ni rotación", "type": "hecho", "parentId": 2 },
+                        { "id": 5, "text": "Ausencia de mediciones ergonómicas o evaluaciones de puesto de trabajo", "type": "estado", "parentId": 3 },
+                        { "id": 6, "text": "Falla del programa de vigilancia epidemiológica osteomuscular", "type": "estado", "parentId": 4 }
                     ],
                     "newTasks": [
-                        { "title": "Implementar guarda física de seguridad en máquina troqueladora" },
-                        { "title": "Rediseñar procedimiento de mantenimiento preventivo crítico" },
-                        { "title": "Socializar la lección aprendida del accidente con todo el personal" }
+                        { "title": "Implementar un Programa de Vigilancia Epidemiológica de Riesgo Biomecánico" },
+                        { "title": "Adquirir teclados y ratones ergonómicos con soporte para muñecas" },
+                        { "title": "Programar evaluaciones de puestos de trabajo por fisioterapeuta especialista" }
                     ]
                 };
-                sstInstructions = `Actúas como un experto en investigación de accidentes laborales y ISO 45001:2018 y Decreto 1072 de 2015.
-Para el árbol de causas (arbolCausasNodes), es absolutamente CRÍTICO que generes una estructura ramificada y no lineal. Esto significa que un nodo padre puede tener dos o más nodos hijos concurrentes (por ejemplo, que el resbalón sea causado concurrentemente por el charco de aceite y por el calzado inapropiado del trabajador, teniendo ambos el mismo parentId).
-Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Mano de Obra, Maquinaria, Método, Materiales, Medio Ambiente, Medida) debe contener obligatoriamente de 2 a 3 causas independientes cortas separadas por un carácter de salto de línea (\n). No uses párrafos corridos.`;
+                sstInstructions = `Actúas como un médico especialista en Medicina del Trabajo, Higienista y Epidemiólogo Experto en el SG-SST en Colombia bajo el Decreto 1072 de 2015.
+Para el árbol de causas (arbolCausasNodes), genera una cronología multicausal de desarrollo crónico de la patología.
+Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Mano de Obra, Maquinaria, Método, Materiales, Medio Ambiente, Medida) debe enfocarse en factores ergonómicos, físicos, higiénicos o de vigilancia médica, conteniendo obligatoriamente de 2 a 3 causas independientes cortas separadas por un carácter de salto de línea (\n).`;
             }
 
             const systemInstruction = `
@@ -1957,7 +2116,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                     renderCausesTree();
                 }
 
-                if (id === 'investigacion_accidentes') {
+                if (id === 'investigacion_enfermedades') {
                     updateFiveWhys();
                     updateIshikawa();
                 }
@@ -1983,8 +2142,8 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 saveLocalData();
                 alert("¡Copiloto IA completó con éxito el análisis técnico y diseñó el plan de acción! Revise los campos enriquecidos y el tablero Kanban de planes de acción.");
                 
-                // Redirigir a pestaña de análisis de riesgos/controles para gestión del cambio
-                if (id === 'investigacion_accidentes' || id === 'gestion_cambio') {
+                // Redirigir a pestaña de plan si todo salió bien
+                if (id === 'investigacion_enfermedades') {
                     switchTab('tab-analysis');
                 } else {
                     switchTab('tab-plan');
@@ -2466,14 +2625,13 @@ Respuesta 5: ${w5}`;
                     <line x1="480" y1="300" x2="550" y2="175" stroke="#3b82f6" stroke-width="2.5" />
                     
                     <!-- Category Titles aligned to outer tips x=180, 330, 480 -->
-                    <text x="180" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Mano de Obra</text>
-                    <text x="330" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Maquinaria</text>
-                    <text x="480" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Método</text>
+                    <text x="180" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Factor Humano</text>
+                    <text x="330" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Equipos/Herram.</text>
+                    <text x="480" y="42" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Procedimientos</text>
                     
-                    <text x="180" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Materiales</text>
-                    <text x="330" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Medio Ambiente</text>
-                    <text x="480" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Medida</text>
-            `;
+                    <text x="180" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Diseño Puesto</text>
+                    <text x="330" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Entorno Trab.</text>
+                    <text x="480" y="316" text-anchor="middle" font-size="9" font-weight="black" fill="#3b82f6" class="uppercase tracking-wider">Monitoreo/Med.</text>            `;
             
             function addCauseTexts(xStart, xEnd, yStart, text, isTop) {
                 if (!text) return '';
@@ -3054,8 +3212,8 @@ Respuesta 5: ${w5}`;
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 safeRemoveLocalStorage(storageKey);
-                if (getEl('photos-grid')) {
-                    deleteMediaFromDB('gestion_cambio').then(() => {
+                if (getEl('witnesses-list')) {
+                    deleteMediaFromDB('investigacion_enfermedades').then(() => {
                         window.location.reload();
                     });
                 } else {
@@ -3064,7 +3222,7 @@ Respuesta 5: ${w5}`;
             }
         }
 
-        const storageKey = 'wappy_sst_gestion_cambio';
+        const storageKey = 'wappy_sst_investigacion_enfermedades';
         function saveLocalData() {
             if (isLoadingState) return;
             const sName = document.getElementById('signer-name');
@@ -3130,7 +3288,7 @@ Respuesta 5: ${w5}`;
             }
 
             if (getEl('photos-grid')) {
-                saveMediaToDB('gestion_cambio', photos, audio, video);
+                saveMediaToDB('investigacion_enfermedades', photos, audio, video);
             }
         }
 
@@ -3201,7 +3359,7 @@ Respuesta 5: ${w5}`;
                 renderKanban();
                 
                 if (getEl('photos-grid')) {
-                    loadMediaFromDB('gestion_cambio').then(media => {
+                    loadMediaFromDB('investigacion_enfermedades').then(media => {
                         const localPhotos = media.photos && media.photos.length > 0 ? media.photos : (embeddedWizard.photos || []);
                         const localAudio = media.audioBase64 || embeddedWizard.audioBase64 || '';
                         const localVideo = media.videoBase64 || embeddedWizard.videoBase64 || '';
@@ -3212,7 +3370,7 @@ Respuesta 5: ${w5}`;
                         
                         // Auto-cache back to IndexedDB if it was empty but embedded had it
                         if ((!media.photos || media.photos.length === 0) && localPhotos.length > 0) {
-                            saveMediaToDB('gestion_cambio', localPhotos, localAudio, localVideo);
+                            saveMediaToDB('investigacion_enfermedades', localPhotos, localAudio, localVideo);
                         }
                         
                         renderPhotos();

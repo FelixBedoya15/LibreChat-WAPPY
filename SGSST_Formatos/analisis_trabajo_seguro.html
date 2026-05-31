@@ -295,6 +295,233 @@
                         </div>
                     </div>
 
+                    <!-- CHEMICAL HAZARD MODULE (NFPA 704 & SGA/GHS) -->
+                    <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                        <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="flask-conical" aria-hidden="true" class="lucide lucide-flask-conical w-4 h-4 text-emerald-500"><path d="M10 2v7.513a1 1 0 0 1-.293.707L3.328 16.6a2 2 0 0 0 1.414 3.4h14.516a2 2 0 0 0 1.414-3.4l-6.379-6.38A1 1 0 0 1 14 9.513V2Z"></path><path d="M8.5 2h7"></path><path d="M6 14h12"></path></svg> 2.2 Inventario de Sustancias Químicas y Materiales Peligrosos (NFPA 704 & SGA)
+                            </span>
+                            <label class="relative inline-flex items-center cursor-pointer no-print">
+                                <input type="checkbox" id="ats-chemical-enable" onchange="toggleChemicalSection()" class="sr-only peer">
+                                <div class="w-9 h-5 bg-slate-200 dark:bg-slate-850 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                <span class="ml-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Activar</span>
+                            </label>
+                        </div>
+
+                        <!-- Collapse container -->
+                        <div id="chemical-section-container" class="hidden flex flex-col gap-6">
+                            
+                            <!-- Substance Form with visual diamond and pictograms -->
+                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                                
+                                <!-- Column 1: Substance Info & GHS (8 cols) -->
+                                <div class="lg:col-span-8 flex flex-col gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE DE LA SUSTANCIA</label>
+                                            <input type="text" id="chem-name" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-semibold shadow-sm focus:border-blue-500 focus:outline-none" placeholder="Ej: Pintura Epóxica, Solvente Thinner, Cloro">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">ESTADO FÍSICO</label>
+                                            <select id="chem-state" class="w-full rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 p-2.5 text-xs font-semibold shadow-sm cursor-pointer focus:border-blue-500 focus:outline-none">
+                                                <option value="Líquido">Líquido</option>
+                                                <option value="Sólido">Sólido</option>
+                                                <option value="Gaseoso">Gaseoso / Vapor</option>
+                                                <option value="Aerosol">Aerosol / Niebla</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- SGA/GHS Pictogram Grid -->
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Pictogramas de Peligro SGA / GHS (Selecciona los aplicables)</label>
+                                        <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-3">
+                                            <!-- GHS 1: Explosivo -->
+                                            <button type="button" onclick="toggleGHSPictogram(1)" id="ghs-btn-1" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Explosivo">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/GHS-pictogram-explos.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS01">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Explosivo</span>
+                                            </button>
+                                            
+                                            <!-- GHS 2: Inflamable -->
+                                            <button type="button" onclick="toggleGHSPictogram(2)" id="ghs-btn-2" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Inflamable">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/GHS-pictogram-flamme.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS02">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Inflamable</span>
+                                            </button>
+
+                                            <!-- GHS 3: Comburente -->
+                                            <button type="button" onclick="toggleGHSPictogram(3)" id="ghs-btn-3" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Comburente / Oxidante">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/GHS-pictogram-rondflam.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS03">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Comburente</span>
+                                            </button>
+
+                                            <!-- GHS 4: Gas Presión -->
+                                            <button type="button" onclick="toggleGHSPictogram(4)" id="ghs-btn-4" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Gas a Presión">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/GHS-pictogram-bottle.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS04">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Gas Presión</span>
+                                            </button>
+
+                                            <!-- GHS 5: Corrosivo -->
+                                            <button type="button" onclick="toggleGHSPictogram(5)" id="ghs-btn-5" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Corrosivo">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/GHS-pictogram-acid.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS05">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Corrosivo</span>
+                                            </button>
+
+                                            <!-- GHS 6: Toxicidad Aguda -->
+                                            <button type="button" onclick="toggleGHSPictogram(6)" id="ghs-btn-6" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Toxicidad Aguda">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a1/GHS-pictogram-skull.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS06">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Toxicidad A.</span>
+                                            </button>
+
+                                            <!-- GHS 7: Irritante -->
+                                            <button type="button" onclick="toggleGHSPictogram(7)" id="ghs-btn-7" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Irritante / Peligro a la salud">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6d/GHS-pictogram-exclam.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS07">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Irritante</span>
+                                            </button>
+
+                                            <!-- GHS 8: Peligro Crónico a la Salud -->
+                                            <button type="button" onclick="toggleGHSPictogram(8)" id="ghs-btn-8" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Carcinogénico / Mutagénico">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/ee/GHS-pictogram-silhouette.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS08">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Peligro Salud</span>
+                                            </button>
+
+                                            <!-- GHS 9: Daño Medio Ambiente -->
+                                            <button type="button" onclick="toggleGHSPictogram(9)" id="ghs-btn-9" class="group p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 flex flex-col items-center justify-center gap-1.5 transition duration-200 active:scale-95 cursor-pointer shadow-sm relative" title="Peligroso para el medio ambiente">
+                                                <div class="w-8 h-8 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a2/GHS-pictogram-pollutant.svg" class="-rotate-45 w-6 h-6 object-contain" alt="GHS09">
+                                                </div>
+                                                <span class="text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-tighter uppercase text-center mt-1">Medio Amb.</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Column 2: NFPA 704 Diamond (4 cols) -->
+                                <div class="lg:col-span-4 flex flex-col items-center justify-center gap-4 bg-white dark:bg-slate-900 p-4 border border-slate-250/60 dark:border-slate-800/80 rounded-2xl shadow-inner min-h-[300px]">
+                                    <label class="block text-[10px] font-black text-slate-700 dark:text-white uppercase tracking-wider text-center border-b dark:border-slate-800 pb-1.5 w-full">Diamante NFPA 704 Interactivo</label>
+                                    
+                                    <!-- Visual Diamond Render -->
+                                    <div class="relative w-40 h-40 flex items-center justify-center my-3 select-none">
+                                        <!-- Outer Square Border (rotated 45deg) -->
+                                        <div class="absolute w-[113px] h-[113px] border-2 border-slate-400 dark:border-slate-700 rotate-45"></div>
+                                        
+                                        <!-- Blue Quadrant (Health - Left) -->
+                                        <div class="absolute left-1.5 w-14 h-14 bg-blue-600 rotate-45 border border-slate-400/30 flex items-center justify-center">
+                                            <span id="nfpa-val-health" class="text-xl font-black text-white -rotate-45 transition">0</span>
+                                        </div>
+                                        
+                                        <!-- Red Quadrant (Flammability - Top) -->
+                                        <div class="absolute top-1.5 w-14 h-14 bg-red-600 rotate-45 border border-slate-400/30 flex items-center justify-center">
+                                            <span id="nfpa-val-fire" class="text-xl font-black text-white -rotate-45 transition">0</span>
+                                        </div>
+
+                                        <!-- Yellow Quadrant (Instability - Right) -->
+                                        <div class="absolute right-1.5 w-14 h-14 bg-amber-400 rotate-45 border border-slate-400/30 flex items-center justify-center">
+                                            <span id="nfpa-val-react" class="text-xl font-black text-slate-900 -rotate-45 transition">0</span>
+                                        </div>
+
+                                        <!-- White Quadrant (Special - Bottom) -->
+                                        <div class="absolute bottom-1.5 w-14 h-14 bg-white rotate-45 border border-slate-400 flex items-center justify-center">
+                                            <span id="nfpa-val-special" class="text-[11px] font-black text-slate-900 -rotate-45 tracking-tighter transition"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dropdowns for NFPA values -->
+                                    <div class="grid grid-cols-2 gap-2 w-full text-[10px]">
+                                        <div>
+                                            <label class="block text-[8px] font-bold text-blue-650 dark:text-blue-400 mb-0.5 uppercase">Salud (Azul)</label>
+                                            <select id="chem-nfpa-health" onchange="updateNFPADiamondVisual()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                                <option value="0">0 - Sin riesgo</option>
+                                                <option value="1">1 - Poco peligroso</option>
+                                                <option value="2">2 - Peligroso</option>
+                                                <option value="3">3 - Muy peligroso</option>
+                                                <option value="4">4 - Mortal</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[8px] font-bold text-red-650 dark:text-red-400 mb-0.5 uppercase">Inflamable (Rojo)</label>
+                                            <select id="chem-nfpa-fire" onchange="updateNFPADiamondVisual()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                                <option value="0">0 - No arde</option>
+                                                <option value="1">1 - &gt; 93 °C</option>
+                                                <option value="2">2 - &lt; 93 °C</option>
+                                                <option value="3">3 - &lt; 37 °C</option>
+                                                <option value="4">4 - &lt; 25 °C</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[8px] font-bold text-amber-500 dark:text-amber-400 mb-0.5 uppercase">Inestable (Amarillo)</label>
+                                            <select id="chem-nfpa-react" onchange="updateNFPADiamondVisual()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                                <option value="0">0 - Estable</option>
+                                                <option value="1">1 - Inestable si calienta</option>
+                                                <option value="2">2 - Cambio violento</option>
+                                                <option value="3">3 - Detona con choque</option>
+                                                <option value="4">4 - Detona fácil</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[8px] font-bold text-slate-500 dark:text-slate-400 mb-0.5 uppercase">Especial (Blanco)</label>
+                                            <select id="chem-nfpa-special" onchange="updateNFPADiamondVisual()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                                <option value="">Ninguno</option>
+                                                <option value="W">W - Reacciona con agua</option>
+                                                <option value="OX">OX - Oxidante</option>
+                                                <option value="SA">SA - Gas asfixiante</option>
+                                                <option value="ACID">ACID - Ácido</option>
+                                                <option value="ALK">ALK - Alcalino</option>
+                                                <option value="COR">COR - Corrosivo</option>
+                                                <option value="BIO">BIO - Biológico</option>
+                                                <option value="RA">RA - Radiactivo</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action button to add substance -->
+                            <div class="flex justify-end border-t dark:border-slate-800 pt-4 no-print">
+                                <button type="button" onclick="addChemicalSubstance()" class="py-2.5 px-5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow transition-all active:scale-95 cursor-pointer flex items-center gap-1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus-circle" aria-hidden="true" class="lucide lucide-plus-circle w-4 h-4"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg> Registrar Sustancia en Inventario
+                                </button>
+                            </div>
+
+                            <!-- Dynamic table of registered chemicals -->
+                            <div class="border-t dark:border-slate-800 pt-4">
+                                <span class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Inventario de Sustancias Químicas Registradas</span>
+                                <div class="overflow-x-auto w-full">
+                                    <table class="w-full text-left border-collapse text-[10px] md:text-xs">
+                                        <thead>
+                                            <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-450 font-bold uppercase tracking-wider bg-slate-100/50 dark:bg-slate-900/40">
+                                                <th class="py-2 px-3 w-8 text-center text-slate-500 dark:text-slate-400">Nº</th>
+                                                <th class="py-2 px-3 text-slate-500 dark:text-slate-400">Nombre de la Sustancia</th>
+                                                <th class="py-2 px-3 w-28 text-slate-500 dark:text-slate-400">Estado Físico</th>
+                                                <th class="py-2 px-3 w-36 text-center text-slate-500 dark:text-slate-400">NFPA 704 (S-I-R-E)</th>
+                                                <th class="py-2 px-3 text-slate-500 dark:text-slate-400">Pictogramas SGA</th>
+                                                <th class="py-2 px-2 w-10 text-center text-slate-500 dark:text-slate-400 no-print">Eliminar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="chemicals-list-body">
+                                            <!-- Dynamically rendered substance rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- REGISTRO DE EVIDENCIA MULTIMEDIA DIRECTA -->
                     <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                         <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
@@ -398,14 +625,16 @@
                     <div class="overflow-x-auto w-full">
                         <table class="w-full text-left border-collapse text-[11px] md:text-xs">
                             <thead>
-                                <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
-                                    <th class="py-3 px-2 w-10 text-center text-slate-500 dark:text-slate-400">Nº</th>
-                                    <th class="py-3 px-3 w-1/4 text-slate-500 dark:text-slate-400">1. Paso Secuencial de la Actividad</th>
-                                    <th class="py-3 px-3 w-1/5 text-slate-500 dark:text-slate-400">2. Peligros Ocupacionales</th>
-                                    <th class="py-3 px-3 w-1/5 text-slate-500 dark:text-slate-400">3. Consecuencias Potenciales</th>
-                                    <th class="py-3 px-3 w-1/4 text-slate-500 dark:text-slate-400">4. Medidas de Control y Prevención</th>
-                                    <th class="py-3 px-3 w-32 text-slate-500 dark:text-slate-400">5. Responsable</th>
-                                    <th class="py-3 px-2 w-10 text-center text-slate-500 dark:text-slate-400 no-print">Eliminar</th>
+                                <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-450 font-bold uppercase tracking-wider bg-slate-100/50 dark:bg-slate-900/40">
+                                    <th class="py-2.5 px-2 w-8 text-center text-slate-500 dark:text-slate-400">Nº</th>
+                                    <th class="py-2.5 px-2.5 w-[22%] text-slate-500 dark:text-slate-400">1. Paso Secuencial de la Actividad</th>
+                                    <th class="py-2.5 px-2.5 w-[16%] text-slate-500 dark:text-slate-400">2. Peligros Ocupacionales</th>
+                                    <th class="py-2.5 px-2.5 w-[16%] text-slate-500 dark:text-slate-400">3. Consecuencias Potenciales</th>
+                                    <th class="py-2.5 px-1.5 w-[11%] text-center text-slate-500 dark:text-slate-400">Riesgo Inicial</th>
+                                    <th class="py-2.5 px-2.5 w-[18%] text-slate-500 dark:text-slate-400">4. Medidas de Control y Prevención</th>
+                                    <th class="py-2.5 px-1.5 w-[11%] text-center text-slate-500 dark:text-slate-400">Riesgo Residual</th>
+                                    <th class="py-2.5 px-2.5 w-24 text-slate-500 dark:text-slate-400">5. Responsable</th>
+                                    <th class="py-2.5 px-2 w-10 text-center text-slate-500 dark:text-slate-400 no-print">Eliminar</th>
                                 </tr>
                             </thead>
                             <tbody id="ats-table-body">
@@ -507,6 +736,12 @@
                             <p id="summary-epps" class="italic text-slate-650 dark:text-slate-450 font-medium">Ninguno registrado</p>
                         </div>
                     </div>
+                    <div class="border-t dark:border-slate-800 pt-4 mt-2">
+                        <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Sustancias Químicas y Materiales Peligrosos Identificados:</span>
+                        <div id="summary-averias" class="flex flex-col gap-2">
+                            <span class="italic text-slate-400 font-semibold">No se identificaron riesgos químicos para esta tarea.</span>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t dark:border-slate-800 pt-4 mt-2">
                         <div>
                             <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Fotos de Evidencia:</span>
@@ -529,58 +764,35 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3 h-3"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Firma Adicional
                         </button>
                     </div>
-                    <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                    <div id="signatures-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         
-                        <!-- 1. Ejecutor del Trabajo (Trabajador 1) -->
+                        <!-- 1. Trabajador Ejecutor -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="m16 11 2 2 4-4"></path><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> Ejecutor del Trabajo 1
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="m16 11 2 2 4-4"></path><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> 1. Trabajador Ejecutor del Trabajo
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-jefe" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
-                                <input type="file" id="upload-sig-jefe" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-jefe')">
-                                <button onclick="document.getElementById('upload-sig-jefe').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
-                                <button onclick="clearSignatureCanvas('signature-jefe')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
+                                <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
                             </div>
                             <div class="flex flex-col gap-2">
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-jefe-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del ejecutor 1" value="">
+                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del trabajador ejecutor" value="Juan Carlos Gómez Bedoya">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA / C.C.</label>
-                                    <input type="text" id="signer-jefe-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 10.123.456" value="">
+                                    <input type="text" id="signer-trabajador-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 10.123.456" value="1.018.452.963">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 2. Ejecutor del Trabajo 2 (Apoyo) -->
+                        <!-- 2. Supervisor / Emisor del ATS -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-emerald-500"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Ejecutor del Trabajo 2 (Apoyo)
-                            </span>
-                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-copasst" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
-                                <input type="file" id="upload-sig-copasst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-copasst')">
-                                <button onclick="document.getElementById('upload-sig-copasst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
-                                <button onclick="clearSignatureCanvas('signature-copasst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-copasst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del ejecutor 2" value="">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA / C.C.</label>
-                                    <input type="text" id="signer-copasst-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 1.036.789.012" value="">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3. Emisor / Coordinador de SST -->
-                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
-                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Emisor / Coordinador SST
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> 2. Supervisor / Emisor del ATS
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
                                 <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
@@ -591,41 +803,19 @@
                             <div class="flex flex-col gap-2">
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-sgsst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del emisor/coordinador" value="">
+                                    <input type="text" id="signer-sgsst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del emisor/coordinador" value="Ing. Laura Restrepo">
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA</label>
-                                        <input type="text" id="signer-sgsst-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 98.765.432" value="">
+                                        <input type="text" id="signer-sgsst-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 98.765.432" value="98.765.432">
                                     </div>
                                     <div>
                                         <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">LICENCIA SST #</label>
-                                        <input type="text" id="signer-sgsst-license" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Licencia SST" value="">
+                                        <input type="text" id="signer-sgsst-license" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Licencia SST" value="SST-10492-2024">
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- 4. Aprobador / Supervisor de Trabajo -->
-                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
-                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4 text-emerald-500"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Supervisor / Aprobador
-                            </span>
-                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
-                                <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
-                                <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
-                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del supervisor">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA / C.C.</label>
-                                    <input type="text" id="signer-trabajador-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Ej: 80.123.456">
-                                </div>
                         </div>
 
                     </div>
@@ -642,7 +832,6 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg> Exportar Formato de Análisis de Trabajo Seguro Firmado
                         </button>
                     </div>
-                </div>
 
 
                 <!-- Navigation buttons -->
@@ -1130,7 +1319,11 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
                 for (const [id, val] of Object.entries(appDocHeader.customFields)) {
                     const el = document.getElementById(id);
                     if (el) {
-                        el.value = typeof val === 'string' ? val.replace(/<br\s*\/?>|&lt;br\s*\/?&gt;/gi, '\n') : val;
+                        if (el.type === 'checkbox') {
+                            el.checked = (val === true || val === 'true');
+                        } else {
+                            el.value = typeof val === 'string' ? val.replace(/<br\s*\/?>|&lt;br\s*\/?&gt;/gi, '\n') : val;
+                        }
                     }
                 }
             }
@@ -1781,21 +1974,37 @@ Mensaje del usuario: ${messageText}` }] }
                             "paso": "Descripción del paso secuencial...",
                             "peligros": "Peligros y riesgos asociados...",
                             "consecuencias": "Consecuencias potenciales...",
+                            "riesgoInicial": "Uno de: Bajo, Medio, Alto, Critico",
                             "controles": "Medidas de control específicas y preventivas...",
+                            "riesgoResidual": "Uno de: Bajo, Medio, Alto, Critico",
                             "responsable": "Responsable de aplicar el control..."
                         }
                     ],
                     "ats-herramientas": "Herramientas o equipos seguros sugeridos",
                     "ats-epps": "EPP recomendados y de protección colectiva sugeridos",
+                    "ats-sustancias": [
+                        {
+                            "name": "Nombre de la sustancia (ej. Thinner, Gasolina)",
+                            "state": "Uno de: Líquido, Sólido, Gaseoso, Aerosol",
+                            "nfpaHealth": 0, // 0 a 4
+                            "nfpaFire": 0,   // 0 a 4
+                            "nfpaReact": 0,  // 0 a 4
+                            "nfpaSpecial": "", // "", "W", "OX"
+                            "ghsPictograms": [] // Array de números del 1 al 9
+                        }
+                    ],
                     "newTasks": [
                         { "title": "Divulgar el ATS al personal ejecutor antes de iniciar la tarea" },
                         { "title": "Verificar inspección preoperacional del andamio o escaleras" }
                     ]
                 };
-                sstInstructions = `Actúas como un especialista y consultor senior en SST experto en Análisis de Trabajo Seguro (ATS) en Colombia bajo la Resolución 0312 de 2019 y Decreto 1072 de 2015.
+                sstInstructions = `Actúas como un especialista y consultor senior en SST experto en Análisis de Trabajo Seguro (ATS) en Colombia bajo la Resolución 0312 de 2019, Decreto 1072 de 2015 y metodología de valoración de riesgos GTC-45.
 Analizarás con sumo detalle técnico la descripción y objetivo de la tarea ("at-version-trabajador"), las condiciones especiales del entorno ("at-evento-desc") y el riesgo crítico principal de la actividad ("ats-riesgo-critico") para formular un desglose de 4 a 6 pasos secuenciales en "ats-table-data".
-Por cada paso, debes identificar peligros específicos, estimar consecuencias reales y definir controles robustos aplicando la jerarquía de controles (ingeniería, administrativos, EPP) y asignar un responsable lógico de la tarea (ej: Supervisor, Trabajador, etc.).
-Debes devolver obligatoriamente el JSON con la tabla "ats-table-data" estructurada exactamente como se define en el esquema.`;
+Por cada paso, debes identificar peligros específicos, consecuencias reales y controles robustos aplicando la jerarquía de controles (ingeniería, administrativos, EPP).
+Deberás asignar un nivel de riesgo de acuerdo con la norma GTC-45 para "riesgoInicial" (antes de controles) y "riesgoResidual" (después de aplicar los controles) usando estrictamente uno de los siguientes valores: "Bajo", "Medio", "Alto", "Critico". El riesgo residual DEBE ser menor o igual al riesgo inicial.
+Si en la descripción o entorno se menciona el uso de sustancias químicas (o si la tarea involucra solventes, combustibles, pinturas, soldadura u otros agentes químicos), debes sugerir de 1 a 3 sustancias químicas realistas con sus clasificaciones NFPA 704 correctas y sus pictogramas GHS (SGA) del 1 al 9 en "ats-sustancias".
+Los números de pictogramas GHS (SGA) a usar del 1 al 9 son: 1 (Explosivo), 2 (Inflamable), 3 (Comburente), 4 (Gas Presión), 5 (Corrosivo), 6 (Toxicidad A.), 7 (Irritante), 8 (Peligro Salud), 9 (Medio Amb.).
+Debes devolver obligatoriamente el JSON con la tabla "ats-table-data" y "ats-sustancias" estructuradas exactamente como se define en el esquema.`;
             } else if (id === "permiso_alturas") {
                 jsonSchema = {
                     "alturas-sistema": "Sistemas de acceso y protección anticaídas recomendados",
@@ -1898,6 +2107,32 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 }
                 if (document.getElementById('ats-table-data')) {
                     renderATSTable();
+                }
+
+                if (aiResult["ats-sustancias"] && Array.isArray(aiResult["ats-sustancias"])) {
+                    const enableChk = document.getElementById('ats-chemical-enable');
+                    if (enableChk && aiResult["ats-sustancias"].length > 0) {
+                        enableChk.checked = true;
+                        toggleChemicalSection();
+                    }
+                    currentWizard.averias = aiResult["ats-sustancias"].map(sub => {
+                        const ghsNames = (sub.ghsPictograms || []).map(id => GHS_PIC_MAP[id] ? GHS_PIC_MAP[id].name : '');
+                        const desc = `Estado: ${sub.state || 'Líquido'} | NFPA 704: Salud ${sub.nfpaHealth || 0}, Inflamabilidad ${sub.nfpaFire || 0}, Inestabilidad ${sub.nfpaReact || 0}, Especial: ${sub.nfpaSpecial || 'N/A'} | GHS: ${ghsNames.filter(Boolean).join(', ') || 'Sin pictogramas'}`;
+                        return {
+                            id: Date.now() + Math.random(),
+                            equipment: sub.name,
+                            desc: desc,
+                            criticality: sub.state || 'Líquido',
+                            name: sub.name,
+                            state: sub.state || 'Líquido',
+                            nfpaHealth: sub.nfpaHealth || 0,
+                            nfpaFire: sub.nfpaFire || 0,
+                            nfpaReact: sub.nfpaReact || 0,
+                            nfpaSpecial: sub.nfpaSpecial || '',
+                            ghsPictograms: sub.ghsPictograms || []
+                        };
+                    });
+                    renderChemicals();
                 }
 
                 if (aiResult.arbolCausasNodes && Array.isArray(aiResult.arbolCausasNodes)) {
@@ -2151,124 +2386,239 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             return document.getElementById(id);
         }
 
-        function addWitness() {
-            const nameEl = getEl('witness-name-input');
-            const docEl = getEl('witness-doc-input');
-            const testimonyEl = getEl('witness-testimony-input');
-            if (!nameEl || !docEl || !testimonyEl) return;
+        // CHEMICAL HAZARDS & NFPA 704 / SGA (GHS) MANAGER
+        const GHS_PIC_MAP = {
+            1: { name: "Explosivo", url: "https://upload.wikimedia.org/wikipedia/commons/2/23/GHS-pictogram-explos.svg" },
+            2: { name: "Inflamable", url: "https://upload.wikimedia.org/wikipedia/commons/7/7a/GHS-pictogram-flamme.svg" },
+            3: { name: "Comburente", url: "https://upload.wikimedia.org/wikipedia/commons/0/08/GHS-pictogram-rondflam.svg" },
+            4: { name: "Gas Presión", url: "https://upload.wikimedia.org/wikipedia/commons/b/b3/GHS-pictogram-bottle.svg" },
+            5: { name: "Corrosivo", url: "https://upload.wikimedia.org/wikipedia/commons/7/7b/GHS-pictogram-acid.svg" },
+            6: { name: "Toxicidad A.", url: "https://upload.wikimedia.org/wikipedia/commons/a/a1/GHS-pictogram-skull.svg" },
+            7: { name: "Irritante", url: "https://upload.wikimedia.org/wikipedia/commons/6/6d/GHS-pictogram-exclam.svg" },
+            8: { name: "Peligro Salud", url: "https://upload.wikimedia.org/wikipedia/commons/e/ee/GHS-pictogram-silhouette.svg" },
+            9: { name: "Medio Amb.", url: "https://upload.wikimedia.org/wikipedia/commons/a/a2/GHS-pictogram-pollutant.svg" }
+        };
+
+        let activeGHSPictograms = [];
+
+        function toggleChemicalSection() {
+            const checkbox = getEl('ats-chemical-enable');
+            const container = getEl('chemical-section-container');
+            if (!checkbox || !container) return;
+            
+            if (checkbox.checked) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+            saveLocalData();
+        }
+
+        function toggleGHSPictogram(id) {
+            const btn = getEl(`ghs-btn-${id}`);
+            if (!btn) return;
+            
+            const idx = activeGHSPictograms.indexOf(id);
+            if (idx > -1) {
+                activeGHSPictograms.splice(idx, 1);
+                btn.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'dark:bg-emerald-500/5', 'ring-2', 'ring-emerald-500/20');
+                btn.classList.add('border-slate-200', 'dark:border-slate-800');
+            } else {
+                activeGHSPictograms.push(id);
+                btn.classList.remove('border-slate-200', 'dark:border-slate-800');
+                btn.classList.add('border-emerald-500', 'bg-emerald-500/10', 'dark:bg-emerald-500/5', 'ring-2', 'ring-emerald-500/20');
+            }
+        }
+
+        function updateNFPADiamondVisual() {
+            const health = getEl('chem-nfpa-health').value;
+            const fire = getEl('chem-nfpa-fire').value;
+            const react = getEl('chem-nfpa-react').value;
+            const special = getEl('chem-nfpa-special').value;
+
+            getEl('nfpa-val-health').innerText = health;
+            getEl('nfpa-val-fire').innerText = fire;
+            getEl('nfpa-val-react').innerText = react;
+            
+            const specValEl = getEl('nfpa-val-special');
+            specValEl.innerText = special;
+            
+            // Adjust font size for special symbol to fit bottom quadrant
+            if (special.length > 2) {
+                specValEl.style.fontSize = '8px';
+            } else {
+                specValEl.style.fontSize = '11px';
+            }
+        }
+
+        function addChemicalSubstance() {
+            const nameEl = getEl('chem-name');
+            const stateEl = getEl('chem-state');
+            if (!nameEl || !stateEl) return;
+            
             const name = nameEl.value.trim();
-            const doc = docEl.value.trim();
-            const testimony = testimonyEl.value.trim();
+            const state = stateEl.value;
+            
             if (!name) {
-                alert('Debe ingresar al menos el nombre del testigo.');
+                alert("Por favor, ingrese el nombre de la sustancia química.");
                 return;
             }
-            currentWizard.witnesses.push({ name, doc, testimony });
+
+            const health = parseInt(getEl('chem-nfpa-health').value) || 0;
+            const fire = parseInt(getEl('chem-nfpa-fire').value) || 0;
+            const react = parseInt(getEl('chem-nfpa-react').value) || 0;
+            const special = getEl('chem-nfpa-special').value || '';
+
+            // Formulate technical desc for backward compatibility with averias database schema
+            const ghsNames = activeGHSPictograms.map(id => GHS_PIC_MAP[id].name);
+            const desc = `Estado: ${state} | NFPA 704: Salud ${health}, Inflamabilidad ${fire}, Inestabilidad ${react}, Especial: ${special || 'N/A'} | GHS: ${ghsNames.join(', ') || 'Sin pictogramas'}`;
+
+            const substance = {
+                id: Date.now() + Math.random(),
+                equipment: name, // map to equipment key
+                desc: desc,      // map to desc key
+                criticality: state, // map to state/criticality key
+                name: name,
+                state: state,
+                nfpaHealth: health,
+                nfpaFire: fire,
+                nfpaReact: react,
+                nfpaSpecial: special,
+                ghsPictograms: [...activeGHSPictograms]
+            };
+
+            if (!currentWizard.averias) currentWizard.averias = [];
+            currentWizard.averias.push(substance);
+
+            // Reset inputs
             nameEl.value = '';
-            docEl.value = '';
-            testimonyEl.value = '';
-            renderWitnesses();
-            saveLocalData();
-        }
+            stateEl.value = 'Líquido';
+            getEl('chem-nfpa-health').value = '0';
+            getEl('chem-nfpa-fire').value = '0';
+            getEl('chem-nfpa-react').value = '0';
+            getEl('chem-nfpa-special').value = '';
+            updateNFPADiamondVisual();
 
-        function removeWitness(index) {
-            currentWizard.witnesses.splice(index, 1);
-            renderWitnesses();
-            saveLocalData();
-        }
-
-        function renderWitnesses() {
-            const listEl = getEl('witnesses-list');
-            const summaryEl = getEl('summary-witnesses');
-            if (!listEl || !summaryEl) return;
-            listEl.innerHTML = '';
-            summaryEl.innerHTML = '';
-            if (currentWizard.witnesses.length === 0) {
-                listEl.innerHTML = '<div class="col-span-2 text-xs text-slate-400 italic">No se han registrado testigos.</div>';
-                summaryEl.innerHTML = 'Ninguno registrado';
-                return;
-            }
-            currentWizard.witnesses.forEach((w, index) => {
-                listEl.innerHTML += `
-                    <div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2 shadow-sm text-xs">
-                        <div class="flex-grow">
-                            <div class="font-bold text-slate-800 dark:text-white">${w.name} <span class="text-slate-400 font-normal">(${w.doc || 'Sin doc'})</span></div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 italic">"${w.testimony}"</div>
-                        </div>
-                        <button type="button" onclick="removeWitness(${index})" class="text-red-500 hover:text-red-650 transition p-1"><i data-lucide="trash" class="w-4 h-4"></i></button>
-                    </div>
-                `;
-                summaryEl.innerHTML += `
-                    <div class="py-1 border-b border-slate-100 dark:border-slate-800/40 text-[11px] flex flex-col gap-0.5">
-                        <span class="font-bold text-slate-700 dark:text-slate-350">${w.name} (${w.doc || 'Sin doc'})</span>
-                        <span class="italic">"${w.testimony}"</span>
-                    </div>
-                `;
+            // Reset selected pictograms
+            activeGHSPictograms.forEach(id => {
+                const btn = getEl(`ghs-btn-${id}`);
+                if (btn) {
+                    btn.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'dark:bg-emerald-500/5', 'ring-2', 'ring-emerald-500/20');
+                    btn.classList.add('border-slate-200', 'dark:border-slate-800');
+                }
             });
-            lucide.createIcons();
-        }
+            activeGHSPictograms = [];
 
-        function addAveria() {
-            const equipEl = getEl('averia-equipment-input');
-            const descEl = getEl('averia-desc-input');
-            const critEl = getEl('averia-criticality-input');
-            if (!equipEl || !descEl || !critEl) return;
-            const equipment = equipEl.value.trim();
-            const desc = descEl.value.trim();
-            const criticality = critEl.value;
-            if (!equipment || !desc) {
-                alert('Debe ingresar el equipo y la descripción del daño.');
-                return;
-            }
-            currentWizard.averias.push({ equipment, desc, criticality });
-            equipEl.value = '';
-            descEl.value = '';
-            critEl.value = 'Baja';
-            renderAverias();
+            renderChemicals();
             saveLocalData();
         }
 
-        function removeAveria(index) {
+        function removeChemicalSubstance(index) {
+            if (!currentWizard.averias) return;
             currentWizard.averias.splice(index, 1);
-            renderAverias();
+            renderChemicals();
             saveLocalData();
+        }
+
+        // Aliasing to support legacy DB reload
+        function removeAveria(index) {
+            removeChemicalSubstance(index);
         }
 
         function renderAverias() {
-            const listEl = getEl('averias-list');
+            renderChemicals();
+        }
+
+        function renderChemicals() {
+            const listEl = getEl('chemicals-list-body');
             const summaryEl = getEl('summary-averias');
-            if (!listEl || !summaryEl) return;
+            if (!listEl) return;
+            
             listEl.innerHTML = '';
-            summaryEl.innerHTML = '';
+            if (summaryEl) summaryEl.innerHTML = '';
+            
+            if (!currentWizard.averias) currentWizard.averias = [];
+            
             if (currentWizard.averias.length === 0) {
-                listEl.innerHTML = '<div class="col-span-2 text-xs text-slate-400 italic">No se han registrado averías.</div>';
-                summaryEl.innerHTML = 'Ninguna registrada';
+                listEl.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-4 px-3 text-center text-xs text-slate-400 italic bg-white dark:bg-slate-900/10">
+                            No se han registrado sustancias químicas en este ATS.
+                        </td>
+                    </tr>
+                `;
+                if (summaryEl) {
+                    summaryEl.innerHTML = '<span class="italic text-slate-400 font-semibold">No se identificaron riesgos químicos para esta tarea.</span>';
+                }
                 return;
             }
+
             currentWizard.averias.forEach((a, index) => {
-                let badgeClass = 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-                if (a.criticality === 'Media') badgeClass = 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-                if (a.criticality === 'Alta') badgeClass = 'bg-red-500/10 text-red-500 border-red-500/20';
-                
-                listEl.innerHTML += `
-                    <div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2 shadow-sm text-xs">
-                        <div class="flex-grow">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-bold text-slate-800 dark:text-white">${a.equipment}</span>
-                                <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded border ${badgeClass} uppercase tracking-widest">${a.criticality}</span>
+                const state = a.state || a.criticality || 'Líquido';
+                const health = a.nfpaHealth !== undefined ? a.nfpaHealth : 0;
+                const fire = a.nfpaFire !== undefined ? a.nfpaFire : 0;
+                const react = a.nfpaReact !== undefined ? a.nfpaReact : 0;
+                const special = a.nfpaSpecial || '';
+                const ghsList = a.ghsPictograms || [];
+
+                // Visual GHS HTML
+                let ghsHtml = '<div class="flex flex-wrap gap-1.5">';
+                ghsList.forEach(id => {
+                    const pic = GHS_PIC_MAP[id];
+                    if (pic) {
+                        ghsHtml += `
+                            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 px-1.5 py-0.5 rounded-lg text-[9px] font-bold text-slate-600 dark:text-slate-400">
+                                <div class="w-3.5 h-3.5 flex items-center justify-center border border-red-500/80 rounded rotate-45 bg-white p-0.5 scale-75">
+                                    <img src="${pic.url}" class="-rotate-45 w-2.5 h-2.5 object-contain" alt="${pic.name}">
+                                </div>
+                                <span>${pic.name}</span>
                             </div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">${a.desc}</div>
+                        `;
+                    }
+                });
+                ghsHtml += '</div>';
+                if (ghsList.length === 0) ghsHtml = '<span class="text-slate-450 italic text-[10px]">Sin pictogramas</span>';
+
+                // Visual Mini NFPA Diamond HTML
+                const nfpaBadge = `
+                    <div class="inline-flex items-center gap-1 border border-slate-200 dark:border-slate-800 rounded-lg p-1 bg-slate-50 dark:bg-slate-950/60 shadow-inner font-extrabold text-[10px] tracking-wider select-none justify-center">
+                        <span class="px-1 bg-blue-600 text-white rounded">${health}</span>
+                        <span class="px-1 bg-red-600 text-white rounded">${fire}</span>
+                        <span class="px-1 bg-amber-400 text-slate-900 rounded">${react}</span>
+                        ${special ? `<span class="px-1 bg-white text-slate-900 border border-slate-300 rounded">${special}</span>` : ''}
+                    </div>
+                `;
+
+                listEl.innerHTML += `
+                    <tr class="border-b border-slate-250/50 dark:border-slate-850/50 text-slate-800 dark:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                        <td class="py-2.5 px-3 text-center font-bold text-slate-400 select-none">${index + 1}</td>
+                        <td class="py-2.5 px-3 font-semibold text-slate-850 dark:text-slate-100">${a.equipment || a.name}</td>
+                        <td class="py-2.5 px-3 font-medium text-slate-500 dark:text-slate-400">${state}</td>
+                        <td class="py-2.5 px-3 text-center">${nfpaBadge}</td>
+                        <td class="py-2.5 px-3">${ghsHtml}</td>
+                        <td class="py-2.5 px-2 text-center no-print">
+                            <button type="button" onclick="removeChemicalSubstance(${index})" class="p-1 rounded hover:bg-red-500/10 text-red-500 hover:text-red-600 transition active:scale-95 cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                if (summaryEl) {
+                    summaryEl.innerHTML += `
+                        <div class="py-2 border-b border-slate-100 dark:border-slate-800/40 text-[11px] flex justify-between items-center gap-4 flex-wrap">
+                            <div class="flex-grow flex flex-col gap-0.5">
+                                <span class="font-extrabold text-slate-800 dark:text-slate-200 text-xs">${a.equipment || a.name} <span class="font-bold text-slate-400">(${state})</span></span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">Pictogramas: ${ghsList.map(id => GHS_PIC_MAP[id].name).join(', ') || 'Ninguno'}</span>
+                            </div>
+                            <div class="shrink-0 flex items-center gap-2">
+                                ${nfpaBadge}
+                            </div>
                         </div>
-                        <button type="button" onclick="removeAveria(${index})" class="text-red-500 hover:text-red-650 transition p-1"><i data-lucide="trash" class="w-4 h-4"></i></button>
-                    </div>
-                `;
-                summaryEl.innerHTML += `
-                    <div class="py-1 border-b border-slate-100 dark:border-slate-800/40 text-[11px] flex flex-col gap-0.5">
-                        <span class="font-bold text-slate-700 dark:text-slate-350">${a.equipment} - <span class="text-red-500 font-extrabold">${a.criticality}</span></span>
-                        <span class="text-slate-500 dark:text-slate-400 font-medium">${a.desc}</span>
-                    </div>
-                `;
+                    `;
+                }
             });
+            
             lucide.createIcons();
         }
 
@@ -3031,7 +3381,11 @@ Respuesta 5: ${w5}`;
                     return;
                 }
                 if (!excluded.includes(input.id)) {
-                    appDocHeader.customFields[input.id] = input.value;
+                    if (input.type === 'checkbox') {
+                        appDocHeader.customFields[input.id] = input.checked;
+                    } else {
+                        appDocHeader.customFields[input.id] = input.value;
+                    }
                 }
             });
 
@@ -3146,6 +3500,7 @@ Respuesta 5: ${w5}`;
                 }
 
                 bindDocHeaderToUI();
+                toggleChemicalSection();
                 renderKanban();
                 
                 if (getEl('photos-grid')) {
@@ -3229,29 +3584,27 @@ Respuesta 5: ${w5}`;
                     isLoadingState = false;
                 }
             } catch(e) {
-                console.error("Error loading local state", e);
+                console.error("Error loading state:", e);
                 isLoadingState = false;
             }
         }
 
-        function saveAPIKey() {
-            const key = document.getElementById('gemini-key').value.trim();
-            safeSetLocalStorage('wappy_gemini_key', key);
-            alert("API Key guardada localmente.");
-        }
-
-        function saveSelectedModel() {
-            const model = document.getElementById('gemini-model').value;
-            safeSetLocalStorage('wappy_gemini_model', model);
-        }
-
         // ATS TABLE HELPERS
+        function getRiskBadgeClass(level) {
+            if (level === 'Critico') return 'bg-red-500/10 text-red-650 border border-red-500/25 dark:text-red-400 dark:border-red-500/40';
+            if (level === 'Alto') return 'bg-orange-500/10 text-orange-650 border border-orange-500/25 dark:text-orange-400 dark:border-orange-500/40';
+            if (level === 'Medio') return 'bg-yellow-500/10 text-yellow-650 border border-yellow-500/25 dark:text-yellow-400 dark:border-yellow-500/40';
+            return 'bg-emerald-500/10 text-emerald-650 border border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/40'; // Bajo
+        }
+
         let defaultATSData = [
             {
                 "paso": "Armado y nivelación de andamio multidireccional en el área.",
                 "peligros": "Físico, Locativo (Caída de alturas, superficies inestables).",
                 "consecuencias": "Traumatismos, fracturas por caída a distinto nivel, golpes por objetos.",
+                "riesgoInicial": "Alto",
                 "controles": "Uso obligatorio de arnés con doble eslinga, delimitación del área, verificar nivelación del andamio con nivel de burbuja y asegurar pines.",
+                "riesgoResidual": "Bajo",
                 "responsable": "Ejecutor y Supervisor de Alturas"
             }
         ];
@@ -3277,7 +3630,11 @@ Respuesta 5: ${w5}`;
             
             data.forEach((row, index) => {
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200';
+                tr.className = 'border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50/20 dark:hover:bg-slate-900/10';
+                
+                const riesgoInicial = row.riesgoInicial || 'Alto';
+                const riesgoResidual = row.riesgoResidual || 'Bajo';
+
                 tr.innerHTML = `
                     <td class="py-3 px-2 text-center font-bold text-slate-400 select-none">${index + 1}</td>
                     <td class="py-2 px-2">
@@ -3289,14 +3646,30 @@ Respuesta 5: ${w5}`;
                     <td class="py-2 px-2">
                         <textarea oninput="updateATSRowField(${index}, 'consecuencias', this.value)" class="w-full bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900/60 rounded-xl p-2 text-xs font-semibold focus:outline-none resize-none min-h-[72px]" rows="2">${row.consecuencias || ''}</textarea>
                     </td>
+                    <td class="py-2 px-1 text-center">
+                        <select onchange="updateATSRowField(${index}, 'riesgoInicial', this.value); this.className = 'w-full rounded-lg py-1 px-1 text-[10px] font-black text-center cursor-pointer transition focus:outline-none focus:ring-0 ' + getRiskBadgeClass(this.value);" class="w-full rounded-lg py-1 px-1 text-[10px] font-black text-center cursor-pointer transition focus:outline-none focus:ring-0 ${getRiskBadgeClass(riesgoInicial)}">
+                            <option value="Bajo" ${riesgoInicial === 'Bajo' ? 'selected' : ''}>Bajo</option>
+                            <option value="Medio" ${riesgoInicial === 'Medio' ? 'selected' : ''}>Medio</option>
+                            <option value="Alto" ${riesgoInicial === 'Alto' ? 'selected' : ''}>Alto</option>
+                            <option value="Critico" ${riesgoInicial === 'Critico' ? 'selected' : ''}>Crítico</option>
+                        </select>
+                    </td>
                     <td class="py-2 px-2">
                         <textarea oninput="updateATSRowField(${index}, 'controles', this.value)" class="w-full bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900/60 rounded-xl p-2 text-xs font-semibold focus:outline-none resize-none min-h-[72px]" rows="2">${row.controles || ''}</textarea>
+                    </td>
+                    <td class="py-2 px-1 text-center">
+                        <select onchange="updateATSRowField(${index}, 'riesgoResidual', this.value); this.className = 'w-full rounded-lg py-1 px-1 text-[10px] font-black text-center cursor-pointer transition focus:outline-none focus:ring-0 ' + getRiskBadgeClass(this.value);" class="w-full rounded-lg py-1 px-1 text-[10px] font-black text-center cursor-pointer transition focus:outline-none focus:ring-0 ${getRiskBadgeClass(riesgoResidual)}">
+                            <option value="Bajo" ${riesgoResidual === 'Bajo' ? 'selected' : ''}>Bajo</option>
+                            <option value="Medio" ${riesgoResidual === 'Medio' ? 'selected' : ''}>Medio</option>
+                            <option value="Alto" ${riesgoResidual === 'Alto' ? 'selected' : ''}>Alto</option>
+                            <option value="Critico" ${riesgoResidual === 'Critico' ? 'selected' : ''}>Crítico</option>
+                        </select>
                     </td>
                     <td class="py-2 px-2">
                         <input type="text" value="${row.responsable || ''}" oninput="updateATSRowField(${index}, 'responsable', this.value)" class="w-full bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900/60 rounded-xl p-2 text-xs font-semibold focus:outline-none">
                     </td>
                     <td class="py-2 px-2 text-center no-print">
-                        <button type="button" onclick="deleteATSRow(${index})" class="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 hover:text-red-600 transition active:scale-95 cursor-pointer">
+                        <button type="button" onclick="deleteATSRow(${index})" class="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 hover:text-red-650 transition active:scale-95 cursor-pointer">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                         </button>
                     </td>
@@ -3316,7 +3689,7 @@ Respuesta 5: ${w5}`;
             });
         }
 
-        function addATSRow(paso = '', peligros = '', consecuencias = '', controles = '', responsable = 'Ejecutor') {
+        function addATSRow(paso = '', peligros = '', consecuencias = '', riesgoInicial = 'Alto', controles = '', riesgoResidual = 'Bajo', responsable = 'Ejecutor') {
             const dataInput = document.getElementById('ats-table-data');
             let data = [];
             try {
@@ -3325,10 +3698,9 @@ Respuesta 5: ${w5}`;
                 data = [];
             }
             if (!Array.isArray(data)) data = [];
-            data.push({ paso, peligros, consecuencias, controles, responsable });
+            data.push({ paso, peligros, consecuencias, riesgoInicial, controles, riesgoResidual, responsable });
             dataInput.value = JSON.stringify(data);
             renderATSTable();
-            saveLocalData();
         }
 
         function deleteATSRow(index) {
@@ -3386,7 +3758,11 @@ Respuesta 5: ${w5}`;
             inputs.forEach(input => {
                 const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'signature-canvas', 'signer-name', 'signer-role', 'signer-license'];
                 if (input.id && !excluded.includes(input.id) && !input.id.startsWith('signer-signature-custom-')) {
-                    appDocHeader.customFields[input.id] = input.value;
+                    if (input.type === 'checkbox') {
+                        appDocHeader.customFields[input.id] = input.checked;
+                    } else {
+                        appDocHeader.customFields[input.id] = input.value;
+                    }
                 }
             });
 

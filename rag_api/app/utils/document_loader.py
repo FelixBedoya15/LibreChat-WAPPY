@@ -139,7 +139,7 @@ def get_loader(filename: str, file_content_type: str, filepath: str):
         "application/vnd.ms-excel",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ]:
-        loader = UnstructuredExcelLoader(filepath)
+        loader = PandasExcelLoader(filepath)
     elif file_ext == "json" or file_content_type == "application/json":
         loader = TextLoader(filepath, autodetect_encoding=True)
     elif file_ext in known_source_ext or (
@@ -249,4 +249,47 @@ class SafePyPDFLoader:
 
     def load(self) -> List[Document]:
         """Load PDF documents with automatic fallback on image extraction errors."""
+        return list(self.lazy_load())
+
+
+class PandasExcelLoader:
+    """
+    A robust Excel document loader using pandas and openpyxl.
+    Parses each sheet of the Excel spreadsheet into a clean CSV/Markdown format.
+    Does not require system dependencies like libmagic.
+    """
+
+    def __init__(self, filepath: str):
+        self.filepath = filepath
+        self._temp_filepath = None  # For compatibility with cleanup function
+
+    def lazy_load(self) -> Iterator[Document]:
+        """Lazy load each sheet in the Excel file."""
+        import pandas as pd
+
+        try:
+            xls = pd.ExcelFile(self.filepath)
+            for sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                df = df.fillna("")
+                
+                # Try to use to_markdown for beautiful structured reading by LLMs if tabulate is installed
+                try:
+                    import tabulate
+                    table_content = df.to_markdown(index=False)
+                except ImportError:
+                    # Fallback to CSV format which all LLMs understand perfectly
+                    table_content = df.to_csv(index=False)
+
+                content = f"### Hoja: {sheet_name}\n\n{table_content}"
+                yield Document(
+                    page_content=content,
+                    metadata={"source": self.filepath, "sheet": sheet_name}
+                )
+        except Exception as e:
+            logger.error(f"Error loading Excel with Pandas: {e}")
+            raise
+
+    def load(self) -> List[Document]:
+        """Load sheets from the Excel file."""
         return list(self.lazy_load())

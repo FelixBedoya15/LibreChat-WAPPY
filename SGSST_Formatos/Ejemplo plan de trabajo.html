@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan de Trabajo Anual SG-SST 2026 - WAPPY SA</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              950: '#0B0F19',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B0F19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1E293B;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #10B981;
+    }
+
+    /* Glassmorphism Styles */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .glass-card-hover:hover {
+      border-color: rgba(16, 185, 129, 0.2);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
+    }
+
+    /* Print Optimization Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11px !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-card {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        color: #000000 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      .print-text {
+        color: #000000 !important;
+      }
+      .print-border {
+        border-color: #cbd5e1 !important;
+      }
+      h1, h2, h3, h4, p, span, td, th {
+        color: #000000 !important;
+      }
+      table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+      }
+      th, td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 6px !important;
+        color: #000000 !important;
+      }
+      /* Ensure page breaks are clean */
+      .page-break {
+        page-break-before: always;
+      }
+    }
+
+    /* Keyframe Animations */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.15; transform: scale(1); }
+      50% { opacity: 0.25; transform: scale(1.05); }
+    }
+    .animate-glow {
+      animation: pulse-glow 8s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+
+  <!-- Background Ambient Glows -->
+  <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none animate-glow"></div>
+  <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none animate-glow" style="animation-delay: 4s;"></div>
+
+  <!-- Main Wrapper -->
+  <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 relative z-10">
+    
+    <!-- Top Utility Bar (No Print) -->
+    <div class="flex justify-between items-center mb-8 no-print glass-card p-4 rounded-2xl">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+        <span class="text-xs font-semibold tracking-wider text-emerald-400 uppercase">Consultor SG-SST Activo</span>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="window.print()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border border-slate-700/50">
+          <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Plan
+        </button>
+        <button onclick="resetToDefault()" class="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border border-rose-500/20">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reiniciar Plan
+        </button>
+      </div>
+    </div>
+
+    <!-- Header & Metadata Card -->
+    <header class="glass-card print-card rounded-3xl p-6 sm:p-8 mb-8 border border-slate-800/60 shadow-2xl relative overflow-hidden">
+      <!-- Decorative top line -->
+      <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"></div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <!-- Logo Upload Area -->
+        <div class="lg:col-span-3 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition-all duration-300 group relative cursor-pointer print-border" id="logo-container" onclick="triggerLogoUpload()">
+          <input type="file" id="logo-input" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+          <div id="logo-placeholder" class="text-center py-4">
+            <i data-lucide="image" class="w-8 h-8 text-slate-500 group-hover:text-emerald-400 mx-auto mb-2 transition-colors"></i>
+            <span class="text-xs text-slate-400 group-hover:text-slate-200 block transition-colors">Cargar Logo</span>
+          </div>
+          <img id="logo-preview" class="max-h-24 object-contain hidden rounded-lg" alt="Logo Empresa">
+          <button id="btn-remove-logo" onclick="removeLogo(event)" class="absolute top-2 right-2 bg-rose-500/80 hover:bg-rose-600 text-white p-1 rounded-full hidden no-print transition-all">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- Title & Subtitle -->
+        <div class="lg:col-span-9 text-center lg:text-left">
+          <span class="text-xs font-bold tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1 rounded-full">Sistema de Gestión de la Seguridad y Salud en el Trabajo</span>
+          <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-3 mb-2 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+            PLAN DE TRABAJO ANUAL SG-SST
+          </h1>
+          <p class="text-slate-400 text-sm sm:text-base max-w-2xl">
+            Planificación estratégica, ejecución y seguimiento de actividades de prevención, control y mejora continua para el año <span class="text-emerald-400 font-semibold" contenteditable="true" id="meta-year" onblur="updateMeta('year', this.innerText)">2026</span>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Metadata Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8 pt-6 border-t border-slate-800/60 print-border">
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Empresa / Razón Social</span>
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="meta-companyName" onblur="updateMeta('companyName', this.innerText)">WAPPY SA</div>
+        </div>
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">NIT</span>
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="meta-nit" onblur="updateMeta('nit', this.innerText)">901437310</div>
+        </div>
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">No. Trabajadores</span>
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="meta-workers" onblur="updateMeta('workers', this.innerText)">30</div>
+        </div>
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Clase de Riesgo</span>
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="meta-riskLevel" onblur="updateMeta('riskLevel', this.innerText)">Riesgo III</div>
+        </div>
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">ARL Asignada</span>
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="meta-arl" onblur="updateMeta('arl', this.innerText)">Colmena</div>
+        </div>
+        <div class="bg-slate-900/40 print-card p-3.5 rounded-xl border border-slate-800/40">
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Norma Aplicable</span>
+          <span class="text-sm font-bold text-emerald-400 block px-1">Res. 0312 / D. 1072</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dynamic Sections (Objectives, Indicators, Resources) -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <!-- Objectives Column -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60 print-border">
+            <div class="flex items-center gap-2">
+              <i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>
+              <h3 class="font-bold text-slate-200">Objetivos del Plan</h3>
+            </div>
+            <button onclick="addDynamicItem('objectives')" class="no-print p-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-lg transition-colors">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <ul id="list-objectives" class="space-y-3 text-sm text-slate-300">
+            <!-- Dynamic items loaded here -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- Indicators Column -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60 print-border">
+            <div class="flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-teal-400"></i>
+              <h3 class="font-bold text-slate-200">Indicadores de Gestión</h3>
+            </div>
+            <button onclick="addDynamicItem('indicators')" class="no-print p-1.5 hover:bg-teal-500/10 text-teal-400 rounded-lg transition-colors">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <ul id="list-indicators" class="space-y-3 text-sm text-slate-300">
+            <!-- Dynamic items loaded here -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- Resources Column -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60 print-border">
+            <div class="flex items-center gap-2">
+              <i data-lucide="settings" class="w-5 h-5 text-cyan-400"></i>
+              <h3 class="font-bold text-slate-200">Recursos Asignados</h3>
+            </div>
+            <button onclick="addDynamicItem('resources')" class="no-print p-1.5 hover:bg-cyan-500/10 text-cyan-400 rounded-lg transition-colors">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <ul id="list-resources" class="space-y-3 text-sm text-slate-300">
+            <!-- Dynamic items loaded here -->
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard de Cumplimiento Gráfico -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Card 1: Total Actividades -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex items-center justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+        <div>
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Total Actividades</span>
+          <h4 class="text-3xl font-extrabold text-slate-100" id="dash-total">0</h4>
+        </div>
+        <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
+          <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card 2: Actividades Ejecutadas -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex items-center justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+        <div>
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Actividades Ejecutadas</span>
+          <h4 class="text-3xl font-extrabold text-slate-100" id="dash-executed">0</h4>
+        </div>
+        <div class="p-3 bg-teal-500/10 rounded-xl text-teal-400">
+          <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card 3: Porcentaje de Avance -->
+      <div class="glass-card print-card rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-cyan-500"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Porcentaje de Avance</span>
+          <span class="text-sm font-bold text-cyan-400" id="dash-percent">0%</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+          <div id="dash-progress-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activities Table Section -->
+    <section class="glass-card print-card rounded-3xl border border-slate-800/60 overflow-hidden mb-8 shadow-2xl">
+      <div class="p-6 border-b border-slate-800/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print-border">
+        <div>
+          <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <i data-lucide="calendar" class="text-emerald-400"></i> Cronograma de Actividades SG-SST
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Ciclo PHVA y Estándares Mínimos de la Resolución 0312 de 2019</p>
+        </div>
+        <button onclick="openActivityModal()" class="no-print flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20">
+          <i data-lucide="plus" class="w-4 h-4"></i> Agregar Actividad
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-900/60 border-b border-slate-800/60 text-slate-400 text-xs font-bold uppercase tracking-wider print-border">
+              <th class="py-4 px-4 text-center w-12">Estado</th>
+              <th class="py-4 px-6">Actividad</th>
+              <th class="py-4 px-4 text-center w-16">PHVA</th>
+              <th class="py-4 px-6">Cronograma</th>
+              <th class="py-4 px-6">Responsable</th>
+              <th class="py-4 px-6">Recursos</th>
+              <th class="py-4 px-6">Soporte Legal</th>
+              <th class="py-4 px-4 text-center w-24 no-print">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="table-activities-body" class="divide-y divide-slate-800/40 text-sm text-slate-300">
+            <!-- Dynamic rows loaded here -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Signatures Section -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 mt-12">
+      <!-- Representante Legal Signature -->
+      <div class="glass-card print-card rounded-2xl p-6 border border-slate-800/60 flex flex-col items-center text-center">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Representante Legal</span>
+        
+        <!-- Signature Upload Box -->
+        <div class="w-64 h-32 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl flex items-center justify-center relative group cursor-pointer print-border mb-4" onclick="triggerSignatureUpload('rep')">
+          <input type="file" id="sign-rep-input" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'rep')">
+          <div id="sign-rep-placeholder" class="text-center">
+            <i data-lucide="edit-3" class="w-6 h-6 text-slate-500 group-hover:text-emerald-400 mx-auto mb-1 transition-colors"></i>
+            <span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">Subir Firma Digital</span>
+          </div>
+          <img id="sign-rep-preview" class="max-h-28 max-w-full object-contain hidden" alt="Firma Representante Legal">
+          <button id="btn-remove-sign-rep" onclick="removeSignature(event, 'rep')" class="absolute top-1 right-1 bg-rose-500/80 hover:bg-rose-600 text-white p-1 rounded-full hidden no-print transition-all">
+            <i data-lucide="x" class="w-3 h-3"></i>
+          </button>
+        </div>
+
+        <div class="w-full max-w-xs border-t border-slate-800 pt-3 print-border">
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="sign-rep-name" onblur="updateSignatureMeta('rep', 'name', this.innerText)">Felix Bedoya</div>
+          <div class="text-xs text-slate-400 mt-1">Representante Legal</div>
+          <div class="text-xs text-slate-500 mt-0.5" contenteditable="true" id="sign-rep-id" onblur="updateSignatureMeta('rep', 'id', this.innerText)">C.C. 901437310</div>
+        </div>
+      </div>
+
+      <!-- Responsable SST Signature -->
+      <div class="glass-card print-card rounded-2xl p-6 border border-slate-800/60 flex flex-col items-center text-center">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Responsable del SG-SST</span>
+        
+        <!-- Signature Upload Box -->
+        <div class="w-64 h-32 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl flex items-center justify-center relative group cursor-pointer print-border mb-4" onclick="triggerSignatureUpload('sst')">
+          <input type="file" id="sign-sst-input" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'sst')">
+          <div id="sign-sst-placeholder" class="text-center">
+            <i data-lucide="edit-3" class="w-6 h-6 text-slate-500 group-hover:text-emerald-400 mx-auto mb-1 transition-colors"></i>
+            <span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">Subir Firma Digital</span>
+          </div>
+          <img id="sign-sst-preview" class="max-h-28 max-w-full object-contain hidden" alt="Firma Responsable SST">
+          <button id="btn-remove-sign-sst" onclick="removeSignature(event, 'sst')" class="absolute top-1 right-1 bg-rose-500/80 hover:bg-rose-600 text-white p-1 rounded-full hidden no-print transition-all">
+            <i data-lucide="x" class="w-3 h-3"></i>
+          </button>
+        </div>
+
+        <div class="w-full max-w-xs border-t border-slate-800 pt-3 print-border">
+          <div class="text-sm font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" id="sign-sst-name" onblur="updateSignatureMeta('sst', 'name', this.innerText)">Responsable SST</div>
+          <div class="text-xs text-slate-400 mt-1">Licencia SST No. <span contenteditable="true" id="sign-sst-lic" onblur="updateSignatureMeta('sst', 'lic', this.innerText)">así</span></div>
+          <div class="text-xs text-slate-500 mt-0.5" contenteditable="true" id="sign-sst-id" onblur="updateSignatureMeta('sst', 'id', this.innerText)">C.C. 123456789</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer (No Print) -->
+    <footer class="text-center text-xs text-slate-500 mt-12 pt-6 border-t border-slate-900 no-print">
+      <p>© 2026 WAPPY SA. Diseñado y optimizado bajo la normatividad colombiana vigente.</p>
+    </footer>
+
+  </div>
+
+  <!-- Activity Edit/Add Modal (No Print) -->
+  <div id="activity-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl mx-4">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-100">Agregar Actividad</h3>
+        <button onclick="closeActivityModal()" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="activity-form" onsubmit="saveActivity(event)" class="space-y-4">
+        <input type="hidden" id="modal-task-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Actividad</label>
+          <input type="text" id="modal-activity" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Ciclo PHVA</label>
+            <select id="modal-phva" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+              <option value="P">Planear (P)</option>
+              <option value="H">Hacer (H)</option>
+              <option value="V">Verificar (V)</option>
+              <option value="A">Actuar (A)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Cronograma</label>
+            <input type="text" id="modal-schedule" placeholder="Ene - Mar" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Responsable</label>
+          <input type="text" id="modal-responsible" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Recursos</label>
+          <input type="text" id="modal-resources" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Soporte Legal</label>
+          <input type="text" id="modal-legal" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <button type="button" onclick="closeActivityModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+          <button type="submit" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors">Guardar Actividad</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Floating Action Button (FAB) for AI Assistant (No Print) -->
+  <button onclick="toggleAIDrawer()" class="fixed bottom-6 right-6 z-50 no-print w-14 h-14 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:scale-110 transition-all duration-300 group">
+    <div class="absolute inset-0 rounded-full bg-emerald-400/20 blur-md group-hover:blur-lg transition-all"></div>
+    <i data-lucide="sparkles" class="w-6 h-6 relative z-10 animate-pulse"></i>
+  </button>
+
+  <!-- AI Assistant Drawer (No Print) -->
+  <div id="ai-drawer" class="fixed top-0 right-0 h-full w-96 bg-slate-900/95 backdrop-blur-xl border-l border-slate-800/80 z-50 transform translate-x-full transition-transform duration-300 ease-in-out no-print flex flex-col shadow-2xl">
+    <!-- Drawer Header -->
+    <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-5 h-5 text-emerald-400"></i>
+        <h3 class="font-bold text-slate-100">Asistente de IA Wappy</h3>
+      </div>
+      <button onclick="toggleAIDrawer()" class="text-slate-400 hover:text-slate-200">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Drawer Content -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+      <!-- API Key Input -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Gemini API Key</label>
+        <div class="relative">
+          <input type="password" id="ai-api-key" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+          <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+            <i data-lucide="eye" id="api-key-eye-icon" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-1">Se almacena de forma segura en tu navegador local.</p>
+      </div>
+
+      <!-- Model Selector -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Modelo de IA</label>
+        <select id="ai-model" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm">
+          <option value="gemini-2.5-flash" selected>Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+          <option value="gemini-2.5-pro">Wappy IA Prime (Análisis de Agentes y Código)</option>
+          <option value="gemini-1.5-pro">Wappy IA Cerebro (Auditoría Profunda y Leyes)</option>
+        </select>
+      </div>
+
+      <!-- Instructions Textarea -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Instrucciones / Solicitud</label>
+        <textarea id="ai-prompt" rows="5" placeholder="Ej: 'Agrega 3 actividades de capacitación en riesgo psicosocial' o 'Optimiza los indicadores para que sean medibles'..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 text-sm resize-none"></textarea>
+      </div>
+
+      <!-- Status Console -->
+      <div id="ai-status-container" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono">
+        <div class="flex items-center gap-2 mb-1">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" id="ai-status-dot"></div>
+          <span class="text-slate-400" id="ai-status-title">Procesando...</span>
+        </div>
+        <p class="text-slate-500" id="ai-status-text">Iniciando conexión con Gemini API...</p>
+      </div>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="p-5 border-t border-slate-800 bg-slate-900/50">
+      <button onclick="runAIAssistant()" class="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10">
+        <i data-lucide="sparkles" class="w-4 h-4"></i> Procesar con IA
+      </button>
+    </div>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Default State
+    const defaultState = {
+      metadata: {
+        companyName: "WAPPY SA",
+        nit: "901437310",
+        workers: "30",
+        riskLevel: "Riesgo III",
+        arl: "Colmena",
+        year: "2026"
+      },
+      objectives: [
+        "Garantizar el cumplimiento del 100% de los estándares mínimos aplicables según la Resolución 0312 de 2019.",
+        "Reducir la tasa de accidentalidad laboral en un 15% en comparación con el año anterior.",
+        "Lograr una cobertura del 95% en las capacitaciones programadas para el personal."
+      ],
+      indicators: [
+        "Frecuencia de accidentalidad: (Número de accidentes / Número de trabajadores) * 100",
+        "Cumplimiento del Plan de Trabajo: (Actividades ejecutadas / Actividades programadas) * 100",
+        "Cobertura de capacitación: (Trabajadores capacitados / Total trabajadores) * 100"
+      ],
+      resources: [
+        "Presupuesto financiero asignado por la Alta Dirección para la ejecución del SG-SST.",
+        "Responsable del SG-SST con licencia vigente y curso de 50 horas.",
+        "Infraestructura tecnológica y elementos de protección personal (EPP)."
+      ],
+      activities: [
+        { id: "act-1", checked: true, activity: "Asignación de Responsable del SG-SST", phva: "P", schedule: "Enero", responsible: "Gerencia", resources: "Humano", legalSupport: "Res. 0312 Art. 9" },
+        { id: "act-2", checked: true, activity: "Afiliación al Sistema de Seguridad Social Integral", phva: "P", schedule: "Enero - Diciembre", responsible: "Talento Humano", resources: "Financiero", legalSupport: "Decreto 1072 Art. 2.2.4.6.8" },
+        { id: "act-3", checked: false, activity: "Capacitación en SST (Plan de Capacitación)", phva: "P", schedule: "Febrero - Noviembre", responsible: "Responsable SST", resources: "Técnico", legalSupport: "Res. 0312 Art. 11" },
+        { id: "act-4", checked: false, activity: "Evaluaciones Médicas Ocupacionales", phva: "H", schedule: "Marzo", responsible: "IPS Aliada", resources: "Financiero", legalSupport: "Res. 0312 Art. 13" },
+        { id: "act-5", checked: false, activity: "Identificación de Peligros, Evaluación y Valoración de Riesgos", phva: "H", schedule: "Febrero", responsible: "Responsable SST", resources: "Técnico", legalSupport: "Decreto 1072 Art. 2.2.4.6.15" },
+        { id: "act-6", checked: false, activity: "Inspecciones a Equipos e Instalaciones", phva: "V", schedule: "Mensual", responsible: "COPASST", resources: "Físico", legalSupport: "Decreto 1072 Art. 2.2.4.6.24" },
+        { id: "act-7", checked: false, activity: "Auditoría Anual del SG-SST", phva: "V", schedule: "Octubre", responsible: "Auditor Externo", resources: "Financiero", legalSupport: "Decreto 1072 Art. 2.2.4.6.29" },
+        { id: "act-8", checked: false, activity: "Revisión por la Alta Dirección", phva: "A", schedule: "Noviembre", responsible: "Gerencia", resources: "Humano", legalSupport: "Decreto 1072 Art. 2.2.4.6.31" }
+      ],
+      logo: "",
+      signatures: {
+        rep: { name: "Felix Bedoya", id: "C.C. 901437310", img: "" },
+        sst: { name: "Responsable SST", lic: "así", id: "C.C. 123456789", img: "" }
+      }
+    };
+
+    let state = JSON.parse(JSON.stringify(defaultState));
+
+    // Initialize Application
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderAll();
+      
+      // Load API Key from localStorage if exists
+      const savedApiKey = localStorage.getItem('wappy_sst_gemini_key');
+      if (savedApiKey) {
+        document.getElementById('ai-api-key').value = savedApiKey;
+      }
+    });
+
+    // Load State from LocalStorage
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('wappy_sst_plan_2026');
+        if (saved) {
+          state = JSON.parse(saved);
+          // Ensure structure is complete
+          if (!state.metadata) state.metadata = { ...defaultState.metadata };
+          if (!state.objectives) state.objectives = [...defaultState.objectives];
+          if (!state.indicators) state.indicators = [...defaultState.indicators];
+          if (!state.resources) state.resources = [...defaultState.resources];
+          if (!state.activities) state.activities = [...defaultState.activities];
+          if (!state.signatures) state.signatures = { ...defaultState.signatures };
+        } else {
+          state = JSON.parse(JSON.stringify(defaultState));
+        }
+
+        // Load independent signatures from localStorage if they exist
+        const savedSignRep = localStorage.getItem('wappy_sst_sign_rep');
+        const savedSignSst = localStorage.getItem('wappy_sst_sign_sst');
+        if (savedSignRep) state.signatures.rep.img = savedSignRep;
+        if (savedSignSst) state.signatures.sst.img = savedSignSst;
+
+      } catch (e) {
+        console.error("Error loading state, resetting to default.", e);
+        state = JSON.parse(JSON.stringify(defaultState));
+      }
+    }
+
+    // Save State to LocalStorage
+    function saveState() {
+      try {
+        localStorage.setItem('wappy_sst_plan_2026', JSON.stringify(state));
+      } catch (e) {
+        console.error("Error saving state to localStorage", e);
+      }
+    }
+
+    // Render All Components
+    function renderAll() {
+      renderMetadata();
+      renderDynamicSections();
+      renderDashboard();
+      renderActivities();
+      renderSignatures();
+      renderLogo();
+      lucide.createIcons();
+    }
+
+    // Render Metadata
+    function renderMetadata() {
+      document.getElementById('meta-year').innerText = state.metadata.year || "2026";
+      document.getElementById('meta-companyName').innerText = state.metadata.companyName || "";
+      document.getElementById('meta-nit').innerText = state.metadata.nit || "";
+      document.getElementById('meta-workers').innerText = state.metadata.workers || "";
+      document.getElementById('meta-riskLevel').innerText = state.metadata.riskLevel || "";
+      document.getElementById('meta-arl').innerText = state.metadata.arl || "";
+    }
+
+    // Update Metadata on Blur
+    function updateMeta(field, value) {
+      state.metadata[field] = value.trim();
+      saveState();
+      renderDashboard(); // In case workers count changes
+    }
+
+    // Render Dynamic Sections (Objectives, Indicators, Resources)
+    function renderDynamicSections() {
+      renderSectionList('objectives', 'list-objectives', 'text-emerald-400');
+      renderSectionList('indicators', 'list-indicators', 'text-teal-400');
+      renderSectionList('resources', 'list-resources', 'text-cyan-400');
+    }
+
+    function renderSectionList(key, elementId, bulletColorClass) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = '';
+      
+      state[key].forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-start gap-2 group/item relative py-1';
+        li.innerHTML = `
+          <span class="mt-1.5 w-1.5 h-1.5 rounded-full ${bulletColorClass} shrink-0"></span>
+          <span class="flex-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" contenteditable="true" onblur="updateDynamicItem('${key}', ${index}, this.innerText)">${item}</span>
+          <button onclick="deleteDynamicItem('${key}', ${index})" class="no-print opacity-0 group-hover/item:opacity-100 p-1 text-rose-400 hover:text-rose-500 rounded transition-all absolute right-0 top-0">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+        container.appendChild(li);
+      });
+      lucide.createIcons();
+    }
+
+    // Add Dynamic Item
+    function addDynamicItem(key) {
+      const defaultTexts = {
+        objectives: "Nuevo objetivo del plan de trabajo.",
+        indicators: "Nuevo indicador de gestión y cumplimiento.",
+        resources: "Nuevo recurso asignado para el SG-SST."
+      };
+      state[key].push(defaultTexts[key]);
+      saveState();
+      renderDynamicSections();
+    }
+
+    // Update Dynamic Item
+    function updateDynamicItem(key, index, value) {
+      state[key][index] = value.trim();
+      saveState();
+    }
+
+    // Delete Dynamic Item
+    function deleteDynamicItem(key, index) {
+      if (confirm("¿Está seguro de que desea eliminar este elemento?")) {
+        state[key].splice(index, 1);
+        saveState();
+        renderDynamicSections();
+      }
+    }
+
+    // Render Dashboard
+    function renderDashboard() {
+      const total = state.activities.length;
+      const executed = state.activities.filter(a => a.checked).length;
+      const percent = total > 0 ? Math.round((executed / total) * 100) : 0;
+
+      document.getElementById('dash-total').innerText = total;
+      document.getElementById('dash-executed').innerText = executed;
+      document.getElementById('dash-percent').innerText = `${percent}%`;
+      document.getElementById('dash-progress-bar').style.width = `${percent}%`;
+    }
+
+    // Render Activities Table
+    function renderActivities() {
+      const tbody = document.getElementById('table-activities-body');
+      tbody.innerHTML = '';
+
+      if (state.activities.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="py-8 text-center text-slate-500">
+              No hay actividades programadas. ¡Agrega una nueva actividad!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      state.activities.forEach((act) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/30 transition-colors border-b border-slate-800/40 print-border';
+        
+        // PHVA Badge colors
+        let phvaBadgeColor = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        if (act.phva === 'H') phvaBadgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        if (act.phva === 'V') phvaBadgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        if (act.phva === 'A') phvaBadgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+
+        tr.innerHTML = `
+          <td class="py-4 px-4 text-center">
+            <input type="checkbox" ${act.checked ? 'checked' : ''} onchange="toggleActivityState('${act.id}')" class="w-4.5 h-4.5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-950 transition-all cursor-pointer">
+          </td>
+          <td class="py-4 px-6 font-medium text-slate-200">${act.activity}</td>
+          <td class="py-4 px-4 text-center">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold border ${phvaBadgeColor}">${act.phva}</span>
+          </td>
+          <td class="py-4 px-6 text-slate-400">${act.schedule}</td>
+          <td class="py-4 px-6 text-slate-400">${act.responsible}</td>
+          <td class="py-4 px-6 text-slate-400">${act.resources}</td>
+          <td class="py-4 px-6 text-slate-400 text-xs">${act.legalSupport}</td>
+          <td class="py-4 px-4 text-center no-print">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="openActivityModal('${act.id}')" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 rounded-lg transition-colors" title="Editar">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+              <button onclick="deleteActivity('${act.id}')" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded-lg transition-colors" title="Eliminar">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    // Toggle Activity Checked State
+    function toggleActivityState(id) {
+      const act = state.activities.find(a => a.id === id);
+      if (act) {
+        act.checked = !act.checked;
+        saveState();
+        renderDashboard();
+      }
+    }
+
+    // Open Activity Modal (Add / Edit)
+    function openActivityModal(id = null) {
+      const modal = document.getElementById('activity-modal');
+      const title = document.getElementById('modal-title');
+      const form = document.getElementById('activity-form');
+      
+      // Reset form
+      form.reset();
+      document.getElementById('modal-task-id').value = id || '';
+
+      if (id) {
+        title.innerText = "Editar Actividad";
+        const act = state.activities.find(a => a.id === id);
+        if (act) {
+          document.getElementById('modal-activity').value = act.activity;
+          document.getElementById('modal-phva').value = act.phva;
+          document.getElementById('modal-schedule').value = act.schedule;
+          document.getElementById('modal-responsible').value = act.responsible;
+          document.getElementById('modal-resources').value = act.resources;
+          document.getElementById('modal-legal').value = act.legalSupport;
+        }
+      } else {
+        title.innerText = "Agregar Actividad";
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    // Close Activity Modal
+    function closeActivityModal() {
+      document.getElementById('activity-modal').classList.add('hidden');
+    }
+
+    // Save Activity (Add / Edit)
+    function saveActivity(event) {
+      event.preventDefault();
+      const id = document.getElementById('modal-task-id').value;
+      const activityData = {
+        activity: document.getElementById('modal-activity').value.trim(),
+        phva: document.getElementById('modal-phva').value,
+        schedule: document.getElementById('modal-schedule').value.trim(),
+        responsible: document.getElementById('modal-responsible').value.trim(),
+        resources: document.getElementById('modal-resources').value.trim(),
+        legalSupport: document.getElementById('modal-legal').value.trim()
+      };
+
+      if (id) {
+        // Edit Mode
+        const index = state.activities.findIndex(a => a.id === id);
+        if (index !== -1) {
+          state.activities[index] = { ...state.activities[index], ...activityData };
+        }
+      } else {
+        // Add Mode
+        const newActivity = {
+          id: 'act-' + Date.now(),
+          checked: false,
+          ...activityData
+        };
+        state.activities.push(newActivity);
+      }
+
+      saveState();
+      closeActivityModal();
+      renderActivities();
+      renderDashboard();
+    }
+
+    // Delete Activity
+    function deleteActivity(id) {
+      if (confirm("¿Está seguro de que desea eliminar esta actividad?")) {
+        state.activities = state.activities.filter(a => a.id !== id);
+        saveState();
+        renderActivities();
+        renderDashboard();
+      }
+    }
+
+    // Trigger Logo Upload
+    function triggerLogoUpload() {
+      document.getElementById('logo-input').click();
+    }
+
+    // Handle Logo Upload
+    function handleLogoUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          state.logo = e.target.result;
+          saveState();
+          renderLogo();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Render Logo
+    function renderLogo() {
+      const preview = document.getElementById('logo-preview');
+      const placeholder = document.getElementById('logo-placeholder');
+      const removeBtn = document.getElementById('btn-remove-logo');
+
+      if (state.logo) {
+        preview.src = state.logo;
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        removeBtn.classList.remove('hidden');
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        removeBtn.classList.add('hidden');
+      }
+    }
+
+    // Remove Logo
+    function removeLogo(event) {
+      event.stopPropagation();
+      if (confirm("¿Desea eliminar el logo actual?")) {
+        state.logo = "";
+        saveState();
+        renderLogo();
+      }
+    }
+
+    // Trigger Signature Upload
+    function triggerSignatureUpload(type) {
+      document.getElementById(`sign-${type}-input`).click();
+    }
+
+    // Handle Signature Upload
+    function handleSignatureUpload(event, type) {
+      event.stopPropagation();
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Data = e.target.result;
+          state.signatures[type].img = base64Data;
+          
+          // Save independently in localStorage as requested
+          localStorage.setItem(`wappy_sst_sign_${type}`, base64Data);
+          
+          saveState();
+          renderSignatures();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Render Signatures
+    function renderSignatures() {
+      ['rep', 'sst'].forEach(type => {
+        const preview = document.getElementById(`sign-${type}-preview`);
+        const placeholder = document.getElementById(`sign-${type}-placeholder`);
+        const removeBtn = document.getElementById(`btn-remove-sign-${type}`);
+        const sig = state.signatures[type];
+
+        if (sig.img) {
+          preview.src = sig.img;
+          preview.classList.remove('hidden');
+          placeholder.classList.add('hidden');
+          removeBtn.classList.remove('hidden');
+        } else {
+          preview.src = '';
+          preview.classList.add('hidden');
+          placeholder.classList.remove('hidden');
+          removeBtn.classList.add('hidden');
+        }
+
+        // Render text fields
+        document.getElementById(`sign-${type}-name`).innerText = sig.name || "";
+        document.getElementById(`sign-${type}-id`).innerText = sig.id || "";
+        if (type === 'sst') {
+          document.getElementById('sign-sst-lic').innerText = sig.lic || "";
+        }
+      });
+    }
+
+    // Update Signature Meta on Blur
+    function updateSignatureMeta(type, field, value) {
+      state.signatures[type][field] = value.trim();
+      saveState();
+    }
+
+    // Remove Signature
+    function removeSignature(event, type) {
+      event.stopPropagation();
+      if (confirm("¿Desea eliminar esta firma?")) {
+        state.signatures[type].img = "";
+        localStorage.removeItem(`wappy_sst_sign_${type}`);
+        saveState();
+        renderSignatures();
+      }
+    }
+
+    // Toggle AI Drawer
+    function toggleAIDrawer() {
+      const drawer = document.getElementById('ai-drawer');
+      drawer.classList.toggle('translate-x-full');
+    }
+
+    // Toggle API Key Visibility
+    function toggleApiKeyVisibility() {
+      const input = document.getElementById('ai-api-key');
+      const icon = document.getElementById('api-key-eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    // Reset to Default
+    function resetToDefault() {
+      if (confirm("¿Está seguro de que desea restablecer todo el plan de trabajo a los valores predeterminados? Se perderán todos los cambios, firmas y logos.")) {
+        localStorage.removeItem('wappy_sst_plan_2026');
+        localStorage.removeItem('wappy_sst_sign_rep');
+        localStorage.removeItem('wappy_sst_sign_sst');
+        state = JSON.parse(JSON.stringify(defaultState));
+        renderAll();
+      }
+    }
+
+    // Run AI Assistant (Gemini API Call)
+    async function runAIAssistant() {
+      const apiKey = document.getElementById('ai-api-key').value.trim();
+      const model = document.getElementById('ai-model').value;
+      const promptText = document.getElementById('ai-prompt').value.trim();
+      const statusContainer = document.getElementById('ai-status-container');
+      const statusTitle = document.getElementById('ai-status-title');
+      const statusText = document.getElementById('ai-status-text');
+      const statusDot = document.getElementById('ai-status-dot');
+
+      if (!apiKey) {
+        alert("Por favor, ingresa tu Gemini API Key para continuar.");
+        return;
+      }
+      if (!promptText) {
+        alert("Por favor, escribe una instrucción para el asistente.");
+        return;
+      }
+
+      // Save API Key locally
+      localStorage.setItem('wappy_sst_gemini_key', apiKey);
+
+      // Show Status Console
+      statusContainer.classList.remove('hidden');
+      statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+      statusTitle.innerText = "Conectando...";
+      statusText.innerText = "Enviando datos del plan actual a Gemini...";
+
+      try {
+        // Prepare clean state payload (excluding heavy base64 images to save tokens)
+        const payloadState = {
+          metadata: state.metadata,
+          objectives: state.objectives,
+          indicators: state.indicators,
+          resources: state.resources,
+          activities: state.activities
+        };
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Aplica la siguiente instrucción al plan de trabajo actual:\n\nInstrucción: "${promptText}"\n\nEstado actual del plan:\n${JSON.stringify(payloadState, null, 2)}`
+              }]
+            }],
+            systemInstruction: {
+              parts: [{
+                text: "Eres un Consultor Experto en SG-SST en Colombia. Tu tarea es procesar el estado actual del Plan de Trabajo Anual 2026 de la empresa y aplicar las instrucciones del usuario (como agregar, editar, eliminar actividades, optimizar objetivos, etc.). Debes retornar ÚNICAMENTE el objeto JSON completo y actualizado con la misma estructura exacta que recibes. No incluyas explicaciones, no uses bloques de código markdown (```json). Retorna solo el JSON puro."
+              }]
+            },
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || "Error en la API de Gemini");
+        }
+
+        statusText.innerText = "Procesando respuesta de la IA...";
+        const result = await response.json();
+        const responseText = result.candidates[0].content.parts[0].text;
+
+        // Parse and validate response JSON
+        const updatedData = JSON.parse(responseText.trim());
+        
+        // Merge updated data back to state (preserving logos and signatures)
+        if (updatedData.metadata) state.metadata = updatedData.metadata;
+        if (updatedData.objectives) state.objectives = updatedData.objectives;
+        if (updatedData.indicators) state.indicators = updatedData.indicators;
+        if (updatedData.resources) state.resources = updatedData.resources;
+        if (updatedData.activities) state.activities = updatedData.activities;
+
+        saveState();
+        renderAll();
+
+        // Success Status
+        statusDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+        statusTitle.innerText = "¡Completado!";
+        statusText.innerText = "El plan de trabajo ha sido actualizado exitosamente con IA.";
+        document.getElementById('ai-prompt').value = '';
+
+        setTimeout(() => {
+          statusContainer.classList.add('hidden');
+        }, 4000);
+
+      } catch (error) {
+        console.error("Error running AI Assistant:", error);
+        statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+        statusTitle.innerText = "Error";
+        statusText.innerText = error.message || "Ocurrió un error inesperado al procesar la solicitud.";
+      }
+    }
+  </script>
+</body>
+</html>
