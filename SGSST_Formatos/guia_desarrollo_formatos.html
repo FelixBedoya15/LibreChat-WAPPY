@@ -30,7 +30,8 @@
             overflow-x: auto;
             border: 1px solid rgba(16, 185, 129, 0.15);
             font-family: monospace;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            line-height: 1.5;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -54,15 +55,15 @@
                 <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()" />
                 
                 <div>
-                    <h1 class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase">GUÍA DE DESARROLLO PREMIUM SST</h1>
-                    <h2 class="text-xs md:text-sm font-semibold tracking-wider text-emerald-100 uppercase mt-1">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
-                    <p class="text-[10px] md:text-xs text-emerald-100 mt-0.5 opacity-80">Manual Técnico de Módulos e Integraciones de Wappy</p>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase">GUÍA DE ARQUITECTURA DE FORMATOS</h1>
+                    <h2 class="text-xs md:text-sm font-semibold tracking-wider text-emerald-100 uppercase mt-1">ESTÁNDAR COMPONENTES PREMIUM BY WAPPY IA</h2>
+                    <p class="text-[10px] md:text-xs text-emerald-100 mt-0.5 opacity-80">Manual Técnico de Arquitectura y Persistencia para Formatos SG-SST</p>
                 </div>
             </div>
             
             <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto">
                 <span class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase">
-                    PROCESO: SG-SST | V.02
+                    GUÍA TÉCNICA | V.03
                 </span>
             </div>
         </div>
@@ -74,15 +75,15 @@
         <!-- Navigation Menu -->
         <aside class="lg:col-span-1 flex flex-col gap-4">
             <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4 sticky top-6">
-                <h3 class="text-xs font-black uppercase tracking-widest text-cyan-400">Componentes</h3>
+                <h3 class="text-xs font-black uppercase tracking-widest text-cyan-400">Módulos Core</h3>
                 <nav class="flex flex-col gap-2">
-                    <a href="#tailwind-dark-mode" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="sun" class="w-4 h-4"></i> Tailwind Modo Oscuro</a>
-                    <a href="#editable-header" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="layout" class="w-4 h-4"></i> Encabezado Editable</a>
-                    <a href="#signature-canvas" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="signature" class="w-4 h-4"></i> Firma Adaptable</a>
-                    <a href="#high-fidelity-placeholders" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="file-text" class="w-4 h-4"></i> Ejemplos Reales</a>
-                    <a href="#legal-modal-comp" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="info" class="w-4 h-4"></i> Requisitos Legales</a>
-                    <a href="#conversational-copilot" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="sparkles" class="w-4 h-4"></i> Copiloto Chat e Inyección</a>
-                    <a href="#html-exporter" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-650 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="download" class="w-4 h-4"></i> Exporter Standalone</a>
+                    <a href="#tailwind-dark-mode" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="sun" class="w-4 h-4"></i> 1. Estilos y Tema Oscuro</a>
+                    <a href="#editable-header" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="layout" class="w-4 h-4"></i> 2. Cabecera y Meta-datos</a>
+                    <a href="#hybrid-storage" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="database" class="w-4 h-4"></i> 3. Persistencia IndexedDB</a>
+                    <a href="#canvas-signature" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="signature" class="w-4 h-4"></i> 4. Firmas y Soporte Táctil</a>
+                    <a href="#race-condition" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="shield-alert" class="w-4 h-4"></i> 5. Carrera de Carga Segura</a>
+                    <a href="#copilot-context" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="sparkles" class="w-4 h-4"></i> 6. Copiloto IA Contextual</a>
+                    <a href="#footer-brand" class="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold hover:bg-cyan-500/10 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-white transition"><i data-lucide="help-circle" class="w-4 h-4"></i> 7. Footer Unificado</a>
                 </nav>
             </div>
         </aside>
@@ -90,11 +91,11 @@
         <!-- Technical Modules Details -->
         <section class="lg:col-span-3 flex flex-col gap-8">
 
-            <!-- Tailwind config and Adaptiveness -->
+            <!-- 1. Tailwind Dark Mode con Soporte Dinámico -->
             <div id="tailwind-dark-mode" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="sun"></i> 1. Tailwind Dark Mode con Soporte Dinámico</h2>
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="sun"></i> 1. Estilos Adaptativos y Modo Oscuro</h2>
                 <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                    Para permitir transiciones perfectas y máxima legibilidad en Modo Claro y Modo Oscuro, configuramos Tailwind de forma explícita basada en clase, mapeando fondos, textos y bordes:
+                    Todos los formatos deben soportar cambios de tema Claro/Oscuro dinámicos. Esto se realiza configurando Tailwind en modo <code>class</code> y aplicando transiciones suaves a fondos y bordes:
                 </p>
                 <pre><code>&lt;script&gt;
     tailwind.config = {
@@ -102,72 +103,298 @@
     }
 &lt;/script&gt;
 
-&lt;!-- Estructura adaptable --&gt;
-&lt;body class="bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-100"&gt;
-&lt;div class="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80"&gt;</code></pre>
-            </div>
-
-            <!-- Editable Header -->
-            <div id="editable-header" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="layout"></i> 2. Encabezado Dinámico y Logotipo convertidor</h2>
-                <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-400">
-                    Se eliminó la etiqueta de texto fijo y se habilita la edición del 100% de los metadatos corporativos corporales de la organización:
-                </p>
-                <pre><code>function saveDocHeader() {
-    appDocHeader.appTitle = document.getElementById('app-document-title').innerText;
-    appDocHeader.companyName = document.getElementById('company-name').innerText;
-    saveLocalData();
-}</code></pre>
-            </div>
-
-            <!-- Signature Canvas Adaptable -->
-            <div id="signature-canvas" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="signature"></i> 3. Firma Digital con Trazado Dinámico de Color</h2>
-                <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-400">
-                    El color de la línea del dibujo del canvas ahora se adapta en tiempo real según el tema activo para garantizar máxima legibilidad en fondos blancos u oscuros:
-                </p>
-                <pre><code>// Ajustar color del trazo según el tema activo
-ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
-
+&lt;!-- Lógica de cambio de tema --&gt;
 function toggleTheme() {
-    // ... lógicas del tema
-    ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+    if (currentTheme === 'dark') {
+        document.documentElement.classList.remove('dark');
+        document.body.classList.replace('dark', 'light');
+        currentTheme = 'light';
+    } else {
+        document.documentElement.classList.add('dark');
+        document.body.classList.replace('light', 'dark');
+        currentTheme = 'dark';
+    }
+    // Actualizar el color de los trazos de los canvas activos
+    document.querySelectorAll('canvas').forEach(cvs => {
+        const ctx = cvs.getContext('2d');
+        ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+    });
 }</code></pre>
             </div>
 
-            <!-- High-Fidelity Placeholders -->
-            <div id="high-fidelity-placeholders" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="file-text"></i> 4. Ejemplos Reales y Datos de Relleno</h2>
-                <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-400">
-                    Cada formulario posee ejemplos de alta fidelidad rellenados por defecto en sus campos de texto, permitiendo un flujo de trabajo intuitivo y demostración de datos de producción listos desde el primer clic.
+            <!-- 2. Encabezado Dinámico -->
+            <div id="editable-header" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="layout"></i> 2. Cabecera Editable y Vinculación</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    Las etiquetas principales del encabezado (Título del documento, nombre de la empresa, NIT, ARL, etc.) son <code>contenteditable="true"</code> para permitir la personalización de la identidad corporativa. Los cambios deben capturarse al perder el foco (<code>onblur</code>) y guardarse en el objeto <code>appDocHeader</code>:
                 </p>
-            </div>
+                <pre><code>&lt;h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()"&gt;Título&lt;/h1&gt;
 
-            <!-- Legal Modal Component -->
-            <div id="legal-modal-comp" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="info"></i> 5. Módulo Modal de Cumplimiento Legal</h2>
-                <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-400">
-                    Cumplimiento estricto con las regulaciones de la República de Colombia (Decreto 1072 de 2015, Resoluciones 0312 de 2019, 1401 de 2007, 4272 de 2021). Incluye lógicas interactivas para abrir un modal modal informativo:
-                </p>
-                <pre><code>function showLegalRequirements() {
-    document.getElementById('legal-modal').classList.remove('hidden');
-}
-function closeLegalModal() {
-    document.getElementById('legal-modal').classList.add('hidden');
-}</code></pre>
-            </div>
-
-            <!-- Conversational Copilot -->
-            <div id="conversational-copilot" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="sparkles"></i> 6. Copiloto IA Conversacional y Auto-Inyector</h2>
-                <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-400">
-                    Lógica integrada para inyectar automáticamente sugerencias generadas por Gemini API en las entradas de texto del formulario correspondiente:
-                </p>
-                <pre><code>function applyAITextSuggestions(text) {
-    const areaMatch = text.match(/\\[Área:\\s*([\s\S]*?)\\]/);
-    if (areaMatch) document.getElementById('area-proceso').value = areaMatch[1].trim();
-    // ... lógicas específicas del formato
+function saveDocHeader() {
+    const titleEl = document.getElementById('app-document-title');
+    const cNameEl = document.getElementById('company-name');
+    if (titleEl) appDocHeader.appTitle = titleEl.innerText;
+    if (cNameEl) appDocHeader.companyName = cNameEl.innerText;
     saveLocalData();
+}</code></pre>
+            </div>
+
+            <!-- 3. Persistencia Híbrida IndexedDB + LocalStorage -->
+            <div id="hybrid-storage" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="database"></i> 3. Persistencia de Medios Pesados (IndexedDB)</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    Para evadir la restricción estricta de 5MB de <code>localStorage</code> que genera fallos de tipo <code>QuotaExceededError</code>, se utiliza un almacenamiento híbrido: metadatos livianos en <code>localStorage</code> y archivos binarios pesados (imágenes, audios de evidencia, videos y logo corporativo de alta resolución) en una base de datos <strong>IndexedDB</strong>:
+                </p>
+                <pre><code>// Definición del almacén IndexedDB
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('WappySSTDb', 2);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('mediaStore')) {
+                db.createObjectStore('mediaStore', { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function saveMediaToDB(docId, photos, audio, video) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('mediaStore', 'readwrite');
+        tx.objectStore('mediaStore').put({
+            id: 'media_' + docId,
+            photos: photos || [],
+            audioBase64: audio || '',
+            videoBase64: video || ''
+        });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}</code></pre>
+            </div>
+
+            <!-- 4. Canvas de Firmas, Soporte Táctil e Importación de Imagen -->
+            <div id="canvas-signature" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="signature"></i> 4. Módulo de Firmas Multi-Pantalla</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    El módulo de firma digital incorpora tres funcionalidades cruciales para llevar a los formatos:
+                </p>
+                <ul class="list-disc pl-5 text-xs text-slate-600 dark:text-slate-400 flex flex-col gap-2">
+                    <li><strong>Soporte Táctil</strong>: Registro de los eventos táctiles <code>touchstart</code>, <code>touchmove</code>, y muy importante, <code>touchend</code> y <code>touchcancel</code> vinculados a la detención del trazo y guardado automático.</li>
+                    <li><strong>Carga de Archivo de Firma</strong>: Botón "Cargar Imagen" que lee archivos de imagen digitalizados, los escala y centra proporcionalmente al lienzo del canvas, y activa la persistencia.</li>
+                    <li><strong>Firmas Adicionales Dinámicas</strong>: Capacidad de añadir Validators extra al vuelo y conservarlos al exportar.</li>
+                </ul>
+                <pre><code>// Eventos de Dibujo Táctil
+cvs.addEventListener('touchstart', (e) => {
+    cvs.isDrawing = true;
+    context.beginPath();
+    const rect = cvs.getBoundingClientRect();
+    const touch = e.touches[0];
+    context.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    e.preventDefault();
+}, { passive: false });
+
+cvs.addEventListener('touchmove', (e) => {
+    if (!cvs.isDrawing) return;
+    cvs.hasDrawn = true;
+    const rect = cvs.getBoundingClientRect();
+    const touch = e.touches[0];
+    context.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    context.stroke();
+    e.preventDefault();
+}, { passive: false });
+
+cvs.addEventListener('touchend', stopDrawing);
+cvs.addEventListener('touchcancel', stopDrawing);
+
+// Carga de Imagen de Firma
+function uploadSignatureImage(canvasId) {
+    const fileInput = document.getElementById('upload-sig-' + canvasId);
+    if (fileInput && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const cvs = document.getElementById(canvasId);
+                const ctx = cvs.getContext('2d');
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+                const ratio = Math.min(cvs.width / img.width, cvs.height / img.height);
+                const w = img.width * ratio;
+                const h = img.height * ratio;
+                ctx.drawImage(img, (cvs.width - w)/2, (cvs.height - h)/2, w, h);
+                cvs.hasDrawn = true;
+                saveLocalData();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+    }
+}</code></pre>
+            </div>
+
+            <!-- 5. Prevención de Condiciones de Carrera -->
+            <div id="race-condition" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="shield-alert"></i> 5. Prevención de Condiciones de Carrera al Cargar Estado</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    Dado que cargar firmas desde Base64 mediante un objeto <code>Image</code> en JavaScript es una operación asíncrona (<code>img.onload</code>), debemos bloquear las operaciones de guardado automático (<code>saveLocalData()</code>) hasta que todos los lienzos hayan terminado de renderizarse, de lo contrario se sobrescribirán con canvas vacíos.
+                </p>
+                <pre><code>// Lógica de hidratación asíncrona controlada
+async function loadState() {
+    isLoadingState = true; // Activa bandera global de bloqueo
+    try {
+        // ... cargar datos de texto y configurar tarjetas adicionales ...
+        
+        let imagesToLoad = 0;
+        if (currentWizard.signatures) {
+            Object.keys(currentWizard.signatures).forEach(canvasId => {
+                const cvs = document.getElementById(canvasId);
+                if (cvs && currentWizard.signatures[canvasId]) {
+                    imagesToLoad++;
+                    const img = new Image();
+                    img.onload = function() {
+                        cvs.getContext('2d').drawImage(img, 0, 0);
+                        cvs.hasDrawn = true;
+                        imagesToLoad--;
+                        if (imagesToLoad === 0) isLoadingState = false; // Libera el bloqueo
+                    };
+                    img.onerror = () => {
+                        imagesToLoad--;
+                        if (imagesToLoad === 0) isLoadingState = false;
+                    };
+                    img.src = currentWizard.signatures[canvasId];
+                }
+            });
+        }
+        if (imagesToLoad === 0) {
+            isLoadingState = false; // Libera inmediatamente si no hay firmas
+        }
+    } catch(e) {
+        isLoadingState = false;
+    }
+}</code></pre>
+            </div>
+
+            <!-- 6. Copiloto IA con Inyección Contextual -->
+            <div id="copilot-context" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="sparkles"></i> 6. Copiloto IA y Recopilación del Contexto del Formulario</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    Para que el chatbot interactivo en el panel lateral comprenda perfectamente el estado del documento, el sistema recopila dinámicamente el valor actual de todos los campos, testigos, averías y tareas en cada mensaje enviado al SDK de Gemini:
+                </p>
+                <pre><code>function getDynamicContext() {
+    let contextStr = `Empresa: ${appDocHeader.companyName}\nNIT: ${appDocHeader.companyNit}\n`;
+    
+    // Captura de entradas genéricas
+    document.querySelectorAll('input[id], textarea[id], select[id]').forEach(input => {
+        if (input.id && input.value) {
+            contextStr += `${input.id.toUpperCase()}: ${input.value}\n`;
+        }
+    });
+    
+    // Captura de datos específicos (Testigos, Averías, Tareas Kanban)
+    if (currentWizard.witnesses && currentWizard.witnesses.length > 0) {
+        contextStr += "\n--- TESTIGOS REGISTRADOS ---\n";
+        currentWizard.witnesses.forEach(w => {
+            contextStr += `- ${w.name} (ID: ${w.doc}): "${w.testimony}"\n`;
+        });
+    }
+    
+    if (currentWizard.tasks && currentWizard.tasks.length > 0) {
+        contextStr += "\n--- PLAN DE ACCIÓN (KANBAN) ---\n";
+        currentWizard.tasks.forEach(t => {
+            contextStr += `- Tarea: ${t.title} [Columna: ${t.column}]\n`;
+        });
+    }
+    
+    return contextStr;
+}</code></pre>
+            </div>
+
+            <!-- 7. Footer Unificado e Información Legal -->
+            <div id="footer-brand" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="help-circle"></i> 7. Footer unificado, popup "Importante Leer" y Marca</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    Todos los pies de página de los formatos se unifican para mantener un control estándar de botones (Cambio de Tema, Importante Leer, Reiniciar Formato) y la marca <strong>By WAPPY IA</strong> alineada a la derecha de forma fija.
+                </p>
+                <pre><code>&lt;footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t flex flex-row items-center justify-between shadow-lg text-xs py-3 px-6"&gt;
+    &lt;div class="flex gap-2"&gt;
+        &lt;button onclick="toggleTheme()" ...&gt;Tema&lt;/button&gt;
+        &lt;button onclick="openImportantInfoModal()" ...&gt;Importante Leer&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class="flex-1 text-center font-bold tracking-wider uppercase"&gt;
+        By WAPPY IA
+    &lt;/div&gt;
+    &lt;div class="text-[10px] text-slate-400"&gt;
+        Vigencia: &lt;span id="footer-current-date"&gt;&lt;/span&gt;
+    &lt;/div&gt;
+&lt;/footer&gt;</code></pre>
+            </div>
+
+            <!-- 8. Tablero Kanban de Planes de Acción -->
+            <div id="kanban-component" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="kanban"></i> 8. Tablero Kanban de Planes de Acción</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    El componente de planes de acción implementa un tablero Kanban completamente dinámico y visual con columnas de estado (Por Hacer, En Progreso, Completado) y drag-and-drop nativo de HTML5. Las tareas se guardan en el array <code>currentWizard.tasks</code>.
+                </p>
+                <pre><code>// Definición de Estructura de Tarea en Kanban
+currentWizard.tasks = [
+    {
+        id: "task-1780084578181",
+        title: "Capacitar personal en alturas",
+        column: "todo" // 'todo', 'progress' o 'done'
+    }
+];
+
+// Eventos Drag and Drop nativos
+function drag(ev, taskId) {
+    ev.dataTransfer.setData("text", taskId);
+}
+function allowDrop(ev) {
+    ev.preventDefault();
+}
+function handleDrop(ev, columnName) {
+    ev.preventDefault();
+    const taskId = ev.dataTransfer.getData("text");
+    const task = currentWizard.tasks.find(t => t.id === taskId);
+    if (task) {
+        task.column = columnName;
+        renderKanban();
+        saveLocalData();
+    }
+}</code></pre>
+            </div>
+
+            <!-- 9. Matriz de Análisis de Trabajo Seguro (ATS) -->
+            <div id="ats-component" class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
+                <h2 class="text-lg font-black text-cyan-500 dark:text-cyan-400 flex items-center gap-2"><i data-lucide="table"></i> 9. Matriz ATS Dinámica</h2>
+                <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                    La metodología ATS requiere desglosar las tareas operativas paso a paso, identificando los peligros y aplicando controles específicos. La tabla interactiva permite agregar, editar y remover filas mediante un array reactivo en <code>currentWizard.atsRows</code>.
+                </p>
+                <pre><code>// Estructura de Fila ATS
+currentWizard.atsRows = [
+    {
+        paso: "1",
+        descripcion: "Montaje de andamios",
+        peligros: "Caída de altura, colapso de estructura",
+        controles: "Uso de arnés de seguridad anclado a línea de vida"
+    }
+];
+
+// Renderizado dinámico de filas con campos vinculados
+function renderATSTable() {
+    const tbody = document.getElementById('ats-table-body');
+    tbody.innerHTML = '';
+    currentWizard.atsRows.forEach((row, index) => {
+        tbody.innerHTML += `
+            &lt;tr&gt;
+                &lt;td&gt;${index + 1}&lt;/td&gt;
+                &lt;td&gt;&lt;textarea oninput="updateATSRow(${index}, 'descripcion', this.value)"&gt;${row.descripcion}&lt;/textarea&gt;&lt;/td&gt;
+                ...
+            &lt;/tr&gt;
+        `;
+    });
 }</code></pre>
             </div>
 
@@ -176,17 +403,17 @@ function closeLegalModal() {
 
     <!-- Fixed Bottom Footer (By WAPPY IA brand) -->
     <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-850 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400">
-        <div class="flex items-center">
-            <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 border border-slate-200 dark:border-slate-700 cursor-pointer">
                 <i id="theme-float-icon" data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
                 <span id="theme-text">Modo Claro</span>
             </button>
         </div>
         <div class="text-center font-bold tracking-wider uppercase text-slate-650 dark:text-slate-300 flex-1">
-            By WAPPY IA - <span id="footer-current-date">2026-05-29</span>
+            By WAPPY IA
         </div>
         <div class="flex items-center gap-4">
-            <span class="text-[10px] uppercase tracking-wider text-slate-400">SG-SST Oficial</span>
+            <span class="text-[10px] uppercase tracking-wider text-slate-400">Vigencia: <span id="footer-current-date"></span></span>
         </div>
     </footer>
 

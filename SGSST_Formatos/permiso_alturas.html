@@ -43,6 +43,37 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
+
+        .tab-content.hidden {
+            display: none !important;
+        }
+        .tab-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6 !important;
+        }
+        .dark .tab-active {
+            border-bottom: 2px solid #60a5fa;
+            color: #60a5fa !important;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-layout {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+            }
+            .tab-content.hidden {
+                display: flex !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+        }
+    
     </style>
 </head>
 <body class="dark bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen pb-24">
@@ -108,111 +139,783 @@
             </div>
         </div>
 
-        <!-- Custom Fields Section -->
-        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="file-text" class="w-4 h-4"></i> Datos Específicos del Formato
-            </h3>
+        <!-- CUSTOM WIZARD TAB LAYOUT -->
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-6 print-layout">
             
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COORDINADOR DE TRABAJO EN ALTURAS RESPONSABLE</label>
-                <input type="text" id="alturas-coordinador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Ingeniero Luis Pérez - Licencia SST #123456" value="Félix Bedoya - Coordinador de Alturas Certificado (Registro SENA #987654)">
+            <div class="flex border-b dark:border-slate-800 light:border-slate-200 overflow-x-auto no-print mb-4">
+                <button onclick="switchTab('tab-identification')" id="btn-tab-identification" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap tab-active flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                    1. Requisitos e Identificación
+                </button>
+                <button onclick="switchTab('tab-ats')" id="btn-tab-ats" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                    2. Análisis de Trabajo Seguro (ATS)
+                </button>
+                <button onclick="switchTab('tab-risk-matrix')" id="btn-tab-risk-matrix" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                    3. Matriz de Peligros en Alturas
+                </button>
+                <button onclick="switchTab('tab-plan')" id="btn-tab-plan" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="kanban" class="w-3.5 h-3.5"></i>
+                    4. Plan de Acción (Kanban)
+                </button>
+                <button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+                    5. Evidencias y Firmas
+                </button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ALTURA DE LA TAREA (Metros)</label>
-                    <input type="number" id="alturas-metros" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" value="6">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">SISTEMA DE ACCESO Y PROTECCIÓN CONTRA CAÍDAS</label>
-                    <input type="text" id="alturas-sistema" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Línea de vida vertical portátil y andamio certificado" value="Andamio multidireccional certificado con línea de vida vertical portátil y arrestador de caídas de doble gancho con absorbedor.">
-                </div>
-            </div>
-        
-        </div>
 
-        <!-- Multimedia Section -->
-        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="video" class="w-4 h-4"></i> Evidencia Multimedia en Terreno
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4 text-blue-500"></i> Fotos (Hasta 3)</span>
-                    <button onclick="capturePhoto()" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Capturar Foto</button>
-                    <div id="photos-grid" class="grid grid-cols-3 gap-2"></div>
+            
+            <!-- TAB 1: REQUISITOS E IDENTIFICACIÓN -->
+            <div id="tab-identification" class="tab-content flex flex-col gap-5">
+                <!-- General Permit Data -->
+                <div class="flex flex-col gap-4">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> 1.1 Identificación y Datos Generales del Permiso
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">ÁREA / UBICACIÓN EXACTA <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="text" id="alturas-ubicacion" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Cubierta Bodega 2" value="Bodega Central - Área de Cubierta Principal">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">HORA INICIO VALIDEZ <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">MÁX. 1 TURNO</span></label>
+                            <input type="time" id="alturas-hora-inicio" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" value="08:00">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">HORA FIN VALIDEZ <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">MÁX. 1 TURNO</span></label>
+                            <input type="time" id="alturas-hora-fin" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" value="17:00">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">COORDINADOR DE ALTURAS <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="text" id="alturas-coordinador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Félix Bedoya - Reg. SENA #987654" value="Félix Bedoya - Coordinador de Alturas Certificado (Registro SENA #987654)">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">EMISOR / SUPERVISOR <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="text" id="alturas-supervisor" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Ing. Carlos Mario" value="Carlos Mario Restrepo - Jefe de Mantenimiento">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">RESPONSABLE DE EMERGENCIAS <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="text" id="alturas-emergencias" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Diana Gómez" value="Diana Patricia Gómez - Brigadista Rescatista Certificada">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">ALTURA DE LA TAREA (Metros) <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="number" id="alturas-metros" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" value="6">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">SISTEMA DE ACCESO Y PROTECCIÓN CONTRA CAÍDAS <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                            <input type="text" id="alturas-sistema" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Línea de vida vertical portátil y andamio certificado" value="Andamio multidireccional certificado con línea de vida vertical portátil y arrestador de caídas de doble gancho con absorbedor.">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">DESCRIPCIÓN DE LA TAREA A EJECUTAR <span class="px-1.5 py-0.5 text-[8px] font-extrabold rounded bg-teal-500/10 text-teal-500 dark:text-teal-400 border border-teal-500/20 uppercase tracking-widest">RESOLUCIÓN 4272</span></label>
+                        <textarea id="alturas-descripcion" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none" rows="2" placeholder="Ej: Instalación de paneles solares sobre cubierta...">Mantenimiento preventivo, cambio de tejas traslúcidas y sellado de juntas de dilatación en la cubierta principal de la bodega central a una altura aproximada de 6 metros.</textarea>
+                    </div>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-blue-500"></i> Notas de Audio</span>
-                    <button onclick="toggleAudioRecording()" id="btn-audio-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Iniciar Grabación</button>
-                    <audio id="audio-playback" controls class="w-full hidden mt-2"></audio>
-                </div>
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 relative">
-                    <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4 text-blue-500"></i> Video Corto (10s Máx)</span>
-                    <button onclick="startVideoRecording()" id="btn-video-record" class="py-2 px-3 rounded-lg text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Grabar Video 10s</button>
-                    <div id="video-timer" class="hidden absolute top-4 right-4 text-xs text-red-500 font-bold tracking-widest animate-pulse">00:10</div>
-                    <video id="video-playback" controls class="w-full hidden mt-2 rounded-lg"></video>
-                </div>
-            </div>
-        </div>
 
-        <!-- Kanban Board Section -->
-        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-            <div class="flex justify-between items-center">
-                <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
-                    <i data-lucide="kanban" class="w-4 h-4"></i> Kanban de Planes de Acción
-                </h3>
-                <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95">Agregar Tarea</button>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Por Hacer</span>
-                    <div id="kanban-todo" class="flex flex-col gap-2"></div>
+                <!-- 1.2 Lista de Chequeo Pre-operacional de Alturas -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="check-square" class="w-4 h-4"></i> 1.2 Lista de Chequeo Pre-operacional y Requisitos Legales
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-medico" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-medico" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿El personal ejecutor tiene examen médico ocupacional vigente y aptitud para alturas?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-certificacion" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-certificacion" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿El personal ejecutor cuenta con certificación vigente para trabajo en alturas?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-ss" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-ss" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se encuentra afiliado y activo en la seguridad social (EPS, ARL, AFP)?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-epp" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-epp" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se realizó la inspección preoperacional del 100% de los EPP contra caídas?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-acceso" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-acceso" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se inspeccionó el sistema de acceso y cuenta con tarjeta de aprobación verde?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-delimitacion" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-delimitacion" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿El área de trabajo en el suelo está delimitada, acordonada y señalizada?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-anclajes" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-anclajes" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Los puntos de anclaje están certificados y verificados (resistencia 5000 lb)?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-rescate" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-rescate" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se cuenta con plan de rescate documentado y kit de rescate en terreno?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-clima" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-clima" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Las condiciones climatológicas son favorables (sin lluvias ni vientos)?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-herramientas" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-herramientas" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Las herramientas y equipos a usar en alturas cuentan con amarres/drizas?</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">En Progreso</span>
-                    <div id="kanban-progress" class="flex flex-col gap-2"></div>
-                </div>
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px]">
-                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Completado</span>
-                    <div id="kanban-done" class="flex flex-col gap-2"></div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Digital Signatures Canvas -->
-        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-4">
-            <h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="signature" class="w-4 h-4"></i> Firma de Validación Legal
-            </h3>
-            <div class="flex flex-col md:flex-row items-center gap-6">
-                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                    <canvas id="signature-canvas" width="400" height="150" class="bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
-                    <button onclick="clearSignatureCanvas()" class="absolute bottom-4 right-4 py-1 px-2.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-xs transition">Limpiar</button>
+                <!-- 1.3 Control de Emergencias y Rescate -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="ambulance" class="w-4 h-4"></i> 1.3 Control de Emergencias y Rescate (Resolución 4272 - Art. 17)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">CENTRO DE SALUD / IPS MÁS CERCANA</label>
+                            <input type="text" id="alturas-ips-cercana" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Clínica Las Vegas o Hospital General" value="Clínica Universitaria Bolivariana">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">TELÉFONO DE LA IPS DE EMERGENCIAS</label>
+                            <input type="text" id="alturas-ips-telefono" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: (604) 444-5555" value="604-448-8388 (Ext. Urgencias)">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-tension" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-tension" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se realizó la toma y verificación de tensión arterial y frecuencia cardíaca del personal?</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-chk-autoreporte" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-chk-autoreporte" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿El personal firmó el auto-reporte de salud diario indicando estar en condiciones aptas?</label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">RECURSOS Y EQUIPOS DE RESCATE DISPONIBLES EN SITIO</label>
+                        <input type="text" id="alturas-equipos-rescate" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Kit de rescate vertical, Camilla rígida, Inmovilizador de cuello, Botiquín tipo B" value="Kit de rescate vertical certificado (cuerdas, poleas, mosquetones), arnés de rescate, camilla rígida de trauma y botiquín de primeros auxilios completo.">
+                    </div>
                 </div>
-                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full text-slate-900 dark:text-white">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE DE QUIEN VALIDA</label>
-                        <input type="text" id="signer-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Felix Bedoya" value="Félix Bedoya">
+
+                <!-- 1.4 Equipos de Protección Personal (EPP) Requeridos -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="shield" class="w-4 h-4"></i> 1.4 Elementos de Protección Personal e Individual Requeridos
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-casco" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-casco" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Casco con barbuquejo de 3 o 4 puntos</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-gafas" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-gafas" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Gafas de seguridad con filtro UV</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-guantes" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-guantes" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Guantes antideslizantes</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-botas" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-botas" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Botas dieléctricas con puntera</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-arnes" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-arnes" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Arnés multipropósito (4 argollas)</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-eslingay" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-eslingay" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Eslinga en Y con absorbedor</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-eslingapos" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-eslingapos" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Eslinga de posicionamiento</label>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                            <input type="checkbox" id="alturas-epp-conectores" onchange="saveLocalData()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer" checked>
+                            <label for="alturas-epp-conectores" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">Mosquetones y freno arrestador</label>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">CARGO / ROL</label>
-                        <input type="text" id="signer-role" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Responsable SG-SST" value="Responsable SG-SST">
+                </div>
+
+                <!-- 1.5 Evidencia Multimedia en Terreno (Preoperacional) -->
+                <div class="flex flex-col gap-4 border-t dark:border-slate-800 pt-6">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="camera" class="w-4 h-4"></i> 1.5 Evidencia Multimedia en Terreno (Preoperacional)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
+                            <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="camera" class="w-4 h-4 text-teal-500"></i> Fotos (Hasta 3)</span>
+                            <input type="file" id="evidence-images-input" accept="image/*" class="hidden" multiple onchange="handleImageUpload(event)">
+                            <button type="button" onclick="document.getElementById('evidence-images-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 dark:border-teal-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1">Subir/Capturar Fotos</button>
+                            <div id="photos-grid" class="grid grid-cols-3 gap-2 min-h-[60px] items-center"></div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3">
+                            <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-teal-500"></i> Notas de Audio</span>
+                            <div class="flex gap-2">
+                                <input type="file" id="evidence-audio-input" accept="audio/*" class="hidden" onchange="handleAudioUpload(event)">
+                                <button type="button" onclick="document.getElementById('evidence-audio-input').click()" class="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 dark:border-teal-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+                                    <i data-lucide="upload" class="w-3.5 h-3.5 mr-1.5"></i> Subir Audio
+                                </button>
+                            </div>
+                            <div id="audio-container" class="flex flex-col gap-1 mt-1">
+                                <audio id="audio-playback" controls class="w-full hidden text-xs"></audio>
+                                <button type="button" id="btn-delete-audio" onclick="deleteAudio()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end">Eliminar Audio</button>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 relative">
+                            <span class="text-xs font-bold uppercase tracking-wider block text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="video" class="w-4 h-4 text-teal-500"></i> Video de Evidencia</span>
+                            <input type="file" id="evidence-video-input" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
+                            <button type="button" onclick="document.getElementById('evidence-video-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 dark:border-teal-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+                                <i data-lucide="upload" class="w-3.5 h-3.5 mr-1.5"></i> Subir Video
+                            </button>
+                            <div id="video-container" class="flex flex-col gap-1 mt-1">
+                                <video id="video-playback" controls class="w-full hidden rounded-lg"></video>
+                                <button type="button" id="btn-delete-video" onclick="deleteVideo()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end">Eliminar Video</button>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">LICENCIA EN SST #</label>
-                        <input type="text" id="signer-license" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-sm text-slate-900 dark:text-white" placeholder="Ej: Res #12345 de 2024" value="Lic. #987654321 de la Sec. Salud">
+                </div>
+
+                <!-- SPECIAL IA GENERATOR TRIGGER BUTTON (TAB 1 END) -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-6 flex flex-col items-center justify-center gap-3 no-print">
+                    <div class="text-center max-w-[480px]">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold">¿Quieres que nuestro Copiloto Inteligente analice la información actual, la evidencia cargada y complete el resto del formato (ATS y Peligros) automáticamente?</p>
                     </div>
-                    <div class="flex items-end">
-                        <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-2.5 px-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full">
-                            <i data-lucide="download" class="w-4 h-4"></i> Exportar HTML con Cambios
+                    <button onclick="triggerIAGeneration()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs transition shadow-lg flex items-center gap-2 cursor-pointer active:scale-95">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> GENERAR ANÁLISIS Y PLAN CON IA
+                    </button>
+                    <div id="ai-status-loader" class="hidden text-xs text-emerald-500 dark:text-emerald-400 font-bold animate-pulse">
+                        Consultando API de Gemini... analizando registro, evaluando peligros y generando plan...
+                    </div>
+                </div>
+                
+                <!-- Navigation buttons -->
+                <div class="flex justify-end items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-ats')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-850 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Análisis ATS)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: ANÁLISIS DE TRABAJO SEGURO (ATS) -->
+            <div id="tab-ats" class="tab-content hidden flex flex-col gap-5">
+                <div class="flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="table" class="w-4 h-4"></i> Análisis de Trabajo Seguro (ATS) - Matriz de Tarea
+                        </h3>
+                        <button type="button" onclick="addATSRow()" class="py-1.5 px-3.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 rounded-lg text-xs font-bold border border-teal-500/20 dark:border-teal-500/30 transition active:scale-95 cursor-pointer no-print">
+                            <i data-lucide="plus" class="w-3.5 h-3.5 inline mr-1"></i> Agregar Paso
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm">
+                        <table class="w-full text-left border-collapse min-w-[700px] text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-950 text-slate-500 font-bold uppercase border-b dark:border-slate-800 border-slate-200">
+                                    <th class="p-3 text-center w-12">Paso</th>
+                                    <th class="p-3 w-1/3">Paso de la Tarea</th>
+                                    <th class="p-3 w-1/3">Peligros / Riesgos Potenciales</th>
+                                    <th class="p-3 w-1/3">Controles / Medidas de Prevención</th>
+                                    <th class="p-3 text-center w-16 no-print">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ats-table-body" class="bg-white dark:bg-slate-900/40 text-slate-800 dark:text-slate-200">
+                                <!-- Dynamically loaded rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-identification')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-risk-matrix')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-850 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Matriz de Peligros)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: MATRIZ DE PELIGROS EN ALTURAS -->
+            <div id="tab-risk-matrix" class="tab-content hidden flex flex-col gap-5">
+                <div class="flex flex-col gap-4">
+                    <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i> Identificación y Control de Peligros Críticos
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 shadow-sm">
+                            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="user-minus" class="w-4 h-4 text-teal-500"></i> 3.1 Caídas a Diferente Nivel</span>
+                                <select id="alturas-peligro-caida-gravedad" onchange="saveLocalData()" class="rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-1 text-[10px] font-extrabold uppercase text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Leve">Leve</option>
+                                    <option value="Grave">Grave</option>
+                                    <option value="Muy Grave" selected>Muy Grave</option>
+                                    <option value="Mortal">Mortal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-1">CONTROLES DE INGENIERÍA / PROTECCIÓN CONTRA CAÍDAS</label>
+                                <textarea id="alturas-peligro-caida-control" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-2 text-xs font-semibold shadow-inner text-slate-800 dark:text-white resize-none" rows="3" placeholder="Ej: Uso de arnés de cuerpo completo conectado a línea de vida de cable de acero."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 shadow-sm">
+                            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="wrench" class="w-4 h-4 text-teal-500"></i> 3.2 Caída de Objetos y Herramientas</span>
+                                <select id="alturas-peligro-objetos-gravedad" onchange="saveLocalData()" class="rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-1 text-[10px] font-extrabold uppercase text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Leve">Leve</option>
+                                    <option value="Grave" selected>Grave</option>
+                                    <option value="Muy Grave">Muy Grave</option>
+                                    <option value="Mortal">Mortal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-1">CONTROLES (DELIMITACIÓN, AMARRES, RODAPIÉS)</label>
+                                <textarea id="alturas-peligro-objetos-control" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-2 text-xs font-semibold shadow-inner text-slate-800 dark:text-white resize-none" rows="3" placeholder="Ej: Asegurar herramientas con drizas, instalar rodapiés."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 shadow-sm">
+                            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="zap" class="w-4 h-4 text-teal-500"></i> 3.3 Contacto Eléctrico (Riesgos Eléctricos)</span>
+                                <select id="alturas-peligro-electrico-gravedad" onchange="saveLocalData()" class="rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-1 text-[10px] font-extrabold uppercase text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Leve">Leve</option>
+                                    <option value="Grave">Grave</option>
+                                    <option value="Muy Grave" selected>Muy Grave</option>
+                                    <option value="Mortal">Mortal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-1">CONTROLES (DISTANCIAS, EPP DIELÉCTRICO, BLOQUEO)</label>
+                                <textarea id="alturas-peligro-electrico-control" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-2 text-xs font-semibold shadow-inner text-slate-800 dark:text-white resize-none" rows="3" placeholder="Ej: Mantener distancias mínimas a redes, casco dieléctrico."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 shadow-sm">
+                            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="construction" class="w-4 h-4 text-teal-500"></i> 3.4 Colapso / Inestabilidad de Estructura</span>
+                                <select id="alturas-peligro-colapso-gravedad" onchange="saveLocalData()" class="rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-1 text-[10px] font-extrabold uppercase text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Leve">Leve</option>
+                                    <option value="Grave" selected>Grave</option>
+                                    <option value="Muy Grave">Muy Grave</option>
+                                    <option value="Mortal">Mortal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-1">CONTROLES (APOYOS, ANCLAJES, CAPACIDAD DE CARGA)</label>
+                                <textarea id="alturas-peligro-colapso-control" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-2 text-xs font-semibold shadow-inner text-slate-800 dark:text-white resize-none" rows="3" placeholder="Ej: Verificar nivelación y base sólida del andamio."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 shadow-sm md:col-span-2">
+                            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5"><i data-lucide="shield-alert" class="w-4 h-4 text-teal-500"></i> 3.5 Suspensión Prolongada (Trauma por Suspensión / Síndrome del Arnés)</span>
+                                <select id="alturas-peligro-suspension-gravedad" onchange="saveLocalData()" class="rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-1 text-[10px] font-extrabold uppercase text-slate-800 dark:text-white cursor-pointer focus:outline-none">
+                                    <option value="Leve">Leve</option>
+                                    <option value="Grave">Grave</option>
+                                    <option value="Muy Grave">Muy Grave</option>
+                                    <option value="Mortal" selected>Mortal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-1">CONTROLES (PLAN DE RESCATE, CORREAS DE TRAUMA, KIT DE RESCATE)</label>
+                                <textarea id="alturas-peligro-suspension-control" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-2 text-xs font-semibold shadow-inner text-slate-800 dark:text-white resize-none" rows="3" placeholder="Ej: Uso de cintas antitrauma, kit de rescate listo."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-ats')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-plan')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Plan de Acción)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 4: PLAN DE ACCIÓN (KANBAN) -->
+            <div id="tab-plan" class="tab-content hidden flex flex-col gap-5">
+                <!-- Kanban Board Section -->
+                <div class="flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-black text-blue-600 dark:text-blue-455 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="kanban" class="w-4 h-4"></i> Kanban de Planes de Acción
+                        </h3>
+                        <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-455 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95 cursor-pointer">Agregar Tarea</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Por Hacer</span>
+                            <div id="kanban-todo" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'todo')" class="flex flex-col gap-2 min-h-[120px] flex-grow"></div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">En Progreso</span>
+                            <div id="kanban-progress" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'progress')" class="flex flex-col gap-2 min-h-[120px] flex-grow"></div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block border-b border-slate-200 dark:border-slate-800 pb-2">Completado</span>
+                            <div id="kanban-done" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'done')" class="flex flex-col gap-2 min-h-[120px] flex-grow"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-risk-matrix')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-evidences')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Evidencias y Firmas)</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 5: EVIDENCIAS Y FIRMAS -->
+            <div id="tab-evidences" class="tab-content hidden flex flex-col gap-5">
+                
+                <!-- RESUMEN DE REQUISITOS Y EVIDENCIAS -->
+                <div class="p-5 rounded-2xl bg-teal-500/5 border border-teal-500/10 text-xs flex flex-col gap-4 text-slate-800 dark:text-slate-200 mb-6">
+                    <h4 class="font-extrabold text-teal-600 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="clipboard-list" class="w-4 h-4"></i> Resumen de Verificación de Trabajo en Alturas
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Descripción de la Tarea:</span>
+                            <p id="summary-alturas-desc" class="italic text-slate-650 dark:text-slate-450 font-medium font-semibold">Ninguna ingresada</p>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Ubicación y Altura:</span>
+                            <p id="summary-alturas-ubicacion" class="text-slate-650 dark:text-slate-450 font-medium font-semibold">Ninguna ingresada</p>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Acceso y Protección:</span>
+                            <p id="summary-alturas-sistema" class="text-slate-650 dark:text-slate-450 font-medium font-semibold">Ninguno ingresado</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Personal Responsable:</span>
+                            <div class="flex flex-col gap-1 text-slate-650 dark:text-slate-450 font-semibold">
+                                <div>• Coordinador: <span id="summary-alturas-coordinador" class="text-slate-800 dark:text-200"></span></div>
+                                <div>• Supervisor/Emisor: <span id="summary-alturas-supervisor" class="text-slate-800 dark:text-200"></span></div>
+                                <div>• Rescatista: <span id="summary-alturas-emergencias" class="text-slate-800 dark:text-200"></span></div>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Soportes Multimedia:</span>
+                            <div class="flex flex-col gap-2 font-semibold">
+                                <div id="summary-photos" class="flex flex-wrap gap-2 italic text-slate-650 dark:text-slate-450">
+                                    Ninguna foto cargada
+                                </div>
+                                <div id="summary-audio-video" class="flex flex-col gap-1 italic text-slate-650 dark:text-slate-450">
+                                    Ningún audio/video registrado
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Digital Signatures area -->
+                
+                <div class="flex flex-col gap-6 border-t dark:border-slate-800 light:border-slate-200 pt-6">
+                    <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                        <h3 class="text-sm font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="users" class="w-4 h-4"></i> Firmas Autorizadas y Coordinación de Alturas (Resolución 4272)
+                        </h3>
+                        <button type="button" onclick="addAdditionalSignatureCard()" class="py-1 px-3 bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer no-print">
+                            <i data-lucide="plus" class="w-3 h-3"></i> Agregar Firma de Trabajador
+                        </button>
+                    </div>
+                    <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                        
+                        <!-- 1. Coordinador de Trabajo en Alturas -->
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                <i data-lucide="user-check" class="w-4 h-4 text-teal-500"></i> Coordinador de Alturas
+                            </span>
+                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                                <canvas id="signature-coordinador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-signature-coordinador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-coordinador')">
+                                <button onclick="document.getElementById('upload-sig-signature-coordinador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-coordinador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                    <input type="text" id="signer-coordinador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del coordinador">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA</label>
+                                        <input type="text" id="signer-coordinador-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Cédula">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">REGISTRO SENA #</label>
+                                        <input type="text" id="signer-coordinador-sena" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Reg. SENA">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Emisor / Supervisor del Permiso -->
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                <i data-lucide="user-check" class="w-4 h-4 text-teal-500"></i> Emisor / Supervisor
+                            </span>
+                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                                <canvas id="signature-emisor" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-signature-emisor" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-emisor')">
+                                <button onclick="document.getElementById('upload-sig-signature-emisor').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-emisor')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                    <input type="text" id="signer-emisor-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del emisor">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA</label>
+                                        <input type="text" id="signer-emisor-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Cédula">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CARGO / ROL</label>
+                                        <input type="text" id="signer-emisor-cargo" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Cargo">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Trabajador Autorizado Principal -->
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                <i data-lucide="user" class="w-4 h-4 text-teal-500"></i> Trabajador Autorizado
+                            </span>
+                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-signature-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
+                                <button onclick="document.getElementById('upload-sig-signature-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del operario">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA</label>
+                                        <input type="text" id="signer-trabajador-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Cédula">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CERT. ALTURAS SENA</label>
+                                        <input type="text" id="signer-trabajador-cert" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Certificado #">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CIERRE Y CANCELACIÓN DEL PERMISO (CONTROL ADMINISTRATIVO) -->
+                    <div class="flex flex-col gap-6 border-t dark:border-slate-800 light:border-slate-200 pt-6">
+                        <div class="border-b dark:border-slate-800 pb-2">
+                            <h3 class="text-sm font-black text-red-500 dark:text-red-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <i data-lucide="lock" class="w-4 h-4"></i> Cierre, Suspensión o Cancelación del Permiso (Control Administrativo - Resolución 4272)
+                            </h3>
+                        </div>
+                        
+                        <!-- Checklist de Cierre -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                                <input type="checkbox" id="alturas-cierre-chk-descenso" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer">
+                                <label for="alturas-cierre-chk-descenso" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿El 100% de los trabajadores descendieron de forma segura y se retiraron del área?</label>
+                            </div>
+                            <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                                <input type="checkbox" id="alturas-cierre-chk-equipos" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer">
+                                <label for="alturas-cierre-chk-equipos" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se retiraron del sitio todos los EPP, líneas de vida y sistemas de acceso?</label>
+                            </div>
+                            <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                                <input type="checkbox" id="alturas-cierre-chk-limpieza" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer">
+                                <label for="alturas-cierre-chk-limpieza" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se realizó orden, aseo y limpieza del área de trabajo, dejándola libre de residuos?</label>
+                            </div>
+                            <div class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 shadow-sm transition hover:border-slate-350 dark:hover:border-slate-700">
+                                <input type="checkbox" id="alturas-cierre-chk-demarcacion" onchange="saveLocalData()" class="w-5 h-5 rounded-lg border-slate-300 dark:border-slate-700 text-teal-500 focus:ring-0 cursor-pointer">
+                                <label for="alturas-cierre-chk-demarcacion" class="text-xs font-semibold text-slate-700 dark:text-slate-350 cursor-pointer select-none">¿Se retiró la demarcación, cintas de peligro y conos de seguridad del suelo?</label>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA Y HORA DE CIERRE EFECTIVO</label>
+                                <input type="datetime-local" id="alturas-cierre-fecha-hora" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">OBSERVACIONES / ESTADO DE ENTREGA DEL ÁREA</label>
+                                <input type="text" id="alturas-cierre-observaciones" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm" placeholder="Ej: Trabajo terminado sin incidentes, área entregada limpia y andamio desmontado.">
+                            </div>
+                        </div>
+                        
+                        <!-- Firmas de Cierre -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Firma de Cierre del Coordinador -->
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                    <i data-lucide="user-check" class="w-4 h-4 text-teal-500"></i> Firma Cierre del Coordinador
+                                </span>
+                                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                                    <canvas id="signature-cierre-coordinador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                    <input type="file" id="upload-sig-signature-cierre-coordinador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-cierre-coordinador')">
+                                    <button onclick="document.getElementById('upload-sig-signature-cierre-coordinador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                    <button onclick="clearSignatureCanvas('signature-cierre-coordinador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                        <input type="text" id="signer-cierre-coordinador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del coordinador">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Firma de Cierre del Emisor / Supervisor -->
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                    <i data-lucide="user-check" class="w-4 h-4 text-teal-500"></i> Firma Cierre del Emisor / Supervisor
+                                </span>
+                                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                                    <canvas id="signature-cierre-emisor" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                    <input type="file" id="upload-sig-signature-cierre-emisor" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-cierre-emisor')">
+                                    <button onclick="document.getElementById('upload-sig-signature-cierre-emisor').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                                    <button onclick="clearSignatureCanvas('signature-cierre-emisor')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                        <input type="text" id="signer-cierre-emisor-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del emisor/supervisor">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Fecha de Exportación -->
+                    <div class="mt-4 flex flex-col items-center gap-2">
+                        <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fecha de Exportación del Permiso</label>
+                        <input type="date" id="export-date" oninput="saveLocalData()" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2.5 text-xs text-slate-900 dark:text-white font-semibold shadow-sm w-48 text-center focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <!-- Botón de Exportar (Centrado en la parte inferior de firmas) -->
+                    <div class="mt-4 flex justify-center">
+                        <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-3 px-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full md:w-auto cursor-pointer no-print">
+                            <i data-lucide="download" class="w-4 h-4"></i> Exportar Permiso de Alturas Firmado
                         </button>
                     </div>
                 </div>
+
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-plan')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-850 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        
+    </main>
+
+    <!-- Modal: Importante Leer -->
+    <div id="important-info-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-gradient-to-r from-blue-500/5 to-indigo-500/5">
+                <h3 class="text-base font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                    Información Importante de Uso
+                </h3>
+                <button onclick="closeImportantInfoModal()" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <!-- Modal Content -->
+            <div class="p-6 overflow-y-auto flex flex-col gap-5 text-sm leading-relaxed text-slate-600 dark:text-slate-350">
+
+                <div>
+                    <h4 class="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        ¿Cómo usar esta herramienta?
+                    </h4>
+                    <p>
+                        Este formato premium de <strong>Permiso de Trabajo Seguro en Alturas</strong> te permite registrar y autorizar legalmente toda actividad que se realice a 1.50 metros o más sobre el nivel del piso. Utiliza las pestañas superiores para navegar entre los módulos:
+                        1. Identificación y Preoperacional, 2. ATS (Análisis de Trabajo Seguro), 3. Matriz de Riesgos y Peligros, 4. Plan de Acción (Tablero Kanban) y 5. Evidencias y Firmas.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        ¿Cómo obtener la API Key de Gemini?
+                    </h4>
+                    <p>
+                        Para interactuar con el Copiloto IA de WAPPY, necesitas una API Key de Google Gemini. Puedes conseguirla de forma gratuita siguiendo estos pasos:
+                    </p>
+                    <ol class="list-decimal pl-5 mt-1 flex flex-col gap-1 text-xs">
+                        <li>Ingresa a <a href="https://aistudio.google.com/" target="_blank" class="text-blue-500 hover:underline">Google AI Studio</a> con tu cuenta de Google.</li>
+                        <li>Haz clic en el botón <strong>"Get API Key"</strong> (Obtener clave de API).</li>
+                        <li>Crea una nueva clave de API para un proyecto nuevo o existente.</li>
+                        <li>Copia la clave y pégala en el campo de configuración del chat lateral (icono de engranaje ⚙️) de este formato, luego presiona "Guardar".</li>
+                    </ol>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        ¿Por qué las imágenes, firmas, audios y videos no persisten al cambiar de computador?
+                    </h4>
+                    <p class="mb-2">
+                        El navegador tiene políticas de seguridad estrictas (Sandbox) al abrir archivos HTML directamente desde el disco (protocolo <code>file://</code>).
+                    </p>
+                    <ul class="list-disc pl-5 flex flex-col gap-1.5 text-xs">
+                        <li>
+                            <strong>Límite de LocalStorage (5MB):</strong> El almacenamiento local estándar es muy limitado. Guardar audios, fotos y videos de alta resolución en él haría que el navegador colapse por exceso de cuota.
+                        </li>
+                        <li>
+                            <strong>IndexedDB local:</strong> Para evitar colapsos, la herramienta guarda temporalmente las fotos, audios y videos en una base de datos local del navegador (IndexedDB). Esta base de datos es exclusiva de ese equipo y ese navegador.
+                        </li>
+                        <li>
+                            <strong>Solución recomendada:</strong> Usa el botón <strong>"Exportar Permiso de Alturas Firmado"</strong> en la pestaña de Firmas para generar un archivo HTML con toda la información y archivos incrustados en Base64. Este archivo exportado es portable y completo.
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                        Marco Legal — Resolución 4272 de 2021
+                    </h4>
+                    <p class="text-xs">
+                        Este formato cumple con los requisitos de la <strong>Resolución 4272 de 2021</strong> del Ministerio del Trabajo de Colombia, la cual regula el trabajo en alturas. Es <strong>obligatorio</strong> que el permiso sea diligenciado, revisado y firmado por un <strong>Coordinador de Trabajo en Alturas certificado por el SENA</strong> antes de iniciar cualquier actividad a 1.50 m o más. El incumplimiento puede generar sanciones administrativas y penales.
+                    </p>
+                </div>
+
+            </div>
+            <!-- Modal Footer -->
+            <div class="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-950/30">
+                <button onclick="closeImportantInfoModal()" class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition active:scale-95">ENTENDIDO</button>
             </div>
         </div>
-
-    </main>
+    </div>
 
     <!-- Legal Requirements Modal -->
     <div id="legal-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -222,7 +925,7 @@
                 <i data-lucide="info" class="w-5 h-5"></i> CUMPLIMIENTO LEGAL COLOMBIANO
             </h3>
             <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-300 font-medium">
-                Debe cumplir estrictamente con la Resolución 4272 de 2021 de Colombia. Obliga a diligenciar y firmar el permiso de trabajo en alturas de forma presencial por parte del Coordinador de Trabajo en Alturas, garantizando la verificación física del 100% de la lista de chequeo de seguridad.
+                Debe cumplir strictly con la Resolución 4272 de 2021 de Colombia. Obliga a diligenciar y firmar el permiso de trabajo en alturas de forma presencial por parte del Coordinador de Trabajo en Alturas, garantizando la verificación física del 100% de la lista de chequeo de seguridad.
             </p>
             <div class="mt-6 flex justify-end">
                 <button onclick="closeLegalModal()" class="py-2 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition">Cerrar</button>
@@ -250,7 +953,6 @@
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected>Wappy IA Prime (Análisis de Agentes y Código)</option>
-                    <option value="gemini-3.1-pro">Wappy IA Cerebro (Auditoría Profunda y Leyes)</option>
                 </select>
             </div>
         </div>
@@ -283,16 +985,17 @@
                 <i id="theme-float-icon" data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
                 <span id="theme-text">Modo Claro</span>
             </button>
+            <button onclick="openImportantInfoModal()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-650 dark:text-blue-400 transition active:scale-95 border border-blue-500/20 dark:border-blue-500/30 font-bold" title="Importante Leer">
+                <i data-lucide="info" class="w-4 h-4"></i>
+                <span>Importante Leer</span>
+            </button>
             <button onclick="resetSSTForm()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-650 dark:text-red-400 transition active:scale-95 border border-red-500/20 dark:border-red-500/30 font-bold" title="Reiniciar Formulario">
                 <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                 <span>Reiniciar Formulario</span>
             </button>
         </div>
-        <div class="text-center font-bold tracking-wider uppercase text-slate-650 dark:text-slate-300 flex-1">
-            By WAPPY IA - <span id="footer-current-date">2026-05-29</span>
-        </div>
-        <div class="flex items-center gap-4">
-            <span class="text-[10px] uppercase tracking-wider text-slate-400">SG-SST Oficial</span>
+        <div class="font-bold tracking-wider uppercase text-slate-650 dark:text-slate-300">
+            BY WAPPY IA
         </div>
     </footer>
 
@@ -314,13 +1017,92 @@
         };
         
         let currentTheme = 'dark';
+        let isLoadingState = false;
+        function getEl(id) {
+            return document.getElementById(id);
+        }
+        function cleanAndParseJSON(text) {
+            let cleanText = text.trim();
+            if (cleanText.startsWith("```")) {
+                cleanText = cleanText.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+            }
+            try {
+                return JSON.parse(cleanText);
+            } catch (e) {
+                const firstBrace = cleanText.indexOf('{');
+                const lastBrace = cleanText.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                    const potentialJSON = cleanText.substring(firstBrace, lastBrace + 1);
+                    try {
+                        return JSON.parse(potentialJSON);
+                    } catch (innerError) {
+                        console.error("Failed to parse extracted JSON substring:", innerError);
+                    }
+                }
+                const firstBracket = cleanText.indexOf('[');
+                const lastBracket = cleanText.lastIndexOf(']');
+                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+                    const potentialJSON = cleanText.substring(firstBracket, lastBracket + 1);
+                    try {
+                        return JSON.parse(potentialJSON);
+                    } catch (innerError) {
+                        console.error("Failed to parse extracted Array substring:", innerError);
+                    }
+                }
+                throw e;
+            }
+        }
         let currentWizard = {
             id: null,
-            tasks: []
+            tasks: [],
+            atsRows: [],
+            witnesses: [],
+            averiasNodes: [],
+            arbolCausasNodes: []
         };
 
         let canvas, ctx;
         let isDrawing = false;
+
+        let activeTab = 'tab-identification';
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('[id^="btn-tab-"]').forEach(b => b.classList.remove('tab-active'));
+
+            const targetContent = document.getElementById(tabId);
+            if (targetContent) targetContent.classList.remove('hidden');
+            const targetBtn = document.getElementById(`btn-${tabId}`);
+            if (targetBtn) targetBtn.classList.add('tab-active');
+            activeTab = tabId;
+
+            // Lógica específica para resúmenes de evidencias (si existen los elementos en la página)
+            if (tabId === 'tab-evidences') {
+                if (getEl('summary-worker-version')) {
+                    const workerVal = getEl('at-version-trabajador') ? getEl('at-version-trabajador').value.trim() : '';
+                    const investigatorVal = getEl('at-evento-desc') ? getEl('at-evento-desc').value.trim() : '';
+                    getEl('summary-worker-version').innerText = workerVal || 'Ninguna ingresada';
+                    getEl('summary-investigator-desc').innerText = investigatorVal || 'Ninguna ingresada';
+                }
+                if (getEl('summary-alturas-desc')) {
+                    const descVal = getEl('alturas-descripcion') ? getEl('alturas-descripcion').value.trim() : '';
+                    const ubicacionVal = getEl('alturas-ubicacion') ? getEl('alturas-ubicacion').value.trim() : '';
+                    const metrosVal = getEl('alturas-metros') ? getEl('alturas-metros').value.trim() : '';
+                    const sistemaVal = getEl('alturas-sistema') ? getEl('alturas-sistema').value.trim() : '';
+
+                    const coordVal = getEl('alturas-coordinador') ? getEl('alturas-coordinador').value.trim() : '';
+                    const supVal = getEl('alturas-supervisor') ? getEl('alturas-supervisor').value.trim() : '';
+                    const emergVal = getEl('alturas-emergencias') ? getEl('alturas-emergencias').value.trim() : '';
+
+                    getEl('summary-alturas-desc').innerText = descVal || 'Ninguna ingresada';
+                    getEl('summary-alturas-ubicacion').innerText = (ubicacionVal || 'Ninguna') + ' (Altura: ' + (metrosVal || '0') + 'm)';
+                    getEl('summary-alturas-sistema').innerText = sistemaVal || 'Ninguno ingresado';
+
+                    if (getEl('summary-alturas-coordinador')) getEl('summary-alturas-coordinador').innerText = coordVal || 'No asignado';
+                    if (getEl('summary-alturas-supervisor')) getEl('summary-alturas-supervisor').innerText = supVal || 'No asignado';
+                    if (getEl('summary-alturas-emergencias')) getEl('summary-alturas-emergencias').innerText = emergVal || 'No asignado';
+                }
+            }
+        }
 
         window.onload = function() {
             try {
@@ -440,64 +1222,181 @@
             }
         }
 
+        function initializeSingleCanvas(cvs) {
+            const context = cvs.getContext('2d');
+            context.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+            context.lineWidth = 2.5;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            
+            cvs.isDrawing = false;
+            if (cvs.hasDrawn === undefined) {
+                cvs.hasDrawn = false;
+            }
+            
+            cvs.addEventListener('mousedown', (e) => {
+                cvs.isDrawing = true;
+                context.beginPath();
+                const rect = cvs.getBoundingClientRect();
+                context.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+            });
+            
+            cvs.addEventListener('mousemove', (e) => {
+                if (!cvs.isDrawing) return;
+                cvs.hasDrawn = true;
+                const rect = cvs.getBoundingClientRect();
+                context.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                context.stroke();
+            });
+            
+            const stopDrawing = () => {
+                cvs.isDrawing = false;
+                context.closePath();
+                saveLocalData();
+            };
+            
+            cvs.addEventListener('mouseup', stopDrawing);
+            cvs.addEventListener('mouseleave', stopDrawing);
+            
+            cvs.addEventListener('touchstart', (e) => {
+                cvs.isDrawing = true;
+                context.beginPath();
+                const rect = cvs.getBoundingClientRect();
+                const touch = e.touches[0];
+                context.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                e.preventDefault();
+            }, { passive: false });
+            
+            cvs.addEventListener('touchmove', (e) => {
+                if (!cvs.isDrawing) return;
+                cvs.hasDrawn = true;
+                const rect = cvs.getBoundingClientRect();
+                const touch = e.touches[0];
+                context.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                context.stroke();
+                e.preventDefault();
+            }, { passive: false });
+
+            cvs.addEventListener('touchend', stopDrawing);
+            cvs.addEventListener('touchcancel', stopDrawing);
+        }
+
         function initializeCanvas() {
-            canvas = document.getElementById('signature-canvas');
-            ctx = canvas.getContext('2d');
-            ctx.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            document.querySelectorAll('canvas').forEach(cvs => {
+                initializeSingleCanvas(cvs);
+            });
+        }
+
+        function clearSignatureCanvas(canvasId) {
+            const cvs = document.getElementById(canvasId || 'signature-canvas');
+            if (cvs) {
+                const context = cvs.getContext('2d');
+                context.clearRect(0, 0, cvs.width, cvs.height);
+                context.beginPath();
+                cvs.hasDrawn = false;
+                saveLocalData();
+            }
+        }
+
+        function uploadSignatureImage(canvasId) {
+            const fileInput = document.getElementById('upload-sig-' + canvasId);
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const cvs = document.getElementById(canvasId);
+                        if (cvs) {
+                            const ctx = cvs.getContext('2d');
+                            ctx.clearRect(0, 0, cvs.width, cvs.height);
+                            const ratio = Math.min(cvs.width / img.width, cvs.height / img.height);
+                            const w = img.width * ratio;
+                            const h = img.height * ratio;
+                            const x = (cvs.width - w) / 2;
+                            const y = (cvs.height - h) / 2;
+                            ctx.drawImage(img, x, y, w, h);
+                            cvs.hasDrawn = true;
+                            saveLocalData();
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function addAdditionalSignatureCard(customId = null, name = '', role = '', cc = '') {
+            const container = document.getElementById('signatures-grid');
+            if (!container) return;
             
-            canvas.addEventListener('mousedown', startDrawing);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('mouseleave', stopDrawing);
+            const nextIndex = customId ? parseInt(customId.split('-')[2]) : (currentWizard.customSignatures ? currentWizard.customSignatures.length + 1 : 1);
+            const sigId = customId || `signature-custom-${nextIndex}`;
             
-            canvas.addEventListener('touchstart', startDrawingTouch, { passive: false });
-            canvas.addEventListener('touchmove', drawTouch, { passive: false });
-            canvas.addEventListener('touchend', stopDrawing, { passive: false });
+            const card = document.createElement('div');
+            card.id = `card-${sigId}`;
+            card.className = 'p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative';
+            
+            card.innerHTML = `
+                <button onclick="removeAdditionalSignatureCard('${sigId}')" class="absolute top-4 right-4 text-red-500 hover:text-red-750 text-xs font-bold transition">✕ Eliminar</button>
+                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                    <i data-lucide="signature" class="w-4 h-4 text-teal-500"></i> Firma Adicional
+                </span>
+                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
+                    <canvas id="${sigId}" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                    <input type="file" id="upload-sig-${sigId}" class="hidden" accept="image/*" onchange="uploadSignatureImage('${sigId}')">
+                    <button onclick="document.getElementById('upload-sig-${sigId}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
+                    <button onclick="clearSignatureCanvas('${sigId}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                        <input type="text" id="signer-${sigId}-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre" value="${name}">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA</label>
+                            <input type="text" id="signer-${sigId}-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="CC" value="${cc}">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CARGO / ROL</label>
+                            <input type="text" id="signer-${sigId}-role" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Cargo" value="${role}">
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(card);
+            
+            if (!customId) {
+                if (!currentWizard.customSignatures) currentWizard.customSignatures = [];
+                currentWizard.customSignatures.push({ id: sigId, name, role, cc });
+            }
+            
+            setTimeout(() => {
+                const cvs = document.getElementById(sigId);
+                if (cvs) {
+                    initializeSingleCanvas(cvs);
+                }
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            }, 50);
+            
+            if (!isLoadingState) {
+                saveLocalData();
+            }
         }
 
-        function startDrawing(e) {
-            isDrawing = true;
-            ctx.beginPath();
-            const rect = canvas.getBoundingClientRect();
-            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            const rect = canvas.getBoundingClientRect();
-            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-            ctx.stroke();
-        }
-
-        function stopDrawing() {
-            isDrawing = false;
-            ctx.closePath();
-        }
-
-        function startDrawingTouch(e) {
-            isDrawing = true;
-            ctx.beginPath();
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-            e.preventDefault();
-        }
-
-        function drawTouch(e) {
-            if (!isDrawing) return;
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-            ctx.stroke();
-            e.preventDefault();
-        }
-
-        function clearSignatureCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
+        function removeAdditionalSignatureCard(sigId) {
+            const card = document.getElementById(`card-${sigId}`);
+            if (card) {
+                card.remove();
+            }
+            if (currentWizard.customSignatures) {
+                currentWizard.customSignatures = currentWizard.customSignatures.filter(s => s.id !== sigId);
+            }
+            saveLocalData();
         }
 
         function showLegalRequirements() {
@@ -506,6 +1405,23 @@
 
         function closeLegalModal() {
             document.getElementById('legal-modal').classList.add('hidden');
+        }
+
+        function openImportantInfoModal() {
+            const modal = document.getElementById('important-info-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function closeImportantInfoModal() {
+            const modal = document.getElementById('important-info-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
         }
 
         function addNewKanbanTask() {
@@ -517,6 +1433,18 @@
                     column: 'todo'
                 });
                 renderKanban();
+            if (document.getElementById('ats-table-body')) {
+                renderATSTable();
+            }
+            if (typeof renderWitnesses === 'function' && document.getElementById('witnesses-list')) {
+                renderWitnesses();
+            }
+            if (typeof renderAverias === 'function' && document.getElementById('averias-list')) {
+                renderAverias();
+            }
+            if (typeof renderCausesTree === 'function' && document.getElementById('causes-tree-container')) {
+                if(typeof renderCausesTree === 'function') renderCausesTree();
+            }
                 saveLocalData();
             }
         }
@@ -546,13 +1474,494 @@
             const nextCol = col === 'todo' ? 'progress' : 'done';
             currentWizard.tasks = currentWizard.tasks.map(t => t.id === id ? { ...t, column: nextCol } : t);
             renderKanban();
+            if (document.getElementById('ats-table-body')) {
+                renderATSTable();
+            }
+            if (typeof renderWitnesses === 'function' && document.getElementById('witnesses-list')) {
+                renderWitnesses();
+            }
+            if (typeof renderAverias === 'function' && document.getElementById('averias-list')) {
+                renderAverias();
+            }
+            if (typeof renderCausesTree === 'function' && document.getElementById('causes-tree-container')) {
+                if(typeof renderCausesTree === 'function') renderCausesTree();
+            }
             saveLocalData();
         }
 
         function deleteTask(id) {
             currentWizard.tasks = currentWizard.tasks.filter(t => t.id !== id);
             renderKanban();
+            if (document.getElementById('ats-table-body')) {
+                renderATSTable();
+            }
+            if (typeof renderWitnesses === 'function' && document.getElementById('witnesses-list')) {
+                renderWitnesses();
+            }
+            if (typeof renderAverias === 'function' && document.getElementById('averias-list')) {
+                renderAverias();
+            }
+            if (typeof renderCausesTree === 'function' && document.getElementById('causes-tree-container')) {
+                if(typeof renderCausesTree === 'function') renderCausesTree();
+            }
             saveLocalData();
+        }
+
+        async function triggerIAGeneration() {
+            const apiKey = localStorage.getItem('wappy_gemini_key') || '';
+            if (!apiKey) {
+                alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
+                toggleAISidebar();
+                return;
+            }
+
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'signature-canvas', 'signer-name', 'signer-role', 'signer-license'];
+                if (!excluded.includes(input.id)) {
+                    currentValues[input.id] = input.value;
+                }
+            });
+
+            const model = document.getElementById('gemini-model').value;
+            const loader = document.getElementById('ai-status-loader');
+            loader.classList.remove('hidden');
+
+            const id = "permiso_alturas";
+            let jsonSchema = {};
+            let sstInstructions = "";
+
+            if (id === "matriz_peligros") {
+                jsonSchema = {
+                    "peligro-actividad": "Actividad o tarea específica evaluada en el puesto de trabajo (Ej: Troquelado de láminas)",
+                    "peligro-rutinaria": "SI o NO indicando si la tarea es habitual/rutinaria",
+                    "peligro-desc": "Exposición, fuente generadora y descripción técnica detallada del peligro físico, químico, biomecánico, etc.",
+                    "peligro-clasificacion": "Uno de los siguientes valores exactos: Fisico, Quimico, Biologico, Biomecanico, Psicosocial, Seguridad, Naturales",
+                    "controles-existentes": "Medidas de control sugeridas y documentadas en la fuente, medio y trabajador",
+                    "newTasks": [
+                        { "title": "Capacitar en peligro biomecánico a los operarios" },
+                        { "title": "Comprar ayudas mecánicas para levantamiento de cargas" }
+                    ]
+                };
+                sstInstructions = "Actúas como un experto consultor de SST de Colombia experto en la metodología GTC-45.";
+            } else if (id === "matriz_requisitos_legales") {
+                jsonSchema = {
+                    "legal-clasificacion": "Uno de los siguientes valores exactos: Nacional, Departamental, Local, Sectorial",
+                    "legal-estado": "Uno de los siguientes valores exactos: CUMPLE, EN_PROCESO, NO_CUMPLE",
+                    "requisito-desc": "Artículo aplicable y descripción detallada del requisito legal",
+                    "evidencia-cumplimiento": "Evidencia de cumplimiento del requisito y responsable",
+                    "newTasks": [
+                        { "title": "Auditar cumplimiento de requisitos de la Resolución 0312" },
+                        { "title": "Actualizar firmas en matriz de requisitos legales" }
+                    ]
+                };
+                sstInstructions = "Actúas como un experto asesor de SST experto en normatividad y requisitos legales en Colombia.";
+            } else if (id === "matriz_acpm") {
+                jsonSchema = {
+                    "acpm-origen": "Uno de los siguientes valores exactos: Auditoria, Accidente, Inspeccion, Copasst, Reporte, Revision",
+                    "acpm-contencion": "Acción rápida de mitigación de la no conformidad",
+                    "analisis-causa": "Análisis técnico de causa raíz (usando 5 porqués o Ishikawa)",
+                    "plan-accion": "Plan detallado de acciones correctivas o preventivas a implementar",
+                    "newTasks": [
+                        { "title": "Cerrar acción correctiva de auditoría interna" },
+                        { "title": "Revisar efectividad de plan correctivo a los 3 meses" }
+                    ]
+                };
+                sstInstructions = "Actúas como un experto auditor de SST experto en no conformidades y acciones correctivas (ACPM).";
+            } else if (id === "analisis_vulnerabilidad") {
+                jsonSchema = {
+                    "vuln-calificacion": "Uno de los siguientes valores exactos: POSIBLE, PROBABLE, INMINENTE",
+                    "vuln-analisis": "Análisis de vulnerabilidad en personas, recursos y sistemas",
+                    "vuln-medidas": "Medidas concretas de prevención y mitigación sugeridas",
+                    "newTasks": [
+                        { "title": "Instalar anclajes mecánicos sismorresistentes en estantería" },
+                        { "title": "Realizar simulacro nacional de evacuación con brigadistas" }
+                    ]
+                };
+                sstInstructions = "Actúas como un experto consultor de SST experto en prevención y respuesta ante emergencias y análisis de vulnerabilidad.";
+            } else if (id === "reporte_actos_inseguros") {
+                jsonSchema = {
+                    "acto-tipo": "Uno de los siguientes valores exactos: Acto_Subestandar, Condicion_Subestandar",
+                    "acto-area": "Área o puesto de trabajo del reporte",
+                    "acto-correccion": "Corrección inmediata recomendada",
+                    "acto-condicion-desc": "Descripción detallada del acto o de la condición insegura reportada en terreno",
+                    "newTasks": [
+                        { "title": "Socializar lección aprendida sobre acto inseguro reportado" },
+                        { "title": "Inspección semanal de orden y aseo en zona afectada" }
+                    ]
+                };
+                sstInstructions = "Actúas como un inspector de SST experto en reportes de actos y condiciones inseguras.";
+            } else if (id === "gestion_cambio") {
+                jsonSchema = {
+                    "cambio-tipo": "Uno de los siguientes valores exactos: Fisico_Tecnico, Organizacional, Normativo, Tecnologico",
+                    "cambio-desc-resumen": "Resumen conciso y claro del cambio planteado",
+                    "cambio-desc": "Descripción física, técnica y de procesos exhaustiva del cambio organizacional propuesto",
+                    "cambio-peligros": "Identificación de nuevos peligros",
+                    "cambio-controles": "Medidas de control y prevención del cambio",
+                    "newTasks": [
+                        { "title": "Actualizar matriz GTC-45 con peligros del nuevo cambio" },
+                        { "title": "Capacitar a operadores en nueva maquinaria instalada" }
+                    ]
+                };
+                sstInstructions = "Actúas como un experto consultor de SST en gestión del cambio bajo Decreto 1072.";
+            } else if (id === "reglamento_interno_trabajo") {
+                jsonSchema = {
+                    "rit-comite": "Políticas del Comité de Convivencia y prevención de acoso",
+                    "rit-bienestar": "Políticas de higiene, ergonomía y bienestar",
+                    "newTasks": [
+                        { "title": "Elegir nuevos representantes del Comité de Convivencia" },
+                        { "title": "Publicar reglamento interno de trabajo en cartelera física" }
+                    ]
+                };
+                sstInstructions = "Actúas como un asesor jurídico experto en derecho laboral y reglamento interno de trabajo en SST.";
+            } else if (id === "plan_trabajo") {
+                jsonSchema = {
+                    "plan-responsables": "Responsables del plan",
+                    "plan-presupuesto": "Presupuesto detallado estimado de inversión",
+                    "newTasks": [
+                        { "title": "Comité mensual de seguimiento al cronograma del plan anual" },
+                        { "title": "Presentar informe de cumplimiento a gerencia general" }
+                    ]
+                };
+                sstInstructions = "Actúas como un consultor en SST experto en diseño y planeación de planes de trabajo anuales.";
+            } else if (id === "plan_capacitacion") {
+                jsonSchema = {
+                    "cap-dirigido": "Población objeto a capacitar",
+                    "cap-facilitador": "Facilitador o entidad sugerida",
+                    "newTasks": [
+                        { "title": "Evaluar la eficacia de capacitación de riesgo químico" },
+                        { "title": "Diseñar inducción de SST para contratistas nuevos" }
+                    ]
+                };
+                sstInstructions = "Actúas como un consultor en SST experto en planes de capacitación y entrenamiento.";
+            } else if (id === "analisis_trabajo_seguro") {
+                jsonSchema = {
+                    "ats-herramientas": "Herramientas o equipos seguros",
+                    "ats-epp": "EPP recomendados y de protección colectiva",
+                    "newTasks": [
+                        { "title": "Divulgar el ATS al personal ejecutor antes de la tarea" },
+                        { "title": "Asegurar que andamio multidireccional tenga tarjeta verde" }
+                    ]
+                };
+                sstInstructions = "Actúas como un especialista en SST experto en análisis de trabajo seguro (ATS).";
+            } else if (id === "permiso_alturas") {
+                jsonSchema = {
+                    "alturas-sistema": "Sistemas de acceso y protección anticaídas recomendados",
+                    "alturas-peligro-caida-control": "Controles para riesgo de caída a diferente nivel",
+                    "alturas-peligro-caida-gravedad": "Uno de los siguientes valores exactos: Leve, Grave, Muy Grave, Mortal",
+                    "alturas-peligro-objetos-control": "Controles para caída de objetos",
+                    "alturas-peligro-objetos-gravedad": "Uno de los siguientes valores exactos: Leve, Grave, Muy Grave, Mortal",
+                    "alturas-peligro-electrico-control": "Controles para riesgo eléctrico",
+                    "alturas-peligro-electrico-gravedad": "Uno de los siguientes valores exactos: Leve, Grave, Muy Grave, Mortal",
+                    "alturas-peligro-colapso-control": "Controles para colapso de estructura/andamio",
+                    "alturas-peligro-colapso-gravedad": "Uno de los siguientes valores exactos: Leve, Grave, Muy Grave, Mortal",
+                    "alturas-peligro-suspension-control": "Controles para trauma por suspensión",
+                    "alturas-peligro-suspension-gravedad": "Uno de los siguientes valores exactos: Leve, Grave, Muy Grave, Mortal",
+                    "atsRows": [
+                        { "paso": "1", "descripcion": "Inspección pre-operacional", "peligros": "Caída a nivel", "controles": "Uso de botas, orden y aseo" },
+                        { "paso": "2", "descripcion": "Armado de andamio", "peligros": "Atrapamiento, caída de objetos", "controles": "Uso de guantes, delimitar área" }
+                    ],
+                    "newTasks": [
+                        { "title": "Verificar curso de alturas vigente y aptitud médica" },
+                        { "title": "Inspeccionar el 100% de arneses y eslingas de alturas" }
+                    ]
+                };
+                sstInstructions = "Actúas como un coordinador e instructor experto en trabajo en alturas bajo Resolución 4272. Tu objetivo es generar paso a paso el ATS (Análisis de Trabajo Seguro) de la tarea y evaluar rigurosamente los peligros críticos de alturas.";
+            } else if (id === "investigacion_accidentes") {
+                jsonSchema = {
+                    "causas-inmediatas-actos": "Acciones y comportamientos inseguros (Actos Subestándar) que provocaron el accidente",
+                    "causas-inmediatas-condiciones": "Defectos en herramientas, equipos o instalaciones (Condiciones Subestándar) que provocaron el accidente",
+                    "causas-basicas-personales": "Limitaciones de capacidad, entrenamiento o fatiga del trabajador (Factores Personales)",
+                    "causas-basicas-trabajo": "Fallas en supervisión, mantenimiento preventivo o diseño (Factores del Trabajo)",
+                    "at-why-1": "Primer porqué: ¿Por qué se lesionó el trabajador?",
+                    "at-why-2": "Segundo porqué: Causa directa de la lesión",
+                    "at-why-3": "Tercer porqué: Causa inmediata indirecta",
+                    "at-why-4": "Cuarto porqué: Causa básica de la falla",
+                    "at-why-5": "Quinto porqué: Causa básica organizacional raíz",
+                    "at-ishikawa-mano-obra": "Causa en Mano de Obra",
+                    "at-ishikawa-maquinaria": "Causa en Maquinaria/Equipos",
+                    "at-ishikawa-metodo": "Causa en Método/Procedimiento",
+                    "at-ishikawa-materiales": "Causa en Materiales/Repuestos",
+                    "at-ishikawa-medio-ambiente": "Causa en Medio Ambiente/Área",
+                    "at-ishikawa-medida": "Causa en Medición/Inspección",
+                    "arbolCausasNodes": [
+                        { "id": 1, "text": "Trauma en muñeca y miembro superior izquierdo", "type": "hecho", "parentId": null },
+                        { "id": 2, "text": "Caída a nivel por pérdida de sustentación (resbalón)", "type": "hecho", "parentId": 1 },
+                        { "id": 3, "text": "Contaminación del pasillo peatonal con derrame de aceite", "type": "estado", "parentId": 2 },
+                        { "id": 4, "text": "Calzado del trabajador con suela lisa y sin adherencia", "type": "estado", "parentId": 2 },
+                        { "id": 5, "text": "Pérdida de estanqueidad y goteo constante de fluido en montacargas", "type": "hecho", "parentId": 3 },
+                        { "id": 6, "text": "Falta de delimitación y aviso de advertencia del riesgo", "type": "estado", "parentId": 3 },
+                        { "id": 7, "text": "Desgaste y rotura de sellos por superación de ciclo de vida", "type": "hecho", "parentId": 5 }
+                    ],
+                    "newTasks": [
+                        { "title": "Implementar guarda física de seguridad en máquina troqueladora" },
+                        { "title": "Rediseñar procedimiento de mantenimiento preventivo crítico" },
+                        { "title": "Socializar la lección aprendida del accidente con todo el personal" }
+                    ]
+                };
+                sstInstructions = `Actúas como un experto en investigación de accidentes laborales y Resolución 1401 de 2007.
+Para el árbol de causas (arbolCausasNodes), es absolutamente CRÍTICO que generes una estructura ramificada y no lineal. Esto significa que un nodo padre puede tener dos o más nodos hijos concurrentes (por ejemplo, que el resbalón sea causado concurrentemente por el charco de aceite y por el calzado inapropiado del trabajador, teniendo ambos el mismo parentId).
+Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Mano de Obra, Maquinaria, Método, Materiales, Medio Ambiente, Medida) debe contener obligatoriamente de 2 a 3 causas independientes cortas separadas por un carácter de salto de línea (\\n). No uses párrafos corridos.`;
+            }
+
+            let promptDirectives = "";
+            if (id === "permiso_alturas") {
+                promptDirectives = `
+- Es OBLIGATORIO que incluyas en el JSON la propiedad "atsRows" con un array de 3 a 5 pasos secuenciales técnicos y detallados del ATS (Análisis de Trabajo Seguro) para la tarea en alturas descrita. Cada paso debe ser un objeto con: "paso" (número correlativo), "descripcion" (descripción clara y detallada de la actividad física o técnica a realizar), "peligros" (riesgos y peligros específicos de la tarea en alturas en ese paso), y "controles" (medidas de prevención, control y EPP requeridos).
+- Completa todos los campos de peligro y controles anticaídas correspondientes de la sección de matriz de peligros.
+`;
+            } else if (id === "investigacion_accidentes") {
+                promptDirectives = `
+- Es OBLIGATORIO que incluyas en el JSON la propiedad "arbolCausasNodes" con un array representando el árbol de causas (hechos y condiciones).
+`;
+            }
+
+            const systemInstruction = `
+ ${sstInstructions}
+ Analizarás los datos actuales ingresados en el formato y completarás los campos técnicos sugeridos que correspondan al formato actual con información profesional de alto nivel y con base en el marco regulatorio colombiano de SST.
+ Devolverás OBLIGATORIAMENTE un JSON estructurado que coincida exactamente con la estructura de salida obligatoria.
+ 
+ DIRECTIVAS ESPECÍFICAS DE OBLIGATORIEDAD:
+ ${promptDirectives}
+
+ Además, debes sugerir un listado "newTasks" de 3 o 4 tareas de acción para el plan de acción (Kanban).
+ NO utilices bloques de código de markdown. Devuelve solo el JSON plano.
+  
+ Estructura de salida obligatoria:
+ ${JSON.stringify(jsonSchema, null, 2)}
+             `;
+
+            const userPrompt = `
+ Información actual ingresada en el formato "${appDocHeader.appTitle}":
+ ${JSON.stringify(currentValues, null, 2)}
+ 
+ Por favor, analiza esta información y genera el análisis técnico detallado completando los demás campos y proponiendo las tareas necesarias para el plan de acción en el formato JSON requerido.
+            `;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        generationConfig: { responseMimeType: "application/json" },
+                        contents: [{ role: "user", parts: [{ text: userPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Error en API: ${response.status}`);
+                }
+
+                const resData = await response.json();
+                const textContent = resData.candidates[0].content.parts[0].text;
+
+                console.log("Respuesta cruda de Gemini:", textContent);
+                const aiResult = cleanAndParseJSON(textContent);
+                console.log("JSON parseado:", aiResult);
+
+                // Si el JSON viene envuelto en un objeto raíz único (ej: {"permiso_alturas": {...}}), lo desenvolvemos
+                let normalizedResult = aiResult;
+                const rootKeys = Object.keys(normalizedResult);
+                if (rootKeys.length === 1 && typeof normalizedResult[rootKeys[0]] === 'object' && normalizedResult[rootKeys[0]] !== null && !Array.isArray(normalizedResult[rootKeys[0]])) {
+                    const singleKey = rootKeys[0];
+                    if (!document.getElementById(singleKey) && !document.getElementById(singleKey.replace(/_/g, '-')) && !document.getElementById(singleKey.toLowerCase())) {
+                        normalizedResult = normalizedResult[singleKey];
+                        console.log("JSON desenvuelto de la clave raíz:", singleKey, normalizedResult);
+                    }
+                }
+
+                // Enriquecer los campos correspondientes
+                let updatedFields = 0;
+                const excludedKeys = ['newTasks', 'arbolCausasNodes', 'arbolcausasnodes', 'arbol_causas_nodes', 'atsRows', 'atsrows', 'ats_rows', 'newtasks'];
+                for (const [key, val] of Object.entries(normalizedResult)) {
+                    if (!excludedKeys.includes(key) && val) {
+                        const possibleIds = [
+                            key,
+                            key.replace(/_/g, '-'),
+                            key.replace(/-/g, '_'),
+                            key.toLowerCase(),
+                            key.toLowerCase().replace(/_/g, '-'),
+                            key.toLowerCase().replace(/-/g, '_')
+                        ];
+                        let el = null;
+                        for (const id of possibleIds) {
+                            el = document.getElementById(id);
+                            if (el) break;
+                        }
+                        if (el) {
+                            el.value = typeof val === 'string' ? val.replace(/<br\s*\/?>|&lt;br\s*\/?&gt;/gi, '\n') : val;
+                            updatedFields++;
+                        }
+                    }
+                }
+
+                // Helper recursivo para buscar atsRows de forma tolerante a cualquier estructura
+                function findAtsRows(obj) {
+                    if (!obj || typeof obj !== 'object') return null;
+                    for (const k of Object.keys(obj)) {
+                        const kl = k.toLowerCase();
+                        if (kl === 'atsrows' || kl === 'ats_rows' || kl === 'atsrowslist' || kl === 'ats' || kl.includes('ats_') || (kl.includes('ats') && kl.includes('row'))) {
+                            if (obj[k] && (Array.isArray(obj[k]) || typeof obj[k] === 'object')) {
+                                return obj[k];
+                            }
+                        }
+                    }
+                    for (const k of Object.keys(obj)) {
+                        if (obj[k] && typeof obj[k] === 'object' && obj[k] !== null) {
+                            const found = findAtsRows(obj[k]);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                }
+
+                // Obtener y normalizar los pasos del ATS
+                let rawAtsRows = findAtsRows(normalizedResult);
+                if (rawAtsRows) {
+                    if (!Array.isArray(rawAtsRows) && typeof rawAtsRows === 'object') {
+                        rawAtsRows = Object.values(rawAtsRows); // Convertir objeto con índices numéricos en array
+                    }
+                    if (Array.isArray(rawAtsRows)) {
+                        currentWizard.atsRows = rawAtsRows.map((row, idx) => {
+                            let paso = (idx + 1).toString();
+                            let desc = '';
+                            let peligros = '';
+                            let controles = '';
+
+                            if (typeof row === 'string') {
+                                desc = row;
+                            } else if (row && typeof row === 'object') {
+                                for (const [rk, rv] of Object.entries(row)) {
+                                    const rkl = rk.toLowerCase();
+                                    if (rkl.includes('paso') || rkl.includes('step') || rkl.includes('num')) {
+                                        paso = String(rv);
+                                    } else if (rkl.includes('desc') || rkl.includes('actividad') || rkl.includes('tarea') || rkl.includes('paso_tarea') || rkl.includes('paso_de_la_tarea')) {
+                                        desc = rv;
+                                    } else if (rkl.includes('peligro') || rkl.includes('riesgo') || rkl.includes('hazard') || rkl.includes('danger')) {
+                                        peligros = rv;
+                                    } else if (rkl.includes('control') || rkl.includes('medida') || rkl.includes('epp') || rkl.includes('prevencion') || rkl.includes('prevención')) {
+                                        controles = rv;
+                                    }
+                                }
+                                // Fallbacks específicos
+                                if (!desc) desc = row.descripcion || row.descripción || row.description || row.desc || '';
+                                if (!peligros) peligros = row.peligros || row.peligro || row.riesgos || row.riesgo || '';
+                                if (!controles) controles = row.controles || row.control || row.medidas || row.medidas_control || '';
+                            }
+
+                            const parseField = (val) => {
+                                if (!val) return '';
+                                if (typeof val === 'string') return val;
+                                if (Array.isArray(val)) return val.join(', ');
+                                return String(val);
+                            };
+
+                            return {
+                                paso: paso,
+                                descripcion: parseField(desc),
+                                peligros: parseField(peligros),
+                                controles: parseField(controles)
+                            };
+                        });
+                        console.log("Pasos ATS normalizados cargados:", currentWizard.atsRows);
+                        if (typeof renderATSTable === 'function') renderATSTable();
+                    }
+                } else {
+                    console.warn("No se encontró la propiedad de pasos de ATS en la respuesta de la IA.");
+                }
+
+                // Map and normalize arbolCausasNodes in a similar robust fashion
+                const rawArbolCausasNodes = normalizedResult.arbolCausasNodes || normalizedResult.arbolcausasnodes || normalizedResult.arbol_causas_nodes || normalizedResult.arbolCausas || normalizedResult.arbol_causas;
+                if (rawArbolCausasNodes && Array.isArray(rawArbolCausasNodes)) {
+                    currentWizard.arbolCausasNodes = rawArbolCausasNodes.map(node => {
+                        const text = node.text || node.texto || node.desc || node.descripcion || node.descripción || '';
+                        const type = node.type || node.tipo || 'hecho';
+                        const parentId = node.parentId !== undefined ? node.parentId : (node.parentid !== undefined ? node.parentid : (node.padre_id !== undefined ? node.padre_id : (node.padreId !== undefined ? node.padreId : null)));
+                        return {
+                            id: node.id,
+                            text: typeof text === 'string' ? text : '',
+                            type: typeof type === 'string' ? type : '',
+                            parentId: parentId
+                        };
+                    });
+                    if (typeof renderCausesTree === 'function') renderCausesTree();
+                }
+
+                if (id === 'investigacion_accidentes') {
+                    updateFiveWhys();
+                    updateIshikawa();
+                }
+
+                // Helper recursivo para buscar newTasks
+                function findNewTasks(obj) {
+                    if (!obj || typeof obj !== 'object') return null;
+                    for (const k of Object.keys(obj)) {
+                        const kl = k.toLowerCase();
+                        if (kl === 'newtasks' || kl === 'new_tasks' || kl === 'tasks' || kl === 'taskslist' || kl === 'plan' || kl.includes('task')) {
+                            if (obj[k] && (Array.isArray(obj[k]) || typeof obj[k] === 'object')) {
+                                return obj[k];
+                            }
+                        }
+                    }
+                    for (const k of Object.keys(obj)) {
+                        if (obj[k] && typeof obj[k] === 'object' && obj[k] !== null) {
+                            const found = findNewTasks(obj[k]);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                }
+
+                // Agregar las tareas de plan de acción
+                let rawNewTasks = findNewTasks(normalizedResult);
+                if (rawNewTasks) {
+                    if (!Array.isArray(rawNewTasks) && typeof rawNewTasks === 'object') {
+                        rawNewTasks = Object.values(rawNewTasks);
+                    }
+                    if (Array.isArray(rawNewTasks)) {
+                        rawNewTasks.forEach(t => {
+                            let taskTitle = '';
+                            if (typeof t === 'string') {
+                                taskTitle = t;
+                            } else if (t && typeof t === 'object') {
+                                taskTitle = t.title || t.activity || t.title_task || t.descripcion || t.descripción || t.titulo || '';
+                            }
+                            
+                            if (taskTitle) {
+                                const exists = currentWizard.tasks.some(existing => existing.title.toLowerCase() === taskTitle.toLowerCase());
+                                if (!exists) {
+                                    currentWizard.tasks.push({
+                                        id: Date.now() + Math.random(),
+                                        title: taskTitle,
+                                        column: 'todo'
+                                    });
+                                }
+                            }
+                        });
+                        renderKanban();
+                    }
+                }
+
+                saveLocalData();
+                alert("¡Copiloto IA completó con éxito el análisis técnico y diseñó el plan de acción! Revise los campos enriquecidos y el tablero Kanban de planes de acción.");
+                
+                // Redirigir a pestaña de plan si todo salió bien
+                if (id === 'investigacion_accidentes') {
+                    switchTab('tab-analysis');
+                } else {
+                    switchTab('tab-plan');
+                }
+            } catch (err) {
+                console.error("Error al consultar Gemini:", err);
+                alert("Error al generar análisis con IA: " + err.message + ". Verifique su conexión y su API Key.");
+            } finally {
+                loader.classList.add('hidden');
+            }
         }
 
         async function sendChatMessage() {
@@ -569,11 +1978,59 @@
                 return;
             }
 
-            const systemContext = `Estás ayudando a redactar y estructurar la información del formato: Permiso de Trabajo Seguro en Alturas.
-Normatividad aplicable: Debe cumplir estrictamente con la Resolución 4272 de 2021 de Colombia. Obliga a diligenciar y firmar el permiso de trabajo en alturas de forma presencial por parte del Coordinador de Trabajo en Alturas, garantizando la verificación física del 100% de la lista de chequeo de seguridad..
-Responde de forma concisa y profesional en materia de SST.
-Si sugieres textos para completar los campos, enciérralos en corchetes especificando el campo (Ej. [Área: ...] o [Peligro: ...] o [Controles: ...], o [Nombre Empresa: ...]).
-Si recomiendas tareas o planes de acción concretos para el Kanban de planes de acción, enciérralos como [Acción: Realizar tal actividad...] para que la plataforma los agregue automáticamente al tablero Kanban (Ej: [Acción: Capacitar al personal en el uso correcto de EPP]). Evita agregar ejemplos genéricos del formato en corchetes.`;
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'signature-canvas', 'signer-name', 'signer-role', 'signer-license'];
+                if (input.id && !excluded.includes(input.id) && !input.id.startsWith('signer-signature-custom-')) {
+                    const labelEl = document.querySelector(`label[for="${input.id}"]`) || input.previousElementSibling;
+                    const labelText = labelEl ? labelEl.textContent.trim() : input.id;
+                    currentValues[labelText] = input.value;
+                }
+            });
+
+            const headerInfo = {
+                "Empresa": appDocHeader.companyName,
+                "NIT": appDocHeader.companyNit,
+                "ARL": appDocHeader.companyArl,
+                "Número de Trabajadores": appDocHeader.companyWorkers,
+                "Clase de Riesgo": appDocHeader.companyRisk,
+                "Código de Documento": appDocHeader.changeCode,
+                "Última Actualización": appDocHeader.lastUpdated,
+                "Título del Formato": appDocHeader.appTitle
+            };
+
+            let documentContext = `DATOS ACTUALES DEL PERMISO DE TRABAJO EN ALTURAS Y DEL FORMULARIO:\n`;
+            documentContext += `Información de cabecera:\n${JSON.stringify(headerInfo, null, 2)}\n\n`;
+            documentContext += `Campos del Formulario:\n`;
+            for (const [key, val] of Object.entries(currentValues)) {
+                if (val && val.trim() !== '' && !isPlaceholderText(val)) {
+                    documentContext += `- ${key}: ${val}\n`;
+                }
+            }
+
+            if (currentWizard.atsRows && currentWizard.atsRows.length > 0) {
+                documentContext += `\nAnálisis de Trabajo Seguro (ATS) - Pasos Registrados:\n`;
+                currentWizard.atsRows.forEach(row => {
+                    documentContext += `- Paso ${row.paso}: "${row.descripcion}" | Peligros: "${row.peligros}" | Controles: "${row.controles}"\n`;
+                });
+            }
+
+            if (currentWizard.tasks && currentWizard.tasks.length > 0) {
+                documentContext += `\nPlan de Acción (Tareas Kanban):\n`;
+                currentWizard.tasks.forEach(task => {
+                    documentContext += `- Tarea: "${task.title}" | Estado: ${task.column}\n`;
+                });
+            }
+
+            const systemContext = `Actúas como un experto consultor de Seguridad y Salud en el Trabajo (SST) de Colombia.
+Tu especialidad específica para esta sesión es el formato: Permiso de Trabajo en Alturas.
+Normatividad aplicable: Debe cumplir con la Resolución 4272 de 2021 de Colombia. Esta norma establece los requisitos mínimos de seguridad para el desarrollo de trabajo en alturas.
+Responde siempre de forma extremadamente profesional, técnica y detallada con terminología de SST colombiana.
+Tu rol es puramente conversacional y de asesoría: responde dudas, explica metodologías (como los sistemas de acceso, equipos de protección anticaídas, y las medidas de prevención y protección), brinda recomendaciones de prevención y responde preguntas del usuario.
+No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, claro y constructivo.
+
+${documentContext}`;
 
             addChatMessage('assistant', "🤖 Pensando...");
 
@@ -602,6 +2059,41 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             }
         }
 
+        function markdownToHTML(text) {
+            if (!text) return '';
+            let html = text
+                // Escape HTML entities first to prevent XSS
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                // Headers H1–H3
+                .replace(/^### (.+)$/gm, '<h3 class="text-[11px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 mt-3 mb-1">$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2 class="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 mt-3 mb-1">$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1 class="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 mt-3 mb-1">$1</h1>')
+                // Bold + Italic
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                // Bold
+                .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
+                // Italic
+                .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px] font-mono text-teal-600 dark:text-teal-400">$1</code>')
+                // Unordered lists (lines starting with - or *)
+                .replace(/^[\-\*] (.+)$/gm, '<li class="ml-3 list-disc list-inside">$1</li>')
+                // Ordered lists
+                .replace(/^\d+\. (.+)$/gm, '<li class="ml-3 list-decimal list-inside">$1</li>')
+                // Horizontal rule
+                .replace(/^---+$/gm, '<hr class="border-slate-200 dark:border-slate-700 my-2">')
+                // Line breaks → paragraphs (double newline)
+                .replace(/\n\n/g, '</p><p class="mb-1">')
+                // Single newlines
+                .replace(/\n/g, '<br>');
+            // Wrap consecutive <li> in <ul>
+            html = html.replace(/(<li[^>]*>.*?<\/li>(?:<br>)?)+/gs, (match) => {
+                const items = match.replace(/<br>/g, '');
+                return `<ul class="my-1 flex flex-col gap-0.5">${items}</ul>`;
+            });
+            return `<p class="mb-1">${html}</p>`;
+        }
+
         function addChatMessage(sender, text) {
             const messagesContainer = document.getElementById('ai-chat-messages');
             const messageEl = document.createElement('div');
@@ -611,16 +2103,8 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                     : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300'
             }`;
 
-            let actionBtnHtml = "";
-            
-            if (sender === 'assistant' && text !== "🤖 Pensando...") {
-                if (text.includes('[') || text.includes('**') || text.includes('###') || text.includes('*')) {
-                    const base64Text = btoa(unescape(encodeURIComponent(text)));
-                    actionBtnHtml = '<button onclick="applyAITextSuggestions(decodeURIComponent(escape(atob(\x27' + base64Text + '\x27))))" class="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold uppercase tracking-wider text-[10px] shadow-md hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">⚡ Aplicar en Formulario y Kanban</button>';
-                }
-            }
-
-            messageEl.innerHTML = `<div>${text}</div>${actionBtnHtml}`;
+            const rendered = sender === 'user' ? `<div>${text}</div>` : `<div class="prose-chat">${markdownToHTML(text)}</div>`;
+            messageEl.innerHTML = rendered;
             messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -927,6 +2411,18 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                 });
                 if (injectedAny) {
                     renderKanban();
+            if (document.getElementById('ats-table-body')) {
+                renderATSTable();
+            }
+            if (typeof renderWitnesses === 'function' && document.getElementById('witnesses-list')) {
+                renderWitnesses();
+            }
+            if (typeof renderAverias === 'function' && document.getElementById('averias-list')) {
+                renderAverias();
+            }
+            if (typeof renderCausesTree === 'function' && document.getElementById('causes-tree-container')) {
+                if(typeof renderCausesTree === 'function') renderCausesTree();
+            }
                 }
             }
             
@@ -1077,6 +2573,134 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             drawer.classList.toggle('translate-x-full');
         }
 
+        
+        function renderATSTable() {
+            const tbody = getEl('ats-table-body');
+            if (!tbody) return;
+            
+            // If empty, initialize with defaults
+            if (!currentWizard.atsRows || currentWizard.atsRows.length === 0) {
+                currentWizard.atsRows = [];
+            }
+            
+            tbody.innerHTML = '';
+            currentWizard.atsRows.forEach((row, index) => {
+                row.paso = (index + 1).toString();
+                const tr = document.createElement('tr');
+                tr.className = 'border-b dark:border-slate-800 border-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-900/20';
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-bold text-slate-500">${row.paso}</td>
+                    <td class="p-3">
+                        <textarea id="ats-row-${index}-desc" oninput="updateATSRow(${index}, 'descripcion', this.value)" class="w-full rounded-xl bg-transparent hover:bg-slate-100 dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:ring-0 p-2 text-xs text-slate-900 dark:text-white resize-y" rows="2">${row.descripcion || ''}</textarea>
+                    </td>
+                    <td class="p-3">
+                        <textarea id="ats-row-${index}-peligros" oninput="updateATSRow(${index}, 'peligros', this.value)" class="w-full rounded-xl bg-transparent hover:bg-slate-100 dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:ring-0 p-2 text-xs text-slate-900 dark:text-white resize-y" rows="2">${row.peligros || ''}</textarea>
+                    </td>
+                    <td class="p-3">
+                        <textarea id="ats-row-${index}-controles" oninput="updateATSRow(${index}, 'controles', this.value)" class="w-full rounded-xl bg-transparent hover:bg-slate-100 dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-blue-500 focus:ring-0 p-2 text-xs text-slate-900 dark:text-white resize-y" rows="2">${row.controles || ''}</textarea>
+                    </td>
+                    <td class="p-3 text-center no-print">
+                        <button type="button" onclick="removeATSRow(${index})" class="text-red-500 hover:text-red-650 transition p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20" title="Eliminar paso">
+                            <i data-lucide="trash" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+
+        function addATSRow() {
+            if (!currentWizard.atsRows) currentWizard.atsRows = [];
+            currentWizard.atsRows.push({
+                paso: (currentWizard.atsRows.length + 1).toString(),
+                descripcion: '',
+                peligros: '',
+                controles: ''
+            });
+            renderATSTable();
+            saveLocalData();
+        }
+
+        function removeATSRow(index) {
+            if (!currentWizard.atsRows) return;
+            currentWizard.atsRows.splice(index, 1);
+            renderATSTable();
+            saveLocalData();
+        }
+
+        function updateATSRow(index, field, value) {
+            if (!currentWizard.atsRows || !currentWizard.atsRows[index]) return;
+            currentWizard.atsRows[index][field] = value;
+            saveLocalData();
+        }
+
+        function syncAlturasNames() {
+            const coordEl = document.getElementById('alturas-coordinador');
+            if (coordEl) {
+                const val = coordEl.value.trim();
+                const nameEl = document.getElementById('signer-coordinador-name');
+                const senaEl = document.getElementById('signer-coordinador-sena');
+                const cierreCoordEl = document.getElementById('signer-cierre-coordinador-name');
+                
+                if (val) {
+                    const parts = val.split(' - ');
+                    const name = parts[0] ? parts[0].trim() : '';
+                    if (nameEl) nameEl.value = name;
+                    if (cierreCoordEl) cierreCoordEl.value = name;
+                    
+                    // Try to extract SENA reg
+                    let senaVal = '';
+                    if (name) {
+                        for (let part of parts) {
+                            if (part.toLowerCase().includes('sena') || part.toLowerCase().includes('reg')) {
+                                const match = part.match(/(?:Reg(?:\.|istro)?)?\s*SENA\s*#?\s*\d+/i);
+                                if (match) {
+                                    senaVal = match[0].trim();
+                                } else {
+                                    senaVal = part.trim();
+                                }
+                            }
+                        }
+                    }
+                    if (senaEl) {
+                        senaEl.value = senaVal;
+                    }
+                } else {
+                    if (nameEl) nameEl.value = '';
+                    if (cierreCoordEl) cierreCoordEl.value = '';
+                    if (senaEl) senaEl.value = '';
+                }
+            }
+            
+            const supEl = document.getElementById('alturas-supervisor');
+            if (supEl) {
+                const val = supEl.value.trim();
+                const nameEl = document.getElementById('signer-emisor-name');
+                const cargoEl = document.getElementById('signer-emisor-cargo');
+                const cierreEmisorEl = document.getElementById('signer-cierre-emisor-name');
+                
+                if (val) {
+                    const parts = val.split(' - ');
+                    const name = parts[0] ? parts[0].trim() : '';
+                    if (nameEl) nameEl.value = name;
+                    if (cierreEmisorEl) cierreEmisorEl.value = name;
+                    
+                    const cargoVal = parts[1] ? parts[1].trim() : '';
+                    if (cargoEl) {
+                        cargoEl.value = cargoVal;
+                    }
+                } else {
+                    if (nameEl) nameEl.value = '';
+                    if (cierreEmisorEl) cierreEmisorEl.value = '';
+                    if (cargoEl) cargoEl.value = '';
+                }
+            }
+        }
+
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 localStorage.removeItem(storageKey);
@@ -1086,6 +2710,8 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
 
         const storageKey = 'wappy_sst_permiso_alturas';
         function saveLocalData() {
+            if (isLoadingState) return;
+            if (typeof syncAlturasNames === 'function') syncAlturasNames();
             const sName = document.getElementById('signer-name');
             const sRole = document.getElementById('signer-role');
             const sLicense = document.getElementById('signer-license');
@@ -1097,8 +2723,34 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
             const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
             inputs.forEach(input => {
                 const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'signature-canvas', 'signer-name', 'signer-role', 'signer-license'];
+                if (input.id && (input.id.startsWith('ats-row-') || input.id.startsWith('witness-') || input.id.startsWith('averia-') || input.id.startsWith('causa-') || input.id.startsWith('signer-signature-custom-') || input.id.startsWith('signer-'))) {
+                    return;
+                }
                 if (!excluded.includes(input.id)) {
-                    appDocHeader.customFields[input.id] = input.value;
+                    if (input.type === 'checkbox') {
+                        appDocHeader.customFields[input.id] = input.checked;
+                    } else {
+                        appDocHeader.customFields[input.id] = input.value;
+                    }
+                }
+            });
+
+            // Save custom signatures inputs
+            if (currentWizard.customSignatures && Array.isArray(currentWizard.customSignatures)) {
+                currentWizard.customSignatures.forEach(sig => {
+                    const nameEl = document.getElementById(`signer-${sig.id}-name`);
+                    const roleEl = document.getElementById(`signer-${sig.id}-role`);
+                    const ccEl = document.getElementById(`signer-${sig.id}-cc`);
+                    if (nameEl) sig.name = nameEl.value;
+                    if (roleEl) sig.role = roleEl.value;
+                    if (ccEl) sig.cc = ccEl.value;
+                });
+            }
+
+            currentWizard.signatures = {};
+            document.querySelectorAll('canvas').forEach(canvas => {
+                if (canvas.hasDrawn) {
+                    currentWizard.signatures[canvas.id] = canvas.toDataURL();
                 }
             });
 
@@ -1110,6 +2762,7 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
         }
 
         function loadState() {
+            isLoadingState = true;
             try {
                 const key = localStorage.getItem('wappy_gemini_key') || '';
                 const keyEl = document.getElementById('gemini-key');
@@ -1123,13 +2776,86 @@ Si recomiendas tareas o planes de acción concretos para el Kanban de planes de 
                 if (saved) {
                     const data = JSON.parse(saved);
                     if (data.appDocHeader) appDocHeader = data.appDocHeader;
-                    if (data.currentWizard) currentWizard = data.currentWizard;
+                    if (data.currentWizard) {
+                        currentWizard = data.currentWizard;
+                        if (!currentWizard.tasks) currentWizard.tasks = [];
+                        if (!currentWizard.atsRows) currentWizard.atsRows = [];
+                        if (!currentWizard.witnesses) currentWizard.witnesses = [];
+                        if (!currentWizard.averiasNodes) currentWizard.averiasNodes = [];
+                        if (!currentWizard.arbolCausasNodes) currentWizard.arbolCausasNodes = [];
+                    }
                 }
             } catch(e) {
                 console.error("Error loading local state", e);
             }
             bindDocHeaderToUI();
+            if (typeof syncAlturasNames === 'function') syncAlturasNames();
             renderKanban();
+            if (document.getElementById('ats-table-body')) {
+                renderATSTable();
+            }
+            if (typeof renderWitnesses === 'function' && document.getElementById('witnesses-list')) {
+                renderWitnesses();
+            }
+            if (typeof renderAverias === 'function' && document.getElementById('averias-list')) {
+                renderAverias();
+            }
+            if (typeof renderCausesTree === 'function' && document.getElementById('causes-tree-container')) {
+                if(typeof renderCausesTree === 'function') renderCausesTree();
+            }
+
+            try {
+                // Re-render custom signatures
+                if (currentWizard.customSignatures && Array.isArray(currentWizard.customSignatures)) {
+                    currentWizard.customSignatures.forEach(sig => {
+                        const existingCard = document.getElementById(`card-${sig.id}`);
+                        if (existingCard) existingCard.remove();
+                    });
+                    currentWizard.customSignatures.forEach(sig => {
+                        addAdditionalSignatureCard(sig.id, sig.name, sig.role, sig.cc);
+                    });
+                }
+
+                // Restore signatures on canvases
+                let imagesToLoad = 0;
+                if (currentWizard.signatures) {
+                    const canvasIds = Object.keys(currentWizard.signatures);
+                    canvasIds.forEach(canvasId => {
+                        const cvs = document.getElementById(canvasId);
+                        if (cvs) {
+                            const imgData = currentWizard.signatures[canvasId];
+                            if (imgData) {
+                                imagesToLoad++;
+                                const context = cvs.getContext('2d');
+                                const img = new Image();
+                                img.onload = function() {
+                                    context.clearRect(0, 0, cvs.width, cvs.height);
+                                    context.drawImage(img, 0, 0);
+                                    cvs.hasDrawn = true;
+                                    imagesToLoad--;
+                                    if (imagesToLoad === 0) {
+                                        isLoadingState = false;
+                                    }
+                                };
+                                img.onerror = function() {
+                                    imagesToLoad--;
+                                    if (imagesToLoad === 0) {
+                                        isLoadingState = false;
+                                    }
+                                };
+                                img.src = imgData;
+                            }
+                        }
+                    });
+                }
+
+                if (imagesToLoad === 0) {
+                    isLoadingState = false;
+                }
+            } catch (e) {
+                console.error("Error restoring dynamic custom signatures", e);
+                isLoadingState = false;
+            }
         }
 
         function saveAPIKey() {
