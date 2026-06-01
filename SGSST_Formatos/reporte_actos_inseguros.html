@@ -551,7 +551,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4 text-emerald-500"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Firma del Reportante
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
                                 <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                                 <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -574,7 +574,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Firma del Responsable SG-SST
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-sgsst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-sgsst')">
                                 <button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                                 <button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -1170,7 +1170,7 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
 
         function initializeSingleCanvas(cvs) {
             const context = cvs.getContext('2d');
-            context.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+            context.strokeStyle = '#1e293b';
             context.lineWidth = 2.5;
             context.lineCap = 'round';
             context.lineJoin = 'round';
@@ -1289,7 +1289,7 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                     <i data-lucide="signature" class="w-4 h-4 text-emerald-500"></i> Firma Adicional
                 </span>
                 <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                    <canvas id="${sigId}" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                    <canvas id="${sigId}" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                     <input type="file" id="upload-sig-${sigId}" class="hidden" accept="image/*" onchange="uploadSignatureImage('${sigId}')">
                     <button onclick="document.getElementById('upload-sig-${sigId}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                     <button onclick="clearSignatureCanvas('${sigId}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -2026,7 +2026,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             document.querySelectorAll('canvas').forEach(cvs => {
                 const context = cvs.getContext('2d');
                 if (context) {
-                    context.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+                    context.strokeStyle = '#1e293b';
                 }
             });
             

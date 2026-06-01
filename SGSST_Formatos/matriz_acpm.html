@@ -2,7 +2,7 @@
 <html><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plan de Trabajo Anual en SST - SG-SST</title>
+    <title>Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM) - SG-SST</title>
     <script>
         window.addEventListener('error', function(e) {
             console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
@@ -79,7 +79,7 @@
                 <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()">
                 
                 <div class="flex-1">
-                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Plan de Trabajo Anual en SST</h1>
+                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM)</h1>
                     <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
                     <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
                 </div>
@@ -112,7 +112,7 @@
             </div>
             <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0 border-t border-slate-200 dark:border-0 md:border-t-0">
                 <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
-                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-AT-PT-01</span>
+                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-AT-ACPM-01</span>
                 <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-700 dark:text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
             </div>
         </div>
@@ -124,15 +124,15 @@
             <div class="flex border-b dark:border-slate-800 light:border-slate-200 overflow-x-auto no-print mb-4">
                 <button onclick="switchTab('tab-identification')" id="btn-tab-identification" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer tab-active">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="file-text" aria-hidden="true" class="lucide lucide-file-text w-3.5 h-3.5"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
-                    1. Identificación y Planificación
+                    1. Identificación y Datos Generales
                 </button>
                 <button onclick="switchTab('tab-description')" id="btn-tab-description" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-3.5 h-3.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-                    2. Cronograma y Recursos
+                    2. Registro y Control de ACPM
                 </button>
                 <button onclick="switchTab('tab-analysis')" id="btn-tab-analysis" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-3.5 h-3.5"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
-                    3. Indicadores y Dashboard
+                    3. Indicadores de Gestión de ACPM
                 </button>
                 <button onclick="switchTab('tab-plan')" id="btn-tab-plan" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="kanban" aria-hidden="true" class="lucide lucide-kanban w-3.5 h-3.5"><path d="M5 3v14"></path><path d="M12 3v8"></path><path d="M19 3v18"></path></svg>
@@ -140,7 +140,7 @@
                 </button>
                 <button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="paperclip" aria-hidden="true" class="lucide lucide-paperclip w-3.5 h-3.5"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"></path></svg>
-                    5. Evidencias y Firmas
+                    5. Resumen y Firmas
                 </button>
             </div>
 
@@ -168,38 +168,42 @@
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="building" aria-hidden="true" class="lucide lucide-building w-4 h-4 text-emerald-500"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line><line x1="9" y1="16" x2="15" y2="16"></line><path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M12 6h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"></path></svg> 1.2 Datos Generales del Plan de Trabajo Anual
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="building" aria-hidden="true" class="lucide lucide-building w-4 h-4 text-emerald-500"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line><line x1="9" y1="16" x2="15" y2="16"></line><path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M12 6h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"></path></svg> 1.2 Datos Generales de la Matriz ACPM
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">AÑO DE VIGENCIA DEL PLAN (AÑO)</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">AÑO DE VIGENCIA DE LA MATRIZ (AÑO)</label>
                             <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 2026" value="2026">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ALCANCE / SEDES INCLUIDAS</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ALCANCE DE LA MATRIZ</label>
                             <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Todas las sedes" value="Todas las sedes a nivel nacional">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO DE PLAN DE TRABAJO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ORIGEN DEL HALLAZGO PRINCIPAL</label>
                             <select id="trabajador-vinculacion" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Anual / Integral" selected="">Anual / Integral</option>
-                                <option value="Especial / Específico">Especial / Específico</option>
+                                <option value="Auditoría Interna / Externa" selected="">Auditoría Interna / Externa</option>
+                                <option value="Inspecciones de Seguridad">Inspecciones de Seguridad</option>
+                                <option value="Investigación de Incidentes / Accidentes">Investigación de Incidentes / Accidentes</option>
+                                <option value="Revisión por la Dirección">Revisión por la Dirección</option>
+                                <option value="Reportes de Trabajadores">Reportes de Trabajadores</option>
+                                <option value="Otro Origen">Otro Origen</option>
                             </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RESPONSABLE DE LA EJECUCIÓN</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RESPONSABLE DEL SEGUIMIENTO</label>
                             <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Responsable del SG-SST" value="Responsable del SG-SST / Líder de Seguridad">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ACTIVIDAD PRINCIPAL Y NIVEL DE RIESGO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ÁREA O PROCESO AUDITADO / EVALUADO</label>
                             <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Manufactura y Logística - Clase III">
                         </div>
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Planeación y Asignación de Recursos del Plan
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Planeación y Asignación de Recursos para ACPM
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                         <div>
@@ -207,15 +211,15 @@
                             <input type="date" id="evento-fecha" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-05-31">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PRESUPUESTO ANUAL ASIGNADO (COP)</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PRESUPUESTO ESTIMADO PARA ACCIONES</label>
                             <input type="text" id="evento-hora" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: $35.000.000 COP" value="$35.000.000 COP">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RECURSOS HUMANOS Y SOPORTE DE APOYO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RECURSOS DE CIERRE Y SOPORTE</label>
                             <input type="text" id="evento-lugar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Comité COPASST, etc." value="1 Profesional SST de Planta, Comité Paritario COPASST, Comité de Convivencia">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERÍODO DE SEGUIMIENTO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FRECUENCIA DE SEGUIMIENTO</label>
                             <select id="evento-zona" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
                                 <option value="Mensual" selected="">Mensual</option>
                                 <option value="Bimestral">Bimestral</option>
@@ -229,7 +233,7 @@
                 <!-- Navigation buttons -->
                 <div class="flex justify-end items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
                     <button onclick="switchTab('tab-description')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
-                        <span>Siguiente (Cronograma y Recursos)</span>
+                        <span>Siguiente (Registro y Control)</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -239,14 +243,14 @@
             <div id="tab-description" class="tab-content flex flex-col gap-5 hidden">
                 <div class="flex flex-col gap-4">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar-check" aria-hidden="true" class="lucide lucide-calendar-check w-4 h-4"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg> 2.1 Cronograma Anual de Actividades (Resolución 0312 y Decreto 1072)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar-check" aria-hidden="true" class="lucide lucide-calendar-check w-4 h-4"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg> 2.1 Registro de Hallazgos y Acciones ACPM (Decreto 1072 y Res. 0312)
                     </h3>
                     
                     <!-- Dashboard de Cumplimiento -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2 no-print">
                         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-205 dark:border-slate-800/80 flex items-center justify-between shadow-sm">
                             <div>
-                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Total Actividades</span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Total Hallazgos</span>
                                 <h4 class="text-2xl font-black text-slate-800 dark:text-white" id="dash-total-activities">0</h4>
                             </div>
                             <div class="p-2.5 bg-blue-500/10 rounded-xl text-blue-500 dark:text-blue-400">
@@ -255,7 +259,7 @@
                         </div>
                         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-205 dark:border-slate-800/80 flex items-center justify-between shadow-sm">
                             <div>
-                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Actividades Ejecutadas</span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Acciones Cerradas</span>
                                 <h4 class="text-2xl font-black text-slate-800 dark:text-white" id="dash-executed-activities">0</h4>
                             </div>
                             <div class="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-500 dark:text-emerald-400">
@@ -264,7 +268,7 @@
                         </div>
                         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-205 dark:border-slate-800/80 flex flex-col justify-between shadow-sm">
                             <div class="flex items-center justify-between mb-1.5">
-                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Porcentaje de Avance</span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Porcentaje de Cierre</span>
                                 <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400" id="dash-percent-activities">0%</span>
                             </div>
                             <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
@@ -276,7 +280,7 @@
                     <!-- CRONOGRAMA DE ACTIVIDADES (MATRIZ) -->
                     <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                         <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="list-todo" aria-hidden="true" class="lucide lucide-list-todo w-4 h-4 text-emerald-500"><rect x="3" y="5" width="6" height="6" rx="1"></rect><path d="m3 17 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path><rect x="3" y="11" width="6" height="6" rx="1"></rect></svg> Planificación de Actividades del Plan Anual
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="list-todo" aria-hidden="true" class="lucide lucide-list-todo w-4 h-4 text-emerald-500"><rect x="3" y="5" width="6" height="6" rx="1"></rect><path d="m3 17 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path><rect x="3" y="11" width="6" height="6" rx="1"></rect></svg> Registro de Hallazgos, Origen y Plan de Acción
                         </span>
                         
                         <!-- Table of Activities (Matrix) -->
@@ -285,12 +289,12 @@
                                 <thead>
                                     <tr class="bg-slate-100 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                                         <th class="py-3 px-3 text-center w-12">Estado</th>
-                                        <th class="py-3 px-4">Actividad</th>
-                                        <th class="py-3 px-3 text-center w-16">PHVA</th>
-                                        <th class="py-3 px-4">Cronograma</th>
+                                        <th class="py-3 px-4">Descripción del Hallazgo</th>
+                                        <th class="py-3 px-3 text-center w-16">Tipo</th>
+                                        <th class="py-3 px-4">Origen</th>
                                         <th class="py-3 px-4">Responsable</th>
-                                        <th class="py-3 px-4">Recursos</th>
-                                        <th class="py-3 px-4">Soporte Legal</th>
+                                        <th class="py-3 px-4">Fecha Límite</th>
+                                        <th class="py-3 px-4">Plan de Acción / Observaciones</th>
                                         <th class="py-3 px-3 text-center w-16 no-print">Acciones</th>
                                     </tr>
                                 </thead>
@@ -303,40 +307,39 @@
                         <!-- Add Activity Form -->
                         <div class="grid grid-cols-1 md:grid-cols-6 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
                             <div class="md:col-span-2">
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Nombre de la Actividad</label>
-                                <input type="text" id="witness-name-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Capacitación en primeros auxilios">
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Descripción del Hallazgo / No Conformidad</label>
+                                <input type="text" id="witness-name-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Obstrucción en pasillos de evacuación en bodega norte">
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Ciclo PHVA</label>
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Tipo de Acción (ACPM)</label>
                                 <select id="witness-phva-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none font-medium">
-                                    <option value="P">Planear (P)</option>
-                                    <option value="H">Hacer (H)</option>
-                                    <option value="V" selected="">Verificar (V)</option>
-                                    <option value="A">Actuar (A)</option>
+                                    <option value="C" selected="">Correctiva (C)</option>
+                                    <option value="P">Preventiva (P)</option>
+                                    <option value="M">De Mejora (M)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Cronograma / Mes</label>
-                                <input type="text" id="witness-doc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Enero / Mensual">
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Origen del Hallazgo</label>
+                                <input type="text" id="witness-doc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Inspección, Auditoría, Reporte">
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Responsable</label>
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Responsable de Ejecución</label>
                                 <input type="text" id="witness-responsible-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Responsable SST" value="Coordinador SST">
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Recursos</label>
-                                <input type="text" id="witness-resources-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Físico / Tecnológico" value="Físico / Humano">
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Fecha Límite de Cierre</label>
+                                <input type="text" id="witness-resources-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Febrero 15, 2026" value="">
                             </div>
                             <div class="md:col-span-4">
-                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Soporte Legal</label>
-                                <input type="text" id="witness-legal-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Res. 0312 Art. 11 / Decreto 1072 Art. 2.2.4.6.11" value="Decreto 1072">
+                                <label class="block text-[9px] font-bold text-slate-450 mb-1 uppercase">Plan de Acción / Medida Correctiva o Preventiva</label>
+                                <input type="text" id="witness-legal-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white font-medium" placeholder="Ej: Retirar obstáculos y demarcar áreas con pintura amarilla" value="">
                             </div>
                             <div class="md:col-span-2 flex justify-end items-end gap-2">
                                 <button type="button" id="btn-cancel-edit-witness" onclick="cancelEditWitness()" class="hidden py-2 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95 cursor-pointer shadow-sm">
                                     Cancelar
                                 </button>
                                 <button type="button" id="btn-add-witness-text" onclick="addWitness()" class="w-full md:w-auto py-2 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95 cursor-pointer shadow-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Actividad
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Acción ACPM
                                 </button>
                             </div>
                         </div>
@@ -345,7 +348,7 @@
                     <!-- RECURSOS ASIGNADOS -->
                     <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                         <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="wrench" aria-hidden="true" class="lucide lucide-wrench w-4 h-4 text-emerald-500"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> 2.2 Inventario de Recursos Tecnológicos, Físicos y Soporte de SST
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="wrench" aria-hidden="true" class="lucide lucide-wrench w-4 h-4 text-emerald-500"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> 2.2 Recursos de Cierre y Soporte de Acciones (Presupuesto, Software, Logística)
                         </span>
                         
                         <!-- List of Resources -->
@@ -354,15 +357,15 @@
                         <!-- Add Resource Form -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-400 mb-1">RECURSO / SOFTWARE / INFRAESTRUCTURA</label>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">RECURSO / SOFTWARE / PRESUPUESTO</label>
                                 <input type="text" id="averia-equipment-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Software de gestión SG-SST">
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-400 mb-1">ESTADO ACTUAL / DESCRIPCIÓN</label>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">DESCRIPCIÓN Y ESTADO DE ASIGNACIÓN</label>
                                 <input type="text" id="averia-desc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Licencia activa para 50 trabajadores">
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-slate-400 mb-1">DISPONIBILIDAD / ESTADO</label>
+                                <label class="block text-[9px] font-bold text-slate-400 mb-1">DISPONIBILIDAD / SUFICIENCIA</label>
                                 <select id="averia-criticality-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none">
                                     <option value="Baja">Bueno / Suficiente</option>
                                     <option value="Media">Regular / Parcial</option>
@@ -402,7 +405,7 @@
                         Atrás
                     </button>
                     <button onclick="switchTab('tab-analysis')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
-                        <span>Siguiente (Indicadores y Dashboard)</span>
+                        <span>Siguiente (Indicadores de Gestión)</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -414,9 +417,9 @@
                 <!-- Legal Banner -->
                 <div class="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-xs leading-relaxed text-slate-650 dark:text-slate-350">
                     <h4 class="font-bold text-blue-650 dark:text-blue-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-blue-500"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Indicadores de Gestión del SG-SST (Decreto 1072 de 2015)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-blue-500"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Indicadores de Acciones Correctivas, Preventivas y de Mejora (Decreto 1072 de 2015)
                     </h4>
-                    <p>Conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019, se evalúan de forma reactiva los indicadores de Estructura, Proceso y Resultado. Cada dimensión se compone de tres variables críticas autoevaluadas para generar la tasa general de cumplimiento de la ejecución del Plan de Trabajo.</p>
+                    <p>Conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019, se evalúan de forma sistemática los indicadores de Estructura, Proceso y Resultado asociados a la gestión y efectividad de las acciones correctivas, preventivas y de mejora (ACPM) implementadas en la organización.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -426,14 +429,14 @@
                         <!-- Dimension 1: Estructura -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="layers" aria-hidden="true" class="lucide lucide-layers w-4 h-4 text-blue-500"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg> 3.1 Indicadores de Estructura (Marco Organizacional y Recursos)
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="layers" aria-hidden="true" class="lucide lucide-layers w-4 h-4 text-blue-500"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg> 3.1 Indicadores de Estructura (Procedimiento y Responsables)
                             </span>
                             
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - POLÍTICA SST</span>
-                                        <textarea id="lbl-vuln-p1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se encuentra definida, firmada, fechada, divulgada y actualizada la Política de SST?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - PROCEDIMIENTO ACPM</span>
+                                        <textarea id="lbl-vuln-p1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se cuenta con un procedimiento documentado para la identificación, registro y tratamiento de no conformidades y acciones ACPM?</textarea>
                                     </div>
                                     <select id="vuln-p1" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0" selected>Sí / Completo (1.0)</option>
@@ -443,8 +446,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - RESPONSABILIDADES Y ROLES</span>
-                                        <textarea id="lbl-vuln-p2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se han asignado, documentado y comunicado las responsabilidades en SST a todo el personal de la empresa?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - ASIGNACIÓN DE RECURSOS</span>
+                                        <textarea id="lbl-vuln-p2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se asignan recursos logísticos, financieros o tecnológicos específicos para la ejecución y cierre de las acciones planteadas?</textarea>
                                     </div>
                                     <select id="vuln-p2" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -454,8 +457,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - RECURSOS Y PRESUPUESTO</span>
-                                        <textarea id="lbl-vuln-p3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se cuenta con la asignación presupuestal y de recursos financieros, técnicos y humanos para el Plan?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">ESTRUCTURA - RESPONSABLE CAPACITADO</span>
+                                        <textarea id="lbl-vuln-p3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se cuenta con un responsable o líder capacitado asignado para coordinar y consolidar el seguimiento a la Matriz ACPM?</textarea>
                                     </div>
                                     <select id="vuln-p3" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -469,14 +472,14 @@
                         <!-- Dimension 2: Proceso -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play w-4 h-4 text-blue-500"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg> 3.2 Indicadores de Proceso (Desarrollo y Ejecución)
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play w-4 h-4 text-blue-500"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg> 3.2 Indicadores de Proceso (Análisis de Causas y Seguimiento)
                             </span>
                             
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - CAPACITACIÓN EN SST</span>
-                                        <textarea id="lbl-vuln-r1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se ejecuta de forma periódica y satisfactoria el Plan Anual de Capacitación en SST?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - ANÁLISIS DE CAUSA RAÍZ</span>
+                                        <textarea id="lbl-vuln-r1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se realiza el análisis de causa raíz (ej. 5 Porqués, Ishikawa) para el 100% de los hallazgos y no conformidades reportadas?</textarea>
                                     </div>
                                     <select id="vuln-r1" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0" selected>Sí / Completo (1.0)</option>
@@ -486,8 +489,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - INSPECCIONES DE SEGURIDAD</span>
-                                        <textarea id="lbl-vuln-r2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se realizan las inspecciones planeadas de las instalaciones, equipos, herramientas y EPPs?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - PLANES DE ACCIÓN DEFINIDOS</span>
+                                        <textarea id="lbl-vuln-r2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se definen planes de acción concretos con fechas de vencimiento, hitos y responsables claros para cada hallazgo?</textarea>
                                     </div>
                                     <select id="vuln-r2" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -497,8 +500,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - REPORTES DE ACTOS Y CONDICIONES</span>
-                                        <textarea id="lbl-vuln-r3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se investigan, reportan y gestionan de forma oportuna todos los actos y condiciones inseguras identificadas?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">PROCESO - SEGUIMIENTO PERIÓDICO</span>
+                                        <textarea id="lbl-vuln-r3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se realiza seguimiento periódico y oportuno al avance de las acciones correctivas, preventivas y de mejora dentro de los plazos?</textarea>
                                     </div>
                                     <select id="vuln-r3" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -512,14 +515,14 @@
                         <!-- Dimension 3: Resultado -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="check-circle" aria-hidden="true" class="lucide lucide-check-circle w-4 h-4 text-blue-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 3.3 Indicadores de Resultado (Evaluación de Impacto)
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="check-circle" aria-hidden="true" class="lucide lucide-check-circle w-4 h-4 text-blue-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 3.3 Indicadores de Resultado (Eficacia y Cierre de Hallazgos)
                             </span>
                             
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - FRECUENCIA Y GRAVEDAD DE ACCIDENTES</span>
-                                        <textarea id="lbl-vuln-s1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se mide, analiza e interviene mensualmente la tasa de accidentalidad laboral de la organización?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - CIERRE EFECTIVO</span>
+                                        <textarea id="lbl-vuln-s1" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se logra el cierre efectivo de las acciones correctivas y preventivas planteadas antes de su fecha límite de vencimiento?</textarea>
                                     </div>
                                     <select id="vuln-s1" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0" selected>Sí / Completo (1.0)</option>
@@ -529,8 +532,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - AUSENTISMO Y ENFERMEDAD</span>
-                                        <textarea id="lbl-vuln-s2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se lleva un registro sistemático del ausentismo laboral por enfermedad y se analizan tendencias?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - EVALUACIÓN DE EFICACIA</span>
+                                        <textarea id="lbl-vuln-s2" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se evalúa y documenta formalmente la eficacia de las acciones cerradas para verificar que la no conformidad no vuelva a ocurrir?</textarea>
                                     </div>
                                     <select id="vuln-s2" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -540,8 +543,8 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                                     <div class="flex-grow">
-                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - AUDITORÍA Y REVISIÓN POR LA ALTA DIRECCIÓN</span>
-                                        <textarea id="lbl-vuln-s3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se realiza la auditoría anual del SG-SST y la respectiva revisión por la gerencia para la mejora continua?</textarea>
+                                        <span class="text-[10px] font-bold text-slate-400 block mb-0.5">RESULTADO - REDUCCIÓN DE RECURRENCIA</span>
+                                        <textarea id="lbl-vuln-s3" oninput="saveLocalData()" rows="2" class="w-full text-xs text-slate-700 dark:text-slate-300 font-semibold bg-transparent border-0 focus:ring-0 resize-none p-0 focus:outline-none focus:bg-slate-100/50 dark:focus:bg-slate-900/30 rounded focus:px-1.5 focus:py-0.5 cursor-text">¿Se evidencia una reducción de la recurrencia de no conformidades detectadas en las auditorías e inspecciones del SG-SST?</textarea>
                                     </div>
                                     <select id="vuln-s3" onchange="updateIndicators()" class="rounded-lg bg-white dark:bg-slate-850 border border-slate-250 dark:border-slate-755 p-2 text-xs font-bold text-slate-900 dark:text-white cursor-pointer focus:outline-none w-full md:w-36 shrink-0">
                                         <option value="1.0">Sí / Completo (1.0)</option>
@@ -558,7 +561,7 @@
                     <div class="lg:col-span-1 flex flex-col gap-5">
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-5 shadow-sm sticky top-4">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2 justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="gauge" aria-hidden="true" class="lucide lucide-gauge w-4 h-4 text-blue-500"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg> Dashboard de Cumplimiento SST
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="gauge" aria-hidden="true" class="lucide lucide-gauge w-4 h-4 text-blue-500"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg> Dashboard de Cumplimiento ACPM
                             </span>
                             
                             <!-- Animated Radial SVG Dials Container -->
@@ -617,7 +620,7 @@
                             
                             <!-- Computed Results and Summary Info -->
                             <div class="flex flex-col gap-2.5 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50 shadow-inner">
-                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Ejecución General del Plan</div>
+                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Efectividad General de la Matriz</div>
                                 
                                 <div class="flex justify-between items-center text-xs">
                                     <span class="text-slate-500 font-semibold">Tasa de Estructura:</span>
@@ -647,7 +650,7 @@
                         Atrás
                     </button>
                     <button onclick="switchTab('tab-plan')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
-                        <span>Siguiente (Plan de Acción)</span>
+                        <span>Siguiente (Tablero Kanban)</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -685,7 +688,7 @@
                         Atrás
                     </button>
                     <button onclick="switchTab('tab-evidences')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
-                        <span>Siguiente (Evidencias y Firmas)</span>
+                        <span>Siguiente (Resumen y Firmas)</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -694,30 +697,30 @@
             <!-- TAB 5: EVIDENCIAS Y FIRMAS -->
             <div id="tab-evidences" class="tab-content flex flex-col gap-5 hidden">
                 
-                <!-- RESUMEN DE PLAN DE TRABAJO ANUAL -->
+                <!-- RESUMEN DE LA MATRIZ ACPM -->
                 <div class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs flex flex-col gap-4 text-slate-800 dark:text-slate-200">
                     <h4 class="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen del Plan de Trabajo Anual y Diagnóstico
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen de la Matriz ACPM y Cierre de Hallazgos
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vigencia y Objetivos:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vigencia y Alcance de la Matriz:</span>
                             <p id="summary-worker-version" class="italic text-slate-650 dark:text-slate-450 font-medium">Cargando vigencia...</p>
                         </div>
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Recursos Generales y Soporte:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Recursos de Cierre y Soporte:</span>
                             <p id="summary-investigator-desc" class="italic text-slate-650 dark:text-slate-450 font-medium">Cargando recursos...</p>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Actividades Planificadas (Cronograma):</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Hallazgos Registrados y Acciones:</span>
                             <div id="summary-witnesses" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguna actividad registrada</div>
                         </div>
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Inventario de Soporte Técnico y Presupuesto:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Inventario de Recursos de Soporte:</span>
                             <div id="summary-averias" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ningún recurso registrado</div>
                         </div>
                     </div>
@@ -728,7 +731,7 @@
                 <div class="flex flex-col gap-6 border-t dark:border-slate-800 light:border-slate-200 pt-6">
                     <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
                         <h3 class="text-sm font-black text-blue-600 dark:text-blue-455 uppercase tracking-widest flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="signature" aria-hidden="true" class="lucide lucide-signature w-4 h-4"><path d="m21 17-2.3-2.3a2.5 2.5 0 0 0-3.5 0l-5.6 5.6L3 21h3.4l5.6-5.6a2.5 2.5 0 0 0 0-3.5L9.7 9.6"></path><path d="m14 14-2-2"></path><path d="M6 10h.01"></path><path d="M12 6h.01"></path><path d="M18 10h.01"></path></svg> Firmas de Aprobación del Plan (Decreto 1072)
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="signature" aria-hidden="true" class="lucide lucide-signature w-4 h-4"><path d="m21 17-2.3-2.3a2.5 2.5 0 0 0-3.5 0l-5.6 5.6L3 21h3.4l5.6-5.6a2.5 2.5 0 0 0 0-3.5L9.7 9.6"></path><path d="m14 14-2-2"></path><path d="M6 10h.01"></path><path d="M12 6h.01"></path><path d="M18 10h.01"></path></svg> Firmas de Responsabilidad y Cierre (Decreto 1072)
                         </h3>
                     </div>
                     <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
@@ -736,10 +739,10 @@
                         <!-- 1. Responsable del SG-SST / Diseñador -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Responsable SG-SST / Diseñador
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle></svg> Responsable del Cierre (Líder SST)
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-sgsst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-sgsst')">
                                 <button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                                 <button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -747,7 +750,7 @@
                             <div class="flex flex-col gap-2">
                                 <div>
                                     <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
-                                    <input type="text" id="signer-sgsst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del responsable" value="">
+                                    <input type="text" id="signer-sgsst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre del Líder SST" value="">
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
@@ -762,13 +765,13 @@
                             </div>
                         </div>
 
-                        <!-- 2. Representante Legal / Empleador -->
+                        <!-- 2. Aprobador (Representante Legal) -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="m16 11 2 2 4-4"></path><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> Representante Legal / Empleador
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                                 <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
                                 <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                                 <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -796,7 +799,7 @@
                     <!-- Botón de Exportar (Centrado en la parte inferior de firmas) -->
                     <div class="mt-4 flex justify-center">
                         <button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-3 px-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full md:w-auto cursor-pointer no-print">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg> Exportar Plan de Trabajo Anual Firmado
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg> Exportar Matriz ACPM Firmada
                         </button>
                     </div>
                 </div>
@@ -823,7 +826,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="info" aria-hidden="true" class="lucide lucide-info w-5 h-5"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> CUMPLIMIENTO LEGAL COLOMBIANO
             </h3>
             <p class="text-sm leading-relaxed text-slate-650 dark:text-slate-300 font-medium">
-                Debe cumplir con la Decreto 1072 de 2015 de Colombia. Exige a todo empleador definir y documentar el plan de trabajo anual del SG-SST con objetivos, metas, actividades, responsables, recursos y cronograma.
+                Debe cumplir con el Decreto 1072 de 2015 de Colombia. Exige a todo empleador registrar y hacer seguimiento a las acciones correctivas, preventivas y de mejora (ACPM) derivadas de auditorías, inspecciones, investigaciones o revisiones por la dirección.
             </p>
             <div class="mt-6 flex justify-end">
                 <button onclick="closeLegalModal()" class="py-2 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition">Cerrar</button>
@@ -857,25 +860,25 @@
 
         <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col gap-3 max-h-[320px]">
             <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] leading-relaxed text-slate-650 dark:text-slate-300">
-                ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para estructurar tu Plan de Trabajo Anual, crear el cronograma de actividades, o calcular los indicadores de cumplimiento. ¡Podrás aplicarlas directamente con un clic!
+                ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para registrar tu Matriz ACPM, formular acciones correctivas o preventivas, realizar análisis de causa raíz (Ishikawa/5 Porqués), o evaluar tus indicadores de eficacia. ¡Podrás aplicarlas directamente con un clic!
             </div>
             
             <div class="p-3.5 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20">
-                <div>Hola, ¿me puedes explicar en qué consiste este Plan de Trabajo Anual en SST?</div>
+                <div>Hola, ¿me puedes explicar en qué consiste esta Matriz ACPM en SST?</div>
             </div>
             
             <div class="p-3.5 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300">
-                <div>¡Con gusto! El Plan de Trabajo Anual en SST es el documento maestro de planificación del SG-SST (Sistema de Gestión de la Seguridad y Salud en el Trabajo) requerido por el Decreto 1072 de 2015 y la Resolución 0312 de 2019 en Colombia.
+                <div>¡Con gusto! La Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM) es el instrumento clave del SG-SST (Sistema de Gestión de la Seguridad y Salud en el Trabajo) requerido por el Decreto 1072 de 2015 y la Resolución 0312 de 2019 en Colombia para registrar, analizar y cerrar desviaciones o no conformidades.
 
-Su objetivo es estructurar, programar y hacer seguimiento a las actividades preventivas y de control de riesgos para la vigencia del año actual.
+Su objetivo es de estructurar planes de acción para corregir hallazgos detectados en auditorías, inspecciones, investigaciones o reportes de trabajadores, previniendo su recurrencia.
 
 Consta de:
-1. **Identificación y Planificación:** Vigencia, presupuesto anual, responsables y objetivos estratégicos.
-2. **Cronograma y Recursos:** Cronograma detallado de actividades con responsables y estados de ejecución, junto con el inventario de recursos de soporte técnico y físico.
-3. **Indicadores y Dashboard:** Autoevaluación interactiva de cumplimiento legal bajo los 3 grupos de estándares (Estructura, Proceso y Resultado) con visualización gráfica reactiva.
-4. **Plan de Acción (Kanban):** Control de tareas críticas de mejora y seguimiento.
+1. **Identificación y Datos Generales:** Vigencia de la matriz, responsable del seguimiento, alcance y presupuesto.
+2. **Registro y Control de ACPM:** Tabla de hallazgos con responsables, origen, tipo de acción (C/P/M), fecha límite, plan de acción y recursos de soporte.
+3. **Indicadores de Gestión de ACPM:** Evaluación interactiva de cumplimiento legal bajo las 3 dimensiones (Estructura, Proceso y Resultado) con gráficos reactivos.
+4. **Plan de Acción (Tablero Kanban):** Tablero para el control operativo de tareas críticas de cierre.
 
-¿Te gustaría que te sugiera actividades para el cronograma o que evaluemos tus indicadores de cumplimiento?</div>
+¿Te gustaría que te sugiera acciones correctivas para un hallazgo específico o que analicemos sus causas raíz?</div>
             </div>
         </div>
 
@@ -909,8 +912,8 @@ Consta de:
                         ¿Cómo usar esta herramienta?
                     </h4>
                     <p>
-                        Este formato premium de <strong>Plan de Trabajo Anual</strong> te permite planificar las actividades, metas, responsables y cronograma del SG-SST para la vigencia anual. Utiliza las pestañas superiores para navegar entre los módulos: 
-                        1. Objetivos y Metas, 2. Cronograma de Actividades, 3. Indicadores y Seguimiento, 4. Plan de Acción (Tablero Kanban) y 5. Evidencias y Firmas.
+                        Este formato premium de <strong>Matriz ACPM</strong> te permite documentar y hacer seguimiento a las acciones correctivas, preventivas y de mejora del SG-SST. Utiliza las pestañas superiores para navegar entre los módulos:
+                        1. Identificación y Datos Generales, 2. Registro y Control de ACPM, 3. Indicadores de Gestión de ACPM, 4. Plan de Acción (Tablero Kanban) y 5. Resumen y Firmas.
                     </p>
                 </div>
 
@@ -957,10 +960,10 @@ Consta de:
                         Recomendación Profesional SG-SST:
                     </h5>
                     <p>
-                        Para asegurar una gestión documental robusta y duradera de tu **Plan de Trabajo Anual**, te recomendamos <strong>crear una carpeta en tu computador</strong> con el nombre del año (Ej: <code>Plan_Trabajo_SST_2026</code>) y guardar allí:
+                        Para asegurar una gestión documental robusta y duradera de tu **Matriz ACPM**, te recomendamos <strong>crear una carpeta en tu computador</strong> con el nombre del año (Ej: <code>Matriz_ACPM_SST_2026</code>) y guardar allí:
                     </p>
                     <ul class="list-disc pl-5 mt-1 flex flex-col gap-1">
-                        <li>El archivo HTML exportado (que contiene las metas, cronograma de actividades, indicadores, Kanban y firmas).</li>
+                        <li>El archivo HTML exportado (que contiene los hallazgos, planes de acción, indicadores de eficacia, Kanban y firmas).</li>
                         <li>Los archivos originales de las fotos de terreno cargadas (imágenes de soportes).</li>
                         <li>Los archivos de audio de reuniones de planificación o actas.</li>
                         <li>Los archivos de video de recorridos de seguridad y verificación de recursos.</li>
@@ -1092,35 +1095,35 @@ Consta de:
         {
             "id": 1,
             "name": "Obstrucción en pasillos de evacuación en bodega norte",
-            "doc": "2026-02-15",
+            "doc": "Inspecciones de Seguridad",
             "phva": "C",
             "responsible": "Líder de Logística",
-            "resources": "Humano y Logístico",
-            "legalSupport": "Inspección COPASST",
+            "resources": "Febrero 15, 2026",
+            "legalSupport": "Retiro inmediato de materiales y demarcación con pintura reflectiva",
             "checked": true,
-            "testimony": "Responsable: Líder de Logística | Estado: Completado | Recursos: Humano y Logístico | Detalle: Soporte legal: Inspección COPASST | PHVA: C"
+            "testimony": "Responsable: Líder de Logística | Estado: Completado | Recursos: Febrero 15, 2026 | Detalle: Soporte legal: Retiro inmediato de materiales y demarcación con pintura reflectiva | PHVA: C"
         },
         {
             "id": 2,
             "name": "Ausencia de firmas de actas de COPASST",
-            "doc": "2026-04-30",
+            "doc": "Auditoría Interna",
             "phva": "C",
             "responsible": "Coordinador SST",
-            "resources": "Técnico / Tiempo",
-            "legalSupport": "Auditoría Interna",
+            "resources": "Abril 30, 2026",
+            "legalSupport": "Firma digital de actas pendientes mediante software Wappy",
             "checked": true,
-            "testimony": "Responsable: Coordinador SST | Estado: Completado | Recursos: Técnico / Tiempo | Detalle: Soporte legal: Auditoría Interna | PHVA: C"
+            "testimony": "Responsable: Coordinador SST | Estado: Completado | Recursos: Abril 30, 2026 | Detalle: Soporte legal: Firma digital de actas pendientes mediante software Wappy | PHVA: C"
         },
         {
             "id": 3,
             "name": "Oportunidad de digitalizar reporte de incidentes y actos inseguros",
-            "doc": "2026-06-30",
+            "doc": "Reporte de Trabajador",
             "phva": "M",
             "responsible": "Analista de TI / SST",
-            "resources": "Software Wappy",
-            "legalSupport": "Reporte de Trabajador",
+            "resources": "Junio 30, 2026",
+            "legalSupport": "Implementación del módulo digital de reportes en la intranet",
             "checked": false,
-            "testimony": "Responsable: Analista de TI / SST | Estado: Planeado | Recursos: Software Wappy | Detalle: Soporte legal: Reporte de Trabajador | PHVA: M"
+            "testimony": "Responsable: Analista de TI / SST | Estado: Planeado | Recursos: Junio 30, 2026 | Detalle: Soporte legal: Implementación del módulo digital de reportes en la intranet | PHVA: M"
         }
     ],
     "averias": [
@@ -1289,7 +1292,7 @@ Consta de:
         }
 
         function bindDocHeaderToUI() {
-            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Plan de Trabajo Anual en SST";
+            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM)";
             document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO";
             document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || "Documento Corporativo Oficial - Conforme a la Normatividad Vigente";
             document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || "PROCESO: SG-SST | V.02";
@@ -1299,7 +1302,7 @@ Consta de:
             document.getElementById('company-arl').innerText = appDocHeader.companyArl || "Colmena";
             document.getElementById('company-workers').innerText = appDocHeader.companyWorkers || "30";
             document.getElementById('company-risk').innerText = appDocHeader.companyRisk || "Clase III";
-            document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-AT-PT-01";
+            document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-AT-ACPM-01";
             document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated || "2026-05-29";
 
             if (appDocHeader.logoBase64) {
@@ -1333,7 +1336,7 @@ Consta de:
 
         function initializeSingleCanvas(cvs) {
             const context = cvs.getContext('2d');
-            context.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+            context.strokeStyle = '#1e293b';
             context.lineWidth = 2.5;
             context.lineCap = 'round';
             context.lineJoin = 'round';
@@ -1452,7 +1455,7 @@ Consta de:
                     <i data-lucide="signature" class="w-4 h-4 text-emerald-500"></i> Firma Adicional
                 </span>
                 <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
-                    <canvas id="${sigId}" width="300" height="120" class="w-full bg-white dark:bg-black/60 rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                    <canvas id="${sigId}" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
                     <input type="file" id="upload-sig-${sigId}" class="hidden" accept="image/*" onchange="uploadSignatureImage('${sigId}')">
                     <button onclick="document.getElementById('upload-sig-${sigId}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-755 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar Imagen</button>
                     <button onclick="clearSignatureCanvas('${sigId}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
@@ -1660,7 +1663,7 @@ Consta de:
                 "Título del Formato": appDocHeader.appTitle
             };
 
-            let documentContext = `DATOS ACTUALES DEL PLAN DE TRABAJO Y DEL FORMULARIO:
+            let documentContext = `DATOS ACTUALES DE LA MATRIZ ACPM Y DEL FORMULARIO:
 `;
             documentContext += `Información de cabecera:
 ${JSON.stringify(headerInfo, null, 2)}
@@ -1711,8 +1714,8 @@ Plan de Acción (Tareas Kanban):
             }
 
             const systemContext = `Actúas como un experto consultor de Seguridad y Salud en el Trabajo (SST) de Colombia.
-Tu especialidad específica para esta sesión es el formato: Plan de Trabajo Anual en SST.
-Normatividad aplicable: Debe cumplir con la Decreto 1072 de 2015 de Colombia. Exige a todo empleador definir y documentar el plan de trabajo anual del SG-SST con objetivos, metas, actividades, responsables, recursos y cronograma..
+Tu especialidad específica para esta sesión es el formato: Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM).
+Normatividad aplicable: Debe cumplir con el Decreto 1072 de 2015 de Colombia. Exige a todo empleador registrar y hacer seguimiento a las acciones correctivas, preventivas y de mejora (ACPM) derivadas de auditorías, inspecciones, investigaciones o revisiones por la dirección.
 Responde siempre de forma extremadamente profesional, técnica y detallada con terminología de SST colombiana (Resolución 0312, Decreto 1072, etc.).
 Tu rol es puramente conversacional y de asesoría: responde dudas, explica metodologías (como árbol de causas, espina de pescado/Ishikawa, jerarquía de controles, GTC-45 según corresponda al formato), brinda recomendaciones de prevención y responde preguntas del usuario.
 No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, claro y constructivo.
@@ -1831,7 +1834,7 @@ Mensaje del usuario: ${messageText}` }] }
             const loader = document.getElementById('ai-status-loader');
             loader.classList.remove('hidden');
 
-            const id = "plan_trabajo";
+            const id = "matriz_acpm";
             let jsonSchema = {};
             let sstInstructions = "";
 
@@ -1918,7 +1921,7 @@ Mensaje del usuario: ${messageText}` }] }
                     ]
                 };
                 sstInstructions = "Actúas como un asesor jurídico experto en derecho laboral y reglamento interno de trabajo en SST.";
-            } else if (id === "plan_trabajo") {
+            } else if (id === "matriz_acpm") {
                 jsonSchema = {
                     "trabajador-nombre": "Año de Vigencia del Plan (Ej: 2026)",
                     "trabajador-cedula": "Alcance de aplicación del Plan (Ej: Todas las sedes y centros de trabajo)",
@@ -1956,7 +1959,7 @@ Mensaje del usuario: ${messageText}` }] }
                     ]
                 };
                 sstInstructions = `Actúas como un consultor de máximo nivel en Seguridad y Salud en el Trabajo en Colombia, experto en Decreto 1072 de 2015 y Resolución 0312 de 2019.
-Tu tarea es diseñar un Plan de Trabajo Anual en SST premium, con metas específicas y coherencia impecable en todas sus secciones.
+Tu tarea es diseñar una Matriz ACPM en SST premium, con hallazgos específicos, planes de acción coherentes y fechas límites reales.
 En 'witnesses' (actividades del cronograma), debes sugerir de 3 a 5 actividades obligatorias normativas detallando la frecuencia en 'doc' y en 'testimony' estructurando exactamente el texto: "Responsable: [Cargo] | Estado: Planeado | Recursos: [Físicos/Financieros] | Detalle: [Descripción]".
 En 'averias' (recursos de soporte), debes sugerir de 2 a 3 recursos físicos, técnicos o de software útiles y calificar disponibilidad en 'criticality' (Baja = Bueno/Suficiente, Media = Regular/Parcial, Alta = Deficiente/Inexistente).
 Califica de forma balanceada y experta las 9 variables de los indicadores de gestión de Estructura, Proceso y Resultado.`;
@@ -2087,7 +2090,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                     renderAverias();
                 }
 
-                if (id === 'plan_trabajo') {
+                if (id === 'matriz_acpm') {
                     updateIndicators();
                 }
 
@@ -2112,7 +2115,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 saveLocalData();
                 alert("¡Copiloto IA completó con éxito el análisis técnico y diseñó el plan de acción! Revise los campos enriquecidos y el tablero Kanban de planes de acción.");
                 
-                if (id === 'plan_trabajo') {
+                if (id === 'matriz_acpm') {
                     switchTab('tab-analysis');
                 } else {
                     switchTab('tab-plan');
@@ -2203,7 +2206,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             document.querySelectorAll('canvas').forEach(cvs => {
                 const context = cvs.getContext('2d');
                 if (context) {
-                    context.strokeStyle = currentTheme === 'dark' ? '#ffffff' : '#1e293b';
+                    context.strokeStyle = '#1e293b';
                 }
             });
             
@@ -2686,9 +2689,9 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             if (getEl('summary-worker-version')) {
                 getEl('summary-worker-version').innerHTML = `
                     <div class="flex flex-col gap-1 text-[11px] leading-relaxed">
-                        <div><strong>Vigencia Anual:</strong> <span class="text-blue-500 font-bold">${vigencia}</span></div>
-                        <div><strong>Alcance del Plan:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${alcance}</span></div>
-                        <div><strong>Tipo de Contratación:</strong> <span class="font-semibold text-slate-700 dark:text-slate-350">${tipoPlan}</span></div>
+                        <div><strong>Vigencia Matriz:</strong> <span class="text-blue-500 font-bold">${vigencia}</span></div>
+                        <div><strong>Alcance de la Matriz:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${alcance}</span></div>
+                        <div><strong>Origen Principal:</strong> <span class="font-semibold text-slate-700 dark:text-slate-350">${tipoPlan}</span></div>
                         <div><strong>Cumplimiento General:</strong> <span class="font-extrabold text-emerald-500">${globalPct}%</span></div>
                     </div>
                 `;
@@ -2698,9 +2701,9 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 getEl('summary-investigator-desc').innerHTML = `
                     <div class="flex flex-col gap-1 text-[11px] leading-relaxed">
                         <div><strong>Presupuesto Asignado:</strong> <span class="text-emerald-500 font-extrabold">${presupuesto}</span></div>
-                        <div><strong>Estructura Planificada:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(estructura * 100)}%</span></div>
-                        <div><strong>Procesos Ejecutados:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(proceso * 100)}%</span></div>
-                        <div><strong>Resultados Obtenidos:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(resultado * 100)}%</span></div>
+                        <div><strong>Estructura ACPM:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(estructura * 100)}%</span></div>
+                        <div><strong>Procesos ACPM:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(proceso * 100)}%</span></div>
+                        <div><strong>Resultados ACPM:</strong> <span class="font-medium text-slate-700 dark:text-slate-350">${Math.round(resultado * 100)}%</span></div>
                     </div>
                 `;
             }
@@ -2743,11 +2746,11 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 const legalSupport = w.legalSupport || parsed.legalSupport || 'Decreto 1072';
                 const checked = w.checked !== undefined ? w.checked : (parsed.estado.toLowerCase().includes('completa') || parsed.estado.toLowerCase().includes('hecho'));
                 
-                // PHVA Badge colors
+                // Badge colors for ACPM (C, P, M) or PHVA (P, H, V, A)
                 let phvaBadgeColor = 'bg-blue-500/10 text-blue-500 border-blue-500/20 dark:text-blue-400 dark:border-blue-500/30';
-                if (phva === 'H') phvaBadgeColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:text-emerald-450 dark:border-emerald-500/30';
-                if (phva === 'V') phvaBadgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:text-amber-450 dark:border-amber-500/30';
-                if (phva === 'A') phvaBadgeColor = 'bg-rose-500/10 text-rose-500 border-rose-500/20 dark:text-rose-450 dark:border-rose-500/30';
+                if (phva === 'C' || phva === 'A') phvaBadgeColor = 'bg-rose-500/10 text-rose-500 border-rose-500/20 dark:text-rose-455 dark:border-rose-500/30';
+                if (phva === 'P' || phva === 'V') phvaBadgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:text-amber-450 dark:border-amber-500/30';
+                if (phva === 'M' || phva === 'H') phvaBadgeColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:text-emerald-450 dark:border-emerald-500/30';
 
                 listEl.innerHTML += `
                     <tr class="hover:bg-slate-200/20 dark:hover:bg-slate-950/20 transition-colors border-b border-slate-200 dark:border-slate-800/80">
@@ -2774,7 +2777,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 summaryEl.innerHTML += `
                     <div class="py-1.5 border-b border-slate-200 dark:border-slate-800/40 text-[11px] flex flex-col gap-0.5">
                         <span class="font-bold text-slate-700 dark:text-slate-300">${w.name} - <span class="text-blue-500 dark:text-blue-400 font-semibold">${w.doc || 'General'}</span></span>
-                        <span class="text-slate-500 dark:text-slate-400 font-medium">Ciclo: <span class="font-extrabold text-slate-600 dark:text-slate-300">${phva}</span> | Estado: <span class="font-bold ${checked ? 'text-emerald-500' : 'text-amber-500'}">${checked ? 'Completado' : 'Planeado'}</span> | Recursos: ${resources}</span>
+                        <span class="text-slate-500 dark:text-slate-400 font-medium">Tipo: <span class="font-extrabold text-slate-650 dark:text-slate-350">${phva === 'C' ? 'Correctiva (C)' : phva === 'P' ? 'Preventiva (P)' : phva === 'M' ? 'De Mejora (M)' : phva}</span> | Estado: <span class="font-bold ${checked ? 'text-emerald-500' : 'text-amber-500'}">${checked ? 'Completado' : 'Planeado'}</span> | Fecha Límite: ${resources}</span>
                     </div>
                 `;
             });
@@ -3086,7 +3089,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 safeRemoveLocalStorage(storageKey);
                 if (getEl('witnesses-list')) {
-                    deleteMediaFromDB('plan_trabajo').then(() => {
+                    deleteMediaFromDB('matriz_acpm').then(() => {
                         window.location.reload();
                     });
                 } else {
@@ -3095,7 +3098,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             }
         }
 
-        const storageKey = 'wappy_sst_plan_trabajo';
+        const storageKey = 'wappy_sst_matriz_acpm';
         function saveLocalData() {
             if (isLoadingState) return;
             const sName = document.getElementById('signer-name');
@@ -3161,7 +3164,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             }
 
             if (getEl('photos-grid')) {
-                saveMediaToDB('plan_trabajo', photos, audio, video);
+                saveMediaToDB('matriz_acpm', photos, audio, video);
             }
         }
 
@@ -3232,7 +3235,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 renderKanban();
                 
                 if (getEl('photos-grid')) {
-                    loadMediaFromDB('plan_trabajo').then(media => {
+                    loadMediaFromDB('matriz_acpm').then(media => {
                         const localPhotos = media.photos && media.photos.length > 0 ? media.photos : (embeddedWizard.photos || []);
                         const localAudio = media.audioBase64 || embeddedWizard.audioBase64 || '';
                         const localVideo = media.videoBase64 || embeddedWizard.videoBase64 || '';
@@ -3243,7 +3246,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                         
                         // Auto-cache back to IndexedDB if it was empty but embedded had it
                         if ((!media.photos || media.photos.length === 0) && localPhotos.length > 0) {
-                            saveMediaToDB('plan_trabajo', localPhotos, localAudio, localVideo);
+                            saveMediaToDB('matriz_acpm', localPhotos, localAudio, localVideo);
                         }
                         
                         renderPhotos();

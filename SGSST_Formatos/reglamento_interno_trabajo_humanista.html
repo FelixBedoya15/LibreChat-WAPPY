@@ -2187,7 +2187,7 @@
             "companyRisk": "",
             "changeCode": "GC-SST-RIT-01",
             "lastUpdated": "",
-            "appTitle": "Reglamento Interno de Trabajo",
+            "appTitle": "Manifiesto de Convivencia y Reglamento Interno de Trabajo",
             "appSubtitle": "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
             "appDesc": "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
             "appBadge": "PROCESO: SG-SST | V.01",
@@ -2208,7 +2208,7 @@
             "customSignatures": [],
             "id": null,
             "signatures": {},
-            "ritTone": "tradicional",
+            "ritTone": "humanista",
             "compiledRIT_tradicional": "",
             "compiledRIT_humanista": ""
         };
@@ -4401,7 +4401,7 @@ Respuesta 5: ${w5}`;
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 safeRemoveLocalStorage(storageKey);
-                deleteMediaFromDB('reglamento_interno_trabajo').then(() => {
+                deleteMediaFromDB('reglamento_interno_trabajo_humanista').then(() => {
                     window.location.reload();
                 }).catch(() => {
                     window.location.reload();
@@ -4409,7 +4409,7 @@ Respuesta 5: ${w5}`;
             }
         }
 
-        const storageKey = 'wappy_sst_reglamento_interno_trabajo';
+        const storageKey = 'wappy_sst_reglamento_interno_trabajo_humanista';
         function saveLocalData() {
             if (isLoadingState) return;
             const sName = document.getElementById('signer-name');
@@ -4514,7 +4514,7 @@ Respuesta 5: ${w5}`;
             }
 
             if (getEl('photos-grid')) {
-                saveMediaToDB('reglamento_interno_trabajo', photos, audio, video);
+                saveMediaToDB('reglamento_interno_trabajo_humanista', photos, audio, video);
             }
         }
 
@@ -4589,7 +4589,7 @@ Respuesta 5: ${w5}`;
                 setRITTone(tone);
                 
                 if (getEl('photos-grid')) {
-                    loadMediaFromDB('reglamento_interno_trabajo').then(media => {
+                    loadMediaFromDB('reglamento_interno_trabajo_humanista').then(media => {
                         const localPhotos = media.photos && media.photos.length > 0 ? media.photos : (embeddedWizard.photos || []);
                         const localAudio = media.audioBase64 || embeddedWizard.audioBase64 || '';
                         const localVideo = media.videoBase64 || embeddedWizard.videoBase64 || '';
@@ -4600,7 +4600,7 @@ Respuesta 5: ${w5}`;
                         
                         // Auto-cache back to IndexedDB if it was empty but embedded had it
                         if ((!media.photos || media.photos.length === 0) && localPhotos.length > 0) {
-                            saveMediaToDB('reglamento_interno_trabajo', localPhotos, localAudio, localVideo);
+                            saveMediaToDB('reglamento_interno_trabajo_humanista', localPhotos, localAudio, localVideo);
                         }
                         
                         renderPhotos();

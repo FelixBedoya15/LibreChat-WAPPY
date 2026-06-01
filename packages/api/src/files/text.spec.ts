@@ -45,11 +45,19 @@ jest.mock('../utils', () => ({
   readFileAsString: jest.fn(),
 }));
 
+jest.mock('xlsx', () => ({
+  readFile: jest.fn(),
+  utils: {
+    sheet_to_csv: jest.fn(),
+  },
+}));
+
 // Now import everything after mocks are in place
 import { parseTextNative, parseText } from './text';
 import fs, { ReadStream } from 'fs';
 import axios from 'axios';
 import FormData from 'form-data';
+import * as XLSX from 'xlsx';
 import { generateShortLivedToken } from '../crypto/jwt';
 import { readFileAsString } from '../utils';
 
@@ -113,6 +121,65 @@ describe('text', () => {
       mockedReadFileAsString.mockRejectedValue(mockError);
 
       await expect(parseTextNative(mockFile)).rejects.toThrow('File not found');
+    });
+
+    it('should successfully parse an Excel file', async () => {
+      const mockExcelFile: Express.Multer.File = {
+        ...mockFile,
+        originalname: 'test.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+
+      const mockedXLSX = XLSX as jest.Mocked<typeof XLSX>;
+      mockedXLSX.readFile.mockReturnValue({
+        SheetNames: ['Sheet1', 'Sheet2'],
+        Sheets: {
+          Sheet1: {},
+          Sheet2: {},
+        },
+      } as any);
+
+      (XLSX.utils.sheet_to_csv as jest.Mock)
+        .mockReturnValueOnce('col1,col2\nval1,val2')
+        .mockReturnValueOnce('colA,colB\nvalA,valB');
+
+      const result = await parseTextNative(mockExcelFile);
+
+      expect(mockedXLSX.readFile).toHaveBeenCalledWith('/tmp/test.txt');
+      expect(result.text).toContain('Sheet: Sheet1\ncol1,col2\nval1,val2');
+      expect(result.text).toContain('Sheet: Sheet2\ncolA,colB\nvalA,valB');
+      expect(result.source).toBe(FileSources.text);
+    });
+
+    it('should fall back to string reading if Excel parsing fails', async () => {
+      const mockExcelFile: Express.Multer.File = {
+        ...mockFile,
+        originalname: 'test.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+
+      const mockedXLSX = XLSX as jest.Mocked<typeof XLSX>;
+      mockedXLSX.readFile.mockImplementation(() => {
+        throw new Error('Corrupted zip');
+      });
+
+      const mockText = 'Fallback string content';
+      const mockBytes = Buffer.byteLength(mockText, 'utf8');
+      mockedReadFileAsString.mockResolvedValue({
+        content: mockText,
+        bytes: mockBytes,
+      });
+
+      const result = await parseTextNative(mockExcelFile);
+
+      expect(mockedReadFileAsString).toHaveBeenCalledWith('/tmp/test.txt', {
+        fileSize: 100,
+      });
+      expect(result).toEqual({
+        text: mockText,
+        bytes: mockBytes,
+        source: FileSources.text,
+      });
     });
   });
 

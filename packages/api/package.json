@@ -109,6 +109,7 @@
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.14",
-    "@langchain/google-vertexai": "^0.2.14"
+    "@langchain/google-vertexai": "^0.2.14",
+    "xlsx": "^0.18.5"
   }
 }

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import { createReadStream } from 'fs';
+import * as XLSX from 'xlsx';
 import { logger } from '@librechat/data-schemas';
 import { FileSources } from 'librechat-data-provider';
 import type { Request as ServerRequest } from 'express';
@@ -102,13 +103,46 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
   bytes: number;
   source: string;
 }> {
-  const { content: text, bytes } = await readFileAsString(file.path, {
-    fileSize: file.size,
-  });
+  const originalName = file.originalname ? file.originalname.toLowerCase() : '';
+  const isExcel =
+    file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    file.mimetype === 'application/vnd.ms-excel' ||
+    originalName.endsWith('.xlsx') ||
+    originalName.endsWith('.xls');
+
+  let text: string;
+  if (isExcel) {
+    try {
+      const workbook = XLSX.readFile(file.path);
+      let excelContent = '';
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+        if (csv.trim()) {
+          excelContent += `Sheet: ${sheetName}\n${csv}\n\n`;
+        }
+      }
+      text = excelContent.trim();
+      if (!text) {
+        text = 'Empty Excel sheet';
+      }
+    } catch (excelError) {
+      logger.error(`[parseTextNative] Error parsing Excel file ${file.path}:`, excelError);
+      const { content } = await readFileAsString(file.path, {
+        fileSize: file.size,
+      });
+      text = content;
+    }
+  } else {
+    const { content } = await readFileAsString(file.path, {
+      fileSize: file.size,
+    });
+    text = content;
+  }
 
   return {
     text,
-    bytes,
+    bytes: Buffer.byteLength(text, 'utf8'),
     source: FileSources.text,
   };
 }
