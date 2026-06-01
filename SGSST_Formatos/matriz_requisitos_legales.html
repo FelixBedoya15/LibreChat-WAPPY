@@ -168,60 +168,59 @@
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 1.2 Datos del Trabajador Accidentado
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 1.2 Datos Generales de la Matriz de Requisitos Legales
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE COMPLETO</label>
-                            <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Juan Pérez" value="Juan Carlos Gómez Bedoya">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">AÑO DE VIGENCIA DE LA MATRIZ</label>
+                            <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 2026" value="2026">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÉDULA / C.C.</label>
-                            <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 10234567" value="1.018.452.963">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ALCANCE / SEDES CUBIERTAS</label>
+                            <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Todas las sedes" value="Nacional (Sedes Bogotá y Medellín)">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">VINCULACIÓN</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">METODOLOGÍA DE EVALUACIÓN</label>
                             <select id="trabajador-vinculacion" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Planta" selected="">Planta / Directo</option>
-                                <option value="Contratista">Contratista</option>
-                                <option value="Cooperado">Cooperado</option>
-                                <option value="Mision">Misión / Temporal</option>
-                                <option value="Otro">Otro</option>
+                                <option value="Decreto-1072" selected="">Decreto 1072 / Resolución 0312</option>
+                                <option value="Otra">Otra metodología</option>
                             </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CARGO / OFICIO</label>
-                            <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Operario de Despacho" value="Auxiliar de Almacenamiento y Despacho">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RESPONSABLE DE LA MATRIZ</label>
+                            <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Responsable del SG-SST" value="Líder HSEQ / Responsable del SG-SST (Auditor)">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ÁREA DE ADSCRIPCIÓN</label>
-                            <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Logística y Distribución">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ACTIVIDAD PRINCIPAL Y MARCO REGULATORIO</label>
+                            <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Normativa General de Seguridad y Salud en el Trabajo">
                         </div>
                     </div>
 
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Datos del Evento (Fecha, Hora y Lugar)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Datos de Elaboración de la Matriz
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DEL EVENTO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE ELABORACIÓN / EMISIÓN</label>
                             <input type="date" id="evento-fecha" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-05-29">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HORA DEL EVENTO</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HORA DE ELABORACIÓN</label>
                             <input type="time" id="evento-hora" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="09:30">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LUGAR / ÁREA EXACTA</label>
-                            <input type="text" id="evento-lugar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Pasillo 2 de despacho" value="Bodega Central - Pasillo 2 de Distribución">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LUGAR / OFICINA PRINCIPAL</label>
+                            <input type="text" id="evento-lugar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Sede Principal" value="Oficina de Cumplimiento HSEQ">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ZONA DEL ACCIDENTE</label>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERIODICIDAD DE ACTUALIZACIÓN</label>
                             <select id="evento-zona" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
-                                <option value="Urbana" selected="">Urbana</option>
-                                <option value="Rural">Rural</option>
+                                <option value="Mensual">Mensual</option>
+                                <option value="Trimestral">Trimestral</option>
+                                <option value="Semestral" selected="">Semestral</option>
+                                <option value="Anual">Anual</option>
                             </select>
                         </div>
                     </div>
@@ -240,24 +239,24 @@
             <div id="tab-description" class="tab-content flex flex-col gap-5 hidden">
                 <div class="flex flex-col gap-4">
                     <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-4 h-4"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg> 2.1 Relación Cronológica y Objetiva de los Hechos (Testimonios y Evidencias)
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-4 h-4"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg> 2.1 Descripción del Contexto Legal y Requisitos Clave
                     </h3>
                     <!-- Side-by-side Worker version and Investigator description -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">VERSIÓN DE LOS HECHOS DEL TRABAJADOR</label>
-                            <textarea id="at-version-trabajador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Ingrese el relato del trabajador accidentado en sus propias palabras..."></textarea>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">DESCRIPCIÓN DE LA NORMATIVA GENERAL Y ALCANCE LEGAL</label>
+                            <textarea id="at-version-trabajador" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Describa las normas generales (Decreto 1072, Resolución 0312, etc.) aplicables a la empresa y el alcance legal..."></textarea>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">DESCRIPCIÓN DEL ACCIDENTE (SEGÚN EL EQUIPO INVESTIGADOR)</label>
-                            <textarea id="at-evento-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Describa de forma extremadamente detallada el accidente según la investigación técnica..."></textarea>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">REQUISITOS LEGALES ESPECÍFICOS Y COMPROMISOS</label>
+                            <textarea id="at-evento-desc" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm resize-none shadow-sm" rows="5" placeholder="Enumere o describa de forma detallada los requisitos específicos de SST aplicables por actividad o sector..."></textarea>
                         </div>
                     </div>
 
                     <!-- TESTIGOS REGISTRADOS -->
                     <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                         <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4 text-emerald-500"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Registro de Testigos (Opcional)
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4 text-emerald-500"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Registro de Normativa Crítica Aplicable (Opcional)
                         </span>
                         
                         <!-- List of Witnesses -->
@@ -267,19 +266,19 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
                             <div class="md:col-span-2">
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">NOMBRE COMPLETO</label>
-                                <input type="text" id="witness-name-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Carlos Ortiz">
+                                <input type="text" id="witness-name-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Resolución 1401 de 2007">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">CÉDULA / DOCUMENTO</label>
-                                <input type="text" id="witness-doc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: 71.345.678">
+                                <input type="text" id="witness-doc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Resolución Aportante">
                             </div>
                             <div class="md:col-span-3">
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">VERSIÓN DE LOS HECHOS DEL TESTIGO</label>
-                                <textarea id="witness-testimony-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white resize-none" rows="3" placeholder="Ej: Escriba aquí la versión completa del testigo..."></textarea>
+                                <textarea id="witness-testimony-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white resize-none" rows="3" placeholder="Ej: Norma que reglamenta la investigación de incidentes y accidentes de trabajo..."></textarea>
                             </div>
                             <div class="md:col-span-3 flex justify-end">
                                 <button type="button" onclick="addWitness()" class="py-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Testigo
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Norma
                                 </button>
                             </div>
                         </div>
@@ -288,7 +287,7 @@
                     <!-- AVERÍAS / DAÑOS MATERIALES -->
                     <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                         <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="alert-triangle" aria-hidden="true" class="lucide lucide-alert-triangle w-4 h-4 text-emerald-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> Registro de Averías / Daños Materiales (Opcional)
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="alert-triangle" aria-hidden="true" class="lucide lucide-alert-triangle w-4 h-4 text-emerald-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> Compromisos y Evaluaciones Legales Adicionales (Opcional)
                         </span>
                         
                         <!-- List of Damages/Failures -->
@@ -298,11 +297,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/50">
                             <div>
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">EQUIPO / INSTALACIÓN AFECTADA</label>
-                                <input type="text" id="averia-equipment-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Montacargas #03">
+                                <input type="text" id="averia-equipment-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Examen Médico Ocupacional">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">DESCRIPCIÓN DEL DAÑO / FALLA</label>
-                                <input type="text" id="averia-desc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Válvula rota con fuga activa">
+                                <input type="text" id="averia-desc-input" class="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 p-2 text-xs text-slate-900 dark:text-white" placeholder="Ej: Custodia e historial clínico a cargo del médico de SST">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold text-slate-400 mb-1">CRITICIDAD</label>
@@ -314,7 +313,7 @@
                             </div>
                             <div class="md:col-span-3 flex justify-end">
                                 <button type="button" onclick="addAveria()" class="py-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Avería
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3.5 h-3.5"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Compromiso
                                 </button>
                             </div>
                         </div>
@@ -722,27 +721,27 @@
                 <!-- RESUMEN DE HECHOS Y EVIDENCIAS -->
                 <div class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs flex flex-col gap-4 text-slate-800 dark:text-slate-200">
                     <h4 class="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen de Hechos y Evidencias para Firmas
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> Resumen de Contexto Legal para Firmas
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2">
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Versión del Trabajador:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Normativa General y Alcance Legal:</span>
                             <p id="summary-worker-version" class="italic text-slate-650 dark:text-slate-450 font-medium">Estaba caminando por el pasillo llevando una caja pesada que me tapaba un poco la visual hacia abajo, cuando de repente pisé algo muy resbaloso y perdí el equilibrio. Sentí que me resbalé y caí de lado. Al intentar amortiguar el golpe apoyé la mano izquierda contra el concreto y sentí un fuerte tirón y dolor en la muñeca.</p>
                         </div>
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Descripción del Equipo Investigador:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Requisitos Legales Específicos:</span>
                             <p id="summary-investigator-desc" class="italic text-slate-650 dark:text-slate-450 font-medium">El operario transitaba a las 09:30 AM por el pasillo 2 de la Bodega Central transportando una caja de pedidos, cuando resbaló de manera imprevista debido a una fuga de aceite hidráulico acumulada en el suelo proveniente del montacargas #03, la cual no había sido reportada ni señalizada preventivamente. Al caer al suelo, el operario apoyó fuertemente su mano izquierda, sufriendo un trauma menor en miembro superior izquierdo. Presenciado por el operario Carlos Ortiz.</p>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Testigos Registrados:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Normativa Crítica:</span>
                             <div id="summary-witnesses" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguno registrado</div>
                         </div>
                         <div>
-                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Averías / Daños Registrados:</span>
+                            <span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Compromisos y Evaluaciones:</span>
                             <div id="summary-averias" class="flex flex-col gap-2 italic text-slate-650 dark:text-slate-450">Ninguna registrada</div>
                         </div>
                     </div>
@@ -763,7 +762,7 @@
                 <div class="flex flex-col gap-6 border-t dark:border-slate-800 light:border-slate-200 pt-6">
                     <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
                         <h3 class="text-sm font-black text-blue-600 dark:text-blue-455 uppercase tracking-widest flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Firmas del Equipo Investigador (Resolución 1401)
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg> Firmas del Equipo Auditor de la Matriz
                         </h3>
                         <button type="button" onclick="addAdditionalSignatureCard()" class="py-1 px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-455 border border-blue-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer no-print">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="plus" aria-hidden="true" class="lucide lucide-plus w-3 h-3"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg> Agregar Firma Adicional
@@ -771,7 +770,7 @@
                     </div>
                     <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                         
-                        <!-- 1. Jefe Inmediato / Supervisor -->
+                        <!-- 1. Responsable Jurídico / Auditor -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="m16 11 2 2 4-4"></path><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> Jefe Inmediato / Supervisor
@@ -797,7 +796,7 @@
                         <!-- 2. Representante COPASST o Vigía -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-emerald-500"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Rep. COPASST / Vigía SST
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-emerald-500"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> Representante del COPASST
                             </span>
                             <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner">
                                 <canvas id="signature-copasst" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
@@ -846,7 +845,7 @@
                             </div>
                         </div>
 
-                        <!-- 4. Trabajador Afectado -->
+                        <!-- 4. Representante de la Gerencia -->
                         <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
                             <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4 text-emerald-500"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Trabajador Afectado
@@ -933,8 +932,8 @@
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-2.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Default)</option>
+                    <option value="gemini-3.5-flash-lite">Wappy IA Core</option>
                 </select>
             </div>
         </div>
@@ -1135,17 +1134,17 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
         "aportante-razon": "WAPPY SA",
         "aportante-nit": "901437310-8",
         "aportante-arl": "Colmena Seguros",
-        "trabajador-nombre": "Juan Carlos Gómez Bedoya",
-        "trabajador-cedula": "1.018.452.963",
-        "trabajador-vinculacion": "Planta",
-        "trabajador-cargo": "Auxiliar de Almacenamiento y Despacho",
-        "trabajador-area": "Logística y Distribución",
-        "evento-fecha": "2026-05-29",
-        "evento-hora": "09:30",
-        "evento-lugar": "Bodega Central - Pasillo 2 de Distribución",
-        "evento-zona": "Urbana",
-        "at-version-trabajador": "Estaba caminando por el pasillo llevando una caja pesada que me tapaba un poco la visual hacia abajo, cuando de repente pisé algo muy resbaloso y perdí el equilibrio. Sentí que me resbalé y caí de lado. Al intentar amortiguar el golpe apoyé la mano izquierda contra el concreto y sentí un fuerte tirón y dolor en la muñeca.",
-        "at-evento-desc": "El operario transitaba a las 09:30 AM por el pasillo 2 de la Bodega Central transportando una caja de pedidos, cuando resbaló de manera imprevista debido a una fuga de aceite hidráulico acumulada en el suelo proveniente del montacargas #03, la cual no había sido reportada ni señalizada preventivamente. Al caer al suelo, el operario apoyó fuertemente su mano izquierda, sufriendo un trauma menor en miembro superior izquierdo. Presenciado por el operario Carlos Ortiz.",
+        "trabajador-nombre": "2026",
+        "trabajador-cedula": "Nacional (Sedes Bogotá y Medellín)",
+        "trabajador-vinculacion": "Decreto-1072",
+        "trabajador-cargo": "Líder HSEQ / Responsable SG-SST",
+        "trabajador-area": "Normativa General de Seguridad y Salud en el Trabajo",
+        "evento-fecha": "2026-06-01",
+        "evento-hora": "12:00",
+        "evento-lugar": "Oficina de Cumplimiento HSEQ",
+        "evento-zona": "Semestral",
+        "at-version-trabajador": "Matriz legal aplicable al Sistema de Gestión de Seguridad y Salud en el Trabajo, abarcando leyes nacionales, decretos reglamentarios, resoluciones sectoriales y demás normas vigentes en Colombia para riesgos laborales.",
+        "at-evento-desc": "Monitoreo y evaluación periódica de los requisitos legales colombianos vigentes (incluyendo Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012, etc.), determinando el nivel de cumplimiento y planes de acción requeridos.",
         "witness-name-input": "",
         "witness-doc-input": "",
         "witness-testimony-input": "",
@@ -1202,17 +1201,17 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
     "witnesses": [
         {
             "id": 1,
-            "name": "Carlos Ortiz",
-            "doc": "71.345.678",
-            "testimony": "Observé cuando Juan Gómez iba caminando por el pasillo central llevando la caja de repuestos. De repente pisó un charco de aceite que provenía del montacargas #03, el cual estaba perdiendo líquido sin que nos diéramos cuenta. Juan resbaló y cayó de medio lado, apoyando todo el peso en su mano izquierda. De inmediato fuimos a socorrerlo porque se quejaba de un dolor agudo en la muñeca."
+            "name": "Resolución 1401 de 2007",
+            "doc": "Resolución Aportante",
+            "testimony": "Norma que reglamenta la investigación de incidentes y accidentes de trabajo en Colombia, obligando a conformar el equipo investigador y emitir informes a la ARL."
         }
     ],
     "averias": [
         {
             "id": 1,
-            "equipment": "Montacargas #03",
-            "desc": "Válvula rota con fuga activa",
-            "criticality": "Baja - Operación normal"
+            "equipment": "Exámenes Médicos Ocupacionales",
+            "desc": "Resolución 2346 de 2007: Regula las evaluaciones médicas ocupacionales e historias clínicas.",
+            "criticality": "Alta - Inoperable / Peligro"
         }
     ],
     "photos": [],
@@ -1805,7 +1804,7 @@ ${documentContext}`;
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-2.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1914,7 +1913,7 @@ Mensaje del usuario: ${messageText}` }] }
             const loader = document.getElementById('ai-status-loader');
             loader.classList.remove('hidden');
 
-            const id = "investigacion_accidentes";
+            const id = "matriz_requisitos_legales";
             let jsonSchema = {};
             let sstInstructions = "";
 
@@ -3318,7 +3317,7 @@ Respuesta 5: ${w5}`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-2.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 

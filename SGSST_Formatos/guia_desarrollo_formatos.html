@@ -428,7 +428,7 @@ document.getElementById('company-name-view').addEventListener('blur', (e) => {
 async function askGemini(userMessage) {
     const apiKey = localStorage.getItem('wappy_gemini_key');
     if (!apiKey) return alert("Por favor configura tu API Key en la barra superior o en tu perfil.");
-    const model = localStorage.getItem('wappy_gemini_model') || 'gemini-2.5-flash';
+    const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.5-flash';
     
     const context = JSON.stringify(getDynamicContext());
     const prompt = `Contexto del formato: ${context}\nPregunta: ${userMessage}`;
@@ -447,7 +447,7 @@ async function askGemini(userMessage) {
                             <strong class="text-slate-700 dark:text-slate-200">🛠️ ¿Cómo indicarle cambios a la IA?:</strong>
                             <p class="mt-1">
                                 Si quieres cambiar el rol sistemático de la IA o que use un modelo más grande como Wappy IA Core o Wappy IA Prime, pídele:
-                                <br><span class="italic text-emerald-500">"Modifica la función 'askGemini' para que utilice el modelo 'gemini-2.5-flash' (Wappy IA Prime) y añade un prompt de sistema al inicio para que el copiloto actúe como inspector del Ministerio de Trabajo en Colombia."</span>
+                                <br><span class="italic text-emerald-500">"Modifica la función 'askGemini' para que utilice el modelo 'gemini-3.5-flash' (Wappy IA Prime) y añade un prompt de sistema al inicio para que el copiloto actúe como inspector del Ministerio de Trabajo en Colombia."</span>
                             </p>
                         </div>
                     </div>
@@ -1375,8 +1375,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;button onclick="saveAPIKey()" class="py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold transition cursor-pointer"&gt;Guardar&lt;/button&gt;
             &lt;/div&gt;
             &lt;select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500"&gt;
-                &lt;option value="gemini-3.5-flash"&gt;Wappy IA Core&lt;/option&gt;
-                &lt;option value="gemini-2.5-flash" selected=""&gt;Wappy IA Prime (Default)&lt;/option&gt;
+                &lt;option value="gemini-3.5-flash" selected=""&gt;Wappy IA Prime (Default)&lt;/option&gt;
+                &lt;option value="gemini-3.5-flash-lite"&gt;Wappy IA Core&lt;/option&gt;
             &lt;/select&gt;
         &lt;/div&gt;
 
@@ -1795,7 +1795,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-2.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -2303,7 +2303,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 return;
             }
 
-            const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-2.5-flash';
+            const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
             addChatMessage('assistant', "🤖 Pensando...");
 
             // Construir contexto en vivo
