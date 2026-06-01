@@ -22,6 +22,7 @@ const AGENT_FILE_MAP = {
   'asistente_inv_at': 'Analista Forense de Accidentalidad (AT)',
   'asistente_inv_el': 'Analista Forense de Enfermedad Laboral (EL)',
   'asistente_metodo_rosa': 'Analista Ergonómico ROSA',
+  'analista_ipt_ergonomico': 'Especialista en Inspección de Puesto de Trabajo (IPT)',
   'asistente_permiso_tsa': 'Gestor de Permisos de Trabajo (TSA)',
   'auditor_sg_sst': 'Auditor Integral SG-SST',
   'coordinador_ipevar': 'Especialista GTC-45 (Matriz IPEVAR)',
@@ -198,6 +199,7 @@ const PROTECTED_AGENTS = new Set([
   'asistente_inv_at',
   'asistente_inv_el',
   'asistente_metodo_rosa',
+  'analista_ipt_ergonomico',
   'coordinador_ipevar'
 ]);
 
@@ -815,6 +817,7 @@ router.get('/migrate-names-public', async (req, res) => {
       'Analista Forense de Enfermedad Laboral (EL)',
       'Analista Predictivo ACI',
       'Analista Ergonómico ROSA',
+      'Especialista en Inspección de Puesto de Trabajo (IPT)',
       'Consultor Médico Ocupacional',
       'Especialista en Biomecánica Laboral',
       'Especialista en Riesgo Psicosocial',
