@@ -63,11 +63,11 @@ export default function Action({
               <Checkbox
                 {...field}
                 checked={
-                  webSearchIsEnabled ? webSearchIsEnabled : isToolAuthenticated && field.value
+                  webSearchIsEnabled ? webSearchIsEnabled : isToolAuthenticated && !!field.value
                 }
                 onCheckedChange={handleCheckboxChange}
                 className="relative float-left mr-2 inline-flex h-4 w-4 cursor-pointer"
-                value={field.value.toString()}
+                value={field.value?.toString() ?? 'false'}
                 disabled={webSearchIsEnabled ? false : !isToolAuthenticated}
                 aria-label={localize('com_ui_web_search')}
               />

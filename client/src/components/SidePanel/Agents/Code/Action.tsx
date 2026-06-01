@@ -56,10 +56,10 @@ export default function Action({ authType = '', isToolAuthenticated = false }) {
             render={({ field }) => (
               <Checkbox
                 {...field}
-                checked={runCodeIsEnabled ? runCodeIsEnabled : isToolAuthenticated && field.value}
+                checked={runCodeIsEnabled ? runCodeIsEnabled : isToolAuthenticated && !!field.value}
                 onCheckedChange={handleCheckboxChange}
                 className="relative float-left mr-2 inline-flex h-4 w-4 cursor-pointer"
-                value={field.value.toString()}
+                value={field.value?.toString() ?? 'false'}
                 disabled={runCodeIsEnabled ? false : !isToolAuthenticated}
                 aria-label={localize('com_ui_run_code')}
               />

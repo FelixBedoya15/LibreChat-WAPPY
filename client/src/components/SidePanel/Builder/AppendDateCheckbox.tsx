@@ -37,10 +37,10 @@ export default function AppendDateCheckbox({ control, setValue }: AppendDateChec
               <Checkbox
                 {...field}
                 id="append_current_datetime"
-                checked={field.value}
+                checked={!!field.value}
                 onCheckedChange={handleChange}
                 className="relative float-left mr-2 inline-flex h-4 w-4 cursor-pointer"
-                value={field.value.toString()}
+                value={field.value?.toString() ?? 'false'}
                 aria-labelledby="append-date-label"
               />
             )}

@@ -44,7 +44,7 @@ const LabelController: React.FC<LabelControllerProps> = ({
       render={({ field }) => (
         <Switch
           {...field}
-          checked={field.value}
+          checked={!!field.value}
           onCheckedChange={(val) => {
             if (val === false && confirmChange) {
               confirmChange(val, field.onChange);
@@ -52,7 +52,7 @@ const LabelController: React.FC<LabelControllerProps> = ({
               field.onChange(val);
             }
           }}
-          value={field.value.toString()}
+          value={field.value?.toString() ?? 'false'}
           aria-label={label}
         />
       )}
@@ -100,7 +100,12 @@ const AdminSettings = () => {
   });
 
   useEffect(() => {
-    reset(roles?.[selectedRole]?.permissions?.[PermissionTypes.PROMPTS]);
+    const value = roles?.[selectedRole]?.permissions?.[PermissionTypes.PROMPTS];
+    if (value) {
+      reset(value);
+    } else {
+      reset(roleDefaults[selectedRole].permissions[PermissionTypes.PROMPTS]);
+    }
   }, [roles, selectedRole, reset]);
 
   if (user?.role !== SystemRoles.ADMIN) {

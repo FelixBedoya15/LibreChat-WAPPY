@@ -798,20 +798,23 @@ function handleDrop(ev, columnName) {
         // TEXT CONSTANTS FOR PROMPT BUILDER
         function getSuperPromptTemplate(formatName) {
             const formatNameLower = formatName.toLowerCase().replace(/[^a-z0-9]/g, "_");
-            return `Actúa como un Programador Frontend Senior y Consultor experto en SG-SST en Colombia.
+            const promptContent = `Actúa como un Programador Frontend Senior y Consultor experto en SG-SST en Colombia.
 Necesito que crees un nuevo formato interactivo premium titulado "${formatName}".
 
 El archivo generado debe ser un único documento HTML autónomo (sin dependencias de backend, estilizado con Tailwind CSS por CDN y usando iconos de Lucide-Icons). Debe implementar exactamente la estructura visual, la maquetación de clases de Tailwind CSS, el CSS personalizado y la lógica Javascript descritos en este blueprint.
 
 Debes clonar exactamente la maqueta HTML, los estilos CSS y toda la lógica JS. No alteres las clases de Tailwind, ni la estructura del banner, ni las pestañas del wizard, ni la lógica de IndexedDB o canvas. Tu tarea principal es:
 1. En la Pestaña 2 (Detalles del Formato / id="tab-description"), diseñar el formulario con los campos específicos y necesarios para el formato "${formatName}". Usa el mismo diseño de inputs premium (rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm) con sus respectivos labels (block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1).
+   Además, incluye la sección de multimedia (fotos, audio, video) en esta Pestaña 2 para que sirva de insumo a la IA, justo antes del botón de autocompletar con IA.
 2. En la Pestaña 3 (Vista Previa o Evaluación / id="tab-analysis"), diseñar un panel elegante de visualización o consolidación del reporte de "${formatName}".
-3. En el script de JavaScript, agregar los campos específicos que creaste en la Pestaña 2 a la variable global 'appDocHeader.customFields' con sus valores por defecto (prellenados), y asegurar que se guarden y carguen correctamente en las funciones 'saveLocalData()' y 'loadState()'.
-4. Personalizar el prompt de sistema del Copiloto IA ('systemContext') para que se adapte específicamente a la temática de "${formatName}" y la normativa colombiana correspondiente.
+3. En la Pestaña 5 (Firmas y Cierre / id="tab-evidences"), mostrar un resumen consolidado en tarjetas de lectura de los campos específicos de recolección creados en la Pestaña 2, además del estado de las evidencias multimedia (fotos, audio, video) cargadas, justo antes del panel de firmas digitales en canvas. Asegura que en la función `switchTab` de JS se actualicen dinámicamente los elementos textContent de este resumen con los valores de los inputs correspondientes de la Pestaña 2.
+4. En el script de JavaScript, agregar los campos específicos que creaste en la Pestaña 2 a la variable global 'appDocHeader.customFields' con sus valores por defecto (prellenados), y asegurar que se guarden y carguen correctamente en las funciones 'saveLocalData()' y 'loadState()'.
+5. Personalizar el prompt de sistema del Copiloto IA ('systemContext') para que se adapte específicamente a la temática de "${formatName}" y la normativa colombiana correspondiente.
+6. Garantizar que la función 'triggerIAGeneration()' autocompleta los campos técnicos o análisis SIN sobrescribir los valores que el usuario ya haya ingresado de forma manual.
 
 Aquí tienes la maqueta exacta y el código que debes utilizar:
 
-\\\`\\\`\\\`html
+\`\`\`html
 &lt;!DOCTYPE html&gt;
 &lt;html lang="es"&gt;
 &lt;head&gt;
@@ -832,7 +835,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             errDiv.style.zIndex = '99999';
             errDiv.style.fontWeight = 'bold';
             errDiv.style.borderBottom = '4px solid #b91c1c';
-            errDiv.innerHTML = '⚠️ ERROR DE JAVASCRIPT DETECTADO:<br><span style="font-family: monospace; font-size: 11px;">' + e.message + ' en ' + e.filename + ':' + e.lineno + '</span>';
+            errDiv.innerHTML = '⚠️ ERROR DE JAVASCRIPT DETECTADO:&lt;br&gt;&lt;span style="font-family: monospace; font-size: 11px;"&gt;' + e.message + ' en ' + e.filename + ':' + e.lineno + '&lt;/span&gt;';
             document.body.appendChild(errDiv);
         });
     &lt;/script&gt;
@@ -941,7 +944,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;/button&gt;
                 &lt;button onclick="switchTab('tab-description')" id="btn-tab-description" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer"&gt;
                     &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-3.5 h-3.5"&gt;&lt;path d="M21 5H3"&gt;&lt;/path&gt;&lt;path d="M15 12H3"&gt;&lt;/path&gt;&lt;path d="M17 19H3"&gt;&lt;/path&gt;&lt;/svg&gt;
-                    2. Detalles del Formato
+                    2. Detalles y Recolección
                 &lt;/button&gt;
                 &lt;button onclick="switchTab('tab-analysis')" id="btn-tab-analysis" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer"&gt;
                     &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-3.5 h-3.5"&gt;&lt;path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"&gt;&lt;/path&gt;&lt;/svg&gt;
@@ -952,8 +955,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                     4. Plan de Acción (Kanban)
                 &lt;/button&gt;
                 &lt;button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer"&gt;
-                    &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="paperclip" aria-hidden="true" class="lucide lucide-paperclip w-3.5 h-3.5"&gt;&lt;path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"&gt;&lt;/path&gt;&lt;/svg&gt;
-                    5. Evidencias y Firmas
+                    &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-3.5 h-3.5"&gt;&lt;path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"&gt;&lt;/path&gt;&lt;circle cx="9" cy="7" r="4"&gt;&lt;/circle&gt;&lt;path d="M22 21v-2a4 4 0 0 0-3-3.87"&gt;&lt;/path&gt;&lt;path d="M16 3.13a4 4 0 0 1 0 7.75"&gt;&lt;/path&gt;&lt;/svg&gt;
+                    5. Firmas y Cierre
                 &lt;/button&gt;
             &lt;/div&gt;
 
@@ -1062,6 +1065,57 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                     &lt;/div&gt;
                 &lt;/div&gt;
 
+                &lt;!-- REGISTRO DE EVIDENCIA MULTIMEDIA DIRECTA --&gt;
+                &lt;div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm"&gt;
+                    &lt;span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
+                        &lt;i data-lucide="camera" class="w-4 h-4 text-emerald-500"&gt;&lt;/i&gt; Evidencias Multimedia en Terreno
+                    &lt;/span&gt;
+                    
+                    &lt;div class="grid grid-cols-1 md:grid-cols-3 gap-6"&gt;
+                        &lt;!-- Photos --&gt;
+                        &lt;div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 shadow-inner"&gt;
+                            &lt;span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5"&gt;
+                                &lt;i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; Fotos de Soporte (Máx 3)
+                            &lt;/span&gt;
+                            &lt;input type="file" id="evidence-images-input" accept="image/*" class="hidden" multiple onchange="handleImageUpload(event)"&gt;
+                            &lt;button type="button" onclick="document.getElementById('evidence-images-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1"&gt;
+                                &lt;i data-lucide="upload" class="w-3.5 h-3.5"&gt;&lt;/i&gt; Subir Fotos
+                            &lt;/button&gt;
+                            &lt;div id="photos-grid" class="grid grid-cols-3 gap-2 min-h-[60px] items-center"&gt;&lt;/div&gt;
+                        &lt;/div&gt;
+                        
+                        &lt;!-- Audio --&gt;
+                        &lt;div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 shadow-inner"&gt;
+                            &lt;span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5"&gt;
+                                &lt;i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; Nota de Audio
+                            &lt;/span&gt;
+                            &lt;input type="file" id="evidence-audio-input" accept="audio/*" class="hidden" onchange="handleAudioUpload(event)"&gt;
+                            &lt;button type="button" onclick="document.getElementById('evidence-audio-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"&gt;
+                                &lt;i data-lucide="upload" class="w-3.5 h-3.5"&gt;&lt;/i&gt; Subir Audio
+                            &lt;/button&gt;
+                            &lt;div id="audio-container" class="flex flex-col gap-1 mt-1"&gt;
+                                &lt;audio id="audio-playback" controls class="w-full hidden text-xs" src=""&gt;&lt;/audio&gt;
+                                &lt;button type="button" id="btn-delete-audio" onclick="deleteAudio()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end"&gt;Eliminar Audio&lt;/button&gt;
+                            &lt;/div&gt;
+                        &lt;/div&gt;
+                        
+                        &lt;!-- Video --&gt;
+                        &lt;div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 relative shadow-inner"&gt;
+                            &lt;span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5"&gt;
+                                &lt;i data-lucide="video" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; Video de Evidencia
+                            &lt;/span&gt;
+                            &lt;input type="file" id="evidence-video-input" accept="video/*" class="hidden" onchange="handleVideoUpload(event)"&gt;
+                            &lt;button type="button" onclick="document.getElementById('evidence-video-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"&gt;
+                                &lt;i data-lucide="upload" class="w-3.5 h-3.5"&gt;&lt;/i&gt; Subir Video
+                            &lt;/button&gt;
+                            &lt;div id="video-container" class="flex flex-col gap-1 mt-1"&gt;
+                                &lt;video id="video-playback" controls class="w-full hidden rounded-lg" src=""&gt;&lt;/video&gt;
+                                &lt;button type="button" id="btn-delete-video" onclick="deleteVideo()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end"&gt;Eliminar Video&lt;/button&gt;
+                            &lt;/div&gt;
+                        &lt;/div&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+
                 &lt;!-- SPECIAL IA GENERATOR TRIGGER BUTTON (TAB 2 END) --&gt;
                 &lt;div class="border-t dark:border-slate-800 light:border-slate-200 pt-6 flex flex-col items-center justify-center gap-3 no-print"&gt;
                     &lt;div class="text-center max-w-[480px]"&gt;
@@ -1077,7 +1131,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
                 &lt;!-- Navigation buttons --&gt;
                 &lt;div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print"&gt;
-                    &lt;button onclick="switchTab('tab-identification')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-855 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold transition cursor-pointer"&gt;
+                    &lt;button onclick="switchTab('tab-identification')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-855 hover:bg-slate-350 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-355 text-xs font-semibold transition cursor-pointer"&gt;
                         Atrás
                     &lt;/button&gt;
                     &lt;button onclick="switchTab('tab-analysis')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"&gt;
@@ -1090,12 +1144,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             &lt;!-- TAB 3: VISTA PREVIA O EVALUACIÓN --&gt;
             &lt;div id="tab-analysis" class="tab-content flex flex-col gap-6 hidden"&gt;
                 &lt;!-- [AI: DISEÑA AQUÍ LA VISTA DE REPORTE FINAL O COMPILACIÓN PREMIUM PARA "${formatName}". SI ES UN REGISTRO DE RIESGOS, INCLUYE VALORACIÓN GTC-45 Y JERARQUÍA DE CONTROLES. SI ES UN REGLAMENTO O PLAN, MUESTRA EL VISOR DE TEXTO PREMIUM contenteditable="true" PARA QUE EL USUARIO PUEDA MODIFICAR O EDITAR LA REDACCIÓN] --&gt;
-                &lt;div class="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-xs leading-relaxed text-slate-650 dark:text-slate-350"&gt;
-                    &lt;h4 class="font-bold text-blue-650 dark:text-blue-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider"&gt;
+                &lt;div class="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-xs leading-relaxed text-slate-655 dark:text-slate-350"&gt;
+                    &lt;h4 class="font-bold text-blue-655 dark:text-blue-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider"&gt;
                         &lt;i data-lucide="activity" class="w-4 h-4"&gt;&lt;/i&gt; CONSOLIDADO Y COMPILACIÓN DEL REPORTE
                     &lt;/h4&gt;
                     &lt;p&gt;Visualice a continuación el reporte dinámico generado para su revisión final antes de firmar y exportar. Puede hacer modificaciones directamente en las áreas de texto editable.&lt;/p&gt;
-                &lt;/div>
+                &lt;/div&gt;
 
                 &lt;div class="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20"&gt;
                     &lt;div id="analysis-report-viewer" contenteditable="true" class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-slate-300 focus:outline-none" style="font-family: 'Georgia', serif;"&gt;
@@ -1131,7 +1185,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                         &lt;h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5"&gt;
                             &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="kanban" aria-hidden="true" class="lucide lucide-kanban w-4 h-4"&gt;&lt;path d="M5 3v14"&gt;&lt;/path&gt;&lt;path d="M12 3v8"&gt;&lt;/path&gt;&lt;path d="M19 3v18"&gt;&lt;/path&gt;&lt;/svg&gt; Kanban de Planes de Acción
                         &lt;/h3&gt;
-                        &lt;button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-450 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95 cursor-pointer"&gt;Agregar Tarea&lt;/button&gt;
+                        &lt;button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-455 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95 cursor-pointer"&gt;Agregar Tarea&lt;/button&gt;
                     &lt;/div&gt;
                     &lt;div class="grid grid-cols-1 md:grid-cols-3 gap-6"&gt;
                         &lt;div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow"&gt;
@@ -1155,56 +1209,41 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                         Atrás
                     &lt;/button&gt;
                     &lt;button onclick="switchTab('tab-evidences')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"&gt;
-                        &lt;span&gt;Siguiente (Evidencias y Firmas)&lt;/span&gt;
+                        &lt;span&gt;Siguiente (Firmas y Cierre)&lt;/span&gt;
                         &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"&gt;&lt;path d="M5 12h14"&gt;&lt;/path&gt;&lt;path d="m12 5 7 7-7 7"&gt;&lt;/path&gt;&lt;/svg&gt;
                     &lt;/button&gt;
                 &lt;/div&gt;
             &lt;/div&gt;
 
-            &lt;!-- TAB 5: EVIDENCIAS Y FIRMAS --&gt;
+            &lt;!-- TAB 5: FIRMAS Y CIERRE --&gt;
             &lt;div id="tab-evidences" class="tab-content flex flex-col gap-5 hidden"&gt;
                 
-                &lt;!-- RESUMEN DE HECHOS Y EVIDENCIAS --&gt;
+                &lt;!-- RESUMEN DEL REGISTRO PARA FIRMAS --&gt;
                 &lt;div class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs flex flex-col gap-4 text-slate-800 dark:text-slate-200"&gt;
                     &lt;h4 class="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5"&gt;
-                        &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"&gt;&lt;rect width="8" height="4" x="8" y="2" rx="1" ry="1"&gt;&lt;/rect&gt;&lt;path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"&gt;&lt;/path&gt;&lt;path d="M12 11h4"&gt;&lt;/path&gt;&lt;path d="M12 16h4"&gt;&lt;/path&gt;&lt;path d="M8 11h.01"&gt;&lt;/path&gt;&lt;path d="M8 16h.01"&gt;&lt;/path&gt;&lt;/svg&gt; Resumen de Registro y Archivos Adjuntos
+                        &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="clipboard-list" aria-hidden="true" class="lucide lucide-clipboard-list w-4 h-4"&gt;&lt;rect width="8" height="4" x="8" y="2" rx="1" ry="1"&gt;&lt;/rect&gt;&lt;path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"&gt;&lt;/path&gt;&lt;path d="M12 11h4"&gt;&lt;/path&gt;&lt;path d="M12 16h4"&gt;&lt;/path&gt;&lt;path d="M8 11h.01"&gt;&lt;/path&gt;&lt;path d="M8 16h.01"&gt;&lt;/path&gt;&lt;/svg&gt; Resumen del Registro
                     &lt;/h4&gt;
+                    
+                    &lt;div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b dark:border-slate-800 pb-4 mb-2"&gt;
+                        &lt;div&gt;
+                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1"&gt;Descripción General:&lt;/span&gt;
+                            &lt;p id="summary-form-descripcion" class="italic text-slate-650 dark:text-slate-455 font-medium"&gt;No se ha ingresado descripción aún.&lt;/p&gt;
+                        &lt;/div&gt;
+                        &lt;div&gt;
+                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1"&gt;Observaciones / Comentarios:&lt;/span&gt;
+                            &lt;p id="summary-form-observaciones" class="italic text-slate-655 dark:text-slate-455 font-medium"&gt;No se ha ingresado observaciones aún.&lt;/p&gt;
+                        &lt;/div&gt;
+                    &lt;/div&gt;
                     
                     &lt;div class="grid grid-cols-1 md:grid-cols-2 gap-6"&gt;
                         &lt;div&gt;
-                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2"&gt;Fotos de Evidencia / Archivos:&lt;/span&gt;
-                            &lt;input type="file" id="evidence-images-input" accept="image/*" class="hidden" multiple onchange="handleImageUpload(event)"&gt;
-                            &lt;button onclick="document.getElementById('evidence-images-input').click()" class="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-700 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer no-print mb-2"&gt;
-                                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="upload" aria-hidden="true" class="lucide lucide-upload w-3.5 h-3.5"&gt;&lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"&gt;&lt;/path&gt;&lt;polyline points="17 8 12 3 7 8"&gt;&lt;/polyline&gt;&lt;line x1="12" x2="12" y1="3" y2="15"&gt;&lt;/line&gt;&lt;/svg&gt; Subir Imagen de Soporte
-                            &lt;/button&gt;
-                            &lt;div id="photos-grid" class="grid grid-cols-3 gap-2 min-h-[60px] items-center mb-2"&gt;&lt;/div&gt;
-                            &lt;div id="summary-photos" class="flex flex-wrap gap-2 italic text-slate-655 dark:text-slate-450 mt-1"&gt;Ninguna cargada&lt;/div&gt;
+                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2"&gt;Fotos de Evidencia Cargadas:&lt;/span&gt;
+                            &lt;div id="summary-photos" class="flex flex-wrap gap-2 italic text-slate-655 dark:text-slate-455 mt-1"&gt;Ninguna cargada&lt;/div&gt;
                         &lt;/div&gt;
                         &lt;div&gt;
-                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2"&gt;Grabación de Audio / Notas de Voz:&lt;/span&gt;
-                            &lt;input type="file" id="evidence-audio-input" accept="audio/*" class="hidden" onchange="handleAudioUpload(event)"&gt;
-                            &lt;button onclick="document.getElementById('evidence-audio-input').click()" class="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-700 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer no-print mb-2"&gt;
-                                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="mic" aria-hidden="true" class="lucide lucide-mic w-3.5 h-3.5"&gt;&lt;path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"&gt;&lt;/path&gt;&lt;path d="M19 10v2a7 7 0 0 1-14 0v-2"&gt;&lt;/path&gt;&lt;line x1="12" x2="12" y1="19" y2="22"&gt;&lt;/line&gt;&lt;/svg&gt; Cargar Audio
-                            &lt;/button&gt;
-                            &lt;div id="audio-container" class="flex flex-col gap-1 mt-1"&gt;
-                                &lt;audio id="audio-playback" controls class="w-full hidden text-xs src="""&gt;&lt;/audio&gt;
-                                &lt;button type="button" id="btn-delete-audio" onclick="deleteAudio()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end"&gt;Eliminar Audio&lt;/button&gt;
-                            &lt;/div&gt;
-                            
-                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 mt-4"&gt;Grabación de Video / Registro Móvil:&lt;/span&gt;
-                            &lt;input type="file" id="evidence-video-input" accept="video/*" class="hidden" onchange="handleVideoUpload(event)"&gt;
-                            &lt;button onclick="document.getElementById('evidence-video-input').click()" class="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-700 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer no-print mb-2"&gt;
-                                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="video" aria-hidden="true" class="lucide lucide-video w-3.5 h-3.5"&gt;&lt;path d="m22 8-6 4 6 4V8Z"&gt;&lt;/path&gt;&lt;rect width="14" height="12" x="2" y="6" rx="2" ry="2"&gt;&lt;/rect&gt;&lt;/svg&gt; Cargar Video
-                            &lt;/button&gt;
-                            &lt;div id="video-container" class="flex flex-col gap-1 mt-1"&gt;
-                                &lt;video id="video-playback" controls class="w-full hidden rounded-lg" src=""&gt;&lt;/video&gt;
-                                &lt;button type="button" id="btn-delete-video" onclick="deleteVideo()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end"&gt;Eliminar Video&lt;/button&gt;
-                            &lt;/div&gt;
+                            &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-2"&gt;Notas de Audio y Video:&lt;/span&gt;
+                            &lt;div id="summary-audio-video" class="flex flex-col gap-2 italic text-slate-655 dark:text-slate-455"&gt;Ninguno registrado&lt;/div&gt;
                         &lt;/div&gt;
-                    &lt;/div&gt;
-                    &lt;div class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-2"&gt;
-                        &lt;span class="block font-bold text-slate-500 dark:text-slate-400 uppercase mb-1"&gt;Resumen Consolidado de Evidencias:&lt;/span&gt;
-                        &lt;div id="summary-audio-video" class="flex flex-col gap-2 italic text-slate-655 dark:text-slate-450"&gt;Ninguno registrado&lt;/div&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
 
@@ -1224,11 +1263,11 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                             &lt;span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
                                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="award" aria-hidden="true" class="lucide lucide-award w-4 h-4 text-emerald-500"&gt;&lt;path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"&gt;&lt;/path&gt;&lt;circle cx="12" cy="8" r="6"&gt;&lt;/circle&gt;&lt;/svg&gt; Coordinador / Responsable SG-SST
                             &lt;/span&gt;
-                            &lt;div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner"&gt;
+                            &lt;div class="relative bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner"&gt;
                                 &lt;canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
                                 &lt;input type="file" id="upload-sig-sgsst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-sgsst')"&gt;
-                                &lt;button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar Imagen&lt;/button&gt;
-                                &lt;button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
+                                &lt;button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar Imagen&lt;/button&gt;
+                                &lt;button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
                             &lt;/div&gt;
                             &lt;div class="flex flex-col gap-2"&gt;
                                 &lt;div&gt;
@@ -1253,11 +1292,11 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                             &lt;span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
                                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4 text-emerald-500"&gt;&lt;path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"&gt;&lt;/path&gt;&lt;circle cx="12" cy="7" r="4"&gt;&lt;/circle&gt;&lt;/svg&gt; Trabajador / Afectado / Delegado
                             &lt;/span&gt;
-                            &lt;div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner"&gt;
+                            &lt;div class="relative bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner"&gt;
                                 &lt;canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
                                 &lt;input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')"&gt;
-                                &lt;button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar Imagen&lt;/button&gt;
-                                &lt;button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
+                                &lt;button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar Imagen&lt;/button&gt;
+                                &lt;button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
                             &lt;/div&gt;
                             &lt;div class="flex flex-col gap-2"&gt;
                                 &lt;div&gt;
@@ -1300,12 +1339,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
     &lt;!-- Legal Requirements Modal --&gt;
     &lt;div id="legal-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4"&gt;
         &lt;div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 max-w-[600px] w-full p-6 shadow-2xl relative"&gt;
-            &lt;button onclick="closeLegalModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-650 dark:hover:text-white text-lg"&gt;✕&lt;/button&gt;
+            &lt;button onclick="closeLegalModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-655 dark:hover:text-white text-lg"&gt;✕&lt;/button&gt;
             &lt;h3 class="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mb-3"&gt;
                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="info" aria-hidden="true" class="lucide lucide-info w-5 h-5"&gt;&lt;circle cx="12" cy="12" r="10"&gt;&lt;/circle&gt;&lt;path d="M12 16v-4"&gt;&lt;/path&gt;&lt;path d="M12 8h.01"&gt;&lt;/path&gt;&lt;/svg&gt; MARCO LEGAL Y REQUISITOS (COLOMBIA)
             &lt;/h3&gt;
-            &lt;p class="text-xs leading-relaxed text-slate-650 dark:text-slate-300 font-medium"&gt;
-                Este formato y su plan de acción se estructuran en conformidad con el Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST) regulado bajo el Decreto 1072 de 2015 y los Estándares Mínimos de la Resolución 0312 de 2019 de la República de Colombia. El registro digital autónomo y las firmas manuscritas capturadas localmente cuentan con validez probatoria conforme a las políticas vigentes de simplificación de trámites y almacenamiento digital seguro.
+            &lt;p class="text-xs leading-relaxed text-slate-655 dark:text-slate-300 font-medium"&gt;
+                Este formato y su plan de acción se estructuran en conformidad con el SG-SST regulado bajo el Decreto 1072 de 2015 y la Resolución 0312 de 2019 de Colombia. El registro digital autónomo y las firmas manuscritas capturadas localmente cuentan con validez probatoria conforme a las políticas vigentes de simplificación de trámites y almacenamiento digital seguro.
             &lt;/p&gt;
             &lt;div class="mt-6 flex justify-end"&gt;
                 &lt;button onclick="closeLegalModal()" class="py-2 px-5 bg-slate-200 dark:bg-slate-880 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition"&gt;Cerrar&lt;/button&gt;
@@ -1324,7 +1363,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
         &lt;!-- Chat messages --&gt;
         &lt;div id="ai-chat-messages" class="flex-1 overflow-y-auto flex flex-col gap-3 p-1 min-h-0"&gt;
-            &lt;div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-350"&gt;
+            &lt;div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355"&gt;
                 ¡Hola! Soy su Copiloto de SG-SST de Wappy. ¿En qué puedo asesorarle hoy respecto al formato de &lt;strong&gt;${formatName}&lt;/strong&gt;?
             &lt;/div&gt;
         &lt;/div&gt;
@@ -1336,14 +1375,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;button onclick="saveAPIKey()" class="py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold transition cursor-pointer"&gt;Guardar&lt;/button&gt;
             &lt;/div&gt;
             &lt;select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500"&gt;
-                &lt;option value="gemini-3.1-flash-lite"&gt;Wappy IA Core (Velocidad Relámpago y Flujo)&lt;/option&gt;
-                &lt;option value="gemini-2.5-flash" selected=""&gt;Wappy IA Prime (Análisis de Agentes y Código)&lt;/option&gt;
+                &lt;option value="gemini-3.5-flash"&gt;Wappy IA Core&lt;/option&gt;
+                &lt;option value="gemini-2.5-flash" selected=""&gt;Wappy IA Prime (Default)&lt;/option&gt;
             &lt;/select&gt;
         &lt;/div&gt;
 
         &lt;!-- Chat Input --&gt;
         &lt;div class="flex items-center gap-2 border-t dark:border-slate-800 pt-3 no-print"&gt;
-            &lt;textarea id="ai-chat-input" rows="1" class="flex-1 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-850 p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none font-medium" placeholder="Escriba su consulta..." onkeydown="if(event.key === 'Enter' &amp;&amp; !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"&gt;&lt;/textarea&gt;
+            &lt;textarea id="ai-chat-input" rows="1" class="flex-1 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-855 p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none font-medium" placeholder="Escriba su consulta..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"&gt;&lt;/textarea&gt;
             &lt;button onclick="sendChatMessage()" class="p-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition active:scale-95 cursor-pointer"&gt;
                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="send" aria-hidden="true" class="lucide lucide-send w-3.5 h-3.5"&gt;&lt;line x1="22" x2="11" y1="2" y2="13"&gt;&lt;/line&gt;&lt;polygon points="22 2 15 22 11 13 2 9 22 2"&gt;&lt;/polygon&gt;&lt;/svg&gt;
             &lt;/button&gt;
@@ -1358,7 +1397,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
     &lt;/div&gt;
 
     &lt;!-- Fixed Bottom Footer --&gt;
-    &lt;footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-850 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400 no-print"&gt;
+    &lt;footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-855 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400 no-print"&gt;
         &lt;div class="flex items-center gap-2"&gt;
             &lt;button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 transition active:scale-95 border border-slate-200 dark:border-slate-700" title="Alternar Modo Claro/Oscuro"&gt;
                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="moon" aria-hidden="true" id="theme-float-icon" class="lucide lucide-moon w-4 h-4 dark:text-amber-400 text-slate-650"&gt;&lt;path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"&gt;&lt;/path&gt;&lt;/svg&gt;
@@ -1368,7 +1407,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="info" aria-hidden="true" class="lucide lucide-info w-4 h-4"&gt;&lt;circle cx="12" cy="12" r="10"&gt;&lt;/circle&gt;&lt;path d="M12 16v-4"&gt;&lt;/path&gt;&lt;path d="M12 8h.01"&gt;&lt;/path&gt;&lt;/svg&gt;
                 &lt;span&gt;Normativa Legal&lt;/span&gt;
             &lt;/button&gt;
-            &lt;button onclick="resetSSTForm()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-650 dark:text-red-400 transition active:scale-95 border border-red-500/20 dark:border-red-500/30 font-bold" title="Reiniciar Formulario"&gt;
+            &lt;button onclick="resetSSTForm()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-655 dark:text-red-400 transition active:scale-95 border border-red-500/20 dark:border-red-500/30 font-bold" title="Reiniciar Formulario"&gt;
                 &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="rotate-ccw" aria-hidden="true" class="lucide lucide-rotate-ccw w-4 h-4"&gt;&lt;path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"&gt;&lt;/path&gt;&lt;path d="M3 3v5h5"&gt;&lt;/path&gt;&lt;/svg&gt;
                 &lt;span&gt;Reiniciar Formulario&lt;/span&gt;
             &lt;/button&gt;
@@ -1433,16 +1472,16 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         const storeName = 'mediaStore';
 
         function openDB() {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, reject) =&gt; {
                 const request = indexedDB.open(dbName, dbVersion);
-                request.onupgradeneeded = (e) => {
+                request.onupgradeneeded = (e) =&gt; {
                     const db = e.target.result;
                     if (!db.objectStoreNames.contains(storeName)) {
                         db.createObjectStore(storeName, { keyPath: 'id' });
                     }
                 };
-                request.onsuccess = (e) => resolve(e.target.result);
-                request.onerror = (e) => reject(e.target.error);
+                request.onsuccess = (e) =&gt; resolve(e.target.result);
+                request.onerror = (e) =&gt; reject(e.target.error);
             });
         }
 
@@ -1458,12 +1497,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function loadCanvasFromIndexedDB(id) {
             try {
                 const db = await openDB();
-                return new Promise((resolve) => {
+                return new Promise((resolve) =&gt; {
                     const tx = db.transaction(storeName, 'readonly');
                     const store = tx.objectStore(storeName);
                     const req = store.get(id);
-                    req.onsuccess = () => resolve(req.result ? req.result.data : '');
-                    req.onerror = () => resolve('');
+                    req.onsuccess = () =&gt; resolve(req.result ? req.result.data : '');
+                    req.onerror = () =&gt; resolve('');
                 });
             } catch(e) { console.error("Error loading canvas from IndexedDB", e); return ''; }
         }
@@ -1471,7 +1510,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function saveMediaToDB(docId, photos, audio, video) {
             try {
                 const db = await openDB();
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) =&gt; {
                     const tx = db.transaction(storeName, 'readwrite');
                     const store = tx.objectStore(storeName);
                     const request = store.put({
@@ -1480,8 +1519,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                         audioBase64: audio || '',
                         videoBase64: video || ''
                     });
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () =&gt; resolve();
+                    request.onerror = () =&gt; reject(request.error);
                 });
             } catch(e) { console.error("IndexedDB save media error:", e); }
         }
@@ -1489,14 +1528,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function loadMediaFromDB(docId) {
             try {
                 const db = await openDB();
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) =&gt; {
                     const tx = db.transaction(storeName, 'readonly');
                     const store = tx.objectStore(storeName);
                     const request = store.get('media_' + docId);
-                    request.onsuccess = (e) => {
+                    request.onsuccess = (e) =&gt; {
                         resolve(e.target.result || { photos: [], audioBase64: '', videoBase64: '' });
                     };
-                    request.onerror = () => reject(request.error);
+                    request.onerror = () =&gt; reject(request.error);
                 });
             } catch(e) {
                 console.error("IndexedDB load media error:", e);
@@ -1507,12 +1546,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function deleteMediaFromDB(docId) {
             try {
                 const db = await openDB();
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) =&gt; {
                     const tx = db.transaction(storeName, 'readwrite');
                     const store = tx.objectStore(storeName);
                     const request = store.delete('media_' + docId);
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () =&gt; resolve();
+                    request.onerror = () =&gt; reject(request.error);
                 });
             } catch(e) { console.error("IndexedDB delete media error:", e); }
         }
@@ -1520,15 +1559,15 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function saveGlobalLogoToDB(logoBase64) {
             try {
                 const db = await openDB();
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) =&gt; {
                     const tx = db.transaction(storeName, 'readwrite');
                     const store = tx.objectStore(storeName);
                     const request = store.put({
                         id: 'wappy_sst_global_logo',
                         logoBase64: logoBase64
                     });
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () =&gt; resolve();
+                    request.onerror = () =&gt; reject(request.error);
                 });
             } catch(e) { console.error("Error saving global logo to IndexedDB:", e); }
         }
@@ -1536,14 +1575,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         async function loadGlobalLogoFromDB() {
             try {
                 const db = await openDB();
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) =&gt; {
                     const tx = db.transaction(storeName, 'readonly');
                     const store = tx.objectStore(storeName);
                     const request = store.get('wappy_sst_global_logo');
-                    request.onsuccess = (e) => {
+                    request.onsuccess = (e) =&gt; {
                         resolve(e.target.result ? e.target.result.logoBase64 : '');
                     };
-                    request.onerror = () => reject(request.error);
+                    request.onerror = () =&gt; reject(request.error);
                 });
             } catch(e) {
                 console.error("Error loading global logo from IndexedDB:", e);
@@ -1564,14 +1603,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             cvs.isDrawing = false;
             cvs.hasDrawn = false;
             
-            const getPos = (e) => {
+            const getPos = (e) =&gt; {
                 const rect = cvs.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 return { x: clientX - rect.left, y: clientY - rect.top };
             };
 
-            const startDraw = (e) => {
+            const startDraw = (e) =&gt; {
                 cvs.isDrawing = true;
                 const pos = getPos(e);
                 context.beginPath();
@@ -1579,7 +1618,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 e.preventDefault();
             };
 
-            const draw = (e) => {
+            const draw = (e) =&gt; {
                 if (!cvs.isDrawing) return;
                 cvs.hasDrawn = true;
                 const pos = getPos(e);
@@ -1588,7 +1627,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 e.preventDefault();
             };
 
-            const stopDraw = () => {
+            const stopDraw = () =&gt; {
                 if (!cvs.isDrawing) return;
                 cvs.isDrawing = false;
                 if (!isLoadingState) saveLocalData();
@@ -1683,7 +1722,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             // Sincronizar campos principales en customFields
             appDocHeader.customFields = {};
             const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
-            inputs.forEach(input => {
+            inputs.forEach(input =&gt; {
                 const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
                 if (input.id && !excluded.includes(input.id) && !input.id.startsWith('upload-sig-') && !input.id.startsWith('signer-')) {
                     appDocHeader.customFields[input.id] = input.value;
@@ -1692,7 +1731,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
             // Guardar firmas customizadas dinámicas
             if (currentWizard.customSignatures) {
-                currentWizard.customSignatures.forEach(sig => {
+                currentWizard.customSignatures.forEach(sig =&gt; {
                     const nameEl = document.getElementById(\`signer-\${sig.id}-name\`);
                     const ccEl = document.getElementById(\`signer-\${sig.id}-cc\`);
                     if (nameEl) sig.name = nameEl.value;
@@ -1715,7 +1754,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
             // Registrar si las firmas en canvas tienen dibujos
             currentWizard.signatures = {};
-            document.querySelectorAll('canvas').forEach(canvas => {
+            document.querySelectorAll('canvas').forEach(canvas =&gt; {
                 if (canvas.hasDrawn) {
                     currentWizard.signatures[canvas.id] = canvas.toDataURL();
                     saveCanvasToIndexedDB(canvas.id, canvas.toDataURL());
@@ -1800,7 +1839,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
                 // Rellenar inputs
                 const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
-                inputs.forEach(input => {
+                inputs.forEach(input =&gt; {
                     const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
                     if (input.id && !excluded.includes(input.id) && appDocHeader.customFields && appDocHeader.customFields[input.id] !== undefined) {
                         input.value = appDocHeader.customFields[input.id];
@@ -1844,7 +1883,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
                 // Cargar firmas dinámicas customizadas si hay registradas
                 if (currentWizard.customSignatures && Array.isArray(currentWizard.customSignatures)) {
-                    currentWizard.customSignatures.forEach(sig => {
+                    currentWizard.customSignatures.forEach(sig =&gt; {
                         createSignatureCardDOM(sig);
                     });
                 }
@@ -1857,7 +1896,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                     if (sigData) {
                         const ctx = canvas.getContext('2d');
                         const img = new Image();
-                        img.onload = () => {
+                        img.onload = () =&gt; {
                             ctx.clearRect(0, 0, canvas.width, canvas.height);
                             ctx.drawImage(img, 0, 0);
                             canvas.hasDrawn = true;
@@ -1907,8 +1946,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
         // Pestañas (Wizard Navigation)
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            document.querySelectorAll('[id^="btn-tab-"]').forEach(b => b.classList.remove('tab-active'));
+            document.querySelectorAll('.tab-content').forEach(c =&gt; c.classList.add('hidden'));
+            document.querySelectorAll('[id^="btn-tab-"]').forEach(b =&gt; b.classList.remove('tab-active'));
             
             const selectedTab = document.getElementById(tabId);
             if (selectedTab) selectedTab.classList.remove('hidden');
@@ -1919,6 +1958,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             // Auto-compilar reporte en Tab 3
             if (tabId === 'tab-analysis') {
                 compileVisor();
+            }
+            if (tabId === 'tab-evidences') {
+                const descVal = document.getElementById('custom-form-descripcion') ? document.getElementById('custom-form-descripcion').value : '';
+                const obsVal = document.getElementById('custom-form-observaciones') ? document.getElementById('custom-form-observaciones').value : '';
+                const summaryDesc = document.getElementById('summary-form-descripcion');
+                const summaryObs = document.getElementById('summary-form-observaciones');
+                if (summaryDesc) summaryDesc.innerText = descVal || '[Sin descripción de detalles registrado]';
+                if (summaryObs) summaryObs.innerText = obsVal || '[Sin observaciones registradas]';
             }
         }
 
@@ -1933,35 +1980,33 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             
             if (previewDesc) previewDesc.innerText = descVal || '[Sin descripción de detalles registrado]';
             if (previewObs) previewObs.innerText = obsVal || '[Sin observaciones registradas]';
-            
-            // Si el formato incluye campos adicionales, agrégalos para compilar en vivo
         }
 
         // Tablero Kanban de Plan de Acción
         function renderKanban() {
             const columns = { todo: [], progress: [], done: [] };
-            currentWizard.tasks.forEach(t => {
+            currentWizard.tasks.forEach(t =&gt; {
                 if (columns[t.column]) columns[t.column].push(t);
             });
 
-            const renderCol = (colId, list) => {
+            const renderCol = (colId, list) =&gt; {
                 const container = document.getElementById('kanban-' + colId);
                 if (!container) return;
                 container.innerHTML = '';
-                list.forEach(t => {
+                list.forEach(t =&gt; {
                     const card = document.createElement('div');
                     card.className = 'p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing text-xs flex flex-col gap-1.5';
                     card.draggable = true;
-                    card.ondragstart = (e) => drag(e, t.id);
+                    card.ondragstart = (e) =&gt; drag(e, t.id);
                     card.innerHTML = \`
-                        <div class="flex justify-between items-start gap-1">
-                            <div class="font-bold text-slate-850 dark:text-slate-100 flex-1">\\\${t.title}</div>
-                            <button onclick="deleteKanbanTask('\\\${t.id}')" class="text-[10px] text-red-500 font-bold hover:underline no-print">✕</button>
-                        </div>
-                        <div class="flex justify-between items-center text-[10px] text-slate-455 dark:text-slate-400" style="font-size: 9px;"">
-                            <span>Resp: \\\${t.resp}</span>
-                            <span>\\\${t.date}</span>
-                        </div>
+                        &lt;div class="flex justify-between items-start gap-1"&gt;
+                            &lt;div class="font-bold text-slate-855 dark:text-slate-100 flex-1"&gt;__TASK_TITLE__&lt;/div&gt;
+                            &lt;button onclick="deleteKanbanTask('__TASK_ID__')" class="text-[10px] text-red-500 font-bold hover:underline no-print"&gt;✕&lt;/button&gt;
+                        &lt;/div&gt;
+                        &lt;div class="flex justify-between items-center text-[10px] text-slate-455 dark:text-slate-400" style="font-size: 9px;"&gt;
+                            &lt;span&gt;Resp: __TASK_RESP__&lt;/span&gt;
+                            &lt;span&gt;__TASK_DATE__&lt;/span&gt;
+                        &lt;/div&gt;
                     \`;
                     container.appendChild(card);
                 });
@@ -1994,7 +2039,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
         function deleteKanbanTask(id) {
             if (confirm("¿Desea eliminar esta tarea del plan de acción?")) {
-                currentWizard.tasks = currentWizard.tasks.filter(t => t.id !== id);
+                currentWizard.tasks = currentWizard.tasks.filter(t =&gt; t.id !== id);
                 renderKanban();
                 saveLocalData();
             }
@@ -2012,7 +2057,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         function handleDrop(ev, columnName) {
             ev.preventDefault();
             const taskId = ev.dataTransfer.getData("text");
-            const task = currentWizard.tasks.find(t => t.id === taskId);
+            const task = currentWizard.tasks.find(t =&gt; t.id === taskId);
             if (task) {
                 task.column = columnName;
                 renderKanban();
@@ -2024,7 +2069,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         function handleImageUpload(ev) {
             const files = ev.target.files;
             if (!files) return;
-            Array.from(files).forEach(file => {
+            Array.from(files).forEach(file =&gt; {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     currentWizard.photos = currentWizard.photos || [];
@@ -2041,17 +2086,18 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             if (!grid) return;
             grid.innerHTML = '';
             currentWizard.photos = currentWizard.photos || [];
-            currentWizard.photos.forEach((src, idx) => {
+            currentWizard.photos.forEach((src, idx) =&gt; {
                 const item = document.createElement('div');
                 item.className = 'relative h-16 w-16 rounded-xl border overflow-hidden shadow-sm border-slate-200 dark:border-slate-800';
                 item.innerHTML = \`
-                    <img src="\\\${src}" class="h-full w-full object-cover"&gt;
-                    <button onclick="removePhoto(\\\${idx})" class="absolute top-1 right-1 h-4 w-4 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold no-print"&gt;✕&lt;/button&gt;
+                    &lt;img src="__PHOTO_SRC__" class="h-full w-full object-cover"&gt;
+                    &lt;button onclick="removePhoto(__PHOTO_IDX__)" class="absolute top-1 right-1 h-4 w-4 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold no-print"&gt;✕&lt;/button&gt;
                 \`;
                 grid.appendChild(item);
             });
         }
 
+        // Remove Photo
         function removePhoto(idx) {
             currentWizard.photos.splice(idx, 1);
             renderPhotosGrid();
@@ -2089,6 +2135,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             saveLocalData();
         }
 
+        // Video handlers
         function handleVideoUpload(ev) {
             const file = ev.target.files[0];
             if (file) {
@@ -2128,8 +2175,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             // Fotos
             const photoCount = currentWizard.photos ? currentWizard.photos.length : 0;
             if (summaryPhotos) {
-                summaryPhotos.innerHTML = photoCount > 0 
-                    ? \`<span class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;&lt;i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; \\\${photoCount} foto(s) cargada(s)&lt;/span&gt;\` 
+                summaryPhotos.innerHTML = photoCount &gt; 0 
+                    ? \`&lt;span class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;&lt;i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; __PHOTO_COUNT__ foto(s) cargada(s)&lt;/span&gt;\` 
                     : 'Ninguna cargada';
             }
 
@@ -2137,14 +2184,14 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             let elements = [];
             if (currentWizard.audioBase64) {
                 elements.push(\`
-                    <div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;
+                    &lt;div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;
                         &lt;i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; Audio / Nota de voz registrada
                     &lt;/div&gt;
                 \`);
             }
             if (currentWizard.videoBase64) {
                 elements.push(\`
-                    <div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;
+                    &lt;div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;
                         &lt;i data-lucide="video" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; Video cargado
                     &lt;/div&gt;
                 \`);
@@ -2174,24 +2221,24 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             card.id = 'signature-card-' + sig.id;
             card.className = 'p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative';
             card.innerHTML = \`
-                <button onclick="removeSignatureCard('\\\${sig.id}')" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold no-print text-xs"&gt;✕ Eliminar&lt;/button&gt;
-                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
-                    &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"&gt;&lt;path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"&gt;&lt;/path&gt;&lt;circle cx="9" cy="7" r="4"&gt;&lt;/circle&gt;&lt;polyline points="16 11 18 13 22 9"&gt;&lt;/polyline&gt;&lt;/svg&gt; Firma Adicional / Testigo / Aprobador
-                </span>
-                <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-850 p-2 shadow-inner"&gt;
-                    <canvas id="signature-\\\${sig.id}" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
-                    <input type="file" id="upload-sig-\\\${sig.id}" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-\\\${sig.id}')"&gt;
-                    <button onclick="document.getElementById('upload-sig-\\\${sig.id}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar&lt;/button&gt;
-                    <button onclick="clearSignatureCanvas('signature-\\\${sig.id}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
-                </div>
-                <div class="flex flex-col gap-2"&gt;
+                &lt;button onclick="removeSignatureCard('__SIG_ID__')" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold no-print text-xs"&gt;✕ Eliminar&lt;/button&gt;
+                &lt;span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
+                    &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"&gt;&lt;path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"&gt;&lt;/path&gt;&lt;circle cx="9" cy="7" r="4"&gt;&lt;/circle&gt;&lt;polyline points="16 11 18 13 22 9"&gt;&lt;/polyline&gt;&lt;/svg&gt; Firma Adicional / Testigo
+                &lt;/span&gt;
+                &lt;div class="relative bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200 dark:border-slate-855 p-2 shadow-inner"&gt;
+                    &lt;canvas id="signature-__SIG_ID__" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
+                    &lt;input type="file" id="upload-sig-__SIG_ID__" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-__SIG_ID__')"&gt;
+                    &lt;button onclick="document.getElementById('upload-sig-__SIG_ID__').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar&lt;/button&gt;
+                    &lt;button onclick="clearSignatureCanvas('signature-__SIG_ID__')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div class="flex flex-col gap-2"&gt;
                     &lt;div&gt;
                         &lt;label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5"&gt;NOMBRE COMPLETO&lt;/label&gt;
-                        &lt;input type="text" id="signer-\\\${sig.id}-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="\\\${sig.name || ''}"&gt;
+                        &lt;input type="text" id="signer-__SIG_ID__-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="__SIG_NAME__"&gt;
                     &lt;/div&gt;
                     &lt;div&gt;
                         &lt;label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5"&gt;CÉDULA / VÍNCULO&lt;/label&gt;
-                        &lt;input type="text" id="signer-\\\${sig.id}-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="\\\${sig.cc || ''}"&gt;
+                        &lt;input type="text" id="signer-__SIG_ID__-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="__SIG_CC__"&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
             \`;
@@ -2203,7 +2250,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             if (confirm("¿Desea eliminar este panel de firma adicional?")) {
                 const card = document.getElementById('signature-card-' + id);
                 if (card) card.remove();
-                currentWizard.customSignatures = currentWizard.customSignatures.filter(s => s.id !== id);
+                currentWizard.customSignatures = currentWizard.customSignatures.filter(s =&gt; s.id !== id);
                 saveLocalData();
             }
         }
@@ -2218,7 +2265,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 safeRemoveLocalStorage(storageKey);
-                deleteMediaFromDB('${formatNameLower}').then(() => {
+                deleteMediaFromDB('${formatNameLower}').then(() =&gt; {
                     window.location.reload();
                 });
             }
@@ -2236,6 +2283,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             alert("API Key de Gemini guardada localmente.");
         }
         
+        // Save model
         function saveSelectedModel() {
             const model = document.getElementById('gemini-model').value;
             safeSetLocalStorage('wappy_gemini_model', model);
@@ -2261,7 +2309,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             // Construir contexto en vivo
             const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
             let currentValues = {};
-            inputs.forEach(input => {
+            inputs.forEach(input =&gt; {
                 const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
                 if (input.id && !excluded.includes(input.id) && !input.id.startsWith('signer-')) {
                     const labelEl = document.querySelector(\`label[for="\${input.id}"]\`) || input.previousElementSibling;
@@ -2347,7 +2395,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
 
             const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
             let currentValues = {};
-            inputs.forEach(input => {
+            inputs.forEach(input =&gt; {
                 const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
                 if (!excluded.includes(input.id)) {
                     currentValues[input.id] = input.value;
@@ -2358,13 +2406,13 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             const loader = document.getElementById('ai-status-loader');
             if (loader) loader.classList.remove('hidden');
 
-            // [AI: DEBES DEFINIR AQUÍ EL ESQUEMA JSON Y LAS INSTRUCCIONES DE SST ESPECÍFICAS PARA EL FORMATO "${formatName}"]
+            // Definición de esquema de salida
             const jsonSchema = {
-                "custom-form-descripcion": "Descripción o diagnóstico detallado del hallazgo...",
-                "custom-form-observaciones": "Acciones correctivas o preventivas a implementar...",
+                "custom-form-descripcion": "Descripción o diagnóstico detallado del hallazgo (SOLO si no ha sido ingresada por el usuario)...",
+                "custom-form-observaciones": "Acciones correctivas o preventivas detalladas a implementar...",
                 "newTasks": [
-                    { "title": "Acción preventiva 1 para ${formatName}" },
-                    { "title": "Acción preventiva 2 para ${formatName}" }
+                    { "title": "Acción preventiva 1 para \${formatName}" },
+                    { "title": "Acción preventiva 2 para \${formatName}" }
                 ]
             };
 
@@ -2372,16 +2420,18 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
 Devolverás OBLIGATORIAMENTE un JSON estructurado con los campos que deben llenarse o enriquecerse y un listado de tareas preventivas en "newTasks".
 NO utilices bloques de código de markdown. Devuelve solo el JSON plano.
 
+IMPORTANTE: Analizarás los datos ingresados en el formato, pero bajo NINGUNA circunstancia debes sobrescribir o modificar los campos que el usuario ya haya diligenciado de forma manual con información de campo real. Solo debes proponer autocompletar aquellos campos que estén vacíos o que necesiten diagnóstico técnico complementario.
+
 Estructura de salida obligatoria:
-\${JSON.stringify(jsonSchema, null, 2)}\`;
+\\\${JSON.stringify(jsonSchema, null, 2)}\`;
 
-            const userPrompt = \`Información actual ingresada en el formato "\${appDocHeader.appTitle}":
-\${JSON.stringify(currentValues, null, 2)}
+            const userPrompt = \`Información actual ingresada en el formato "\\\$" + "\\{appDocHeader.appTitle}":
+\\\${JSON.stringify(currentValues, null, 2)}
 
-Por favor, analiza esta información y genera el análisis técnico detallado completando los demás campos y proponiendo las tareas necesarias para el plan de acción en el formato JSON requerido.\`;
+Por favor, analiza esta información y genera el análisis técnico detallado completando los demás campos vacíos y proponiendo las tareas necesarias para el plan de acción en el formato JSON requerido.\`;
 
             try {
-                const url = \\\`https://generativelanguage.googleapis.com/v1beta/models/\\\${model}:generateContent?key=\\\${apiKey}\\\`;
+                const url = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`;
                 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -2395,27 +2445,30 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
 
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(\\\`Error en API: \\\${response.status}\\\`);
+                    throw new Error(\`Error en API: \${response.status}\`);
                 }
 
                 const resData = await response.json();
                 const textContent = resData.candidates[0].content.parts[0].text;
                 const aiResult = JSON.parse(textContent);
 
-                // Autocompletar campos del formulario
+                // Enriquecer los campos correspondientes SIN sobrescribir datos manuales existentes
                 for (const [key, val] of Object.entries(aiResult)) {
                     if (key !== 'newTasks' && val) {
                         const el = document.getElementById(key);
                         if (el) {
-                            el.value = typeof val === 'string' ? val.replace(/<br\\s*\\/?>|&lt;br\\s*\\/?&gt;/gi, '\\n') : val;
-                            el.dispatchEvent(new Event('input'));
+                            // Solo escribir si el campo está vacío o no contiene información del usuario
+                            if (!el.value || el.value.trim() === '' || el.value.toLowerCase().includes('ingrese aquí') || el.value.toLowerCase().includes('describa en detalle')) {
+                                el.value = typeof val === 'string' ? val.replace(/&lt;br\\s*\\/?&gt;|&lt;br\\s*\\/?&gt;/gi, '\\n') : val;
+                                el.dispatchEvent(new Event('input'));
+                            }
                         }
                     }
                 }
 
                 // Autocompletar Kanban si hay tareas
                 if (aiResult.newTasks && Array.isArray(aiResult.newTasks)) {
-                    currentWizard.tasks = aiResult.newTasks.map((t, idx) => ({
+                    currentWizard.tasks = aiResult.newTasks.map((t, idx) =&gt; ({
                         id: 'task_' + Date.now() + '_' + idx,
                         title: t.title,
                         resp: 'SST',
@@ -2444,7 +2497,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
                 msgDiv.innerText = text;
             } else {
                 msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355';
-                msgDiv.innerHTML = \`<div>\${markdownToHTML(text)}</div>\`;
+                msgDiv.innerHTML = \`&lt;div&gt;__MARKDOWN_HTML_TEXT__&lt;/div&gt;\`;
             }
             container.appendChild(msgDiv);
             container.scrollTop = container.scrollHeight;
@@ -2453,13 +2506,13 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
         function markdownToHTML(text) {
             if (!text) return '';
             return text
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/^### (.+)$/gm, '<h3 class="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h3>')
-                .replace(/^## (.+)$/gm, '<h2 class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h2>')
-                .replace(/^# (.+)$/gm, '<h1 class="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h1>')
-                .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
-                .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
-                .replace(/\\n/g, '<br>');
+                .replace(/&/g, '&amp;').replace(/&lt;/g, '&lt;').replace(/&gt;/g, '&gt;')
+                .replace(/^### (.+)$/gm, '&lt;h3 class="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h3&gt;')
+                .replace(/^## (.+)$/gm, '&lt;h2 class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h2&gt;')
+                .replace(/^# (.+)$/gm, '&lt;h1 class="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h1&gt;')
+                .replace(/\\*\\*(.*?)\\*\\*/g, '&lt;strong&gt;$1&lt;/strong&gt;')
+                .replace(/\\*(.*?)\\*/g, '&lt;em&gt;$1&lt;/em&gt;')
+                .replace(/\\n/g, '&lt;br&gt;');
         }
 
         // Exportador de HTML integrado (Reemplazo Inline de Variables)
@@ -2479,9 +2532,9 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
             const headerRegex = /let\\\s+appDocHeader\\\s*=\s*\\{[\\\s\\\S]*?\\\}\\\s*;/;
             const wizardRegex = /let\\\s+currentWizard\\\s*=\s*\\{[\\\s\\\S]*?\\\}\\\s*;/;
 
-            const newMasterStr = \`let masterSavedChanges = \${JSON.stringify(masterSavedChanges, null, 4)};\`;
-            const newHeaderStr = \`let appDocHeader = \${JSON.stringify(appDocHeader, null, 4)};\`;
-            const newWizardStr = \`let currentWizard = \${JSON.stringify(currentWizard, null, 4)};\`;
+            const newMasterStr = \`let masterSavedChanges = \${'\\\$JSON.stringify(masterSavedChanges, null, 4)}'};\`.replace('\\\$JSON.stringify', 'JSON.stringify');
+            const newHeaderStr = \`let appDocHeader = \${'\\\$JSON.stringify(appDocHeader, null, 4)}'};\`.replace('\\\$JSON.stringify', 'JSON.stringify');
+            const newWizardStr = \`let currentWizard = \${'\\\$JSON.stringify(currentWizard, null, 4)}'};\`.replace('\\\$JSON.stringify', 'JSON.stringify');
 
             let updatedHTML = baseHTML;
             if (masterRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(masterRegex, newMasterStr);
@@ -2510,7 +2563,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
                 body.classList.remove('dark');
                 body.classList.add('light');
                 floatIcon.setAttribute('data-lucide', 'moon');
-                floatIcon.className = "lucide lucide-moon w-4 h-4 text-slate-650";
+                floatIcon.className = "lucide lucide-moon w-4 h-4 text-slate-655";
                 themeText.innerText = 'Modo Oscuro';
                 currentTheme = 'light';
             } else {
@@ -2537,7 +2590,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
         // Evento de inicialización al cargar la página
         window.onload = async function() {
             try {
-                if (typeof lucide !== 'undefined' &amp;&amp; lucide.createIcons) {
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
                     lucide.createIcons();
                 }
             } catch (e) { console.error("Error creating Lucide icons:", e); }
@@ -2550,7 +2603,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const exportDateEl = document.getElementById('export-date');
-                if (exportDateEl &amp;&amp; !exportDateEl.value) {
+                if (exportDateEl && !exportDateEl.value) {
                     exportDateEl.value = today;
                 }
                 const footerDateEl = document.getElementById('footer-current-date');
@@ -2564,9 +2617,22 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
     &lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;
-\\\`\\\`\\\`
+\`\`\`
 
 Escribe el código completo de la aplicación en español, limpio, robusto, 100% autogestionado en el Canva y con todas las pestañas descritas anteriormente integradas en la misma estructura.`;
+
+            return promptContent
+                .replace(/__TASK_TITLE__/g, '\${t.title}')
+                .replace(/__TASK_ID__/g, '\${t.id}')
+                .replace(/__TASK_RESP__/g, '\${t.resp}')
+                .replace(/__TASK_DATE__/g, '\${t.date}')
+                .replace(/__PHOTO_SRC__/g, '\${src}')
+                .replace(/__PHOTO_IDX__/g, '\${idx}')
+                .replace(/__PHOTO_COUNT__/g, '\${photoCount}')
+                .replace(/__SIG_ID__/g, '\${sig.id}')
+                .replace(/__SIG_NAME__/g, '\${sig.name || ""}')
+                .replace(/__SIG_CC__/g, '\${sig.cc || ""}')
+                .replace(/__MARKDOWN_HTML_TEXT__/g, '\${markdownToHTML(text)}');
         }
         function updatePromptSimulator() {
             const formatInput = document.getElementById('format-name-input');

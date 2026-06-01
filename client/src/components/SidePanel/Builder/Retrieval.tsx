@@ -55,11 +55,11 @@ export default function Retrieval({
             render={({ field }) => (
               <Checkbox
                 {...field}
-                checked={field.value}
+                checked={!!field.value}
                 disabled={isDisabled}
                 onCheckedChange={field.onChange}
                 className="relative float-left mr-2 inline-flex h-4 w-4 cursor-pointer"
-                value={field.value.toString()}
+                value={field.value?.toString() ?? 'false'}
                 aria-labelledby={Capabilities.retrieval}
               />
             )}
