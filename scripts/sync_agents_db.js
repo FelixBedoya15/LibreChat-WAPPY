@@ -19,7 +19,7 @@ const AGENT_FILE_MAP = {
   'asistente_inv_at': 'Asistente Inv AT',
   'asistente_inv_el': 'Asistente Inv EL',
   'asistente_metodo_rosa': 'Asistente Metodo ROSA',
-  'analista_ipt_ergonomico': 'Especialista en Inspección de Puesto de Trabajo (IPT)',
+  'analista_ipt_ergonomico': 'Inspector de Puesto de Trabajo (IPT)',
   'asistente_permiso_tsa': 'Asistente Permiso TSA',
   'auditor_sg_sst': 'Auditor SG-SST',
   'coordinador_ipevar': 'Expert@ IPEVAR GTC-45',
