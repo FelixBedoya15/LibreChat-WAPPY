@@ -346,12 +346,12 @@ export default function SGSSTDashboard() {
                                 </div>
                                 <div>
                                     <h1 className="text-3xl font-bold text-text-primary tracking-tight">
-                                        {selectedSuperPhase.id === 'bio_motor' ? 'SST Bio-Individual' : 'Bóveda de Cumplimiento'}
+                                        {selectedSuperPhase.id === 'bio_motor' ? 'SST Bio-Individual' : 'Salud Organizacional'}
                                     </h1>
                                     <p className="text-text-secondary mt-1 text-sm font-medium">
                                         {selectedSuperPhase.id === 'bio_motor' 
                                             ? 'Metodología centrada en el bio-monitoreo del individuo.' 
-                                            : 'Control estricto y auditoría del marco legal y el sistema P-H-V-A.'}
+                                            : 'Gestión y auditoría del sistema de prevención P-H-V-A para la salud corporativa.'}
                                     </p>
                                 </div>
                             </>
@@ -422,10 +422,10 @@ export default function SGSSTDashboard() {
                             </h2>
                             <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">
                                 {!isLevel2 
-                                    ? 'Navegue entre el motor orgánico de prevención individual y la bóveda estructurada de cumplimiento normativo.'
+                                    ? 'Navegue entre la prevención individual biocéntrica y la estructura de salud de la organización.'
                                     : selectedSuperPhase.id === 'bio_motor'
                                         ? 'Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.'
-                                        : 'Marco estructurado normativo e institucional para el cumplimiento de los estándares del Sistema de Gestión.'}
+                                        : 'Marco de gestión de salud en la organización para el cuidado mutuo y el cumplimiento legal.'}
                             </p>
                         </div>
                     </div>

@@ -81,7 +81,7 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
-    // ─── BÓVEDA DE CUMPLIMIENTO LEGAL (PHVA) ───
+    // ─── SALUD ORGANIZACIONAL (PHVA) ───
     planear: [
         { 
             id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
