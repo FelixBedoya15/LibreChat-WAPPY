@@ -593,7 +593,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 )}
 
                 {/* Interactive HTML Sandbox Apps Collapsible Card */}
-                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'fase3', 'fase4', 'fase5'].includes(phase.id) && (isAdmin || !disabledApps.includes('custom_html_sandbox')) && (
+                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2'].includes(phase.id) && (isAdmin || !disabledApps.includes('custom_html_sandbox')) && (
                     <div className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
                         {/* Category Header */}
                         <div

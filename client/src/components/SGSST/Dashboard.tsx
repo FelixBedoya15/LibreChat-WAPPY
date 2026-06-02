@@ -115,39 +115,18 @@ const getSubPhases = (superId: string) => {
     if (superId === 'boveda_legal') {
         return [
             {
-                id: 'fase1', title: 'Evaluación Inicial', subtitle: 'Autoevaluación', description: 'Diagnóstico Inicial y Responsable del SG-SST.',
-                extendedPhilosophy: 'El diagnóstico base que revela el estado real del ecosistema de salud de la organización antes de la intervención.',
+                id: 'fase1', title: 'Cimiento del Cuidado y Convivencia', subtitle: 'Estructura y Prevención', description: 'Diagnóstico, Responsable, Políticas, Matriz Legal, Vulnerabilidad, Reglamentos, ACPM y Aplicativos.',
+                extendedPhilosophy: 'El cimiento que sostiene la vida colectiva en la empresa. El autodiagnóstico, las directrices éticas de protección y las normas claras que garantizan la coexistencia segura y el bienestar del ser humano.',
                 accent: 'text-[#10b981]', bgGlow: 'bg-[#10b981]/5', borderHover: 'hover:border-[#10b981]',
-                icon: <Stethoscope className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                icon: <UserCircle className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
                 label: 'HITO 01'
             },
             {
-                id: 'fase2', title: 'Plan de Mejoramiento', subtitle: 'Planeación y Diseño', description: 'Política, Objetivos y Matriz Legal.',
-                extendedPhilosophy: 'Establecimiento de las metas corporativas y alineación legal para corregir las brechas encontradas.',
+                id: 'fase2', title: 'Reflexión y Liderazgo Consciente', subtitle: 'Espejo y Evolución', description: 'Informe de Auditoría y Revisión por la Alta Dirección.',
+                extendedPhilosophy: 'El momento de introspección sistémica. Un espejo que refleja el estado de nuestro ecosistema para que los líderes, con empatía y responsabilidad, guíen la evolución del cuidado.',
                 accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
-                icon: <Target className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+                icon: <ClipboardCheck className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
                 label: 'HITO 02'
-            },
-            {
-                id: 'fase3', title: 'Ejecución del Sistema', subtitle: 'Puesta en Marcha', description: 'Análisis de Vulnerabilidad, Reglamento de Higiene y Reglamento Interno.',
-                extendedPhilosophy: 'La materialización de las normas internas, preparación ante emergencias y dinámicas operativas.',
-                accent: 'text-[#059669]', bgGlow: 'bg-[#059669]/5', borderHover: 'hover:border-[#059669]',
-                icon: <FileText className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-                label: 'HITO 03'
-            },
-            {
-                id: 'fase4', title: 'Seguimiento y Control', subtitle: 'Monitoreo y Auditoría', description: 'Auditoría Anual y Revisión por la Alta Dirección.',
-                extendedPhilosophy: 'El espejo crítico donde la dirección examina el avance real, detectando desvíos para asegurar la eficacia del sistema.',
-                accent: 'text-[#14b8a6]', bgGlow: 'bg-[#14b8a6]/5', borderHover: 'hover:border-[#14b8a6]',
-                icon: <ClipboardCheck className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-                label: 'HITO 04'
-            },
-            {
-                id: 'fase5', title: 'Acción y Mejora Continua', subtitle: 'Optimización e Inspección', description: 'Matriz ACPM y Creador de Aplicativos Personalizados.',
-                extendedPhilosophy: 'Evolución final. Las acciones correctivas y herramientas personalizadas para responder ante inspecciones y mejorar el entorno.',
-                accent: 'text-[#8b5cf6]', bgGlow: 'bg-[#8b5cf6]/5', borderHover: 'hover:border-[#8b5cf6]',
-                icon: <GitMerge className="w-8 h-8 text-[#8b5cf6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-                label: 'HITO 05'
             }
         ];
     }
@@ -266,7 +245,7 @@ export default function SGSSTDashboard() {
             reporte_actos: {super: 'bio_motor', sub: 'hito3'},
             participacion_ipevar: {super: 'bio_motor', sub: 'hito3'},
             peligros: {super: 'bio_motor', sub: 'hito2'},
-            alta_direccion: {super: 'boveda_legal', sub: 'fase4'},
+            alta_direccion: {super: 'boveda_legal', sub: 'fase2'},
         };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
