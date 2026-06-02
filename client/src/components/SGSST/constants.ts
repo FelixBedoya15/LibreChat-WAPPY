@@ -89,6 +89,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Cimiento del Cuidado' 
         },
         { 
+            id: 'inspeccion_trabajo', title: 'Inspección de Trabajo (Mintrabajo)', icon: 'ShieldAlert',
+            bioRationale: 'Autoevaluación preventiva basada en el protocolo oficial de inspección, vigilancia y control del Ministerio del Trabajo para medir la salud legal y laboral de la organización.', 
+            normativity: 'Hito 1: Cimiento del Cuidado' 
+        },
+        { 
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
             bioRationale: 'El perfil del líder empático con la potestad moral para ser el principal guardián o avatar del bienestar dentro de la empresa.', 
             normativity: 'Hito 1: Cimiento del Cuidado' 
