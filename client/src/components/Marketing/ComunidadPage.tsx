@@ -1318,7 +1318,7 @@ export default function ComunidadPage() {
             </h1>
 
             <p className="text-sm text-text-secondary max-w-xl mb-8 leading-relaxed">
-              Paga una tarifa única para desbloquear la videocapacitación completa y descargar todas las plantillas y formatos editables de valor.
+              Paga una tarifa única para desbloquear la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.
             </p>
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start">
@@ -1333,7 +1333,7 @@ export default function ComunidadPage() {
                     </div>
                     <div>
                       <h4 className="font-bold text-xs text-text-primary">Videocapacitación Práctica Completa</h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Domina la matriz de riesgos, formatos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
+                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Domina la matriz de riesgos, aplicativos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
                     </div>
                   </div>
 
@@ -1549,8 +1549,8 @@ export default function ComunidadPage() {
                   <span className="font-bold text-sm outfit">02</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-text-primary leading-snug">Formatos IA y Manuales</h4>
-                  <p className="text-xs text-text-secondary mt-1 leading-normal">Crea al instante formatos dinámicos interactivos, políticas SST y manuales del SVE con la IA.</p>
+                  <h4 className="font-bold text-sm text-text-primary leading-snug">Aplicativos y Chat con IA</h4>
+                  <p className="text-xs text-text-secondary mt-1 leading-normal">Diseña al instante aplicativos interactivos y accede a nuestro ChatGPT de SST con más de 15 agentes especializados.</p>
                 </div>
               </div>
 
@@ -1856,7 +1856,7 @@ export default function ComunidadPage() {
                           
                           <div className="truncate">
                             <h4 className="font-bold text-xs text-text-primary truncate" title={file.name}>{file.name}</h4>
-                            <p className="text-[10px] text-text-secondary mt-0.5">Formato 100% editable</p>
+                            <p className="text-[10px] text-text-secondary mt-0.5">Aplicativo 100% editable</p>
                           </div>
                         </div>
 
