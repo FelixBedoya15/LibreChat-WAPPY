@@ -81,73 +81,75 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
-    // ─── SALUD ORGANIZACIONAL (PHVA) ───
-    planear: [
+    // ─── SALUD ORGANIZACIONAL (5 Hitos) ───
+    fase1: [
         { 
             id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
             bioRationale: 'Evalúa el grado de madurez preventiva del ecosistema empresarial (el "cuerpo corporativo") para recibir de forma segura al ser humano.', 
-            normativity: 'Resolución 0312 de 2019' 
-        },
-        { 
-            id: 'politica', title: 'Política SST', icon: 'FileText',
-            bioRationale: 'El manifiesto ético y la máxima promesa institucional de no lastimar y proteger inquebrantablemente al individuo.', 
-            normativity: 'Decreto 1072 de 2015' 
-        },
-        { 
-            id: 'objetivos', title: 'Objetivos SST', icon: 'Target',
-            bioRationale: 'Metas cuantificables que certifican la inversión real de energía corporativa en cuidar el estado de bienestar.', 
-            normativity: 'Decreto 1072 de 2015' 
-        },
-        { 
-            id: 'legal', title: 'Matriz Legal', icon: 'Scale',
-            bioRationale: 'La alienación de nuestros estándares internos con las promesas de bienestar exigidas por los derechos humanos y la ley.', 
-            normativity: 'Resolución 0312 / Decreto 1072' 
-        },
-        { 
-            id: 'rhs', title: 'Reglamento de Higiene', icon: 'FileText',
-            bioRationale: 'Compromiso visible y protocolar frente a los riesgos tóxicos, infecciosos o mecánicos inherentes que el trabajador asume al ingresar.', 
-            normativity: 'CST Art. 349 y 350' 
-        },
-        { 
-            id: 'rit', title: 'Reglamento Interno', icon: 'Briefcase',
-            bioRationale: 'Las reglas de convivencia justa, respeto inter-personal y disciplina que garantizan el equilibrio psicosocial del espacio común.', 
-            normativity: 'CST' 
+            normativity: 'Hito 1: Evaluación Inicial' 
         },
         { 
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
             bioRationale: 'El perfil del líder empático con la potestad moral para ser el principal guardián o avatar del bienestar dentro de la empresa.', 
-            normativity: 'Resolución 0312 de 2019' 
-        },
-        { 
-            id: 'app_builder', title: 'Creador de Aplicativos', icon: 'Blocks',
-            bioRationale: 'Ensambla tus propios aplicativos a la medida usando Inteligencia Artificial y bloques de construcción estructurados.', 
-            normativity: 'WAPPY No-Code' 
+            normativity: 'Hito 1: Evaluación Inicial' 
         }
     ],
-    hacer: [
+    fase2: [
+        { 
+            id: 'politica', title: 'Política SST', icon: 'FileText',
+            bioRationale: 'El manifiesto ético y la máxima promesa institucional de no lastimar y proteger inquebrantablemente al individuo.', 
+            normativity: 'Hito 2: Plan de Mejoramiento' 
+        },
+        { 
+            id: 'objetivos', title: 'Objetivos SST', icon: 'Target',
+            bioRationale: 'Metas cuantificables que certifican la inversión real de energía corporativa en cuidar el estado de bienestar.', 
+            normativity: 'Hito 2: Plan de Mejoramiento' 
+        },
+        { 
+            id: 'legal', title: 'Matriz Legal', icon: 'Scale',
+            bioRationale: 'La alienación de nuestros estándares internos con las promesas de bienestar exigidas por los derechos humanos y la ley.', 
+            normativity: 'Hito 2: Plan de Mejoramiento' 
+        }
+    ],
+    fase3: [
         { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
             bioRationale: 'Prepara psicológica y estructuralmente a la comunidad frente a la histeria colectiva o el desastre en una emergencia natural/tecnológica.', 
-            normativity: 'Decreto 1072 de 2015' 
+            normativity: 'Hito 3: Ejecución del Sistema' 
+        },
+        { 
+            id: 'rhs', title: 'Reglamento de Higiene', icon: 'FileText',
+            bioRationale: 'Compromiso visible y protocolar frente a los riesgos tóxicos, infecciosos o mecánicos inherentes que el trabajador asume al ingresar.', 
+            normativity: 'Hito 3: Ejecución del Sistema' 
+        },
+        { 
+            id: 'rit', title: 'Reglamento Interno', icon: 'Briefcase',
+            bioRationale: 'Las reglas de convivencia justa, respeto inter-personal y disciplina que garantizan el equilibrio psicosocial del espacio común.', 
+            normativity: 'Hito 3: Ejecución del Sistema' 
         }
     ],
-    verificar: [
+    fase4: [
         { 
             id: 'auditoria', title: 'Informe de Auditoría', icon: 'ClipboardCheck',
             bioRationale: 'Meditación introspectiva de todo nuestro diseño organizativo. Un espejo para detectar fallas sistémicas a tiempo.', 
-            normativity: 'Decreto 1072 de 2015' 
+            normativity: 'Hito 4: Seguimiento y Control' 
         },
         { 
             id: 'alta_direccion', title: 'Revisión Alta Dirección', icon: 'Target',
             bioRationale: 'Reflexión directa y responsabilidad paternal de los grandes líderes empresariales sobre la sanidad de su fuerza de trabajo.', 
-            normativity: 'Decreto 1072 de 2015' 
+            normativity: 'Hito 4: Seguimiento y Control' 
         }
     ],
-    actuar: [
+    fase5: [
         { 
             id: 'acpm', title: 'Matriz ACPM', icon: 'GitMerge',
             bioRationale: 'Acciones Correctivas y Preventivas reales. El testamento de que aprendimos de las heridas para evolucionar como un ente más seguro.', 
-            normativity: 'Decreto 1072 de 2015' 
+            normativity: 'Hito 5: Acción y Mejora' 
+        },
+        { 
+            id: 'app_builder', title: 'Creador de Aplicativos', icon: 'Blocks',
+            bioRationale: 'Ensambla tus propios aplicativos a la medida usando Inteligencia Artificial y bloques de construcción estructurados.', 
+            normativity: 'Hito 5: Acción y Mejora' 
         }
     ]
 };
