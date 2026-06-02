@@ -49,10 +49,10 @@ const getSuperPhases = () => [
     },
     {
         id: 'boveda_legal',
-        title: 'BÓVEDA DE CUMPLIMIENTO LEGAL',
-        subtitle: 'El Estándar Normativo (PHVA)',
+        title: 'SALUD ORGANIZACIONAL',
+        subtitle: 'Gestión y Prevención (PHVA)',
         description: 'Planear, Hacer, Verificar y Actuar (Resolución 0312 y Decreto 1072).',
-        extendedPhilosophy: 'Un espacio estructurado y aislado diseñado específicamente para consolidar, gestionar y exportar toda la documentación técnica exigida por la ley y el Ministerio de Trabajo, manteniendo el orden burocrático sin interferir con el motor biológico.',
+        extendedPhilosophy: 'El marco estructural de procesos, políticas y auditorías que sostiene la salud de la organización y asegura el cumplimiento de los estándares legales de prevención.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
         borderHover: 'hover:border-[#0d9488]',
