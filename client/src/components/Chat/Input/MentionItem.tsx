@@ -27,6 +27,9 @@ export default function MentionItem({
     <button
       tabIndex={index}
       onClick={onClick}
+      onMouseDown={(e) => {
+        e.preventDefault();
+      }}
       id={`${type}-item-${index}`}
       className="w-full"
       style={style}

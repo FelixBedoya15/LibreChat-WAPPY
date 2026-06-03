@@ -44,7 +44,7 @@ export default function ComunidadPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isVideoFinished, setIsVideoFinished] = useState(false);
+  const [isVideoFinished, setIsVideoFinished] = useState(() => localStorage.getItem('wappy_comunidad_video_finished') === 'true');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -96,7 +96,7 @@ export default function ComunidadPage() {
 
   // Admin Dashboard States (Leads vs Purchases)
   const [isLeadsPanelOpen, setIsLeadsPanelOpen] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<'leads' | 'purchases'>('leads');
+  const [dashboardTab, setDashboardTab] = useState<'leads' | 'purchases' | 'pending'>('leads');
   const [leads, setLeads] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [leadsSearch, setLeadsSearch] = useState('');
@@ -259,6 +259,13 @@ export default function ComunidadPage() {
           events: {
             onReady: (event: any) => {
               setDuration(event.target.getDuration());
+              const savedProgress = localStorage.getItem('wappy_comunidad_video_progress');
+              if (savedProgress) {
+                const seekTime = parseFloat(savedProgress);
+                if (seekTime > 0 && seekTime < event.target.getDuration() - 2) {
+                  event.target.seekTo(seekTime, true);
+                }
+              }
             },
             onStateChange: (event: any) => {
               const state = event.data;
@@ -283,6 +290,12 @@ export default function ComunidadPage() {
               setCurrentTime(time);
               const totalDuration = ytPlayer.getDuration();
               if (totalDuration > 0) setDuration(totalDuration);
+
+              // Save progress locally if video is not finished yet
+              const savedFinished = localStorage.getItem('wappy_comunidad_video_finished') === 'true';
+              if (time > 1 && !savedFinished && (!totalDuration || time < totalDuration - 2)) {
+                localStorage.setItem('wappy_comunidad_video_progress', time.toString());
+              }
 
               // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
               const shouldGate = gatingEnabled && time >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
@@ -336,7 +349,14 @@ export default function ComunidadPage() {
     if (!video) return;
 
     const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
+      const time = video.currentTime;
+      setCurrentTime(time);
+
+      // Save progress locally if video is not finished yet
+      const savedFinished = localStorage.getItem('wappy_comunidad_video_finished') === 'true';
+      if (time > 1 && !savedFinished && (!video.duration || time < video.duration - 2)) {
+        localStorage.setItem('wappy_comunidad_video_progress', time.toString());
+      }
       
       // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
       const shouldGate = gatingEnabled && video.currentTime >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
@@ -355,6 +375,13 @@ export default function ComunidadPage() {
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
+      const savedProgress = localStorage.getItem('wappy_comunidad_video_progress');
+      if (savedProgress) {
+        const seekTime = parseFloat(savedProgress);
+        if (seekTime > 0 && seekTime < video.duration - 2) {
+          video.currentTime = seekTime;
+        }
+      }
     };
 
     const handleEnded = () => {
@@ -422,9 +449,22 @@ export default function ComunidadPage() {
   // Video completion callback
   const handleVideoFinished = async () => {
     setIsVideoFinished(true);
+    localStorage.setItem('wappy_comunidad_video_finished', 'true');
+    localStorage.removeItem('wappy_comunidad_video_progress');
     
     // Save completion state to DB if email is available (in free/paid modes)
-    const email = userEmail || localStorage.getItem('wappy_lead_data') ? JSON.parse(localStorage.getItem('wappy_lead_data') || '{}').email : '';
+    let email = userEmail;
+    if (!email) {
+      const leadDataStr = localStorage.getItem('wappy_lead_data');
+      if (leadDataStr) {
+        try {
+          email = JSON.parse(leadDataStr).email || '';
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
     if (email) {
       try {
         await axios.post('/api/comunidad/video-finished', { email });
@@ -855,9 +895,15 @@ export default function ComunidadPage() {
     }
   };
 
+  const getActiveList = () => {
+    if (dashboardTab === 'leads') return leads;
+    if (dashboardTab === 'purchases') return purchases.filter(p => p.isPaid);
+    return purchases.filter(p => !p.isPaid);
+  };
+
   const handleExportCSV = () => {
     const isLeads = dashboardTab === 'leads';
-    const activeList = isLeads ? leads : purchases;
+    const activeList = getActiveList();
     if (activeList.length === 0) return;
 
     let headers = [];
@@ -872,13 +918,14 @@ export default function ComunidadPage() {
         `"${new Date(item.createdAt).toLocaleString()}"`
       ]);
     } else {
-      headers = ['Nombre Completo', 'Correo Electrónico', 'Celular', 'Monto Pagado', 'Referencia Wompi', 'Vio Video Completo', 'Fecha de Pago'];
+      headers = ['Nombre Completo', 'Correo Electrónico', 'Celular', 'Monto Intentado/Pagado', 'Referencia Wompi', 'Estado de Transacción', 'Vio Video Completo', 'Fecha de Registro'];
       rows = activeList.map(item => [
         `"${item.fullName.replace(/"/g, '""')}"`,
         `"${item.email.replace(/"/g, '""')}"`,
         `"${item.phone.replace(/"/g, '""')}"`,
         `"$${((item.amountInCents || 0) / 100).toLocaleString('es-CO')}"`,
         `"${item.wompiReference || ''}"`,
+        `"${item.status || 'PENDING'}"`,
         `"${item.videoWatched ? 'Sí' : 'No'}"`,
         `"${new Date(item.createdAt).toLocaleString()}"`
       ]);
@@ -889,7 +936,7 @@ export default function ComunidadPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `WAPPY_${isLeads ? 'Leads' : 'Pagos'}_Comunidad_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `WAPPY_${dashboardTab === 'leads' ? 'Leads' : dashboardTab === 'purchases' ? 'Pagos_Aprobados' : 'Intentos_Pago'}_Comunidad_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -943,6 +990,8 @@ export default function ComunidadPage() {
                     localStorage.removeItem('wappy_comunidad_email');
                     localStorage.removeItem('wappy_lead_captured');
                     localStorage.removeItem('wappy_lead_data');
+                    localStorage.removeItem('wappy_comunidad_video_finished');
+                    localStorage.removeItem('wappy_comunidad_video_progress');
                     setIsAccessGranted(false);
                     setIsLeadCaptured(false);
                     setShowLeadModal(false);
@@ -1023,7 +1072,7 @@ export default function ComunidadPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleExportCSV}
-                    disabled={(dashboardTab === 'leads' ? leads : purchases).length === 0}
+                    disabled={getActiveList().length === 0}
                     className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Exportar Lista (CSV)
@@ -1037,18 +1086,24 @@ export default function ComunidadPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => setDashboardTab('leads')}
-                  className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${dashboardTab === 'leads' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${dashboardTab === 'leads' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
                 >
                   Registros Gratuitos (Leads: {leads.length})
                 </button>
                 <button
                   onClick={() => setDashboardTab('purchases')}
-                  className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${dashboardTab === 'purchases' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${dashboardTab === 'purchases' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
                 >
-                  Ventas Aprobadas (Wompi: {purchases.length})
+                  Ventas Aprobadas (Wompi: {purchases.filter(p => p.isPaid).length})
+                </button>
+                <button
+                  onClick={() => setDashboardTab('pending')}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${dashboardTab === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
+                >
+                  Intentos de Pago / Abandonados (Wompi: {purchases.filter(p => !p.isPaid).length})
                 </button>
               </div>
 
@@ -1068,7 +1123,7 @@ export default function ComunidadPage() {
                     <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
                     <span className="text-xs text-text-secondary">Cargando métricas...</span>
                   </div>
-                ) : (dashboardTab === 'leads' ? leads : purchases).length === 0 ? (
+                ) : getActiveList().length === 0 ? (
                   <div className="text-center py-12 text-xs text-text-secondary">No hay registros cargados para esta sección.</div>
                 ) : (
                   <table className="w-full text-left text-xs border-collapse">
@@ -1077,10 +1132,11 @@ export default function ComunidadPage() {
                         <th className="p-3">Nombre</th>
                         <th className="p-3">Correo</th>
                         <th className="p-3">Celular</th>
-                        {dashboardTab === 'purchases' && (
+                        {(dashboardTab === 'purchases' || dashboardTab === 'pending') && (
                           <>
                             <th className="p-3">Monto (COP)</th>
                             <th className="p-3">Referencia</th>
+                            <th className="p-3 text-center">Estado Pago</th>
                             <th className="p-3 text-center">Video Visto</th>
                           </>
                         )}
@@ -1089,7 +1145,7 @@ export default function ComunidadPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(dashboardTab === 'leads' ? leads : purchases)
+                      {getActiveList()
                         .filter(item => {
                           const query = leadsSearch.toLowerCase();
                           return (
@@ -1103,12 +1159,21 @@ export default function ComunidadPage() {
                             <td className="p-3 font-semibold text-text-primary">{item.fullName}</td>
                             <td className="p-3 text-text-secondary font-mono">{item.email}</td>
                             <td className="p-3 text-text-secondary">{item.phone}</td>
-                            {dashboardTab === 'purchases' && (
+                            {(dashboardTab === 'purchases' || dashboardTab === 'pending') && (
                               <>
-                                <td className="p-3 text-emerald-600 dark:text-emerald-400 font-bold">
+                                <td className={`p-3 font-bold ${item.isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
                                   ${((item.amountInCents || 0) / 100).toLocaleString('es-CO')}
                                 </td>
                                 <td className="p-3 text-text-secondary font-mono text-[10px]">{item.wompiReference}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    item.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    item.status === 'PENDING' ? 'bg-amber-500/10 text-amber-500' :
+                                    'bg-red-500/10 text-red-500'
+                                  }`}>
+                                    {item.status || 'PENDING'}
+                                  </span>
+                                </td>
                                 <td className="p-3 text-center">
                                   {item.videoWatched ? (
                                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">Completado</span>

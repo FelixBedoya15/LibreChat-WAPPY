@@ -146,7 +146,9 @@ function PromptsCommand({
         type="prompt"
         key={key}
         style={style}
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
