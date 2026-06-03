@@ -330,7 +330,7 @@
                         <div class="flex flex-col gap-1">
                             <label for="format-name-input" class="text-xs font-black text-slate-900 dark:text-slate-150 uppercase tracking-wider">Nombre del Aplicativo a Crear:</label>
                             <div class="relative mt-1">
-                                <input type="text" id="format-name-input" oninput="updatePromptSimulator()" value="Inspección de Equipos de Protección Individual (EPP)" class="w-full pl-10 pr-4 py-3.5 rounded-xl border border-slate-250 dark:border-slate-850 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/45 focus:border-cyan-500" placeholder="Ej: Matriz de Peligros, Permiso de Alturas, Plan de Emergencias...">
+                                <input type="text" id="format-name-input" oninput="updatePromptSimulator()" value="{{Nombre del Aplicativo}}" class="w-full pl-10 pr-4 py-3.5 rounded-xl border border-slate-250 dark:border-slate-850 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/45 focus:border-cyan-500" placeholder="Ej: Matriz de Peligros, Permiso de Alturas, Plan de Emergencias...">
                                 <i data-lucide="edit-3" class="w-4 h-4 text-slate-400 absolute left-3.5 top-4"></i>
                             </div>
                         </div>
@@ -380,20 +380,30 @@
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] uppercase font-bold text-slate-400">Código Inyectado Estándar:</span>
                             <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">let appDocHeader = {
-    companyName: "WAPPY SOFTWARE S.A.S.",
-    companyNit: "901.458.293-1",
-    docCode: "SST-FOR-024",
-    docVersion: "03",
-    docDate: "2026-05-31",
-    companyWorkers: "25",
-    logoBase64: "" // Se guarda en IndexedDB o LocalStorage
+    companyName: "WAPPY SA",
+    companyNit: "NIT: 901437310",
+    companyArl: "Colmena",
+    companyWorkers: "30",
+    companyRisk: "Clase III",
+    changeCode: "GC-SST-AT-01",
+    lastUpdated: "2026-06-03",
+    appTitle: "{{Nombre del Aplicativo}}",
+    appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
+    appDesc: "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
+    appBadge: "PROCESO: SG-SST | V.01",
+    customFields: {
+        "custom-form-descripcion": "",
+        "custom-form-observaciones": ""
+    },
+    logoBase64: ""
 };
 
-// Evento para editar en vivo y guardar
-document.getElementById('company-name-view').addEventListener('blur', (e) => {
-    appDocHeader.companyName = e.target.innerText;
+// Captura y guardado estructurado del encabezado
+function saveDocHeader() {
+    appDocHeader.companyName = document.getElementById('company-name').innerText.trim();
+    appDocHeader.companyNit = document.getElementById('company-nit').innerText.trim();
     saveLocalData();
-});</code></pre>
+}</code></pre>
                         </div>
                         
                         <div class="text-[11px] text-slate-500 dark:text-slate-450 border-t border-slate-200 dark:border-slate-800 pt-3">
@@ -417,30 +427,33 @@ document.getElementById('company-name-view').addEventListener('blur', (e) => {
                         
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] uppercase font-bold text-slate-400">Código Inyectado Estándar:</span>
-                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">function getDynamicContext() {
-    return {
-        header: appDocHeader,
-        wizard: currentWizard, // Todos los inputs del formulario
-        ritCompiled: document.getElementById('rit-document-viewer')?.innerText || ""
-    };
+                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">// Helper de reintentos automático ante congestión de API (Error 503/429)
+async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+    try {
+        const response = await fetch(url, options);
+        if (response.status === 503 || response.status === 429) {
+            if (retries > 0) {
+                console.warn(`Límite superado. Reintentando en ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return fetchWithRetry(url, options, retries - 1, delay * 2);
+            }
+        }
+        return response;
+    } catch (e) {
+        if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return fetchWithRetry(url, options, retries - 1, delay * 2);
+        }
+        throw e;
+    }
 }
 
-async function askGemini(userMessage) {
-    const apiKey = localStorage.getItem('wappy_gemini_key');
-    if (!apiKey) return alert("Por favor configura tu API Key en la barra superior o en tu perfil.");
-    const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.5-flash';
-    
-    const context = JSON.stringify(getDynamicContext());
-    const prompt = `Contexto del aplicativo: ${context}\nPregunta: ${userMessage}`;
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
-    });
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
-}</code></pre>
+// Envío de mensajes al copiloto con reintento integrado
+const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: userMessage }] }] })
+});</code></pre>
                         </div>
                         
                         <div class="text-[11px] text-slate-500 dark:text-slate-455 border-t border-slate-200 dark:border-slate-800 pt-3">
@@ -511,18 +524,22 @@ function handleDrop(ev, columnName) {
                         
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] uppercase font-bold text-slate-400">Código Inyectado Estándar:</span>
-                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">let isLoadingState = false; // Bandera antirace
+                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">let isLoadingState = false; // Prevención de sobreescritura (race conditions)
 
-function initializeCanvas(canvasId) {
+function initializeSingleCanvas(canvasId) {
     const cvs = document.getElementById(canvasId);
-    const ctx = cvs.getContext('2d');
-    ctx.strokeStyle = '#1e293b'; // Trazo oscuro constante
-    ctx.lineWidth = 2.5;
+    if (!cvs) return;
+    const context = cvs.getContext('2d');
+    context.strokeStyle = '#1e293b'; // Trazo oscuro constante
+    context.lineWidth = 2.5;
     
-    cvs.addEventListener('mouseup', () => {
-        if (isLoadingState) return; // Evita pisar durante carga
-        saveCanvasToIndexedDB(canvasId, cvs.toDataURL());
-    });
+    // Soporte táctil y de mouse con reintento de almacenamiento
+    const startDraw = (e) => {
+        cvs.isDrawing = true;
+        context.beginPath();
+    };
+    cvs.addEventListener('mousedown', startDraw);
+    cvs.addEventListener('touchstart', startDraw, { passive: false });
 }
 
 // HTML con fondo blanco fijo
@@ -552,20 +569,26 @@ function initializeCanvas(canvasId) {
                             <span class="text-[10px] uppercase font-bold text-slate-400">Código Inyectado Estándar:</span>
                             <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">&lt;script&gt;
 function toggleTheme() {
-    const htmlElement = document.documentElement;
-    const bodyElement = document.body;
+    const body = document.body;
+    const floatIcon = document.getElementById('theme-float-icon');
+    const themeText = document.getElementById('theme-text');
     
-    if (htmlElement.classList.contains('dark')) {
-        htmlElement.classList.remove('dark');
-        bodyElement.classList.remove('dark');
-        bodyElement.classList.add('light');
-        localStorage.setItem('theme-preference', 'light');
+    if (currentTheme === 'dark') {
+        document.documentElement.classList.remove('dark');
+        body.classList.remove('dark');
+        body.classList.add('light');
+        floatIcon.setAttribute('data-lucide', 'moon');
+        themeText.innerText = 'Modo Oscuro';
+        currentTheme = 'light';
     } else {
-        htmlElement.classList.add('dark');
-        bodyElement.classList.remove('light');
-        bodyElement.classList.add('dark');
-        localStorage.setItem('theme-preference', 'dark');
+        document.documentElement.classList.add('dark');
+        body.classList.remove('light');
+        body.classList.add('dark');
+        floatIcon.setAttribute('data-lucide', 'sun');
+        themeText.innerText = 'Modo Claro';
+        currentTheme = 'dark';
     }
+    lucide.createIcons(); // Vuelve a renderizar los iconos en vivo
 }
 &lt;/script&gt;</code></pre>
                         </div>
@@ -606,7 +629,9 @@ function toggleTheme() {
                             <p class="text-xs text-slate-555 dark:text-slate-400 leading-relaxed">
                                 Garantiza que el canvas mantenga un fondo blanco fijo y el trazo sea oscuro `#1e293b` para que la firma siga siendo visible si el usuario cambia el tema del documento o decide imprimirlo:
                             </p>
-                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">function initializeSingleCanvas(cvs) {
+                            <pre class="rounded-xl overflow-x-auto"><code class="text-[10px] font-code">function initializeSingleCanvas(canvasId) {
+    const cvs = document.getElementById(canvasId);
+    if (!cvs) return;
     const context = cvs.getContext('2d');
     context.strokeStyle = '#1e293b'; // Trazo oscuro constante
     context.lineWidth = 2.5;
@@ -616,24 +641,44 @@ function toggleTheme() {
     cvs.isDrawing = false;
     cvs.hasDrawn = false;
     
-    // Soporte para gestos táctiles y mouse
-    cvs.addEventListener('mousedown', (e) => {
-        cvs.isDrawing = true;
-        context.beginPath();
+    const getPos = (e) => {
         const rect = cvs.getBoundingClientRect();
-        context.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    });
-    
-    cvs.addEventListener('mousemove', (e) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const startDraw = (e) => {
+        cvs.isDrawing = true;
+        const pos = getPos(e);
+        context.beginPath();
+        context.moveTo(pos.x, pos.y);
+        e.preventDefault();
+    };
+
+    const draw = (e) => {
         if (!cvs.isDrawing) return;
         cvs.hasDrawn = true;
-        const rect = cvs.getBoundingClientRect();
-        context.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        const pos = getPos(e);
+        context.lineTo(pos.x, pos.y);
         context.stroke();
-    });
-    
-    cvs.addEventListener('mouseup', () => { cvs.isDrawing = false; saveLocalData(); });
-    cvs.addEventListener('mouseleave', () => { cvs.isDrawing = false; });
+        e.preventDefault();
+    };
+
+    const stopDraw = () => {
+        if (!cvs.isDrawing) return;
+        cvs.isDrawing = false;
+        if (!isLoadingState) saveLocalData();
+    };
+
+    cvs.addEventListener('mousedown', startDraw);
+    cvs.addEventListener('mousemove', draw);
+    cvs.addEventListener('mouseup', stopDraw);
+    cvs.addEventListener('mouseleave', stopDraw);
+
+    cvs.addEventListener('touchstart', startDraw, { passive: false });
+    cvs.addEventListener('touchmove', draw, { passive: false });
+    cvs.addEventListener('touchend', stopDraw);
 }</code></pre>
                         </div>
                     </details>
@@ -663,6 +708,18 @@ function openDB() {
         };
         request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// Ingesta de firmas y multimedia binaria pesada
+async function saveMediaToDB(docId, photos, audio, video) {
+    const db = await openDB();
+    const tx = db.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).put({
+        id: 'media_' + docId,
+        photos: photos || [],
+        audioBase64: audio || '',
+        videoBase64: video || ''
     });
 }</code></pre>
                         </div>
@@ -718,16 +775,19 @@ function handleDrop(ev, columnName) {
     } catch (e) {}
 
     if (!baseHTML) {
-        baseHTML = "<!DOCTYPE html>\n<html>" + document.documentElement.innerHTML + "</html>";
+        baseHTML = "&lt;!DOCTYPE html&gt;\n&lt;html&gt;" + document.documentElement.innerHTML + "&lt;/html&gt;";
     }
 
-    const headerRegex = /let\s+appDocHeader\s*=\s*\{[\s\S]*?\}\s*;/;
-    const wizardRegex = /let\s+currentWizard\s*=\s*\{[\s\S]*?\}\s*;/;
+    const masterRegex = /let\s+masterSavedChanges\s*=s*\[[\s\S]*?\]\s*;/;
+    const headerRegex = /let\s+appDocHeader\s*=s*\{[\s\S]*?\}\s*;/;
+    const wizardRegex = /let\s+currentWizard\s*=s*\{[\s\S]*?\}\s*;/;
 
-    const newHeaderStr = `let appDocHeader = ${JSON.stringify(appDocHeader, null, 4)};`;
-    const newWizardStr = `let currentWizard = ${JSON.stringify(currentWizard, null, 4)};`;
+    const newMasterStr = `let masterSavedChanges = \${JSON.stringify(masterSavedChanges, null, 4)};`;
+    const newHeaderStr = `let appDocHeader = \${JSON.stringify(appDocHeader, null, 4)};`;
+    const newWizardStr = `let currentWizard = \${JSON.stringify(currentWizard, null, 4)};`;
 
     let updatedHTML = baseHTML;
+    if (masterRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(masterRegex, newMasterStr);
     if (headerRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(headerRegex, newHeaderStr);
     if (wizardRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(wizardRegex, newWizardStr);
 
@@ -735,8 +795,11 @@ function handleDrop(ev, columnName) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = appDocHeader.companyName.replace(/[^a-zA-Z0-9]/g, "_") + "_SGSST.html";
+    a.download = appDocHeader.companyName.replace(/[^a-zA-Z0-9]/g, "_") + "_" + appDocHeader.changeCode + ".html";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }</code></pre>
                         </div>
                     </details>
@@ -799,28 +862,35 @@ function handleDrop(ev, columnName) {
         function getSuperPromptTemplate(formatName) {
             const formatNameLower = formatName.toLowerCase().replace(/[^a-z0-9]/g, "_");
             const promptContent = `Actúa como un Programador Frontend Senior y Consultor experto en SG-SST en Colombia.
-Necesito que crees un nuevo aplicativo interactivo premium titulado "${formatName}".
+Necesito que crees un nuevo aplicativo interactivo premium titulado "{{Nombre del Aplicativo}}".
 
 El archivo generado debe ser un único documento HTML autónomo (sin dependencias de backend, estilizado con Tailwind CSS por CDN y usando iconos de Lucide-Icons). Debe implementar exactamente la estructura visual, la maquetación de clases de Tailwind CSS, el CSS personalizado y la lógica Javascript descritos en este blueprint.
 
-Debes clonar exactamente la maqueta HTML, los estilos CSS y toda la lógica JS. No alteres las clases de Tailwind, ni la estructura del banner, ni las pestañas del wizard, ni la lógica de IndexedDB o canvas. Tu tarea principal es:
-1. En la Pestaña 2 (Detalles del Aplicativo / id="tab-description"), diseñar el formulario con los campos específicos y necesarios para el aplicativo "${formatName}". Usa el mismo diseño de inputs premium (rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm) con sus respectivos labels (block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1).
-   Además, incluye la sección de multimedia (fotos, audio, video) en esta Pestaña 2 para que sirva de insumo a la IA, justo antes del botón de autocompletar con IA.
-2. En la Pestaña 3 (Vista Previa o Evaluación / id="tab-analysis"), diseñar un panel elegante de visualización o consolidación del reporte de "${formatName}".
-3. En la Pestaña 5 (Firmas y Cierre / id="tab-evidences"), mostrar un resumen consolidado en tarjetas de lectura de los campos específicos de recolección creados en la Pestaña 2, además del estado de las evidencias multimedia (fotos, audio, video) cargadas, justo antes del panel de firmas digitales en canvas. Asegura que en la función \`switchTab\` de JS se actualicen dinámicamente los elementos textContent de este resumen con los valores de los inputs correspondientes de la Pestaña 2.
-4. En el script de JavaScript, agregar los campos específicos que creaste en la Pestaña 2 a la variable global 'appDocHeader.customFields' con sus valores por defecto (prellenados), y asegurar que se guarden y carguen correctamente en las funciones 'saveLocalData()' y 'loadState()'.
-5. Personalizar el prompt de sistema del Copiloto IA ('systemContext') para que se adapte específicamente a la temática de "${formatName}" y la normativa colombiana correspondiente.
-6. Garantizar que la función 'triggerIAGeneration()' autocompleta los campos técnicos o análisis SIN sobrescribir los valores que el usuario ya haya ingresado de forma manual.
+Debes clonar exactamente la maqueta HTML, los estilos CSS y toda la lógica JS. No alteres las clases de Tailwind, ni la estructura del banner, ni las pestañas del wizard, ni la lógica de IndexedDB o canvas.
 
+### 🎨 PARÁMETROS ESPECÍFICOS A INTEGRAR:
+- **Nombre del Aplicativo:** {{Nombre del Aplicativo}}
+- **Paleta de Colores:** {{Paleta de Colores:Esmeralda a Cian (Default)|Azul Real a Indigo|Violeta a Fucsia|Ámbar a Naranja|Rojo a Coral|Pizarra a Carbón (Minimalista)}}
+- **Sector Industrial:** {{Sector Industrial:Construcción|Manufactura/Industrial|Servicios/Oficinas|Salud/Clínico|Transporte/Logística|Educación|Comercio/Retail|Otro}}
+- **Normativa Aplicable:** {{Normativa Aplicable:Resolución 0312 de 2019 y Decreto 1072 de 2015 (General)|Resolución 4272 de 2021 (Alturas)|GTC-45 (Peligros y Riesgos)|Resolución 1401 de 2007 (Accidentes)|Decreto 1072 de 2015 (RIT / Reglamento)|Otra normatividad colombiana}}
+- **Instrucciones Especiales / Requisitos Adicionales:** {{Requisitos adicionales}}
+
+### 🛠️ TAREAS DE PERSONALIZACIÓN DEL AGENTE:
+1. En la **Pestaña 2** (Detalles del Aplicativo / id="tab-description"), diseñar el formulario con los campos específicos y necesarios para el aplicativo "{{Nombre del Aplicativo}}", teniendo en cuenta el sector de aplicación y la normativa colombiana indicados en los parámetros, así como las instrucciones de requisitos adicionales. Usa el mismo diseño de inputs premium (rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm) con sus respectivos labels (block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1).
+2. En la **Pestaña 2**, debajo del formulario principal, integra el panel de Evidencias Multimedia (Carga de Fotos, Audio y Video) para que estén juntas a la toma de datos.
+3. En la **Pestaña 3** (Vista Previa o Evaluación / id="tab-analysis"), diseñar un panel elegante de visualización o consolidación del reporte de "{{Nombre del Aplicativo}}". **[CRÍTICO] Todos los campos de este panel deben ser interactivos e individualmente editables** (usando inputs, textareas o bloques individuales con \`contenteditable="true"\` con estilos premium y alineados a la paleta de colores). **Bajo ninguna circunstancia debes usar un único visor de texto plano o una caja de texto única para todo el reporte**, ya que esto destruye la interactividad del aplicativo. Cada sección o campo (ej. Conclusiones, Recomendaciones, Diagnóstico, etc.) debe tener su propio campo editable independiente y bien delimitado. Si es una matriz o tabla de riesgos, la tabla debe ser completamente interactiva permitiendo editar cada celda. Además, asegura que cualquier cambio realizado en estos campos interactivos de la Pestaña 3 se sincronice bidireccionalmente con el formulario de la Pestaña 2 y se guarde localmente llamando a la función \`syncBackToForm()\` y \`saveLocalData()\` en el evento \`onblur\` o \`oninput\`.
+4. En la **Pestaña 5** (Firmas y Cierre / id="tab-evidences"), adaptar los canvas y etiquetas de firma por defecto para que correspondan a los roles del Responsable SST y del Trabajador o Inspector. Además, diseñar tarjetas de lectura que muestren un resumen consolidado de los campos específicos de recolección de información creados en la Pestaña 2 para revisión final antes de firmar, y asegurar que en la función \`switchTab\` de JS se actualicen dinámicamente estas tarjetas con los valores correspondientes de los inputs de la Pestaña 2.
+5. En el script de JavaScript, agregar los campos específicos que creaste en la Pestaña 2 a la variable global \`appDocHeader.customFields\` con sus valores por defecto (prellenados), y asegurar que se guarden y carguen correctamente en las funciones \`saveLocalData()\` y \`loadState()\`.
+6. Personalizar el prompt de sistema del Copiloto IA (\`systemContext\`) para que se adapte específicamente a la temática de "{{Nombre del Aplicativo}}", el sector industrial, la normativa colombiana y los requisitos adicionales indicados.
+7. 7. **[CRÍTICO]** Personalizar el esquema de salida JSON en \\\`jsonSchema\\\` dentro de \\\`triggerIAGeneration()\\\`. La IA **SOLO debe generar y autocompletar** los campos específicos interactivos del reporte final (ej. \\\`custom-form-descripcion\\\` y \\\`custom-form-observaciones\\\` u otros campos interactivos específicos diseñados para la Pestaña 3) y las tareas del plan de acción (Kanban). **NO debes incluir en el jsonSchema ni sobrescribir** los campos de entrada primarios que el inspector llena manualmente en terreno (como preguntas de cumplimiento Sí/No, checkboxes, ni campos donde el usuario registra hallazgos iniciales), ya que esto borraría la información real tomada en terreno. **[REGLA DE ORO MÁXIMA]**: Las CLAVES (keys) definidas en tu \\\`jsonSchema\\\` DEBEN COINCIDIR EXACTAMENTE con los atributos \\\`id\\\` de los elementos HTML que generes en la Pestaña 3. Si un select en la Pestaña 3 tiene \\\`id="vuln-p1"\\\`, entonces la clave en el \\\`jsonSchema\\\` debe ser ESTRICTAMENTE \\\`"vuln-p1"\\\`. De lo contrario, el script fallará al intentar asignar el valor al DOM y la Pestaña 3 quedará vacía.
 Aquí tienes la maqueta exacta y el código que debes utilizar:
-
 \`\`\`html
 &lt;!DOCTYPE html&gt;
 &lt;html lang="es"&gt;
 &lt;head&gt;
     &lt;meta charset="UTF-8"&gt;
     &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
-    &lt;title&gt;${formatName} - SG-SST&lt;/title&gt;
+    &lt;title&gt;{{Nombre del Aplicativo}} - SG-SST&lt;/title&gt;
     &lt;script&gt;
         window.addEventListener('error', function(e) {
             console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
@@ -895,7 +965,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()"&gt;
                 
                 &lt;div class="flex-1"&gt;
-                    &lt;h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40"&gt;${formatName}&lt;/h1&gt;
+                    &lt;h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40"&gt;{{Nombre del Aplicativo}}&lt;/h1&gt;
                     &lt;h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40"&gt;SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO&lt;/h2&gt;
                     &lt;p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40"&gt;Documento Corporativo Oficial - Conforme a la Normatividad Vigente&lt;/p&gt;
                 &lt;/div&gt;
@@ -1047,12 +1117,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
             &lt;!-- TAB 2: DETALLES ESPECÍFICOS DEL FORMATO --&gt;
             &lt;div id="tab-description" class="tab-content flex flex-col gap-5 hidden"&gt;
-                &lt;!-- [AI: DEBES DISEÑAR AQUÍ LOS CAMPOS DE FORMULARIO ESPECÍFICOS PARA EL FORMATO "${formatName}". USA EL DISEÑO DE TARJETAS Y INPUTS SLATE PREMIUM CON SELECCIONES Y TEXTAREAS ADECUADOS] --&gt;
+                &lt;!-- [AI: DEBES DISEÑAR AQUÍ LOS CAMPOS DE FORMULARIO ESPECÍFICOS PARA EL FORMATO "{{Nombre del Aplicativo}}". USA EL DISEÑO DE TARJETAS Y INPUTS SLATE PREMIUM CON SELECCIONES Y TEXTAREAS ADECUADOS] --&gt;
                 &lt;div class="flex flex-col gap-4"&gt;
                     &lt;h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5"&gt;
-                        &lt;i data-lucide="list-todo" class="w-4 h-4"&gt;&lt;/i&gt; 2.1 Formulario de Registro de ${formatName}
+                        &lt;i data-lucide="list-todo" class="w-4 h-4"&gt;&lt;/i&gt; 2.1 Formulario de Registro de {{Nombre del Aplicativo}}
                     &lt;/h3&gt;
-                    &lt;!-- Ejemplo básico de campos - Reemplazar con los campos ideales para ${formatName} --&gt;
+                    &lt;!-- Ejemplo básico de campos - Reemplazar con los campos ideales para {{Nombre del Aplicativo}} --&gt;
                     &lt;div class="grid grid-cols-1 md:grid-cols-2 gap-6"&gt;
                         &lt;div&gt;
                             &lt;label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1"&gt;DESCRIPCIÓN GENERAL&lt;/label&gt;
@@ -1143,7 +1213,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
             &lt;!-- TAB 3: VISTA PREVIA O EVALUACIÓN --&gt;
             &lt;div id="tab-analysis" class="tab-content flex flex-col gap-6 hidden"&gt;
-                &lt;!-- [AI: DISEÑA AQUÍ LA VISTA DE REPORTE FINAL O COMPILACIÓN PREMIUM PARA "${formatName}". SI ES UN REGISTRO DE RIESGOS, INCLUYE VALORACIÓN GTC-45 Y JERARQUÍA DE CONTROLES. SI ES UN REGLAMENTO O PLAN, MUESTRA EL VISOR DE TEXTO PREMIUM contenteditable="true" PARA QUE EL USUARIO PUEDA MODIFICAR O EDITAR LA REDACCIÓN] --&gt;
+                &lt;!-- [AI: DISEÑA AQUÍ LA VISTA DE REPORTE FINAL O COMPILACIÓN PREMIUM PARA "{{Nombre del Aplicativo}}". TODOS LOS CAMPOS DEBEN SER INTERACTIVOS E INDIVIDUALMENTE EDITABLES (usando inputs, textareas o divs con contenteditable="true" que sincronicen mediante syncBackToForm). SI ES UN REGISTRO DE RIESGOS, INCLUYE VALORACIÓN GTC-45 Y JERARQUÍA DE CONTROLES EN UNA TABLA COMPLETAMENTE EDITABLE. BAJO NINGUNA CIRCUNSTANCIA USES UNA SOLA CAJA DE TEXTO PARA TODO EL REPORTE] --&gt;
                 &lt;div class="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-xs leading-relaxed text-slate-655 dark:text-slate-350"&gt;
                     &lt;h4 class="font-bold text-blue-655 dark:text-blue-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider"&gt;
                         &lt;i data-lucide="activity" class="w-4 h-4"&gt;&lt;/i&gt; CONSOLIDADO Y COMPILACIÓN DEL REPORTE
@@ -1152,16 +1222,20 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;/div&gt;
 
                 &lt;div class="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20"&gt;
-                    &lt;div id="analysis-report-viewer" contenteditable="true" class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-slate-300 focus:outline-none" style="font-family: 'Georgia', serif;"&gt;
-                        &lt;h2 class="text-center font-bold text-lg mb-4"&gt;REPORTE CONSOLIDADO: ${formatName.toUpperCase()}&lt;/h2&gt;
+                    &lt;div id="analysis-report-viewer" class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-slate-300" style="font-family: 'Outfit', sans-serif;"&gt;
+                        &lt;h2 class="text-center font-bold text-lg mb-4 uppercase text-slate-900 dark:text-white"&gt;REPORTE CONSOLIDADO: {{Nombre del Aplicativo}}&lt;/h2&gt;
                         &lt;p class="text-center text-xs text-slate-400 mb-6"&gt;Documento de Control SG-SST - Generado localmente&lt;/p&gt;
-                        &lt;div class="border-t border-slate-300 dark:border-slate-800 pt-4"&gt;
-                            &lt;strong&gt;Descripción General del Registro:&lt;/strong&gt;
-                            &lt;p id="preview-form-descripcion" class="mt-1"&gt;[Complete los campos en la pestaña anterior para compilar]&lt;/p&gt;
-                        &lt;/div&gt;
-                        &lt;div class="border-t border-slate-300 dark:border-slate-800 pt-4 mt-4"&gt;
-                            &lt;strong&gt;Observaciones Adicionales:&lt;/strong&gt;
-                            &lt;p id="preview-form-observaciones" class="mt-1"&gt;[Complete los campos en la pestaña anterior para compilar]&lt;/p&gt;
+                        
+                        &lt;div class="grid grid-cols-1 gap-6"&gt;
+                            &lt;div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 shadow-sm"&gt;
+                                &lt;h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2"&gt;Descripción General del Registro&lt;/h4&gt;
+                                &lt;div id="preview-form-descripcion" contenteditable="true" onblur="syncBackToForm('custom-form-descripcion', this)" class="text-sm font-semibold text-slate-900 dark:text-white min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Complete los campos en la pestaña anterior o haga click aquí para editar...]"&gt;&lt;/div&gt;
+                            &lt;/div&gt;
+                            
+                            &lt;div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 shadow-sm"&gt;
+                                &lt;h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2"&gt;Observaciones Adicionales&lt;/h4&gt;
+                                &lt;div id="preview-form-observaciones" contenteditable="true" onblur="syncBackToForm('custom-form-observaciones', this)" class="text-sm font-semibold text-slate-900 dark:text-white min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Complete los campos en la pestaña anterior o haga click aquí para editar...]"&gt;&lt;/div&gt;
+                            &lt;/div&gt;
                         &lt;/div&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
@@ -1320,7 +1394,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                     &lt;!-- Export Button --&gt;
                     &lt;div class="mt-4 flex justify-center"&gt;
                         &lt;button onclick="exportUpdatedHTML()" class="flex items-center justify-center gap-2 py-3 px-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all active:scale-95 w-full md:w-auto cursor-pointer no-print"&gt;
-                            &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"&gt;&lt;path d="M12 15V3"&gt;&lt;/path&gt;&lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"&gt;&lt;/path&gt;&lt;polyline points="7 10 12 15 17 10"&gt;&lt;/polyline&gt;&lt;/svg&gt; Exportar Aplicativo ${formatName} Firmado
+                            &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"&gt;&lt;path d="M12 15V3"&gt;&lt;/path&gt;&lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"&gt;&lt;/path&gt;&lt;polyline points="7 10 12 15 17 10"&gt;&lt;/polyline&gt;&lt;/svg&gt; Exportar Aplicativo {{Nombre del Aplicativo}} Firmado
                         &lt;/button&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
@@ -1356,7 +1430,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
     &lt;div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] bg-white/95 dark:bg-slate-900/95 border-l border-slate-200 dark:border-slate-800 z-50 p-6 transform transition-transform duration-300 flex flex-col gap-4 shadow-2xl backdrop-blur-md translate-x-full"&gt;
         &lt;div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4"&gt;
             &lt;h3 class="text-sm font-black text-blue-600 dark:text-blue-450 uppercase tracking-widest flex items-center gap-1.5"&gt;
-                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-4 h-4"&gt;&lt;path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594z"&gt;&lt;/path&gt;&lt;path d="M20 2v4"&gt;&lt;/path&gt;&lt;path d="M22 4h-4"&gt;&lt;/path&gt;&lt;circle cx="4" cy="20" r="2"&gt;&lt;/circle&gt;&lt;/svg&gt; Copiloto IA SST
+                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-4 h-4"&gt;&lt;path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594z"&gt;&lt;/path&gt;&lt;path d="M20 2v4"&gt;&lt;/path&gt;&lt;path d="M22 4h-4"&gt;&lt;/path&gt;&lt;circle cx="4" cy="20" r="2"&gt;&lt;/circle&gt;&lt;/svg&gt; Wappy IA Copiloto
             &lt;/h3&gt;
             &lt;button onclick="toggleAISidebar()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 font-bold"&gt;✕&lt;/button&gt;
         &lt;/div&gt;
@@ -1364,7 +1438,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         &lt;!-- Chat messages --&gt;
         &lt;div id="ai-chat-messages" class="flex-1 overflow-y-auto flex flex-col gap-3 p-1 min-h-0"&gt;
             &lt;div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355"&gt;
-                ¡Hola! Soy su Copiloto de SG-SST de Wappy. ¿En qué puedo asesorarle hoy respecto al aplicativo de &lt;strong&gt;${formatName}&lt;/strong&gt;?
+                ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para este formato. ¡Podrás aplicarlas con un solo clic!
             &lt;/div&gt;
         &lt;/div&gt;
 
@@ -1374,17 +1448,17 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 &lt;input type="password" id="gemini-key" class="flex-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white" placeholder="Google Gemini API Key"&gt;
                 &lt;button onclick="saveAPIKey()" class="py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold transition cursor-pointer"&gt;Guardar&lt;/button&gt;
             &lt;/div&gt;
-            &lt;select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500"&gt;
-                &lt;option value="gemini-3.5-flash" selected=""&gt;Wappy IA Prime (Default)&lt;/option&gt;
-                &lt;option value="gemini-3.1-flash-lite"&gt;Wappy IA Core&lt;/option&gt;
+            &lt;select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500"&gt;
+                &lt;option value="gemini-3.1-flash-lite" selected=""&gt;Wappy IA Core (Velocidad Relámpago y Flujo)&lt;/option&gt;
+                &lt;option value="gemini-3.5-flash"&gt;Wappy IA Prime (Análisis de Agentes y Código)&lt;/option&gt;
             &lt;/select&gt;
         &lt;/div&gt;
 
         &lt;!-- Chat Input --&gt;
-        &lt;div class="flex items-center gap-2 border-t dark:border-slate-800 pt-3 no-print"&gt;
-            &lt;textarea id="ai-chat-input" rows="1" class="flex-1 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-855 p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none font-medium" placeholder="Escriba su consulta..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"&gt;&lt;/textarea&gt;
-            &lt;button onclick="sendChatMessage()" class="p-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition active:scale-95 cursor-pointer"&gt;
-                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="send" aria-hidden="true" class="lucide lucide-send w-3.5 h-3.5"&gt;&lt;line x1="22" x2="11" y1="2" y2="13"&gt;&lt;/line&gt;&lt;polygon points="22 2 15 22 11 13 2 9 22 2"&gt;&lt;/polygon&gt;&lt;/svg&gt;
+        &lt;div class="flex flex-col gap-2 border-t dark:border-slate-800 pt-3 no-print"&gt;
+            &lt;textarea id="ai-chat-input" class="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-900 dark:text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."&gt;&lt;/textarea&gt;
+            &lt;button onclick="sendChatMessage()" class="w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer"&gt;
+                &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="send" aria-hidden="true" class="lucide lucide-send w-3.5 h-3.5"&gt;&lt;path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"&gt;&lt;/path&gt;&lt;path d="m21.854 2.147-10.94 10.939"&gt;&lt;/path&gt;&lt;/svg&gt; Enviar Mensaje
             &lt;/button&gt;
         &lt;/div&gt;
     &lt;/div&gt;
@@ -1429,7 +1503,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             companyRisk: "Clase III",
             changeCode: "GC-SST-AT-01",
             lastUpdated: new Date().toISOString().split('T')[0],
-            appTitle: "${formatName}",
+            appTitle: "{{Nombre del Aplicativo}}",
             appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
             appDesc: "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
             appBadge: "PROCESO: SG-SST | V.01",
@@ -1443,10 +1517,10 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
         let currentTheme = 'light';
         let isLoadingState = false;
-        const storageKey = 'wappy_sst_${formatNameLower}';
+        const storageKey = 'wappy_sst___nombre_del_aplicativo__';
         let currentWizard = {
             tasks: [
-                { id: "t1", title: "Socializar el aplicativo de ${formatName}", resp: "SST", date: new Date().toISOString().split('T')[0], column: "todo" }
+                { id: "t1", title: "Socializar el aplicativo de {{Nombre del Aplicativo}}", resp: "SST", date: new Date().toISOString().split('T')[0], column: "todo" }
             ],
             photos: [],
             audioBase64: "",
@@ -1470,6 +1544,28 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         const dbName = 'WappySSTDb';
         const dbVersion = 1;
         const storeName = 'mediaStore';
+
+        // Helper para reintentos con API de Gemini (maneja error 503/429)
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 503 || response.status === 429) {
+                    if (retries &gt; 0) {
+                        console.warn(\`Gemini API respondió con \${response.status}. Reintentando en \${delay}ms... (\${retries} intentos restantes)\`);
+                        await new Promise(resolve =&gt; setTimeout(resolve, delay));
+                        return fetchWithRetry(url, options, retries - 1, delay * 2);
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries &gt; 0) {
+                    console.warn(\`Error de red: \${error.message}. Reintentando en \${delay}ms... (\${retries} intentos restantes)\`);
+                    await new Promise(resolve =&gt; setTimeout(resolve, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
 
         function openDB() {
             return new Promise((resolve, reject) =&gt; {
@@ -1777,7 +1873,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             safeSetLocalStorage(storageKey, JSON.stringify(data));
 
             // Escribir multimedia en DB
-            saveMediaToDB('${formatNameLower}', currentWizard.photos, currentWizard.audioBase64, currentWizard.videoBase64);
+            saveMediaToDB('__nombre_del_aplicativo__', currentWizard.photos, currentWizard.audioBase64, currentWizard.videoBase64);
             
             if (appDocHeader.logoBase64) {
                 saveGlobalLogoToDB(appDocHeader.logoBase64);
@@ -1795,7 +1891,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.1-flash-lite';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -1830,7 +1926,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 }
 
                 // Cargar archivos multimedia de IndexedDB
-                const dbMedia = await loadMediaFromDB('${formatNameLower}');
+                const dbMedia = await loadMediaFromDB('__nombre_del_aplicativo__');
                 if (dbMedia) {
                     currentWizard.photos = dbMedia.photos || [];
                     currentWizard.audioBase64 = dbMedia.audioBase64 || '';
@@ -1971,15 +2067,28 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
 
         // Compilar reporte a la vista del visor en tab-analysis
         function compileVisor() {
-            // [AI: Personalizar esta compilación con los campos específicos de ${formatName}]
+            // [AI: Personalizar esta compilación con los campos específicos de {{Nombre del Aplicativo}}]
             const descVal = document.getElementById('custom-form-descripcion') ? document.getElementById('custom-form-descripcion').value : '';
             const obsVal = document.getElementById('custom-form-observaciones') ? document.getElementById('custom-form-observaciones').value : '';
             
             const previewDesc = document.getElementById('preview-form-descripcion');
             const previewObs = document.getElementById('preview-form-observaciones');
             
-            if (previewDesc) previewDesc.innerText = descVal || '[Sin descripción de detalles registrado]';
-            if (previewObs) previewObs.innerText = obsVal || '[Sin observaciones registradas]';
+            if (previewDesc && previewDesc !== document.activeElement) {
+                previewDesc.innerText = descVal || '[Sin descripción de detalles registrado]';
+            }
+            if (previewObs && previewObs !== document.activeElement) {
+                previewObs.innerText = obsVal || '[Sin observaciones registradas]';
+            }
+        }
+
+        // Sincronizar cambios en campos editables de reporte hacia el formulario original
+        function syncBackToForm(formFieldId, previewEl) {
+            const formField = document.getElementById(formFieldId);
+            if (formField) {
+                formField.value = previewEl.innerText;
+                saveLocalData();
+            }
         }
 
         // Tablero Kanban de Plan de Acción
@@ -2000,12 +2109,12 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                     card.ondragstart = (e) =&gt; drag(e, t.id);
                     card.innerHTML = \`
                         &lt;div class="flex justify-between items-start gap-1"&gt;
-                            &lt;div class="font-bold text-slate-855 dark:text-slate-100 flex-1"&gt;__TASK_TITLE__&lt;/div&gt;
-                            &lt;button onclick="deleteKanbanTask('__TASK_ID__')" class="text-[10px] text-red-500 font-bold hover:underline no-print"&gt;✕&lt;/button&gt;
+                            &lt;div class="font-bold text-slate-855 dark:text-slate-100 flex-1"&gt;\${t.title}&lt;/div&gt;
+                            &lt;button onclick="deleteKanbanTask('\${t.id}')" class="text-[10px] text-red-500 font-bold hover:underline no-print"&gt;✕&lt;/button&gt;
                         &lt;/div&gt;
                         &lt;div class="flex justify-between items-center text-[10px] text-slate-455 dark:text-slate-400" style="font-size: 9px;"&gt;
-                            &lt;span&gt;Resp: __TASK_RESP__&lt;/span&gt;
-                            &lt;span&gt;__TASK_DATE__&lt;/span&gt;
+                            &lt;span&gt;Resp: \${t.resp}&lt;/span&gt;
+                            &lt;span&gt;\${t.date}&lt;/span&gt;
                         &lt;/div&gt;
                     \`;
                     container.appendChild(card);
@@ -2090,8 +2199,8 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 const item = document.createElement('div');
                 item.className = 'relative h-16 w-16 rounded-xl border overflow-hidden shadow-sm border-slate-200 dark:border-slate-800';
                 item.innerHTML = \`
-                    &lt;img src="__PHOTO_SRC__" class="h-full w-full object-cover"&gt;
-                    &lt;button onclick="removePhoto(__PHOTO_IDX__)" class="absolute top-1 right-1 h-4 w-4 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold no-print"&gt;✕&lt;/button&gt;
+                    &lt;img src="\${src}" class="h-full w-full object-cover"&gt;
+                    &lt;button onclick="removePhoto(\${idx})" class="absolute top-1 right-1 h-4 w-4 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold no-print"&gt;✕&lt;/button&gt;
                 \`;
                 grid.appendChild(item);
             });
@@ -2176,7 +2285,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             const photoCount = currentWizard.photos ? currentWizard.photos.length : 0;
             if (summaryPhotos) {
                 summaryPhotos.innerHTML = photoCount &gt; 0 
-                    ? \`&lt;span class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;&lt;i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; __PHOTO_COUNT__ foto(s) cargada(s)&lt;/span&gt;\` 
+                    ? \`&lt;span class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"&gt;&lt;i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"&gt;&lt;/i&gt; \${photoCount} foto(s) cargada(s)&lt;/span&gt;\` 
                     : 'Ninguna cargada';
             }
 
@@ -2221,24 +2330,24 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
             card.id = 'signature-card-' + sig.id;
             card.className = 'p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative';
             card.innerHTML = \`
-                &lt;button onclick="removeSignatureCard('__SIG_ID__')" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold no-print text-xs"&gt;✕ Eliminar&lt;/button&gt;
+                &lt;button onclick="removeSignatureCard('\${sig.id}')" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold no-print text-xs"&gt;✕ Eliminar&lt;/button&gt;
                 &lt;span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2"&gt;
                     &lt;svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"&gt;&lt;path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"&gt;&lt;/path&gt;&lt;circle cx="9" cy="7" r="4"&gt;&lt;/circle&gt;&lt;polyline points="16 11 18 13 22 9"&gt;&lt;/polyline&gt;&lt;/svg&gt; Firma Adicional / Testigo
                 &lt;/span&gt;
                 &lt;div class="relative bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200 dark:border-slate-855 p-2 shadow-inner"&gt;
-                    &lt;canvas id="signature-__SIG_ID__" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
-                    &lt;input type="file" id="upload-sig-__SIG_ID__" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-__SIG_ID__')"&gt;
-                    &lt;button onclick="document.getElementById('upload-sig-__SIG_ID__').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar&lt;/button&gt;
-                    &lt;button onclick="clearSignatureCanvas('signature-__SIG_ID__')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
+                    &lt;canvas id="signature-\${sig.id}" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"&gt;&lt;/canvas&gt;
+                    &lt;input type="file" id="upload-sig-\${sig.id}" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-\${sig.id}')"&gt;
+                    &lt;button onclick="document.getElementById('upload-sig-\${sig.id}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Cargar&lt;/button&gt;
+                    &lt;button onclick="clearSignatureCanvas('signature-\${sig.id}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print"&gt;Limpiar&lt;/button&gt;
                 &lt;/div&gt;
                 &lt;div class="flex flex-col gap-2"&gt;
                     &lt;div&gt;
                         &lt;label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5"&gt;NOMBRE COMPLETO&lt;/label&gt;
-                        &lt;input type="text" id="signer-__SIG_ID__-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="__SIG_NAME__"&gt;
+                        &lt;input type="text" id="signer-\${sig.id}-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="\${sig.name || ""}"&gt;
                     &lt;/div&gt;
                     &lt;div&gt;
                         &lt;label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5"&gt;CÉDULA / VÍNCULO&lt;/label&gt;
-                        &lt;input type="text" id="signer-__SIG_ID__-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="__SIG_CC__"&gt;
+                        &lt;input type="text" id="signer-\${sig.id}-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="\${sig.cc || ""}"&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
             \`;
@@ -2265,7 +2374,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
                 safeRemoveLocalStorage(storageKey);
-                deleteMediaFromDB('${formatNameLower}').then(() =&gt; {
+                deleteMediaFromDB('__nombre_del_aplicativo__').then(() =&gt; {
                     window.location.reload();
                 });
             }
@@ -2303,7 +2412,7 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 return;
             }
 
-            const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+            const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.1-flash-lite';
             addChatMessage('assistant', "🤖 Pensando...");
 
             // Construir contexto en vivo
@@ -2327,19 +2436,28 @@ Aquí tienes la maqueta exacta y el código que debes utilizar:
                 "Título del Aplicativo": appDocHeader.appTitle
             };
 
-            let documentContext = \`DATOS ACTUALES DEL FORMULARIO Y CONTEXTO:\\\n\`;
-            documentContext += \`Información de cabecera:\\\n\${JSON.stringify(headerInfo, null, 2)}\\\n\\\n\`;
-            documentContext += \`Campos del Formulario:\\\n\`;
+            let documentContext = \`DATOS ACTUALES DEL FORMULARIO Y CONTEXTO:\\
+\`;
+            documentContext += \`Información de cabecera:\\
+\${JSON.stringify(headerInfo, null, 2)}\\
+\\
+\`;
+            documentContext += \`Campos del Formulario:\\
+\`;
             for (const [key, val] of Object.entries(currentValues)) {
                 if (val && val.trim() !== '') {
-                    documentContext += \`- \${key}: \${val}\\\n\`;
+                    documentContext += \`- \${key}: \${val}\\
+\`;
                 }
             }
 
             if (currentWizard.tasks && currentWizard.tasks.length &gt; 0) {
-                documentContext += \`\\\nPlan de Acción (Kanban):\\\n\`;
+                documentContext += \`\\
+Plan de Acción (Kanban):\\
+\`;
                 currentWizard.tasks.forEach(t =&gt; {
-                    documentContext += \`- Tarea: "\\\t.title}\" | Responsable: \\\t.resp} | Fecha: \\\t.date} | Columna: \\\t.column}\\\n\`;
+                    documentContext += \`- Tarea: "\\ .title}" | Responsable: \\ .resp} | Fecha: \\ .date} | Columna: \\ .column}\\
+\`;
                 });
             }
 
@@ -2353,12 +2471,14 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
 \${documentContext}\`;
 
             try {
-                const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
+                const response = await fetchWithRetry(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [
-                            { role: 'user', parts: [{ text: \`\${systemContext}\\\n\\\nMensaje del usuario: \${messageText}\` }] }
+                            { role: 'user', parts: [{ text: \`\${systemContext}\\
+\\
+Mensaje del usuario: \${messageText}\` }] }
                         ]
                     })
                 });
@@ -2433,7 +2553,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
             try {
                 const url = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`;
                 
-                const response = await fetch(url, {
+                const response = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2497,7 +2617,7 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
                 msgDiv.innerText = text;
             } else {
                 msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355';
-                msgDiv.innerHTML = \`&lt;div&gt;__MARKDOWN_HTML_TEXT__&lt;/div&gt;\`;
+                msgDiv.innerHTML = \`&lt;div&gt;\${markdownToHTML(text)}&lt;/div&gt;\`;
             }
             container.appendChild(msgDiv);
             container.scrollTop = container.scrollHeight;
@@ -2507,11 +2627,11 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
             if (!text) return '';
             return text
                 .replace(/&/g, '&amp;').replace(/&lt;/g, '&lt;').replace(/&gt;/g, '&gt;')
-                .replace(/^### (.+)$/gm, '&lt;h3 class="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h3&gt;')
-                .replace(/^## (.+)$/gm, '&lt;h2 class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h2&gt;')
-                .replace(/^# (.+)$/gm, '&lt;h1 class="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;$1&lt;/h1&gt;')
-                .replace(/\\*\\*(.*?)\\*\\*/g, '&lt;strong&gt;$1&lt;/strong&gt;')
-                .replace(/\\*(.*?)\\*/g, '&lt;em&gt;$1&lt;/em&gt;')
+                .replace(/^### (.+)\$/gm, '&lt;h3 class="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;\$1&lt;/h3&gt;')
+                .replace(/^## (.+)\$/gm, '&lt;h2 class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;\$1&lt;/h2&gt;')
+                .replace(/^# (.+)\$/gm, '&lt;h1 class="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1"&gt;\$1&lt;/h1&gt;')
+                .replace(/\\*\\*(.*?)\\*\\*/g, '&lt;strong&gt;\$1&lt;/strong&gt;')
+                .replace(/\\*(.*?)\\*/g, '&lt;em&gt;\$1&lt;/em&gt;')
                 .replace(/\\n/g, '&lt;br&gt;');
         }
 
@@ -2525,12 +2645,13 @@ Por favor, analiza esta información y genera el análisis técnico detallado co
             } catch (e) {}
 
             if (!baseHTML) {
-                baseHTML = "&lt;!DOCTYPE html&gt;\\\n&lt;html&gt;" + document.documentElement.innerHTML + "&lt;/html&gt;";
+                baseHTML = "&lt;!DOCTYPE html&gt;\\
+&lt;html&gt;" + document.documentElement.innerHTML + "&lt;/html&gt;";
             }
 
-            const masterRegex = /let\\\s+masterSavedChanges\\\s*=\s*\\[[\\\s\\\S]*?\\]\\\s*;/;
-            const headerRegex = /let\\\s+appDocHeader\\\s*=\s*\\{[\\\s\\\S]*?\\\}\\\s*;/;
-            const wizardRegex = /let\\\s+currentWizard\\\s*=\s*\\{[\\\s\\\S]*?\\\}\\\s*;/;
+            const masterRegex = /let\\s+masterSavedChanges\\s*=s*\\[[\\s\\S]*?\\]\\s*;/;
+            const headerRegex = /let\\s+appDocHeader\\s*=s*\\{[\\s\\S]*?\\}\\s*;/;
+            const wizardRegex = /let\\s+currentWizard\\s*=s*\\{[\\s\\S]*?\\}\\s*;/;
 
             const newMasterStr = \`let masterSavedChanges = \${'\\\$JSON.stringify(masterSavedChanges, null, 4)}'};\`.replace('\\\$JSON.stringify', 'JSON.stringify');
             const newHeaderStr = \`let appDocHeader = \${'\\\$JSON.stringify(appDocHeader, null, 4)}'};\`.replace('\\\$JSON.stringify', 'JSON.stringify');
