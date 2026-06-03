@@ -429,16 +429,20 @@ class BaseClient {
 
     let finalizedContext = context.reverse();
     if (finalizedContext.length > 0) {
-       const first = finalizedContext[0];
-       if (first.role === 'assistant' && Array.isArray(first.content) && first.content.some(p => p.type === 'tool_call' || p.type === 'tool_result')) {
-           // If the sliding window truncated the user message but kept the tool call, Gemini throws 400.
-           finalizedContext.unshift({
-               role: 'user',
-               content: '(Previous context truncated)',
-               isCreatedByUser: true,
-               tokenCount: 4
-           });
-       }
+      const first = finalizedContext[0];
+      if (
+        first.role === 'assistant' &&
+        Array.isArray(first.content) &&
+        first.content.some((p) => p.type === 'tool_call' || p.type === 'tool_result')
+      ) {
+        // If the sliding window truncated the user message but kept the tool call, Gemini throws 400.
+        finalizedContext.unshift({
+          role: 'user',
+          content: '(Previous context truncated)',
+          isCreatedByUser: true,
+          tokenCount: 4,
+        });
+      }
     }
 
     return {
@@ -1282,6 +1286,23 @@ class BaseClient {
   }
 
   async processAttachments(message, attachments) {
+    const pdfFiles = attachments.filter((file) => file?.type === 'application/pdf');
+    if (pdfFiles.length > 0) {
+      try {
+        const pdfFileIds = pdfFiles.map((file) => file.file_id);
+        const childImages = await getFiles({
+          'metadata.parent_pdf': { $in: pdfFileIds },
+          type: 'image/png',
+        });
+
+        if (childImages && childImages.length > 0) {
+          attachments = [...attachments, ...childImages];
+        }
+      } catch (err) {
+        logger.error('[BaseClient] Error retrieving child page images for PDFs:', err);
+      }
+    }
+
     const categorizedAttachments = {
       images: [],
       videos: [],

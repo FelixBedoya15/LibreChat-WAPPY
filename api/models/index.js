@@ -68,6 +68,22 @@ const seedDatabase = async () => {
     console.warn('Could not force update SGSST roles on boot:', err.message);
   }
 
+  // Force update AGENTS.SHARED_GLOBAL and PROMPTS.SHARED_GLOBAL for ADMIN (Migration)
+  try {
+    const { Role } = require('~/db/models');
+    await Role.updateOne(
+      { name: 'ADMIN' },
+      {
+        $set: {
+          'permissions.AGENTS.SHARED_GLOBAL': true,
+          'permissions.PROMPTS.SHARED_GLOBAL': true,
+        },
+      },
+    );
+  } catch (err) {
+    console.warn('Could not force update ADMIN agent/prompt sharing permissions on boot:', err.message);
+  }
+
   // Fix USER_IPEVAR permissions if they got corrupted (surgical - only AGENTS.USE)
   try {
     const { Role } = require('~/db/models');

@@ -22,6 +22,11 @@ export function createRoleMethods(mongoose: typeof import('mongoose')) {
         for (const permType of Object.keys(defaultPerms)) {
           if (permissions[permType] == null || Object.keys(permissions[permType]).length === 0) {
             role.permissions[permType] = defaultPerms[permType as keyof typeof defaultPerms];
+          } else {
+            role.permissions[permType] = {
+              ...defaultPerms[permType as keyof typeof defaultPerms],
+              ...permissions[permType],
+            };
           }
         }
       }

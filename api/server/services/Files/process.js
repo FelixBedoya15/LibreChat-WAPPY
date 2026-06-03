@@ -35,6 +35,7 @@ const { LB_QueueAsyncCall } = require('~/server/utils/queue');
 const { getStrategyFunctions } = require('./strategies');
 const { determineFileType } = require('~/server/utils');
 const { STTService } = require('./Audio/STTService');
+const { convertPdfToImages } = require('./pdfToImages');
 
 /**
  * Creates a modular file upload wrapper that ensures filename sanitization
@@ -490,6 +491,34 @@ const processFileUpload = async ({ req, res, metadata }) => {
     },
     true,
   );
+
+  if (!isAssistantUpload && file.mimetype === 'application/pdf') {
+    const fsPromises = require('fs').promises;
+    const tempCopyPath = `${file.path}_copy`;
+    fsPromises
+      .copyFile(file.path, tempCopyPath)
+      .then(() => {
+        const fileCopy = { ...file, path: tempCopyPath };
+        convertPdfToImages({
+          req,
+          file: fileCopy,
+          parentFileId: result.file_id,
+          userId: req.user.id,
+        })
+          .catch((err) => logger.error('[processFileUpload] PDF conversion background error:', err))
+          .finally(() => {
+            fsPromises
+              .unlink(tempCopyPath)
+              .catch((err) =>
+                logger.error('[processFileUpload] Failed to clean up PDF copy:', err),
+              );
+          });
+      })
+      .catch((err) =>
+        logger.error('[processFileUpload] Failed to copy PDF file for background conversion:', err),
+      );
+  }
+
   res.status(200).json({ message: 'File uploaded and processed successfully', ...result });
 };
 
@@ -729,6 +758,38 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   });
 
   const result = await createFile(fileInfo, true);
+
+  if (file.mimetype === 'application/pdf') {
+    const fsPromises = require('fs').promises;
+    const tempCopyPath = `${file.path}_copy`;
+    fsPromises
+      .copyFile(file.path, tempCopyPath)
+      .then(() => {
+        const fileCopy = { ...file, path: tempCopyPath };
+        convertPdfToImages({
+          req,
+          file: fileCopy,
+          parentFileId: result.file_id,
+          userId: req.user.id,
+        })
+          .catch((err) =>
+            logger.error('[processAgentFileUpload] PDF conversion background error:', err),
+          )
+          .finally(() => {
+            fsPromises
+              .unlink(tempCopyPath)
+              .catch((err) =>
+                logger.error('[processAgentFileUpload] Failed to clean up PDF copy:', err),
+              );
+          });
+      })
+      .catch((err) =>
+        logger.error(
+          '[processAgentFileUpload] Failed to copy PDF file for background conversion:',
+          err,
+        ),
+      );
+  }
 
   res.status(200).json({ message: 'Agent file uploaded and processed successfully', ...result });
 };
