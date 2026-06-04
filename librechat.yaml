@@ -516,23 +516,18 @@ endpoints:
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
 # Web Search Configuration (optional)
-#webSearch:
-#   # Jina Reranking Configuration
-#   jinaApiKey: '${JINA_API_KEY}'  # Your Jina API key
-#   jinaApiUrl: '${JINA_API_URL}'  # Custom Jina API URL (optional, defaults to https://api.jina.ai/v1/rerank)
-#   
-#   # Other rerankers
-#   cohereApiKey: '${COHERE_API_KEY}'
-#   
-#   # Search providers
-  # serperApiKey: '${SERPER_API_KEY}'
-  #searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
-  # searxngApiKey: '${SEARXNG_API_KEY}' # Commented out as SearXNG does not require an API key
-  #searchProvider: "searxng" # Explicitly set SearXNG as the search provider
-#   
-#   # Content scrapers
-#   firecrawlApiKey: '${FIRECRAWL_API_KEY}'
-#   firecrawlApiUrl: '${FIRECRAWL_API_URL}'
+webSearch:
+  # Search providers
+  searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
+  searchProvider: "searxng"
+  
+  # Content scrapers
+  firecrawlApiKey: '${FIRECRAWL_API_KEY}'
+  firecrawlApiUrl: '${FIRECRAWL_API_URL}'
+  firecrawlVersion: '${FIRECRAWL_VERSION:-v1}'
+  
+  # Timeouts
+  scraperTimeout: 15000 # 15 seconds (give Firecrawl enough time to scrape heavy/slow pages)
 
 # Memory configuration for user memories
 memory:
