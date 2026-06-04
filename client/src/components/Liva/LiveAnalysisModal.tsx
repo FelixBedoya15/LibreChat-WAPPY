@@ -48,6 +48,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [neckAngle, setNeckAngle] = useState<number | null>(null);
     const [trunkAngle, setTrunkAngle] = useState<number | null>(null);
     const [armAngle, setArmAngle] = useState<number | null>(null);
+    const [elbowAngle, setElbowAngle] = useState<number | null>(null);
+    const [kneeAngle, setKneeAngle] = useState<number | null>(null);
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
 
@@ -96,6 +98,181 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     // Toast control Ref
     const prevHasReport = useRef(false);
+
+    // Collapse state for telemetry overlay card (to prevent covering mobile video view)
+    const [isTelemetryCollapsed, setIsTelemetryCollapsed] = useState(false);
+
+    // Dynamic Cervical (Neck) risk level calculation matching RULA/REBA guidelines
+    const neckInfo = useMemo(() => {
+        if (neckAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (neckAngle > 20) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (neckAngle > 10) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-cyan-400'
+        };
+    }, [neckAngle]);
+
+    // Dynamic Column (Trunk) risk level calculation matching RULA/REBA guidelines
+    const trunkInfo = useMemo(() => {
+        if (trunkAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (trunkAngle > 20) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (trunkAngle > 0) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [trunkAngle]);
+
+    // Dynamic Arm Abduction risk level calculation matching RULA/REBA guidelines
+    const armInfo = useMemo(() => {
+        if (armAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (armAngle > 45) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (armAngle > 20) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [armAngle]);
+
+    // Dynamic Elbow Flexion risk level calculation matching RULA guidelines
+    const elbowInfo = useMemo(() => {
+        if (elbowAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (elbowAngle < 30 || elbowAngle > 130) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if ((elbowAngle >= 30 && elbowAngle < 60) || (elbowAngle > 100 && elbowAngle <= 130)) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [elbowAngle]);
+
+    // Dynamic Knee Flexion risk level calculation matching REBA guidelines
+    const kneeInfo = useMemo(() => {
+        if (kneeAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (kneeAngle > 60) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (kneeAngle > 30) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [kneeAngle]);
+
+
 
     // ==================== HELPER FUNCTIONS & CALLBACKS ====================
 
@@ -444,6 +621,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const rightHip = landmarks[24];
         const leftElbow = landmarks[13];
         const rightElbow = landmarks[14];
+        const leftWrist = landmarks[15];
+        const rightWrist = landmarks[16];
+        const leftKnee = landmarks[25];
+        const rightKnee = landmarks[26];
+        const leftAnkle = landmarks[27];
+        const rightAnkle = landmarks[28];
 
         // Side visibility check
         const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
@@ -453,22 +636,34 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         let activeShoulder: any = null;
         let activeHip: any = null;
         let activeElbow: any = null;
+        let activeWrist: any = null;
+        let activeKnee: any = null;
+        let activeAnkle: any = null;
 
         if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
             activeEar = leftEar;
             activeShoulder = leftShoulder;
             activeHip = leftHip;
             activeElbow = leftElbow;
+            activeWrist = leftWrist;
+            activeKnee = leftKnee;
+            activeAnkle = leftAnkle;
         } else if (rightVisible) {
             activeEar = rightEar;
             activeShoulder = rightShoulder;
             activeHip = rightHip;
             activeElbow = rightElbow;
+            activeWrist = rightWrist;
+            activeKnee = rightKnee;
+            activeAnkle = rightAnkle;
         } else {
             activeEar = leftEar || rightEar;
             activeShoulder = leftShoulder || rightShoulder;
             activeHip = leftHip || rightHip;
             activeElbow = leftElbow || rightElbow;
+            activeWrist = leftWrist || rightWrist;
+            activeKnee = leftKnee || rightKnee;
+            activeAnkle = leftAnkle || rightAnkle;
         }
 
         if (activeShoulder && activeEar && activeHip) {
@@ -502,9 +697,42 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             }
             setArmAngle(armDeg);
 
+            // Elbow flexion angle (relative angle at elbow joint)
+            let elbowDegVal = null;
+            if (activeShoulder && activeElbow && activeWrist) {
+                const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
+                const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    elbowDegVal = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                }
+            }
+            setElbowAngle(elbowDegVal);
+
+            // Knee flexion angle (deviation from 180 degrees)
+            let kneeFlexVal = null;
+            if (activeHip && activeKnee && activeAnkle) {
+                const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
+                const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    const kneeRawDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                    kneeFlexVal = Math.max(0, 180 - kneeRawDeg);
+                }
+            }
+            setKneeAngle(kneeFlexVal);
+
             // Posture threshold tracking for Auto-Snapshot
             const now = Date.now();
-            if (neckDeg > 20 || trunkDeg > 20) {
+            const isElbowCritical = elbowDegVal !== null && (elbowDegVal < 30 || elbowDegVal > 130);
+            const isKneeCritical = kneeFlexVal !== null && kneeFlexVal > 60;
+            if (neckDeg > 20 || trunkDeg > 20 || armDeg > 45 || isElbowCritical || isKneeCritical) {
                 if (badPostureStartRef.current === null) {
                     badPostureStartRef.current = now;
                 } else {
@@ -527,7 +755,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 sendEvidenceImage(base64);
 
                                 // Send telemetry data directly to Gemini session!
-                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
                             }
                         }
                     }
@@ -963,7 +1191,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 } else if (selectedTemplate === 'biomecanico_estandar') {
                     templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUALITATIVO (GTC 45 / ERGONOMÍA). Guíame a través de la evaluación de posturas prolongadas, levantamiento manual de cargas, movimientos repetitivos y disponibilidad de puestos ergonómicos.";
                 } else if (selectedTemplate === 'biomecanico_mediapipe') {
-                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON MEDIAPIPE (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (ángulos del cuello y del tronco) que te enviaré en tiempo real y que se muestran en mi pantalla.";
+                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON MEDIAPIPE (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (cervical, tronco, abducción de brazos, flexión de codos y flexión de rodillas) que te enviaré en tiempo real y que se muestran en mi pantalla.";
                 } else {
                     templateGuide = "Tu enfoque de auditoría hoy es INSPECCIÓN GENERAL DE SEGURIDAD INDUSTRIAL (ISO 45001 / GTC 45). Guíame de manera general para auditar el área de trabajo.";
                 }
@@ -1209,98 +1437,177 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
 
                 {selectedTemplate === 'biomecanico_mediapipe' && isReady && (
-                    <div className="absolute top-6 right-6 z-40 w-80 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-white pointer-events-auto">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
-                                <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Telemetría de Pose</h3>
-                            </div>
-                            <span className="text-[9px] font-mono text-white/40 uppercase">GTC 45 / RULA</span>
+                    isTelemetryCollapsed ? (
+                        /* Minimized Floating Badge for clean video visibility on mobile */
+                        <div 
+                            onClick={() => setIsTelemetryCollapsed(false)}
+                            className="absolute top-4 right-4 z-40 bg-black/15 hover:bg-black/30 backdrop-blur-md border border-white/5 rounded-full px-3 py-1.5 shadow-lg flex items-center gap-2 text-white pointer-events-auto cursor-pointer transition-all hover:scale-105"
+                        >
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
+                            <span className="font-mono text-[10px] font-bold uppercase tracking-widest">Telemetría</span>
+                            <svg className="w-3.5 h-3.5 text-white/60 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4M4 20l5-5m11 5h-4m4 0v-4m0 4l-5-5"/></svg>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                            {/* Cuello Box */}
-                            <div className={`p-3 rounded-xl border transition-all duration-300 ${
-                                neckAngle !== null && neckAngle > 20 
-                                    ? 'bg-red-500/20 border-red-500/50 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
-                                    : 'bg-white/5 border-white/10 text-white/90'
-                            }`}>
-                                <div className="text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Cervical (Cuello)</div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className={`text-2xl font-mono font-black ${
-                                        neckAngle !== null && neckAngle > 20 ? 'text-red-400 animate-pulse' : 'text-cyan-400'
-                                    }`}>
-                                        {neckAngle !== null ? `${neckAngle}°` : '--'}
-                                    </span>
-                                    <span className="text-[9px] uppercase font-bold">
-                                        {neckAngle !== null && neckAngle > 20 ? 'Alerta' : 'Normal'}
-                                    </span>
+                    ) : (
+                        /* Highly translucent, responsive panel with collapse button */
+                        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-40 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-black/12 backdrop-blur-[3px] border border-white/5 rounded-2xl p-4 shadow-xl flex flex-col gap-3 text-white pointer-events-auto transition-all duration-300">
+                            <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
+                                    <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Telemetría de Pose</h3>
                                 </div>
-                                <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
-                                    <div 
-                                        className={`h-full transition-all duration-300 ${
-                                            neckAngle !== null && neckAngle > 20 ? 'bg-red-500' : 'bg-cyan-500'
-                                        }`}
-                                        style={{ width: `${neckAngle !== null ? Math.min(100, (neckAngle / 90) * 100) : 0}%` }}
-                                    />
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[9px] font-mono text-white/40 uppercase">GTC 45 / RULA</span>
+                                    <button 
+                                        onClick={() => setIsTelemetryCollapsed(true)}
+                                        className="p-1 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors"
+                                        title="Minimizar panel"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18 12H6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2.5">
+                                {/* Cuello Box */}
+                                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${neckInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Cervical (Cuello)</div>
+                                    <div className="flex items-baseline justify-between">
+                                        <span className={`text-xl font-mono font-black ${neckInfo.valColorClass}`}>
+                                            {neckAngle !== null ? `${neckAngle}°` : '--'}
+                                        </span>
+                                        <span className={`text-[8.5px] uppercase font-black ${neckInfo.textClass}`}>
+                                            {neckInfo.status}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-300 ${
+                                                neckAngle !== null && neckAngle > 20 ? 'bg-red-500' : neckAngle !== null && neckAngle > 10 ? 'bg-amber-500' : 'bg-cyan-500'
+                                            }`}
+                                            style={{ width: `${neckAngle !== null ? Math.min(100, (neckAngle / 90) * 100) : 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Tronco Box */}
+                                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${trunkInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Columna (Tronco)</div>
+                                    <div className="flex items-baseline justify-between">
+                                        <span className={`text-xl font-mono font-black ${trunkInfo.valColorClass}`}>
+                                            {trunkAngle !== null ? `${trunkAngle}°` : '--'}
+                                        </span>
+                                        <span className={`text-[8.5px] uppercase font-black ${trunkInfo.textClass}`}>
+                                            {trunkInfo.status}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-300 ${
+                                                trunkAngle !== null && trunkAngle > 20 ? 'bg-red-500' : trunkAngle !== null && trunkAngle > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                                            }`}
+                                            style={{ width: `${trunkAngle !== null ? Math.min(100, (trunkAngle / 90) * 100) : 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Arm Abduction Box */}
+                                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${armInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Brazos (Abduc.)</div>
+                                    <div className="flex items-baseline justify-between">
+                                        <span className={`text-xl font-mono font-black ${armInfo.valColorClass}`}>
+                                            {armAngle !== null ? `${armAngle}°` : '--'}
+                                        </span>
+                                        <span className={`text-[8.5px] uppercase font-black ${armInfo.textClass}`}>
+                                            {armInfo.status}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-300 ${
+                                                armAngle !== null && armAngle > 45 ? 'bg-red-500' : armAngle !== null && armAngle > 20 ? 'bg-amber-500' : 'bg-emerald-500'
+                                            }`}
+                                            style={{ width: `${armAngle !== null ? Math.min(100, (armAngle / 180) * 100) : 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Elbow Flexion Box */}
+                                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${elbowInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Codos (Flex.)</div>
+                                    <div className="flex items-baseline justify-between">
+                                        <span className={`text-xl font-mono font-black ${elbowInfo.valColorClass}`}>
+                                            {elbowAngle !== null ? `${elbowAngle}°` : '--'}
+                                        </span>
+                                        <span className={`text-[8.5px] uppercase font-black ${elbowInfo.textClass}`}>
+                                            {elbowInfo.status}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-300 ${
+                                                elbowAngle !== null && (elbowAngle < 30 || elbowAngle > 130) ? 'bg-red-500' : elbowAngle !== null && ((elbowAngle >= 30 && elbowAngle < 60) || (elbowAngle > 100 && elbowAngle <= 130)) ? 'bg-amber-500' : 'bg-emerald-500'
+                                            }`}
+                                            style={{ width: `${elbowAngle !== null ? Math.min(100, (elbowAngle / 180) * 100) : 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Knee Flexion Box */}
+                                <div className={`col-span-2 p-2.5 rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Flexión de Rodillas</div>
+                                    <div className="flex items-baseline justify-between">
+                                        <span className={`text-xl font-mono font-black ${kneeInfo.valColorClass}`}>
+                                            {kneeAngle !== null ? `${kneeAngle}°` : '--'}
+                                        </span>
+                                        <span className={`text-[8.5px] uppercase font-black ${kneeInfo.textClass}`}>
+                                            {kneeInfo.status}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-300 ${
+                                                kneeAngle !== null && kneeAngle > 60 ? 'bg-red-500' : kneeAngle !== null && kneeAngle > 30 ? 'bg-amber-500' : 'bg-emerald-500'
+                                            }`}
+                                            style={{ width: `${kneeAngle !== null ? Math.min(100, (kneeAngle / 120) * 100) : 0}%` }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Tronco Box */}
-                            <div className={`p-3 rounded-xl border transition-all duration-300 ${
-                                trunkAngle !== null && trunkAngle > 20 
-                                    ? 'bg-red-500/20 border-red-500/50 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
-                                    : 'bg-white/5 border-white/10 text-white/90'
-                            }`}>
-                                <div className="text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Columna (Tronco)</div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className={`text-2xl font-mono font-black ${
-                                        trunkAngle !== null && trunkAngle > 20 ? 'text-red-400 animate-pulse' : 'text-emerald-400'
-                                    }`}>
-                                        {trunkAngle !== null ? `${trunkAngle}°` : '--'}
-                                    </span>
-                                    <span className="text-[9px] uppercase font-bold">
-                                        {trunkAngle !== null && trunkAngle > 20 ? 'Riesgo' : 'Seguro'}
+                            {/* Warnings Alert Box */}
+                            {(neckAngle !== null && neckAngle > 10) || 
+                             (trunkAngle !== null && trunkAngle > 0) || 
+                             (armAngle !== null && armAngle > 20) || 
+                             (elbowAngle !== null && (elbowAngle < 60 || elbowAngle > 100)) || 
+                             (kneeAngle !== null && kneeAngle > 30) ? (
+                                <div className={`border px-2.5 py-1.5 rounded-xl flex items-center gap-2 text-[10px] font-bold ${
+                                    (neckAngle !== null && neckAngle > 20) || 
+                                    (trunkAngle !== null && trunkAngle > 20) || 
+                                    (armAngle !== null && armAngle > 45) || 
+                                    (elbowAngle !== null && (elbowAngle < 30 || elbowAngle > 130)) || 
+                                    (kneeAngle !== null && kneeAngle > 60)
+                                        ? 'bg-red-500/10 border-red-500/20 text-red-200 animate-pulse'
+                                        : 'bg-amber-500/10 border-amber-500/15 text-amber-200'
+                                }`}>
+                                    <span>⚠️</span>
+                                    <span>
+                                        {(neckAngle !== null && neckAngle > 20) || 
+                                         (trunkAngle !== null && trunkAngle > 20) || 
+                                         (armAngle !== null && armAngle > 45) || 
+                                         (elbowAngle !== null && (elbowAngle < 30 || elbowAngle > 130)) || 
+                                         (kneeAngle !== null && kneeAngle > 60)
+                                            ? '¡Postura Crítica Detectada! Guardando evidencia...'
+                                            : 'Postura ergonómica subóptima (Riesgo Moderado)'}
                                     </span>
                                 </div>
-                                <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
-                                    <div 
-                                        className={`h-full transition-all duration-300 ${
-                                            trunkAngle !== null && trunkAngle > 20 ? 'bg-red-500' : 'bg-emerald-500'
-                                        }`}
-                                        style={{ width: `${trunkAngle !== null ? Math.min(100, (trunkAngle / 90) * 100) : 0}%` }}
-                                    />
+                            ) : (
+                                <div className="bg-emerald-500/5 border border-emerald-500/10 px-2.5 py-1.5 rounded-xl flex items-center gap-2 text-emerald-300 text-[10px] font-medium">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                                    <span>Postura segura bajo el estándar RULA</span>
                                 </div>
-                            </div>
+                            )}
                         </div>
-
-                        {/* Arm Abduction Box */}
-                        <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
-                            <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">
-                                <span>Abducción de Brazos</span>
-                                <span className="text-cyan-300 font-bold">{armAngle !== null ? `${armAngle}°` : '--'}</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
-                                    style={{ width: `${armAngle !== null ? Math.min(100, (armAngle / 180) * 100) : 0}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Warnings Alert Box */}
-                        {(neckAngle !== null && neckAngle > 20) || (trunkAngle !== null && trunkAngle > 20) ? (
-                            <div className="bg-red-500/20 border border-red-500/40 px-3 py-2 rounded-xl flex items-center gap-2 text-red-200 text-xs font-semibold animate-pulse">
-                                <span>⚠️</span>
-                                <span>¡Postura Crítica Detectada! Grabando evidencia...</span>
-                            </div>
-                        ) : (
-                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl flex items-center gap-2 text-emerald-300 text-xs">
-                                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
-                                <span>Posturas seguras bajo el estándar RULA</span>
-                            </div>
-                        )}
-                    </div>
+                    )
                 )}
 
                 {/* Video Preview (Main Focus) */}
@@ -1395,7 +1702,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     )}
 
                     {/* Control Bar - Premium Glassmorphism */}
-                    <div className="flex items-center justify-center gap-2 md:gap-4 bg-black/60 backdrop-blur-2xl px-4 md:px-8 py-3 md:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group">
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-4 bg-black/60 backdrop-blur-2xl px-2.5 sm:px-8 py-2 sm:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group max-w-[95vw]">
                         
                         {/* Camera Toggle */}
                         <TooltipAnchor
@@ -1404,12 +1711,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 <button
                                     onClick={toggleCamera}
                                     disabled={isScreenSharing}
-                                    className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn
+                                    className={`p-2.5 sm:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn
                                         ? 'bg-white text-black shadow-lg shadow-white/20'
                                         : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
                                         } ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
                                 >
-                                    {isCameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                                    {isCameraOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                 </button>
                             }
                         />
@@ -1421,9 +1728,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 render={
                                     <button
                                         onClick={handleManualCapture}
-                                        className="p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                        className="p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
                                     >
-                                        <Camera className="w-5 h-5" />
+                                        <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </button>
                                 }
                             />
@@ -1436,15 +1743,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 render={
                                     <button
                                         onClick={switchCamera}
-                                        className="p-4 rounded-full bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 border border-amber-500/30 transition-all transform active:rotate-180 duration-500 shadow-md shadow-amber-900/20"
+                                        className="p-2.5 sm:p-4 rounded-full bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 border border-amber-500/30 transition-all transform active:rotate-180 duration-500 shadow-md shadow-amber-900/20"
                                     >
-                                        <RefreshCcw className="w-5 h-5" />
+                                        <RefreshCcw className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </button>
                                 }
                             />
                         )}
 
-                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+                        <div className="w-[1px] h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2"></div>
 
                         {/* Microphone Toggle (Center Piece) */}
                         <TooltipAnchor
@@ -1452,14 +1759,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             render={
                                 <button
                                     onClick={toggleMute}
-                                    className={`p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted
+                                    className={`p-3.5 sm:p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted
                                         ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md'
-                                        : 'bg-white text-black shadow-xl shadow-white/10 scale-110 border-4 border-white'
+                                        : 'bg-white text-black shadow-xl shadow-white/10 scale-105 sm:scale-110 border-4 border-white'
                                         }`}
                                 >
-                                    {isMuted ? <MicOff className="w-7 h-7" /> : (
+                                    {isMuted ? <MicOff className="w-6 h-6 sm:w-7 sm:h-7" /> : (
                                         <div className="relative">
-                                            <Mic className="w-7 h-7" />
+                                            <Mic className="w-6 h-6 sm:w-7 sm:h-7" />
                                             {status === 'listening' && (
                                                 <span className="absolute -top-3 -right-3 flex h-4 w-4">
                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
@@ -1472,7 +1779,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             }
                         />
 
-                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+                        <div className="w-[1px] h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2"></div>
 
                         {/* Screen Share Toggle */}
                         {supportsScreenShare && (
@@ -1482,12 +1789,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     <button
                                         onClick={toggleScreenShare}
                                         disabled={isCameraOn}
-                                        className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing
+                                        className={`p-2.5 sm:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing
                                             ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 border border-blue-400/30'
                                             : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20'
                                             } ${isCameraOn ? 'opacity-20 cursor-not-allowed' : ''}`}
                                     >
-                                        {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                                        {isScreenSharing ? <MonitorOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />}
                                     </button>
                                 }
                             />
@@ -1499,9 +1806,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             render={
                                 <button
                                     onClick={handleClose}
-                                    className="p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all duration-300 transform hover:scale-110 active:scale-95 border border-red-400/20"
+                                    className="p-2.5 sm:p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all duration-300 transform hover:scale-110 active:scale-95 border border-red-400/20"
                                 >
-                                    <PhoneOff className="w-5 h-5" />
+                                    <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                             }
                         />
