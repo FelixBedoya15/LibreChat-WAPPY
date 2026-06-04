@@ -58,6 +58,22 @@ const startServer = async () => {
   await connectDb();
 
   logger.info('Connected to MongoDB');
+
+  // Temporary migration to approve Estefania's payment
+  try {
+    const ComunidadPurchase = require('../models/ComunidadPurchase');
+    const updated = await ComunidadPurchase.findOneAndUpdate(
+      { email: 'prevencionlaboralsgsst@gmail.com', wompiReference: 'WAP-COM-BZAA600-131698' },
+      { $set: { isPaid: true, status: 'APPROVED' } },
+      { new: true }
+    );
+    if (updated) {
+      logger.info(`[Migration] Approved purchase for Estefania: ${updated.email}`);
+    }
+  } catch (err) {
+    logger.error('[Migration] Error approving purchase for Estefania:', err);
+  }
+
   indexSync().catch((err) => {
     logger.error('[indexSync] Background sync failed:', err);
   });

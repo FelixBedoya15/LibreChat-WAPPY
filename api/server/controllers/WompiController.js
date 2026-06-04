@@ -395,6 +395,23 @@ const handleWebhook = async (req, res) => {
         }
 
         // Update transaction in our DB
+        if (reference && reference.startsWith('WAP-COM-')) {
+            const ComunidadPurchase = require('../../models/ComunidadPurchase');
+            const purchase = await ComunidadPurchase.findOne({ wompiReference: reference });
+            if (!purchase) {
+                console.error('[Wompi Webhook] Unknown Comunidad reference:', reference);
+                return res.status(200).send('Reference unknown');
+            }
+            const wasAlreadyApproved = purchase.isPaid === true || purchase.status === 'APPROVED';
+            purchase.status = status;
+            if (status === 'APPROVED') {
+                purchase.isPaid = true;
+            }
+            await purchase.save();
+            console.log(`[Wompi Webhook] Updated ComunidadPurchase ${reference} to ${status}. Paid: ${purchase.isPaid}`);
+            return res.status(200).send('OK');
+        }
+
         const wompiTx = await WompiTransaction.findOne({ reference });
         if (!wompiTx) {
             console.error('[Wompi Webhook] Unknown reference:', reference);
