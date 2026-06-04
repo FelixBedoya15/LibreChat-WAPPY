@@ -191,7 +191,7 @@ router.post('/offline-report', requireJwtAuth, async (req, res) => {
       templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
 En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
     } else if (activeTemplate === 'biomecanico_mediapipe') {
-      templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por MediaPipe Pose y criterios RULA/REBA.
+      templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por Visión IA y criterios RULA/REBA.
 Durante la sesión se ha registrado telemetría de ángulos articulares: Flexión de Cuello (cervical), Inclinación de Columna (tronco) y Abducción de Brazos. Las alertas críticas se disparan cuando los ángulos superan los 20° en cuello y espalda (posturas de alto riesgo ergonómico) de manera sostenida.
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
 1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa RULA/REBA</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).

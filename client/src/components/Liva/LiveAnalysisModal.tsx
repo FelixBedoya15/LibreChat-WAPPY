@@ -408,8 +408,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             let evidenceHtml = '';
             if (snapshots.length > 0) {
                 const imgItems = snapshots.map((src, idx) => `
-                    <div style="flex:1; min-width:200px; text-align:center; margin-bottom:12px;">
-                        <img src="${src}" alt="Evidencia ${idx+1}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+                    <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
+                        <img src="${src}" alt="Evidencia ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
                         <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura de evidencia del entorno analizado.</p>
                     </div>`).join('');
                 evidenceHtml = `
@@ -935,8 +935,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (!isOpen || selectedTemplate !== 'biomecanico_mediapipe') return;
 
         let active = true;
-        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading MediaPipe...');
-        setStatusText('Loading MediaPipe Pose...');
+        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading Vision AI...');
+        setStatusText('Cargando Visión Artificial...');
 
         const loadAll = async () => {
             try {
@@ -944,14 +944,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
                 
                 if (active) {
-                    console.log('[LiveAnalysisModal] MediaPipe Pose successfully loaded!');
+                    console.log('[LiveAnalysisModal] Vision AI successfully loaded!');
                     setIsMediaPipeLoaded(true);
-                    setStatusText('MediaPipe Ready');
+                    setStatusText('Visión IA Preparada');
                 }
             } catch (err) {
-                console.error('[LiveAnalysisModal] Error loading MediaPipe Pose scripts:', err);
+                console.error('[LiveAnalysisModal] Error loading Vision AI scripts:', err);
                 if (active) {
-                    setStatusText('MediaPipe Load Error');
+                    setStatusText('Error de Visión IA');
                 }
             }
         };
@@ -1191,7 +1191,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 } else if (selectedTemplate === 'biomecanico_estandar') {
                     templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUALITATIVO (GTC 45 / ERGONOMÍA). Guíame a través de la evaluación de posturas prolongadas, levantamiento manual de cargas, movimientos repetitivos y disponibilidad de puestos ergonómicos.";
                 } else if (selectedTemplate === 'biomecanico_mediapipe') {
-                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON MEDIAPIPE (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (cervical, tronco, abducción de brazos, flexión de codos y flexión de rodillas) que te enviaré en tiempo real y que se muestran en mi pantalla.";
+                    templateGuide = "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON VISIÓN IA (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (cervical, tronco, abducción de brazos, flexión de codos y flexión de rodillas) que te enviaré en tiempo real y que se muestran en mi pantalla.";
                 } else {
                     templateGuide = "Tu enfoque de auditoría hoy es INSPECCIÓN GENERAL DE SEGURIDAD INDUSTRIAL (ISO 45001 / GTC 45). Guíame de manera general para auditar el área de trabajo.";
                 }
@@ -1352,11 +1352,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     <div className="p-3 bg-cyan-50 border border-cyan-100 rounded-xl text-cyan-600 group-hover:scale-110 transition-transform shadow-sm">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                     </div>
-                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">MEDIAPIPE POSE</span>
+                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">VISIÓN IA</span>
                                 </div>
                                 <div className="mt-4 z-10">
-                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-cyan-600 transition-colors">Biomecánico (MediaPipe)</h3>
-                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Evaluación cuantitativa en tiempo real con esqueleto digital fluorescente, medición de ángulos cervical y tronco en vivo.</p>
+                                    <h3 className="text-slate-800 text-lg font-bold group-hover:text-cyan-600 transition-colors">Biomecánico (Visión IA)</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">Evaluación cuantitativa en tiempo real con esqueleto digital predictivo, medición de ángulos cervical, tronco, codos y rodillas en vivo.</p>
                                 </div>
                             </div>
                         </div>

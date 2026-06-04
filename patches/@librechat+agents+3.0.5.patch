@@ -107,6 +107,50 @@ index 3579d89..4c52770 100644
                  formattedMessages.push(new messages.ToolMessage({
                      tool_call_id: tool_call.id ?? '',
                      name: tool_call.name,
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
+index b5dfd0e..94c3cf8 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
+@@ -10,25 +10,8 @@ exports.DATE_RANGE = void 0;
+     DATE_RANGE["PAST_MONTH"] = "m";
+     DATE_RANGE["PAST_YEAR"] = "y";
+ })(exports.DATE_RANGE || (exports.DATE_RANGE = {}));
+-const DEFAULT_QUERY_DESCRIPTION = `
+-GUIDELINES:
+-- Start broad, then narrow: Begin with key concepts, then refine with specifics
+-- Think like sources: Use terminology experts would use in the field
+-- Consider perspective: Frame queries from different viewpoints for better results
+-- Quality over quantity: A precise 3-4 word query often beats lengthy sentences
++const DEFAULT_QUERY_DESCRIPTION = 'The search query to look up on the web. Make it concise and relevant to the user request. Do not search for single generic words like "que" or "what".';
+ 
+-TECHNIQUES (combine for power searches):
+-- EXACT PHRASES: Use quotes ("climate change report")
+-- EXCLUDE TERMS: Use minus to remove unwanted results (-wikipedia)
+-- SITE-SPECIFIC: Restrict to websites (site:edu research)
+-- FILETYPE: Find specific documents (filetype:pdf study)
+-- OR OPERATOR: Find alternatives (electric OR hybrid cars)
+-- DATE RANGE: Recent information (data after:2020)
+-- WILDCARDS: Use * for unknown terms (how to * bread)
+-- SPECIFIC QUESTIONS: Use who/what/when/where/why/how
+-- DOMAIN TERMS: Include technical terminology for specialized topics
+-- CONCISE TERMS: Prioritize keywords over sentences
+-`.trim();
+ const DEFAULT_COUNTRY_DESCRIPTION = `Country code to localize search results.
+ Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
+ Provide this when the search should return results specific to a particular country.
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
+index 7f57687..94fa4f0 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
+@@ -184,7 +184,7 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+                 format: 'json',
+                 pageno: 1,
+                 categories: category,
+-                language: 'all',
++                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
+                 safesearch: safeSearch,
+                 engines: 'google,bing,duckduckgo',
+             };
 diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
 index f936ded..1aa6088 100644
 --- a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
@@ -126,6 +170,50 @@ index f936ded..1aa6088 100644
      static lc_name() {
          return 'LibreChatGoogleGenerativeAI';
      }
+diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
+index bf47fd9..abf44d5 100644
+--- a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
++++ b/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
+@@ -8,25 +8,8 @@ var DATE_RANGE;
+     DATE_RANGE["PAST_MONTH"] = "m";
+     DATE_RANGE["PAST_YEAR"] = "y";
+ })(DATE_RANGE || (DATE_RANGE = {}));
+-const DEFAULT_QUERY_DESCRIPTION = `
+-GUIDELINES:
+-- Start broad, then narrow: Begin with key concepts, then refine with specifics
+-- Think like sources: Use terminology experts would use in the field
+-- Consider perspective: Frame queries from different viewpoints for better results
+-- Quality over quantity: A precise 3-4 word query often beats lengthy sentences
++const DEFAULT_QUERY_DESCRIPTION = 'The search query to look up on the web. Make it concise and relevant to the user request. Do not search for single generic words like "que" or "what".';
+ 
+-TECHNIQUES (combine for power searches):
+-- EXACT PHRASES: Use quotes ("climate change report")
+-- EXCLUDE TERMS: Use minus to remove unwanted results (-wikipedia)
+-- SITE-SPECIFIC: Restrict to websites (site:edu research)
+-- FILETYPE: Find specific documents (filetype:pdf study)
+-- OR OPERATOR: Find alternatives (electric OR hybrid cars)
+-- DATE RANGE: Recent information (data after:2020)
+-- WILDCARDS: Use * for unknown terms (how to * bread)
+-- SPECIFIC QUESTIONS: Use who/what/when/where/why/how
+-- DOMAIN TERMS: Include technical terminology for specialized topics
+-- CONCISE TERMS: Prioritize keywords over sentences
+-`.trim();
+ const DEFAULT_COUNTRY_DESCRIPTION = `Country code to localize search results.
+ Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
+ Provide this when the search should return results specific to a particular country.
+diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
+index 62b7ecf..51bf791 100644
+--- a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
++++ b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
+@@ -182,7 +182,7 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+                 format: 'json',
+                 pageno: 1,
+                 categories: category,
+-                language: 'all',
++                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
+                 safesearch: safeSearch,
+                 engines: 'google,bing,duckduckgo',
+             };
 diff --git a/node_modules/@librechat/agents/src/llm/google/index.ts b/node_modules/@librechat/agents/src/llm/google/index.ts
 index 2ab8c94..6e2954a 100644
 --- a/node_modules/@librechat/agents/src/llm/google/index.ts
@@ -146,3 +234,47 @@ index 2ab8c94..6e2954a 100644
    static lc_name(): 'LibreChatGoogleGenerativeAI' {
      return 'LibreChatGoogleGenerativeAI';
    }
+diff --git a/node_modules/@librechat/agents/src/tools/search/schema.ts b/node_modules/@librechat/agents/src/tools/search/schema.ts
+index 9a39d88..10ac23b 100644
+--- a/node_modules/@librechat/agents/src/tools/search/schema.ts
++++ b/node_modules/@librechat/agents/src/tools/search/schema.ts
+@@ -8,25 +8,8 @@ export enum DATE_RANGE {
+   PAST_YEAR = 'y',
+ }
+ 
+-export const DEFAULT_QUERY_DESCRIPTION = `
+-GUIDELINES:
+-- Start broad, then narrow: Begin with key concepts, then refine with specifics
+-- Think like sources: Use terminology experts would use in the field
+-- Consider perspective: Frame queries from different viewpoints for better results
+-- Quality over quantity: A precise 3-4 word query often beats lengthy sentences
++export const DEFAULT_QUERY_DESCRIPTION = 'The search query to look up on the web. Make it concise and relevant to the user request. Do not search for single generic words like "que" or "what".';
+ 
+-TECHNIQUES (combine for power searches):
+-- EXACT PHRASES: Use quotes ("climate change report")
+-- EXCLUDE TERMS: Use minus to remove unwanted results (-wikipedia)
+-- SITE-SPECIFIC: Restrict to websites (site:edu research)
+-- FILETYPE: Find specific documents (filetype:pdf study)
+-- OR OPERATOR: Find alternatives (electric OR hybrid cars)
+-- DATE RANGE: Recent information (data after:2020)
+-- WILDCARDS: Use * for unknown terms (how to * bread)
+-- SPECIFIC QUESTIONS: Use who/what/when/where/why/how
+-- DOMAIN TERMS: Include technical terminology for specialized topics
+-- CONCISE TERMS: Prioritize keywords over sentences
+-`.trim();
+ 
+ export const DEFAULT_COUNTRY_DESCRIPTION =
+   `Country code to localize search results.
+diff --git a/node_modules/@librechat/agents/src/tools/search/search.ts b/node_modules/@librechat/agents/src/tools/search/search.ts
+index e6b4aa8..53eb203 100644
+--- a/node_modules/@librechat/agents/src/tools/search/search.ts
++++ b/node_modules/@librechat/agents/src/tools/search/search.ts
+@@ -266,7 +266,7 @@ const createSearXNGAPI = (
+         format: 'json',
+         pageno: 1,
+         categories: category,
+-        language: 'all',
++        language: process.env.SEARXNG_LANGUAGE || 'es-CO',
+         safesearch: safeSearch,
+         engines: 'google,bing,duckduckgo',
+       };

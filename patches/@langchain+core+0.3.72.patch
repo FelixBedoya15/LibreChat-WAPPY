@@ -1,0 +1,64 @@
+diff --git a/node_modules/@langchain/core/dist/tracers/event_stream.cjs b/node_modules/@langchain/core/dist/tracers/event_stream.cjs
+index 7e027e1..1652765 100644
+--- a/node_modules/@langchain/core/dist/tracers/event_stream.cjs
++++ b/node_modules/@langchain/core/dist/tracers/event_stream.cjs
+@@ -232,7 +232,11 @@ class EventStreamCallbackHandler extends base_js_1.BaseTracer {
+     }
+     async send(payload, run) {
+         if (this._includeRun(run)) {
+-            await this.writer.write(payload);
++            try {
++                await this.writer.write(payload);
++            } catch (e) {
++                // Suppress errors when writing to a closed or aborted stream
++            }
+         }
+     }
+     async sendEndEvent(payload, run) {
+@@ -525,8 +529,12 @@ class EventStreamCallbackHandler extends base_js_1.BaseTracer {
+     }
+     async finish() {
+         const pendingPromises = [...this.tappedPromises.values()];
+-        void Promise.all(pendingPromises).finally(() => {
+-            void this.writer.close();
++        void Promise.all(pendingPromises).finally(async () => {
++            try {
++                await this.writer.close();
++            } catch (e) {
++                // Suppress close errors
++            }
+         });
+     }
+ }
+diff --git a/node_modules/@langchain/core/dist/tracers/event_stream.js b/node_modules/@langchain/core/dist/tracers/event_stream.js
+index d9262a7..6db1109 100644
+--- a/node_modules/@langchain/core/dist/tracers/event_stream.js
++++ b/node_modules/@langchain/core/dist/tracers/event_stream.js
+@@ -228,7 +228,11 @@ export class EventStreamCallbackHandler extends BaseTracer {
+     }
+     async send(payload, run) {
+         if (this._includeRun(run)) {
+-            await this.writer.write(payload);
++            try {
++                await this.writer.write(payload);
++            } catch (e) {
++                // Suppress errors when writing to a closed or aborted stream
++            }
+         }
+     }
+     async sendEndEvent(payload, run) {
+@@ -521,8 +525,12 @@ export class EventStreamCallbackHandler extends BaseTracer {
+     }
+     async finish() {
+         const pendingPromises = [...this.tappedPromises.values()];
+-        void Promise.all(pendingPromises).finally(() => {
+-            void this.writer.close();
++        void Promise.all(pendingPromises).finally(async () => {
++            try {
++                await this.writer.close();
++            } catch (e) {
++                // Suppress close errors
++            }
+         });
+     }
+ }

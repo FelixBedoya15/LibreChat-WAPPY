@@ -919,7 +919,7 @@ class VoiceSession {
                 templateInstructions = `ENFOQUE DE AUDITORÍA: Riesgo Biomecánico Estándar (Cualitativo) bajo la guía GTC 45. Analiza exhaustivamente posturas (prolongadas, forzadas, mantenidas, anti-gravitacionales), movimientos repetitivos y manipulación manual de cargas.
 En la matriz de peligros, enfócate en el peligro Biomecánico, detallando los efectos a la salud asociados (e.g., trastornos musculoesqueléticos, fatiga muscular, lesiones lumbares). Diseña medidas de control orientadas al rediseño de puestos de trabajo, pausas activas especializadas y rotación de tareas.`;
             } else if (activeTemplate === 'biomecanico_mediapipe') {
-                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por MediaPipe Pose y criterios RULA/REBA.
+                templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo en tiempo real asistido por Visión IA y criterios RULA/REBA.
 Durante la sesión se ha registrado telemetría de ángulos articulares: Flexión de Cuello (cervical), Inclinación de Columna (tronco) y Abducción de Brazos. Las alertas críticas se disparan cuando los ángulos superan los 20° en cuello y espalda (posturas de alto riesgo ergonómico) de manera sostenida.
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
 1. Debes incluir una sección especial titulada '<h3>4.1 Evaluación Ergonómica Cuantitativa RULA/REBA</h3>' inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5).
@@ -1157,8 +1157,8 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             let evidenceHtml = '';
             if (framesToUse.length > 0) {
                 const imgItems = framesToUse.map((b64, idx) => `
-                    <div style="flex:1; min-width:200px; text-align:center; margin-bottom:12px;">
-                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+                    <div style="flex:1 1 calc(33.333% - 16px); max-width:300px; min-width:200px; text-align:center; margin-bottom:12px; box-sizing:border-box;">
+                        <img src="data:image/jpeg;base64,${b64}" alt="Evidencia ${idx+1}" style="width:100%; height:240px; object-fit:contain; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.05);" />
                         <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura de evidencia del entorno analizado.</p>
                     </div>`).join('');
                 evidenceHtml = `
