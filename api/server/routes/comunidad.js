@@ -39,6 +39,7 @@ router.post('/checkout', controller.createComunidadCheckout);
 router.post('/verify', controller.verifyComunidadTransaction);
 router.post('/check-access', controller.checkComunidadAccess);
 router.post('/video-finished', controller.markVideoFinished);
+router.post('/metrics/session', controller.registerSessionMetric);
 
 router.get('/download/:filename', async (req, res) => {
     try {
@@ -63,6 +64,7 @@ router.get('/download/:filename', async (req, res) => {
 router.post('/config', requireJwtAuth, requireAdmin, controller.updateComunidadConfig);
 router.get('/purchases', requireJwtAuth, requireAdmin, controller.getAllPurchases);
 router.delete('/purchases/:id', requireJwtAuth, requireAdmin, controller.deletePurchase);
+router.get('/metrics/stats', requireJwtAuth, requireAdmin, controller.getMetricsStats);
 
 router.post('/upload', requireJwtAuth, requireAdmin, upload.single('file'), async (req, res) => {
     try {

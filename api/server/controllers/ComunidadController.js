@@ -4,6 +4,7 @@ const axios = require('axios');
 const ComunidadConfig = require('../../models/ComunidadConfig');
 const ComunidadPurchase = require('../../models/ComunidadPurchase');
 const { Lead } = require('../../models/Lead');
+const ComunidadSession = require('../../models/ComunidadSession');
 const { logger } = require('@librechat/data-schemas');
 
 const getComunidadConfig = async (req, res) => {
@@ -17,7 +18,12 @@ const getComunidadConfig = async (req, res) => {
                 price: 0,
                 gatingSeconds: 120,
                 gatingEnabled: true,
-                downloadableFiles: []
+                downloadableFiles: [],
+                whatsappUrl: 'https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4',
+                extraVideoUrl1: '',
+                extraVideoTitle1: 'Clase Extra 1',
+                extraVideoUrl2: '',
+                extraVideoTitle2: 'Clase Extra 2'
             });
             await config.save();
         }
@@ -30,7 +36,10 @@ const getComunidadConfig = async (req, res) => {
 
 const updateComunidadConfig = async (req, res) => {
     try {
-        const { videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles } = req.body;
+        const { 
+            videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles,
+            whatsappUrl, extraVideoUrl1, extraVideoTitle1, extraVideoUrl2, extraVideoTitle2
+        } = req.body;
         
         let config = await ComunidadConfig.findOne({ isGlobalSetting: true });
         if (!config) {
@@ -43,6 +52,11 @@ const updateComunidadConfig = async (req, res) => {
         if (gatingSeconds !== undefined) config.gatingSeconds = Number(gatingSeconds) || 120;
         if (gatingEnabled !== undefined) config.gatingEnabled = gatingEnabled;
         if (downloadableFiles !== undefined) config.downloadableFiles = downloadableFiles;
+        if (whatsappUrl !== undefined) config.whatsappUrl = whatsappUrl;
+        if (extraVideoUrl1 !== undefined) config.extraVideoUrl1 = extraVideoUrl1;
+        if (extraVideoTitle1 !== undefined) config.extraVideoTitle1 = extraVideoTitle1;
+        if (extraVideoUrl2 !== undefined) config.extraVideoUrl2 = extraVideoUrl2;
+        if (extraVideoTitle2 !== undefined) config.extraVideoTitle2 = extraVideoTitle2;
 
         await config.save();
         return res.json({ success: true, config });
@@ -242,6 +256,95 @@ const deletePurchase = async (req, res) => {
     }
 };
 
+const registerSessionMetric = async (req, res) => {
+    try {
+        const { sessionId, durationSeconds, clickType } = req.body;
+        if (!sessionId) {
+            return res.status(400).json({ error: 'Falta ID de sesión.' });
+        }
+
+        const update = { $set: { updatedAt: new Date() } };
+
+        if (durationSeconds !== undefined) {
+            update.$set.durationSeconds = Number(durationSeconds) || 0;
+        }
+
+        if (clickType) {
+            const allowedClicks = ['playVideo', 'quickAccess', 'checkoutSubmit', 'downloadFile', 'recoverAccess', 'whatsapp'];
+            if (allowedClicks.includes(clickType)) {
+                update.$inc = { [`clicks.${clickType}`]: 1 };
+            }
+        }
+
+        const session = await ComunidadSession.findOneAndUpdate(
+            { sessionId: sessionId.trim() },
+            update,
+            { new: true, upsert: true }
+        );
+
+        return res.json({ success: true, session });
+    } catch (err) {
+        logger.error('[ComunidadController] registerSessionMetric error:', err);
+        return res.status(500).json({ error: 'Error al registrar métricas.' });
+    }
+};
+
+const getMetricsStats = async (req, res) => {
+    try {
+        const totalVisits = await ComunidadSession.countDocuments();
+        
+        const durationStats = await ComunidadSession.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    avgDuration: { $avg: "$durationSeconds" }
+                }
+            }
+        ]);
+        
+        const avgDurationSeconds = durationStats[0]?.avgDuration || 0;
+
+        const clickStats = await ComunidadSession.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    playVideo: { $sum: "$clicks.playVideo" },
+                    quickAccess: { $sum: "$clicks.quickAccess" },
+                    checkoutSubmit: { $sum: "$clicks.checkoutSubmit" },
+                    downloadFile: { $sum: "$clicks.downloadFile" },
+                    recoverAccess: { $sum: "$clicks.recoverAccess" },
+                    whatsapp: { $sum: "$clicks.whatsapp" }
+                }
+            }
+        ]);
+
+        const clicks = clickStats[0] || {
+            playVideo: 0,
+            quickAccess: 0,
+            checkoutSubmit: 0,
+            downloadFile: 0,
+            recoverAccess: 0,
+            whatsapp: 0
+        };
+
+        return res.json({
+            totalVisits,
+            avgDurationSeconds: Math.round(avgDurationSeconds),
+            clicks: {
+                playVideo: clicks.playVideo || 0,
+                quickAccess: clicks.quickAccess || 0,
+                checkoutSubmit: clicks.checkoutSubmit || 0,
+                downloadFile: clicks.downloadFile || 0,
+                recoverAccess: clicks.recoverAccess || 0,
+                whatsapp: clicks.whatsapp || 0
+            }
+        });
+    } catch (err) {
+        logger.error('[ComunidadController] getMetricsStats error:', err);
+        return res.status(500).json({ error: 'Error al obtener métricas de estadísticas.' });
+    }
+};
+
 module.exports = {
     getComunidadConfig,
     updateComunidadConfig,
@@ -250,5 +353,7 @@ module.exports = {
     checkComunidadAccess,
     markVideoFinished,
     getAllPurchases,
-    deletePurchase
+    deletePurchase,
+    registerSessionMetric,
+    getMetricsStats
 };

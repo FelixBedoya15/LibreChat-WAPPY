@@ -39,6 +39,11 @@ export default function ComunidadPage() {
   const [gatingEnabled, setGatingEnabled] = useState(true);
   const [downloadableFiles, setDownloadableFiles] = useState<any[]>([]);
   const [videoUrl, setVideoUrl] = useState('https://www.w3schools.com/html/mov_bbb.mp4');
+  const [whatsappUrl, setWhatsappUrl] = useState('https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4');
+  const [extraVideoUrl1, setExtraVideoUrl1] = useState('');
+  const [extraVideoTitle1, setExtraVideoTitle1] = useState('Clase Extra 1');
+  const [extraVideoUrl2, setExtraVideoUrl2] = useState('');
+  const [extraVideoTitle2, setExtraVideoTitle2] = useState('Clase Extra 2');
 
   // Video State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -56,6 +61,12 @@ export default function ComunidadPage() {
   const youtubeId = getYouTubeId(videoUrl);
   const isYouTube = !!youtubeId;
   const isYouTubeChannelError = !isYouTube && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
+
+  // Parse extra videos if they are YouTube
+  const youtubeId1 = extraVideoUrl1 ? getYouTubeId(extraVideoUrl1) : null;
+  const isYouTube1 = !!youtubeId1;
+  const youtubeId2 = extraVideoUrl2 ? getYouTubeId(extraVideoUrl2) : null;
+  const isYouTube2 = !!youtubeId2;
 
   // Access State (Free Leads or Paid Purchases)
   const [isAccessChecking, setIsAccessChecking] = useState(true);
@@ -93,14 +104,21 @@ export default function ComunidadPage() {
   const [tempGatingEnabled, setTempGatingEnabled] = useState(true);
   const [tempFiles, setTempFiles] = useState<any[]>([]);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [tempWhatsappUrl, setTempWhatsappUrl] = useState(whatsappUrl);
+  const [tempExtraVideoUrl1, setTempExtraVideoUrl1] = useState(extraVideoUrl1);
+  const [tempExtraVideoTitle1, setTempExtraVideoTitle1] = useState(extraVideoTitle1);
+  const [tempExtraVideoUrl2, setTempExtraVideoUrl2] = useState(extraVideoUrl2);
+  const [tempExtraVideoTitle2, setTempExtraVideoTitle2] = useState(extraVideoTitle2);
 
   // Admin Dashboard States (Leads vs Purchases)
   const [isLeadsPanelOpen, setIsLeadsPanelOpen] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<'leads' | 'purchases' | 'pending'>('leads');
+  const [dashboardTab, setDashboardTab] = useState<'leads' | 'purchases' | 'pending' | 'metrics'>('leads');
   const [leads, setLeads] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [leadsSearch, setLeadsSearch] = useState('');
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+  const [metricsStats, setMetricsStats] = useState<any>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   // Admin File Upload States
   const [uploadFileName, setUploadFileName] = useState('');
@@ -142,6 +160,26 @@ export default function ComunidadPage() {
         setTempGatingEnabled(gatingActive);
         setDownloadableFiles(data.downloadableFiles || []);
         setTempFiles(data.downloadableFiles || []);
+        if (data.whatsappUrl) {
+          setWhatsappUrl(data.whatsappUrl);
+          setTempWhatsappUrl(data.whatsappUrl);
+        }
+        if (data.extraVideoUrl1 !== undefined) {
+          setExtraVideoUrl1(data.extraVideoUrl1);
+          setTempExtraVideoUrl1(data.extraVideoUrl1);
+        }
+        if (data.extraVideoTitle1 !== undefined) {
+          setExtraVideoTitle1(data.extraVideoTitle1);
+          setTempExtraVideoTitle1(data.extraVideoTitle1);
+        }
+        if (data.extraVideoUrl2 !== undefined) {
+          setExtraVideoUrl2(data.extraVideoUrl2);
+          setTempExtraVideoUrl2(data.extraVideoUrl2);
+        }
+        if (data.extraVideoTitle2 !== undefined) {
+          setExtraVideoTitle2(data.extraVideoTitle2);
+          setTempExtraVideoTitle2(data.extraVideoTitle2);
+        }
       }
     } catch (err) {
       console.error('[Comunidad] Error fetching page config:', err);
@@ -153,6 +191,40 @@ export default function ComunidadPage() {
   useEffect(() => {
     fetchConfig();
   }, []);
+
+  const [sessionId] = useState(() => {
+    let id = sessionStorage.getItem('wappy_sess_id');
+    if (!id) {
+      id = 'wappy_sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      sessionStorage.setItem('wappy_sess_id', id);
+    }
+    return id;
+  });
+
+  // Track page visit and heartbeat duration
+  useEffect(() => {
+    if (configLoading) return;
+    
+    // Register initial page visit
+    axios.post('/api/comunidad/metrics/session', { sessionId }).catch(err => {});
+
+    // Duration heartbeat timer
+    let durationCounter = 0;
+    const interval = setInterval(() => {
+      durationCounter += 10;
+      axios.post('/api/comunidad/metrics/session', {
+        sessionId,
+        durationSeconds: durationCounter
+      }).catch(err => {});
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [sessionId, configLoading]);
+
+  // Click tracking helper
+  const trackClick = (clickType: 'playVideo' | 'quickAccess' | 'checkoutSubmit' | 'downloadFile' | 'recoverAccess' | 'whatsapp') => {
+    axios.post('/api/comunidad/metrics/session', { sessionId, clickType }).catch(err => {});
+  };
 
   // 2. Check Access for Returning User
   useEffect(() => {
@@ -496,12 +568,14 @@ export default function ComunidadPage() {
       if (isPlaying) {
         pauseYouTube();
       } else {
+        trackClick('playVideo');
         playYouTube();
       }
     } else {
       const video = videoRef.current;
       if (!video) return;
       if (video.paused) {
+        trackClick('playVideo');
         video.play().then(() => {
           setIsPlaying(true);
         }).catch(err => console.error("Error playing video:", err));
@@ -559,6 +633,7 @@ export default function ComunidadPage() {
       return;
     }
 
+    trackClick('checkoutSubmit');
     setIsCheckoutSubmitting(true);
 
     try {
@@ -647,6 +722,7 @@ export default function ComunidadPage() {
       return;
     }
 
+    trackClick('recoverAccess');
     setIsRecovering(true);
 
     try {
@@ -697,6 +773,7 @@ export default function ComunidadPage() {
       return;
     }
 
+    trackClick('checkoutSubmit');
     setIsCheckoutSubmitting(true);
 
     try {
@@ -732,6 +809,7 @@ export default function ComunidadPage() {
   };
 
   const handleQuickAccessClick = () => {
+    trackClick('quickAccess');
     // Pause video
     if (isYouTube) {
       pauseYouTube();
@@ -753,7 +831,12 @@ export default function ComunidadPage() {
         price: tempPrice,
         gatingSeconds: tempGatingSeconds,
         gatingEnabled: tempGatingEnabled,
-        downloadableFiles: tempFiles
+        downloadableFiles: tempFiles,
+        whatsappUrl: tempWhatsappUrl,
+        extraVideoUrl1: tempExtraVideoUrl1,
+        extraVideoTitle1: tempExtraVideoTitle1,
+        extraVideoUrl2: tempExtraVideoUrl2,
+        extraVideoTitle2: tempExtraVideoTitle2
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -764,6 +847,11 @@ export default function ComunidadPage() {
         setGatingSeconds(tempGatingSeconds);
         setGatingEnabled(tempGatingEnabled);
         setDownloadableFiles(tempFiles);
+        setWhatsappUrl(tempWhatsappUrl);
+        setExtraVideoUrl1(tempExtraVideoUrl1);
+        setExtraVideoTitle1(tempExtraVideoTitle1);
+        setExtraVideoUrl2(tempExtraVideoUrl2);
+        setExtraVideoTitle2(tempExtraVideoTitle2);
         setIsAdminPanelOpen(false);
         setIsVideoFinished(false);
         setCurrentTime(0);
@@ -857,12 +945,17 @@ export default function ComunidadPage() {
   const fetchDashboardData = async () => {
     setIsLoadingLeads(true);
     try {
-      const [leadsRes, purchasesRes] = await Promise.all([
+      const [leadsRes, purchasesRes, metricsRes] = await Promise.all([
         axios.get('/api/admin/leads', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/comunidad/purchases', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get('/api/comunidad/purchases', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/comunidad/metrics/stats', { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
+          console.error('[Admin Dashboard] Fetch metrics stats error:', err);
+          return { data: null };
+        })
       ]);
       setLeads(leadsRes.data || []);
       setPurchases(purchasesRes.data || []);
+      setMetricsStats(metricsRes.data || null);
     } catch (err) {
       console.error('[Admin Dashboard] Fetch metrics error:', err);
     } finally {
@@ -1039,28 +1132,27 @@ export default function ComunidadPage() {
               </>
             )}
 
-            {(isVideoFinished || isUnlocked) && (
-              <>
-                <a
-                  href="https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold transition-all duration-300 text-xs shadow-lg shadow-green-500/25 flex items-center gap-1.5 hover:scale-105"
-                >
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
-                  </svg>
-                  Comunidad WhatsApp
-                </a>
-                <button
-                  onClick={() => navigate('/login')}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 hover:scale-105"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Acceder a WAPPY
-                </button>
-              </>
-            )}
+            <>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackClick('whatsapp')}
+                className="px-4 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold transition-all duration-300 text-xs shadow-lg shadow-green-500/25 flex items-center gap-1.5 hover:scale-105"
+              >
+                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
+                </svg>
+                Comunidad WhatsApp
+              </a>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 hover:scale-105"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                Acceder a WAPPY
+              </button>
+            </>
           </div>
         </nav>
 
@@ -1083,7 +1175,7 @@ export default function ComunidadPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleExportCSV}
-                    disabled={getActiveList().length === 0}
+                    disabled={dashboardTab === 'metrics' || getActiveList().length === 0}
                     className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Exportar Lista (CSV)
@@ -1116,23 +1208,157 @@ export default function ComunidadPage() {
                 >
                   Intentos de Pago / Abandonados (Wompi: {purchases.filter(p => !p.isPaid).length})
                 </button>
+                <button
+                  onClick={() => setDashboardTab('metrics')}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${dashboardTab === 'metrics' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/40 shadow-sm' : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
+                >
+                  Métricas de Embudo
+                </button>
               </div>
 
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={leadsSearch}
-                  onChange={(e) => setLeadsSearch(e.target.value)}
-                  placeholder="Buscar por nombre, correo o celular..."
-                  className="w-full max-w-sm px-4 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all placeholder:text-text-secondary/40"
-                />
-              </div>
+              {dashboardTab !== 'metrics' && (
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={leadsSearch}
+                    onChange={(e) => setLeadsSearch(e.target.value)}
+                    placeholder="Buscar por nombre, correo o celular..."
+                    className="w-full max-w-sm px-4 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all placeholder:text-text-secondary/40"
+                  />
+                </div>
+              )}
 
-              <div className="overflow-x-auto rounded-xl border border-border-medium bg-surface-secondary/20 max-h-96 overflow-y-auto">
+              <div className="overflow-x-auto rounded-xl border border-border-medium bg-surface-secondary/20 max-h-[32rem] overflow-y-auto">
                 {isLoadingLeads ? (
                   <div className="text-center py-12 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
                     <span className="text-xs text-text-secondary">Cargando métricas...</span>
+                  </div>
+                ) : dashboardTab === 'metrics' ? (
+                  <div className="p-6 space-y-6">
+                    {/* Top KPI row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-surface-primary border border-border-medium flex flex-col justify-center text-left">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary">Visitas Totales</span>
+                        <span className="text-2xl font-extrabold text-emerald-500 mt-1 outfit">
+                          {metricsStats?.totalVisits ?? 0}
+                        </span>
+                      </div>
+                      
+                      <div className="p-4 rounded-xl bg-surface-primary border border-border-medium flex flex-col justify-center text-left">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary">Permanencia Promedio</span>
+                        <span className="text-2xl font-extrabold text-emerald-500 mt-1 outfit">
+                          {metricsStats ? (
+                            <>
+                              {Math.floor(metricsStats.avgDurationSeconds / 60)}m {metricsStats.avgDurationSeconds % 60}s
+                            </>
+                          ) : '0s'}
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-primary border border-border-medium flex flex-col justify-center text-left">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary">Conversión (Formulario)</span>
+                        <span className="text-2xl font-extrabold text-emerald-500 mt-1 outfit">
+                          {metricsStats?.totalVisits ? (
+                            <>
+                              {((metricsStats.clicks?.checkoutSubmit / metricsStats.totalVisits) * 100).toFixed(1)}%
+                            </>
+                          ) : '0%'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Clics breakdown/funnel */}
+                    <div className="p-5 rounded-xl bg-surface-primary border border-border-medium space-y-4 text-left">
+                      <h4 className="font-bold text-xs text-text-primary uppercase tracking-wider outfit">Embudo de Interacción y Clics</h4>
+                      <p className="text-[10px] text-text-secondary">Seguimiento de las acciones clave de los usuarios dentro de la página.</p>
+                      
+                      <div className="space-y-3 pt-2">
+                        {/* Play Video */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Reproducciones de Video</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.playVideo ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.playVideo || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Quick Access */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Clics en Compra Rápida (Banner Superior)</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.quickAccess ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.quickAccess || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* checkoutSubmit */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Formularios de Pago Enviados</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.checkoutSubmit ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.checkoutSubmit || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* downloadFile */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Descargas de Archivos</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.downloadFile ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.downloadFile || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* recoverAccess */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Intentos de Recuperación de Acceso</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.recoverAccess ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.recoverAccess || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* whatsapp */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                            <span>Clics en Enlace Comunidad de WhatsApp</span>
+                            <span className="font-mono text-emerald-500">{metricsStats?.clicks?.whatsapp ?? 0} clics</span>
+                          </div>
+                          <div className="w-full bg-surface-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${metricsStats?.totalVisits ? Math.min(100, ((metricsStats.clicks?.whatsapp || 0) / metricsStats.totalVisits) * 100) : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ) : getActiveList().length === 0 ? (
                   <div className="text-center py-12 text-xs text-text-secondary">No hay registros cargados para esta sección.</div>
@@ -1313,6 +1539,64 @@ export default function ComunidadPage() {
                       />
                     </div>
                   )}
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary mb-1">Enlace de WhatsApp de la Comunidad</label>
+                    <input
+                      type="text"
+                      value={tempWhatsappUrl}
+                      onChange={(e) => setTempWhatsappUrl(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                      placeholder="https://chat.whatsapp.com/..."
+                    />
+                  </div>
+
+                  <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider pt-2">Clases Complementarias</h4>
+
+                  <div className="p-3 rounded-xl bg-surface-secondary/40 border border-border-medium space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Título Clase Extra 1</label>
+                      <input
+                        type="text"
+                        value={tempExtraVideoTitle1}
+                        onChange={(e) => setTempExtraVideoTitle1(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500"
+                        placeholder="Título para el primer video extra"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Enlace Video Extra 1</label>
+                      <input
+                        type="text"
+                        value={tempExtraVideoUrl1}
+                        onChange={(e) => setTempExtraVideoUrl1(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500 font-mono"
+                        placeholder="URL de video o link de YouTube"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-secondary/40 border border-border-medium space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Título Clase Extra 2</label>
+                      <input
+                        type="text"
+                        value={tempExtraVideoTitle2}
+                        onChange={(e) => setTempExtraVideoTitle2(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500"
+                        placeholder="Título para el segundo video extra"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Enlace Video Extra 2</label>
+                      <input
+                        type="text"
+                        value={tempExtraVideoUrl2}
+                        onChange={(e) => setTempExtraVideoUrl2(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500 font-mono"
+                        placeholder="URL de video o link de YouTube"
+                      />
+                    </div>
+                  </div>
 
                   <button
                     onClick={handleSaveAdminConfig}
@@ -1619,7 +1903,7 @@ export default function ComunidadPage() {
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-6 leading-tight max-w-3xl outfit">
-              Domina la Gestión de SST usando <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Inteligencia Artificial</span>
+              Descarga <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
             </h1>
 
             {/* Quick Access / Skip Video Banner */}
@@ -1630,18 +1914,18 @@ export default function ComunidadPage() {
                     ⚡ <strong>¿Quieres ahorrar tiempo?</strong>{' '}
                     {actualRequiresPayment ? (
                       <>
-                        Si no deseas ver la Mentoría, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
+                        Si no deseas ver la Mentoría completa, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
                       </>
                     ) : (
                       <>
-                        Si no deseas ver la Mentoría, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                        Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
                       </>
                     )}
                   </p>
                 </div>
                 <button
                   onClick={handleQuickAccessClick}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/20 hover:scale-105 whitespace-nowrap"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/25 hover:scale-105 whitespace-nowrap"
                 >
                   {actualRequiresPayment ? `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP` : 'Registrar y Descargar Ya'}
                 </button>
@@ -1780,6 +2064,7 @@ export default function ComunidadPage() {
                           <a
                             href={file.url}
                             download
+                            onClick={() => trackClick('downloadFile')}
                             className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -1799,6 +2084,96 @@ export default function ComunidadPage() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Clases y Capacitaciones Complementarias */}
+            <div className="w-full max-w-4xl mt-12 text-left">
+              <div className="flex items-center gap-2 mb-6">
+                <Play className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-base font-bold text-text-primary outfit">Clases y Capacitaciones Complementarias</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Clase Extra 1 */}
+                <div className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
+                  <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
+                    <h4 className="font-bold text-xs text-text-primary outfit truncate" title={extraVideoTitle1 || "Clase Extra 1"}>
+                      {extraVideoTitle1 || "Clase Extra 1"}
+                    </h4>
+                  </div>
+                  <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
+                    {!isUnlocked ? (
+                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-10">
+                        <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
+                        <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
+                          Disponible solo para usuarios Premium. Adquiere los aplicativos para desbloquear esta clase.
+                        </p>
+                        <button
+                          onClick={handleQuickAccessClick}
+                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25"
+                        >
+                          Comprar y Desbloquear
+                        </button>
+                      </div>
+                    ) : !extraVideoUrl1 ? (
+                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
+                    ) : isYouTube1 ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${youtubeId1}`}
+                        className="w-full h-full border-0"
+                        allowFullScreen
+                        title={extraVideoTitle1}
+                      />
+                    ) : (
+                      <video
+                        src={extraVideoUrl1}
+                        controls
+                        className="w-full h-full object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Clase Extra 2 */}
+                <div className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
+                  <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
+                    <h4 className="font-bold text-xs text-text-primary outfit truncate" title={extraVideoTitle2 || "Clase Extra 2"}>
+                      {extraVideoTitle2 || "Clase Extra 2"}
+                    </h4>
+                  </div>
+                  <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
+                    {!isUnlocked ? (
+                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-10">
+                        <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
+                        <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
+                          Disponible solo para usuarios Premium. Adquiere los aplicativos para desbloquear esta clase.
+                        </p>
+                        <button
+                          onClick={handleQuickAccessClick}
+                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25"
+                        >
+                          Comprar y Desbloquear
+                        </button>
+                      </div>
+                    ) : !extraVideoUrl2 ? (
+                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
+                    ) : isYouTube2 ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${youtubeId2}`}
+                        className="w-full h-full border-0"
+                        allowFullScreen
+                        title={extraVideoTitle2}
+                      />
+                    ) : (
+                      <video
+                        src={extraVideoUrl2}
+                        controls
+                        className="w-full h-full object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="w-full max-w-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/20 to-emerald-500/10 border-2 border-emerald-500/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-[0_0_25px_rgba(16,185,129,0.15)] hover:shadow-[0_0_35px_rgba(16,185,129,0.25)] transition-all duration-300 mt-10 text-center flex flex-col items-center justify-center gap-3 animate-premium-float">
