@@ -726,11 +726,22 @@ export default function ComunidadPage() {
         }).catch(err => console.error("Error playing video:", err));
       }
     } catch (err: any) {
-      const errMsg = err.response?.data?.message || err.message || 'Hubo un problema al registrar la información.';
-      setCheckoutError(errMsg);
+      setCheckoutError('Error al registrar tus datos.');
       setIsCheckoutSubmitting(false);
     }
   };
+
+  const handleQuickAccessClick = () => {
+    // Pause video
+    if (isYouTube) {
+      pauseYouTube();
+    } else {
+      videoRef.current?.pause();
+      setIsPlaying(false);
+    }
+    setShowLeadModal(true);
+  };
+
 
   // --- Admin: Config Settings Submit ---
   const handleSaveAdminConfig = async () => {
@@ -1028,7 +1039,7 @@ export default function ComunidadPage() {
               </>
             )}
 
-            {isVideoFinished && (
+            {(isVideoFinished || isUnlocked) && (
               <>
                 <a
                   href="https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4"
@@ -1611,37 +1622,31 @@ export default function ComunidadPage() {
               Domina la Gestión de SST usando <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Inteligencia Artificial</span>
             </h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl w-full mb-8 text-left">
-              <div className="bg-surface-primary/60 border border-border-medium/60 rounded-2xl p-4 flex gap-3 hover:border-emerald-500/30 transition-all duration-300 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/20">
-                  <span className="font-bold text-sm outfit">01</span>
+            {/* Quick Access / Skip Video Banner */}
+            {!isUnlocked && (
+              <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300">
+                <div className="flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
+                    ⚡ <strong>¿Quieres ahorrar tiempo?</strong>{' '}
+                    {actualRequiresPayment ? (
+                      <>
+                        Si no deseas ver la explicación completa, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Si no deseas ver la explicación completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                      </>
+                    )}
+                  </p>
                 </div>
-                <div>
-                  <h4 className="font-bold text-sm text-text-primary leading-snug">Matriz de Peligros Gratis</h4>
-                  <p className="text-xs text-text-secondary mt-1 leading-normal">Diseña e identifica de forma 100% gratuita tu matriz de peligros completa con soporte de IA.</p>
-                </div>
+                <button
+                  onClick={handleQuickAccessClick}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/20 hover:scale-105 whitespace-nowrap"
+                >
+                  {actualRequiresPayment ? `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP` : 'Registrar y Descargar Ya'}
+                </button>
               </div>
-
-              <div className="bg-surface-primary/60 border border-border-medium/60 rounded-2xl p-4 flex gap-3 hover:border-emerald-500/30 transition-all duration-300 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/20">
-                  <span className="font-bold text-sm outfit">02</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-text-primary leading-snug">Aplicativos y Chat con IA</h4>
-                  <p className="text-xs text-text-secondary mt-1 leading-normal">Diseña al instante aplicativos interactivos y accede a nuestro ChatGPT de SST con más de 15 agentes especializados.</p>
-                </div>
-              </div>
-
-              <div className="bg-surface-primary/60 border border-border-medium/60 rounded-2xl p-4 flex gap-3 hover:border-emerald-500/30 transition-all duration-300 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/20">
-                  <span className="font-bold text-sm outfit">03</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-text-primary leading-snug">SST con Código QR Activo</h4>
-                  <p className="text-xs text-text-secondary mt-1 leading-normal">Usa el QR de cada trabajador registrado para escanear y conocer sus datos de emergencia ante incidentes.</p>
-                </div>
-              </div>
-            </div>
+            )}
 
             <div 
               ref={playerContainerRef}
@@ -1913,7 +1918,7 @@ export default function ComunidadPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {downloadableFiles.map((file, idx) => {
-                    const canDownload = isVideoFinished || isAdmin;
+                    const canDownload = isUnlocked || isVideoFinished;
                     return (
                       <div 
                         key={idx} 
@@ -1949,7 +1954,7 @@ export default function ComunidadPage() {
                           </a>
                         ) : (
                           <button
-                            onClick={() => alert('🔒 Contenido Bloqueado: Debes terminar de ver la videocapacitación de principio a fin para descargar estas herramientas de valor.')}
+                            onClick={() => alert('🔒 Contenido Bloqueado: Debes registrarte o realizar el pago para descargar estas herramientas de valor.')}
                             className="w-full py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-secondary text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
                           >
                             <Lock className="w-3.5 h-3.5" />
@@ -1970,7 +1975,7 @@ export default function ComunidadPage() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
-                  Finalizando el curso recibirás acceso a todas las herramientas y una sorpresa por llegar hasta el final.
+                  ¡Ya tienes acceso desbloqueado a todos los aplicativos y herramientas! Disfruta del curso.
                 </h3>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                   Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.
