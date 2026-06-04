@@ -1704,173 +1704,6 @@ export default function ComunidadPage() {
                 </div>
               )}
 
-              {showLeadModal && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-lg p-4 sm:p-6 z-40">
-                  <div className="w-full max-w-md bg-surface-primary border border-border-medium rounded-2xl p-6 sm:p-8 text-left shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-                    
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
-                        {showRecoveryView ? <Key className="w-5 h-5 text-emerald-500" /> : <Lock className="w-5 h-5 text-emerald-500" />}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-text-primary leading-tight outfit">
-                          {showRecoveryView 
-                            ? 'Recuperar Acceso Autorizado' 
-                            : (actualRequiresPayment ? 'Desbloquear Capacitación Completa' : 'Acceso Exclusivo WAPPY')
-                          }
-                        </h3>
-                        <p className="text-[10px] text-text-secondary">
-                          {showRecoveryView 
-                            ? 'Valida tu correo de compra para desbloquear al instante'
-                            : (actualRequiresPayment 
-                                ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
-                                : 'Registra tus datos para desbloquear el video curso'
-                              )
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    {!showRecoveryView ? (
-                      <form onSubmit={actualRequiresPayment ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
-                        {checkoutError && (
-                          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>{checkoutError}</span>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Nombre Completo</label>
-                          <input
-                            type="text"
-                            value={checkoutFullName}
-                            onChange={(e) => setCheckoutFullName(e.target.value)}
-                            placeholder="Juan Pérez"
-                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo</label>
-                            <input
-                              type="email"
-                              value={checkoutEmail}
-                              onChange={(e) => setCheckoutEmail(e.target.value)}
-                              placeholder="juan@correo.com"
-                              className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Celular</label>
-                            <input
-                              type="tel"
-                              value={checkoutPhone}
-                              onChange={(e) => setCheckoutPhone(e.target.value)}
-                              placeholder="Ej. 3001234567"
-                              className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
-                          <input
-                            type="checkbox"
-                            checked={acceptedPolicies}
-                            onChange={(e) => setAcceptedPolicies(e.target.checked)}
-                            className="mt-0.5 h-4 w-4 rounded border-border-medium bg-surface-secondary text-emerald-500 focus:ring-emerald-500/20"
-                          />
-                          <span className="text-[10px] text-text-secondary leading-normal group-hover:text-text-primary">
-                            Acepto las <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">políticas de privacidad</a> y el tratamiento de datos de WAPPY.
-                          </span>
-                        </label>
-
-                        <button
-                          type="submit"
-                          disabled={isCheckoutSubmitting}
-                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
-                        >
-                          {isCheckoutSubmitting ? (
-                            <span>Procesando...</span>
-                          ) : (
-                            <>
-                              <span>{actualRequiresPayment ? 'Pagar y Desbloquear Curso' : 'Continuar con el video'}</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </>
-                          )}
-                        </button>
-
-                        {actualRequiresPayment && (
-                          <div className="pt-3 text-center border-t border-border-medium/60 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => setShowRecoveryView(true)}
-                              className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
-                            >
-                              <Key className="w-3.5 h-3.5" />
-                              ¿Ya compraste? Recupera tu acceso
-                            </button>
-                          </div>
-                        )}
-                      </form>
-                    ) : (
-                      <form onSubmit={handleRecoverAccess} className="space-y-3.5">
-                        <p className="text-[11px] text-text-secondary leading-normal">
-                          Ingresa el correo electrónico que utilizaste al realizar el pago del curso. Si tu compra fue aprobada, recuperarás el acceso de inmediato.
-                        </p>
-
-                        {recoveryError && (
-                          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>{recoveryError}</span>
-                          </div>
-                        )}
-
-                        {recoverySuccess && (
-                          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
-                            <Check className="w-4 h-4 shrink-0" />
-                            <span>{recoverySuccess}</span>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo registrado</label>
-                          <input
-                            type="email"
-                            value={recoveryEmail}
-                            onChange={(e) => setRecoveryEmail(e.target.value)}
-                            placeholder="juan@correo.com"
-                            className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={isRecovering}
-                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
-                        >
-                          {isRecovering ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                          Verificar Acceso de Compra
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowRecoveryView(false);
-                            setRecoveryError('');
-                          }}
-                          className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-hover text-text-secondary text-xs font-semibold border border-border-medium transition-all"
-                        >
-                          Volver al Formulario de Compra
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-slate-950/90 to-transparent flex flex-col justify-end z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="w-full h-1 bg-white/20 relative">
                   <div 
@@ -1986,6 +1819,183 @@ export default function ComunidadPage() {
           </main>
         )}
       </div>
+
+      {showLeadModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-lg p-4 sm:p-6 z-50 overflow-y-auto">
+          <div className="w-full max-w-md bg-surface-primary border border-border-medium rounded-2xl p-6 sm:p-8 text-left shadow-2xl relative my-auto">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowLeadModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition-colors z-10"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
+                {showRecoveryView ? <Key className="w-5 h-5 text-emerald-500" /> : <Lock className="w-5 h-5 text-emerald-500" />}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-text-primary leading-tight outfit">
+                  {showRecoveryView 
+                    ? 'Recuperar Acceso Autorizado' 
+                    : (actualRequiresPayment ? 'Desbloquear Capacitación Completa' : 'Acceso Exclusivo WAPPY')
+                  }
+                </h3>
+                <p className="text-[10px] text-text-secondary">
+                  {showRecoveryView 
+                    ? 'Valida tu correo de compra para desbloquear al instante'
+                    : (actualRequiresPayment 
+                        ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                        : 'Registra tus datos para desbloquear el video curso'
+                      )
+                  }
+                </p>
+              </div>
+            </div>
+
+            {!showRecoveryView ? (
+              <form onSubmit={actualRequiresPayment ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
+                {checkoutError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{checkoutError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    value={checkoutFullName}
+                    onChange={(e) => setCheckoutFullName(e.target.value)}
+                    placeholder="Juan Pérez"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo</label>
+                    <input
+                      type="email"
+                      value={checkoutEmail}
+                      onChange={(e) => setCheckoutEmail(e.target.value)}
+                      placeholder="juan@correo.com"
+                      className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Celular</label>
+                    <input
+                      type="tel"
+                      value={checkoutPhone}
+                      onChange={(e) => setCheckoutPhone(e.target.value)}
+                      placeholder="Ej. 3001234567"
+                      className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
+                  <input
+                    type="checkbox"
+                    checked={acceptedPolicies}
+                    onChange={(e) => setAcceptedPolicies(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-border-medium bg-surface-secondary text-emerald-500 focus:ring-emerald-500/20"
+                  />
+                  <span className="text-[10px] text-text-secondary leading-normal group-hover:text-text-primary">
+                    Acepto las <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">políticas de privacidad</a> y el tratamiento de datos de WAPPY.
+                  </span>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isCheckoutSubmitting}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                >
+                  {isCheckoutSubmitting ? (
+                    <span>Procesando...</span>
+                  ) : (
+                    <>
+                      <span>{actualRequiresPayment ? 'Pagar y Desbloquear Curso' : 'Continuar con el video'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+
+                {actualRequiresPayment && (
+                  <div className="pt-3 text-center border-t border-border-medium/60 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowRecoveryView(true)}
+                      className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                      ¿Ya compraste? Recupera tu acceso
+                    </button>
+                  </div>
+                )}
+              </form>
+            ) : (
+              <form onSubmit={handleRecoverAccess} className="space-y-3.5">
+                <p className="text-[11px] text-text-secondary leading-normal">
+                  Ingresa el correo electrónico que utilizaste al realizar el pago del curso. Si tu compra fue aprobada, recuperarás el acceso de inmediato.
+                </p>
+
+                {recoveryError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{recoveryError}</span>
+                  </div>
+                )}
+
+                {recoverySuccess && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span>{recoverySuccess}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo registrado</label>
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    placeholder="juan@correo.com"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRecovering}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                >
+                  {isRecovering ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Verificar Acceso de Compra
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRecoveryView(false);
+                    setRecoveryError('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-hover text-text-secondary text-xs font-semibold border border-border-medium transition-all"
+                >
+                  Volver al Formulario de Compra
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       <footer className="w-full border-t border-border-medium py-6 mt-10 text-center text-xs text-text-secondary relative z-10 bg-surface-primary/20">
         <div className="flex justify-center gap-6 mb-2">

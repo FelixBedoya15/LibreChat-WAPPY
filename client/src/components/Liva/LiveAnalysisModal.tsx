@@ -80,6 +80,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const snapshotRef = useRef<string | null>(null);
     // Store multiple snapshots for the report (up to 3)
     const snapshotsRef = useRef<string[]>([]);
+    const manualPhotosCountRef = useRef<number>(0);
     const snapshotIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Countdown state - 10 seconds
@@ -88,6 +89,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     // Track if report has been received
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
     const [reportNotification, setReportNotification] = useState(false);
+    const [limitNotification, setLimitNotification] = useState(false);
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
 
@@ -526,19 +528,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     break;
                 case 'generating_report':
                     setStatusText('Generando Reporte...');
-                    // 📸 Capture 3 snapshots NOW — at the exact moment the report is being generated
-                    // This freezes the relevant frames for the evidence gallery
+                    // Do not capture automatic snapshots at the end of the call anymore
                     snapshotsRef.current = [];
-                    [0, 500, 1000].forEach((delay) => {
-                        setTimeout(() => {
-                            const snap = captureSnapshot();
-                            if (snap) {
-                                snapshotsRef.current.push(snap);
-                                snapshotRef.current = snap;
-                                console.log(`[LiveAnalysisModal] 📸 Report snapshot ${snapshotsRef.current.length}/3 at generating_report`);
-                            }
-                        }, delay);
-                    });
                     break;
                 case 'ready':
                     setStatusText('Listo');
@@ -593,16 +584,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         ctx.shadowColor = '#06b6d4';
         ctx.shadowBlur = 10;
         if (window.drawConnectors && window.POSE_CONNECTIONS) {
-            window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
+            const bodyConnections = window.POSE_CONNECTIONS.filter(([p1, p2]: [number, number]) => p1 >= 11 && p2 >= 11);
+            window.drawConnectors(ctx, results.poseLandmarks, bodyConnections, {
                 color: '#06b6d4',
                 lineWidth: 3
             });
         }
 
-        // Neon emerald joints glow
+        // Neon emerald joints glow (only body joints, slicing index 11 onwards)
         ctx.shadowColor = '#10b981';
         if (window.drawLandmarks) {
-            window.drawLandmarks(ctx, results.poseLandmarks, {
+            window.drawLandmarks(ctx, results.poseLandmarks.slice(11), {
                 color: '#10b981',
                 fillColor: '#06b6d4',
                 lineWidth: 2,
@@ -742,20 +734,29 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             lastSnapshotTimeRef.current = now;
                             badPostureStartRef.current = null; // reset
                             
-                            // Capture snapshot
-                            const dataUrl = captureSnapshot();
-                            if (dataUrl) {
-                                // Trigger flash
-                                setIsFlashActive(true);
-                                setTimeout(() => setIsFlashActive(false), 150);
+                            if (manualPhotosCountRef.current < 10) {
+                                // Capture snapshot
+                                const dataUrl = captureSnapshot();
+                                if (dataUrl) {
+                                    // Trigger flash
+                                    setIsFlashActive(true);
+                                    setTimeout(() => setIsFlashActive(false), 150);
 
-                                setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+                                    setManualCapturedPhotos((prev) => {
+                                        const next = [...prev, dataUrl];
+                                        manualPhotosCountRef.current = next.length;
+                                        return next;
+                                    });
 
-                                const base64 = dataUrl.split(',')[1];
-                                sendEvidenceImage(base64);
+                                    const base64 = dataUrl.split(',')[1];
+                                    sendEvidenceImage(base64);
 
-                                // Send telemetry data directly to Gemini session!
-                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                                    // Send telemetry data directly to Gemini session!
+                                    sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                                }
+                            } else {
+                                // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
+                                sendTextMessage(`[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}.`);
                             }
                         }
                     }
@@ -886,6 +887,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     };
 
     const handleManualCapture = useCallback(() => {
+        if (manualPhotosCountRef.current >= 10) {
+            setLimitNotification(true);
+            setTimeout(() => setLimitNotification(false), 3000);
+            return;
+        }
+
         const dataUrl = captureSnapshot();
         if (!dataUrl) return;
 
@@ -893,8 +900,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setIsFlashActive(true);
         setTimeout(() => setIsFlashActive(false), 150);
 
-        // Save locally for carousel
-        setManualCapturedPhotos((prev) => [...prev, dataUrl]);
+        // Save locally for carousel and update the synchronous count ref
+        setManualCapturedPhotos((prev) => {
+            const next = [...prev, dataUrl];
+            manualPhotosCountRef.current = next.length;
+            return next;
+        });
 
         // Send to backend via WS (extract base64 payload from data URL)
         const base64 = dataUrl.split(',')[1];
@@ -906,6 +917,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         disconnect();
         setSelectedTemplate(null);
         setManualCapturedPhotos([]);
+        manualPhotosCountRef.current = 0;
         onClose();
     };
 
@@ -1823,6 +1835,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             <div>
                                 <div className="font-bold text-sm">¡Informe Generado!</div>
                                 <div className="text-xs text-emerald-100">El informe técnico ha sido enviado al editor.</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Limit Captured Photos Toast */}
+                    {limitNotification && (
+                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 bg-amber-500 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-amber-900/40 border border-amber-400/30 animate-in slide-in-from-bottom-4 fade-in duration-500">
+                            <span className="text-xl">⚠️</span>
+                            <div>
+                                <div className="font-bold text-sm">Límite alcanzado</div>
+                                <div className="text-xs text-amber-100">Máximo 10 fotos de evidencia permitidas.</div>
                             </div>
                         </div>
                     )}
