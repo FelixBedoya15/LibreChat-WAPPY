@@ -1630,11 +1630,11 @@ export default function ComunidadPage() {
                     ⚡ <strong>¿Quieres ahorrar tiempo?</strong>{' '}
                     {actualRequiresPayment ? (
                       <>
-                        Si no deseas ver la explicación completa, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
+                        Si no deseas ver la Mentoría, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
                       </>
                     ) : (
                       <>
-                        Si no deseas ver la explicación completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                        Si no deseas ver la Mentoría, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
                       </>
                     )}
                   </p>
