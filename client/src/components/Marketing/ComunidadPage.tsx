@@ -1093,7 +1093,7 @@ export default function ComunidadPage() {
           <div className="flex items-center gap-1.5 sm:gap-3">
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
-              <img src="/assets/logo.png" alt="WAPPY Logo" className="h-8 sm:h-10 w-auto relative z-10" />
+              <img src="/assets/logo.png" alt="WAPPY Logo" className="h-14 sm:h-20 w-auto relative z-10" />
             </div>
           </div>
 
