@@ -100,9 +100,11 @@ const AttachFileMenu = ({
     } else if (fileType === 'document') {
       inputRef.current.accept = '.pdf,application/pdf';
     } else if (fileType === 'multimodal') {
-      inputRef.current.accept = 'image/*,.pdf,application/pdf';
+      inputRef.current.accept =
+        'image/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain';
     } else if (fileType === 'google_multimodal') {
-      inputRef.current.accept = 'image/*,.pdf,application/pdf,video/*,audio/*';
+      inputRef.current.accept =
+        'image/*,.pdf,application/pdf,video/*,audio/*,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain';
     } else {
       inputRef.current.accept = '';
     }
@@ -122,7 +124,7 @@ const AttachFileMenu = ({
         isDocumentSupportedProvider(currentProvider)
       ) {
         items.push({
-          label: localize('com_ui_upload_provider'),
+          label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
           onClick: () => {
             setToolResource(undefined);
             onAction(
@@ -133,7 +135,7 @@ const AttachFileMenu = ({
         });
       } else {
         items.push({
-          label: localize('com_ui_upload_image_input'),
+          label: localize('com_ui_upload_image_input') + ' (Solo imagen)',
           onClick: () => {
             setToolResource(undefined);
             onAction('image');
@@ -144,7 +146,7 @@ const AttachFileMenu = ({
 
       if (capabilities.contextEnabled) {
         items.push({
-          label: localize('com_ui_upload_ocr_text'),
+          label: localize('com_ui_upload_ocr_text') + ' (Extraer texto/OCR)',
           onClick: () => {
             setToolResource(EToolResources.context);
             onAction();
@@ -155,7 +157,7 @@ const AttachFileMenu = ({
 
       if (capabilities.fileSearchEnabled && fileSearchAllowedByAgent) {
         items.push({
-          label: localize('com_ui_upload_file_search'),
+          label: localize('com_ui_upload_file_search') + ' (Base de datos RAG)',
           onClick: () => {
             setToolResource(EToolResources.file_search);
             setEphemeralAgent((prev) => ({
@@ -170,7 +172,7 @@ const AttachFileMenu = ({
 
       if (capabilities.codeEnabled && codeAllowedByAgent) {
         items.push({
-          label: localize('com_ui_upload_code_files'),
+          label: localize('com_ui_upload_code_files') + ' (Intérprete de código)',
           onClick: () => {
             setToolResource(EToolResources.execute_code);
             setEphemeralAgent((prev) => ({
