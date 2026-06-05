@@ -14,6 +14,47 @@ from app.services.vector_store.factory import get_vector_store
 load_dotenv(find_dotenv())
 
 
+# Monkey-patch openpyxl to prevent crashes on non-compliant/unexpected validation values
+try:
+    from openpyxl.worksheet.datavalidation import DataValidation
+    
+    # 1. Wrap DataValidation.errorStyle setter
+    if hasattr(DataValidation, "errorStyle") and hasattr(DataValidation.errorStyle, "__set__"):
+        original_error_style_set = DataValidation.errorStyle.__set__
+        def safe_error_style_set(instance, value):
+            try:
+                original_error_style_set(instance, value)
+            except ValueError:
+                if isinstance(value, str):
+                    try:
+                        original_error_style_set(instance, value.lower())
+                        return
+                    except ValueError:
+                        pass
+                # Bypass validation by writing directly to instance __dict__
+                instance.__dict__['errorStyle'] = 'warning'
+        DataValidation.errorStyle.__set__ = safe_error_style_set
+
+    # 2. Wrap DataValidation.type setter
+    if hasattr(DataValidation, "type") and hasattr(DataValidation.type, "__set__"):
+        original_type_set = DataValidation.type.__set__
+        def safe_type_set(instance, value):
+            try:
+                original_type_set(instance, value)
+            except ValueError:
+                if isinstance(value, str):
+                    try:
+                        original_type_set(instance, value.lower())
+                        return
+                    except ValueError:
+                        pass
+                instance.__dict__['type'] = 'list'
+        DataValidation.type.__set__ = safe_type_set
+except Exception:
+    # Fail silently to avoid breaking startup if openpyxl is not installed or has a different structure
+    pass
+
+
 class VectorDBType(Enum):
     PGVECTOR = "pgvector"
     ATLAS_MONGO = "atlas-mongo"

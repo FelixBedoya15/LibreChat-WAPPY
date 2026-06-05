@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const { logger } = require('@librechat/data-schemas');
 const { resizeImageBuffer } = require('../images/resize');
 const { updateUser, updateFile } = require('~/models');
 
@@ -68,13 +69,14 @@ async function uploadLocalImage({ req, file, file_id, endpoint, resolution = 'hi
 /**
  * Encodes an image file to base64.
  * @param {string} imagePath - The path to the image file.
- * @returns {Promise<string>} A promise that resolves with the base64 encoded image data.
+ * @returns {Promise<string|null>} A promise that resolves with the base64 encoded image data, or null on error.
  */
 function encodeImage(imagePath) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     fs.readFile(imagePath, (err, data) => {
       if (err) {
-        reject(err);
+        logger.error(`[encodeImage] Error reading image file at ${imagePath}:`, err);
+        resolve(null);
       } else {
         resolve(data.toString('base64'));
       }
@@ -97,7 +99,17 @@ async function prepareImagesLocal(req, file) {
   if (!fs.existsSync(userPath)) {
     fs.mkdirSync(userPath, { recursive: true });
   }
-  const filepath = path.join(publicPath, file.filepath);
+
+  let filepath;
+  if (file.filepath.includes('/uploads/')) {
+    const basePath = file.filepath.split('/uploads/')[1];
+    filepath = path.join(appConfig.paths.uploads, basePath);
+  } else if (file.filepath.includes('/images/')) {
+    const basePath = file.filepath.split('/images/')[1];
+    filepath = path.join(appConfig.paths.imageOutput, basePath);
+  } else {
+    filepath = path.join(publicPath, file.filepath);
+  }
 
   const promises = [];
   promises.push(updateFile({ file_id: file.file_id }));

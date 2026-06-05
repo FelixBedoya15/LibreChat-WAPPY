@@ -433,7 +433,7 @@ const processFileUpload = async ({ req, res, metadata }) => {
 
   const { file } = req;
   const fsPromises = require('fs').promises;
-  const tempCopyPath = `${file.path}_copy`;
+  const tempCopyPath = `${file.path}_copy${path.extname(file.path || '')}`;
   let hasCopy = false;
 
   if (!isAssistantUpload && file.mimetype === 'application/pdf') {
@@ -567,7 +567,7 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   const basePath = mime.getType(file.originalname)?.startsWith('image') ? 'images' : 'uploads';
 
   const fsPromises = require('fs').promises;
-  const tempCopyPath = `${file.path}_copy`;
+  const tempCopyPath = `${file.path}_copy${path.extname(file.path || '')}`;
   let hasCopy = false;
   const needsCopy =
     tool_resource === EToolResources.file_search || file.mimetype === 'application/pdf';
