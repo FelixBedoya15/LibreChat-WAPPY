@@ -1154,7 +1154,7 @@ export default function ComunidadPage() {
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
                 </svg>
-                Comunidad WhatsApp
+                ¿Tienes dudas? Escríbenos
               </a>
               <button
                 onClick={() => navigate('/login')}
@@ -1702,7 +1702,7 @@ export default function ComunidadPage() {
             </h1>
 
             <p className="text-sm text-text-secondary max-w-xl mb-8 leading-relaxed">
-              Paga una tarifa única para desbloquear la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.
+              Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.
             </p>
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start">
@@ -1727,7 +1727,7 @@ export default function ComunidadPage() {
                     </div>
                     <div>
                       <h4 className="font-bold text-xs text-text-primary">Material y Plantillas Editables</h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo que desbloquearás al terminar de ver el video.</p>
+                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo al terminar de ver el video.</p>
                     </div>
                   </div>
 
@@ -2082,11 +2082,11 @@ export default function ComunidadPage() {
                           </a>
                         ) : (
                           <button
-                            onClick={() => alert('🔒 Contenido Bloqueado: Debes registrarte o realizar el pago para descargar estas herramientas de valor.')}
-                            className="w-full py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-secondary text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
+                            onClick={handleQuickAccessClick}
+                            className="w-full py-2 rounded-xl bg-surface-secondary border border-border-medium text-emerald-500 dark:text-emerald-400 hover:bg-surface-hover text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
                           >
-                            <Lock className="w-3.5 h-3.5" />
-                            Bloqueado
+                            <Lock className="w-3.5 h-3.5 text-text-secondary" />
+                            Adquiere ya
                           </button>
                         )}
                       </div>
@@ -2112,34 +2112,38 @@ export default function ComunidadPage() {
                     </h4>
                   </div>
                   <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
-                    {!isUnlocked ? (
-                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-10">
+                    {extraVideoUrl1 ? (
+                      isYouTube1 ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeId1}`}
+                          className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                          allowFullScreen={isUnlocked}
+                          title={extraVideoTitle1}
+                        />
+                      ) : (
+                        <video
+                          src={extraVideoUrl1}
+                          controls={isUnlocked}
+                          className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                        />
+                      )
+                    ) : (
+                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
+                    )}
+
+                    {!isUnlocked && extraVideoUrl1 && (
+                      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
                         <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
                         <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
-                          Disponible solo para usuarios Premium. Adquiere los aplicativos para desbloquear esta clase.
+                          Disponible solo para usuarios Premium. Adquiere los aplicativos para acceder a esta clase.
                         </p>
                         <button
                           onClick={handleQuickAccessClick}
-                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25"
+                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
                         >
-                          Comprar y Desbloquear
+                          Adquiere ya
                         </button>
                       </div>
-                    ) : !extraVideoUrl1 ? (
-                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
-                    ) : isYouTube1 ? (
-                      <iframe
-                        src={`https://www.youtube.com/embed/${youtubeId1}`}
-                        className="w-full h-full border-0"
-                        allowFullScreen
-                        title={extraVideoTitle1}
-                      />
-                    ) : (
-                      <video
-                        src={extraVideoUrl1}
-                        controls
-                        className="w-full h-full object-contain"
-                      />
                     )}
                   </div>
                 </div>
@@ -2152,34 +2156,38 @@ export default function ComunidadPage() {
                     </h4>
                   </div>
                   <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
-                    {!isUnlocked ? (
-                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-10">
+                    {extraVideoUrl2 ? (
+                      isYouTube2 ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeId2}`}
+                          className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                          allowFullScreen={isUnlocked}
+                          title={extraVideoTitle2}
+                        />
+                      ) : (
+                        <video
+                          src={extraVideoUrl2}
+                          controls={isUnlocked}
+                          className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                        />
+                      )
+                    ) : (
+                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
+                    )}
+
+                    {!isUnlocked && extraVideoUrl2 && (
+                      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
                         <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
                         <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
-                          Disponible solo para usuarios Premium. Adquiere los aplicativos para desbloquear esta clase.
+                          Disponible solo para usuarios Premium. Adquiere los aplicativos para acceder a esta clase.
                         </p>
                         <button
                           onClick={handleQuickAccessClick}
-                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25"
+                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
                         >
-                          Comprar y Desbloquear
+                          Adquiere ya
                         </button>
                       </div>
-                    ) : !extraVideoUrl2 ? (
-                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
-                    ) : isYouTube2 ? (
-                      <iframe
-                        src={`https://www.youtube.com/embed/${youtubeId2}`}
-                        className="w-full h-full border-0"
-                        allowFullScreen
-                        title={extraVideoTitle2}
-                      />
-                    ) : (
-                      <video
-                        src={extraVideoUrl2}
-                        controls
-                        className="w-full h-full object-contain"
-                      />
                     )}
                   </div>
                 </div>
@@ -2193,7 +2201,7 @@ export default function ComunidadPage() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
-                  ¡Ya tienes acceso desbloqueado a todos los aplicativos y herramientas! Disfruta del curso.
+                  ¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.
                 </h3>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                   Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.
@@ -2228,15 +2236,15 @@ export default function ComunidadPage() {
                 <h3 className="text-base font-bold text-text-primary leading-tight outfit">
                   {showRecoveryView 
                     ? 'Recuperar Acceso Autorizado' 
-                    : (actualRequiresPayment ? 'Desbloquear Capacitación Completa' : 'Acceso Exclusivo WAPPY')
+                    : (actualRequiresPayment ? 'Acceder a la Capacitación Completa' : 'Acceso Exclusivo WAPPY')
                   }
                 </h3>
                 <p className="text-[10px] text-text-secondary">
                   {showRecoveryView 
-                    ? 'Valida tu correo de compra para desbloquear al instante'
+                    ? 'Valida tu correo de compra para acceder al instante'
                     : (actualRequiresPayment 
                         ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
-                        : 'Registra tus datos para desbloquear el video curso'
+                        : 'Registra tus datos para acceder al video curso'
                       )
                   }
                 </p>
@@ -2307,7 +2315,7 @@ export default function ComunidadPage() {
                     <span>Procesando...</span>
                   ) : (
                     <>
-                      <span>{actualRequiresPayment ? 'Pagar y Desbloquear Curso' : 'Continuar con el video'}</span>
+                      <span>{actualRequiresPayment ? 'Pagar y Obtener Acceso' : 'Continuar con el video'}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
