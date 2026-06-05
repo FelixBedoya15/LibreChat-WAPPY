@@ -69,7 +69,7 @@ def cleanup_temp_encoding_file(loader) -> None:
 
 
 def get_loader(filename: str, file_content_type: str, filepath: str):
-    """Get the appropriate document loader based on file type and\or content type."""
+    """Get the appropriate document loader based on file type and/or content type."""
     file_ext = filename.split(".")[-1].lower()
     known_type = True
 
@@ -134,7 +134,7 @@ def get_loader(filename: str, file_content_type: str, filepath: str):
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ]:
-        loader = Docx2txtLoader(filepath)
+        loader = SafeWordLoader(filepath)
     elif file_ext in ["xls", "xlsx"] or file_content_type in [
         "application/vnd.ms-excel",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -219,13 +219,7 @@ class SafePyPDFLoader:
     """
     A wrapper around PyPDFLoader that handles image extraction failures gracefully.
     Falls back to text-only extraction when image extraction fails.
-
-    This is a workaround for issues with PyPDFLoader that can occur when extracting images
-    from PDFs, which can lead to KeyError exceptions if the PDF is malformed or has unsupported
-    image formats. This class attempts to load the PDF with image extraction enabled, and if it
-    fails due to a KeyError related to image filters, it falls back to loading the PDF
-    without image extraction.
-    ref.: https://github.com/langchain-ai/langchain/issues/26652
+    Also falls back to PyPDFLoader or UnstructuredPDFLoader if PyMuPDFLoader fails.
     """
 
     def __init__(self, filepath: str, extract_images: bool = False):
@@ -234,21 +228,105 @@ class SafePyPDFLoader:
         self._temp_filepath = None  # For compatibility with cleanup function
 
     def lazy_load(self) -> Iterator[Document]:
-        """Lazy load PDF documents with PyMuPDFLoader."""
-        loader = PyMuPDFLoader(self.filepath)
-
+        # 1. Try PyMuPDFLoader first (fastest and handles formatting well)
         try:
+            from langchain_community.document_loaders import PyMuPDFLoader
+            loader = PyMuPDFLoader(self.filepath)
             pages = list(loader.lazy_load())
+            if pages:
+                yield from pages
+                return
         except Exception as e:
             logger.warning(
-                f"PDF loading failed for {self.filepath}: {e}"
+                f"PyMuPDFLoader failed for {self.filepath}: {e}. Trying PyPDFLoader fallback."
             )
+
+        # 2. Try PyPDFLoader (pure Python, highly reliable)
+        try:
+            from langchain_community.document_loaders import PyPDFLoader
+            loader = PyPDFLoader(self.filepath)
+            pages = list(loader.lazy_load())
+            if pages:
+                yield from pages
+                return
+        except Exception as e:
+            logger.warning(
+                f"PyPDFLoader failed for {self.filepath}: {e}. Trying Unstructured fallback."
+            )
+
+        # 3. Try UnstructuredPDFLoader
+        try:
+            from langchain_community.document_loaders import UnstructuredPDFLoader
+            loader = UnstructuredPDFLoader(self.filepath)
+            pages = list(loader.lazy_load())
+            if pages:
+                yield from pages
+                return
+        except Exception as e:
+            logger.error(f"All PDF loading strategies failed for {self.filepath}: {e}")
             raise
-            
-        yield from pages
 
     def load(self) -> List[Document]:
-        """Load PDF documents with automatic fallback on image extraction errors."""
+        return list(self.lazy_load())
+
+
+class SafeWordLoader:
+    """
+    A robust Word document loader that uses Docx2txtLoader for .docx,
+    and falls back to UnstructuredWordDocumentLoader or other text extraction strategies.
+    Handles legacy .doc files via UnstructuredWordDocumentLoader.
+    """
+
+    def __init__(self, filepath: str):
+        self.filepath = filepath
+        self._temp_filepath = None  # For compatibility with cleanup function
+
+    def lazy_load(self) -> Iterator[Document]:
+        file_ext = self.filepath.split(".")[-1].lower()
+
+        # 1. For .docx, try Docx2txtLoader first
+        if file_ext == "docx":
+            try:
+                from langchain_community.document_loaders import Docx2txtLoader
+                loader = Docx2txtLoader(self.filepath)
+                pages = list(loader.lazy_load())
+                if pages:
+                    yield from pages
+                    return
+            except Exception as e:
+                logger.warning(
+                    f"Docx2txtLoader failed for {self.filepath}: {e}. Trying fallback."
+                )
+
+        # 2. Try UnstructuredWordDocumentLoader (supports both doc and docx)
+        try:
+            from langchain_community.document_loaders import UnstructuredWordDocumentLoader
+            loader = UnstructuredWordDocumentLoader(self.filepath)
+            pages = list(loader.lazy_load())
+            if pages:
+                yield from pages
+                return
+        except Exception as e:
+            logger.warning(
+                f"UnstructuredWordDocumentLoader failed for {self.filepath}: {e}. Trying raw text conversion."
+            )
+
+        # 3. Fallback to pypandoc (since pandoc is installed in the container)
+        try:
+            import pypandoc
+            text = pypandoc.convert_file(self.filepath, "plain")
+            if text:
+                yield Document(page_content=text, metadata={"source": self.filepath})
+                return
+        except Exception as e:
+            logger.warning(
+                f"pypandoc conversion failed for {self.filepath}: {e}."
+            )
+
+        # 4. If all else fails, raise error
+        raise ValueError(f"Failed to load Word document {self.filepath} with any strategy.")
+
+    def load(self) -> List[Document]:
         return list(self.lazy_load())
 
 
