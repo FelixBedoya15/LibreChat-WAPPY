@@ -1911,14 +1911,13 @@ export default function ComunidadPage() {
               <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
-                    ⚡ <strong>¿Quieres ahorrar tiempo?</strong>{' '}
                     {actualRequiresPayment ? (
                       <>
-                        Si no deseas ver la Mentoría completa, puedes saltarte el video y adquirir el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
+                        Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
                       </>
                     ) : (
                       <>
-                        Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                        ⚡ <strong>¿Quieres ahorrar tiempo?</strong> Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
                       </>
                     )}
                   </p>
