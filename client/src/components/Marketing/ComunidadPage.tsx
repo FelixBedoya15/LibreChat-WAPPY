@@ -1081,9 +1081,6 @@ export default function ComunidadPage() {
               <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
               <img src="/assets/logo.png" alt="WAPPY Logo" className="h-10 w-auto relative z-10" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-text-primary outfit">
-              WAPPY
-            </span>
           </div>
 
           <div className="flex items-center gap-3">
