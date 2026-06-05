@@ -370,7 +370,8 @@ export default function ComunidadPage() {
               }
 
               // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
-              const shouldGate = gatingEnabled && time >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
+              const isCurrentlyPlaying = isPlaying || (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1);
+              const shouldGate = isCurrentlyPlaying && gatingEnabled && time >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
                 actualRequiresPayment 
                   ? !isAccessGrantedRef.current 
                   : (!isLeadCapturedRef.current && !user)
@@ -563,6 +564,19 @@ export default function ComunidadPage() {
 
   const togglePlay = () => {
     if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
+
+    // Immediate gating check on play attempt if past gatingSeconds
+    const isPastGating = currentTime >= gatingSeconds;
+    const isGated = gatingEnabled && !isAdmin && (
+      actualRequiresPayment 
+        ? !isAccessGranted 
+        : (!isLeadCaptured && !user)
+    );
+
+    if (isPastGating && isGated) {
+      setShowLeadModal(true);
+      return;
+    }
 
     if (isYouTube) {
       if (isPlaying) {
@@ -1081,9 +1095,6 @@ export default function ComunidadPage() {
               <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
               <img src="/assets/logo.png" alt="WAPPY Logo" className="h-8 sm:h-10 w-auto relative z-10" />
             </div>
-            <span className="text-lg sm:text-xl font-bold tracking-tight text-text-primary outfit">
-              WAPPY
-            </span>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-3">
