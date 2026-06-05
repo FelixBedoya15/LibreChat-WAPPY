@@ -1914,7 +1914,7 @@ export default function ComunidadPage() {
                     ⚡ <strong>¿Quieres ahorrar tiempo?</strong>{' '}
                     {actualRequiresPayment ? (
                       <>
-                        Si no deseas ver la Mentoría completa, puedes saltarte el video y adquirir los <strong>más de 10 aplicativos listos</strong> inmediatamente por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
+                        Si no deseas ver la Mentoría completa, puedes saltarte el video y adquirir el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
                       </>
                     ) : (
                       <>
