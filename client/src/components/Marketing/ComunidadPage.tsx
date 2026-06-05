@@ -190,6 +190,9 @@ export default function ComunidadPage() {
 
   useEffect(() => {
     fetchConfig();
+    if (window.fbq) {
+      window.fbq('track', 'PageView');
+    }
   }, []);
 
   const [sessionId] = useState(() => {
@@ -648,6 +651,13 @@ export default function ComunidadPage() {
     }
 
     trackClick('checkoutSubmit');
+    if (window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        content_name: 'Curso SST IA + 10 Aplicativos',
+        value: price || 28000,
+        currency: 'COP'
+      });
+    }
     setIsCheckoutSubmitting(true);
 
     try {
@@ -711,6 +721,14 @@ export default function ComunidadPage() {
             setUserEmail(email);
             setIsAccessGranted(true);
             setShowLeadModal(false);
+            if (window.fbq) {
+              window.fbq('track', 'Purchase', {
+                value: price || 28000,
+                currency: 'COP',
+                content_name: 'Curso SST IA + 10 Aplicativos',
+                transaction_id: transaction.id
+              });
+            }
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -807,6 +825,11 @@ export default function ComunidadPage() {
       setIsLeadCaptured(true);
       setShowLeadModal(false);
       setIsCheckoutSubmitting(false);
+      if (window.fbq) {
+        window.fbq('track', 'Lead', {
+          content_name: 'Curso SST IA + 10 Aplicativos'
+        });
+      }
       
       // Auto-resume video
       if (isYouTube) {
