@@ -601,7 +601,7 @@ const MatrizLegal = () => {
                 </div>
 
                 {/* Report Viewer Section */}
-                {generatedMatrix ? (
+                <div className="mt-6">
                     <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
@@ -654,15 +654,7 @@ const MatrizLegal = () => {
                             `}</style>
                         </div>
                     </CollapsibleReportBox>
-                ) : (
-                    <div className="border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col mt-6">
-                        <div className="w-full h-48 flex flex-col items-center justify-center p-6 text-center text-text-secondary bg-surface-secondary/50">
-                            <Scale className="h-10 w-10 mb-3 opacity-20" />
-                            <p className="font-medium text-sm">No hay matriz generada</p>
-                            <p className="text-xs mt-1 max-w-sm">Califica los criterios en los paneles superiores y haz clic en "Generar Documento IA".</p>
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}

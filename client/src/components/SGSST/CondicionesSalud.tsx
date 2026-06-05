@@ -1109,7 +1109,7 @@ const CondicionesSalud = () => {
                             const initials = (w.nombre?.trim() || 'U')[0].toUpperCase();
                             
                             return (
-                            <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
+                            <div key={w.id} className={cn("rounded-2xl border border-border-medium bg-surface-secondary shadow-sm border-l-4 border-l-teal-500 transition-all", expandedWorkers.has(w.id) ? "overflow-visible" : "overflow-hidden")}>
                                 {/* Worker Header */}
                                 <div className="flex items-center justify-between p-5 bg-surface-primary/50 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
                                     <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -1444,37 +1444,35 @@ const CondicionesSalud = () => {
             </div>
 
             {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
-            {generatedReport && (
-                <div className="mt-8">
-                    <CollapsibleReportBox
-                        onSave={handleSaveReport}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
-                        title="Documento de Perfil Epidemiológico Generado"
-                        icon={<AnimatedIcon name="file-text" size={16} className="text-teal-600" />}
-                        actions={
-                            <ExportDropdown
-                                content={editorContentRef.current || generatedReport || ''}
-                                fileName="Informe_PerfilEpidemiologico"
-                                reportType="general"
-                            />
-                        }
-                    >
-                        <div className="p-1 overflow-hidden">
-                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                                <div style={{ minWidth: '900px', padding: '16px' }}>
-                                    <LiveEditor
-                                        ref={liveEditorRef}
-                                        initialContent={generatedReport}
-                                        onUpdate={(html) => { editorContentRef.current = html; }}
-                                        reportSourceData={trabajadores}
-                                    />
-                                </div>
+            <div className="mt-8">
+                <CollapsibleReportBox
+                    onSave={handleSaveReport}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    title="Documento de Perfil Epidemiológico Generado"
+                    icon={<AnimatedIcon name="file-text" size={16} className="text-teal-600" />}
+                    actions={
+                        <ExportDropdown
+                            content={editorContentRef.current || generatedReport || ''}
+                            fileName="Informe_PerfilEpidemiologico"
+                            reportType="general"
+                        />
+                    }
+                >
+                    <div className="p-1 overflow-hidden">
+                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                            <div style={{ minWidth: '900px', padding: '16px' }}>
+                                <LiveEditor
+                                    ref={liveEditorRef}
+                                    initialContent={generatedReport || ''}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
+                                    reportSourceData={trabajadores}
+                                />
                             </div>
                         </div>
-                    </CollapsibleReportBox>
-                </div>
-            )}
+                    </div>
+                </CollapsibleReportBox>
+            </div>
 
             {/* Worker Specific QR Modal */}
             {selectedQrWorker && ReactDOM.createPortal(

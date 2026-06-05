@@ -1202,36 +1202,34 @@ export default function ProgramaCapacitaciones() {
       </div>
 
       {/* Generated Report View */}
-      {compiledReport && (
-        <div className="mt-8">
-          <CollapsibleReportBox
-            onSave={handleSaveReport}
-            onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-            isHistoryOpen={isHistoryOpen}
-            title="Programa Anual de Capacitación"
-            icon={<FileText className="h-5 w-5" />}
-            actions={
-              <ExportDropdown
-                content={editorContentRef.current || compiledReport || ''}
-                fileName="Programa_Capacitaciones_2026"
-                reportType="general"
-              />
-            }
-            defaultExpanded={true}
-          >
-            <div className="relative overflow-hidden rounded-2xl border border-border-medium/50 shadow-sm transition-all bg-white dark:bg-slate-900/50 p-2">
-              <LiveEditor
-                initialContent={compiledReport}
-                editorId="sgsst-programa-capacitaciones"
-                readOnly={false}
-                onChange={(content) => {
-                  editorContentRef.current = content;
-                }}
-              />
-            </div>
-          </CollapsibleReportBox>
-        </div>
-      )}
+      <div className="mt-8">
+        <CollapsibleReportBox
+          onSave={handleSaveReport}
+          onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+          isHistoryOpen={isHistoryOpen}
+          title="Programa Anual de Capacitación"
+          icon={<FileText className="h-5 w-5" />}
+          actions={
+            <ExportDropdown
+              content={editorContentRef.current || compiledReport || ''}
+              fileName="Programa_Capacitaciones_2026"
+              reportType="general"
+            />
+          }
+          defaultExpanded={true}
+        >
+          <div className="relative overflow-hidden rounded-2xl border border-border-medium/50 shadow-sm transition-all bg-white dark:bg-slate-900/50 p-2">
+            <LiveEditor
+              initialContent={compiledReport || ''}
+              editorId="sgsst-programa-capacitaciones"
+              readOnly={false}
+              onChange={(content) => {
+                editorContentRef.current = content;
+              }}
+            />
+          </div>
+        </CollapsibleReportBox>
+      </div>
 
       {/* Compilation Trigger */}
       {!compiledReport && (

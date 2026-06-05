@@ -776,7 +776,7 @@ const InvestigacionATEL = () => {
             )}
 
             {/* ── Form Container ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+            <div className={cn("rounded-2xl border border-border-medium bg-surface-secondary shadow-sm transition-all", isFormExpanded ? "overflow-visible" : "overflow-hidden")}>
                 <button
                     onClick={() => setIsFormExpanded(!isFormExpanded)}
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
@@ -1339,36 +1339,34 @@ const InvestigacionATEL = () => {
             </div>
 
             {/* ── Report Viewer ── */}
-            {generatedObjectives && (
-                <div className="mt-4">
-                    <CollapsibleReportBox onSave={handleSave}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
-                        title="Investigación ATEL"
-                        icon={<FileText className="h-5 w-5 text-teal-600" />}
-                        actions={
-                        <ExportDropdown
-                            content={editorContentRef.current || generatedObjectives || ''}
-                            fileName="Informe_InvestigacionATEL"
-                            reportType="general"
-                        />
-                    }
-                    >
-                        <div className="p-1 overflow-hidden">
-                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                                <div style={{ minWidth: '900px', padding: '16px' }}>
-                                    <LiveEditor
-                                        ref={liveEditorRef}
-                                        initialContent={generatedObjectives}
-                                        onUpdate={(html) => { editorContentRef.current = html; }}
-                                        reportSourceData={{ formData, testigosList, equipoList }}
-                                    />
-                                </div>
+            <div className="mt-4">
+                <CollapsibleReportBox onSave={handleSave}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    title="Investigación ATEL"
+                    icon={<FileText className="h-5 w-5 text-teal-600" />}
+                    actions={
+                    <ExportDropdown
+                        content={editorContentRef.current || generatedObjectives || ''}
+                        fileName="Informe_InvestigacionATEL"
+                        reportType="general"
+                    />
+                }
+                >
+                    <div className="p-1 overflow-hidden">
+                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                            <div style={{ minWidth: '900px', padding: '16px' }}>
+                                <LiveEditor
+                                    ref={liveEditorRef}
+                                    initialContent={generatedObjectives || ''}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
+                                    reportSourceData={{ formData, testigosList, equipoList }}
+                                />
                             </div>
                         </div>
-                    </CollapsibleReportBox>
-                </div>
-            )}
+                    </div>
+                </CollapsibleReportBox>
+            </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (

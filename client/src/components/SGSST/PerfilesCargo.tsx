@@ -1126,7 +1126,7 @@ const PerfilesCargo = () => {
             <div className="rounded-3xl border border-border-medium/40 bg-gradient-to-br from-surface-secondary/90 to-surface-primary/70 backdrop-blur-lg shadow-2xl p-6 md:p-8 space-y-10 border-l-4 border-l-cyan-500/80 transition-all duration-500 hover:shadow-cyan-500/5 hover:border-cyan-500/20 animate-in fade-in duration-300">
                 <div className="space-y-8">
                     {FIELD_SECTIONS.map(section => (
-                        <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                        <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
                             <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
                                 <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm">{section.icon}</div>
                                 <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">{section.title}</h4>
@@ -1146,7 +1146,7 @@ const PerfilesCargo = () => {
                         </div>
                     ))}
 
-                    <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                    <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
                         <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
                             <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm"><Shield className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /></div>
                             <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">Controles y Equipos de Protección</h4>
