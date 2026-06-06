@@ -6,6 +6,7 @@ import {
   ImageUpIcon,
   FileType2Icon,
   FileImageIcon,
+  FileScan,
   TerminalSquareIcon,
 } from 'lucide-react';
 import {
@@ -119,20 +120,41 @@ const AttachFileMenu = ({
       const items: MenuItemProps[] = [];
 
       const currentProvider = provider || endpoint;
+      const isGoogle = (provider || endpoint) === EModelEndpoint.google;
+
       if (
         isDocumentSupportedProvider(endpointType) ||
         isDocumentSupportedProvider(currentProvider)
       ) {
-        items.push({
-          label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
-          onClick: () => {
-            setToolResource(undefined);
-            onAction(
-              (provider || endpoint) === EModelEndpoint.google ? 'google_multimodal' : 'multimodal',
-            );
-          },
-          icon: <FileImageIcon className="icon-md" />,
-        });
+        if (isGoogle) {
+          // Google/Gemini: imagen directa funciona, documentos necesitan OCR
+          items.push({
+            label: 'Subir imagen (adjunto directo)',
+            onClick: () => {
+              setToolResource(undefined);
+              onAction('image');
+            },
+            icon: <FileImageIcon className="icon-md" />,
+          });
+          items.push({
+            label: 'Subir documento (PDF/Word/Excel/TXT)',
+            onClick: () => {
+              // Usa extracción de texto automáticamente para que Gemini pueda leer el contenido
+              setToolResource(EToolResources.context);
+              onAction();
+            },
+            icon: <FileScan className="icon-md" />,
+          });
+        } else {
+          items.push({
+            label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
+            onClick: () => {
+              setToolResource(undefined);
+              onAction('multimodal');
+            },
+            icon: <FileImageIcon className="icon-md" />,
+          });
+        }
       } else {
         items.push({
           label: localize('com_ui_upload_image_input') + ' (Solo imagen)',
