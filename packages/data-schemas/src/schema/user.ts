@@ -166,6 +166,13 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
+    downloadsToday: {
+      type: Number,
+      default: 0,
+    },
+    lastDownloadDate: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );

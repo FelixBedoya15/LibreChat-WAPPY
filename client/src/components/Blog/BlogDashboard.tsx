@@ -6,6 +6,7 @@ import { useToastContext } from '@librechat/client';
 import { BookOpen, Shield, Play, Info, ChevronLeft, ChevronRight, Zap, Newspaper, X, Calendar, User } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import type { ContextType } from '~/common';
 import { sanitizeSlug } from '~/utils/slug';
 
@@ -273,6 +274,10 @@ export default function BlogDashboard() {
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
 
     useEffect(() => {
+        if (user?.role === 'USER') {
+            setLoading(false);
+            return;
+        }
         const fetchPosts = async () => {
             try {
                 const response = await axios.get('/api/blog');
@@ -323,6 +328,34 @@ export default function BlogDashboard() {
 
         fetchPosts();
     }, [showToast]);
+
+    if (user?.role === 'USER') {
+        return (
+            <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-y-auto">
+                {/* Header / Nav Overlay */}
+                <div className="p-4 pt-16 sm:p-6 flex items-center justify-between border-b border-border-light dark:border-white/5">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        {!navVisible && (
+                            <div className="hidden md:block">
+                                <OpenSidebar setNavVisible={setNavVisible} />
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
+                            <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
+                            <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center p-4 sm:p-8 md:p-12">
+                    <UpgradeWall
+                        title="Blog WAPPY Exclusivo"
+                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
+                    />
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

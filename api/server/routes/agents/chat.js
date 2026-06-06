@@ -8,6 +8,7 @@ const {
   validateConvoAccess,
   buildEndpointOption,
   canAccessAgentFromBody,
+  checkMessageLimits,
 } = require('~/server/middleware');
 const { initializeClient } = require('~/server/services/Endpoints/agents');
 const AgentController = require('~/server/controllers/agents/request');
@@ -46,7 +47,7 @@ const controller = async (req, res, next) => {
  * @param {express.Response} res - The response object, used to send back a response.
  * @returns {void}
  */
-router.post('/', controller);
+router.post('/', checkMessageLimits, controller);
 
 /**
  * @route POST /:endpoint (ephemeral agents)
@@ -56,6 +57,6 @@ router.post('/', controller);
  * @param {express.Response} res - The response object, used to send back a response.
  * @returns {void}
  */
-router.post('/:endpoint', controller);
+router.post('/:endpoint', checkMessageLimits, controller);
 
 module.exports = router;

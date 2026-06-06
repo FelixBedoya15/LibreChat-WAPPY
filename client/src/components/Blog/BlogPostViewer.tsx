@@ -16,6 +16,10 @@ export default function BlogPostViewer() {
     const isFreePlan = user?.role === 'USER';
 
     useEffect(() => {
+        if (isFreePlan) {
+            setLoading(false);
+            return;
+        }
         const fetchPost = async () => {
             try {
                 const response = await axios.get(`/api/blog/${postId}`);
@@ -30,6 +34,30 @@ export default function BlogPostViewer() {
         };
         fetchPost();
     }, [postId, navigate, showToast]);
+
+    if (isFreePlan) {
+        return (
+            <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-y-auto w-full">
+                {/* Clean top bar with back button */}
+                <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
+                    <button
+                        onClick={() => navigate('/blog')}
+                        className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
+                    </button>
+                </div>
+                
+                <div className="flex-1 flex items-center justify-center p-6 md:p-12">
+                    <UpgradeWall
+                        title="Blog WAPPY Exclusivo"
+                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
+                    />
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

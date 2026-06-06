@@ -249,6 +249,17 @@ const errorMessages = {
       </div>
     );
   },
+  daily_limit: (json: any) => {
+    return (
+      <div className="mt-4 w-full flex justify-center">
+        <UpgradeWall
+          isCompact
+          title="Límite Diario Superado"
+          description={json.message || 'Has alcanzado tu límite de mensajes diarios del plan Gratis. Adquiere el plan Wappy Vital para chatear ilimitadamente hoy.'}
+        />
+      </div>
+    );
+  },
 };
 
 const Error = ({ text }: { text: string }) => {

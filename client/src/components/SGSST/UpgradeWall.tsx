@@ -42,57 +42,40 @@ const ShieldSVGButton = () => (
 // ─── Feature lists per plan ───────────────────────────────────────
 const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; badge: string }> = {
     USER: {
-        badge: 'Adquirir Plan Pro',
+        badge: 'Adquirir Wappy Vital',
         included: [
-            'Chat con IA',
-            'Máximo 4 conversaciones abiertas',
-            '+ de 15 Agentes Expertos en SST',
+            'Chat con IA (10 mensajes al día)',
+            'Hasta 4 conversaciones abiertas',
+            'Sandbox interactivo de Canvas e IPEVAR',
+            '1 descarga al día (Word/Excel/HTML)',
             'Aula de estudio',
-            'Podrá ingresar 1 clave API de Gemini',
-            'Sin caducidad – no necesita renovación',
         ],
-        excluded: ['Blog', 'Somos SST', 'Editor de Archivos con IA'],
+        excluded: ['Subida de archivos al chat', 'Descargas ilimitadas', 'Blog WAPPY', 'Somos SST', 'Crear Agentes personalizados'],
     },
-    USER_GO: {
-        badge: 'Adquirir Plan Pro',
+    USER_IPEVAR: {
+        badge: 'Adquirir Wappy Pro',
         included: [
-            'Chat con IA',
-            'Hasta 30 conversaciones abiertas',
-            '+ de 15 Agentes Expertos en SST',
+            'Chat con IA ilimitado',
+            'Hasta 20 conversaciones abiertas',
+            'Subida de archivos ilimitada',
+            'Descargas ilimitadas (Canvas e IPEVAR)',
             'Aula de estudio',
             'Blog WAPPY',
-            'Podrá ingresar 4 claves API de Gemini',
         ],
-        excluded: ['Somos SST', 'Editor de Archivos con IA'],
-    },
-    USER_PLUS: {
-        badge: 'Adquirir Plan Pro',
-        included: [
-            'Somos SST',
-            'Chat con IA',
-            'Conversaciones ilimitadas',
-            '+ de 15 Agentes Expertos en SST',
-            '**Agente Matriz IPEVAR**',
-            'Aula de estudio',
-            'Blog WAPPY',
-            'Podrá ingresar 10 claves API de Gemini',
-        ],
-        excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Centro de Inteligencia Predictiva'],
+        excluded: ['Somos SST', 'Crear Agentes personalizados'],
     },
     USER_PRO: {
         badge: 'Plan Pro Activo',
         included: [
-            'Somos SST',
-            'Chat con IA',
+            'Somos SST completo',
+            'Chat con IA ilimitado',
             'Conversaciones ilimitadas',
-            '+ de 15 Agentes Expertos en SST',
-            '**Agente Matriz IPEVAR**',
+            'Subida de archivos ilimitada',
+            'Descargas ilimitadas',
+            'Crear Agentes de IA propios',
+            'Análisis y Chat en Vivo',
             'Aula de estudio',
             'Blog WAPPY',
-            'Análisis en Vivo',
-            'Centro de Inteligencia Predictiva',
-            'Crea tus propios Agentes de IA',
-            'Editor de Archivos con IA',
             'Acceso anticipado a nuevas funciones',
         ],
         excluded: [],
@@ -119,7 +102,7 @@ export const UpgradeWall = ({
     const { user } = useAuthContext();
     // Prefer the explicit override; fall back to the session role
     const effectivePlan = planOverride || user?.role || 'USER';
-    const features = PLAN_FEATURES['USER_PRO'];
+    const features = PLAN_FEATURES[effectivePlan] || PLAN_FEATURES['USER_PRO'];
 
     return (
         <div className={`relative flex flex-col items-center justify-center text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full mx-auto my-4 group ${isCompact ? 'p-6 max-w-sm' : 'p-12 max-w-4xl'}`}>
@@ -209,7 +192,7 @@ export const UpgradeWall = ({
             >
                 <Sparkles className="w-5 h-5 animate-pulse text-white" />
                 <span className="tracking-wide">
-                    Ver Planes y Precios Pro
+                    {effectivePlan === 'USER' ? 'Ver Planes y Adquirir Wappy Vital' : 'Ver Planes y Precios Pro'}
                 </span>
             </a>
         </div>

@@ -773,12 +773,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     muteAutoSave(1500);
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/sgsst/canvas/${conversationId}/versions/${vItem.version}/restore`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const res = await fetch(
+        `/api/sgsst/canvas/${conversationId}/versions/${vItem.version}/restore`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       if (res.ok) {
         const data = await res.json();
         setFileType(data.fileType);
@@ -927,17 +930,52 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           {hasActiveSession && fileType !== 'text' && (
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (downloadRef.current) {
-                  downloadRef.current();
-                } else {
+                if (!downloadRef.current) {
                   console.warn(
                     '[CanvasPanel] No download function registered for fileType:',
                     fileType,
                   );
+                  return;
                 }
+
+                if (user?.role === 'USER') {
+                  try {
+                    const res = await fetch('/api/files/register-download', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                    });
+
+                    if (res.status === 403) {
+                      const data = await res.json();
+                      showToast({
+                        status: 'error',
+                        message:
+                          data.message ||
+                          'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.',
+                      });
+                      return;
+                    }
+
+                    if (!res.ok) {
+                      throw new Error('Limit check failed');
+                    }
+                  } catch (err) {
+                    console.error('Download check error:', err);
+                    showToast({
+                      status: 'error',
+                      message: 'Error al verificar tu límite de descargas.',
+                    });
+                    return;
+                  }
+                }
+
+                downloadRef.current();
               }}
               className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Descargar archivo"
@@ -1246,14 +1284,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto bg-surface-primary p-6">
                 {!isPro && (
-                  <div 
-                    onClick={() => window.location.href = '/planes'}
-                    className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-300 cursor-pointer hover:bg-amber-500/15 transition-all duration-300 hover:scale-[1.01]"
+                  <div
+                    onClick={() => (window.location.href = '/planes')}
+                    className="mb-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 transition-all duration-300 hover:scale-[1.01] hover:bg-amber-500/15 dark:text-amber-300"
                   >
-                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
+                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-amber-600 dark:text-amber-400" />
                     <div className="flex-1 text-sm">
-                      <span className="font-bold">Límite del Plan Gratuito:</span> Solo conservamos las últimas 5 versiones en este chat. Pásate a Pro para mantener un registro de hasta 20 versiones.
-                      <span className="ml-2 font-bold underline hover:text-amber-900 dark:hover:text-amber-100 transition-colors">
+                      <span className="font-bold">Límite del Plan Gratuito:</span> Solo conservamos
+                      las últimas 5 versiones en este chat. Pásate a Pro para mantener un registro
+                      de hasta 20 versiones.
+                      <span className="ml-2 font-bold underline transition-colors hover:text-amber-900 dark:hover:text-amber-100">
                         ¡Subir de nivel ahora!
                       </span>
                     </div>
@@ -1278,28 +1318,28 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                         switch (itemFileType) {
                           case 'excel':
                             return (
-                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                              <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-50 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
                                 <FileSpreadsheet className="h-3 w-3 text-emerald-500" />
                                 Hoja de Cálculo (Excel)
                               </span>
                             );
                           case 'presentation':
                             return (
-                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-500/20 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:text-amber-400">
+                              <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-amber-500/20 bg-amber-50 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
                                 <MonitorPlay className="h-3 w-3 text-amber-500" />
                                 Presentación (Slides)
                               </span>
                             );
                           case 'html':
                             return (
-                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-purple-50 dark:bg-purple-950/30 border border-purple-500/20 px-2 py-0.5 text-[9.5px] font-bold text-purple-600 dark:text-purple-400">
+                              <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-purple-500/20 bg-purple-50 px-2 py-0.5 text-[9.5px] font-bold text-purple-600 dark:bg-purple-950/30 dark:text-purple-400">
                                 <Code2 className="h-3 w-3 text-purple-500" />
                                 Prototipo HTML / Código
                               </span>
                             );
                           default:
                             return (
-                              <span className="mt-1.5 flex items-center gap-1 w-fit rounded-full bg-sky-50 dark:bg-sky-950/30 border border-sky-500/20 px-2 py-0.5 text-[9.5px] font-bold text-sky-600 dark:text-sky-400">
+                              <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-sky-500/20 bg-sky-50 px-2 py-0.5 text-[9.5px] font-bold text-sky-600 dark:bg-sky-950/30 dark:text-sky-400">
                                 <FileText className="h-3 w-3 text-sky-500" />
                                 Documento de Texto (Word)
                               </span>
@@ -1316,8 +1356,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                             isCurrent
                               ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10'
                               : isBlockedVersion
-                              ? 'border-dashed border-gray-300 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/5 opacity-60 hover:opacity-85'
-                              : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
+                                ? 'border-dashed border-gray-300 bg-gray-50/50 opacity-60 hover:opacity-85 dark:border-gray-800 dark:bg-gray-900/5'
+                                : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
                           }`}
                         >
                           <div className="mb-3 flex items-center justify-between border-b border-border-light pb-2">
@@ -1388,7 +1428,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                                 }}
                               />
                             ) : (
-                              <span className="shrink-0 text-[9px] font-black uppercase bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 tracking-wider">
+                              <span className="shrink-0 rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-500">
                                 🔒 PRO
                               </span>
                             )}
@@ -1437,15 +1477,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       {output}
 
       {isUpgradeModalOpen && (
-        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
             <button
               onClick={() => setIsUpgradeModalOpen(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+              className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
             >
               Cerrar ✕
             </button>
-            <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+            <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
               <UpgradeWall
                 title={upgradeModalTitle}
                 description={upgradeModalDesc}

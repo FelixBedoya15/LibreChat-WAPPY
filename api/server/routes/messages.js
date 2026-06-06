@@ -11,7 +11,7 @@ const {
 } = require('~/models');
 const { syncToRag } = require('../services/RagService');
 const { findAllArtifacts, replaceArtifactContent } = require('~/server/services/Artifacts/update');
-const { requireJwtAuth, validateMessageReq, checkConvoLimits } = require('~/server/middleware');
+const { requireJwtAuth, validateMessageReq, checkConvoLimits, checkMessageLimits, checkDownloadLimits } = require('~/server/middleware');
 const { cleanUpPrimaryKeyValue } = require('~/lib/utils/misc');
 const { getConvosQueried } = require('~/models/Conversation');
 const { countTokens } = require('~/server/utils');
@@ -190,7 +190,7 @@ router.get('/:conversationId', validateMessageReq, async (req, res) => {
   }
 });
 
-router.post('/:conversationId', checkConvoLimits, validateMessageReq, async (req, res) => {
+router.post('/:conversationId', checkConvoLimits, checkMessageLimits, validateMessageReq, async (req, res) => {
   try {
     const message = req.body;
     const savedMessage = await saveMessage(

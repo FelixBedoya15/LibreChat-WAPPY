@@ -39,6 +39,8 @@ export interface IUser extends Document {
   /** Field for external source identification (for consistency with TPrincipal schema) */
   idOnTheSource?: string;
   phoneNumber?: string;
+  downloadsToday?: number;
+  lastDownloadDate?: Date;
 }
 
 export interface BalanceConfig {

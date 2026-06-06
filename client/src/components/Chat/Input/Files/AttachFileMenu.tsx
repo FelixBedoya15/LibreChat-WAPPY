@@ -29,6 +29,7 @@ import {
   useGetAgentsConfig,
   useFileHandling,
   useLocalize,
+  useAuthContext,
 } from '~/hooks';
 import useSharePointFileHandling from '~/hooks/Files/useSharePointFileHandling';
 import { SharePointPickerDialog } from '~/components/SharePoint';
@@ -55,7 +56,8 @@ const AttachFileMenu = ({
   endpointFileConfig,
 }: AttachFileMenuProps) => {
   const localize = useLocalize();
-  const isUploadDisabled = disabled ?? false;
+  const { user } = useAuthContext();
+  const isUploadDisabled = (disabled || user?.role === 'USER') ?? false;
   const inputRef = useRef<HTMLInputElement>(null);
   const [isPopoverActive, setIsPopoverActive] = useState(false);
   const [ephemeralAgent, setEphemeralAgent] = useRecoilState(
@@ -270,8 +272,12 @@ const AttachFileMenu = ({
         </Ariakit.MenuButton>
       }
       id="attach-file-menu-button"
-      description={localize('com_sidepanel_attach_files')}
-      disabled={isUploadDisabled}
+      description={
+        user?.role === 'USER'
+          ? 'Carga de archivos bloqueada en plan Gratis. Adquiere Wappy Vital.'
+          : localize('com_sidepanel_attach_files')
+      }
+      disabled={disabled ?? false}
     />
   );
   const handleSharePointFilesSelected = async (sharePointFiles: any[]) => {

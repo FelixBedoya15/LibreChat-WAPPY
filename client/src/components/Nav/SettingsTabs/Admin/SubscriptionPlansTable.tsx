@@ -26,11 +26,11 @@ interface VisibilitySettings {
 }
 
 const VISIBILITY_ITEMS: Array<{ key: keyof VisibilitySettings; label: string; description: string; color: string }> = [
-    { key: 'showPlanFree',          label: 'Plan Gratis',              description: 'Muestra el plan gratuito en la página',            color: 'text-gray-500' },
+    { key: 'showPlanFree',          label: 'Plan Gratis',              description: 'Muestra el plan gratuito en la página (Oculto en esta versión)', color: 'text-gray-500' },
     { key: 'showPlanGo',            label: 'Plan Go',                  description: 'Muestra el plan Go ($49.200/mes)',                  color: 'text-blue-500' },
     { key: 'showPlanPlus',          label: 'Plan Plus',                description: 'Muestra el plan Plus ($57.800/mes)',                color: 'text-green-500' },
-    { key: 'showPlanPro',           label: 'Plan Pro ⭐',              description: 'Muestra el plan Pro ($66.300/mes) — Recomendado',   color: 'text-amber-500' },
-    { key: 'showSectionAppPlans',   label: 'Sección: Plan IPEVAR',     description: 'Muestra la sección de Planes por Aplicativos',     color: 'text-emerald-500' },
+    { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro ($39.800/mes) — Recomendado', color: 'text-amber-500' },
+    { key: 'showSectionAppPlans',   label: 'Sección: Wappy Vital',     description: 'Muestra la sección del plan Wappy Vital (Pago único de por vida)', color: 'text-emerald-500' },
     { key: 'showSectionCustomPlan', label: 'Sección: Plan a la Medida',description: 'Muestra el constructor de plan personalizado',     color: 'text-fuchsia-500' },
     { key: 'showSectionEnterprise', label: 'Sección: Planes Corporativos', description: 'Muestra los planes empresariales y asesores', color: 'text-violet-500' },
 ];
@@ -256,7 +256,7 @@ export default function SubscriptionPlansTable() {
             {plans.map((plan) => (
                 <div key={plan.planId} className="border border-border-light rounded-xl overflow-hidden bg-surface-primary shadow-sm">
                     <div className="bg-surface-secondary px-6 py-4 flex justify-between items-center border-b border-border-light">
-                        <h3 className="text-xl font-bold capitalize text-primary">Plan {plan.name}</h3>
+                        <h3 className="text-xl font-bold capitalize text-primary">Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}</h3>
                         <Button
                             variant="default"
                             onClick={() => handleSave(plan)}
@@ -267,10 +267,10 @@ export default function SubscriptionPlansTable() {
                     </div>
 
                     <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8">
-                        {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
+                        {(plan.planId === 'ipevar' ? ['lifetime'] : ['monthly', 'quarterly', 'semiannual', 'annual']).map(interval => (
                             <div key={interval} className="min-w-[260px] flex-1 border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
                                 <h4 className="font-bold text-lg capitalize text-primary text-center pb-3 border-b border-border-light">
-                                    {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual'}
+                                    {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : interval === 'annual' ? 'Anual' : 'De Por Vida (Lifetime)'}
                                 </h4>
 
                                 <div>

@@ -20,6 +20,7 @@ const {
   processAgentFileUpload,
 } = require('~/server/services/Files/process');
 const { fileAccess } = require('~/server/middleware/accessResources/fileAccess');
+const { checkDownloadLimits } = require('~/server/middleware');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { getOpenAIClient } = require('~/server/controllers/assistants/helpers');
 const { checkPermission } = require('~/server/services/PermissionService');
@@ -299,7 +300,7 @@ router.get('/code/download/:session_id/:fileId', async (req, res) => {
   }
 });
 
-router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
+router.get('/download/:userId/:file_id', fileAccess, checkDownloadLimits, async (req, res) => {
   try {
     const { userId, file_id } = req.params;
     logger.debug(`File download requested by user ${userId}: ${file_id}`);
@@ -367,6 +368,10 @@ router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  if (req.user && req.user.role === 'USER') {
+    return res.status(403).json({ error: 'upload_blocked', message: 'La subida de archivos está bloqueada en el plan Gratis. Adquiere el plan Wappy Vital.' });
+  }
+
   const metadata = req.body;
   let cleanup = true;
 
@@ -415,6 +420,10 @@ router.post('/', async (req, res) => {
       logger.debug('[/files] File processing completed without cleanup');
     }
   }
+});
+
+router.post('/register-download', checkDownloadLimits, (req, res) => {
+  res.status(200).json({ success: true });
 });
 
 module.exports = router;

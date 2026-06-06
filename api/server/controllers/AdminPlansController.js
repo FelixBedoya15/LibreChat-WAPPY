@@ -21,7 +21,7 @@ const getPlans = async (req, res) => {
                 { planId: 'go', name: 'Go', prices: { monthly: 49200, quarterly: 147500, semiannual: 295000, annual: 590000 } },
                 { planId: 'plus', name: 'Plus', prices: { monthly: 57800, quarterly: 173500, semiannual: 347000, annual: 694000 } },
                 { planId: 'pro', name: 'Pro', prices: { monthly: 66300, quarterly: 199000, semiannual: 399000, annual: 796000 } },
-                { planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } },
+                { planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000, lifetime: 100000 } },
             ];
             await Plan.insertMany(defaultPlans);
             const newPlans = await Plan.find().lean();
@@ -30,7 +30,7 @@ const getPlans = async (req, res) => {
 
         const hasIpevar = plans.some(p => p.planId === 'ipevar');
         if (!hasIpevar) {
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000, lifetime: 100000 } });
             const newPlans = await Plan.find().lean();
             return res.status(200).json(newPlans);
         }

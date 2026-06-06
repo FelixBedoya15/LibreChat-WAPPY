@@ -23,6 +23,8 @@ const limiters = require('./limiters');
 const uaParser = require('./uaParser');
 const checkBan = require('./checkBan');
 const checkConvoLimits = require('./checkConvoLimits');
+const checkMessageLimits = require('./checkMessageLimits');
+const checkDownloadLimits = require('./checkDownloadLimits');
 const noIndex = require('./noIndex');
 const roles = require('./roles');
 const checkAccountStatus = require('./checkAccountStatus');
@@ -37,6 +39,8 @@ module.exports = {
   noIndex,
   checkBan,
   checkConvoLimits,
+  checkMessageLimits,
+  checkDownloadLimits,
   uaParser,
   setHeaders,
   logHeaders,

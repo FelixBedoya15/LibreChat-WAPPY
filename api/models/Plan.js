@@ -15,18 +15,21 @@ const planSchema = new mongoose.Schema({
         quarterly: { type: Number, default: 0 },
         semiannual: { type: Number, default: 0 },
         annual: { type: Number, default: 0 },
+        lifetime: { type: Number, default: 0 },
     },
     stripePriceIds: {
         monthly: { type: String, default: '' },
         quarterly: { type: String, default: '' },
         semiannual: { type: String, default: '' },
         annual: { type: String, default: '' },
+        lifetime: { type: String, default: '' },
     },
     promotions: {
         monthly: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
         quarterly: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
         semiannual: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
         annual: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
+        lifetime: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
     },
     featuresText: {
         type: [String],

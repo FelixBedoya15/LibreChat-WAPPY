@@ -1,21 +1,26 @@
 import React, { useRef } from 'react';
 import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
-import { useLocalize, useFileHandling } from '~/hooks';
+import { useLocalize, useFileHandling, useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 
 const AttachFile = ({ disabled }: { disabled?: boolean | null }) => {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const inputRef = useRef<HTMLInputElement>(null);
-  const isUploadDisabled = disabled ?? false;
+  const isUploadDisabled = (disabled || user?.role === 'USER') ?? false;
 
   const { handleFileChange } = useFileHandling();
 
   return (
     <FileUpload ref={inputRef} handleFileChange={handleFileChange}>
       <TooltipAnchor
-        description={localize('com_sidepanel_attach_files')}
+        description={
+          user?.role === 'USER'
+            ? 'Carga de archivos bloqueada en plan Gratis. Adquiere Wappy Vital.'
+            : localize('com_sidepanel_attach_files')
+        }
         id="attach-file"
-        disabled={isUploadDisabled}
+        disabled={disabled ?? false}
         render={
           <button
             type="button"
