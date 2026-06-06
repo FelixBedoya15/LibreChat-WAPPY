@@ -432,103 +432,94 @@ const processFileUpload = async ({ req, res, metadata }) => {
   }
 
   const { file } = req;
-  const fsPromises = require('fs').promises;
-  const tempCopyPath = `${file.path}_copy${path.extname(file.originalname || '')}`;
-  let hasCopy = false;
+  const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
+  const {
+    id,
+    bytes,
+    filename,
+    filepath: _filepath,
+    embedded,
+    height,
+    width,
+  } = await sanitizedUploadFn({
+    req,
+    file,
+    file_id,
+    openai,
+  });
 
-  if (!isAssistantUpload && file.mimetype === 'application/pdf') {
-    try {
-      await fsPromises.copyFile(file.path, tempCopyPath);
-      hasCopy = true;
-    } catch (err) {
-      logger.error('[processFileUpload] Failed to copy PDF file for background conversion:', err);
-    }
+  if (isAssistantUpload && !metadata.message_file && !metadata.tool_resource) {
+    await openai.beta.assistants.files.create(metadata.assistant_id, {
+      file_id: id,
+    });
+  } else if (isAssistantUpload && !metadata.message_file) {
+    await addResourceFileId({
+      req,
+      openai,
+      file_id: id,
+      assistant_id: metadata.assistant_id,
+      tool_resource: metadata.tool_resource,
+    });
   }
 
-  try {
-    const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
-    const {
-      id,
-      bytes,
-      filename,
-      filepath: _filepath,
-      embedded,
-      height,
-      width,
-    } = await sanitizedUploadFn({
+  let filepath = isAssistantUpload ? `${openai.baseURL}/files/${id}` : _filepath;
+  if (isAssistantUpload && file.mimetype.startsWith('image')) {
+    const result = await processImageFile({
       req,
       file,
-      file_id,
-      openai,
+      metadata: { file_id: v4() },
+      returnFile: true,
     });
-
-    if (isAssistantUpload && !metadata.message_file && !metadata.tool_resource) {
-      await openai.beta.assistants.files.create(metadata.assistant_id, {
-        file_id: id,
-      });
-    } else if (isAssistantUpload && !metadata.message_file) {
-      await addResourceFileId({
-        req,
-        openai,
-        file_id: id,
-        assistant_id: metadata.assistant_id,
-        tool_resource: metadata.tool_resource,
-      });
-    }
-
-    let filepath = isAssistantUpload ? `${openai.baseURL}/files/${id}` : _filepath;
-    if (isAssistantUpload && file.mimetype.startsWith('image')) {
-      const result = await processImageFile({
-        req,
-        file,
-        metadata: { file_id: v4() },
-        returnFile: true,
-      });
-      filepath = result.filepath;
-    }
-
-    const result = await createFile(
-      {
-        user: req.user.id,
-        file_id: id ?? file_id,
-        temp_file_id,
-        bytes,
-        filepath,
-        filename: filename ?? sanitizeFilename(file.originalname),
-        context: isAssistantUpload ? FileContext.assistants : FileContext.message_attachment,
-        model: isAssistantUpload ? req.body.model : undefined,
-        type: file.mimetype,
-        embedded,
-        source,
-        height,
-        width,
-      },
-      true,
-    );
-
-    if (hasCopy) {
-      const fileCopy = { ...file, path: tempCopyPath };
-      convertPdfToImages({
-        req,
-        file: fileCopy,
-        parentFileId: result.file_id,
-        userId: req.user.id,
-      })
-        .catch((err) => logger.error('[processFileUpload] PDF conversion background error:', err))
-        .finally(() => {
-          fsPromises
-            .unlink(tempCopyPath)
-            .catch((err) => logger.error('[processFileUpload] Failed to clean up PDF copy:', err));
-        });
-    }
-
-    res.status(200).json({ message: 'File uploaded and processed successfully', ...result });
-  } catch (error) {
-    if (hasCopy) {
-      await fsPromises.unlink(tempCopyPath).catch(() => {});
-    }
-    throw error;
+    filepath = result.filepath;
   }
+
+  const result = await createFile(
+    {
+      user: req.user.id,
+      file_id: id ?? file_id,
+      temp_file_id,
+      bytes,
+      filepath,
+      filename: filename ?? sanitizeFilename(file.originalname),
+      context: isAssistantUpload ? FileContext.assistants : FileContext.message_attachment,
+      model: isAssistantUpload ? req.body.model : undefined,
+      type: file.mimetype,
+      embedded,
+      source,
+      height,
+      width,
+    },
+    true,
+  );
+
+  if (!isAssistantUpload && file.mimetype === 'application/pdf') {
+    const fsPromises = require('fs').promises;
+    const tempCopyPath = `${file.path}_copy`;
+    fsPromises
+      .copyFile(file.path, tempCopyPath)
+      .then(() => {
+        const fileCopy = { ...file, path: tempCopyPath };
+        convertPdfToImages({
+          req,
+          file: fileCopy,
+          parentFileId: result.file_id,
+          userId: req.user.id,
+        })
+          .catch((err) => logger.error('[processFileUpload] PDF conversion background error:', err))
+          .finally(() => {
+            fsPromises
+              .unlink(tempCopyPath)
+              .catch((err) =>
+                logger.error('[processFileUpload] Failed to clean up PDF copy:', err),
+              );
+          });
+      })
+      .catch((err) =>
+        logger.error('[processFileUpload] Failed to copy PDF file for background conversion:', err),
+      );
+  }
+
+  res.status(200).json({ message: 'File uploaded and processed successfully', ...result });
 };
 
 /**
@@ -565,242 +556,216 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   let fileInfoMetadata;
   const entity_id = messageAttachment === true ? undefined : agent_id;
   const basePath = mime.getType(file.originalname)?.startsWith('image') ? 'images' : 'uploads';
-
-  const fsPromises = require('fs').promises;
-  const tempCopyPath = `${file.path}_copy${path.extname(file.originalname || '')}`;
-  let hasCopy = false;
-  const needsCopy =
-    tool_resource === EToolResources.file_search || file.mimetype === 'application/pdf';
-
-  if (needsCopy) {
-    try {
-      await fsPromises.copyFile(file.path, tempCopyPath);
-      hasCopy = true;
-    } catch (err) {
-      logger.error(
-        '[processAgentFileUpload] Failed to copy file for background/vector operations:',
-        err,
-      );
+  if (tool_resource === EToolResources.execute_code) {
+    const isCodeEnabled = await checkCapability(req, AgentCapabilities.execute_code);
+    if (!isCodeEnabled) {
+      throw new Error('Code execution is not enabled for Agents');
     }
-  }
+    const { handleFileUpload: uploadCodeEnvFile } = getStrategyFunctions(FileSources.execute_code);
+    const result = await loadAuthValues({ userId: req.user.id, authFields: [EnvVar.CODE_API_KEY] });
+    const stream = fs.createReadStream(file.path);
+    const fileIdentifier = await uploadCodeEnvFile({
+      req,
+      stream,
+      filename: file.originalname,
+      apiKey: result[EnvVar.CODE_API_KEY],
+      entity_id,
+    });
+    fileInfoMetadata = { fileIdentifier };
+  } else if (tool_resource === EToolResources.file_search) {
+    const isFileSearchEnabled = await checkCapability(req, AgentCapabilities.file_search);
+    if (!isFileSearchEnabled) {
+      throw new Error('File search is not enabled for Agents');
+    }
+    // Note: File search processing continues to dual storage logic below
+  } else if (tool_resource === EToolResources.context) {
+    const { file_id, temp_file_id = null } = metadata;
 
-  const fileCopy = hasCopy ? { ...file, path: tempCopyPath } : file;
-
-  try {
-    if (tool_resource === EToolResources.execute_code) {
-      const isCodeEnabled = await checkCapability(req, AgentCapabilities.execute_code);
-      if (!isCodeEnabled) {
-        throw new Error('Code execution is not enabled for Agents');
-      }
-      const { handleFileUpload: uploadCodeEnvFile } = getStrategyFunctions(
-        FileSources.execute_code,
-      );
-      const result = await loadAuthValues({
-        userId: req.user.id,
-        authFields: [EnvVar.CODE_API_KEY],
-      });
-      const stream = fs.createReadStream(fileCopy.path);
-      const fileIdentifier = await uploadCodeEnvFile({
-        req,
-        stream,
+    /**
+     * @param {object} params
+     * @param {string} params.text
+     * @param {number} params.bytes
+     * @param {string} params.filepath
+     * @param {string} params.type
+     * @return {Promise<void>}
+     */
+    const createTextFile = async ({ text, bytes, filepath, type = 'text/plain' }) => {
+      const fileInfo = removeNullishValues({
+        text,
+        bytes,
+        file_id,
+        temp_file_id,
+        user: req.user.id,
+        type,
+        filepath: filepath ?? file.path,
+        source: FileSources.text,
         filename: file.originalname,
-        apiKey: result[EnvVar.CODE_API_KEY],
-        entity_id,
+        model: messageAttachment ? undefined : req.body.model,
+        context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
       });
-      fileInfoMetadata = { fileIdentifier };
-    } else if (tool_resource === EToolResources.file_search) {
-      const isFileSearchEnabled = await checkCapability(req, AgentCapabilities.file_search);
-      if (!isFileSearchEnabled) {
-        throw new Error('File search is not enabled for Agents');
-      }
-      // Note: File search processing continues to dual storage logic below
-    } else if (tool_resource === EToolResources.context) {
-      const { file_id, temp_file_id = null } = metadata;
 
-      /**
-       * @param {object} params
-       * @param {string} params.text
-       * @param {number} params.bytes
-       * @param {string} params.filepath
-       * @param {string} params.type
-       * @return {Promise<void>}
-       */
-      const createTextFile = async ({ text, bytes, filepath, type = 'text/plain' }) => {
-        const fileInfo = removeNullishValues({
+      if (!messageAttachment && tool_resource) {
+        await addAgentResourceFile({
+          req,
+          file_id,
+          agent_id,
+          tool_resource,
+        });
+      }
+      const result = await createFile(fileInfo, true);
+      return res
+        .status(200)
+        .json({ message: 'Agent file uploaded and processed successfully', ...result });
+    };
+
+    const fileConfig = mergeFileConfig(appConfig.fileConfig);
+
+    const shouldUseOCR =
+      appConfig?.ocr != null &&
+      fileConfig.checkType(file.mimetype, fileConfig.ocr?.supportedMimeTypes || []);
+
+    if (shouldUseOCR && !(await checkCapability(req, AgentCapabilities.ocr))) {
+      throw new Error('OCR capability is not enabled for Agents');
+    } else if (shouldUseOCR) {
+      try {
+        const { handleFileUpload: uploadOCR } = getStrategyFunctions(
+          appConfig?.ocr?.strategy ?? FileSources.mistral_ocr,
+        );
+        const {
           text,
           bytes,
-          file_id,
-          temp_file_id,
-          user: req.user.id,
-          type,
-          filepath: filepath ?? fileCopy.path,
-          source: FileSources.text,
-          filename: file.originalname,
-          model: messageAttachment ? undefined : req.body.model,
-          context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
-        });
-
-        if (!messageAttachment && tool_resource) {
-          await addAgentResourceFile({
-            req,
-            file_id,
-            agent_id,
-            tool_resource,
-          });
-        }
-        const result = await createFile(fileInfo, true);
-
-        if (hasCopy) {
-          await fsPromises.unlink(tempCopyPath).catch(() => {});
-        }
-        return res
-          .status(200)
-          .json({ message: 'Agent file uploaded and processed successfully', ...result });
-      };
-
-      const fileConfig = mergeFileConfig(appConfig.fileConfig);
-
-      const shouldUseOCR =
-        appConfig?.ocr != null &&
-        fileConfig.checkType(file.mimetype, fileConfig.ocr?.supportedMimeTypes || []);
-
-      if (shouldUseOCR && !(await checkCapability(req, AgentCapabilities.ocr))) {
-        throw new Error('OCR capability is not enabled for Agents');
-      } else if (shouldUseOCR) {
-        try {
-          const { handleFileUpload: uploadOCR } = getStrategyFunctions(
-            appConfig?.ocr?.strategy ?? FileSources.mistral_ocr,
-          );
-          const {
-            text,
-            bytes,
-            filepath: ocrFileURL,
-          } = await uploadOCR({ req, file: fileCopy, loadAuthValues });
-          return await createTextFile({ text, bytes, filepath: ocrFileURL });
-        } catch (ocrError) {
-          logger.error(
-            `[processAgentFileUpload] OCR processing failed for file "${file.originalname}", falling back to text extraction:`,
-            ocrError,
-          );
-        }
+          filepath: ocrFileURL,
+        } = await uploadOCR({ req, file, loadAuthValues });
+        return await createTextFile({ text, bytes, filepath: ocrFileURL });
+      } catch (ocrError) {
+        logger.error(
+          `[processAgentFileUpload] OCR processing failed for file "${file.originalname}", falling back to text extraction:`,
+          ocrError,
+        );
       }
-
-      const shouldUseSTT = fileConfig.checkType(
-        file.mimetype,
-        fileConfig.stt?.supportedMimeTypes || [],
-      );
-
-      if (shouldUseSTT) {
-        const sttService = await STTService.getInstance();
-        const { text, bytes } = await processAudioFile({ req, file: fileCopy, sttService });
-        return await createTextFile({ text, bytes });
-      }
-
-      const shouldUseText = fileConfig.checkType(
-        file.mimetype,
-        fileConfig.text?.supportedMimeTypes || [],
-      );
-
-      if (!shouldUseText) {
-        throw new Error(`File type ${file.mimetype} is not supported for text parsing.`);
-      }
-
-      const { text, bytes } = await parseText({ req, file: fileCopy, file_id });
-      return await createTextFile({ text, bytes, type: file.mimetype });
     }
 
-    // Dual storage pattern for RAG files: Storage + Vector DB
-    let storageResult, embeddingResult;
-    const isImageFile = file.mimetype.startsWith('image');
-    const source = getFileStrategy(appConfig, { isImage: isImageFile });
+    const shouldUseSTT = fileConfig.checkType(
+      file.mimetype,
+      fileConfig.stt?.supportedMimeTypes || [],
+    );
 
-    if (tool_resource === EToolResources.file_search) {
-      // FIRST: Upload to Storage for permanent backup (S3/local/etc.)
-      const { handleFileUpload } = getStrategyFunctions(source);
-      const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
-      storageResult = await sanitizedUploadFn({
-        req,
-        file,
-        file_id,
-        basePath,
-        entity_id,
-      });
-
-      // SECOND: Upload to Vector DB
-      const { uploadVectors } = require('./VectorDB/crud');
-
-      embeddingResult = await uploadVectors({
-        req,
-        file: fileCopy,
-        file_id,
-        entity_id,
-      });
-
-      // Vector status will be stored at root level, no need for metadata
-      fileInfoMetadata = {};
-    } else {
-      // Standard single storage for non-RAG files
-      const { handleFileUpload } = getStrategyFunctions(source);
-      const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
-      storageResult = await sanitizedUploadFn({
-        req,
-        file,
-        file_id,
-        basePath,
-        entity_id,
-      });
+    if (shouldUseSTT) {
+      const sttService = await STTService.getInstance();
+      const { text, bytes } = await processAudioFile({ req, file, sttService });
+      return await createTextFile({ text, bytes });
     }
 
-    let { bytes, filename, filepath: _filepath, height, width } = storageResult;
-    // For RAG files, use embedding result; for others, use storage result
-    let embedded = storageResult.embedded;
-    if (tool_resource === EToolResources.file_search) {
-      embedded = embeddingResult?.embedded;
-      filename = embeddingResult?.filename || filename;
+    const shouldUseText = fileConfig.checkType(
+      file.mimetype,
+      fileConfig.text?.supportedMimeTypes || [],
+    );
+
+    if (!shouldUseText) {
+      throw new Error(`File type ${file.mimetype} is not supported for text parsing.`);
     }
 
-    let filepath = _filepath;
+    const { text, bytes } = await parseText({ req, file, file_id });
+    return await createTextFile({ text, bytes, type: file.mimetype });
+  }
 
-    if (!messageAttachment && tool_resource) {
-      await addAgentResourceFile({
-        req,
-        file_id,
-        agent_id,
-        tool_resource,
-      });
-    }
+  // Dual storage pattern for RAG files: Storage + Vector DB
+  let storageResult, embeddingResult;
+  const isImageFile = file.mimetype.startsWith('image');
+  const source = getFileStrategy(appConfig, { isImage: isImageFile });
 
-    if (isImage) {
-      const result = await processImageFile({
-        req,
-        file: fileCopy,
-        metadata: { file_id: v4() },
-        returnFile: true,
-      });
-      filepath = result.filepath;
-    }
-
-    const fileInfo = removeNullishValues({
-      user: req.user.id,
+  if (tool_resource === EToolResources.file_search) {
+    // FIRST: Upload to Storage for permanent backup (S3/local/etc.)
+    const { handleFileUpload } = getStrategyFunctions(source);
+    const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
+    storageResult = await sanitizedUploadFn({
+      req,
+      file,
       file_id,
-      temp_file_id,
-      bytes,
-      filepath,
-      filename: filename ?? sanitizeFilename(file.originalname),
-      context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
-      model: messageAttachment ? undefined : req.body.model,
-      metadata: fileInfoMetadata,
-      type: file.mimetype,
-      embedded,
-      source,
-      height,
-      width,
+      basePath,
+      entity_id,
     });
 
-    const result = await createFile(fileInfo, true);
+    // SECOND: Upload to Vector DB
+    const { uploadVectors } = require('./VectorDB/crud');
 
-    if (file.mimetype === 'application/pdf') {
-      if (hasCopy) {
+    embeddingResult = await uploadVectors({
+      req,
+      file,
+      file_id,
+      entity_id,
+    });
+
+    // Vector status will be stored at root level, no need for metadata
+    fileInfoMetadata = {};
+  } else {
+    // Standard single storage for non-RAG files
+    const { handleFileUpload } = getStrategyFunctions(source);
+    const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
+    storageResult = await sanitizedUploadFn({
+      req,
+      file,
+      file_id,
+      basePath,
+      entity_id,
+    });
+  }
+
+  let { bytes, filename, filepath: _filepath, height, width } = storageResult;
+  // For RAG files, use embedding result; for others, use storage result
+  let embedded = storageResult.embedded;
+  if (tool_resource === EToolResources.file_search) {
+    embedded = embeddingResult?.embedded;
+    filename = embeddingResult?.filename || filename;
+  }
+
+  let filepath = _filepath;
+
+  if (!messageAttachment && tool_resource) {
+    await addAgentResourceFile({
+      req,
+      file_id,
+      agent_id,
+      tool_resource,
+    });
+  }
+
+  if (isImage) {
+    const result = await processImageFile({
+      req,
+      file,
+      metadata: { file_id: v4() },
+      returnFile: true,
+    });
+    filepath = result.filepath;
+  }
+
+  const fileInfo = removeNullishValues({
+    user: req.user.id,
+    file_id,
+    temp_file_id,
+    bytes,
+    filepath,
+    filename: filename ?? sanitizeFilename(file.originalname),
+    context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
+    model: messageAttachment ? undefined : req.body.model,
+    metadata: fileInfoMetadata,
+    type: file.mimetype,
+    embedded,
+    source,
+    height,
+    width,
+  });
+
+  const result = await createFile(fileInfo, true);
+
+  if (file.mimetype === 'application/pdf') {
+    const fsPromises = require('fs').promises;
+    const tempCopyPath = `${file.path}_copy`;
+    fsPromises
+      .copyFile(file.path, tempCopyPath)
+      .then(() => {
+        const fileCopy = { ...file, path: tempCopyPath };
         convertPdfToImages({
           req,
           file: fileCopy,
@@ -817,24 +782,16 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
                 logger.error('[processAgentFileUpload] Failed to clean up PDF copy:', err),
               );
           });
-      }
-    } else {
-      if (hasCopy) {
-        fsPromises
-          .unlink(tempCopyPath)
-          .catch((err) =>
-            logger.error('[processAgentFileUpload] Failed to clean up temp copy:', err),
-          );
-      }
-    }
-
-    res.status(200).json({ message: 'Agent file uploaded and processed successfully', ...result });
-  } catch (error) {
-    if (hasCopy) {
-      await fsPromises.unlink(tempCopyPath).catch(() => {});
-    }
-    throw error;
+      })
+      .catch((err) =>
+        logger.error(
+          '[processAgentFileUpload] Failed to copy PDF file for background conversion:',
+          err,
+        ),
+      );
   }
+
+  res.status(200).json({ message: 'Agent file uploaded and processed successfully', ...result });
 };
 
 /**

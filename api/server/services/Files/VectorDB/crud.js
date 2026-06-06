@@ -73,10 +73,7 @@ async function uploadVectors({ req, file, file_id, entity_id, storageMetadata })
     const jwtToken = generateShortLivedToken(req.user.id);
     const formData = new FormData();
     formData.append('file_id', file_id);
-    formData.append('file', fs.createReadStream(file.path), {
-      filename: file.originalname,
-      contentType: file.mimetype,
-    });
+    formData.append('file', fs.createReadStream(file.path));
     if (entity_id != null && entity_id) {
       formData.append('entity_id', entity_id);
     }
