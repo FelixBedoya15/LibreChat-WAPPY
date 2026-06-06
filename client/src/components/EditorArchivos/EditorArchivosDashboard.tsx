@@ -227,7 +227,7 @@ const EditorArchivosDashboard = () => {
                     <UpgradeWall
                         title="Límite de Historial"
                         description="Has importado el máximo de 5 documentos permitidos en el Plan Gratuito. Adquiere Premium para tener almacenamiento ilimitado en la nube."
-                        plan="USER_PRO"
+                        plan={user?.role || 'USER'}
                         isCompact={true}
                         hideFeatures={true}
                     />

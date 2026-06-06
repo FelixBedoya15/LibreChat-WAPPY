@@ -135,7 +135,7 @@ const DocumentEditorView = () => {
                     <UpgradeWall
                         title="Exportación Bloqueada"
                         description="El guardado y exportación de archivos enriquecidos por IA está reservado para cuentas PREMIUM."
-                        plan="USER_PRO"
+                        plan={user?.role || 'USER'}
                         isCompact={true}
                         hideFeatures={true}
                     />

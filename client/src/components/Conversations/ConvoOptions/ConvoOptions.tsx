@@ -293,7 +293,7 @@ function ConvoOptions({
               <UpgradeWall
                 title={upgradeModalTitle}
                 description={upgradeModalDesc}
-                plan="USER_PRO"
+                plan="USER_IPEVAR"
                 isCompact={true}
                 hideFeatures={true}
               />

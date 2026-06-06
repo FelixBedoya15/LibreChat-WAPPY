@@ -1489,7 +1489,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               <UpgradeWall
                 title={upgradeModalTitle}
                 description={upgradeModalDesc}
-                plan="USER_PRO"
+                plan={user?.role || "USER"}
                 isCompact={true}
                 hideFeatures={true}
               />

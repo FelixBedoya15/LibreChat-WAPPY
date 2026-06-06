@@ -1180,7 +1180,7 @@ const ReporteActosCondiciones = () => {
                             <UpgradeWall
                                 title="Límite Gratuito Alcanzado"
                                 description="Has alcanzado el límite para este módulo. Adquiere Premium para generar registros ilimitados."
-                                plan="USER_PRO"
+                                plan="USER_IPEVAR"
                                 isCompact={true}
                                 hideFeatures={true}
                             />

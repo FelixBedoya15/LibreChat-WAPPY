@@ -378,7 +378,7 @@ export default function UserManagementTable() {
                     {/* Role filter */}
                     <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className={selectStyle}>
                         <option value="">{localize('com_ui_role')} — Todos</option>
-                        <option value="USER">Gratis</option>
+                        <option value="USER">Invitado</option>
                         <option value="USER_GO">Go</option>
                         <option value="USER_PLUS">Plus</option>
                         <option value="USER_PRO">Pro</option>
@@ -436,7 +436,7 @@ export default function UserManagementTable() {
                             defaultValue=""
                         >
                             <option value="" disabled>Cambiar Rol...</option>
-                            <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Gratis</option>
+                            <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Invitado</option>
                             <option value="USER_GO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Go</option>
                             <option value="USER_PLUS" className="text-black bg-white dark:bg-gray-800 dark:text-white">Plus</option>
                             <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Pro</option>
@@ -517,7 +517,7 @@ export default function UserManagementTable() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.username}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{
-                                        { USER: 'Gratis', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Pro', USER_IPEVAR: 'IPEVAR', USER_CUSTOM: 'A la Medida', ADMIN: 'Admin' }[user.role] || user.role
+                                        { USER: 'Invitado', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Pro', USER_IPEVAR: 'IPEVAR', USER_CUSTOM: 'A la Medida', ADMIN: 'Admin' }[user.role] || user.role
                                     }</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyle}`}>

@@ -163,6 +163,12 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
         permission: Permissions.USE,
     }) && hasPermission(PermissionTypes.SGSST);
 
+    const isBioMotor = phase.id.startsWith('hito');
+    const lockTitle = isBioMotor ? "Motor Bio-Individual Exclusivo" : "Salud Organizacional Exclusiva";
+    const lockDesc = isBioMotor 
+        ? "El acceso a los aplicativos del Motor Bio-Individual, tales como inspecciones en vivo por videollamada con nuestro agente de inspección, permisos de trabajo en alturas, biomecánico (método OWAS), matriz de peligros Bio-IPEVAR y huella biocéntrica, es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo."
+        : "El acceso a los aplicativos de Salud Organizacional, tales como diagnóstico de estándares mínimos (Resolución 0312), autoevaluación Mintrabajo, responsable SG-SST, política de SST, objetivos y matriz legal, es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo.";
+
     useEffect(() => {
         const saved = localStorage.getItem(storageKey);
         if (saved) {
@@ -392,8 +398,8 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                             <UpgradeWall
                                                 isPopup={true}
                                                 plan="USER_IPEVAR"
-                                                title="Módulo Somos SST"
-                                                description="El acceso a este módulo es exclusivo del Plan Wappy Pro. Actualiza tu plan para comenzar a implementarlo."
+                                                title={lockTitle}
+                                                description={lockDesc}
                                             />
                                         ) : (
                                             <>
@@ -657,8 +663,8 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
                     <UpgradeWall
                         isPopup={true}
-                        title="Somos SST Exclusivo"
-                        description="El acceso a los aplicativos de gestión de SST, matrices de peligros, comités de convivencia y oráculo predictivo es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo."
+                        title={lockTitle}
+                        description={lockDesc}
                         plan="USER_IPEVAR"
                     />
                 </div>

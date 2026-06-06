@@ -945,7 +945,7 @@ const LivePage = () => {
                     <UpgradeWall
                         isPopup={true}
                         title="Análisis en Vivo Exclusivo"
-                        description="El análisis de riesgos en vivo a través de dictado de voz, carga de videos y fotos es una herramienta avanzada exclusiva de los planes Wappy Vital y Wappy Pro."
+                        description="El análisis de riesgos y las inspecciones en vivo por videollamada con nuestro agente de inspección, evaluación de trabajo en alturas, biomecánico (visión IA, MediaPipe) y riesgos eléctricos, es una herramienta avanzada exclusiva de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para comenzar a usarla."
                     />
                 </div>
             )}
@@ -964,7 +964,7 @@ const LivePage = () => {
                             <UpgradeWall
                                 title="Desbloquear Reportes"
                                 description="Adquiere Premium para redactar y guardar el informe."
-                                plan="USER_PRO"
+                                plan="USER_IPEVAR"
                                 isCompact={true}
                                 hideFeatures={true}
                             />

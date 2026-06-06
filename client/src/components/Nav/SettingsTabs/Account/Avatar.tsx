@@ -204,7 +204,7 @@ function Avatar() {
             {user?.role === 'ADMIN' ? 'Admin' :
               user?.role === 'USER_PRO' ? 'Pro' :
                 user?.role === 'USER_PLUS' ? 'Plus' :
-                  user?.role === 'USER_GO' ? 'Go' : 'Gratis'}
+                  user?.role === 'USER_GO' ? 'Go' : 'Invitado'}
           </div>
         </div>
 

@@ -270,7 +270,7 @@ export default function AgenteGTC45Workspace() {
   }, [currentConvoId, currentRole]);
 
   if (currentRole !== 'ADMIN') {
-    return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_PRO" />;
+    return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_IPEVAR" />;
   }
 
   return (

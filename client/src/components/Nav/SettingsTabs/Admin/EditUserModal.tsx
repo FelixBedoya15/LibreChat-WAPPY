@@ -266,7 +266,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     onChange={handleChange}
                                                     className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none cursor-pointer"
                                                 >
-                                                    <option value="USER">Gratis (USER)</option>
+                                                    <option value="USER">Invitado (USER)</option>
                                                     <option value="USER_GO">Go (USER_GO)</option>
                                                     <option value="USER_PLUS">Plus (USER_PLUS)</option>
                                                     <option value="USER_PRO">Pro (USER_PRO)</option>
