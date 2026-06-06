@@ -127,19 +127,19 @@ const AttachFileMenu = ({
         isDocumentSupportedProvider(currentProvider)
       ) {
         if (isGoogle) {
-          // Google/Gemini: imagen directa funciona
+          // Google/Gemini: solo imágenes en adjunto directo
           items.push({
-            label: 'Subir imagen (adjunto directo)',
+            label: '📷 Imagen',
             onClick: () => {
               setToolResource(undefined);
               onAction('image');
             },
             icon: <FileImageIcon className="icon-md" />,
           });
-          // Documentos: usar OCR solo si la capacidad está habilitada; si no, adjunto normal
+          // Documentos: extraer texto automáticamente para que el modelo pueda leer el contenido
           if (capabilities.contextEnabled) {
             items.push({
-              label: 'Subir documento (PDF/Word/Excel/TXT)',
+              label: '📄 Documento',
               onClick: () => {
                 setToolResource(EToolResources.context);
                 onAction();
@@ -148,7 +148,7 @@ const AttachFileMenu = ({
             });
           } else {
             items.push({
-              label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
+              label: '📎 Adjunto directo',
               onClick: () => {
                 setToolResource(undefined);
                 onAction('google_multimodal');
@@ -158,7 +158,7 @@ const AttachFileMenu = ({
           }
         } else {
           items.push({
-            label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
+            label: '📎 Adjunto directo',
             onClick: () => {
               setToolResource(undefined);
               onAction('multimodal');
@@ -177,9 +177,10 @@ const AttachFileMenu = ({
         });
       }
 
-      if (capabilities.contextEnabled) {
+      // Para Google, 'Documento' ya cubre OCR — no duplicar
+      if (capabilities.contextEnabled && !isGoogle) {
         items.push({
-          label: localize('com_ui_upload_ocr_text') + ' (Extraer texto/OCR)',
+          label: '📝 Leer texto',
           onClick: () => {
             setToolResource(EToolResources.context);
             onAction();
@@ -190,7 +191,7 @@ const AttachFileMenu = ({
 
       if (capabilities.fileSearchEnabled && fileSearchAllowedByAgent) {
         items.push({
-          label: localize('com_ui_upload_file_search') + ' (Base de datos RAG)',
+          label: '🔍 Buscar en archivos',
           onClick: () => {
             setToolResource(EToolResources.file_search);
             setEphemeralAgent((prev) => ({
@@ -205,7 +206,7 @@ const AttachFileMenu = ({
 
       if (capabilities.codeEnabled && codeAllowedByAgent) {
         items.push({
-          label: localize('com_ui_upload_code_files') + ' (Intérprete de código)',
+          label: '💻 Ejecutar código',
           onClick: () => {
             setToolResource(EToolResources.execute_code);
             setEphemeralAgent((prev) => ({
