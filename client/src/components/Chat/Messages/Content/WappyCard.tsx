@@ -197,7 +197,8 @@ const repairJson = (str: string): string | null => {
   }
 
   // Backtracking repair: iteratively slice from the end to find a valid JSON structure
-  for (let len = s.length - 1; len > 0; len--) {
+  const minLen = Math.max(1, s.length - 200);
+  for (let len = s.length - 1; len >= minLen; len--) {
     let sub = s.slice(0, len).trim();
     if (sub.endsWith(',') || sub.endsWith(':') || sub.endsWith('[')) {
       sub = sub.slice(0, -1).trim();

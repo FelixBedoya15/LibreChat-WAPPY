@@ -91,6 +91,7 @@ COPY librechat.yaml ./librechat.yaml
 # Agentes Wappy: plantillas de instrucciones para los agentes de IA
 COPY Agentes ./Agentes
 WORKDIR /app/api
+RUN ln -s /app/node_modules /app/api/node_modules
 EXPOSE 3080
 ENV HOST=0.0.0.0
 CMD ["node", "server/index.js"]
