@@ -994,9 +994,10 @@ const DashboardPredictivo = () => {
                     {!isPro ? (
                         <div className="flex-1 flex flex-col justify-center h-full">
                             <UpgradeWall
-                                description="Esta sección requiere un plan PRO. Analiza en tiempo real de forma predictiva mediante IA el ecosistema de más de 8 módulos interconectados de SGSST."
-                                isCompact={false}
-                                plan="USER_PLUS"
+                                isPopup={true}
+                                plan="USER_IPEVAR"
+                                title="Análisis Predictivo IA Exclusivo"
+                                description="El análisis de correlación predictiva IA y sus recomendaciones prioritarias son exclusivas del Plan Wappy Pro. Actualiza tu plan para activarlo."
                             />
                         </div>
                     ) : (

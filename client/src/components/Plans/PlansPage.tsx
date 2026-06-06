@@ -548,15 +548,29 @@ export default function PlansPage() {
     return Math.round(price);
   }, [checkoutPlan, promoValidated, paymentMethod]);
 
+  const activeSubscriptionPlans = useMemo(() => {
+    return PLANS.filter((plan) => {
+      if (plan.key === 'free') return false;
+      if (plan.key === 'go') return visibility.showPlanGo;
+      if (plan.key === 'plus') return visibility.showPlanPlus;
+      if (plan.key === 'pro') return visibility.showPlanPro;
+      return true;
+    });
+  }, [visibility]);
+
+  const activeAppPlans = useMemo(() => {
+    if (!visibility.showSectionAppPlans) return [];
+    return APP_PLANS;
+  }, [visibility.showSectionAppPlans]);
+
   const showUnifiedLayout = useMemo(() => {
     return (
-      !visibility.showPlanFree &&
-      !visibility.showPlanGo &&
-      !visibility.showPlanPlus &&
-      visibility.showPlanPro &&
-      visibility.showSectionAppPlans
+      activeSubscriptionPlans.length === 1 &&
+      activeSubscriptionPlans[0].key === 'pro' &&
+      activeAppPlans.length === 1 &&
+      activeAppPlans[0].key === 'ipevar'
     );
-  }, [visibility]);
+  }, [activeSubscriptionPlans, activeAppPlans]);
 
   // Registration for visitors
   const [showRegister, setShowRegister] = useState(false);

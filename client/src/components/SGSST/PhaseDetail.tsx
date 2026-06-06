@@ -263,13 +263,16 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     };
 
     return (
-        <div className={`flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary overflow-y-auto`}>
+        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary relative overflow-hidden">
             {/* Organic Background Blob — NO transform to avoid breaking position:fixed */}
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none z-0">
                 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                     <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
                 </svg>
             </div>
+
+            {/* Scrollable container with blur if locked */}
+            <div className={`flex-1 flex flex-col min-h-0 w-full overflow-y-auto z-10 ${!hasAccessToSGSST ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
 
             {/* Header Section */}
             <div className="relative z-10 px-6 pt-10 pb-6 w-full flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -387,22 +390,10 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
 
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall
-                                                plan="USER_PLUS"
-                                                planBTitle="Plan Pro"
-                                                planBItems={[
-                                                    'Somos SST',
-                                                    'Chat con IA',
-                                                    'Conversaciones ilimitadas',
-                                                    '+ de 15 Agentes Expertos en SST',
-                                                    '**Agente Matriz IPEVAR**',
-                                                    'Aula de estudio',
-                                                    'Blog WAPPY',
-                                                    'Análisis en Vivo',
-                                                    'Centro de Inteligencia Predictiva',
-                                                    'Crea tus propios Agentes de IA',
-                                                    'Editor de Archivos con IA',
-                                                    'Acceso anticipado a nuevas funciones',
-                                                ]}
+                                                isPopup={true}
+                                                plan="USER_IPEVAR"
+                                                title="Módulo Somos SST"
+                                                description="El acceso a este módulo es exclusivo del Plan Wappy Pro. Actualiza tu plan para comenzar a implementarlo."
                                             />
                                         ) : (
                                             <>
@@ -646,22 +637,10 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                             <div className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
                                 {!hasAccessToSGSST ? (
                                     <UpgradeWall
-                                        plan="USER_PLUS"
-                                        planBTitle="Plan Pro"
-                                        planBItems={[
-                                            'Somos SST',
-                                            'Chat con IA',
-                                            'Conversaciones ilimitadas',
-                                            '+ de 15 Agentes Expertos en SST',
-                                            '**Agente Matriz IPEVAR**',
-                                            'Aula de estudio',
-                                            'Blog WAPPY',
-                                            'Análisis en Vivo',
-                                            'Centro de Inteligencia Predictiva',
-                                            'Crea tus propios Agentes de IA',
-                                            'Editor de Archivos con IA',
-                                            'Acceso anticipado a nuevas funciones',
-                                        ]}
+                                        isPopup={true}
+                                        plan="USER_IPEVAR"
+                                        title="Aplicativos Personalizados HTML"
+                                        description="El acceso a la creación y gestión de aplicativos interactivos HTML es exclusivo del Plan Wappy Pro. Actualiza tu plan para comenzar a implementarlo."
                                     />
                                 ) : (
                                     <HtmlSandboxApp phaseId={phase.id} phaseTitle={phase.title} />
@@ -670,7 +649,20 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         )}
                     </div>
                 )}
+             </div>
             </div>
+
+            {/* Premium Lock Overlay for Free/Vital Plan */}
+            {!hasAccessToSGSST && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                    <UpgradeWall
+                        isPopup={true}
+                        title="Somos SST Exclusivo"
+                        description="El acceso a los aplicativos de gestión de SST, matrices de peligros, comités de convivencia y oráculo predictivo es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo."
+                        plan="USER_IPEVAR"
+                    />
+                </div>
+            )}
         </div>
     );
 };

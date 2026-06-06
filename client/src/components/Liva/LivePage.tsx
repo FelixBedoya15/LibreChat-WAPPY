@@ -620,7 +620,7 @@ const LivePage = () => {
             `}</style>
 
             {/* Live Analysis Content (Accessible to all) */}
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className={`flex-1 flex flex-col min-h-0 ${user?.role === 'USER' ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
                     {/* Toolbar / Header Actions */}
                     <div className="w-full p-4 pb-0">
                         <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-3 sm:p-4 flex flex-col sm:flex-row gap-4 sm:gap-0 items-center justify-between">
@@ -938,6 +938,17 @@ const LivePage = () => {
                 />
             )}
             </div>
+
+            {/* Premium Lock Overlay for Free Plan */}
+            {user?.role === 'USER' && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                    <UpgradeWall
+                        isPopup={true}
+                        title="Análisis en Vivo Exclusivo"
+                        description="El análisis de riesgos en vivo a través de dictado de voz, carga de videos y fotos es una herramienta avanzada exclusiva de los planes Wappy Vital y Wappy Pro."
+                    />
+                </div>
+            )}
 
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (

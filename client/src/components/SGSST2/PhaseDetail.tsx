@@ -250,8 +250,10 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const retro = PHASE_RETRO[phase.id] ?? { label: phase.title, accent: '#4ade80', bg: '#14532d' };
 
     return (
-        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-[#0a0a0a] overflow-y-auto">
-            {/* ── Retro Header ── */}
+        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-[#0a0a0a] relative overflow-hidden">
+            {/* Scrollable container with blur if locked */}
+            <div className={`flex-1 flex flex-col min-h-0 w-full overflow-y-auto z-10 ${!hasAccessToSGSST ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+                {/* ── Retro Header ── */}
             <div className="border-b-4 border-white px-6 py-3 flex items-center justify-between gap-4"
                  style={{ backgroundColor: retro.bg }}>
                 <div className="flex items-center gap-4">
@@ -360,22 +362,10 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                     <div className="p-4 border-t-4" style={{ borderColor: retro.accent, backgroundColor: '#0d0d0d' }}>
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall
-                                                plan="USER_PLUS"
-                                                planBTitle="Plan Pro"
-                                                planBItems={[
-                                                    'Somos SST',
-                                                    'Chat con IA',
-                                                    'Conversaciones ilimitadas',
-                                                    '+ de 15 Agentes Expertos en SST',
-                                                    '**Agente Matriz IPEVAR**',
-                                                    'Aula de estudio',
-                                                    'Blog WAPPY',
-                                                    'Análisis en Vivo',
-                                                    'Centro de Inteligencia Predictiva',
-                                                    'Crea tus propios Agentes de IA',
-                                                    'Editor de Archivos con IA',
-                                                    'Acceso anticipado a nuevas funciones',
-                                                ]}
+                                                isPopup={true}
+                                                plan="USER_IPEVAR"
+                                                title="Módulo Somos SST"
+                                                description="El acceso a este módulo es exclusivo del Plan Wappy Pro. Actualiza tu plan para comenzar a implementarlo."
                                             />
                                         ) : (
                                             <>
@@ -566,7 +556,20 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         );
                     })
                 )}
+             </div>
             </div>
+
+            {/* Premium Lock Overlay for Free/Vital Plan */}
+            {!hasAccessToSGSST && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                    <UpgradeWall
+                        isPopup={true}
+                        title="Somos SST Exclusivo"
+                        description="El acceso a los aplicativos de gestión de SST, matrices de peligros, comités de convivencia y oráculo predictivo es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo."
+                        plan="USER_IPEVAR"
+                    />
+                </div>
+            )}
         </div>
     );
 };
