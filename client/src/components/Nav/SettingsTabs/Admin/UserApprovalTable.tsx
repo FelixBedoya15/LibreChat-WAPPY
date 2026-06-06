@@ -381,7 +381,7 @@ export default function UserManagementTable() {
                         <option value="USER">Invitado</option>
                         <option value="USER_GO">Go</option>
                         <option value="USER_PLUS">Plus</option>
-                        <option value="USER_PRO">Pro</option>
+                        <option value="USER_PRO">Wappy Pro</option>
                         <option value="USER_IPEVAR">Wappy Vital</option>
                         <option value="USER_CUSTOM">A la Medida</option>
                         <option value="ADMIN">Admin</option>
@@ -439,7 +439,7 @@ export default function UserManagementTable() {
                             <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Invitado</option>
                             <option value="USER_GO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Go</option>
                             <option value="USER_PLUS" className="text-black bg-white dark:bg-gray-800 dark:text-white">Plus</option>
-                            <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Pro</option>
+                            <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Wappy Pro</option>
                             <option value="USER_IPEVAR" className="text-black bg-white dark:bg-gray-800 dark:text-white">Wappy Vital</option>
                             <option value="USER_CUSTOM" className="text-black bg-white dark:bg-gray-800 dark:text-white">A la Medida</option>
                             <option value="ADMIN" className="text-black bg-white dark:bg-gray-800 dark:text-white">Admin</option>
@@ -517,7 +517,7 @@ export default function UserManagementTable() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.username}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{
-                                        { USER: 'Invitado', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Pro', USER_IPEVAR: 'Wappy Vital', IPEVAR: 'Wappy Vital Legacy', USER_CUSTOM: 'A la Medida', ADMIN: 'Admin' }[user.role] || user.role
+                                        { USER: 'Invitado', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Wappy Pro', USER_IPEVAR: 'Wappy Vital', IPEVAR: 'Wappy Vital Legacy', USER_CUSTOM: 'A la Medida', ADMIN: 'Admin' }[user.role] || user.role
                                     }</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyle}`}>

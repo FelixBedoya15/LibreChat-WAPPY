@@ -238,11 +238,31 @@ class WhatsAppManager {
     // Usar message_create en lugar de message, ya que 'message' no dispara para msjs autoguiados.
     client.on('message_create', async (message) => {
       try {
-        // Validación estricta para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
-        // El mensaje debe ser enviado POR MI hacia MI MISMO
-        if (!(message.fromMe && message.to === message.from)) return;
-
+        const myJID = client.info?.wid?._serialized;
         const msgBody = message.body?.trim();
+        
+        // Log de diagnóstico para entender qué llega en el evento
+        console.log(`[WhatsApp Manager] message_create event:`, {
+          fromMe: message.fromMe,
+          from: message.from,
+          to: message.to,
+          remote: message.id?.remote,
+          myJID: myJID,
+          bodySnippet: msgBody ? msgBody.substring(0, 30) : ''
+        });
+
+        // Validación robusta para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
+        // El mensaje debe ser enviado POR MI hacia MI MISMO
+        const isSelfChat = message.fromMe && (
+          message.to === message.from ||
+          (myJID && (message.to === myJID || message.id?.remote === myJID))
+        );
+
+        if (!isSelfChat) {
+          console.log(`[WhatsApp Manager] Ignorando mensaje porque no cumple la condición de auto-mensaje.`);
+          return;
+        }
+
         if (!msgBody) return;
 
         // Ignorar respuestas propias del bot para evitar loops infinitos

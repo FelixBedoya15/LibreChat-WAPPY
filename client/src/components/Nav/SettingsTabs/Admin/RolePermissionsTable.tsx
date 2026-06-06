@@ -10,7 +10,7 @@ const renderRoleName = (role: string) => {
         [SystemRoles.USER]: 'Gratis',
         [SystemRoles.USER_GO]: 'Go',
         [SystemRoles.USER_PLUS]: 'Plus',
-        [SystemRoles.USER_PRO]: 'Pro',
+        [SystemRoles.USER_PRO]: 'Wappy Pro',
         'USER_IPEVAR': 'Wappy Vital',
         'IPEVAR': 'Wappy Vital Legacy',
         'USER_CUSTOM': 'A la Medida',

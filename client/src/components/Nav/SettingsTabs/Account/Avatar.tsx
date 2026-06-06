@@ -202,7 +202,7 @@ function Avatar() {
           {/* Role badge */}
           <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded shadow-sm border-2 border-surface-primary whitespace-nowrap z-10">
             {user?.role === 'ADMIN' ? 'Admin' :
-              user?.role === 'USER_PRO' ? 'Pro' :
+              user?.role === 'USER_PRO' ? 'Wappy Pro' :
                 user?.role === 'USER_PLUS' ? 'Plus' :
                   user?.role === 'USER_GO' ? 'Go' :
                     user?.role === 'USER_IPEVAR' ? 'Wappy Vital' :

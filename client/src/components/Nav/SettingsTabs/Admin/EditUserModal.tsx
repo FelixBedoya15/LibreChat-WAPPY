@@ -269,7 +269,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     <option value="USER">Invitado (USER)</option>
                                                     <option value="USER_GO">Go (USER_GO)</option>
                                                     <option value="USER_PLUS">Plus (USER_PLUS)</option>
-                                                    <option value="USER_PRO">Pro (USER_PRO)</option>
+                                                    <option value="USER_PRO">Wappy Pro (USER_PRO)</option>
                                                     <option value="USER_IPEVAR">Wappy Vital (USER_IPEVAR)</option>
                                                     <option value="IPEVAR">Wappy Vital Legacy (IPEVAR)</option>
                                                     <option value="USER_CUSTOM">A la Medida (USER_CUSTOM)</option>
