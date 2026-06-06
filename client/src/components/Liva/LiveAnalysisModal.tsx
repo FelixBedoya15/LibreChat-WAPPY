@@ -73,6 +73,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
     const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
     const [isFlashActive, setIsFlashActive] = useState(false);
+    const [zoom, setZoom] = useState<number>(1);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -295,16 +296,20 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             canvas.height = h;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.drawImage(video, 0, 0, w, h);
+                const sw = w / zoom;
+                const sh = h / zoom;
+                const sx = (w - sw) / 2;
+                const sy = (h - sh) / 2;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                console.log(`[LiveAnalysisModal] Snapshot captured: ${w}x${h}`);
+                console.log(`[LiveAnalysisModal] Snapshot captured: ${w}x${h} (zoom: ${zoom}x)`);
                 return dataUrl;
             }
         } catch (e) {
             console.error('Error capturing snapshot:', e);
         }
         return null;
-    }, []);
+    }, [zoom]);
 
     const scheduleAudio = useCallback((buffer: AudioBuffer) => {
         if (!audioContextRef.current) return;
@@ -690,7 +695,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             setArmAngle(armDeg);
 
             // Elbow flexion angle (relative angle at elbow joint)
-            let elbowDegVal = null;
+            let elbowDegVal: number | null = null;
             if (activeShoulder && activeElbow && activeWrist) {
                 const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
                 const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
@@ -705,7 +710,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             setElbowAngle(elbowDegVal);
 
             // Knee flexion angle (deviation from 180 degrees)
-            let kneeFlexVal = null;
+            let kneeFlexVal: number | null = null;
             if (activeHip && activeKnee && activeAnkle) {
                 const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
                 const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
@@ -1629,13 +1634,25 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${isCameraOn || isScreenSharing ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-110 blur-xl'}`}
                         muted
                         playsInline
+                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
                     <canvas
                         ref={canvasRef}
                         className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-500 z-10 ${
                             selectedTemplate === 'biomecanico_mediapipe' && isCameraOn ? 'opacity-100' : 'opacity-0'
                         }`}
+                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
+                    
+                    {/* Zoom Button */}
+                    {isCameraOn && (
+                        <button
+                            onClick={() => setZoom(z => z === 1 ? 2 : z === 2 ? 3 : 1)}
+                            className="absolute bottom-24 right-4 sm:bottom-28 sm:right-6 z-40 bg-black/45 hover:bg-black/65 backdrop-blur-md border border-white/10 rounded-full w-10 h-10 flex items-center justify-center shadow-lg text-white font-mono text-[10px] font-bold pointer-events-auto transition-all active:scale-95"
+                        >
+                            {zoom}x
+                        </button>
+                    )}
                     
                     {/* Camera Flash Overlay */}
                     {isFlashActive && (

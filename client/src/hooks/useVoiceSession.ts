@@ -482,6 +482,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         }));
     }, []);
 
+    /**
+     * Send Evidence Image
+     */
+    const sendEvidenceImage = useCallback((base64: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'evidence-image',
+            data: { image: base64 }
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -490,6 +501,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         disconnect,
         sendVideoFrame,
         sendTextMessage,
+        sendEvidenceImage,
         changeVoice,
         getInputVolume,
         setMuted,

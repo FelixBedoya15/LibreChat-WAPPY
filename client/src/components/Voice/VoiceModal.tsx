@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
-import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera, AlertCircle } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
@@ -58,11 +58,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     // Transcription state: last user speech shown on HUD
     const [lastUserTranscript, setLastUserTranscript] = useState('');
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+    const [zoom, setZoom] = useState<number>(1);
+    const [isFlashActive, setIsFlashActive] = useState(false);
+    const [limitNotification, setLimitNotification] = useState<string | null>(null);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const transcriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const manualPhotosCountRef = useRef<number>(0);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -106,6 +110,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         connect,
         disconnect,
         sendVideoFrame,
+        sendEvidenceImage,
         changeVoice,
         getInputVolume,
         setMuted,
@@ -115,6 +120,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     useEffect(() => {
         if (!isOpen) return;
+        manualPhotosCountRef.current = 0;
+        setZoom(1);
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
             audioContextRef.current.resume();
         }
@@ -259,6 +266,63 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (isCameraOn) { stopMediaTracks(); setTimeout(() => startCamera(newMode), 200); }
     };
 
+    // Helper to capture video frame with digital zoom support
+    const captureSnapshot = useCallback((): string | null => {
+        const video = videoRef.current;
+        if (!video) return null;
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) {
+            console.warn('[VoiceModal] captureSnapshot: video not ready (0x0), skipping');
+            return null;
+        }
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                const sw = w / zoom;
+                const sh = h / zoom;
+                const sx = (w - sw) / 2;
+                const sy = (h - sh) / 2;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                console.log(`[VoiceModal] Snapshot captured: ${w}x${h} (zoom: ${zoom}x)`);
+                return dataUrl;
+            }
+        } catch (e) {
+            console.error('Error capturing snapshot in VoiceModal:', e);
+        }
+        return null;
+    }, [zoom]);
+
+    const handleManualCapture = useCallback(() => {
+        if (!isCameraOn && !isScreenSharing) return;
+
+        if (manualPhotosCountRef.current >= 10) {
+            setLimitNotification("Límite alcanzado: Máximo 10 fotos de evidencia permitidas.");
+            setTimeout(() => {
+                setLimitNotification(null);
+            }, 4000);
+            return;
+        }
+
+        const dataUrl = captureSnapshot();
+        if (dataUrl) {
+            // Trigger visual flash
+            setIsFlashActive(true);
+            setTimeout(() => setIsFlashActive(false), 250);
+
+            // Send to hook (backend)
+            const base64 = dataUrl.split(',')[1];
+            sendEvidenceImage(base64);
+
+            manualPhotosCountRef.current += 1;
+            console.log(`[VoiceModal] Manual photo captured and sent. Total manual photos: ${manualPhotosCountRef.current}`);
+        }
+    }, [isCameraOn, isScreenSharing, captureSnapshot, sendEvidenceImage]);
+
     const [isPlaying, setIsPlaying] = useState(false);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -368,6 +432,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
             <div className="relative w-full h-full flex flex-col overflow-hidden">
 
+                {/* Limit Notification Toast */}
+                {limitNotification && (
+                    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-red-950/90 border border-red-500/50 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                        <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        <span className="text-xs font-medium text-red-200">{limitNotification}</span>
+                    </div>
+                )}
+
                 {/* ── Technical Loading Overlay ── */}
                 {(!isReady && isOpen) && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95">
@@ -408,7 +480,24 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         ref={videoRef}
                         className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${isCameraOn || isScreenSharing ? 'opacity-100 scale-100' : 'opacity-0 scale-110 blur-xl'}`}
                         muted playsInline
+                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
+
+                    {/* Zoom Button */}
+                    {isCameraOn && (
+                        <button
+                            onClick={() => setZoom(z => z === 1 ? 2 : z === 2 ? 3 : 1)}
+                            className="absolute bottom-24 right-4 sm:bottom-28 sm:right-6 z-40 bg-black/45 hover:bg-black/65 backdrop-blur-md border border-white/10 rounded-full w-10 h-10 flex items-center justify-center shadow-lg text-white font-mono text-[10px] font-bold pointer-events-auto transition-all active:scale-95"
+                        >
+                            {zoom}x
+                        </button>
+                    )}
+
+                    {/* Camera Flash Overlay */}
+                    {isFlashActive && (
+                        <div className="absolute inset-0 bg-white z-50 pointer-events-none animate-flash"></div>
+                    )}
+
                     {(isCameraOn || isScreenSharing) && (
                         <>
                             <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] bg-[length:100%_2px] opacity-15"></div>
@@ -473,6 +562,21 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                             />
                         )}
 
+                        {/* Camera Shutter Button */}
+                        {(isCameraOn || isScreenSharing) && (
+                            <TooltipAnchor
+                                description="Capturar Foto de Evidencia"
+                                render={
+                                    <button
+                                        onClick={handleManualCapture}
+                                        className="p-3 md:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                    >
+                                        <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                }
+                            />
+                        )}
+
                         <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
 
                         {/* Microphone (Center hero button) */}
@@ -530,13 +634,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                 </div>
 
-                {/* Scan animation keyframe */}
+                {/* Scan & Flash animation keyframes */}
                 <style dangerouslySetInnerHTML={{ __html: `
                     @keyframes scan {
                         0% { top: 0; opacity: 0; }
                         5% { opacity: 1; }
                         95% { opacity: 1; }
                         100% { top: 100%; opacity: 0; }
+                    }
+                    @keyframes flash-effect {
+                        0% { opacity: 1; }
+                        100% { opacity: 0; }
+                    }
+                    .animate-flash {
+                        animation: flash-effect 0.25s ease-out forwards;
                     }
                 `}} />
             </div>

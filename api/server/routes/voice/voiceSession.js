@@ -520,9 +520,56 @@ class VoiceSession {
                         this.manualEvidences = [];
                     }
                     this.manualEvidences.push(data.image);
-                    // Keep up to 5 manual evidence photos
-                    if (this.manualEvidences.length > 5) {
+                    // Keep up to 10 manual evidence photos
+                    if (this.manualEvidences.length > 10) {
                         this.manualEvidences.shift();
+                    }
+
+                    // Save manual photo to chat history immediately:
+                    try {
+                        const messageId = uuidv4();
+                        let conversationId = this.conversationId;
+                        if (!conversationId || conversationId === 'new') {
+                            conversationId = uuidv4();
+                            this.conversationId = conversationId;
+                        }
+
+                        const text = "Foto de evidencia";
+                        const imageUrl = data.image.startsWith('data:') ? data.image : `data:image/jpeg;base64,${data.image}`;
+                        const messageContent = [
+                            { type: 'text', text },
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageUrl
+                                }
+                            }
+                        ];
+
+                        const messageData = {
+                            messageId,
+                            conversationId,
+                            parentMessageId: this.lastMessageId,
+                            text,
+                            content: messageContent,
+                            user: this.userId,
+                            sender: 'User',
+                            isCreatedByUser: true,
+                            endpoint: this.dbEndpoint,
+                            model: this.dbModel,
+                        };
+
+                        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence' });
+                        if (savedMessage) {
+                            this.lastMessageId = messageId;
+                            logger.info(`[VoiceSession] Saved manual evidence image to chat: ${messageId}`);
+                            
+                            // Let the model know about this image: set it as the latestFrame 
+                            // so that if the user asks about it, the model has the context.
+                            this.latestFrame = data.image;
+                        }
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving manual evidence image to chat DB:', saveError);
                     }
                 }
                 break;
