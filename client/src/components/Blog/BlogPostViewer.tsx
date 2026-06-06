@@ -16,10 +16,6 @@ export default function BlogPostViewer() {
     const isFreePlan = user?.role === 'USER';
 
     useEffect(() => {
-        if (isFreePlan) {
-            setLoading(false);
-            return;
-        }
         const fetchPost = async () => {
             try {
                 const response = await axios.get(`/api/blog/${postId}`);
@@ -34,30 +30,6 @@ export default function BlogPostViewer() {
         };
         fetchPost();
     }, [postId, navigate, showToast]);
-
-    if (isFreePlan) {
-        return (
-            <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-y-auto w-full">
-                {/* Clean top bar with back button */}
-                <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
-                    <button
-                        onClick={() => navigate('/blog')}
-                        className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
-                    >
-                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
-                    </button>
-                </div>
-                
-                <div className="flex-1 flex items-center justify-center p-6 md:p-12">
-                    <UpgradeWall
-                        title="Blog WAPPY Exclusivo"
-                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
-                    />
-                </div>
-            </div>
-        );
-    }
 
     if (loading) {
         return (
@@ -86,100 +58,114 @@ export default function BlogPostViewer() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-y-auto w-full">
-
-            {/* Clean top bar with back button */}
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
-                <button
-                    onClick={() => navigate('/blog')}
-                    className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
-                >
-                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
-                </button>
-            </div>
-
-            {/* Content Container */}
-            <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 lg:p-12">
-
-                {/* Tags */}
-                {post.tags && post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {post.tags.map((tag: string, i: number) => (
-                            <span key={i} className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold tracking-wider uppercase">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* Title */}
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight text-gray-900 dark:text-gray-50 mb-4">
-                    {post.title}
-                </h1>
-
-                {/* Meta */}
-                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-5 flex-wrap">
-                        {post.author?.name && (
-                            <div className="flex items-center gap-1.5">
-                                <User className="w-4 h-4" />
-                                {post.author.name}
-                            </div>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                            <Clock className="w-4 h-4" />
-                            {new Date(post.createdAt).toLocaleDateString('es-CO', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            })}
-                        </div>
-                    </div>
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 w-full relative overflow-hidden">
+            
+            {/* Blurred Content Wrapper */}
+            <div className={`flex-1 flex flex-col overflow-y-auto ${isFreePlan ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+                {/* Clean top bar with back button */}
+                <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
                     <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full transition-colors group"
-                        title="Compartir Artículo"
+                        onClick={() => navigate('/blog')}
+                        className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
                     >
-                        <Share2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span className="hidden sm:inline">Compartir</span>
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
                     </button>
                 </div>
 
-                {/* Thumbnail — only if provided */}
-                {post.thumbnail && (
-                    <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-full">
-                        <img
-                            src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`}
-                            alt={post.title}
-                            className="w-full h-auto object-contain"
-                        />
-                    </div>
-                )}
+                {/* Content Container */}
+                <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 lg:p-12">
 
-                {/* Main HTML Content */}
-                <div
-                    className="prose prose-lg dark:prose-invert prose-indigo max-w-none text-gray-800 dark:text-gray-200 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: post.content }}
-                />
-
-                {/* Footer Tags */}
-                {post.tags && post.tags.length > 0 && (
-                    <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
-                        <h3 className="text-xl font-bold mb-6">Etiquetas Relacionadas</h3>
-                        <div className="flex flex-wrap gap-3">
+                    {/* Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
                             {post.tags.map((tag: string, i: number) => (
-                                <span key={i} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors cursor-pointer">
-                                    #{tag}
+                                <span key={i} className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold tracking-wider uppercase">
+                                    {tag}
                                 </span>
                             ))}
                         </div>
+                    )}
+
+                    {/* Title */}
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight text-gray-900 dark:text-gray-50 mb-4">
+                        {post.title}
+                    </h1>
+
+                    {/* Meta */}
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                        <div className="flex items-center gap-5 flex-wrap">
+                            {post.author?.name && (
+                                <div className="flex items-center gap-1.5">
+                                    <User className="w-4 h-4" />
+                                    {post.author.name}
+                                </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="w-4 h-4" />
+                                {new Date(post.createdAt).toLocaleDateString('es-CO', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                })}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(window.location.href);
+                                showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full transition-colors group"
+                            title="Compartir Artículo"
+                        >
+                            <Share2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="hidden sm:inline">Compartir</span>
+                        </button>
                     </div>
-                )}
+
+                    {/* Thumbnail — only if provided */}
+                    {post.thumbnail && (
+                        <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-full">
+                            <img
+                                src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`}
+                                alt={post.title}
+                                className="w-full h-auto object-contain"
+                            />
+                        </div>
+                    )}
+
+                    {/* Main HTML Content */}
+                    <div
+                        className="prose prose-lg dark:prose-invert prose-indigo max-w-none text-gray-800 dark:text-gray-200 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
+
+                    {/* Footer Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
+                            <h3 className="text-xl font-bold mb-6">Etiquetas Relacionadas</h3>
+                            <div className="flex flex-wrap gap-3">
+                                {post.tags.map((tag: string, i: number) => (
+                                    <span key={i} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors cursor-pointer">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Premium Lock Overlay for Free Plan */}
+            {isFreePlan && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                    <UpgradeWall
+                        isPopup={true}
+                        title="Blog WAPPY Exclusivo"
+                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
+                    />
+                </div>
+            )}
         </div>
     );
 }

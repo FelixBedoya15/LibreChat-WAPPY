@@ -1,4 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRecoilState } from 'recoil';
 import * as Ariakit from '@ariakit/react';
 import {
@@ -37,6 +38,7 @@ import { useGetStartupConfig } from '~/data-provider';
 import { ephemeralAgentByConvoId } from '~/store';
 import { MenuItemProps } from '~/common';
 import { cn } from '~/utils';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 interface AttachFileMenuProps {
   agentId?: string | null;
@@ -57,9 +59,10 @@ const AttachFileMenu = ({
 }: AttachFileMenuProps) => {
   const localize = useLocalize();
   const { user } = useAuthContext();
-  const isUploadDisabled = (disabled || user?.role === 'USER') ?? false;
+  const isUploadDisabled = disabled ?? false;
   const inputRef = useRef<HTMLInputElement>(null);
   const [isPopoverActive, setIsPopoverActive] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [ephemeralAgent, setEphemeralAgent] = useRecoilState(
     ephemeralAgentByConvoId(conversationId),
   );
@@ -116,6 +119,18 @@ const AttachFileMenu = ({
   };
 
   const dropdownItems = useMemo(() => {
+    const wrapClick = (originalClick: () => void) => {
+      if (user?.role === 'USER') {
+        return (e: any) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsPopoverActive(false);
+          setIsUpgradeModalOpen(true);
+        };
+      }
+      return originalClick;
+    };
+
     const createMenuItems = (
       onAction: (fileType?: 'image' | 'document' | 'multimodal' | 'google_multimodal') => void,
     ) => {
@@ -132,49 +147,49 @@ const AttachFileMenu = ({
           // Google/Gemini: solo imágenes en adjunto directo
           items.push({
             label: '📷 Imagen',
-            onClick: () => {
+            onClick: wrapClick(() => {
               setToolResource(undefined);
               onAction('image');
-            },
+            }),
             icon: <FileImageIcon className="icon-md" />,
           });
           // Documentos: extraer texto automáticamente para que el modelo pueda leer el contenido
           if (capabilities.contextEnabled) {
             items.push({
               label: '📄 Documento',
-              onClick: () => {
+              onClick: wrapClick(() => {
                 setToolResource(EToolResources.context);
                 onAction();
-              },
+              }),
               icon: <FileScan className="icon-md" />,
             });
           } else {
             items.push({
               label: '📎 Adjunto directo',
-              onClick: () => {
+              onClick: wrapClick(() => {
                 setToolResource(undefined);
                 onAction('google_multimodal');
-              },
+              }),
               icon: <FileImageIcon className="icon-md" />,
             });
           }
         } else {
           items.push({
             label: '📎 Adjunto directo',
-            onClick: () => {
+            onClick: wrapClick(() => {
               setToolResource(undefined);
               onAction('multimodal');
-            },
+            }),
             icon: <FileImageIcon className="icon-md" />,
           });
         }
       } else {
         items.push({
           label: localize('com_ui_upload_image_input') + ' (Solo imagen)',
-          onClick: () => {
+          onClick: wrapClick(() => {
             setToolResource(undefined);
             onAction('image');
-          },
+          }),
           icon: <ImageUpIcon className="icon-md" />,
         });
       }
@@ -183,10 +198,10 @@ const AttachFileMenu = ({
       if (capabilities.contextEnabled && !isGoogle) {
         items.push({
           label: '📝 Leer texto',
-          onClick: () => {
+          onClick: wrapClick(() => {
             setToolResource(EToolResources.context);
             onAction();
-          },
+          }),
           icon: <FileType2Icon className="icon-md" />,
         });
       }
@@ -194,14 +209,14 @@ const AttachFileMenu = ({
       if (capabilities.fileSearchEnabled && fileSearchAllowedByAgent) {
         items.push({
           label: '🔍 Buscar en archivos',
-          onClick: () => {
+          onClick: wrapClick(() => {
             setToolResource(EToolResources.file_search);
             setEphemeralAgent((prev) => ({
               ...prev,
               [EToolResources.file_search]: true,
             }));
             onAction();
-          },
+          }),
           icon: <FileSearch className="icon-md" />,
         });
       }
@@ -209,14 +224,14 @@ const AttachFileMenu = ({
       if (capabilities.codeEnabled && codeAllowedByAgent) {
         items.push({
           label: '💻 Ejecutar código',
-          onClick: () => {
+          onClick: wrapClick(() => {
             setToolResource(EToolResources.execute_code);
             setEphemeralAgent((prev) => ({
               ...prev,
               [EToolResources.execute_code]: true,
             }));
             onAction();
-          },
+          }),
           icon: <TerminalSquareIcon className="icon-md" />,
         });
       }
@@ -233,7 +248,7 @@ const AttachFileMenu = ({
       });
       localItems.push({
         label: localize('com_files_upload_sharepoint'),
-        onClick: () => {},
+        onClick: wrapClick(() => {}),
         icon: <SharePointIcon className="icon-md" />,
         subItems: sharePointItems,
       });
@@ -253,6 +268,7 @@ const AttachFileMenu = ({
     codeAllowedByAgent,
     fileSearchAllowedByAgent,
     setIsSharePointDialogOpen,
+    user?.role,
   ]);
 
   const menuTrigger = (
@@ -272,14 +288,11 @@ const AttachFileMenu = ({
         </Ariakit.MenuButton>
       }
       id="attach-file-menu-button"
-      description={
-        user?.role === 'USER'
-          ? 'Carga de archivos bloqueada en plan Gratis. Adquiere Wappy Vital.'
-          : localize('com_sidepanel_attach_files')
-      }
+      description={localize('com_sidepanel_attach_files')}
       disabled={disabled ?? false}
     />
   );
+
   const handleSharePointFilesSelected = async (sharePointFiles: any[]) => {
     try {
       await handleSharePointFiles(sharePointFiles);
@@ -317,6 +330,27 @@ const AttachFileMenu = ({
         downloadProgress={downloadProgress}
         maxSelectionCount={endpointFileConfig?.fileLimit}
       />
+      {isUpgradeModalOpen && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
+            <button
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
+            >
+              Cerrar ✕
+            </button>
+            <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
+              <UpgradeWall
+                title="Carga de Archivos Exclusiva"
+                description="La carga de archivos y herramientas de análisis avanzadas en el chat están reservadas para usuarios de los planes Wappy Vital y Wappy Pro."
+                plan="USER"
+                isPopup={true}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 };

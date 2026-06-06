@@ -274,10 +274,6 @@ export default function BlogDashboard() {
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
 
     useEffect(() => {
-        if (user?.role === 'USER') {
-            setLoading(false);
-            return;
-        }
         const fetchPosts = async () => {
             try {
                 const response = await axios.get('/api/blog');
@@ -329,33 +325,7 @@ export default function BlogDashboard() {
         fetchPosts();
     }, [showToast]);
 
-    if (user?.role === 'USER') {
-        return (
-            <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-y-auto">
-                {/* Header / Nav Overlay */}
-                <div className="p-4 pt-16 sm:p-6 flex items-center justify-between border-b border-border-light dark:border-white/5">
-                    <div className="flex items-center gap-3 sm:gap-4">
-                        {!navVisible && (
-                            <div className="hidden md:block">
-                                <OpenSidebar setNavVisible={setNavVisible} />
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
-                            <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
-                            <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 flex items-center justify-center p-4 sm:p-8 md:p-12">
-                    <UpgradeWall
-                        title="Blog WAPPY Exclusivo"
-                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
-                    />
-                </div>
-            </div>
-        );
-    }
+    const isFree = user?.role === 'USER';
 
     if (loading) {
         return (
@@ -366,66 +336,80 @@ export default function BlogDashboard() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
-            {/* Header / Nav Overlay */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-16 sm:p-6 flex items-center justify-between pointer-events-none">
-                <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
-                    {!navVisible && (
-                        <div className="hidden md:block">
-                            <OpenSidebar setNavVisible={setNavVisible} />
+        <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden relative">
+            {/* Blurred Blog Content */}
+            <div className={`flex-1 flex flex-col overflow-hidden relative ${isFree ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+                {/* Header / Nav Overlay */}
+                <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-16 sm:p-6 flex items-center justify-between pointer-events-none">
+                    <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
+                        {!navVisible && (
+                            <div className="hidden md:block">
+                                <OpenSidebar setNavVisible={setNavVisible} />
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
+                            <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
+                            <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
                         </div>
+                    </div>
+
+                    {isAdmin ? (
+                        <button
+                            onClick={() => navigate('/blog/admin')}
+                            className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
+                        >
+                            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
+                            <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
+                        </button>
+                    ) : !user ? (
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-6 py-1.5 sm:py-2.5 rounded-full transition-all duration-300 shadow-xl shadow-[#10b981]/10 hover:scale-105"
+                        >
+                            <span className="font-bold text-xs sm:text-sm uppercase tracking-wider">Iniciar Sesión</span>
+                        </button>
+                    ) : null}
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
+                    {/* Hero Section */}
+                    {featuredPost ? (
+                        <FeaturedPostHero post={featuredPost} navigate={navigate} onMoreInfo={() => setSelectedPost(featuredPost)} />
+                    ) : (
+                        <div className="h-24 md:h-32 bg-surface-primary"></div>
                     )}
-                    <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
-                        <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
-                        <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
+
+                    {/* Dynamic Rows — ordered by first tag appearance */}
+                    <div className={`relative ${featuredPost ? '-mt-8 sm:-mt-16 md:-mt-24' : 'mt-4'} pb-24 z-30`}>
+                        {categoryOrder.map(title => (
+                            <PostRow key={title} title={title} posts={categorizedPosts[title] || []} navigate={navigate} onMoreInfo={setSelectedPost} />
+                        ))}
+                        
+                        {posts.length === 0 && (
+                            <div className="flex flex-col items-center justify-center p-12 text-center bg-surface-secondary/50 rounded-2xl mx-6 border border-border-light dark:border-white/5">
+                                <Newspaper className="w-16 h-16 text-text-tertiary mb-4 opacity-50" />
+                                <h2 className="text-xl font-bold text-text-primary mb-2">No hay publicaciones</h2>
+                                <p className="text-text-secondary">Pronto publicaremos nuevo contenido aquí.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {isAdmin ? (
-                    <button
-                        onClick={() => navigate('/blog/admin')}
-                        className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
-                    >
-                        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
-                        <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
-                    </button>
-                ) : !user ? (
-                    <button
-                        onClick={() => navigate('/login')}
-                        className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-6 py-1.5 sm:py-2.5 rounded-full transition-all duration-300 shadow-xl shadow-[#10b981]/10 hover:scale-105"
-                    >
-                        <span className="font-bold text-xs sm:text-sm uppercase tracking-wider">Iniciar Sesión</span>
-                    </button>
-                ) : null}
+                {/* Modals */}
+                <PostModal post={selectedPost} onClose={() => setSelectedPost(null)} navigate={navigate} />
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
-                {/* Hero Section */}
-                {featuredPost ? (
-                    <FeaturedPostHero post={featuredPost} navigate={navigate} onMoreInfo={() => setSelectedPost(featuredPost)} />
-                ) : (
-                    <div className="h-24 md:h-32 bg-surface-primary"></div>
-                )}
-
-                {/* Dynamic Rows — ordered by first tag appearance */}
-                <div className={`relative ${featuredPost ? '-mt-8 sm:-mt-16 md:-mt-24' : 'mt-4'} pb-24 z-30`}>
-                    {categoryOrder.map(title => (
-                        <PostRow key={title} title={title} posts={categorizedPosts[title] || []} navigate={navigate} onMoreInfo={setSelectedPost} />
-                    ))}
-                    
-                    {posts.length === 0 && (
-                        <div className="flex flex-col items-center justify-center p-12 text-center bg-surface-secondary/50 rounded-2xl mx-6 border border-border-light dark:border-white/5">
-                            <Newspaper className="w-16 h-16 text-text-tertiary mb-4 opacity-50" />
-                            <h2 className="text-xl font-bold text-text-primary mb-2">No hay publicaciones</h2>
-                            <p className="text-text-secondary">Pronto publicaremos nuevo contenido aquí.</p>
-                        </div>
-                    )}
+            {/* Premium Lock Overlay for Free Plan */}
+            {isFree && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                    <UpgradeWall
+                        isPopup={true}
+                        title="Blog WAPPY Exclusivo"
+                        description="El acceso a los artículos, normativas de SST y novedades en el Blog Wappy es exclusivo de los planes Wappy Vital y Wappy Pro. Evoluciona hoy tu plan para estar al día."
+                    />
                 </div>
-            </div>
-
-            {/* Modals */}
-            <PostModal post={selectedPost} onClose={() => setSelectedPost(null)} navigate={navigate} />
+            )}
         </div>
     );
 }

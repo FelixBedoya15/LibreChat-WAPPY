@@ -90,6 +90,7 @@ export const UpgradeWall = ({
     hideFeatures = false,
     planBTitle,
     planBItems,
+    isPopup = false,
 }: {
     title?: string;
     description?: string;
@@ -98,6 +99,7 @@ export const UpgradeWall = ({
     hideFeatures?: boolean;
     planBTitle?: string;
     planBItems?: string[];
+    isPopup?: boolean;
 }) => {
     const { user } = useAuthContext();
     // Prefer the explicit override; fall back to the session role
@@ -105,42 +107,46 @@ export const UpgradeWall = ({
     const features = PLAN_FEATURES[effectivePlan] || PLAN_FEATURES['USER_PRO'];
 
     return (
-        <div className={`relative flex flex-col items-center justify-center text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full mx-auto my-4 group ${isCompact ? 'p-6 max-w-sm' : 'p-12 max-w-4xl'}`}>
+        <div className={
+            isPopup
+                ? `relative flex flex-col items-center justify-center text-center overflow-hidden bg-white/80 dark:bg-gray-950/80 border border-white/20 dark:border-white/10 rounded-3xl shadow-2xl w-full mx-auto my-4 group p-8 max-w-md backdrop-blur-xl animate-fade-in`
+                : `relative flex flex-col items-center justify-center text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full mx-auto my-4 group ${isCompact ? 'p-6 max-w-sm' : 'p-12 max-w-4xl'}`
+        }>
             {/* Ambient Background Glows */}
-            <div className={`absolute top-0 right-0 -mr-16 -mt-16 bg-green-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-green-500/20 ${isCompact ? 'w-40 h-40' : 'w-72 h-72'}`} />
-            <div className={`absolute bottom-0 left-0 -ml-16 -mb-16 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-emerald-500/20 ${isCompact ? 'w-40 h-40' : 'w-72 h-72'}`} />
+            <div className={`absolute top-0 right-0 -mr-16 -mt-16 bg-green-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-green-500/20 ${isCompact || isPopup ? 'w-40 h-40' : 'w-72 h-72'}`} />
+            <div className={`absolute bottom-0 left-0 -ml-16 -mb-16 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-emerald-500/20 ${isCompact || isPopup ? 'w-40 h-40' : 'w-72 h-72'}`} />
 
             {/* Center Lock / Icon SVG Illustration */}
-            <div className={`relative z-10 ${isCompact ? 'mb-4' : 'mb-8'}`}>
-                <div className={`relative flex items-center justify-center rounded-full bg-gradient-to-tr from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 shadow-inner border border-green-500/20 ${isCompact ? 'w-16 h-16' : 'w-24 h-24'}`}>
-                    <svg className={`${isCompact ? 'w-7 h-7' : 'w-10 h-10'} text-green-600 dark:text-green-400`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className={`relative z-10 ${isCompact || isPopup ? 'mb-4' : 'mb-8'}`}>
+                <div className={`relative flex items-center justify-center rounded-full bg-gradient-to-tr from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 shadow-inner border border-green-500/20 ${isCompact || isPopup ? 'w-16 h-16' : 'w-24 h-24'}`}>
+                    <svg className={`${isCompact || isPopup ? 'w-7 h-7' : 'w-10 h-10'} text-green-600 dark:text-green-400`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         <circle cx="12" cy="16" r="1" />
                     </svg>
 
                     {/* Sparkles */}
-                    <div className={`absolute -top-1 -right-1 text-green-400 animate-pulse ${isCompact ? 'scale-75' : ''}`}>
+                    <div className={`absolute -top-1 -right-1 text-green-400 animate-pulse ${isCompact || isPopup ? 'scale-75' : ''}`}>
                         <Sparkles className="w-6 h-6" />
                     </div>
                 </div>
 
                 {/* Dynamic Badge */}
-                <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-full shadow-lg border border-white/20 whitespace-nowrap ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
+                <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-full shadow-lg border border-white/20 whitespace-nowrap ${isCompact || isPopup ? 'text-[10px]' : 'text-xs'}`}>
                     {features.badge}
                 </div>
             </div>
 
             {/* Content Copy */}
-            <h3 className={`font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 z-10 tracking-tight ${isCompact ? 'text-xl mb-2' : 'text-3xl mb-4'}`}>
+            <h3 className={`font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 z-10 tracking-tight ${isCompact || isPopup ? 'text-xl mb-2' : 'text-3xl mb-4'}`}>
                 {title}
             </h3>
-            <p className={`text-gray-500 dark:text-gray-400 mx-auto leading-relaxed z-10 ${isCompact ? 'text-xs mb-6 max-w-[240px]' : 'text-base mb-10 max-w-lg'}`}>
+            <p className={`text-gray-500 dark:text-gray-400 mx-auto leading-relaxed z-10 ${isCompact || isPopup ? 'text-xs mb-6 max-w-[320px]' : 'text-base mb-10 max-w-lg'}`}>
                 {description}
             </p>
 
             {/* Features List — rendered dynamically from plan features */}
-            {!hideFeatures && (
+            {!hideFeatures && !isPopup && (
                 <div className={`flex justify-center z-10 font-medium text-left ${isCompact ? 'flex-col gap-2 mb-6 text-xs' : 'flex-col md:flex-row gap-6 md:gap-12 mb-10 text-sm'}`}>
                     <div>
                         {planBTitle && (
@@ -188,7 +194,7 @@ export const UpgradeWall = ({
             {/* Upgrade Button */}
             <a
                 href="/planes"
-                className={`relative flex items-center justify-center gap-2 font-extrabold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg border border-white/20 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:shadow-xl ${isCompact ? 'mt-4 px-6 py-2.5 text-sm w-full' : 'mt-6 px-10 py-3.5 text-lg'}`}
+                className={`relative flex items-center justify-center gap-2 font-extrabold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg border border-white/20 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:shadow-xl ${isCompact || isPopup ? 'mt-4 px-6 py-2.5 text-sm w-full' : 'mt-6 px-10 py-3.5 text-lg'}`}
             >
                 <Sparkles className="w-5 h-5 animate-pulse text-white" />
                 <span className="tracking-wide">

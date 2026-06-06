@@ -548,6 +548,16 @@ export default function PlansPage() {
     return Math.round(price);
   }, [checkoutPlan, promoValidated, paymentMethod]);
 
+  const showUnifiedLayout = useMemo(() => {
+    return (
+      !visibility.showPlanFree &&
+      !visibility.showPlanGo &&
+      !visibility.showPlanPlus &&
+      visibility.showPlanPro &&
+      visibility.showSectionAppPlans
+    );
+  }, [visibility]);
+
   // Registration for visitors
   const [showRegister, setShowRegister] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
@@ -1893,268 +1903,19 @@ export default function PlansPage() {
               </div>
             )}
 
-            {/* ── Plans grid (existing 4 plans) ── */}
-            {/* Only show plans that are enabled in visibility config */}
-            <div
-              className={`mt-4 grid gap-5 ${
-                [
-                  visibility.showPlanFree,
-                  visibility.showPlanGo,
-                  visibility.showPlanPlus,
-                  visibility.showPlanPro,
-                ].filter(Boolean).length === 1
-                  ? 'mx-auto max-w-sm sm:grid-cols-1'
-                  : [
-                        visibility.showPlanFree,
-                        visibility.showPlanGo,
-                        visibility.showPlanPlus,
-                        visibility.showPlanPro,
-                      ].filter(Boolean).length === 2
-                    ? 'mx-auto max-w-2xl sm:grid-cols-2'
-                    : [
-                          visibility.showPlanFree,
-                          visibility.showPlanGo,
-                          visibility.showPlanPlus,
-                          visibility.showPlanPro,
-                        ].filter(Boolean).length === 3
-                      ? 'sm:grid-cols-3'
-                      : 'sm:grid-cols-2 lg:grid-cols-4'
-              }`}
-            >
-              {PLANS.filter((plan) => {
-                if (plan.key === 'free') return false;
-                if (plan.key === 'go') return visibility.showPlanGo;
-                if (plan.key === 'plus') return visibility.showPlanPlus;
-                if (plan.key === 'pro') return visibility.showPlanPro;
-                return true;
-              }).map((plan) => {
-                const Icon = PLAN_ICON_MAP[plan.key];
-
-                const isUserAdmin = !loading && activePlan === 'admin';
-                const isActive =
-                  !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
-
-                const isLoadingThis = checkoutLoading === plan.key;
-                const isFree = plan.key === 'free';
-                const fetchedConfig = fetchedPlans.find((p) => p.planId === plan.key);
-
-                // Dynamic price
-                let rawPrice = 0;
-                let displayPrice = plan.price;
-                let promotion: any = null;
-
-                if (!isFree && fetchedConfig) {
-                  rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
-                  displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
-                  if (fetchedConfig.promotions?.[billingInterval]?.active) {
-                    promotion = fetchedConfig.promotions[billingInterval];
-                  }
-                }
-
-                let discountedPrice = 0;
-                if (promotion && rawPrice > 0) {
-                  discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
-                }
-
-                const isNotMonthly = billingInterval !== 'monthly';
-                const monthsDivisor =
-                  billingInterval === 'quarterly'
-                    ? 3
-                    : billingInterval === 'semiannual'
-                      ? 6
-                      : billingInterval === 'annual'
-                        ? 12
-                        : 1;
-                const totalToBill = isFree
-                  ? 0
-                  : promotion && promotion.discountPercentage > 0
-                    ? discountedPrice
-                    : rawPrice;
-                const pricePerMonth = isFree ? 0 : totalToBill / monthsDivisor;
-
-                return (
-                  <div
-                    key={plan.key}
-                    className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${
-                      isActive
-                        ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
-                        : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-md`
-                    } bg-surface-primary/60 backdrop-blur-sm`}
-                  >
-                    {/* Badges */}
-                    {plan.popular && !isActive && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-0.5 text-xs font-bold text-white shadow">
-                        ⭐ Más popular
-                      </div>
-                    )}
-                    {isActive && (
-                      <div
-                        className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-bold text-white shadow ${
-                          plan.key === 'free'
-                            ? 'bg-text-secondary'
-                            : isUserAdmin
-                              ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
-                              : 'bg-gradient-to-r from-green-500 to-emerald-600'
-                        }`}
-                      >
-                        ✓ {isUserAdmin ? 'Plan de Admin' : 'Plan actual'}
-                      </div>
-                    )}
-                    {promotion && promotion.discountPercentage > 0 && (
-                      <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
-                        -{promotion.discountPercentage}%
-                      </div>
-                    )}
-
-                    {/* Icon */}
-                    <div
-                      className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
-                    >
-                      <Icon className={`h-5 w-5 ${plan.iconColor}`} />
-                    </div>
-
-                    {/* Name & tagline */}
-                    <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
-                    <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
-
-                    {/* Price */}
-                    <div className="mb-5 flex flex-col items-start gap-1">
-                      {promotion && promotion.discountPercentage > 0 && (
-                        <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                          {displayPrice}
-                        </span>
-                      )}
-
-                      <div className="flex items-end gap-1">
-                        <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
-                          {isFree ? '$0' : '$' + Math.round(totalToBill).toLocaleString('es-CO')}
-                        </span>
-                        <span className="mb-1 text-xs font-semibold text-text-secondary">
-                          /
-                          {isFree
-                            ? 'mes'
-                            : billingInterval === 'monthly'
-                              ? 'mes'
-                              : billingInterval === 'quarterly'
-                                ? 'trim.'
-                                : billingInterval === 'semiannual'
-                                  ? 'sem.'
-                                  : 'año'}
-                        </span>
-                      </div>
-
-                      {isNotMonthly && !isFree && (
-                        <div className="mt-0.5 text-base font-bold text-text-primary">
-                          ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
-                          <span className="text-xs font-semibold text-text-secondary">/mes</span>
-                        </div>
-                      )}
-
-                      {promotion && (
-                        <div className="mt-2 w-full rounded-md bg-indigo-500/10 px-3 py-1.5 text-center text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                          {promotion.text || 'Oferta por tiempo limitado'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CTA */}
-                    <div className="mt-auto pt-2">
-                      <button
-                        onClick={() =>
-                          !isFree &&
-                          handleSubscribe(
-                            plan.key,
-                            plan,
-                            displayPrice,
-                            discountedPrice,
-                            rawPrice,
-                            promotion,
-                          )
-                        }
-                        disabled={isFree || isLoadingThis || loading}
-                        className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${
-                          isFree
-                            ? 'border-border-medium/40 cursor-default border bg-transparent text-text-tertiary'
-                            : `bg-gradient-to-r ${
-                                plan.key === 'go'
-                                  ? 'from-blue-500 to-blue-600'
-                                  : plan.key === 'plus'
-                                    ? 'from-green-500 to-emerald-600'
-                                    : 'from-amber-500 to-orange-600'
-                              } text-white hover:opacity-90 hover:shadow-md`
-                        }`}
-                      >
-                        {isLoadingThis ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
-                          </>
-                        ) : isActive ? (
-                          'Renovar o Ampliar'
-                        ) : isFree ? (
-                          'Plan gratuito'
-                        ) : (
-                          `Comenzar con ${plan.name}`
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Features */}
-                    <ul className="mt-5 flex-1 space-y-2">
-                      {plan.features.map((f) => {
-                        const isHighlighted = f.includes('**');
-                        const text = f.replace(/\*\*/g, '');
-                        return (
-                          <li
-                            key={f}
-                            className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
-                          >
-                            <Check
-                              className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
-                            />
-                            {text}
-                          </li>
-                        );
-                      })}
-                      {plan.notIncluded.map((f) => (
-                        <li
-                          key={f}
-                          className="flex items-start gap-2 text-xs text-text-tertiary line-through opacity-40"
-                        >
-                          <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* ── App Plans Section ──────────────────────── */}
-            {visibility.showSectionAppPlans && (
-              <div className="mt-16">
-                {/* Section divider */}
-                <div className="mb-8 flex items-center gap-4">
-                  <div className="via-border-medium/50 to-border-medium/50 h-px flex-1 bg-gradient-to-r from-transparent" />
-                  <div className="border-border-medium/60 flex items-center gap-3 rounded-full border bg-surface-primary px-5 py-2">
-                    <PricingSVG className="h-5 w-5 text-emerald-500" />
-                    <span className="text-sm font-semibold text-text-primary">
-                      Planes por Aplicativos
-                    </span>
-                  </div>
-                  <div className="via-border-medium/50 to-border-medium/50 h-px flex-1 bg-gradient-to-l from-transparent" />
-                </div>
-
-                <div className="grid justify-center gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {APP_PLANS.map((plan) => {
-                    const Icon = APP_ICON_MAP[plan.key];
-                    const isUserAdmin = !loading && activePlan === 'admin';
+            {showUnifiedLayout ? (
+              <div className="mx-auto mt-8 max-w-5xl px-4">
+                <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
+                  {/* CARD 1: Wappy Vital */}
+                  {(() => {
+                    const plan = APP_PLANS.find((p) => p.key === 'ipevar')!;
+                    const Icon = APP_ICON_MAP[plan.key] || IpevarSVG;
                     const isActive = !loading && activePlan === plan.key;
                     const isLoadingThis = checkoutLoading === plan.key;
                     const fetchedConfig = fetchedPlans.find((p) => p.planId === plan.key);
 
                     // Plan IPEVAR: pago único vitalicio
-                    const fixedInterval = plan.key === 'ipevar' ? 'lifetime' : 'annual';
+                    const fixedInterval = 'lifetime';
                     let rawPrice = 100000;
                     let displayPrice = '$100.000';
                     let promotion: any = null;
@@ -2177,58 +1938,53 @@ export default function PlansPage() {
 
                     return (
                       <div
-                        key={plan.key}
-                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} ${
                           isActive
-                            ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
-                            : `border-border-medium/40 hover:${plan.borderColor.replace('border-', '')} hover:shadow-md`
-                        } bg-surface-primary/60 backdrop-blur-sm lg:col-start-2`}
+                            ? `${plan.borderColor} shadow-2xl ring-2 ring-emerald-500/20`
+                            : 'border-border-medium/40 hover:border-emerald-500/30 hover:shadow-2xl'
+                        } bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(16,185,129,0.05)]`}
                       >
-                        {plan.popular && !isActive && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-0.5 text-xs font-bold text-white shadow">
-                            ⭐ Destacado
-                          </div>
-                        )}
-                        {isActive && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-0.5 text-xs font-bold text-white shadow">
-                            ✓ Plan actual
-                          </div>
-                        )}
+                        <div className="absolute -top-3 left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                          ✨ Pago único de por vida
+                        </div>
+
                         {promotion && promotion.discountPercentage > 0 && (
-                          <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
+                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
                             -{promotion.discountPercentage}%
                           </div>
                         )}
 
-                        <div
-                          className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
-                        >
-                          <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                        <div className="flex items-center gap-4 mb-6 mt-2">
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500`}>
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-extrabold text-text-primary">{plan.name}</h2>
+                            <p className="text-xs text-text-secondary">{plan.tagline}</p>
+                          </div>
                         </div>
 
-                        <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
-                        <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
-
-                        <div className="mb-5 flex flex-col items-start gap-1">
+                        <div className="mb-6 flex flex-col items-start gap-1">
                           {promotion && promotion.discountPercentage > 0 && (
                             <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
                               {displayPrice}
                             </span>
                           )}
 
-                          <div className="flex items-end gap-1">
-                            <span
-                              className={`text-4xl font-black tracking-tight ${plan.accentColor}`}
-                            >
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black tracking-tight text-emerald-500">
                               ${Math.round(totalToBill).toLocaleString('es-CO')}
                             </span>
-                            <span className="mb-1 text-xs font-semibold text-text-secondary">
-                              {plan.key === 'ipevar' ? 'Pago único vitalicio' : '/año'}
+                            <span className="text-sm font-bold text-text-secondary">
+                              Pago Único
                             </span>
                           </div>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                            ¡Pagas una vez, lo usas para siempre!
+                          </p>
                         </div>
 
-                        <div className="mt-auto pt-2">
+                        <div className="pt-2 mb-6">
                           <button
                             onClick={() =>
                               handleSubscribe(
@@ -2241,7 +1997,394 @@ export default function PlansPage() {
                               )
                             }
                             disabled={isLoadingThis || loading}
-                            className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 hover:shadow-md`}
+                            className={`flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/15 transition-all hover:opacity-90 hover:shadow-xl`}
+                          >
+                            {isLoadingThis ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin" /> Redirigiendo...
+                              </>
+                            ) : isActive ? (
+                              'Plan Actual Activo'
+                            ) : (
+                              `Adquirir Wappy Vital`
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="border-t border-border-light my-2"></div>
+
+                        <ul className="mt-4 flex-1 space-y-3">
+                          {plan.features.map((f) => {
+                            const isHighlighted = f.includes('**');
+                            const text = f.replace(/\*\*/g, '');
+                            return (
+                              <li
+                                key={f}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                              >
+                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                                {text}
+                              </li>
+                            );
+                          })}
+                          {plan.notIncluded.map((f) => (
+                            <li
+                              key={f}
+                              className="flex items-start gap-3 text-xs md:text-sm text-text-tertiary line-through opacity-40"
+                            >
+                              <span className="mt-0.5 h-4 w-4 flex-shrink-0 text-center font-bold text-red-500">✕</span>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+                  {/* CARD 2: Wappy Pro */}
+                  {(() => {
+                    const plan = PLANS.find((p) => p.key === 'pro')!;
+                    const Icon = PLAN_ICON_MAP[plan.key] || ProSVG;
+                    const isUserAdmin = !loading && activePlan === 'admin';
+                    const isActive =
+                      !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
+                    const isLoadingThis = checkoutLoading === plan.key;
+                    const fetchedConfig = fetchedPlans.find((p) => p.planId === plan.key);
+
+                    // Dynamic price
+                    let rawPrice = 0;
+                    let displayPrice = plan.price;
+                    let promotion: any = null;
+
+                    if (fetchedConfig) {
+                      rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
+                      displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+                      if (fetchedConfig.promotions?.[billingInterval]?.active) {
+                        promotion = fetchedConfig.promotions[billingInterval];
+                      }
+                    }
+
+                    let discountedPrice = 0;
+                    if (promotion && rawPrice > 0) {
+                      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                    }
+
+                    const isNotMonthly = billingInterval !== 'monthly';
+                    const monthsDivisor =
+                      billingInterval === 'quarterly'
+                        ? 3
+                        : billingInterval === 'semiannual'
+                          ? 6
+                          : billingInterval === 'annual'
+                            ? 12
+                            : 1;
+                    const totalToBill = promotion && promotion.discountPercentage > 0
+                        ? discountedPrice
+                        : rawPrice;
+                    const pricePerMonth = totalToBill / monthsDivisor;
+
+                    return (
+                      <div
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} border-amber-500/30 shadow-2xl ring-1 ring-amber-500/20 bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.05)]`}
+                      >
+                        <div className="absolute -top-3 left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                          ⭐ Plan Profesional Todo Incluido
+                        </div>
+
+                        {promotion && promotion.discountPercentage > 0 && (
+                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
+                            -{promotion.discountPercentage}%
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-4 mb-6 mt-2">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-extrabold text-text-primary">{plan.name}</h2>
+                            <p className="text-xs text-text-secondary">{plan.tagline}</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-6 flex flex-col items-start gap-1">
+                          {promotion && promotion.discountPercentage > 0 && (
+                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                              {displayPrice}
+                            </span>
+                          )}
+
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-5xl font-black tracking-tight text-amber-500">
+                              ${Math.round(totalToBill).toLocaleString('es-CO')}
+                            </span>
+                            <span className="text-sm font-bold text-text-secondary">
+                              /
+                              {billingInterval === 'monthly'
+                                ? 'mes'
+                                : billingInterval === 'quarterly'
+                                  ? 'trim.'
+                                  : billingInterval === 'semiannual'
+                                    ? 'sem.'
+                                    : 'año'}
+                            </span>
+                          </div>
+
+                          {isNotMonthly && (
+                            <div className="mt-0.5 text-sm font-bold text-text-primary">
+                              ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
+                              <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                            </div>
+                          )}
+
+                          {promotion && (
+                            <div className="mt-2 w-full rounded-md bg-indigo-500/10 px-3 py-1 text-center text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                              {promotion.text || 'Oferta por tiempo limitado'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2 mb-6">
+                          <button
+                            onClick={() =>
+                              handleSubscribe(
+                                plan.key,
+                                plan,
+                                displayPrice,
+                                discountedPrice,
+                                rawPrice,
+                                promotion,
+                              )
+                            }
+                            disabled={isLoadingThis || loading}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/15 transition-all hover:opacity-90 hover:shadow-xl"
+                          >
+                            {isLoadingThis ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin" /> Redirigiendo...
+                              </>
+                            ) : isActive ? (
+                              isUserAdmin ? 'Plan de Admin Activo' : 'Suscripción Activa'
+                            ) : (
+                              `Adquirir Wappy Pro`
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="border-t border-border-light my-2"></div>
+
+                        <ul className="mt-4 flex-1 space-y-3">
+                          {plan.features.map((f) => {
+                            const isHighlighted = f.includes('**');
+                            const text = f.replace(/\*\*/g, '');
+                            return (
+                              <li
+                                key={f}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                              >
+                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+                                {text}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* ── Plans grid (existing 4 plans) ── */}
+                {/* Only show plans that are enabled in visibility config */}
+                <div
+                  className={`mt-4 grid gap-5 ${
+                    [
+                      visibility.showPlanFree,
+                      visibility.showPlanGo,
+                      visibility.showPlanPlus,
+                      visibility.showPlanPro,
+                    ].filter(Boolean).length === 1
+                      ? 'mx-auto max-w-sm sm:grid-cols-1'
+                      : [
+                            visibility.showPlanFree,
+                            visibility.showPlanGo,
+                            visibility.showPlanPlus,
+                            visibility.showPlanPro,
+                          ].filter(Boolean).length === 2
+                        ? 'mx-auto max-w-2xl sm:grid-cols-2'
+                        : [
+                              visibility.showPlanFree,
+                              visibility.showPlanGo,
+                              visibility.showPlanPlus,
+                              visibility.showPlanPro,
+                            ].filter(Boolean).length === 3
+                          ? 'sm:grid-cols-3'
+                          : 'sm:grid-cols-2 lg:grid-cols-4'
+                  }`}
+                >
+                  {PLANS.filter((plan) => {
+                    if (plan.key === 'free') return false;
+                    if (plan.key === 'go') return visibility.showPlanGo;
+                    if (plan.key === 'plus') return visibility.showPlanPlus;
+                    if (plan.key === 'pro') return visibility.showPlanPro;
+                    return true;
+                  }).map((plan) => {
+                    const Icon = PLAN_ICON_MAP[plan.key];
+
+                    const isUserAdmin = !loading && activePlan === 'admin';
+                    const isActive =
+                      !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
+
+                    const isLoadingThis = checkoutLoading === plan.key;
+                    const isFree = plan.key === 'free';
+                    const fetchedConfig = fetchedPlans.find((p) => p.planId === plan.key);
+
+                    // Dynamic price
+                    let rawPrice = 0;
+                    let displayPrice = plan.price;
+                    let promotion: any = null;
+
+                    if (!isFree && fetchedConfig) {
+                      rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
+                      displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+                      if (fetchedConfig.promotions?.[billingInterval]?.active) {
+                        promotion = fetchedConfig.promotions[billingInterval];
+                      }
+                    }
+
+                    let discountedPrice = 0;
+                    if (promotion && rawPrice > 0) {
+                      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                    }
+
+                    const isNotMonthly = billingInterval !== 'monthly';
+                    const monthsDivisor =
+                      billingInterval === 'quarterly'
+                        ? 3
+                        : billingInterval === 'semiannual'
+                          ? 6
+                          : billingInterval === 'annual'
+                            ? 12
+                            : 1;
+                    const totalToBill = isFree
+                      ? 0
+                      : promotion && promotion.discountPercentage > 0
+                        ? discountedPrice
+                        : rawPrice;
+                    const pricePerMonth = isFree ? 0 : totalToBill / monthsDivisor;
+
+                    return (
+                      <div
+                        key={plan.key}
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${
+                          isActive
+                            ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
+                            : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-md`
+                        } bg-surface-primary/60 backdrop-blur-sm`}
+                      >
+                        {/* Badges */}
+                        {plan.popular && !isActive && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-0.5 text-xs font-bold text-white shadow">
+                            ⭐ Más popular
+                          </div>
+                        )}
+                        {isActive && (
+                          <div
+                            className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-bold text-white shadow ${
+                              plan.key === 'free'
+                                ? 'bg-text-secondary'
+                                : isUserAdmin
+                                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
+                                  : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                            }`}
+                          >
+                            ✓ {isUserAdmin ? 'Plan de Admin' : 'Plan actual'}
+                          </div>
+                        )}
+                        {promotion && promotion.discountPercentage > 0 && (
+                          <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
+                            -{promotion.discountPercentage}%
+                          </div>
+                        )}
+
+                        {/* Icon */}
+                        <div
+                          className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
+                        >
+                          <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                        </div>
+
+                        {/* Name & tagline */}
+                        <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
+                        <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
+
+                        {/* Price */}
+                        <div className="mb-5 flex flex-col items-start gap-1">
+                          {promotion && promotion.discountPercentage > 0 && (
+                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                              {displayPrice}
+                            </span>
+                          )}
+
+                          <div className="flex items-end gap-1">
+                            <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
+                              {isFree ? '$0' : '$' + Math.round(totalToBill).toLocaleString('es-CO')}
+                            </span>
+                            <span className="mb-1 text-xs font-semibold text-text-secondary">
+                              /
+                              {isFree
+                                ? 'mes'
+                                : billingInterval === 'monthly'
+                                  ? 'mes'
+                                  : billingInterval === 'quarterly'
+                                    ? 'trim.'
+                                    : billingInterval === 'semiannual'
+                                      ? 'sem.'
+                                      : 'año'}
+                            </span>
+                          </div>
+
+                          {isNotMonthly && !isFree && (
+                            <div className="mt-0.5 text-base font-bold text-text-primary">
+                              ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
+                              <span className="text-xs font-semibold text-text-secondary">/mes</span>
+                            </div>
+                          )}
+
+                          {promotion && (
+                            <div className="mt-2 w-full rounded-md bg-indigo-500/10 px-3 py-1.5 text-center text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                              {promotion.text || 'Oferta por tiempo limitado'}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* CTA */}
+                        <div className="mt-auto pt-2">
+                          <button
+                            onClick={() =>
+                              !isFree &&
+                              handleSubscribe(
+                                plan.key,
+                                plan,
+                                displayPrice,
+                                discountedPrice,
+                                rawPrice,
+                                promotion,
+                              )
+                            }
+                            disabled={isFree || isLoadingThis || loading}
+                            className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+                              isFree
+                                ? 'border-border-medium/40 cursor-default border bg-transparent text-text-tertiary'
+                                : `bg-gradient-to-r ${
+                                    plan.key === 'go'
+                                      ? 'from-blue-500 to-blue-600'
+                                      : plan.key === 'plus'
+                                        ? 'from-green-500 to-emerald-600'
+                                        : 'from-amber-500 to-orange-600'
+                                  } text-white hover:opacity-90 hover:shadow-md`
+                            }`}
                           >
                             {isLoadingThis ? (
                               <>
@@ -2249,12 +2392,15 @@ export default function PlansPage() {
                               </>
                             ) : isActive ? (
                               'Renovar o Ampliar'
+                            ) : isFree ? (
+                              'Plan gratuito'
                             ) : (
                               `Comenzar con ${plan.name}`
                             )}
                           </button>
                         </div>
 
+                        {/* Features */}
                         <ul className="mt-5 flex-1 space-y-2">
                           {plan.features.map((f) => {
                             const isHighlighted = f.includes('**');
@@ -2276,9 +2422,7 @@ export default function PlansPage() {
                               key={f}
                               className="flex items-start gap-2 text-xs text-text-tertiary line-through opacity-40"
                             >
-                              <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">
-                                ✕
-                              </span>
+                              <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
                               {f}
                             </li>
                           ))}
@@ -2287,7 +2431,167 @@ export default function PlansPage() {
                     );
                   })}
                 </div>
-              </div>
+
+                {/* ── App Plans Section ──────────────────────── */}
+                {visibility.showSectionAppPlans && (
+                  <div className="mt-16">
+                    {/* Section divider */}
+                    <div className="mb-8 flex items-center gap-4">
+                      <div className="via-border-medium/50 to-border-medium/50 h-px flex-1 bg-gradient-to-r from-transparent" />
+                      <div className="border-border-medium/60 flex items-center gap-3 rounded-full border bg-surface-primary px-5 py-2">
+                        <PricingSVG className="h-5 w-5 text-emerald-500" />
+                        <span className="text-sm font-semibold text-text-primary">
+                          Planes por Aplicativos
+                        </span>
+                      </div>
+                      <div className="via-border-medium/50 to-border-medium/50 h-px flex-1 bg-gradient-to-l from-transparent" />
+                    </div>
+
+                    <div className="grid justify-center gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {APP_PLANS.map((plan) => {
+                        const Icon = APP_ICON_MAP[plan.key];
+                        const isUserAdmin = !loading && activePlan === 'admin';
+                        const isActive = !loading && activePlan === plan.key;
+                        const isLoadingThis = checkoutLoading === plan.key;
+                        const fetchedConfig = fetchedPlans.find((p) => p.planId === plan.key);
+
+                        // Plan IPEVAR: pago único vitalicio
+                        const fixedInterval = plan.key === 'ipevar' ? 'lifetime' : 'annual';
+                        let rawPrice = 100000;
+                        let displayPrice = '$100.000';
+                        let promotion: any = null;
+
+                        if (fetchedConfig && fetchedConfig.prices?.[fixedInterval]) {
+                          rawPrice = fetchedConfig.prices[fixedInterval];
+                          displayPrice = '$' + rawPrice.toLocaleString('es-CO');
+                        }
+                        if (fetchedConfig && fetchedConfig.promotions?.[fixedInterval]?.active) {
+                          promotion = fetchedConfig.promotions[fixedInterval];
+                        }
+
+                        let discountedPrice = 0;
+                        if (promotion && rawPrice > 0) {
+                          discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                        }
+
+                        const totalToBill =
+                          promotion && promotion.discountPercentage > 0 ? discountedPrice : rawPrice;
+
+                        return (
+                          <div
+                            key={plan.key}
+                            className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${
+                              isActive
+                                ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
+                                : `border-border-medium/40 hover:${plan.borderColor.replace('border-', '')} hover:shadow-md`
+                            } bg-surface-primary/60 backdrop-blur-sm lg:col-start-2`}
+                          >
+                            {plan.popular && !isActive && (
+                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-0.5 text-xs font-bold text-white shadow">
+                                ⭐ Destacado
+                              </div>
+                            )}
+                            {isActive && (
+                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-0.5 text-xs font-bold text-white shadow">
+                                ✓ Plan actual
+                              </div>
+                            )}
+                            {promotion && promotion.discountPercentage > 0 && (
+                              <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
+                                -{promotion.discountPercentage}%
+                              </div>
+                            )}
+
+                            <div
+                              className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
+                            >
+                              <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                            </div>
+
+                            <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
+                            <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
+
+                            <div className="mb-5 flex flex-col items-start gap-1">
+                              {promotion && promotion.discountPercentage > 0 && (
+                                <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                                  {displayPrice}
+                                </span>
+                              )}
+
+                              <div className="flex items-end gap-1">
+                                <span
+                                  className={`text-4xl font-black tracking-tight ${plan.accentColor}`}
+                                >
+                                  ${Math.round(totalToBill).toLocaleString('es-CO')}
+                                </span>
+                                <span className="mb-1 text-xs font-semibold text-text-secondary">
+                                  {plan.key === 'ipevar' ? 'Pago único vitalicio' : '/año'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-2">
+                              <button
+                                onClick={() =>
+                                  handleSubscribe(
+                                    plan.key,
+                                    plan,
+                                    displayPrice,
+                                    discountedPrice,
+                                    rawPrice,
+                                    promotion,
+                                  )
+                                }
+                                disabled={isLoadingThis || loading}
+                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 hover:shadow-md`}
+                              >
+                                {isLoadingThis ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
+                                  </>
+                                ) : isActive ? (
+                                  'Renovar o Ampliar'
+                                ) : (
+                                  `Comenzar con ${plan.name}`
+                                )}
+                              </button>
+                            </div>
+
+                            <ul className="mt-5 flex-1 space-y-2">
+                              {plan.features.map((f) => {
+                                const isHighlighted = f.includes('**');
+                                const text = f.replace(/\*\*/g, '');
+                                return (
+                                  <li
+                                    key={f}
+                                    className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                                  >
+                                    <Check
+                                      className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
+                                    />
+                                    {text}
+                                  </li>
+                                );
+                              })}
+                              {plan.notIncluded.map((f) => (
+                                <li
+                                  key={f}
+                                  className="flex items-start gap-2 text-xs text-text-tertiary line-through opacity-40"
+                                >
+                                  <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">
+                                    ✕
+                                  </span>
+                                  {f}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ── Custom Plan Builder Section ("Arma tu Plan") ──────────────── */}
