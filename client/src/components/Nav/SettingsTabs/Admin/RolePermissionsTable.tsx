@@ -11,7 +11,8 @@ const renderRoleName = (role: string) => {
         [SystemRoles.USER_GO]: 'Go',
         [SystemRoles.USER_PLUS]: 'Plus',
         [SystemRoles.USER_PRO]: 'Pro',
-        'USER_IPEVAR': 'IPEVAR',
+        'USER_IPEVAR': 'Wappy Vital',
+        'IPEVAR': 'Wappy Vital Legacy',
         'USER_CUSTOM': 'A la Medida',
         [SystemRoles.ADMIN]: 'Admin',
     }[role] || role;
