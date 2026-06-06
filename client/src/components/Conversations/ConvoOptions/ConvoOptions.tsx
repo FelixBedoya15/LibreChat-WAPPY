@@ -285,19 +285,17 @@ function ConvoOptions({
           <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
             <button
               onClick={() => setIsUpgradeModalOpen(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm z-50"
             >
               Cerrar ✕
             </button>
-            <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
-              <UpgradeWall
-                title={upgradeModalTitle}
-                description={upgradeModalDesc}
-                plan="USER_IPEVAR"
-                isCompact={true}
-                hideFeatures={true}
-              />
-            </div>
+            <UpgradeWall
+              title={upgradeModalTitle}
+              description={upgradeModalDesc}
+              plan="USER_IPEVAR"
+              isPopup={true}
+              hideFeatures={true}
+            />
           </div>
         </div>,
         document.body

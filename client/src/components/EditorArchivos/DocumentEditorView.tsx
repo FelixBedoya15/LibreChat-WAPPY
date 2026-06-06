@@ -127,19 +127,17 @@ const DocumentEditorView = () => {
             <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
                 <button 
                     onClick={() => setShowUpgradeModal(false)} 
-                    className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                    className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm z-50"
                 >
                     Cerrar ✕
                 </button>
-                <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
-                    <UpgradeWall
-                        title="Exportación Bloqueada"
-                        description="El guardado y exportación de archivos enriquecidos por IA está reservado para cuentas PREMIUM."
-                        plan={user?.role || 'USER'}
-                        isCompact={true}
-                        hideFeatures={true}
-                    />
-                </div>
+                <UpgradeWall
+                    title="Exportación Bloqueada"
+                    description="El guardado y exportación de archivos enriquecidos por IA está reservado para cuentas PREMIUM."
+                    plan={user?.role || 'USER'}
+                    isPopup={true}
+                    hideFeatures={true}
+                />
             </div>
         </div>
       )}

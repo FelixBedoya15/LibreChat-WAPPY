@@ -129,19 +129,17 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
               <button
                 onClick={() => setIsUpgradeModalOpen(false)}
-                className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
+                className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300 z-50"
               >
                 Cerrar ✕
               </button>
-              <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
-                <UpgradeWall
-                  title={upgradeModalTitle}
-                  description={upgradeModalDesc}
-                  plan={user?.role || 'USER'}
-                  isCompact={true}
-                  hideFeatures={true}
-                />
-              </div>
+              <UpgradeWall
+                title={upgradeModalTitle}
+                description={upgradeModalDesc}
+                plan={user?.role || 'USER'}
+                isPopup={true}
+                hideFeatures={true}
+              />
             </div>
           </div>
         )}
@@ -973,19 +971,17 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
             <button
               onClick={() => setIsUpgradeModalOpen(false)}
-              className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
+              className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300 z-50"
             >
               Cerrar ✕
             </button>
-            <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
-              <UpgradeWall
-                title={upgradeModalTitle}
-                description={upgradeModalDesc}
-                plan={user?.role || 'USER'}
-                isCompact={true}
-                hideFeatures={true}
-              />
-            </div>
+            <UpgradeWall
+              title={upgradeModalTitle}
+              description={upgradeModalDesc}
+              plan={user?.role || 'USER'}
+              isPopup={true}
+              hideFeatures={true}
+            />
           </div>
         </div>
       )}
