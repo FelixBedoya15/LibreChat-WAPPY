@@ -127,7 +127,7 @@ const AttachFileMenu = ({
         isDocumentSupportedProvider(currentProvider)
       ) {
         if (isGoogle) {
-          // Google/Gemini: imagen directa funciona, documentos necesitan OCR
+          // Google/Gemini: imagen directa funciona
           items.push({
             label: 'Subir imagen (adjunto directo)',
             onClick: () => {
@@ -136,15 +136,26 @@ const AttachFileMenu = ({
             },
             icon: <FileImageIcon className="icon-md" />,
           });
-          items.push({
-            label: 'Subir documento (PDF/Word/Excel/TXT)',
-            onClick: () => {
-              // Usa extracción de texto automáticamente para que Gemini pueda leer el contenido
-              setToolResource(EToolResources.context);
-              onAction();
-            },
-            icon: <FileScan className="icon-md" />,
-          });
+          // Documentos: usar OCR solo si la capacidad está habilitada; si no, adjunto normal
+          if (capabilities.contextEnabled) {
+            items.push({
+              label: 'Subir documento (PDF/Word/Excel/TXT)',
+              onClick: () => {
+                setToolResource(EToolResources.context);
+                onAction();
+              },
+              icon: <FileScan className="icon-md" />,
+            });
+          } else {
+            items.push({
+              label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
+              onClick: () => {
+                setToolResource(undefined);
+                onAction('google_multimodal');
+              },
+              icon: <FileImageIcon className="icon-md" />,
+            });
+          }
         } else {
           items.push({
             label: localize('com_ui_upload_provider') + ' (Adjunto directo al chat)',
