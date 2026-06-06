@@ -18,6 +18,11 @@ const { getFileStrategy } = require('~/server/utils/getFileStrategy');
  * @returns {Promise<void>}
  */
 async function convertPdfToImages({ req, file, parentFileId, userId }) {
+  // DISABLED: pdf-to-png-converter consumes 4+ GB RAM and crashes the Node.js server (OOM).
+  // PDF uploads still work; this conversion (PDF pages → PNG images) is skipped until
+  // a memory-safe alternative is implemented (e.g. child_process / worker thread).
+  logger.debug(`[pdfToImages] PDF-to-image conversion disabled to prevent OOM crash. file=${file?.originalname}`);
+  return;
   try {
     const { pdfToPng } = require('pdf-to-png-converter');
 
