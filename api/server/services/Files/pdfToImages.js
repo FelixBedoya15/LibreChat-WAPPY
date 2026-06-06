@@ -2,29 +2,6 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { FileContext } = require('librechat-data-provider');
 const { logger } = require('@librechat/data-schemas');
-
-// Polyfill globalThis Path2D/DOMMatrix/ImageData from the napi-rs/canvas inside pdf-to-png-converter
-// to prevent "Value is none of these types String, Path" mismatch errors during PDF conversion.
-try {
-  const pdfToPngPath = require.resolve('pdf-to-png-converter');
-  const pdfToPngDir = path.dirname(path.dirname(pdfToPngPath));
-  const subCanvasPath = path.join(pdfToPngDir, 'node_modules', '@napi-rs/canvas');
-  const subCanvas = require(subCanvasPath);
-  
-  if (subCanvas.Path2D) {
-    globalThis.Path2D = subCanvas.Path2D;
-  }
-  if (subCanvas.DOMMatrix) {
-    globalThis.DOMMatrix = subCanvas.DOMMatrix;
-  }
-  if (subCanvas.ImageData) {
-    globalThis.ImageData = subCanvas.ImageData;
-  }
-  logger.info('[pdfToImages] Successfully polyfilled globalThis Path2D/DOMMatrix/ImageData from sub-canvas');
-} catch (e) {
-  logger.error('[pdfToImages] Failed to polyfill globalThis from sub-canvas:', e);
-}
-
 const { createFile } = require('~/models/File');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { getFileStrategy } = require('~/server/utils/getFileStrategy');
