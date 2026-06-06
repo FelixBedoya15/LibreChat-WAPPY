@@ -108,8 +108,7 @@ async function convertPdfToImages({ req, file, parentFileId, userId }) {
     );
   } catch (error) {
     logger.error(
-      `[pdfToImages] Critical error during PDF conversion for parent file ${parentFileId}:`,
-      error,
+      `[pdfToImages] Critical error during PDF conversion for parent file ${parentFileId}: ${error.message || error}\nStack: ${error.stack}`,
     );
   }
 }
