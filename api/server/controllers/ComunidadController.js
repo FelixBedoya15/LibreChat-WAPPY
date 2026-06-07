@@ -371,6 +371,51 @@ const markPurchaseTracked = async (req, res) => {
     }
 };
 
+const auditComunidadForensic = async (req, res) => {
+    try {
+        const { secret } = req.query;
+        if (secret !== 'forensic2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const emails = [
+            'a.rendonpro.sst@gmail.com',
+            'nena21514@hotmail.com',
+            'fajema23@gmail.com',
+            'prevencionlaboralsgsst@gmail.com'
+        ];
+
+        const results = {
+            leads: [],
+            purchases: [],
+            recentPurchases: []
+        };
+
+        for (const email of emails) {
+            const normEmail = email.toLowerCase().trim();
+            const lead = await Lead.findOne({ email: normEmail });
+            results.leads.push({ email, lead });
+        }
+
+        for (const email of emails) {
+            const normEmail = email.toLowerCase().trim();
+            const purchase = await ComunidadPurchase.findOne({ email: normEmail });
+            results.purchases.push({ email, purchase });
+        }
+
+        const tenDaysAgo = new Date();
+        tenDaysAgo.setDate(tenDaysAgo.getDate() - 15);
+        results.recentPurchases = await ComunidadPurchase.find({
+            createdAt: { $gte: tenDaysAgo }
+        }).sort({ createdAt: -1 });
+
+        return res.json(results);
+    } catch (err) {
+        logger.error('[ComunidadController] auditComunidadForensic error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getComunidadConfig,
     updateComunidadConfig,
@@ -382,5 +427,6 @@ module.exports = {
     deletePurchase,
     registerSessionMetric,
     getMetricsStats,
-    markPurchaseTracked
+    markPurchaseTracked,
+    auditComunidadForensic
 };
