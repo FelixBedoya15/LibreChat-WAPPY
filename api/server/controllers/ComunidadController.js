@@ -418,6 +418,16 @@ const auditComunidadForensic = async (req, res) => {
             results.wompiTransactions.push({ email, transactions });
         }
 
+        let webhookLogs = [];
+        try {
+            const WompiWebhookLog = mongoose.models.WompiWebhookLog || mongoose.model('WompiWebhookLog');
+            webhookLogs = await WompiWebhookLog.find({}).sort({ createdAt: -1 }).limit(30).lean();
+        } catch (logErr) {
+            // Safe fallback if model doesn't exist
+            webhookLogs = [{ error: `Could not fetch logs: ${logErr.message}` }];
+        }
+        results.webhookLogs = webhookLogs;
+
         return res.json(results);
     } catch (err) {
         logger.error('[ComunidadController] auditComunidadForensic error:', err);

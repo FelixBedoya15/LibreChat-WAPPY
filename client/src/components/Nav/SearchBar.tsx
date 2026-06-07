@@ -100,11 +100,14 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     }
   };
 
+  // Sync local text state with the store on mount (e.g., when navigating back to search)
   useEffect(() => {
-    if (search.isTyping && !search.isSearching && search.debouncedQuery === search.query) {
-      setSearchState((prev) => ({ ...prev, isTyping: false }));
+    if (search.query && text === '') {
+      setText(search.query);
+      setShowClearIcon(true);
     }
-  }, [search.isTyping, search.isSearching, search.debouncedQuery, search.query, setSearchState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isCollapsed) {
     return (
@@ -119,7 +122,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
             }
         }}
       >
-        <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
+        <Search size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
         <div className="hidden sm:flex absolute left-full ml-3 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-white dark:bg-gray-800 border border-teal-400/50 px-3 py-2 rounded-lg shadow-2xl pointer-events-none z-[110]">
           <span className="text-xs font-semibold text-teal-700">{localize('com_ui_search')}</span>
         </div>
@@ -131,14 +134,14 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     <motion.div
       ref={ref}
       className={cn(
-        'group flex w-full items-center gap-2.5 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-3 py-2.5 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:border-teal-400 cursor-text'
+        'group relative flex w-full items-center gap-2.5 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-3 py-2.5 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:border-teal-400 cursor-text'
       )}
     >
       <Search className="h-4 w-4 shrink-0 text-text-tertiary group-hover:text-teal-500 transition-colors" />
       <input
         type="text"
         ref={inputRef}
-        className="m-0 w-full border-none bg-transparent p-0 text-sm font-medium focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
+        className="m-0 w-full border-none bg-transparent p-0 text-sm font-medium text-text-primary focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
         value={text}
         onChange={onChange}
         onKeyDown={(e) => {

@@ -7,8 +7,18 @@ const WompiTransaction = require('~/models/WompiTransaction');
 const { getAppConfig } = require('~/server/services/Config');
 // Removed User import since role is available in req.user
 
-// We use crypto to safely create checksums for integrity if required,
-// but for standard Wompi widget, reference generation is sufficient until verification.
+const WompiWebhookLogSchema = new mongoose.Schema({
+    event: String,
+    reference: String,
+    status: String,
+    payload: Object,
+    receivedChecksum: String,
+    computedChecksum: String,
+    verified: Boolean,
+    error: String
+}, { timestamps: true });
+
+const WompiWebhookLog = mongoose.models.WompiWebhookLog || mongoose.model('WompiWebhookLog', WompiWebhookLogSchema);
 
 
 // ── Helper: Check Welcome Code Expiry ──
@@ -350,11 +360,12 @@ const createTransaction = async (req, res) => {
  * Wompi calls this when a transaction is updated (approved, declined, etc.)
  */
 const handleWebhook = async (req, res) => {
+    let logDoc = null;
     try {
         const event = req.body;
-        console.log('[Wompi Webhook] Event received:', event.event);
+        console.log('[Wompi Webhook] Event received:', event?.event);
 
-        if (event.event !== 'transaction.updated') {
+        if (!event || event.event !== 'transaction.updated') {
             return res.status(200).send('Event not processed');
         }
 
@@ -364,11 +375,21 @@ const handleWebhook = async (req, res) => {
         const { reference, status, id: transactionId } = transactionData;
         console.log(`[Wompi Webhook] Transaction ${transactionId} status is ${status} (ref: ${reference})`);
 
+        logDoc = new WompiWebhookLog({
+            event: event.event,
+            reference,
+            status,
+            payload: event,
+            verified: false
+        });
+
         // Validate integrity of payload (Security)
         const receivedChecksum = event.signature?.checksum;
         const properties = event.signature?.properties || [];
         const timestamp = event.timestamp;
         const eventsSecret = process.env.WOMPI_EVENTS_SECRET;
+
+        logDoc.receivedChecksum = receivedChecksum;
 
         if (receivedChecksum && eventsSecret && timestamp) {
             let concatenatedString = '';
@@ -384,14 +405,20 @@ const handleWebhook = async (req, res) => {
             concatenatedString += eventsSecret;
 
             const computedChecksum = crypto.createHash('sha256').update(concatenatedString, 'utf-8').digest('hex');
+            logDoc.computedChecksum = computedChecksum;
 
             if (computedChecksum !== receivedChecksum) {
                 console.error('[Wompi Webhook] ⚠️ INVALID CHECKSUM. Potential tampering or misconfiguration.');
+                logDoc.error = 'Invalid checksum';
+                await logDoc.save();
                 return res.status(401).send('Invalid signature');
             }
             console.log('[Wompi Webhook] ✅ Signature verified successfully.');
+            logDoc.verified = true;
         } else {
             console.warn('[Wompi Webhook] ⚠️ No signature, secret or timestamp found for verification. Skipping security check.');
+            logDoc.error = 'Verification skipped (missing secret or signature)';
+            logDoc.verified = true; // skip security
         }
 
         // Update transaction in our DB
@@ -400,6 +427,8 @@ const handleWebhook = async (req, res) => {
             const purchase = await ComunidadPurchase.findOne({ wompiReference: reference });
             if (!purchase) {
                 console.error('[Wompi Webhook] Unknown Comunidad reference:', reference);
+                logDoc.error = `Unknown Comunidad reference: ${reference}`;
+                await logDoc.save();
                 return res.status(200).send('Reference unknown');
             }
             const wasAlreadyApproved = purchase.isPaid === true || purchase.status === 'APPROVED';
@@ -409,12 +438,16 @@ const handleWebhook = async (req, res) => {
             }
             await purchase.save();
             console.log(`[Wompi Webhook] Updated ComunidadPurchase ${reference} to ${status}. Paid: ${purchase.isPaid}`);
+            
+            await logDoc.save();
             return res.status(200).send('OK');
         }
 
         const wompiTx = await WompiTransaction.findOne({ reference });
         if (!wompiTx) {
             console.error('[Wompi Webhook] Unknown reference:', reference);
+            logDoc.error = `Unknown reference: ${reference}`;
+            await logDoc.save();
             return res.status(200).send('Reference unknown');
         }
 
@@ -428,6 +461,8 @@ const handleWebhook = async (req, res) => {
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (!planDoc) {
                 console.error('[Wompi Webhook] Missing plan in DB for provisioning.', wompiTx.planId);
+                logDoc.error = `Missing plan in DB for provisioning: ${wompiTx.planId}`;
+                await logDoc.save();
                 return res.status(200).send('OK'); // don't fail Wompi
             }
 
@@ -490,7 +525,6 @@ const handleWebhook = async (req, res) => {
                 console.error('[Wompi Webhook] Error triggering processSuccessfulPurchase:', refErr);
             }
 
-            
             // Notify admins
             try {
                 const userDoc = await User.findById(wompiTx.userId).lean();
@@ -500,10 +534,15 @@ const handleWebhook = async (req, res) => {
             }
         }
 
+        await logDoc.save();
         return res.status(200).send('OK');
 
     } catch (err) {
         console.error('[Wompi Webhook] Error processing:', err);
+        if (logDoc) {
+            logDoc.error = err.message;
+            await logDoc.save().catch(() => {});
+        }
         return res.status(500).send('Internal Server Error');
     }
 };
