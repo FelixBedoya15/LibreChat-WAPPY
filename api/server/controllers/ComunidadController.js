@@ -199,7 +199,8 @@ const checkComunidadAccess = async (req, res) => {
                 isPaid: true,
                 fullName: purchase.fullName,
                 phone: purchase.phone,
-                videoWatched: purchase.videoWatched
+                videoWatched: purchase.videoWatched,
+                purchaseTracked: purchase.purchaseTracked === true
             });
         }
 
@@ -345,6 +346,123 @@ const getMetricsStats = async (req, res) => {
     }
 };
 
+const auditComunidadForensic = async (req, res) => {
+    try {
+        const { secret } = req.query;
+        if (secret !== 'forensic2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const emails = [
+            'a.rendonpro.sst@gmail.com',
+            'nena21514@hotmail.com',
+            'fajema23@gmail.com',
+            'prevencionlaboralsgsst@gmail.com'
+        ];
+
+        const results = {
+            leads: [],
+            purchases: [],
+            recentPurchases: []
+        };
+
+        for (const email of emails) {
+            const normEmail = email.toLowerCase().trim();
+            const lead = await Lead.findOne({ email: normEmail });
+            results.leads.push({ email, lead });
+        }
+
+        for (const email of emails) {
+            const normEmail = email.toLowerCase().trim();
+            const purchase = await ComunidadPurchase.findOne({ email: normEmail });
+            results.purchases.push({ email, purchase });
+        }
+
+        const tenDaysAgo = new Date();
+        tenDaysAgo.setDate(tenDaysAgo.getDate() - 15);
+        results.recentPurchases = await ComunidadPurchase.find({
+            createdAt: { $gte: tenDaysAgo }
+        }).sort({ createdAt: -1 });
+
+        return res.json(results);
+    } catch (err) {
+        logger.error('[ComunidadController] auditComunidadForensic error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+const fixComunidadPurchase = async (req, res) => {
+    try {
+        const { secret, email, action, reference, amount } = req.body;
+        if (secret !== 'forensic2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        if (action === 'approve') {
+            let purchase = await ComunidadPurchase.findOne({ email: normalizedEmail });
+            const lead = await Lead.findOne({ email: normalizedEmail });
+
+            if (!purchase) {
+                purchase = new ComunidadPurchase({
+                    fullName: lead ? lead.fullName : 'Manual Audit Approved',
+                    email: normalizedEmail,
+                    phone: lead ? lead.phone : '3000000000',
+                    isPaid: true,
+                    status: 'APPROVED',
+                    wompiReference: reference || `WAP-COM-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+                    amountInCents: amount ? Number(amount) : 2800000,
+                    purchaseTracked: false
+                });
+            } else {
+                purchase.isPaid = true;
+                purchase.status = 'APPROVED';
+                purchase.purchaseTracked = false; // Reset so pixel will fire
+                if (reference) purchase.wompiReference = reference;
+                if (amount) purchase.amountInCents = Number(amount);
+            }
+
+            await purchase.save();
+            return res.json({ success: true, message: `Approved and repaired purchase for ${normalizedEmail}`, purchase });
+        }
+
+        return res.status(400).json({ error: 'Invalid action' });
+    } catch (err) {
+        logger.error('[ComunidadController] fixComunidadPurchase error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+const markPurchaseTracked = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const purchase = await ComunidadPurchase.findOneAndUpdate(
+            { email: normalizedEmail },
+            { $set: { purchaseTracked: true } },
+            { new: true }
+        );
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'No purchase found for this email' });
+        }
+
+        return res.json({ success: true, purchaseTracked: purchase.purchaseTracked });
+    } catch (err) {
+        logger.error('[ComunidadController] markPurchaseTracked error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getComunidadConfig,
     updateComunidadConfig,
@@ -355,5 +473,8 @@ module.exports = {
     getAllPurchases,
     deletePurchase,
     registerSessionMetric,
-    getMetricsStats
+    getMetricsStats,
+    auditComunidadForensic,
+    fixComunidadPurchase,
+    markPurchaseTracked
 };

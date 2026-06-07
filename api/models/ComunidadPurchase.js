@@ -37,6 +37,10 @@ const ComunidadPurchaseSchema = new mongoose.Schema({
         type: String,
         default: 'PENDING',
         enum: ['PENDING', 'APPROVED', 'DECLINED', 'VOIDED', 'ERROR']
+    },
+    purchaseTracked: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 

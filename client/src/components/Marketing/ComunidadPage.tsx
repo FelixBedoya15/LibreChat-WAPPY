@@ -188,6 +188,50 @@ export default function ComunidadPage() {
     }
   };
 
+  const triggerMetaPurchasePixel = async (email: string) => {
+    if (window.fbq) {
+      window.fbq('track', 'Purchase', {
+        value: price || 28000,
+        currency: 'COP',
+        content_name: 'Curso SST IA + 10 Aplicativos'
+      });
+      console.log(`[Meta Pixel] Sent Purchase event for ${email}`);
+    }
+    try {
+      await axios.post('/api/comunidad/mark-tracked', { email });
+    } catch (err) {
+      console.error('[Meta Pixel] Error calling mark-tracked endpoint:', err);
+    }
+  };
+
+  const handleSendToPixelManual = async (email: string) => {
+    try {
+      if (window.fbq) {
+        window.fbq('track', 'Purchase', {
+          value: price || 28000,
+          currency: 'COP',
+          content_name: 'Curso SST IA + 10 Aplicativos'
+        });
+        alert(`Evento Purchase enviado exitosamente al píxel de Meta para el correo: ${email}`);
+      } else {
+        alert('Meta Pixel no está cargado en el navegador o está bloqueado por un adblocker.');
+      }
+      
+      const response = await axios.post('/api/comunidad/mark-tracked', { email });
+      if (response.data.success) {
+        setPurchases(prev => prev.map(p => {
+          if (p.email.toLowerCase() === email.toLowerCase()) {
+            return { ...p, purchaseTracked: true };
+          }
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error('[Admin] Error marking purchase as tracked:', err);
+      alert('Error al actualizar el estado de sincronización en el servidor.');
+    }
+  };
+
   useEffect(() => {
     fetchConfig();
     if (window.fbq) {
@@ -251,6 +295,9 @@ export default function ComunidadPage() {
           setUserFullName(res.data.fullName);
           if (res.data.videoWatched) {
             setIsVideoFinished(true); // if they watched it, immediately unlock materials!
+          }
+          if (res.data.purchaseTracked === false) {
+            triggerMetaPurchasePixel(userEmail);
           }
         }
       })
@@ -721,14 +768,7 @@ export default function ComunidadPage() {
             setUserEmail(email);
             setIsAccessGranted(true);
             setShowLeadModal(false);
-            if (window.fbq) {
-              window.fbq('track', 'Purchase', {
-                value: price || 28000,
-                currency: 'COP',
-                content_name: 'Curso SST IA + 10 Aplicativos',
-                transaction_id: transaction.id
-              });
-            }
+            triggerMetaPurchasePixel(email);
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -767,6 +807,9 @@ export default function ComunidadPage() {
         
         if (response.data.videoWatched) {
           setIsVideoFinished(true);
+        }
+        if (response.data.purchaseTracked === false) {
+          triggerMetaPurchasePixel(recoveryEmail.trim());
         }
         
         setTimeout(() => {
@@ -1409,6 +1452,7 @@ export default function ComunidadPage() {
                             <th className="p-3">Referencia</th>
                             <th className="p-3 text-center">Estado Pago</th>
                             <th className="p-3 text-center">Video Visto</th>
+                            <th className="p-3 text-center">Meta Pixel</th>
                           </>
                         )}
                         <th className="p-3">Fecha de Registro</th>
@@ -1450,6 +1494,23 @@ export default function ComunidadPage() {
                                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">Completado</span>
                                   ) : (
                                     <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold">En curso</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center">
+                                  {item.isPaid ? (
+                                    <button
+                                      onClick={() => handleSendToPixelManual(item.email)}
+                                      disabled={item.purchaseTracked}
+                                      className={`px-2 py-1 rounded-lg font-bold text-[10px] transition-all hover:scale-105 ${
+                                        item.purchaseTracked
+                                          ? 'bg-emerald-500/15 text-emerald-500/60 dark:text-emerald-400/60 cursor-default'
+                                          : 'bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 shadow-sm'
+                                      }`}
+                                    >
+                                      {item.purchaseTracked ? 'Sincronizado' : 'Enviar a Pixel'}
+                                    </button>
+                                  ) : (
+                                    <span className="text-text-secondary/40 font-mono">-</span>
                                   )}
                                 </td>
                               </>

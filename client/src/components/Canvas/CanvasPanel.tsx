@@ -21,6 +21,7 @@ import {
   Trash,
   Edit,
   Save,
+  Heart,
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue, useRecoilCallback } from 'recoil';
 import { ephemeralAgentByConvoId } from '~/store/agents';
@@ -31,6 +32,7 @@ import CanvasTextEditor from './CanvasTextEditor';
 import CanvasExcelEditor from './CanvasExcelEditor';
 import CanvasSlidesEditor from './CanvasSlidesEditor';
 import CanvasHtmlEditor from './CanvasHtmlEditor';
+import MoodAnalyticsDashboard from '../SGSST/MoodAnalyticsDashboard';
 import ExportDropdown from '../SGSST/ExportDropdown';
 import { UpgradeWall } from '../SGSST/UpgradeWall';
 import { useNavigate } from 'react-router-dom';
@@ -660,6 +662,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           return <MonitorPlay className="h-5 w-5" />;
         case 'html':
           return <Code2 className="h-5 w-5" />;
+        case 'animo':
+          return <Heart className="h-5 w-5" />;
         default:
           return <FileEdit className="h-5 w-5" />;
       }
@@ -687,6 +691,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             border: 'border-blue-500/20',
             text: 'text-blue-600 dark:text-blue-400',
             grad: 'from-blue-500/40 via-blue-300/20',
+          };
+        case 'animo':
+          return {
+            bg: 'bg-red-500/10',
+            border: 'border-red-500/20',
+            text: 'text-red-600 dark:text-red-400',
+            grad: 'from-red-500/40 via-red-300/20',
           };
         default:
           return {
@@ -753,13 +764,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               <h2 className="truncate text-xl font-bold leading-tight text-text-primary">
                 {title}
               </h2>
-              <button
-                onClick={() => setEditing(true)}
-                className={`rounded-lg p-1.5 text-text-tertiary opacity-0 group-hover:opacity-100 hover:${theme.text.split(' ')[0]} ${theme.bg.replace('/10', '/5')} shrink-0 transition-all`}
-                aria-label="Renombrar documento"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
+              {fileType !== 'animo' && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className={`rounded-lg p-1.5 text-text-tertiary opacity-0 group-hover:opacity-100 hover:${theme.text.split(' ')[0]} ${theme.bg.replace('/10', '/5')} shrink-0 transition-all`}
+                  aria-label="Renombrar documento"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -841,6 +854,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               downloadRef.current = fn;
             }}
           />
+        );
+      case 'animo':
+        return (
+          <div className="flex-1 overflow-y-auto p-6 bg-surface-secondary">
+            <MoodAnalyticsDashboard isMaximized={isMaximized} />
+          </div>
         );
       default:
         return (
