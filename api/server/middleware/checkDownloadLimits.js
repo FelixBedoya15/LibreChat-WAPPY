@@ -4,7 +4,7 @@ const { logger } = require('@librechat/data-schemas');
 /**
  * Middleware to check and enforce download limits for:
  * - Gratis users (role: 'USER') -> 1 download/day
- * - Wappy Vital users (role: 'USER_IPEVAR', 'IPEVAR') -> 6 downloads/day
+ * - Vital users (role: 'USER_IPEVAR', 'IPEVAR') are now unlimited.
  * Increments counter on success.
  */
 const checkDownloadLimits = async (req, res, next) => {
@@ -14,9 +14,8 @@ const checkDownloadLimits = async (req, res, next) => {
     }
 
     const isFree = req.user.role === 'USER';
-    const isVital = req.user.role === 'USER_IPEVAR' || req.user.role === 'IPEVAR';
 
-    if (!isFree && !isVital) {
+    if (!isFree) {
       return next();
     }
 
@@ -38,15 +37,13 @@ const checkDownloadLimits = async (req, res, next) => {
       downloadsToday = 0;
     }
 
-    const limit = isFree ? 1 : 6;
+    const limit = 1;
 
     if (downloadsToday >= limit) {
       const payload = {
         error: true,
         type: 'download_limit_reached',
-        message: isFree 
-          ? `Has alcanzado el límite de ${limit} descarga diaria del plan Gratis. Para realizar descargas de tus Canvas y Matrices IPEVAR, adquiere el plan Wappy Vital.`
-          : `Has alcanzado el límite de ${limit} descargas diarias del plan Wappy Vital. Para realizar descargas ilimitadas de tus Canvas y Matrices IPEVAR, adquiere el plan Wappy Pro.`
+        message: `Has alcanzado el límite de ${limit} descarga diaria del plan Gratis. Para realizar descargas de tus Canvas y Matrices IPEVAR, adquiere el plan Wappy Vital.`
       };
       return res.status(403).json({
         ...payload,
