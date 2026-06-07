@@ -214,10 +214,12 @@ endpoints:
     apiKey: "${GOOGLE_KEY}"
     models:
       default:
+        - "gemini-3.5-flash"
         - "gemini-3.1-flash-lite"
-        - "gemini-3-flash-preview"
         - "gemini-2.5-flash"
-        - "gemini-2.5-flash-lite"
+        - "gemini-3.1-flash-live-preview"
+        - "gemini-2.5-flash-native-audio-preview-12-2025"
+        - "gemini-2.5-flash-native-audio-preview-09-2025"
       fetch: false
     titleModel: "gemini-3.1-flash-lite"
   # assistants:

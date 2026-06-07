@@ -62,13 +62,14 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   }
 
   const timestamp = new Date();
+  const defaultModel = fileBasename === 'psicologo_especialista_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
   const agentData = {
     id: agentId,
     name: dbName,
     description: `Agente SST: ${dbName}`,
     instructions: mdContent,
     provider: 'google',
-    model: 'gemini-3.5-flash',
+    model: defaultModel,
     tools,
     is_whatsapp_enabled: false,
     author: new mongoose.Types.ObjectId(authorId),
@@ -79,7 +80,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
         description: `Agente SST: ${dbName}`,
         instructions: mdContent,
         provider: 'google',
-        model: 'gemini-3.5-flash',
+        model: defaultModel,
         tools,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -824,8 +825,10 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      if (agent.model !== 'gemini-3.5-flash' && agent.provider === 'google') {
-        agent.model = 'gemini-3.5-flash';
+      const isPsychologist = newName === 'Especialista en Riesgo Psicosocial' || newName === 'Psicólog@ Especialista SST' || agent.name === 'Especialista en Riesgo Psicosocial' || agent.name === 'Psicólog@ Especialista SST';
+      const targetModel = isPsychologist ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+      if (agent.model !== targetModel && agent.provider === 'google') {
+        agent.model = targetModel;
         modified = true;
       }
       
@@ -937,8 +940,10 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      if (agent.model !== 'gemini-3.5-flash' && agent.provider === 'google') {
-        agent.model = 'gemini-3.5-flash';
+      const isPsychologist = newName === 'Especialista en Riesgo Psicosocial' || newName === 'Psicólog@ Especialista SST' || agent.name === 'Especialista en Riesgo Psicosocial' || agent.name === 'Psicólog@ Especialista SST';
+      const targetModel = isPsychologist ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+      if (agent.model !== targetModel && agent.provider === 'google') {
+        agent.model = targetModel;
         modified = true;
       }
       
