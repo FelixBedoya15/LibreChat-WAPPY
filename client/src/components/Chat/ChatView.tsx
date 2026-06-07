@@ -99,7 +99,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   // ── CANVAS: open only when user explicitly toggles it ON ────────────────────
   const isCanvasActive = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
-    return tools.includes('canvas');
+    return tools.includes('canvas') || tools.includes('consultar_analitica_psicosocial');
   }, [ephemeralAgent]);
 
   // ── Effective conversationId: Recoil atom → fallback to URL param ─────────
