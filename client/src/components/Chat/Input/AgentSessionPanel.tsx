@@ -276,7 +276,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 matriz_ipevar: 'Matriz IPEVAR',
                                 editor_live: 'Editor Live',
                                 editor_rit: 'Editor RIT',
-                                canvas: 'Canvas'
+                                canvas: 'Canvas',
+                                consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial'
                             };
                             const displayName = toolTranslations[toolId] ?? toolId
                                 .split('_')

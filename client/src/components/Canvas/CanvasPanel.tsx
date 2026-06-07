@@ -868,12 +868,26 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             }}
           />
         );
-      case 'animo':
+      case 'animo': {
+        const isFree = user?.role === 'USER';
         return (
-          <div className="flex-1 overflow-y-auto p-6 bg-surface-secondary">
-            <MoodAnalyticsDashboard isMaximized={isMaximized} />
+          <div className="relative flex-1 flex flex-col min-h-0 bg-surface-secondary overflow-hidden">
+            <div className={`flex-1 overflow-y-auto p-6 ${isFree ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+              <MoodAnalyticsDashboard isMaximized={isMaximized} />
+            </div>
+            {isFree && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+                <UpgradeWall
+                  isPopup={true}
+                  title="Analítica Psicosocial Exclusiva"
+                  description="El Termómetro Psicosocial es una herramienta exclusiva de los planes de pago. Adquiere o actualiza tu plan para ver el diagnóstico cuantitativo, estresores principales y recomendaciones de la IA."
+                  plan="USER"
+                />
+              </div>
+            )}
           </div>
         );
+      }
       default:
         return (
           <CanvasTextEditor
