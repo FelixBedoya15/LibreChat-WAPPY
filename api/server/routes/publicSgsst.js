@@ -767,7 +767,7 @@ router.post('/mood/chat/:companyId', async (req, res) => {
         return res.json({
             success: true,
             token,
-            agentId: agent._id || agent.id,
+            agentId: agent.id || agent._id.toString(),
             conversationId
         });
     } catch (error) {
