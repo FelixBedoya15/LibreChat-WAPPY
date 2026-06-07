@@ -272,16 +272,16 @@ export default function MoodAnalyticsDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8 text-gray-200">
-        <Loader2 className="w-12 h-12 text-[#0e9f6e] animate-spin mb-4" />
-        <h3 className="font-bold text-lg">Cargando Analítica Psicosocial...</h3>
-        <p className="text-sm text-gray-400 mt-1">Procesando registros de clima laboral</p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8 text-text-secondary animate-fadeIn">
+        <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" />
+        <h3 className="font-bold text-lg text-text-primary">Cargando Analítica Psicosocial...</h3>
+        <p className="text-sm text-text-secondary mt-1">Procesando registros de clima laboral</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn text-gray-100 pb-12">
+    <div className="space-y-6 animate-fadeIn text-text-primary pb-6">
       
       {/* Upper Grid: Overview & Poster printing */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -290,30 +290,30 @@ export default function MoodAnalyticsDashboard() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Header Card */}
-          <div className="bg-[#0e1322]/40 border border-gray-800 rounded-3xl p-6 relative overflow-hidden backdrop-blur-md">
-            <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
-              <TrendingUp className="w-32 h-32 text-[#0e9f6e]" />
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-950 p-6 text-white shadow-md">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-emerald-400 blur-3xl -mr-20 -mt-20" />
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#0e9f6e] tracking-wider uppercase">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 tracking-wider uppercase">
                   <Sparkles className="w-4 h-4" />
                   Módulo de Gestión de Riesgo Psicosocial
                 </div>
-                <h2 className="text-2xl font-black text-white tracking-tight">Analítica de Estado de Ánimo</h2>
-                <p className="text-xs text-gray-400">Consolidado estadístico y tendencias de bienestar de los colaboradores.</p>
+                <h2 className="text-2xl font-black tracking-tight text-white">Analítica de Estado de Ánimo</h2>
+                <p className="text-xs text-emerald-100/80">Consolidado estadístico y tendencias de bienestar de los colaboradores.</p>
               </div>
 
               {/* Day filter buttons */}
-              <div className="inline-flex bg-gray-900/80 border border-gray-800 rounded-xl p-1 gap-1 self-start sm:self-center">
+              <div className="inline-flex bg-emerald-950/50 border border-emerald-700/50 rounded-xl p-1 gap-1 self-start sm:self-center">
                 {[7, 30, 90].map((d) => (
                   <button
                     key={d}
                     onClick={() => setFilterDays(d)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
                       filterDays === d
-                        ? 'bg-[#0e9f6e] text-white shadow-sm'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-emerald-200 hover:text-white hover:bg-emerald-800/50'
                     }`}
                   >
                     {d} Días
@@ -326,82 +326,82 @@ export default function MoodAnalyticsDashboard() {
           {/* Cards for metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {/* Total Answers */}
-            <div className="bg-[#0e1322]/40 border border-gray-800 rounded-2xl p-5 space-y-3 backdrop-blur-sm relative overflow-hidden">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Users className="w-10 h-10 text-blue-400" />
+                <Users className="w-10 h-10 text-blue-500" />
               </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Respuestas Totales</p>
-              <h3 className="text-3xl font-black text-white tracking-tight">{stats.total}</h3>
-              <p className="text-[10px] text-gray-500 font-semibold">En los últimos {filterDays} días</p>
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Respuestas Totales</p>
+              <h3 className="text-3xl font-black text-text-primary tracking-tight">{stats.total}</h3>
+              <p className="text-[10px] text-text-secondary/70 font-semibold">En los últimos {filterDays} días</p>
             </div>
 
             {/* Happy */}
-            <div className="bg-[#0e1322]/40 border border-gray-800 rounded-2xl p-5 space-y-3 backdrop-blur-sm relative overflow-hidden">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Smile className="w-10 h-10 text-emerald-400" />
+                <Smile className="w-10 h-10 text-emerald-500" />
               </div>
-              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Feliz / Motivado</p>
-              <h3 className="text-3xl font-black text-emerald-300 tracking-tight">{stats.happy}</h3>
-              <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Feliz / Motivado</p>
+              <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{stats.happy}</h3>
+              <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full" style={{ width: `${stats.happyPct}%` }} />
               </div>
-              <p className="text-[10px] text-gray-400 font-bold">{stats.happyPct}% del total</p>
+              <p className="text-[10px] text-text-secondary font-bold">{stats.happyPct}% del total</p>
             </div>
 
             {/* Neutral */}
-            <div className="bg-[#0e1322]/40 border border-gray-800 rounded-2xl p-5 space-y-3 backdrop-blur-sm relative overflow-hidden">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Meh className="w-10 h-10 text-yellow-400" />
+                <Meh className="w-10 h-10 text-amber-500" />
               </div>
-              <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider">Tranquilo / Normal</p>
-              <h3 className="text-3xl font-black text-yellow-300 tracking-tight">{stats.neutral}</h3>
-              <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-yellow-500 h-full" style={{ width: `${stats.neutralPct}%` }} />
+              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Tranquilo / Normal</p>
+              <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{stats.neutral}</h3>
+              <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-amber-500 h-full" style={{ width: `${stats.neutralPct}%` }} />
               </div>
-              <p className="text-[10px] text-gray-400 font-bold">{stats.neutralPct}% del total</p>
+              <p className="text-[10px] text-text-secondary font-bold">{stats.neutralPct}% del total</p>
             </div>
 
             {/* Sad/Stressed */}
-            <div className="bg-[#0e1322]/40 border border-gray-800 rounded-2xl p-5 space-y-3 backdrop-blur-sm relative overflow-hidden">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Frown className="w-10 h-10 text-purple-400" />
+                <Frown className="w-10 h-10 text-red-500" />
               </div>
-              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Estresado / Agotado</p>
-              <h3 className="text-3xl font-black text-purple-300 tracking-tight">{stats.sad}</h3>
-              <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-purple-500 h-full" style={{ width: `${stats.sadPct}%` }} />
+              <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-wider">Estresado / Agotado</p>
+              <h3 className="text-3xl font-black text-red-600 dark:text-red-400 tracking-tight">{stats.sad}</h3>
+              <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-red-500 h-full" style={{ width: `${stats.sadPct}%` }} />
               </div>
-              <p className="text-[10px] text-gray-400 font-bold">{stats.sadPct}% del total</p>
+              <p className="text-[10px] text-text-secondary font-bold">{stats.sadPct}% del total</p>
             </div>
           </div>
         </div>
 
         {/* Right Col: Print QR Poster Card */}
-        <div className="bg-gradient-to-b from-[#0e9f6e]/10 to-[#0e1322]/40 border border-[#0e9f6e]/20 rounded-3xl p-6 flex flex-col items-center justify-between backdrop-blur-sm text-center">
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 flex flex-col items-center justify-between shadow-sm text-center">
           <div className="space-y-2">
-            <div className="inline-flex p-3 bg-[#0e9f6e]/10 border border-[#0e9f6e]/20 rounded-2xl text-[#0e9f6e] mb-1">
+            <div className="inline-flex p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-1">
               <QrCode className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Termómetro QR Imprimible</h3>
-            <p className="text-[11px] text-gray-400 px-4 leading-relaxed">
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Termómetro QR Imprimible</h3>
+            <p className="text-[11px] text-text-secondary px-4 leading-relaxed">
               Imprime el cartel con el código QR y pégalo en zonas comunes para que tus colaboradores registren su estado de ánimo a diario.
             </p>
           </div>
 
           {/* QR Image Display */}
           {qrImageSrc ? (
-            <div className="bg-white p-4 rounded-2xl border border-gray-700 shadow-xl my-4">
+            <div className="bg-white p-4 rounded-2xl border border-border-light shadow-md my-4">
               <img src={qrImageSrc} alt="QR Code" className="w-36 h-36" />
             </div>
           ) : (
-            <div className="w-36 h-36 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-xs text-gray-500 my-4">
+            <div className="w-36 h-36 rounded-2xl bg-surface-secondary border border-border-light flex items-center justify-center text-xs text-text-secondary my-4">
               Generando...
             </div>
           )}
 
           <button
             onClick={handlePrintPoster}
-            className="w-full bg-[#0e9f6e] hover:bg-[#0b8a5f] text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg shadow-[#0e9f6e]/10 flex items-center justify-center gap-2 transition-all"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition-all"
           >
             <Printer className="w-4 h-4" />
             Imprimir Cartel QR
@@ -417,9 +417,9 @@ export default function MoodAnalyticsDashboard() {
         <div className="space-y-6">
           
           {/* Stressors */}
-          <div className="bg-[#0e1322]/40 border border-gray-800 rounded-3xl p-6 space-y-4 backdrop-blur-sm">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-[#0e9f6e]" />
+          <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-emerald-500" />
               Factores de Estrés Principales (Agregado)
             </h3>
             {stats.topStressors.length > 0 ? (
@@ -427,10 +427,10 @@ export default function MoodAnalyticsDashboard() {
                 {stats.topStressors.map((s, i) => (
                   <div key={s.id} className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-gray-300">{i + 1}. {s.label}</span>
-                      <span className="text-purple-300 font-bold">{s.count} reportes ({s.pct}%)</span>
+                      <span className="text-text-primary">{i + 1}. {s.label}</span>
+                      <span className="text-purple-600 dark:text-purple-400 font-bold">{s.count} reportes ({s.pct}%)</span>
                     </div>
-                    <div className="w-full bg-gray-800/80 h-2.5 rounded-full overflow-hidden border border-gray-700/50">
+                    <div className="w-full bg-surface-secondary h-2.5 rounded-full overflow-hidden border border-border-light">
                       <div 
                         className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" 
                         style={{ width: `${s.pct}%` }} 
@@ -440,45 +440,45 @@ export default function MoodAnalyticsDashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-xs text-gray-500">
+              <div className="text-center py-8 text-xs text-text-secondary">
                 No hay factores de estrés registrados en este periodo.
               </div>
             )}
           </div>
 
           {/* Departments breakdown */}
-          <div className="bg-[#0e1322]/40 border border-gray-800 rounded-3xl p-6 space-y-4 backdrop-blur-sm">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-blue-400" />
+          <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-blue-500" />
               Diagnóstico por Departamento / Área
             </h3>
             {stats.departmentStats.length > 0 ? (
               <div className="overflow-x-auto pt-2">
                 <table className="w-full text-xs text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-gray-800 text-gray-400 font-bold">
+                    <tr className="border-b border-border-light text-text-secondary font-bold">
                       <th className="pb-2">Área</th>
                       <th className="pb-2 text-center">Muestras</th>
-                      <th className="pb-2 text-center text-emerald-400">😄</th>
-                      <th className="pb-2 text-center text-yellow-400">😐</th>
-                      <th className="pb-2 text-center text-purple-400">😩</th>
+                      <th className="pb-2 text-center text-emerald-500">😄</th>
+                      <th className="pb-2 text-center text-amber-500">😐</th>
+                      <th className="pb-2 text-center text-red-500">😩</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-800/50">
+                  <tbody className="divide-y divide-border-light">
                     {stats.departmentStats.map((dep, i) => (
-                      <tr key={i} className="hover:bg-gray-800/20">
-                        <td className="py-2.5 font-bold text-gray-200">{dep.name}</td>
-                        <td className="py-2.5 text-center text-gray-400">{dep.total}</td>
-                        <td className="py-2.5 text-center font-bold text-emerald-300">{dep.happy}</td>
-                        <td className="py-2.5 text-center font-bold text-yellow-300">{dep.neutral}</td>
-                        <td className="py-2.5 text-center font-bold text-purple-300">{dep.sad}</td>
+                      <tr key={i} className="hover:bg-surface-secondary/40">
+                        <td className="py-2.5 font-bold text-text-primary">{dep.name}</td>
+                        <td className="py-2.5 text-center text-text-secondary">{dep.total}</td>
+                        <td className="py-2.5 text-center font-bold text-emerald-600 dark:text-emerald-400">{dep.happy}</td>
+                        <td className="py-2.5 text-center font-bold text-amber-600 dark:text-amber-400">{dep.neutral}</td>
+                        <td className="py-2.5 text-center font-bold text-red-600 dark:text-red-400">{dep.sad}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8 text-xs text-gray-500">
+              <div className="text-center py-8 text-xs text-text-secondary">
                 No hay desglose por área registrado en este periodo.
               </div>
             )}
@@ -487,9 +487,9 @@ export default function MoodAnalyticsDashboard() {
         </div>
 
         {/* Right Side: Recent AI Psychologist Conversations (Confidential details) */}
-        <div className="bg-[#0e1322]/40 border border-gray-800 rounded-3xl p-6 space-y-4 backdrop-blur-sm flex flex-col h-full">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-400 animate-pulse" />
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm flex flex-col h-full">
+          <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+            <Heart className="w-4 h-4 text-red-500 animate-pulse" />
             Hallazgos y Comentarios de IA Psicólogo (Anónimos)
           </h3>
           
@@ -498,26 +498,26 @@ export default function MoodAnalyticsDashboard() {
               filteredData
                 .filter(d => d.details)
                 .map((d, i) => (
-                  <div key={i} className="p-3.5 bg-gray-900/60 border border-gray-800/80 rounded-2xl space-y-2 text-xs">
-                    <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <div key={i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-[10px] text-text-secondary font-bold uppercase tracking-wider">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(d.createdAt).toLocaleDateString('es-CO', {
                           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                         })}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full border ${
+                      <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${
                         d.mood === 'happy'
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          ? 'bg-emerald-55 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
                           : d.mood === 'neutral'
-                          ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
-                          : 'bg-purple-500/10 border-purple-500/20 text-purple-400'
+                          ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
+                          : 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
                       }`}>
                         {d.mood === 'happy' ? 'Feliz' : d.mood === 'neutral' ? 'Neutral' : 'Estresado'}
                       </span>
                     </div>
 
-                    <p className="text-gray-300 leading-relaxed font-medium">
+                    <p className="text-text-primary leading-relaxed font-medium">
                       {d.details}
                     </p>
 
@@ -526,7 +526,7 @@ export default function MoodAnalyticsDashboard() {
                         {d.stressors.map((st, sIdx) => {
                           const tag = stressorsList.find(x => x.id === st);
                           return (
-                            <span key={sIdx} className="bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[9px] font-bold px-2 py-0.5 rounded-md">
+                            <span key={sIdx} className="bg-purple-50 border border-purple-200 text-purple-600 dark:bg-purple-950/20 dark:border-purple-800 dark:text-purple-300 text-[9px] font-bold px-2 py-0.5 rounded-md">
                               {tag?.label || st}
                             </span>
                           );
@@ -536,7 +536,7 @@ export default function MoodAnalyticsDashboard() {
                   </div>
                 ))
             ) : (
-              <div className="text-center py-12 text-xs text-gray-500 h-full flex items-center justify-center">
+              <div className="text-center py-12 text-xs text-text-secondary h-full flex items-center justify-center">
                 No hay hallazgos de conversaciones registrados aún.
               </div>
             )}

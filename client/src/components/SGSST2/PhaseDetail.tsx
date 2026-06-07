@@ -140,7 +140,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const hasAccessToSGSST = useHasAccess({
         permissionType: PermissionTypes.SGSST,
         permission: Permissions.USE,
-    }) && hasPermission(PermissionTypes.SGSST);
+    }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR';
 
     const isDoPhase = phase.id === 'do';
     const lockTitle = isDoPhase ? "Motor Bio-Individual Exclusivo" : "Salud Organizacional Exclusiva";

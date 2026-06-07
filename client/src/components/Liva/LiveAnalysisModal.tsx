@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone, Camera } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
@@ -6,7 +7,8 @@ import store from '~/store';
 import VoiceOrb from '../Voice/VoiceOrb';
 import VoiceSelector from '../Voice/VoiceSelector';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAuthContext } from '~/hooks';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 declare global {
     interface Window {
@@ -75,6 +77,16 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [isFlashActive, setIsFlashActive] = useState(false);
     const [zoom, setZoom] = useState<number>(1);
 
+    const handleTemplateClick = (templateId: string, templateName: string) => {
+        if (isVital && templateId !== 'general') {
+            setUpgradeModalTitle("Módulo Exclusivo Pro");
+            setUpgradeModalDesc(`El análisis en vivo de ${templateName} es una herramienta avanzada de inspección exclusiva del Plan Wappy Pro.`);
+            setShowUpgradeModal(true);
+        } else {
+            setSelectedTemplate(templateId);
+        }
+    };
+
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -91,6 +103,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
     const [reportNotification, setReportNotification] = useState(false);
     const [limitNotification, setLimitNotification] = useState(false);
+
+    const { user } = useAuthContext();
+    const isVital = user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [upgradeModalTitle, setUpgradeModalTitle] = useState('Desbloquear Reportes');
+    const [upgradeModalDesc, setUpgradeModalDesc] = useState('Adquiere Premium para redactar y guardar el informe.');
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
 
@@ -1289,7 +1307,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                             {/* Card 2: Alturas */}
                             <div 
-                                onClick={() => setSelectedTemplate('alturas')}
+                                onClick={() => handleTemplateClick('alturas', 'Trabajo en Alturas')}
                                 className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(6,182,212,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1307,7 +1325,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                             {/* Card 3: Eléctrico */}
                             <div 
-                                onClick={() => setSelectedTemplate('eléctrico')}
+                                onClick={() => handleTemplateClick('eléctrico', 'Riesgo Eléctrico')}
                                 className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-amber-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(245,158,11,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1325,7 +1343,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                             {/* Card 4: 5S */}
                             <div 
-                                onClick={() => setSelectedTemplate('5s')}
+                                onClick={() => handleTemplateClick('5s', 'Metodología 5S')}
                                 className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-teal-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(20,184,166,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-emerald-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1343,7 +1361,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                             {/* Card 5: Biomecánico Estándar */}
                             <div 
-                                onClick={() => setSelectedTemplate('biomecanico_estandar')}
+                                onClick={() => handleTemplateClick('biomecanico_estandar', 'Riesgo Biomecánico')}
                                 className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-purple-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(168,85,247,0.08)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-violet-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1361,7 +1379,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                             {/* Card 6: Biomecánico MediaPipe */}
                             <div 
-                                onClick={() => setSelectedTemplate('biomecanico_mediapipe')}
+                                onClick={() => handleTemplateClick('biomecanico_mediapipe', 'Biomecánico (Visión IA)')}
                                 className="group relative cursor-pointer bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(6,182,212,0.12)] flex flex-col justify-between min-h-[180px]"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1889,6 +1907,26 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     }
                 ` }} />
             </div>
+            {showUpgradeModal && createPortal(
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setShowUpgradeModal(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm z-50 pointer-events-auto"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <UpgradeWall
+                            title={upgradeModalTitle}
+                            description={upgradeModalDesc}
+                            plan="USER_IPEVAR"
+                            isPopup={true}
+                            hideFeatures={true}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

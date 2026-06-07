@@ -24,6 +24,9 @@ const LivePage = () => {
     const [conversationId, setConversationId] = useState('new');
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [upgradeModalTitle, setUpgradeModalTitle] = useState('Desbloquear Reportes');
+    const [upgradeModalDesc, setUpgradeModalDesc] = useState('Adquiere Premium para redactar y guardar el informe.');
+    const isVital = user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
     const [reportSourceData, setReportSourceData] = useState<any>(null);
     const [isOfflineMode, setIsOfflineMode] = useState(false);
     const [offlineTemplate, setOfflineTemplate] = useState('general');
@@ -784,7 +787,15 @@ const LivePage = () => {
                                     ].map(tmpl => (
                                         <div
                                             key={tmpl.id}
-                                            onClick={() => setOfflineTemplate(tmpl.id)}
+                                            onClick={() => {
+                                                if (isVital && tmpl.id !== 'general') {
+                                                    setUpgradeModalTitle("Módulo Exclusivo Pro");
+                                                    setUpgradeModalDesc(`El análisis offline de ${tmpl.title} es una herramienta avanzada de inspección exclusiva del Plan Wappy Pro.`);
+                                                    setShowUpgradeModal(true);
+                                                } else {
+                                                    setOfflineTemplate(tmpl.id);
+                                                }
+                                            }}
                                             className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 flex flex-col justify-between h-32 hover:-translate-y-1 hover:shadow-md ${
                                                 offlineTemplate === tmpl.id ? tmpl.activeBg : `bg-surface-primary ${tmpl.color}`
                                             }`}
@@ -961,8 +972,8 @@ const LivePage = () => {
                             Cerrar ✕
                         </button>
                         <UpgradeWall
-                            title="Desbloquear Reportes"
-                            description="Adquiere Premium para redactar y guardar el informe."
+                            title={upgradeModalTitle}
+                            description={upgradeModalDesc}
                             plan="USER_IPEVAR"
                             isPopup={true}
                             hideFeatures={true}

@@ -42,7 +42,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
 
   const handleDownloadGuard = async (downloadFn: () => void) => {
-    if (!user || user.role !== 'USER') {
+    if (!user || (user.role !== 'USER' && user.role !== 'USER_IPEVAR' && user.role !== 'IPEVAR')) {
       downloadFn();
       return;
     }
@@ -60,9 +60,12 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       downloadFn();
     } catch (error: any) {
       console.error('Download limit check failed:', error);
+      const isVital = user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
       const msg =
         error.response?.data?.message ||
-        'Has alcanzado tu límite de 1 descarga diaria en el plan Gratis. Adquiere el plan Wappy Vital para realizar descargas ilimitadas.';
+        (isVital
+          ? 'Has alcanzado tu límite de 6 descargas diarias en el plan Wappy Vital. Adquiere el plan Wappy Pro para realizar descargas ilimitadas.'
+          : 'Has alcanzado tu límite de 1 descarga diaria en el plan Gratis. Adquiere el plan Wappy Vital para realizar descargas ilimitadas.');
       setUpgradeModalTitle('Límite de Descargas Excedido');
       setUpgradeModalDesc(msg);
       setIsUpgradeModalOpen(true);

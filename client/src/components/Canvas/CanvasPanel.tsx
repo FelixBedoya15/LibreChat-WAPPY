@@ -941,7 +941,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   return;
                 }
 
-                if (user?.role === 'USER') {
+                if (user?.role === 'USER' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR') {
                   try {
                     const res = await fetch('/api/files/register-download', {
                       method: 'POST',
@@ -953,11 +953,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
                     if (res.status === 403) {
                       const data = await res.json();
+                      const isVital = user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
                       showToast({
                         status: 'error',
                         message:
                           data.message ||
-                          'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.',
+                          (isVital
+                            ? 'Límite de 6 descargas diarias alcanzado en el plan Wappy Vital. Adquiere Wappy Pro.'
+                            : 'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.'),
                       });
                       return;
                     }

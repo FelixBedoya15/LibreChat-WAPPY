@@ -126,30 +126,6 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     onUpdate(val);
   };
 
-  const insertCodeAtCursor = (codeToInsert: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentText = textarea.value;
-
-    const beforeText = currentText.substring(0, start);
-    const afterText = currentText.substring(end);
-
-    const updatedText = beforeText + codeToInsert + afterText;
-    
-    setCode(updatedText);
-    onUpdate(updatedText);
-
-    // Focus and select the newly inserted text smoothly
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + codeToInsert.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 10);
-  };
-
   const handleDownloadHtml = () => {
     const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -213,7 +189,13 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
                       alert('Este aplicativo premium es exclusivo para usuarios Pro de Wappy. Por favor actualice su suscripción.');
                       return;
                     }
-                    insertCodeAtCursor(comp.code);
+                    if (code && code.trim() !== '' && !code.includes('Prototipo de Código WAPPY')) {
+                      if (!window.confirm(`¿Deseas reemplazar el código actual por el aplicativo "${comp.title}"? Se perderán las modificaciones no guardadas.`)) {
+                        return;
+                      }
+                    }
+                    setCode(comp.code);
+                    onUpdate(comp.code);
                   }}
                   className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5 cursor-pointer animate-in fade-in duration-200"
                 >

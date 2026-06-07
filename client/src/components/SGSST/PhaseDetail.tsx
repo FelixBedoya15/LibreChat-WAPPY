@@ -162,7 +162,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const hasAccessToSGSST = useHasAccess({
         permissionType: PermissionTypes.SGSST,
         permission: Permissions.USE,
-    }) && hasPermission(PermissionTypes.SGSST);
+    }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR';
 
     const isBioMotor = phase.id.startsWith('hito');
     const lockTitle = isBioMotor ? "Motor Bio-Individual Exclusivo" : "Salud Organizacional Exclusiva";
