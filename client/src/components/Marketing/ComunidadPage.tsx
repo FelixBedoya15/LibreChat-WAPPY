@@ -119,6 +119,7 @@ export default function ComunidadPage() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [metricsStats, setMetricsStats] = useState<any>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [syncingEmail, setSyncingEmail] = useState<string | null>(null);
 
   // Admin File Upload States
   const [uploadFileName, setUploadFileName] = useState('');
@@ -205,6 +206,7 @@ export default function ComunidadPage() {
   };
 
   const handleSendToPixelManual = async (email: string) => {
+    setSyncingEmail(email);
     try {
       if (window.fbq) {
         window.fbq('track', 'Purchase', {
@@ -212,7 +214,6 @@ export default function ComunidadPage() {
           currency: 'COP',
           content_name: 'Curso SST IA + 10 Aplicativos'
         });
-        alert(`Evento Purchase enviado exitosamente al píxel de Meta para el correo: ${email}`);
       } else {
         alert('Meta Pixel no está cargado en el navegador o está bloqueado por un adblocker.');
       }
@@ -229,6 +230,8 @@ export default function ComunidadPage() {
     } catch (err) {
       console.error('[Admin] Error marking purchase as tracked:', err);
       alert('Error al actualizar el estado de sincronización en el servidor.');
+    } finally {
+      setSyncingEmail(null);
     }
   };
 
@@ -1500,14 +1503,20 @@ export default function ComunidadPage() {
                                   {item.isPaid ? (
                                     <button
                                       onClick={() => handleSendToPixelManual(item.email)}
-                                      disabled={item.purchaseTracked}
-                                      className={`px-2 py-1 rounded-lg font-bold text-[10px] transition-all hover:scale-105 ${
+                                      disabled={item.purchaseTracked || syncingEmail === item.email}
+                                      className={`px-2 py-1 rounded-lg font-bold text-[10px] transition-all ${
                                         item.purchaseTracked
                                           ? 'bg-emerald-500/15 text-emerald-500/60 dark:text-emerald-400/60 cursor-default'
-                                          : 'bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 shadow-sm'
+                                          : syncingEmail === item.email
+                                          ? 'bg-amber-500/20 text-amber-500 cursor-wait'
+                                          : 'bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 shadow-sm hover:scale-105'
                                       }`}
                                     >
-                                      {item.purchaseTracked ? 'Sincronizado' : 'Enviar a Pixel'}
+                                      {syncingEmail === item.email
+                                        ? 'Sincronizando...'
+                                        : item.purchaseTracked
+                                        ? 'Sincronizado'
+                                        : 'Enviar a Pixel'}
                                     </button>
                                   ) : (
                                     <span className="text-text-secondary/40 font-mono">-</span>
