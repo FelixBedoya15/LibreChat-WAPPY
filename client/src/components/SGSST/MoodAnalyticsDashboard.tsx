@@ -282,6 +282,82 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
     );
   }
 
+  if (!showFullView) {
+    return (
+      <div className="space-y-6 animate-fadeIn text-text-primary pb-6">
+        {/* Right Col: Print QR Poster Card */}
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 flex flex-col items-center justify-between shadow-sm text-center">
+          <div className="space-y-2">
+            <div className="inline-flex p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-1">
+              <QrCode className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Termómetro QR Imprimible</h3>
+            <p className="text-[11px] text-text-secondary px-4 leading-relaxed">
+              Imprime el cartel con el código QR y pégalo en zonas comunes para que tus colaboradores registren su estado de ánimo a diario.
+            </p>
+          </div>
+
+          {/* QR Image Display */}
+          {qrImageSrc ? (
+            <div className="bg-white p-4 rounded-2xl border border-border-light shadow-md my-4">
+              <img src={qrImageSrc} alt="QR Code" className="w-36 h-36" />
+            </div>
+          ) : (
+            <div className="w-36 h-36 rounded-2xl bg-surface-secondary border border-border-light flex items-center justify-center text-xs text-text-secondary my-4">
+              Generando...
+            </div>
+          )}
+
+          <button
+            onClick={handlePrintPoster}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition-all"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir Cartel QR
+          </button>
+        </div>
+
+        {/* Departments breakdown */}
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+          <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-blue-500" />
+            Diagnóstico por Departamento / Área
+          </h3>
+          {stats.departmentStats.length > 0 ? (
+            <div className="overflow-x-auto pt-2">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border-light text-text-secondary font-bold">
+                    <th className="pb-2">Área</th>
+                    <th className="pb-2 text-center">Muestras</th>
+                    <th className="pb-2 text-center text-emerald-500">😄</th>
+                    <th className="pb-2 text-center text-amber-500">😐</th>
+                    <th className="pb-2 text-center text-red-500">😩</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light">
+                  {stats.departmentStats.map((dep, i) => (
+                    <tr key={i} className="hover:bg-surface-secondary/40">
+                      <td className="py-2.5 font-bold text-text-primary">{dep.name}</td>
+                      <td className="py-2.5 text-center text-text-secondary">{dep.total}</td>
+                      <td className="py-2.5 text-center font-bold text-emerald-600 dark:text-emerald-400">{dep.happy}</td>
+                      <td className="py-2.5 text-center font-bold text-amber-600 dark:text-amber-400">{dep.neutral}</td>
+                      <td className="py-2.5 text-center font-bold text-red-600 dark:text-red-400">{dep.sad}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-xs text-text-secondary">
+              No hay desglose por área registrado en este periodo.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn text-text-primary pb-6">
       

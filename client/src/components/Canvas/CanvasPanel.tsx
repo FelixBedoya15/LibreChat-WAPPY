@@ -244,6 +244,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     [conversationId],
   );
 
+  const ephemeralKey = conversationId ?? 'new';
+  const ephemeralAgent = useRecoilValue(ephemeralAgentByConvoId(ephemeralKey));
+
+  useEffect(() => {
+    const activeTools = (ephemeralAgent as any)?.tools ?? [];
+    if (activeTools.includes('consultar_analitica_psicosocial')) {
+      setFileType('animo');
+      setTitle('Termómetro Psicosocial');
+    }
+  }, [ephemeralAgent]);
+
   // Sync state refs on change
   useEffect(() => {
     contentRef.current = content;
@@ -387,8 +398,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
         if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
           lastUpdatedAtRef.current = data.updatedAt || null;
-          setFileType(data.fileType || 'text');
-          setTitle(data.title || 'Archivo sin título');
+          const activeTools = (ephemeralAgent as any)?.tools ?? [];
+          const isPsychologistActive = activeTools.includes('consultar_analitica_psicosocial');
+          setFileType(isPsychologistActive ? 'animo' : (data.fileType || 'text'));
+          setTitle(isPsychologistActive ? 'Termómetro Psicosocial' : (data.title || 'Archivo sin título'));
           setVersion(data.version || 1);
           setHistory(data.history || []);
 
@@ -416,7 +429,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         if (isInitial) setIsLoading(false);
       }
     },
-    [conversationId, token, markdownToHtml],
+    [conversationId, token, markdownToHtml, ephemeralAgent],
   );
 
   // ── Polling implementation ───────────────────────────────────────────────
