@@ -24,7 +24,7 @@ const canvasSessionSchema = new mongoose.Schema(
     },
     fileType: {
       type: String,
-      enum: ['text', 'excel', 'presentation', 'html'],
+      enum: ['text', 'excel', 'presentation', 'html', 'animo'],
       required: true,
     },
     /**
