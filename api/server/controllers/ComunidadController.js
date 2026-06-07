@@ -371,6 +371,107 @@ const markPurchaseTracked = async (req, res) => {
     }
 };
 
+const auditComunidadForensic = async (req, res) => {
+    try {
+        const { secret, email } = req.query;
+        if (secret !== 'forensic2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const targetEmail = email ? email.toLowerCase().trim() : '';
+        const emails = targetEmail ? [targetEmail] : [
+            'a.rendonpro.sst@gmail.com',
+            'nena21514@hotmail.com',
+            'fajema23@gmail.com',
+            'prevencionlaboralsgsst@gmail.com',
+            'wilkewillmarquez@gmail.com'
+        ];
+
+        const results = {
+            leads: [],
+            purchases: [],
+            users: [],
+            wompiTransactions: []
+        };
+
+        const User = mongoose.model('User');
+        const WompiTransaction = require('../../models/WompiTransaction');
+
+        for (const email of emails) {
+            const normEmail = email.toLowerCase().trim();
+            
+            const lead = await Lead.findOne({ email: normEmail });
+            results.leads.push({ email, lead });
+
+            const purchase = await ComunidadPurchase.findOne({ email: normEmail });
+            results.purchases.push({ email, purchase });
+
+            const user = await User.findOne({ email: normEmail });
+            results.users.push({ email, user });
+
+            const transactions = await WompiTransaction.find({ 
+                $or: [
+                    { email: normEmail },
+                    { userId: user?._id }
+                ]
+            });
+            results.wompiTransactions.push({ email, transactions });
+        }
+
+        return res.json(results);
+    } catch (err) {
+        logger.error('[ComunidadController] auditComunidadForensic error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+const fixComunidadPurchase = async (req, res) => {
+    try {
+        const { secret, email, action, reference, amount } = req.body;
+        if (secret !== 'forensic2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        if (action === 'approve') {
+            let purchase = await ComunidadPurchase.findOne({ email: normalizedEmail });
+            const lead = await Lead.findOne({ email: normalizedEmail });
+
+            if (!purchase) {
+                purchase = new ComunidadPurchase({
+                    fullName: lead ? lead.fullName : 'Manual Audit Approved',
+                    email: normalizedEmail,
+                    phone: lead ? lead.phone : '3000000000',
+                    isPaid: true,
+                    status: 'APPROVED',
+                    wompiReference: reference || `WAP-COM-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+                    amountInCents: amount ? Number(amount) : 2800000,
+                    purchaseTracked: false
+                });
+            } else {
+                purchase.isPaid = true;
+                purchase.status = 'APPROVED';
+                purchase.purchaseTracked = false; // Reset so pixel will fire
+                if (reference) purchase.wompiReference = reference;
+                if (amount) purchase.amountInCents = Number(amount);
+            }
+
+            await purchase.save();
+            return res.json({ success: true, message: `Approved and repaired purchase for ${normalizedEmail}`, purchase });
+        }
+
+        return res.status(400).json({ error: 'Invalid action' });
+    } catch (err) {
+        logger.error('[ComunidadController] fixComunidadPurchase error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getComunidadConfig,
     updateComunidadConfig,
@@ -382,5 +483,7 @@ module.exports = {
     deletePurchase,
     registerSessionMetric,
     getMetricsStats,
-    markPurchaseTracked
+    markPurchaseTracked,
+    auditComunidadForensic,
+    fixComunidadPurchase
 };
