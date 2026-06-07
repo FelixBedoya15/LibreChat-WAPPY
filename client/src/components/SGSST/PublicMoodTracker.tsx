@@ -178,7 +178,6 @@ export default function PublicMoodTracker() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let currentEvent = '';
       let accumulatedText = '';
 
       if (reader) {
@@ -192,61 +191,88 @@ export default function PublicMoodTracker() {
 
           for (const line of lines) {
             const trimmed = line.trim();
-            if (trimmed.startsWith('event:')) {
-              currentEvent = trimmed.replace('event:', '').trim();
-            } else if (trimmed.startsWith('data:')) {
-              const dataStr = trimmed.replace('data:', '').trim();
-              try {
-                const parsed = JSON.parse(dataStr);
-                
-                if (parsed.error && parsed.text) {
-                  let userFriendlyError = parsed.text;
-                  try {
-                    const parsedErr = JSON.parse(parsed.text);
-                    if (parsedErr.type === 'input_length') {
-                      userFriendlyError = 'El mensaje es demasiado largo para ser procesado.';
-                    } else if (parsedErr.type === 'google_error') {
-                      userFriendlyError = 'El proveedor de IA (Google Gemini) está experimentando problemas o límites de cuota. Por favor, intenta de nuevo en unos minutos.';
-                    }
-                  } catch {
-                    // Not JSON
+            if (!trimmed.startsWith('data:')) continue;
+
+            const dataStr = trimmed.slice(5).trim();
+            try {
+              const parsed = JSON.parse(dataStr);
+
+              // ── Error event ──────────────────────────────────────────────
+              if (parsed.error && parsed.text) {
+                let userFriendlyError = parsed.text;
+                try {
+                  const parsedErr = JSON.parse(parsed.text);
+                  if (parsedErr.type === 'input_length') {
+                    userFriendlyError = 'El mensaje es demasiado largo para ser procesado.';
+                  } else if (parsedErr.type === 'google_error') {
+                    userFriendlyError =
+                      'El proveedor de IA (Google Gemini) está experimentando problemas o límites de cuota. Por favor, intenta de nuevo en unos minutos.';
                   }
-                  accumulatedText = 'Lo siento, ha ocurrido un inconveniente: ' + userFriendlyError;
+                } catch {
+                  // not JSON
+                }
+                accumulatedText = 'Lo siento, ha ocurrido un inconveniente: ' + userFriendlyError;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  if (updated.length > 0)
+                    updated[updated.length - 1] = { sender: 'agent', text: accumulatedText };
+                  return updated;
+                });
+                continue;
+              }
+
+              // ── Final message (LibreChat sends { final: true, responseMessage: {...} }) ──
+              if (parsed.final) {
+                const finalMsgId = parsed.responseMessage?.messageId;
+                if (finalMsgId) setParentMessageId(finalMsgId);
+                // Fallback: use responseMessage.text if no streaming text was received
+                if (!accumulatedText && parsed.responseMessage?.text) {
+                  accumulatedText = parsed.responseMessage.text;
                   setMessages((prev) => {
                     const updated = [...prev];
-                    if (updated.length > 0) {
-                      updated[updated.length - 1] = {
-                        sender: 'agent',
-                        text: accumulatedText,
-                      };
-                    }
+                    if (updated.length > 0)
+                      updated[updated.length - 1] = { sender: 'agent', text: accumulatedText };
                     return updated;
                   });
-                } else if (parsed.final) {
-                  if (parsed.responseMessage?.messageId) {
-                    setParentMessageId(parsed.responseMessage.messageId);
-                  }
-                } else if (currentEvent === 'on_message_delta') {
-                  const content = parsed.delta?.content;
-                  const textChunk = Array.isArray(content) ? content[0]?.text : content?.text;
-                  if (textChunk) {
-                    accumulatedText += textChunk;
-                    // Update the last message in array (which is the agent placeholder)
-                    setMessages((prev) => {
-                      const updated = [...prev];
-                      if (updated.length > 0) {
-                        updated[updated.length - 1] = {
-                          sender: 'agent',
-                          text: accumulatedText,
-                        };
-                      }
-                      return updated;
-                    });
-                  }
                 }
-              } catch (e) {
-                // Ignore parsing errors of incomplete JSON
+                continue;
               }
+
+              // ── Determine the event type ─────────────────────────────────
+              // LibreChat encodes the event name INSIDE the JSON as `parsed.event`,
+              // not as a separate SSE `event:` header line.
+              const eventType: string = parsed.event ?? '';
+
+              if (eventType === 'on_message_delta') {
+                // Nested under data.delta or directly under delta
+                const content = parsed.data?.delta?.content ?? parsed.delta?.content;
+                const textChunk = Array.isArray(content) ? content[0]?.text : content?.text;
+                if (textChunk) {
+                  accumulatedText += textChunk;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    if (updated.length > 0)
+                      updated[updated.length - 1] = { sender: 'agent', text: accumulatedText };
+                    return updated;
+                  });
+                }
+              } else if (eventType === 'finalMessage' || eventType === 'message') {
+                // Some configurations deliver the full text here
+                const finalText = parsed.text ?? parsed.data?.text;
+                if (finalText && !accumulatedText) {
+                  accumulatedText = finalText;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    if (updated.length > 0)
+                      updated[updated.length - 1] = { sender: 'agent', text: accumulatedText };
+                    return updated;
+                  });
+                }
+                const msgId = parsed.messageId ?? parsed.data?.messageId;
+                if (msgId) setParentMessageId(msgId);
+              }
+            } catch (e) {
+              // Ignore parsing errors of incomplete/non-JSON lines
             }
           }
         }
