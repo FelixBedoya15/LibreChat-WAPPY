@@ -4,9 +4,18 @@ import { useToastContext } from '@librechat/client';
 import { 
   Building2, QrCode, Printer, Heart, Smile, Meh, Frown, 
   TrendingUp, Sparkles, Users, BarChart2, Calendar, 
-  ArrowLeft, Download, Eye, AlertCircle
+  ArrowLeft, Download, Eye, AlertCircle, Loader2
 } from 'lucide-react';
 import axios from 'axios';
+
+const stressorsList = [
+  { id: 'sobrecarga', label: 'Sobrecarga de trabajo' },
+  { id: 'liderazgo', label: 'Clima laboral / Relaciones' },
+  { id: 'entorno', label: 'Entorno físico / Herramientas' },
+  { id: 'personal', label: 'Asuntos personales / familiares' },
+  { id: 'funciones', label: 'Falta de claridad en funciones' },
+  { id: 'fatiga', label: 'Fatiga física o mental' },
+];
 
 interface MoodRecord {
   _id: string;

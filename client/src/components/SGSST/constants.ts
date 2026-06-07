@@ -20,6 +20,11 @@ export const PHASE_CATEGORIES = {
             id: 'oraculo_predictivo', title: 'Oráculo Predictivo H1', icon: 'Sparkles',
             bioRationale: 'Consolidación predictiva que cruza el diseño del trabajo con la salud humana para predecir incompatibilidades y emitir un dictamen de aptitud.', 
             normativity: 'Hito 1: Huella Biocéntrica' 
+        },
+        { 
+            id: 'animo', title: 'Termómetro Psicosocial', icon: 'Heart',
+            bioRationale: 'Mide en tiempo real y de forma 100% anónima el estado de ánimo diario de los trabajadores y genera el código QR para el personal.', 
+            normativity: 'Hito 1: Huella Biocéntrica' 
         }
     ],
     hito2: [

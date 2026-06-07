@@ -5,7 +5,7 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks
+    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -43,6 +43,7 @@ import AppBuilder from './AppBuilder';
 import InspeccionTrabajoH1 from './InspeccionTrabajoH1';
 import HtmlSandboxApp from './HtmlSandboxApp';
 import { UpgradeWall } from './UpgradeWall';
+import MoodAnalyticsDashboard from './MoodAnalyticsDashboard';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -50,7 +51,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
-    BrainCircuit, Blocks
+    BrainCircuit, Blocks, Heart
 };
 
 
@@ -555,6 +556,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  {category.id === 'vulnerabilidad' && (
                                                      <div className="mb-6">
                                                          <AnalisisVulnerabilidad />
+                                                     </div>
+                                                 )}
+
+                                                 {/* Show MoodAnalyticsDashboard for animo category */}
+                                                 {category.id === 'animo' && (
+                                                     <div className="mb-6">
+                                                         <MoodAnalyticsDashboard />
                                                      </div>
                                                  )}
 
