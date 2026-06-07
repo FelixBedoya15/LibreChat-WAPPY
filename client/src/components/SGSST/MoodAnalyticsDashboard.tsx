@@ -26,7 +26,7 @@ interface MoodRecord {
   createdAt: string;
 }
 
-export default function MoodAnalyticsDashboard() {
+export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: boolean }) {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
   
@@ -34,6 +34,8 @@ export default function MoodAnalyticsDashboard() {
   const [moodData, setMoodData] = useState<MoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDays, setFilterDays] = useState<number>(30);
+
+  const showFullView = isMaximized === undefined || isMaximized === true;
 
   useEffect(() => {
     if (!token) return;
@@ -411,7 +413,8 @@ export default function MoodAnalyticsDashboard() {
       </div>
 
       {/* Lower Grid: Stressors, Departments, Recent Comments */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {showFullView && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Left Side: Top Stressors & Departments */}
         <div className="space-y-6">
@@ -544,6 +547,7 @@ export default function MoodAnalyticsDashboard() {
         </div>
 
       </div>
+      )}
 
     </div>
   );

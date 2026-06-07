@@ -23,12 +23,17 @@ class ConsultarAnaliticaPsicosocial extends Tool {
     });
   }
 
-  async _call(input) {
+  async _call(input, runManager) {
     try {
       const userId = this.req?.user?.id;
       if (!userId) {
         return '❌ Error: Usuario no autenticado para consultar analítica psicosocial.';
       }
+
+      const conversationId =
+        runManager?.configurable?.thread_id ||
+        runManager?.metadata?.thread_id ||
+        this.req?.body?.conversationId;
 
       const { dias, departamento } = input;
 
@@ -131,6 +136,56 @@ class ConsultarAnaliticaPsicosocial extends Tool {
         estresoresPrincipales: sortedStressors,
         detallesContextualesRecientes: sortedDetails,
       };
+
+      // 7. Upsert Canvas Session of type 'animo'
+      if (conversationId && conversationId !== 'new') {
+        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+        if (CanvasSession) {
+          let canvasSession = await CanvasSession.findOne({ conversationId });
+          const userRole = this.req?.user?.role;
+          const isPro = userRole === 'ADMIN' || userRole === 'USER_PRO';
+          const maxHistory = isPro ? 20 : 5;
+
+          if (canvasSession) {
+            const nextVersion = canvasSession.version + 1;
+            canvasSession.content = JSON.stringify(resultObj);
+            canvasSession.title = 'Termómetro Psicosocial';
+            canvasSession.fileType = 'animo';
+            canvasSession.version = nextVersion;
+            canvasSession.updatedAt = new Date();
+
+            const newHistoryItem = {
+              version: nextVersion,
+              content: JSON.stringify(resultObj),
+              title: 'Termómetro Psicosocial',
+              fileType: 'animo',
+              updatedAt: new Date()
+            };
+            canvasSession.history = [...(canvasSession.history || []), newHistoryItem].slice(-maxHistory);
+
+            await canvasSession.save();
+          } else {
+            canvasSession = new CanvasSession({
+              user: userId,
+              conversationId,
+              content: JSON.stringify(resultObj),
+              title: 'Termómetro Psicosocial',
+              fileType: 'animo',
+              version: 1,
+              companyId: company._id,
+              history: [{
+                version: 1,
+                content: JSON.stringify(resultObj),
+                title: 'Termómetro Psicosocial',
+                fileType: 'animo',
+                updatedAt: new Date()
+              }]
+            });
+            await canvasSession.save();
+          }
+          console.log(`[ConsultarAnaliticaPsicosocial] Upserted CanvasSession for convoId: ${conversationId}`);
+        }
+      }
 
       return JSON.stringify(resultObj, null, 2);
     } catch (error) {

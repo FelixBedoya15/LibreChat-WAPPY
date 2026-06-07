@@ -56,7 +56,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   if (fileBasename === 'simulador_accidentes') {
     tools.push('canvas');
   } else if (fileBasename === 'psicologo_especialista_sst') {
-    tools.push('consultar_analitica_psicosocial');
+    tools.push('consultar_analitica_psicosocial', 'canvas');
   } else if (fileBasename === 'coordinador_ipevar') {
     tools.push('matriz_ipevar');
   }
@@ -241,9 +241,9 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Psicosocial' },
-        { $addToSet: { tools: 'consultar_analitica_psicosocial' } }
+        { $addToSet: { tools: { $each: ['consultar_analitica_psicosocial', 'canvas'] } } }
       );
-      logger.info('[SyncAgents] Added consultar_analitica_psicosocial tool to Especialista en Riesgo Psicosocial');
+      logger.info('[SyncAgents] Added consultar_analitica_psicosocial and canvas tools to Especialista en Riesgo Psicosocial');
     } catch (err) {
       logger.error('[SyncAgents] Error adding psicosocial tool to agent:', err);
     }
@@ -368,9 +368,9 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Psicosocial' },
-        { $addToSet: { tools: 'consultar_analitica_psicosocial' } }
+        { $addToSet: { tools: { $each: ['consultar_analitica_psicosocial', 'canvas'] } } }
       );
-      logger.info('[CleanupSync] Added consultar_analitica_psicosocial tool to Especialista en Riesgo Psicosocial');
+      logger.info('[CleanupSync] Added consultar_analitica_psicosocial and canvas tools to Especialista en Riesgo Psicosocial');
     } catch (err) {
       logger.error('[CleanupSync] Error adding psicosocial tool to agent:', err);
     }

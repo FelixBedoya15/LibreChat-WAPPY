@@ -192,7 +192,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
   // Main Canvas session state
-  const [fileType, setFileType] = useState<'text' | 'excel' | 'presentation' | 'html'>('text');
+  const [fileType, setFileType] = useState<'text' | 'excel' | 'presentation' | 'html' | 'animo'>('text');
   const [content, setContent] = useState<string>('');
   const [title, setTitle] = useState<string>('Archivo sin título');
   const [version, setVersion] = useState<number>(1);
@@ -206,7 +206,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // References to handle syncing correctly without stale closures
   const contentRef = useRef<string>('');
-  const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html'>('text');
+  const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html' | 'animo'>('text');
   const titleRef = useRef<string>('Archivo sin título');
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
@@ -456,7 +456,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Helper to initialize session and transition new conversation
   const initializeConvoAndSave = async (
-    initialFileType: 'text' | 'excel' | 'presentation' | 'html',
+    initialFileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo',
     initialContent: string,
     initialTitle: string,
   ) => {
@@ -917,7 +917,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         </div>
 
         <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
-          {hasActiveSession && (
+          {hasActiveSession && fileType !== 'animo' && (
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -947,7 +947,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             <ExportDropdown content={content} fileName={title} />
           )}
 
-          {hasActiveSession && fileType !== 'text' && (
+          {hasActiveSession && fileType !== 'text' && fileType !== 'animo' && (
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -1011,7 +1011,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </button>
           )}
 
-          {hasActiveSession && (
+          {hasActiveSession && fileType !== 'animo' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
               className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
@@ -1030,7 +1030,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </button>
           )}
 
-          {hasActiveSession && (
+          {hasActiveSession && fileType !== 'animo' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
               className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${

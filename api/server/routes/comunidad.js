@@ -40,8 +40,6 @@ router.post('/verify', controller.verifyComunidadTransaction);
 router.post('/check-access', controller.checkComunidadAccess);
 router.post('/video-finished', controller.markVideoFinished);
 router.post('/metrics/session', controller.registerSessionMetric);
-router.get('/audit-forensic', controller.auditComunidadForensic);
-router.post('/fix-purchase', controller.fixComunidadPurchase);
 router.post('/mark-tracked', controller.markPurchaseTracked);
 
 router.get('/download/:filename', async (req, res) => {
