@@ -200,18 +200,16 @@ const Nav = memo(
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
-      !!search.query && (search.isTyping || isLoading || isFetching),
+      !!search.debouncedQuery && (isLoading || isFetching),
     );
 
     useEffect(() => {
-      if (search.isTyping) {
+      if (!!search.debouncedQuery && (isLoading || isFetching)) {
         setIsSearchLoading(true);
       } else if (!isLoading && !isFetching) {
         setIsSearchLoading(false);
-      } else if (!!search.query && (isLoading || isFetching)) {
-        setIsSearchLoading(true);
       }
-    }, [search.query, search.isTyping, isLoading, isFetching]);
+    }, [search.debouncedQuery, isLoading, isFetching]);
 
     return (
       <>

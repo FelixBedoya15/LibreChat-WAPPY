@@ -1,6 +1,5 @@
-import React, { forwardRef, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { forwardRef, useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import debounce from 'lodash/debounce';
 import { useRecoilState } from 'recoil';
 import { Search, X } from 'lucide-react';
 import { QueryKeys } from 'librechat-data-provider';
@@ -29,6 +28,17 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   const { newConversation: newConvo } = useNewConvo();
   const [search, setSearchState] = useRecoilState(store.search);
 
+  // Sync local text with the store when component mounts (e.g., revisiting /search)
+  useEffect(() => {
+    if (search.query && text === '') {
+      setText(search.query);
+      setShowClearIcon(true);
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Navigate away from /search and reset everything */
   const clearSearch = useCallback(
     (pathname?: string) => {
       if (pathname?.includes('/search') || pathname === '/c/new') {
@@ -40,6 +50,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     [newConvo, navigate, queryClient],
   );
 
+  /** Clear the input and the search state completely */
   const clearText = useCallback(
     (pathname?: string) => {
       setShowClearIcon(false);
@@ -56,7 +67,54 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     [setSearchState, clearSearch],
   );
 
-  const handleKeyUp = useCallback(
+  /**
+   * Execute the search — only called on Enter or clicking the search button.
+   * Updates debouncedQuery so the Search route fetches results.
+   */
+  const handleSubmit = useCallback(() => {
+    const value = text.trim();
+    if (!value) {
+      return;
+    }
+    // Commit query to store
+    setSearchState((prev) => ({
+      ...prev,
+      query: value,
+      debouncedQuery: value,
+      isTyping: false,
+    }));
+    // Invalidate cached messages so fresh results are fetched
+    queryClient.invalidateQueries([QueryKeys.messages]);
+    // Navigate to /search if not already there
+    if (location.pathname !== '/search') {
+      navigate('/search', { replace: true });
+    }
+  }, [text, setSearchState, queryClient, location.pathname, navigate]);
+
+  /** Only update the local text — no auto-search */
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setShowClearIcon(value.length > 0);
+    setText(value);
+    // Keep query in sync for potential use (e.g. "nothing found" message), but
+    // do NOT update debouncedQuery — that only happens on submit.
+    setSearchState((prev) => ({ ...prev, query: value }));
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.code === 'Space') {
+      e.stopPropagation();
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit();
+    }
+    if (e.key === 'Escape') {
+      clearText(location.pathname);
+    }
+  };
+
+  const onKeyUp = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       const { value } = e.target as HTMLInputElement;
       if (e.key === 'Backspace' && value === '') {
@@ -66,60 +124,18 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     [clearText, location.pathname],
   );
 
-  const sendRequest = useCallback(
-    (value: string) => {
-      if (!value) {
-        return;
-      }
-      queryClient.invalidateQueries([QueryKeys.messages]);
-    },
-    [queryClient],
-  );
-
-  const debouncedSetDebouncedQuery = useMemo(
-    () =>
-      debounce((value: string) => {
-        setSearchState((prev) => ({ ...prev, debouncedQuery: value, isTyping: false }));
-        sendRequest(value);
-      }, 500),
-    [setSearchState, sendRequest],
-  );
-
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setShowClearIcon(value.length > 0);
-    setText(value);
-    setSearchState((prev) => ({
-      ...prev,
-      query: value,
-      isTyping: true,
-    }));
-    debouncedSetDebouncedQuery(value);
-    if (value.length > 0 && location.pathname !== '/search') {
-      navigate('/search', { replace: true });
-    }
-  };
-
-  // Sync local text state with the store on mount (e.g., when navigating back to search)
-  useEffect(() => {
-    if (search.query && text === '') {
-      setText(search.query);
-      setShowClearIcon(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // ─── Collapsed state: just show the search icon to expand the nav ───────────
   if (isCollapsed) {
     return (
       <div
         className={cn(
-          'group relative flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400 transition-all duration-300'
+          'group relative flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400 transition-all duration-300',
         )}
         onClick={() => {
-            const toggleBtn = document.querySelector('#nav-toggle-button');
-            if (toggleBtn) {
-                (toggleBtn as HTMLButtonElement).click();
-            }
+          const toggleBtn = document.querySelector('#nav-toggle-button');
+          if (toggleBtn) {
+            (toggleBtn as HTMLButtonElement).click();
+          }
         }}
       >
         <Search size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
@@ -130,47 +146,61 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     );
   }
 
+  // ─── Expanded state ──────────────────────────────────────────────────────────
   return (
     <motion.div
       ref={ref}
       className={cn(
-        'group relative flex w-full items-center gap-2.5 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-3 py-2.5 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:border-teal-400 cursor-text'
+        'group relative flex w-full items-center gap-2 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-2 py-2 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:border-teal-400 focus-within:border-teal-400 cursor-text',
       )}
     >
-      <Search className="h-4 w-4 shrink-0 text-text-tertiary group-hover:text-teal-500 transition-colors" />
+      {/* Search button — clicking this triggers the search */}
+      <button
+        type="button"
+        aria-label={localize('com_ui_search')}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-transparent text-text-tertiary hover:text-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all duration-150"
+        onClick={handleSubmit}
+        tabIndex={0}
+        title="Buscar (Enter)"
+      >
+        <Search className="h-4 w-4" />
+      </button>
+
       <input
         type="text"
         ref={inputRef}
         className="m-0 w-full border-none bg-transparent p-0 text-sm font-medium text-text-primary focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
         value={text}
         onChange={onChange}
-        onKeyDown={(e) => {
-          e.code === 'Space' ? e.stopPropagation() : null;
-        }}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
         aria-label={localize('com_nav_search_placeholder')}
         placeholder={localize('com_nav_search_placeholder')}
-        onKeyUp={handleKeyUp}
         onFocus={() => setSearchState((prev) => ({ ...prev, isSearching: true }))}
         onBlur={() => setSearchState((prev) => ({ ...prev, isSearching: false }))}
         autoComplete="off"
         dir="auto"
       />
+
+      {/* Clear button */}
       <button
         type="button"
         aria-label={`${localize('com_ui_clear')} ${localize('com_ui_search')}`}
         className={cn(
-          'absolute right-[7px] flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity duration-200',
-          showClearIcon ? 'opacity-100' : 'opacity-0',
-          isSmallScreen === true ? 'right-[16px]' : '',
+          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-none bg-transparent p-0 transition-all duration-200',
+          showClearIcon ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+          isSmallScreen === true ? 'mr-1' : '',
         )}
         onClick={() => clearText(location.pathname)}
         tabIndex={showClearIcon ? 0 : -1}
         disabled={!showClearIcon}
       >
-        <X className="h-5 w-5 cursor-pointer text-text-secondary hover:text-red-500 transition-colors" />
+        <X className="h-4 w-4 cursor-pointer text-text-tertiary hover:text-red-500 transition-colors" />
       </button>
     </motion.div>
   );
 });
+
+SearchBar.displayName = 'SearchBar';
 
 export default SearchBar;

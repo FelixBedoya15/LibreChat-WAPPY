@@ -84,15 +84,14 @@ export default function Search() {
     }
   }, [isError, searchQuery, showToast]);
 
-  // Only show the full-page spinner when there is truly no query yet (initial state)
-  // For typing/loading states, a subtle top bar is shown inside the content
+  // Full-page spinner only on the very first load (no data yet in cache)
   const isTrueInitialLoad = isLoading && !searchMessages;
 
-  if (!searchQuery && !search.isTyping) {
+  if (!searchQuery) {
     return null;
   }
 
-  if (isTrueInitialLoad || (search.isTyping && !searchQuery)) {
+  if (isTrueInitialLoad) {
     return (
       <div className="absolute inset-0 flex items-center justify-center">
         <Spinner className="text-text-primary" />
@@ -100,8 +99,8 @@ export default function Search() {
     );
   }
 
-  // Subtle loading indicator shown while user is typing or results are fetching
-  const showTopLoader = search.isTyping || isLoading || isFetchingNextPage;
+  // Subtle top bar while fetching more pages
+  const showTopLoader = isLoading || isFetchingNextPage;
 
   return (
     <ChatContext.Provider value={mockChatHelpers as any}>

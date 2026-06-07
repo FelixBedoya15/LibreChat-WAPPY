@@ -105,6 +105,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
       resourceId: agent._id,
       principalType: 'user',
       principalId: new mongoose.Types.ObjectId(authorId),
+      principalModel: 'User',
       permBits: 15, // VIEW | EDIT | DELETE | SHARE
       grantedBy: new mongoose.Types.ObjectId(authorId)
     });
@@ -712,6 +713,7 @@ router.all('/seed-prompts', requireJwtAuth, async (req, res) => {
         resourceId: groupDoc._id,
         principalType: 'user',
         principalId: user._id,
+        principalModel: 'User',
         permBits: 15, // VIEW | EDIT | DELETE | SHARE
         grantedBy: user._id
       });

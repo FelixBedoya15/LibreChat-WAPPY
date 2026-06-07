@@ -348,6 +348,7 @@ async function seed() {
         resourceId: groupDoc._id,
         principalType: 'user',
         principalId: user._id,
+        principalModel: 'User',
         permBits: 15, // VIEW | EDIT | DELETE | SHARE
         grantedBy: user._id
       });
