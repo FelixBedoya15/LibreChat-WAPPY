@@ -6,6 +6,7 @@ import { useNavScrolling, useLocalize, useAuthContext } from '~/hooks';
 import SearchMessage from '~/components/Chat/Messages/SearchMessage';
 import { useMessagesInfiniteQuery } from '~/data-provider';
 import { useFileMapContext, ChatContext, AddedChatContext, MessagesViewProvider } from '~/Providers';
+import { cn } from '~/utils';
 import store from '~/store';
 
 export default function Search() {
@@ -83,9 +84,15 @@ export default function Search() {
     }
   }, [isError, searchQuery, showToast]);
 
-  const isSearchLoading = search.isTyping || isLoading || isFetchingNextPage;
+  // Only show the full-page spinner when there is truly no query yet (initial state)
+  // For typing/loading states, a subtle top bar is shown inside the content
+  const isTrueInitialLoad = isLoading && !searchMessages;
 
-  if (isSearchLoading) {
+  if (!searchQuery && !search.isTyping) {
+    return null;
+  }
+
+  if (isTrueInitialLoad || (search.isTyping && !searchQuery)) {
     return (
       <div className="absolute inset-0 flex items-center justify-center">
         <Spinner className="text-text-primary" />
@@ -93,16 +100,26 @@ export default function Search() {
     );
   }
 
-  if (!searchQuery) {
-    return null;
-  }
+  // Subtle loading indicator shown while user is typing or results are fetching
+  const showTopLoader = search.isTyping || isLoading || isFetchingNextPage;
 
   return (
     <ChatContext.Provider value={mockChatHelpers as any}>
       <AddedChatContext.Provider value={mockAddedChatHelpers as any}>
         <MessagesViewProvider>
           <MinimalMessagesWrapper ref={containerRef} className="relative flex h-full pt-4">
-            {(messages && messages.length === 0) || messages == null ? (
+            {/* Subtle top progress bar while typing or loading */}
+            <div
+              className={cn(
+                'absolute top-0 left-0 right-0 h-0.5 z-10 overflow-hidden',
+                showTopLoader ? 'opacity-100' : 'opacity-0',
+                'transition-opacity duration-300',
+              )}
+            >
+              <div className="h-full w-full bg-gradient-to-r from-transparent via-teal-500 to-transparent animate-pulse" />
+            </div>
+
+            {messages == null ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="rounded-lg bg-white p-6 text-lg text-gray-500 dark:border-gray-800/50 dark:bg-gray-800 dark:text-gray-300">
                   {localize('com_ui_nothing_found')}

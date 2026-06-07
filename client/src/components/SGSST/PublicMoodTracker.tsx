@@ -161,6 +161,8 @@ export default function PublicMoodTracker() {
           text: userText,
           conversationId,
           parentMessageId,
+          endpoint: 'agents',
+          agent_id: agentId,
           endpointOption: {
             endpoint: 'agents',
             agent: agentId,
@@ -197,7 +199,30 @@ export default function PublicMoodTracker() {
               try {
                 const parsed = JSON.parse(dataStr);
                 
-                if (parsed.final) {
+                if (parsed.error && parsed.text) {
+                  let userFriendlyError = parsed.text;
+                  try {
+                    const parsedErr = JSON.parse(parsed.text);
+                    if (parsedErr.type === 'input_length') {
+                      userFriendlyError = 'El mensaje es demasiado largo para ser procesado.';
+                    } else if (parsedErr.type === 'google_error') {
+                      userFriendlyError = 'El proveedor de IA (Google Gemini) está experimentando problemas o límites de cuota. Por favor, intenta de nuevo en unos minutos.';
+                    }
+                  } catch {
+                    // Not JSON
+                  }
+                  accumulatedText = 'Lo siento, ha ocurrido un inconveniente: ' + userFriendlyError;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    if (updated.length > 0) {
+                      updated[updated.length - 1] = {
+                        sender: 'agent',
+                        text: accumulatedText,
+                      };
+                    }
+                    return updated;
+                  });
+                } else if (parsed.final) {
                   if (parsed.responseMessage?.messageId) {
                     setParentMessageId(parsed.responseMessage.messageId);
                   }
