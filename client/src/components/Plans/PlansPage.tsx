@@ -95,7 +95,7 @@ const PLANS = [
   {
     key: 'pro',
     name: 'Wappy Pro',
-    price: '$39.800',
+    price: '$114.330',
     tagline: 'El poder total de WAPPY IA',
     accentColor: 'text-amber-500',
     iconColor: 'text-amber-500',
@@ -1930,8 +1930,8 @@ export default function PlansPage() {
 
                     // Plan IPEVAR: pago único vitalicio
                     const fixedInterval = 'lifetime';
-                    let rawPrice = 100000;
-                    let displayPrice = '$100.000';
+                    let rawPrice = 150000;
+                    let displayPrice = '$150.000';
                     let promotion: any = null;
 
                     if (fetchedConfig && fetchedConfig.prices?.[fixedInterval]) {
@@ -2471,8 +2471,8 @@ export default function PlansPage() {
 
                         // Plan IPEVAR: pago único vitalicio
                         const fixedInterval = plan.key === 'ipevar' ? 'lifetime' : 'annual';
-                        let rawPrice = 100000;
-                        let displayPrice = '$100.000';
+                        let rawPrice = 150000;
+                        let displayPrice = '$150.000';
                         let promotion: any = null;
 
                         if (fetchedConfig && fetchedConfig.prices?.[fixedInterval]) {
