@@ -249,5 +249,12 @@
     "description": "Permite al agente crear, leer, listar, editar o eliminar borradores de artículos de blog directamente en la base de datos de Wappy. El usuario podrá revisar el borrador, subir imágenes de portada y publicar el artículo desde su panel administrativo.",
     "icon": "https://cdn-icons-png.flaticon.com/512/3512/3512613.png",
     "authConfig": []
+  },
+  {
+    "name": "Analítica Psicosocial",
+    "pluginKey": "consultar_analitica_psicosocial",
+    "description": "Permite al Agente Psicólogo consultar de forma consolidada y anónima los reportes de estado de ánimo y factores de estrés (estresores) acumulados en la base de datos de telemetría de la organización para responder preguntas de clima laboral.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/3050/3050418.png",
+    "authConfig": []
   }
 ]

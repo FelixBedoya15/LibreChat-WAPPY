@@ -21,6 +21,7 @@ const CanvasTool = require('./structured/CanvasTool');
 const SomosSST = require('./structured/SomosSST');
 const ConsultarAgenteEspecializado = require('./structured/ConsultarAgenteEspecializado');
 const BlogEditor = require('./structured/BlogEditor');
+const ConsultarAnaliticaPsicosocial = require('./structured/ConsultarAnaliticaPsicosocial');
 
 
 module.exports = {
@@ -46,4 +47,5 @@ module.exports = {
   SomosSST,
   ConsultarAgenteEspecializado,
   BlogEditor,
+  ConsultarAnaliticaPsicosocial,
 };

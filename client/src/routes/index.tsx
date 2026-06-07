@@ -6,6 +6,8 @@ import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPE
 import PublicAltaDireccion from '~/components/SGSST/PublicAltaDireccion';
 import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
 import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
+import PublicMoodTracker from '~/components/SGSST/PublicMoodTracker';
+import MoodAnalyticsDashboard from '~/components/SGSST/MoodAnalyticsDashboard';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
@@ -77,6 +79,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/reportar/:companyId',
       element: <PublicReporteActos />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/animo/:companyId',
+      element: <PublicMoodTracker />,
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -252,6 +259,10 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst',
               element: <SGSSTDashboard />,
+            },
+            {
+              path: 'sgsst/animo',
+              element: <MoodAnalyticsDashboard />,
             },
             {
               path: 'sgsst2',

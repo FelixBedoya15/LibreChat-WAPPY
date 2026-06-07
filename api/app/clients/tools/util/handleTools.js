@@ -44,6 +44,7 @@ const {
   SomosSST,
   ConsultarAgenteEspecializado,
   BlogEditor,
+  ConsultarAnaliticaPsicosocial,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -254,6 +255,9 @@ const loadTools = async ({
     },
     blog_editor: async (_toolContextMap) => {
       return new BlogEditor({ req: options.req });
+    },
+    consultar_analitica_psicosocial: async (_toolContextMap) => {
+      return new ConsultarAnaliticaPsicosocial({ req: options.req });
     },
   };
 

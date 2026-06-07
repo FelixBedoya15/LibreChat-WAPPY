@@ -7,6 +7,31 @@ import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { useLocalize } from '~/hooks';
+import { useGetAgentByIdQuery } from '~/data-provider';
+
+declare global {
+    interface Window {
+        Pose: any;
+        drawConnectors: any;
+        drawLandmarks: any;
+        POSE_CONNECTIONS: any;
+    }
+}
+
+const loadScript = (src: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(e);
+        document.head.appendChild(script);
+    });
+};
 
 interface VoiceModalProps {
     isOpen: boolean;
@@ -16,6 +41,7 @@ interface VoiceModalProps {
     onConversationUpdated?: () => void;
     model?: string;
     endpoint?: string;
+    agentId?: string;
 }
 
 const playStartupSound = () => {
@@ -42,7 +68,7 @@ const playStartupSound = () => {
     }
 };
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint }) => {
+const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint, agentId }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
@@ -68,6 +94,199 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const transcriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const manualPhotosCountRef = useRef<number>(0);
 
+    // Get active agent details
+    const { data: agent } = useGetAgentByIdQuery(agentId, { enabled: !!agentId });
+
+    const isBiomechanicsAgent = useMemo(() => {
+        if (!agent) return false;
+        const name = agent.name?.toLowerCase() || '';
+        return name.includes('biomecánica') || name.includes('biomecanica');
+    }, [agent]);
+
+    // Biomechanics vison-AI states and refs
+    const [neckAngle, setNeckAngle] = useState<number | null>(null);
+    const [trunkAngle, setTrunkAngle] = useState<number | null>(null);
+    const [armAngle, setArmAngle] = useState<number | null>(null);
+    const [elbowAngle, setElbowAngle] = useState<number | null>(null);
+    const [kneeAngle, setKneeAngle] = useState<number | null>(null);
+    const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
+    const [isPoseActive, setIsPoseActive] = useState(false);
+
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const poseRef = useRef<any>(null);
+    const badPostureStartRef = useRef<number | null>(null);
+    const lastSnapshotTimeRef = useRef<number>(0);
+
+    // Dynamic Cervical (Neck) risk level calculation matching RULA/REBA guidelines
+    const neckInfo = useMemo(() => {
+        if (neckAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/5 border-white/10 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (neckAngle > 20) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (neckAngle > 10) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-cyan-400'
+        };
+    }, [neckAngle]);
+
+    // Dynamic Column (Trunk) risk level calculation matching RULA/REBA guidelines
+    const trunkInfo = useMemo(() => {
+        if (trunkAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/5 border-white/10 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (trunkAngle > 20) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (trunkAngle > 0) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [trunkAngle]);
+
+    // Dynamic Arm Abduction risk level calculation matching RULA/REBA guidelines
+    const armInfo = useMemo(() => {
+        if (armAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/5 border-white/10 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (armAngle > 45) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (armAngle > 20) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [armAngle]);
+
+    // Dynamic Elbow Flexion risk level calculation matching RULA guidelines
+    const elbowInfo = useMemo(() => {
+        if (elbowAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/5 border-white/10 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (elbowAngle < 30 || elbowAngle > 130) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if ((elbowAngle >= 30 && elbowAngle < 60) || (elbowAngle > 100 && elbowAngle <= 130)) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [elbowAngle]);
+
+    // Dynamic Knee Flexion risk level calculation matching REBA guidelines
+    const kneeInfo = useMemo(() => {
+        if (kneeAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/5 border-white/10 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (kneeAngle > 60) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (kneeAngle > 30) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [kneeAngle]);
+
     const sessionOptions = useMemo(() => ({
         conversationId,
         onConversationIdUpdate,
@@ -75,6 +294,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         initialVoice: voiceChatGeneral,
         model,
         endpoint,
+        template: isBiomechanicsAgent ? 'biomecanico_mediapipe' : undefined,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
@@ -101,7 +321,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.error('[VoiceModal] Error:', error);
             setStatusText(`Error: ${error}`);
         },
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent]);
 
     const {
         isConnected,
@@ -114,6 +334,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         changeVoice,
         getInputVolume,
         setMuted,
+        sendTextMessage,
     } = useVoiceSession(sessionOptions);
 
     const prevIsOpenRef = useRef(isOpen);
@@ -297,6 +518,334 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         return null;
     }, [zoom]);
 
+    const onPoseResults = useCallback((results: any) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!results.poseLandmarks) return;
+
+        // 1. Draw glowing neon HUD skeleton
+        ctx.save();
+        
+        // Neon cyan connections glow
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+        if (window.drawConnectors && window.POSE_CONNECTIONS) {
+            const bodyConnections = window.POSE_CONNECTIONS.filter(([p1, p2]: [number, number]) => p1 >= 11 && p2 >= 11);
+            window.drawConnectors(ctx, results.poseLandmarks, bodyConnections, {
+                color: '#06b6d4',
+                lineWidth: 3
+            });
+        }
+
+        // Neon emerald joints glow (only body joints, slicing index 11 onwards)
+        ctx.shadowColor = '#10b981';
+        if (window.drawLandmarks) {
+            window.drawLandmarks(ctx, results.poseLandmarks.slice(11), {
+                color: '#10b981',
+                fillColor: '#06b6d4',
+                lineWidth: 2,
+                radius: 4
+            });
+        }
+        ctx.restore();
+
+        // 2. Ergo calculations
+        const landmarks = results.poseLandmarks;
+        const leftEar = landmarks[7];
+        const rightEar = landmarks[8];
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftHip = landmarks[23];
+        const rightHip = landmarks[24];
+        const leftElbow = landmarks[13];
+        const rightElbow = landmarks[14];
+        const leftWrist = landmarks[15];
+        const rightWrist = landmarks[16];
+        const leftKnee = landmarks[25];
+        const rightKnee = landmarks[26];
+        const leftAnkle = landmarks[27];
+        const rightAnkle = landmarks[28];
+
+        // Side visibility check
+        const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
+        const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
+
+        let activeEar: any = null;
+        let activeShoulder: any = null;
+        let activeHip: any = null;
+        let activeElbow: any = null;
+        let activeWrist: any = null;
+        let activeKnee: any = null;
+        let activeAnkle: any = null;
+
+        if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
+            activeEar = leftEar;
+            activeShoulder = leftShoulder;
+            activeHip = leftHip;
+            activeElbow = leftElbow;
+            activeWrist = leftWrist;
+            activeKnee = leftKnee;
+            activeAnkle = leftAnkle;
+        } else if (rightVisible) {
+            activeEar = rightEar;
+            activeShoulder = rightShoulder;
+            activeHip = rightHip;
+            activeElbow = rightElbow;
+            activeWrist = rightWrist;
+            activeKnee = rightKnee;
+            activeAnkle = rightAnkle;
+        } else {
+            activeEar = leftEar || rightEar;
+            activeShoulder = leftShoulder || rightShoulder;
+            activeHip = leftHip || rightHip;
+            activeElbow = leftElbow || rightElbow;
+            activeWrist = leftWrist || rightWrist;
+            activeKnee = leftKnee || rightKnee;
+            activeAnkle = leftAnkle || rightAnkle;
+        }
+
+        if (activeShoulder && activeEar && activeHip) {
+            // Cervical angle (flexion from vertical)
+            const neckDx = activeShoulder.x - activeEar.x;
+            const neckDy = activeShoulder.y - activeEar.y;
+            const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
+            const neckDeg = Math.round(neckRad * (180 / Math.PI));
+
+            // Trunk angle (flexion from vertical)
+            const trunkDx = activeShoulder.x - activeHip.x;
+            const trunkDy = activeHip.y - activeShoulder.y;
+            const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
+            const trunkDeg = Math.round(trunkRad * (180 / Math.PI));
+
+            setNeckAngle(neckDeg);
+            setTrunkAngle(trunkDeg);
+
+            // Arm angle (abduction from spine)
+            let armDeg = 0;
+            if (activeElbow) {
+                const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
+                const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                }
+            }
+            setArmAngle(armDeg);
+
+            // Elbow flexion angle (relative angle at elbow joint)
+            let elbowDegVal: number | null = null;
+            if (activeShoulder && activeElbow && activeWrist) {
+                const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
+                const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    elbowDegVal = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                }
+            }
+            setElbowAngle(elbowDegVal);
+
+            // Knee flexion angle (deviation from 180 degrees)
+            let kneeFlexVal: number | null = null;
+            if (activeHip && activeKnee && activeAnkle) {
+                const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
+                const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                if (mag1 * mag2 > 0) {
+                    const cosAngle = dot / (mag1 * mag2);
+                    const kneeRawDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                    kneeFlexVal = Math.max(0, 180 - kneeRawDeg);
+                }
+            }
+            setKneeAngle(kneeFlexVal);
+
+            // Posture threshold tracking for Auto-Snapshot
+            const now = Date.now();
+            const isElbowCritical = elbowDegVal !== null && (elbowDegVal < 30 || elbowDegVal > 130);
+            const isKneeCritical = kneeFlexVal !== null && kneeFlexVal > 60;
+            if (neckDeg > 20 || trunkDeg > 20 || armDeg > 45 || isElbowCritical || isKneeCritical) {
+                if (badPostureStartRef.current === null) {
+                    badPostureStartRef.current = now;
+                } else {
+                    const duration = now - badPostureStartRef.current;
+                    if (duration >= 3000) { // 3 seconds of sustained bad posture
+                        if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
+                            lastSnapshotTimeRef.current = now;
+                            badPostureStartRef.current = null; // reset
+                            
+                            if (manualPhotosCountRef.current < 10) {
+                                // Capture snapshot
+                                const dataUrl = captureSnapshot();
+                                if (dataUrl) {
+                                    // Trigger flash
+                                    setIsFlashActive(true);
+                                    setTimeout(() => setIsFlashActive(false), 150);
+
+                                    // Send to hook (backend)
+                                    const base64 = dataUrl.split(',')[1];
+                                    sendEvidenceImage(base64);
+
+                                    manualPhotosCountRef.current += 1;
+                                    console.log(`[VoiceModal] Auto-posture photo captured and sent. Total photos: ${manualPhotosCountRef.current}`);
+
+                                    // Send telemetry data directly to Gemini session!
+                                    sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                                }
+                            } else {
+                                // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
+                                sendTextMessage(`[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}.`);
+                            }
+                        }
+                    }
+                }
+            } else {
+                badPostureStartRef.current = null;
+            }
+        }
+    }, [captureSnapshot, sendEvidenceImage, sendTextMessage]);
+
+    // Load MediaPipe scripts on demand when isBiomechanicsAgent is true
+    useEffect(() => {
+        if (!isOpen || !isBiomechanicsAgent) return;
+
+        let active = true;
+        console.log('[VoiceModal] Biomechanics agent detected. Loading Vision AI...');
+        setStatusText('Cargando Visión Artificial...');
+
+        const loadAll = async () => {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
+                
+                if (active) {
+                    console.log('[VoiceModal] Vision AI successfully loaded!');
+                    setIsMediaPipeLoaded(true);
+                    setStatusText('Visión IA Preparada');
+                }
+            } catch (err) {
+                console.error('[VoiceModal] Error loading Vision AI scripts:', err);
+                if (active) {
+                    setStatusText('Error de Visión IA');
+                }
+            }
+        };
+
+        loadAll();
+
+        return () => {
+            active = false;
+        };
+    }, [isOpen, isBiomechanicsAgent]);
+
+    // Initialize and handle MediaPipe Pose instance
+    useEffect(() => {
+        if (!isMediaPipeLoaded || !isCameraOn || !isBiomechanicsAgent) {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef in VoiceModal:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+            return;
+        }
+
+        console.log('[VoiceModal] Initializing MediaPipe Pose instance...');
+        
+        try {
+            const pose = new window.Pose({
+                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results: any) => {
+                onPoseResults(results);
+            });
+
+            poseRef.current = pose;
+            setIsPoseActive(true);
+            console.log('[VoiceModal] Pose instance ready!');
+        } catch (e) {
+            console.error('Error creating Pose instance in VoiceModal:', e);
+        }
+
+        return () => {
+            if (poseRef.current) {
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Error closing poseRef on cleanup in VoiceModal:', e);
+                }
+                poseRef.current = null;
+            }
+            setIsPoseActive(false);
+        };
+    }, [isMediaPipeLoaded, isCameraOn, isBiomechanicsAgent, onPoseResults]);
+
+    // Process frames at 15 FPS
+    useEffect(() => {
+        if (!isPoseActive || !videoRef.current) return;
+
+        let active = true;
+        let lastFrameTime = 0;
+        const fpsInterval = 1000 / 15; // Limit to 15 FPS
+
+        const poseLoop = async () => {
+            if (!active) return;
+
+            const now = Date.now();
+            const elapsed = now - lastFrameTime;
+
+            if (elapsed >= fpsInterval) {
+                lastFrameTime = now - (elapsed % fpsInterval);
+
+                const video = videoRef.current;
+                if (video && video.readyState >= 2 && poseRef.current) {
+                    const canvas = canvasRef.current;
+                    if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    }
+
+                    try {
+                        await poseRef.current.send({ image: video });
+                    } catch (e) {
+                        console.error('[VoiceModal] Pose send error:', e);
+                    }
+                }
+            }
+
+            requestAnimationFrame(poseLoop);
+        };
+
+        requestAnimationFrame(poseLoop);
+
+        return () => {
+            active = false;
+        };
+    }, [isPoseActive]);
+
     const handleManualCapture = useCallback(() => {
         if (!isCameraOn && !isScreenSharing) return;
 
@@ -470,9 +1019,67 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     </div>
                 )}
 
-
-
-
+                {/* Simplified Biomechanical Telemetry HUD (Glassmorphism) */}
+                {isBiomechanicsAgent && isReady && (
+                    <div className="absolute top-4 left-4 right-4 z-40 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-wrap gap-2 md:gap-4 justify-between items-center transition-all animate-in fade-in duration-300">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                            <span className="text-[10px] md:text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">Visión IA Biomecánica</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:gap-3 items-center">
+                            {/* Neck Angle */}
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${neckInfo.colorClass}`}>
+                                <span className="text-[9px] font-mono font-medium opacity-60">Cuello</span>
+                                <span className={`text-xs font-bold font-mono ${neckInfo.valColorClass}`}>
+                                    {neckAngle !== null ? `${neckAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[9px] uppercase tracking-wider font-mono ${neckInfo.textClass}`}>
+                                    {neckInfo.status}
+                                </span>
+                            </div>
+                            {/* Trunk Angle */}
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${trunkInfo.colorClass}`}>
+                                <span className="text-[9px] font-mono font-medium opacity-60">Tronco</span>
+                                <span className={`text-xs font-bold font-mono ${trunkInfo.valColorClass}`}>
+                                    {trunkAngle !== null ? `${trunkAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[9px] uppercase tracking-wider font-mono ${trunkInfo.textClass}`}>
+                                    {trunkInfo.status}
+                                </span>
+                            </div>
+                            {/* Arm Angle */}
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${armInfo.colorClass}`}>
+                                <span className="text-[9px] font-mono font-medium opacity-60">Brazo</span>
+                                <span className={`text-xs font-bold font-mono ${armInfo.valColorClass}`}>
+                                    {armAngle !== null ? `${armAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[9px] uppercase tracking-wider font-mono ${armInfo.textClass}`}>
+                                    {armInfo.status}
+                                </span>
+                            </div>
+                            {/* Elbow Angle */}
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${elbowInfo.colorClass}`}>
+                                <span className="text-[9px] font-mono font-medium opacity-60">Codo</span>
+                                <span className={`text-xs font-bold font-mono ${elbowInfo.valColorClass}`}>
+                                    {elbowAngle !== null ? `${elbowAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[9px] uppercase tracking-wider font-mono ${elbowInfo.textClass}`}>
+                                    {elbowInfo.status}
+                                </span>
+                            </div>
+                            {/* Knee Angle */}
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
+                                <span className="text-[9px] font-mono font-medium opacity-60">Rodilla</span>
+                                <span className={`text-xs font-bold font-mono ${kneeInfo.valColorClass}`}>
+                                    {kneeAngle !== null ? `${kneeAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[9px] uppercase tracking-wider font-mono ${kneeInfo.textClass}`}>
+                                    {kneeInfo.status}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Video Background ── */}
                 <div className="absolute inset-0 z-0 overflow-hidden bg-surface-primary">
@@ -482,6 +1089,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         muted playsInline
                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
+
+                    {/* Simplified Neon HUD Canvas Overlay */}
+                    {isBiomechanicsAgent && (isCameraOn || isScreenSharing) && (
+                        <canvas
+                            ref={canvasRef}
+                            className="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"
+                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                        />
+                    )}
 
                     {/* Zoom Button */}
                     {isCameraOn && (

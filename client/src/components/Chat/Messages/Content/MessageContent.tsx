@@ -100,7 +100,19 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
     [showCursor, isSubmitting],
   );
 
+  const isHtmlReport = useMemo(() => {
+    return (message as any)?.isHtmlReport === true || (text && text.trim().startsWith('<div class="report-container"'));
+  }, [message, text]);
+
   const content = useMemo(() => {
+    if (isHtmlReport) {
+      return (
+        <div 
+          className="w-full max-h-[650px] overflow-y-auto border border-white/10 rounded-2xl p-5 bg-black/45 backdrop-blur-md shadow-2xl prose dark:prose-invert"
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
+      );
+    }
     if (!isCreatedByUser) {
       return <Markdown content={text} isLatestMessage={isLatestMessage} />;
     }
@@ -108,13 +120,13 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
       return <MarkdownLite content={text} />;
     }
     return <>{text}</>;
-  }, [isCreatedByUser, enableUserMsgMarkdown, text, isLatestMessage]);
+  }, [isCreatedByUser, enableUserMsgMarkdown, text, isLatestMessage, isHtmlReport]);
 
   return (
     <Container message={message}>
       <div
         className={cn(
-          'markdown prose message-content dark:prose-invert light w-full break-words',
+          isHtmlReport ? '' : 'markdown prose message-content dark:prose-invert light w-full break-words',
           isSubmitting && 'submitting',
           showCursorState && text.length > 0 && 'result-streaming',
           isCreatedByUser && !enableUserMsgMarkdown && 'whitespace-pre-wrap',

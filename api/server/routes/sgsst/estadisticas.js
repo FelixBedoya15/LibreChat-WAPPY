@@ -309,6 +309,28 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
     }
 });
 
+/**
+ * GET /api/sgsst/estadisticas/mood
+ * Fetches anonymized mood telemetry for the user's active company.
+ */
+router.get('/mood', requireJwtAuth, async (req, res) => {
+    try {
+        const company = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+            || await CompanyInfo.findOne({ user: req.user.id }).lean();
+        
+        if (!company) {
+            return res.json([]);
+        }
+
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        const telemetryData = await MoodTelemetry.find({ companyId: company._id }).sort({ createdAt: -1 }).lean();
+        return res.json(telemetryData);
+    } catch (error) {
+        logger.error('[SGSST Estadísticas] Mood telemetry fetch error:', error);
+        res.status(500).json({ error: 'Error interno al consultar la telemetría psicosocial.' });
+    }
+});
+
 // Helpers
 function cleanHtmlOutput(text) {
     return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')

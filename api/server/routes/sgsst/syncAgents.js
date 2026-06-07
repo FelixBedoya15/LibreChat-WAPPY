@@ -5,8 +5,9 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { requireJwtAuth } = require('~/server/middleware');
-const { Agent } = require('~/db/models');
+const { Agent, Project, AclEntry } = require('~/db/models');
 const { logger } = require('~/config');
+const mongoose = require('mongoose');
 
 // Exact mapping between local markdown filenames (without .md) and database Agent names.
 const AGENT_FILE_MAP = {
@@ -36,8 +37,89 @@ const AGENT_FILE_MAP = {
   'medico_laboral': 'Consultor Médico Ocupacional',
   'profesional_sst': 'Consultor Senior SG-SST',
   'psicologo_especialista_sst': 'Especialista en Riesgo Psicosocial',
+  'simulador_accidentes': 'Simulador de Accidentes SST',
   'redactor_blog': 'Estratega de Contenidos Corporativos'
 };
+
+async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
+  let agent = await Agent.findOne({ name: dbName });
+  if (agent) {
+    return agent;
+  }
+
+  logger.info(`[SyncAgents] Agent "${dbName}" not found. Creating programmatically.`);
+  const crypto = require('crypto');
+  const agentId = crypto.randomUUID();
+
+  // Determine tools based on agent type
+  const tools = [];
+  if (fileBasename === 'simulador_accidentes') {
+    tools.push('canvas');
+  } else if (fileBasename === 'psicologo_especialista_sst') {
+    tools.push('consultar_analitica_psicosocial');
+  } else if (fileBasename === 'coordinador_ipevar') {
+    tools.push('matriz_ipevar');
+  }
+
+  const timestamp = new Date();
+  const agentData = {
+    id: agentId,
+    name: dbName,
+    description: `Agente SST: ${dbName}`,
+    instructions: mdContent,
+    provider: 'google',
+    model: 'gemini-3.5-flash',
+    tools,
+    is_whatsapp_enabled: false,
+    author: new mongoose.Types.ObjectId(authorId),
+    category: 'general',
+    versions: [
+      {
+        name: dbName,
+        description: `Agente SST: ${dbName}`,
+        instructions: mdContent,
+        provider: 'google',
+        model: 'gemini-3.5-flash',
+        tools,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+    ]
+  };
+
+  agent = new Agent(agentData);
+  
+  // Link to Global project
+  const globalProject = await Project.findOne({ name: 'Global' }) || await Project.findOne({});
+  if (globalProject) {
+    agent.projectIds = [globalProject._id.toString()];
+  }
+
+  await agent.save();
+
+  // Add ACL entry
+  if (AclEntry) {
+    const aclDoc = new AclEntry({
+      resourceType: 'agent',
+      resourceId: agent._id,
+      principalType: 'user',
+      principalId: new mongoose.Types.ObjectId(authorId),
+      permBits: 15, // VIEW | EDIT | DELETE | SHARE
+      grantedBy: new mongoose.Types.ObjectId(authorId)
+    });
+    await aclDoc.save();
+  }
+
+  // Add agentId to global project
+  if (globalProject) {
+    await Project.findByIdAndUpdate(globalProject._id, {
+      $addToSet: { agentIds: agent.id }
+    });
+  }
+
+  logger.info(`[SyncAgents] Programmatically created agent: "${dbName}" with ID: ${agent.id}`);
+  return agent;
+}
 
 
 /**
@@ -115,19 +197,8 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       try {
         const mdContent = fs.readFileSync(filePath, 'utf8');
         
-        // Find corresponding agent in MongoDB
-        const agent = await Agent.findOne({ name: dbName });
-        if (!agent) {
-          logger.warn(`[SyncAgents] Agent "${dbName}" not found in database.`);
-          results.push({
-            file: `${fileBasename}.md`,
-            agentName: dbName,
-            status: 'WARNING',
-            message: 'El agente no existe en la base de datos (MongoDB).'
-          });
-          failCount++;
-          continue;
-        }
+        // Find corresponding agent in MongoDB or create if missing
+        const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
 
         // Check if there is actual difference in instructions to avoid unnecessary saves
         if (agent.instructions === mdContent) {
@@ -164,6 +235,17 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
         });
         failCount++;
       }
+    }
+
+    // Ensure the psychologist agent has the new psicosocial analytics tool
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Psicosocial' },
+        { $addToSet: { tools: 'consultar_analitica_psicosocial' } }
+      );
+      logger.info('[SyncAgents] Added consultar_analitica_psicosocial tool to Especialista en Riesgo Psicosocial');
+    } catch (err) {
+      logger.error('[SyncAgents] Error adding psicosocial tool to agent:', err);
     }
 
     return res.json({
@@ -262,14 +344,8 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
           }
         }
 
-        // ── Step 2: Sync cleaned content to MongoDB ───────────────────────────
-        const agent = await Agent.findOne({ name: dbName });
-        if (!agent) {
-          logger.warn(`[CleanupSync] Agent "${dbName}" not found in MongoDB.`);
-          failCount++;
-          results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'WARNING', message: 'Agente no encontrado en MongoDB.' });
-          continue;
-        }
+        // ── Step 2: Sync cleaned content to MongoDB or create if missing ──────
+        const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
 
         if (agent.instructions === mdContent) {
           results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'NO_CHANGE', message: 'Las instrucciones ya coinciden.' });
@@ -286,6 +362,17 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
         failCount++;
         results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'ERROR', message: `Error: ${innerErr.message}` });
       }
+    }
+
+    // Ensure the psychologist agent has the new psicosocial analytics tool
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Psicosocial' },
+        { $addToSet: { tools: 'consultar_analitica_psicosocial' } }
+      );
+      logger.info('[CleanupSync] Added consultar_analitica_psicosocial tool to Especialista en Riesgo Psicosocial');
+    } catch (err) {
+      logger.error('[CleanupSync] Error adding psicosocial tool to agent:', err);
     }
 
     return res.json({

@@ -679,5 +679,102 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
     }
 });
 
+// ─── TERMÓMETRO PSICOSOCIAL (MOOD TELEMETRY) ──────────────────────────────────
+
+// POST /api/public-sgsst/mood/:companyId
+// Registra de forma anónima la respuesta inicial del estado de ánimo del trabajador
+router.post('/mood/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { mood, department } = req.body;
+
+        if (!mood || !['happy', 'neutral', 'sad'].includes(mood)) {
+            return res.status(400).json({ error: 'Estado de ánimo inválido o ausente.' });
+        }
+
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        const telemetry = new MoodTelemetry({
+            companyId: company._id,
+            mood,
+            department: department || '',
+        });
+
+        await telemetry.save();
+        return res.json({ success: true, telemetryId: telemetry._id });
+    } catch (error) {
+        logger.error('[Public SGSST] Mood telemetry error:', error);
+        res.status(500).json({ error: 'Error al registrar estado de ánimo.' });
+    }
+});
+
+// POST /api/public-sgsst/mood/update/:telemetryId
+// Actualiza la telemetría agregando los estresores detectados y resumen de la conversación
+router.post('/mood/update/:telemetryId', async (req, res) => {
+    try {
+        const { telemetryId } = req.params;
+        const { stressors, details } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(telemetryId)) {
+            return res.status(400).json({ error: 'ID de telemetría inválido.' });
+        }
+
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        await MoodTelemetry.findByIdAndUpdate(
+            telemetryId,
+            { $set: { stressors: stressors || [], details: details || '' } }
+        );
+
+        return res.json({ success: true });
+    } catch (error) {
+        logger.error('[Public SGSST] Mood update error:', error);
+        res.status(500).json({ error: 'Error al actualizar telemetría.' });
+    }
+});
+
+// POST /api/public-sgsst/mood/chat/:companyId
+// Genera un token JWT temporal y anónimo para hablar con el Agente Psicólogo
+router.post('/mood/chat/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const company = await resolveActiveCompany(companyId);
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
+        // Buscar al especialista en riesgo psicosocial
+        const agent = await Agent.findOne({ name: /Psicosocial/i });
+        if (!agent) {
+            return res.status(404).json({ error: 'El Agente "Especialista en Riesgo Psicosocial" no está configurado.' });
+        }
+
+        // Firmar un token temporal con los privilegios del administrador de la empresa (pero restringido a 1 hora)
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign(
+            { id: company.user.toString() },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        const crypto = require('crypto');
+        const conversationId = crypto.randomUUID();
+
+        return res.json({
+            success: true,
+            token,
+            agentId: agent._id || agent.id,
+            conversationId
+        });
+    } catch (error) {
+        logger.error('[Public SGSST] Mood chat generation error:', error);
+        res.status(500).json({ error: 'Error al generar sesión de chat.' });
+    }
+});
+
 module.exports = router;
 

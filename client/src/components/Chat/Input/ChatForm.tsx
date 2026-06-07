@@ -396,8 +396,9 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId} // Use current conversation
-        model={modelToUse}
-        endpoint={endpoint}
+        model={modelToUse ?? undefined}
+        endpoint={endpoint ?? undefined}
+        agentId={conversation?.agent_id}
         onConversationIdUpdate={(newId) => {
           // Only navigate if we were in a NEW chat (not an existing one)
           const wasNewChat = conversationId === Constants.NEW_CONVO;
@@ -406,10 +407,15 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           if (wasNewChat) {
             // Update local conversation state IMMEDIATELY so that if user submits, it uses the new ID
             if (setConversation) {
-              setConversation((prev) => ({
-                ...prev,
-                conversationId: newId,
-              }));
+              setConversation((prev) => {
+                if (!prev) {
+                  return prev;
+                }
+                return {
+                  ...prev,
+                  conversationId: newId,
+                };
+              });
             }
 
             // Navigate to the new conversation
