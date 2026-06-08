@@ -181,7 +181,13 @@ const verifyComunidadTransaction = async (req, res) => {
             console.log(`[Comunidad Wompi Verify] Unlocked course access for: ${purchase.email}`);
         }
 
-        return res.json({ success: true, status: 'APPROVED', email: purchase.email });
+        return res.json({ 
+            success: true, 
+            status: 'APPROVED', 
+            email: purchase.email,
+            fullName: purchase.fullName,
+            phone: purchase.phone
+        });
     } catch (err) {
         logger.error('[ComunidadController] verifyComunidadTransaction error:', err);
         return res.status(500).json({ error: err.message });

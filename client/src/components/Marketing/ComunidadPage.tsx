@@ -189,14 +189,26 @@ export default function ComunidadPage() {
     }
   };
 
-  const triggerMetaPurchasePixel = async (email: string) => {
+  const triggerMetaPurchasePixel = async (email: string, fullName?: string, phone?: string) => {
     if (window.fbq) {
+      // Configure Advanced Matching
+      const matchingData: any = { em: email.toLowerCase().trim() };
+      if (phone) matchingData.ph = phone.trim().replace(/[^0-9]/g, '');
+      if (fullName) {
+        const nameParts = fullName.trim().split(/\s+/);
+        matchingData.fn = nameParts[0].toLowerCase();
+        if (nameParts.length > 1) {
+          matchingData.ln = nameParts[nameParts.length - 1].toLowerCase();
+        }
+      }
+
+      window.fbq('init', '1552188416261002', matchingData);
       window.fbq('track', 'Purchase', {
         value: price || 28000,
         currency: 'COP',
         content_name: 'Curso SST IA + 10 Aplicativos'
       });
-      console.log(`[Meta Pixel] Sent Purchase event for ${email}`);
+      console.log(`[Meta Pixel] Sent Purchase event with Advanced Matching for ${email}`);
     }
     try {
       await axios.post('/api/comunidad/mark-tracked', { email });
@@ -205,15 +217,29 @@ export default function ComunidadPage() {
     }
   };
 
-  const handleSendToPixelManual = async (email: string) => {
+  const handleSendToPixelManual = async (purchase: any) => {
+    const { email, fullName, phone } = purchase;
     setSyncingEmail(email);
     try {
       if (window.fbq) {
+        // Configure Advanced Matching
+        const matchingData: any = { em: email.toLowerCase().trim() };
+        if (phone) matchingData.ph = phone.trim().replace(/[^0-9]/g, '');
+        if (fullName) {
+          const nameParts = fullName.trim().split(/\s+/);
+          matchingData.fn = nameParts[0].toLowerCase();
+          if (nameParts.length > 1) {
+            matchingData.ln = nameParts[nameParts.length - 1].toLowerCase();
+          }
+        }
+
+        window.fbq('init', '1552188416261002', matchingData);
         window.fbq('track', 'Purchase', {
           value: price || 28000,
           currency: 'COP',
           content_name: 'Curso SST IA + 10 Aplicativos'
         });
+        console.log(`[Meta Pixel] Sent Manual Purchase event with Advanced Matching for ${email}`);
       } else {
         alert('Meta Pixel no está cargado en el navegador o está bloqueado por un adblocker.');
       }
@@ -240,6 +266,37 @@ export default function ComunidadPage() {
     if (window.fbq) {
       window.fbq('track', 'PageView');
     }
+
+    // Redirect flow verification (PSE/bank transfers)
+    const verifyRedirectTransaction = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const transactionId = params.get('id');
+      if (transactionId) {
+        try {
+          setIsAccessChecking(true);
+          const response = await axios.post('/api/comunidad/verify', { transactionId });
+          if (response.data.success) {
+            const { email, fullName, phone } = response.data;
+            localStorage.setItem('wappy_comunidad_email', email);
+            setUserEmail(email);
+            setIsAccessGranted(true);
+            setShowLeadModal(false);
+            
+            // Trigger Pixel with Advanced Matching
+            triggerMetaPurchasePixel(email, fullName, phone);
+
+            // Clean query parameters from URL to avoid repeating on refresh
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+          }
+        } catch (err) {
+          console.error('[Redirect Verify] Error:', err);
+        } finally {
+          setIsAccessChecking(false);
+        }
+      }
+    };
+    verifyRedirectTransaction();
   }, []);
 
   const [sessionId] = useState(() => {
@@ -771,7 +828,7 @@ export default function ComunidadPage() {
             setUserEmail(email);
             setIsAccessGranted(true);
             setShowLeadModal(false);
-            triggerMetaPurchasePixel(email);
+            triggerMetaPurchasePixel(email, checkoutFullName, checkoutPhone);
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -812,7 +869,7 @@ export default function ComunidadPage() {
           setIsVideoFinished(true);
         }
         if (response.data.purchaseTracked === false) {
-          triggerMetaPurchasePixel(recoveryEmail.trim());
+          triggerMetaPurchasePixel(recoveryEmail.trim(), response.data.fullName, response.data.phone);
         }
         
         setTimeout(() => {
@@ -1502,7 +1559,7 @@ export default function ComunidadPage() {
                                 <td className="p-3 text-center">
                                   {item.isPaid ? (
                                     <button
-                                      onClick={() => handleSendToPixelManual(item.email)}
+                                      onClick={() => handleSendToPixelManual(item)}
                                       disabled={item.purchaseTracked || syncingEmail === item.email}
                                       className={`px-2 py-1 rounded-lg font-bold text-[10px] transition-all ${
                                         item.purchaseTracked
