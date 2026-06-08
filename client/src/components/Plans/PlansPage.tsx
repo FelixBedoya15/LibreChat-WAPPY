@@ -104,15 +104,15 @@ const PLANS = [
     iconBg: 'bg-amber-500/10',
     features: [
       'Somos SST completo',
-      'Skills Termómetro Psicosocial',
-      'Skill Somos SST Medicina Laboral y Riesgo Psicosocial',
+      '**Skills** Termómetro Psicosocial',
+      '**Skill** Somos SST Medicina Laboral y Riesgo Psicosocial',
       'Chat Live (video llamada en vivo para detectar riesgos)',
       'Chat con IA ilimitado',
       'Conversaciones y chats ilimitados',
       'Subida de archivos ilimitada',
       'Descargas y exportaciones ilimitadas',
       'Crea tus propios Agentes de IA',
-      'Análisis y Chat en Vivo',
+      'Análisis en Vivo con (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)',
       'Aula de estudio',
       'Blog WAPPY',
       'Acceso anticipado a nuevas funciones',
@@ -209,14 +209,14 @@ const APP_PLANS = [
       'Hasta **20 chats** abiertos',
       '**Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)**',
       '**Subida de archivos ilimitada**',
-      '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
-      '**Skill Editor RIT**',
-      '**Skill IPEVAR**',
+      '**Skill** de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)',
+      '**Skill** Editor RIT',
+      '**Skill** IPEVAR',
       '**Descargas y exportaciones ilimitadas**',
       'Aula de estudio',
       'Blog WAPPY',
     ],
-    notIncluded: ['Somos SST', 'Crear Agentes de IA propios', 'Análisis y Chat en Vivo'],
+    notIncluded: ['Somos SST', 'Crear Agentes de IA propios', 'Análisis en Vivo'],
     popular: true,
   },
 ];
@@ -486,6 +486,27 @@ const ENTERPRISE_ICON_MAP: Record<string, React.ElementType> = {
 
 const APP_ICON_MAP: Record<string, React.ElementType> = {
   ipevar: IpevarSVG,
+};
+
+const renderFeatureText = (f: string) => {
+  const parts = f.split('**');
+  if (parts.length === 1) {
+    return <span>{f}</span>;
+  }
+  return (
+    <span>
+      {parts.map((part, index) => {
+        if (index % 2 === 1) {
+          return (
+            <strong key={index} className="font-bold text-text-primary">
+              {part}
+            </strong>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
 };
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
@@ -1925,7 +1946,7 @@ export default function PlansPage() {
 
             {showUnifiedLayout ? (
               <div className="mx-auto mt-8 max-w-5xl px-4">
-                <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
+                <div className="grid gap-8 grid-cols-2 lg:gap-12">
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
                     const plan = APP_PLANS.find((p) => p.key === 'ipevar')!;
@@ -2035,15 +2056,15 @@ export default function PlansPage() {
 
                         <ul className="mt-4 flex-1 space-y-3">
                           {plan.features.map((f) => {
-                            const isHighlighted = f.includes('**');
-                            const text = f.replace(/\*\*/g, '');
+                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
                             return (
                               <li
                                 key={f}
-                                className={`flex items-start gap-3 text-xs md:text-sm ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
                               >
                                 <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                                {text}
+                                {renderFeatureText(cleanText)}
                               </li>
                             );
                           })}
@@ -2195,15 +2216,15 @@ export default function PlansPage() {
 
                         <ul className="mt-4 flex-1 space-y-3">
                           {plan.features.map((f) => {
-                            const isHighlighted = f.includes('**');
-                            const text = f.replace(/\*\*/g, '');
+                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
                             return (
                               <li
                                 key={f}
-                                className={`flex items-start gap-3 text-xs md:text-sm ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
                               >
                                 <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
-                                {text}
+                                {renderFeatureText(cleanText)}
                               </li>
                             );
                           })}
@@ -2423,17 +2444,17 @@ export default function PlansPage() {
                         {/* Features */}
                         <ul className="mt-5 flex-1 space-y-2">
                           {plan.features.map((f) => {
-                            const isHighlighted = f.includes('**');
-                            const text = f.replace(/\*\*/g, '');
+                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
                             return (
                               <li
                                 key={f}
-                                className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                                className={`flex items-start gap-2 text-xs ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
                               >
                                 <Check
-                                  className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
+                                  className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isWholeLineHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
                                 />
-                                {text}
+                                {renderFeatureText(cleanText)}
                               </li>
                             );
                           })}
@@ -2579,17 +2600,17 @@ export default function PlansPage() {
 
                             <ul className="mt-5 flex-1 space-y-2">
                               {plan.features.map((f) => {
-                                const isHighlighted = f.includes('**');
-                                const text = f.replace(/\*\*/g, '');
+                                const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                                const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
                                 return (
                                   <li
                                     key={f}
-                                    className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                                    className={`flex items-start gap-2 text-xs ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
                                   >
                                     <Check
-                                      className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
+                                      className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isWholeLineHighlighted ? 'text-emerald-500' : 'text-green-500'}`}
                                     />
-                                    {text}
+                                    {renderFeatureText(cleanText)}
                                   </li>
                                 );
                               })}
