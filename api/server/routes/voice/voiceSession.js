@@ -529,9 +529,11 @@ class VoiceSession {
                     try {
                         const messageId = uuidv4();
                         let conversationId = this.conversationId;
+                        let isNewConvo = false;
                         if (!conversationId || conversationId === 'new') {
                             conversationId = uuidv4();
                             this.conversationId = conversationId;
+                            isNewConvo = true;
                         }
 
                         const text = "Foto de evidencia";
@@ -567,6 +569,20 @@ class VoiceSession {
                             // Let the model know about this image: set it as the latestFrame 
                             // so that if the user asks about it, the model has the context.
                             this.latestFrame = data.image;
+
+                            // Notify client of conversationId if it was new
+                            if (isNewConvo) {
+                                this.sendToClient({
+                                    type: 'conversationId',
+                                    data: { conversationId: this.conversationId }
+                                });
+                            }
+
+                            // Always notify client that conversation was updated, so it can invalidate cache/refresh chat feed
+                            this.sendToClient({
+                                type: 'conversationUpdated',
+                                data: {}
+                            });
                         }
                     } catch (saveError) {
                         logger.error('[VoiceSession] Error saving manual evidence image to chat DB:', saveError);

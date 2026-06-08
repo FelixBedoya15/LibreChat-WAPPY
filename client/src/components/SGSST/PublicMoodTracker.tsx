@@ -124,7 +124,7 @@ export default function PublicMoodTracker() {
         setMessages([
           {
             sender: 'agent',
-            text: 'Hola. Lamento escuchar que hoy te sientes estresado o cansado. Estoy aquí como tu Especialista en Riesgo Psicosocial para escucharte en un espacio 100% privado y anónimo. ¿Te gustaría contarme qué te preocupa o cómo te has sentido en el trabajo últimamente?',
+            text: 'Hola. Lamento escuchar que hoy te sientes estresado o cansado. Estoy aquí como tu Terapeuta Ocupacional y de Salud Mental para escucharte en un espacio 100% privado y anónimo. ¿Te gustaría contarme qué te preocupa o cómo te has sentido en el trabajo últimamente?',
           },
         ]);
         setStep(3);
@@ -168,6 +168,7 @@ export default function PublicMoodTracker() {
             agent: agentId,
             model: 'gemini-3.1-flash-lite',
           },
+          isPublicChat: true,
         }),
       });
 

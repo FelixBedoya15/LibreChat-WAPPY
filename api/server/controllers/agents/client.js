@@ -435,6 +435,9 @@ class AgentClient extends BaseClient {
    * @returns {Promise<string | undefined>}
    */
   async useMemory() {
+    if (this.options.req.body?.isPublicChat === true) {
+      return;
+    }
     const user = this.options.req.user;
     if (user.personalization?.memories === false) {
       return;

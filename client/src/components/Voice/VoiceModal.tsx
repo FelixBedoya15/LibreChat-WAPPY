@@ -111,6 +111,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [kneeAngle, setKneeAngle] = useState<number | null>(null);
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
+    const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
@@ -694,11 +695,17 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                     setIsFlashActive(true);
                                     setTimeout(() => setIsFlashActive(false), 150);
 
+                                    // Update local state to show on screen
+                                    setManualCapturedPhotos((prev) => {
+                                        const next = [...prev, dataUrl];
+                                        manualPhotosCountRef.current = next.length;
+                                        return next;
+                                    });
+
                                     // Send to hook (backend)
                                     const base64 = dataUrl.split(',')[1];
                                     sendEvidenceImage(base64);
 
-                                    manualPhotosCountRef.current += 1;
                                     console.log(`[VoiceModal] Auto-posture photo captured and sent. Total photos: ${manualPhotosCountRef.current}`);
 
                                     // Send telemetry data directly to Gemini session!
@@ -715,7 +722,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 badPostureStartRef.current = null;
             }
         }
-    }, [captureSnapshot, sendEvidenceImage, sendTextMessage]);
+    }, [captureSnapshot, sendEvidenceImage, sendTextMessage, setManualCapturedPhotos]);
 
     // Load MediaPipe scripts on demand when isBiomechanicsAgent is true
     useEffect(() => {
@@ -863,14 +870,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setIsFlashActive(true);
             setTimeout(() => setIsFlashActive(false), 250);
 
+            // Update local state to show on screen
+            setManualCapturedPhotos((prev) => {
+                const next = [...prev, dataUrl];
+                manualPhotosCountRef.current = next.length;
+                return next;
+            });
+
             // Send to hook (backend)
             const base64 = dataUrl.split(',')[1];
             sendEvidenceImage(base64);
 
-            manualPhotosCountRef.current += 1;
             console.log(`[VoiceModal] Manual photo captured and sent. Total manual photos: ${manualPhotosCountRef.current}`);
         }
-    }, [isCameraOn, isScreenSharing, captureSnapshot, sendEvidenceImage]);
+    }, [isCameraOn, isScreenSharing, captureSnapshot, sendEvidenceImage, setManualCapturedPhotos]);
 
     const [isPlaying, setIsPlaying] = useState(false);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -1150,7 +1163,26 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                 {/* ── Bottom Control Bar (Glassmorphism) ── */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 z-30 flex flex-col items-center gap-6">
-                    <div className="flex items-center justify-center gap-2 md:gap-4 bg-black/60 backdrop-blur-2xl px-4 md:px-8 py-3 md:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70">
+                    {/* Floating Thumbnail Carousel of captured evidence */}
+                    {manualCapturedPhotos.length > 0 && (
+                        <div className="flex flex-col items-center gap-2 max-w-full px-4 animate-in slide-in-from-bottom-2 duration-300">
+                            <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 rounded shadow">
+                                Evidencia Capturada ({manualCapturedPhotos.length})
+                            </span>
+                            <div className="flex items-center gap-2 overflow-x-auto max-w-[90vw] pb-2 scrollbar-none">
+                                {manualCapturedPhotos.map((src, idx) => (
+                                    <div key={idx} className="relative w-16 h-16 rounded-lg border border-white/20 overflow-hidden shadow-md flex-shrink-0 group hover:border-emerald-500 transition-colors">
+                                        <img src={src} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-[9px] font-mono text-white font-bold">#{idx + 1}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-4 bg-black/60 backdrop-blur-2xl px-2.5 sm:px-8 py-2 sm:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group max-w-[95vw]">
 
                         {/* Camera */}
                         <TooltipAnchor
@@ -1159,41 +1191,44 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                 <button
                                     onClick={toggleCamera}
                                     disabled={isScreenSharing}
-                                    className={`p-3 md:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                    className={`p-2.5 sm:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
                                 >
-                                    {isCameraOn ? <Video className="w-4 h-4 md:w-5 md:h-5" /> : <VideoOff className="w-4 h-4 md:w-5 md:h-5" />}
+                                    {isCameraOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                 </button>
                             }
                         />
+
+                        {/* Camera Shutter Button */}
+                        {isBiomechanicsAgent && (isCameraOn || isScreenSharing) && (
+                            <TooltipAnchor
+                                description="Capturar Foto de Evidencia"
+                                render={
+                                    <button
+                                        onClick={handleManualCapture}
+                                        className="p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                    >
+                                        <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    </button>
+                                }
+                            />
+                        )}
 
                         {/* Camera Switch */}
                         {isCameraOn && (
                             <TooltipAnchor
                                 description={localize('com_ui_switch_camera')}
                                 render={
-                                    <button onClick={switchCamera} className="p-4 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all transform active:rotate-180 duration-500">
-                                        <RefreshCcw className="w-5 h-5" />
-                                    </button>
-                                }
-                            />
-                        )}
-
-                        {/* Camera Shutter Button */}
-                        {(isCameraOn || isScreenSharing) && (
-                            <TooltipAnchor
-                                description="Capturar Foto de Evidencia"
-                                render={
-                                    <button
-                                        onClick={handleManualCapture}
-                                        className="p-3 md:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
+                                    <button 
+                                        onClick={switchCamera} 
+                                        className="p-2.5 sm:p-4 rounded-full bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 border border-amber-500/30 transition-all transform active:rotate-180 duration-500 shadow-md shadow-amber-900/20"
                                     >
-                                        <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                                        <RefreshCcw className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </button>
                                 }
                             />
                         )}
 
-                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+                        <div className="w-[1px] h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2"></div>
 
                         {/* Microphone (Center hero button) */}
                         <TooltipAnchor
@@ -1201,15 +1236,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                             render={
                                 <button
                                     onClick={toggleMute}
-                                    className={`p-3.5 md:p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md' : 'bg-white text-black shadow-xl shadow-white/10 scale-105 md:scale-110 border-2 md:border-4 border-white'}`}
+                                    className={`p-3.5 sm:p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md' : 'bg-white text-black shadow-xl shadow-white/10 scale-105 sm:scale-110 border-4 border-white'}`}
                                 >
-                                    {isMuted ? <MicOff className="w-5 h-5 md:w-7 md:h-7" /> : (
+                                    {isMuted ? <MicOff className="w-6 h-6 sm:w-7 sm:h-7" /> : (
                                         <div className="relative">
-                                            <Mic className="w-5 h-5 md:w-7 md:h-7" />
+                                            <Mic className="w-6 h-6 sm:w-7 sm:h-7" />
                                             {status === 'listening' && (
-                                                <span className="absolute -top-2 md:-top-3 -right-2 md:-right-3 flex h-3 w-3 md:h-4 md:w-4">
+                                                <span className="absolute -top-3 -right-3 flex h-4 w-4">
                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-teal-500"></span>
+                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-teal-500"></span>
                                                 </span>
                                             )}
                                         </div>
@@ -1218,7 +1253,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                             }
                         />
 
-                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+                        <div className="w-[1px] h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2"></div>
 
                         {/* Screen Share */}
                         {supportsScreenShare && (
@@ -1228,9 +1263,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                     <button
                                         onClick={toggleScreenShare}
                                         disabled={isCameraOn}
-                                        className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isCameraOn ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                        className={`p-2.5 sm:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 border border-blue-400/30' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20'} ${isCameraOn ? 'opacity-20 cursor-not-allowed' : ''}`}
                                     >
-                                        {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                                        {isScreenSharing ? <MonitorOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />}
                                     </button>
                                 }
                             />
@@ -1240,14 +1275,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <TooltipAnchor
                             description={localize('com_ui_voice_end_call')}
                             render={
-                                <button onClick={handleClose} className="p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all duration-300 transform hover:scale-110 active:scale-95 border border-red-400/20">
-                                    <PhoneOff className="w-5 h-5" />
+                                <button 
+                                    onClick={handleClose} 
+                                    className="p-2.5 sm:p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all duration-300 transform hover:scale-110 active:scale-95 border border-red-400/20"
+                                >
+                                    <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                             }
                         />
                     </div>
-
-
                 </div>
 
                 {/* Scan & Flash animation keyframes */}
