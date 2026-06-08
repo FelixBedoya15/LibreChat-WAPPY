@@ -104,9 +104,9 @@ const PLANS = [
     iconBg: 'bg-amber-500/10',
     features: [
       'Somos SST completo',
-      'Skills de Somos SST para Medicina Laboral',
       'Skills Termómetro Psicosocial',
       'Skill Somos SST Medicina Laboral y Riesgo Psicosocial',
+      'Chat Live (video llamada en vivo para detectar riesgos)',
       'Chat con IA ilimitado',
       'Conversaciones y chats ilimitados',
       'Subida de archivos ilimitada',
