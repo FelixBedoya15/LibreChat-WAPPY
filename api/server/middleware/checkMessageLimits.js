@@ -6,6 +6,9 @@ const { logger } = require('@librechat/data-schemas');
  * Limits to 10 messages/prompts per day (measured since midnight).
  */
 const checkMessageLimits = async (req, res, next) => {
+  if (res.headersSent) {
+    return next();
+  }
   try {
     if (!req.user) {
       return next();
@@ -43,6 +46,9 @@ const checkMessageLimits = async (req, res, next) => {
     next();
   } catch (error) {
     logger.error('Error en checkMessageLimits middleware:', error);
+    if (res.headersSent) {
+      return;
+    }
     next(error);
   }
 };

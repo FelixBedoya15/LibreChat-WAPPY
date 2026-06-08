@@ -128,7 +128,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 valColorClass: 'text-white/50'
             };
         }
-        if (neckAngle > 20) {
+        if (neckAngle > 25) {
             return {
                 status: 'Crítico',
                 colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
@@ -162,7 +162,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 valColorClass: 'text-white/50'
             };
         }
-        if (trunkAngle > 20) {
+        if (trunkAngle > 25) {
             return {
                 status: 'Crítico',
                 colorClass: 'bg-red-500/15 border-red-500/30 text-red-200',
@@ -295,6 +295,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         initialVoice: voiceChatGeneral,
         model,
         endpoint,
+        agentId,
         template: isBiomechanicsAgent ? 'biomecanico_mediapipe' : undefined,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
@@ -322,7 +323,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.error('[VoiceModal] Error:', error);
             setStatusText(`Error: ${error}`);
         },
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, agentId]);
 
     const {
         isConnected,
@@ -611,116 +612,125 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             activeAnkle = leftAnkle || rightAnkle;
         }
 
-        if (activeShoulder && activeEar && activeHip) {
-            // Cervical angle (flexion from vertical)
+        let neckDeg: number | null = null;
+        let trunkDeg: number | null = null;
+        let armDeg: number | null = null;
+        let elbowDegVal: number | null = null;
+        let kneeFlexVal: number | null = null;
+
+        // Cervical angle (flexion from vertical)
+        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.75 && (activeEar.visibility ?? 0) > 0.75) {
             const neckDx = activeShoulder.x - activeEar.x;
             const neckDy = activeShoulder.y - activeEar.y;
             const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
-            const neckDeg = Math.round(neckRad * (180 / Math.PI));
+            neckDeg = Math.round(neckRad * (180 / Math.PI));
+        }
 
-            // Trunk angle (flexion from vertical)
+        // Trunk angle (flexion from vertical)
+        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.75 && (activeHip.visibility ?? 0) > 0.75) {
             const trunkDx = activeShoulder.x - activeHip.x;
             const trunkDy = activeHip.y - activeShoulder.y;
             const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
-            const trunkDeg = Math.round(trunkRad * (180 / Math.PI));
+            trunkDeg = Math.round(trunkRad * (180 / Math.PI));
+        }
 
-            setNeckAngle(neckDeg);
-            setTrunkAngle(trunkDeg);
-
-            // Arm angle (abduction from spine)
-            let armDeg = 0;
-            if (activeElbow) {
-                const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
-                const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
-                const dot = v1.x * v2.x + v1.y * v2.y;
-                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-                if (mag1 * mag2 > 0) {
-                    const cosAngle = dot / (mag1 * mag2);
-                    armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-                }
+        // Arm angle (abduction from spine)
+        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.75 && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75) {
+            const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
+            const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
+            const dot = v1.x * v2.x + v1.y * v2.y;
+            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+            if (mag1 * mag2 > 0) {
+                const cosAngle = dot / (mag1 * mag2);
+                armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
             }
-            setArmAngle(armDeg);
+        }
 
-            // Elbow flexion angle (relative angle at elbow joint)
-            let elbowDegVal: number | null = null;
-            if (activeShoulder && activeElbow && activeWrist) {
-                const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
-                const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
-                const dot = v1.x * v2.x + v1.y * v2.y;
-                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-                if (mag1 * mag2 > 0) {
-                    const cosAngle = dot / (mag1 * mag2);
-                    elbowDegVal = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-                }
+        // Elbow flexion angle (relative angle at elbow joint)
+        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75 && (activeWrist.visibility ?? 0) > 0.75) {
+            const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
+            const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
+            const dot = v1.x * v2.x + v1.y * v2.y;
+            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+            if (mag1 * mag2 > 0) {
+                const cosAngle = dot / (mag1 * mag2);
+                elbowDegVal = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
             }
-            setElbowAngle(elbowDegVal);
+        }
 
-            // Knee flexion angle (deviation from 180 degrees)
-            let kneeFlexVal: number | null = null;
-            if (activeHip && activeKnee && activeAnkle) {
-                const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
-                const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
-                const dot = v1.x * v2.x + v1.y * v2.y;
-                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-                if (mag1 * mag2 > 0) {
-                    const cosAngle = dot / (mag1 * mag2);
-                    const kneeRawDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-                    kneeFlexVal = Math.max(0, 180 - kneeRawDeg);
-                }
+        // Knee flexion angle (deviation from 180 degrees)
+        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.75 && (activeKnee.visibility ?? 0) > 0.75 && (activeAnkle.visibility ?? 0) > 0.75) {
+            const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
+            const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
+            const dot = v1.x * v2.x + v1.y * v2.y;
+            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+            if (mag1 * mag2 > 0) {
+                const cosAngle = dot / (mag1 * mag2);
+                const kneeRawDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
+                kneeFlexVal = Math.max(0, 180 - kneeRawDeg);
             }
-            setKneeAngle(kneeFlexVal);
+        }
 
-            // Posture threshold tracking for Auto-Snapshot
-            const now = Date.now();
-            const isElbowCritical = elbowDegVal !== null && (elbowDegVal < 30 || elbowDegVal > 130);
-            const isKneeCritical = kneeFlexVal !== null && kneeFlexVal > 60;
-            if (neckDeg > 20 || trunkDeg > 20 || armDeg > 45 || isElbowCritical || isKneeCritical) {
-                if (badPostureStartRef.current === null) {
-                    badPostureStartRef.current = now;
-                } else {
-                    const duration = now - badPostureStartRef.current;
-                    if (duration >= 3000) { // 3 seconds of sustained bad posture
-                        if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
-                            lastSnapshotTimeRef.current = now;
-                            badPostureStartRef.current = null; // reset
-                            
-                            if (manualPhotosCountRef.current < 10) {
-                                // Capture snapshot
-                                const dataUrl = captureSnapshot();
-                                if (dataUrl) {
-                                    // Trigger flash
-                                    setIsFlashActive(true);
-                                    setTimeout(() => setIsFlashActive(false), 150);
+        setNeckAngle(neckDeg);
+        setTrunkAngle(trunkDeg);
+        setArmAngle(armDeg);
+        setElbowAngle(elbowDegVal);
+        setKneeAngle(kneeFlexVal);
 
-                                    // Update local state to show on screen
-                                    setManualCapturedPhotos((prev) => {
-                                        const next = [...prev, dataUrl];
-                                        manualPhotosCountRef.current = next.length;
-                                        return next;
-                                    });
+        // Posture threshold tracking for Auto-Snapshot
+        const now = Date.now();
+        const isNeckCritical = neckDeg !== null && neckDeg > 25;
+        const isTrunkCritical = trunkDeg !== null && trunkDeg > 25;
+        const isArmCritical = armDeg !== null && armDeg > 45;
+        const isElbowCritical = elbowDegVal !== null && (elbowDegVal < 30 || elbowDegVal > 130);
+        const isKneeCritical = kneeFlexVal !== null && kneeFlexVal > 60;
 
-                                    // Send to hook (backend)
-                                    const base64 = dataUrl.split(',')[1];
-                                    sendEvidenceImage(base64);
+        if (isNeckCritical || isTrunkCritical || isArmCritical || isElbowCritical || isKneeCritical) {
+            if (badPostureStartRef.current === null) {
+                badPostureStartRef.current = now;
+            } else {
+                const duration = now - badPostureStartRef.current;
+                if (duration >= 3000) { // 3 seconds of sustained bad posture
+                    if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
+                        lastSnapshotTimeRef.current = now;
+                        badPostureStartRef.current = null; // reset
+                        
+                        if (manualPhotosCountRef.current < 10) {
+                            // Capture snapshot
+                            const dataUrl = captureSnapshot();
+                            if (dataUrl) {
+                                // Trigger flash
+                                setIsFlashActive(true);
+                                setTimeout(() => setIsFlashActive(false), 150);
 
-                                    console.log(`[VoiceModal] Auto-posture photo captured and sent. Total photos: ${manualPhotosCountRef.current}`);
+                                // Update local state to show on screen
+                                setManualCapturedPhotos((prev) => {
+                                    const next = [...prev, dataUrl];
+                                    manualPhotosCountRef.current = next.length;
+                                    return next;
+                                });
 
-                                    // Send telemetry data directly to Gemini session!
-                                    sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
-                                }
-                            } else {
-                                // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
-                                sendTextMessage(`[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°, Flexión de Tronco ${trunkDeg}°, Abducción de Brazo ${armDeg}°, Flexión de Codo ${elbowDegVal !== null ? `${elbowDegVal}°` : 'N/A'}, Flexión de Rodilla ${kneeFlexVal !== null ? `${kneeFlexVal}°` : 'N/A'}.`);
+                                // Send to hook (backend)
+                                const base64 = dataUrl.split(',')[1];
+                                sendEvidenceImage(base64);
+
+                                console.log(`[VoiceModal] Auto-posture photo captured and sent. Total photos: ${manualPhotosCountRef.current}`);
+
+                                // Send telemetry data directly to Gemini session!
+                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
                             }
+                        } else {
+                            // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
+                            sendTextMessage(`[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}.`);
                         }
                     }
                 }
-            } else {
-                badPostureStartRef.current = null;
             }
+        } else {
+            badPostureStartRef.current = null;
         }
     }, [captureSnapshot, sendEvidenceImage, sendTextMessage, setManualCapturedPhotos]);
 
@@ -1186,7 +1196,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                         {/* Camera */}
                         <TooltipAnchor
-                            description={isCameraOn ? localize('com_ui_voice_camera_off') : localize('com_ui_voice_camera_on')}
+                            description={isCameraOn ? localize('com_ui_voice_camera_off' as any) : localize('com_ui_voice_camera_on' as any)}
                             render={
                                 <button
                                     onClick={toggleCamera}
@@ -1216,7 +1226,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         {/* Camera Switch */}
                         {isCameraOn && (
                             <TooltipAnchor
-                                description={localize('com_ui_switch_camera')}
+                                description={localize('com_ui_switch_camera' as any)}
                                 render={
                                     <button 
                                         onClick={switchCamera} 
@@ -1232,7 +1242,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                         {/* Microphone (Center hero button) */}
                         <TooltipAnchor
-                            description={isMuted ? localize('com_nav_voice_unmute') : localize('com_nav_voice_mute')}
+                            description={isMuted ? localize('com_nav_voice_unmute' as any) : localize('com_nav_voice_mute' as any)}
                             render={
                                 <button
                                     onClick={toggleMute}
@@ -1258,7 +1268,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         {/* Screen Share */}
                         {supportsScreenShare && (
                             <TooltipAnchor
-                                description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
+                                description={isScreenSharing ? localize('com_ui_voice_screen_share_stop' as any) : localize('com_ui_voice_screen_share_start' as any)}
                                 render={
                                     <button
                                         onClick={toggleScreenShare}
@@ -1273,7 +1283,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                         {/* End Call */}
                         <TooltipAnchor
-                            description={localize('com_ui_voice_end_call')}
+                            description={localize('com_ui_voice_end_call' as any)}
                             render={
                                 <button 
                                     onClick={handleClose} 

@@ -21,6 +21,7 @@ interface UseVoiceSessionOptions {
     model?: string;
     endpoint?: string;
     template?: string;
+    agentId?: string;
 }
 
 
@@ -264,6 +265,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             if (options.template) {
                 wsUrl += `&template=${encodeURIComponent(options.template)}`;
+            }
+            if (options.agentId) {
+                wsUrl += `&agentId=${encodeURIComponent(options.agentId)}`;
             }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);

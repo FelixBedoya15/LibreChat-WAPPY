@@ -3,7 +3,7 @@ const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
-const { saveMessage, saveConvo, getMessages } = require('~/models');
+const { saveMessage, saveConvo, getMessages, updateMessage } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
@@ -89,6 +89,7 @@ class VoiceSession {
         this.aiTranscriptionBuffer = ''; // ← NEW: accumulates AI speech transcription separately
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
+        this.activeEvidenceMessageId = null; // Track current grouped evidence message ID
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -525,9 +526,27 @@ class VoiceSession {
                         this.manualEvidences.shift();
                     }
 
-                    // Save manual photo to chat history immediately:
+                    // Let the model know about this image: set it as the latestFrame 
+                    // so that if the user asks about it, the model has the context.
+                    this.latestFrame = data.image;
+
+                    // Build grouped message content
+                    const text = "Fotos de evidencia";
+                    const messageContent = [
+                        { type: 'text', text }
+                    ];
+
+                    for (const img of this.manualEvidences) {
+                        const imageUrl = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                        messageContent.push({
+                            type: 'image_url',
+                            image_url: {
+                                url: imageUrl
+                            }
+                        });
+                    }
+
                     try {
-                        const messageId = uuidv4();
                         let conversationId = this.conversationId;
                         let isNewConvo = false;
                         if (!conversationId || conversationId === 'new') {
@@ -536,56 +555,53 @@ class VoiceSession {
                             isNewConvo = true;
                         }
 
-                        const text = "Foto de evidencia";
-                        const imageUrl = data.image.startsWith('data:') ? data.image : `data:image/jpeg;base64,${data.image}`;
-                        const messageContent = [
-                            { type: 'text', text },
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageUrl
-                                }
+                        if (this.activeEvidenceMessageId) {
+                            // Update existing grouped message
+                            const messageData = {
+                                messageId: this.activeEvidenceMessageId,
+                                content: messageContent
+                            };
+                            await updateMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Update' });
+                            logger.info(`[VoiceSession] Updated manual evidence image to grouped message: ${this.activeEvidenceMessageId}`);
+                        } else {
+                            // Create new grouped message
+                            const messageId = uuidv4();
+                            const messageData = {
+                                messageId,
+                                conversationId,
+                                parentMessageId: this.lastMessageId,
+                                text,
+                                content: messageContent,
+                                user: this.userId,
+                                sender: 'User',
+                                isCreatedByUser: true,
+                                endpoint: this.dbEndpoint,
+                                model: this.dbModel,
+                            };
+
+                            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Save' });
+                            if (savedMessage) {
+                                this.activeEvidenceMessageId = messageId;
+                                this.lastMessageId = messageId;
+                                logger.info(`[VoiceSession] Saved initial manual evidence image to grouped message: ${messageId}`);
                             }
-                        ];
+                        }
 
-                        const messageData = {
-                            messageId,
-                            conversationId,
-                            parentMessageId: this.lastMessageId,
-                            text,
-                            content: messageContent,
-                            user: this.userId,
-                            sender: 'User',
-                            isCreatedByUser: true,
-                            endpoint: this.dbEndpoint,
-                            model: this.dbModel,
-                        };
-
-                        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence' });
-                        if (savedMessage) {
-                            this.lastMessageId = messageId;
-                            logger.info(`[VoiceSession] Saved manual evidence image to chat: ${messageId}`);
-                            
-                            // Let the model know about this image: set it as the latestFrame 
-                            // so that if the user asks about it, the model has the context.
-                            this.latestFrame = data.image;
-
-                            // Notify client of conversationId if it was new
-                            if (isNewConvo) {
-                                this.sendToClient({
-                                    type: 'conversationId',
-                                    data: { conversationId: this.conversationId }
-                                });
-                            }
-
-                            // Always notify client that conversation was updated, so it can invalidate cache/refresh chat feed
+                        // Notify client of conversationId if it was new
+                        if (isNewConvo) {
                             this.sendToClient({
-                                type: 'conversationUpdated',
-                                data: {}
+                                type: 'conversationId',
+                                data: { conversationId: this.conversationId }
                             });
                         }
+
+                        // Always notify client that conversation was updated, so it can invalidate cache/refresh chat feed
+                        this.sendToClient({
+                            type: 'conversationUpdated',
+                            data: { conversationId: this.conversationId }
+                        });
                     } catch (saveError) {
-                        logger.error('[VoiceSession] Error saving manual evidence image to chat DB:', saveError);
+                        logger.error('[VoiceSession] Error processing manual evidence image in chat DB:', saveError);
                     }
                 }
                 break;
@@ -1563,6 +1579,33 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             } else if (typeof configOrVoice === 'object') {
                 config = configOrVoice;
                 logger.info(`[VoiceSession] Initializing with custom config`);
+            }
+        }
+
+        // Load agent prompt/instructions if applicable
+        let agentId = config.agentId;
+        if (!agentId && conversationId && conversationId !== 'new') {
+            try {
+                const { getConvo } = require('~/models');
+                const convo = await getConvo({ user: userId }, conversationId);
+                if (convo && convo.agent_id) {
+                    agentId = convo.agent_id;
+                }
+            } catch (convoError) {
+                logger.error('[VoiceSession] Error loading conversation details:', convoError);
+            }
+        }
+
+        if (agentId) {
+            try {
+                const { getAgent } = require('~/models/Agent');
+                const agent = await getAgent({ id: agentId });
+                if (agent && agent.instructions) {
+                    config.systemInstruction = agent.instructions;
+                    logger.info(`[VoiceSession] Synchronized session systemInstruction with Agent (${agent.name || agentId}) prompt`);
+                }
+            } catch (agentError) {
+                logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
         }
         

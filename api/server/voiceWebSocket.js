@@ -37,6 +37,7 @@ function setupVoiceWebSocket(server) {
             const model = params.model;
             const endpoint = params.endpoint;
             const mode = params.mode;
+            const agentId = params.agentId;
 
             if (!token) {
                 logger.warn('[WebSocket] No token provided');
@@ -96,6 +97,7 @@ function setupVoiceWebSocket(server) {
             if (model) config.model = model;
             if (endpoint) config.endpoint = endpoint;
             if (mode) config.mode = mode;
+            if (agentId) config.agentId = agentId;
 
             const result = await createSession(ws, user.id, conversationId, config);
 

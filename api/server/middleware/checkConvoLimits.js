@@ -2,6 +2,9 @@ const { Conversation } = require('~/db/models');
 const { logger } = require('@librechat/data-schemas');
 
 const checkConvoLimits = async (req, res, next) => {
+    if (res.headersSent) {
+        return next();
+    }
     try {
         if (!req.user || !['USER', 'USER_GO', 'USER_IPEVAR'].includes(req.user.role)) {
             return next();
@@ -51,6 +54,9 @@ const checkConvoLimits = async (req, res, next) => {
         next();
     } catch (error) {
         logger.error('Error en checkConvoLimits middleware:', error);
+        if (res.headersSent) {
+            return;
+        }
         next(error);
     }
 };
