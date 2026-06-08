@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Shield, Smile, Meh, Frown, Send, CheckCircle, MessageSquare, Loader2, Building2, ChevronRight, AlertCircle, Heart } from 'lucide-react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   sender: 'user' | 'agent';
@@ -557,11 +558,19 @@ export default function PublicMoodTracker() {
                         : 'bg-gray-800/80 text-gray-100 border border-gray-700 rounded-tl-none'
                     }`}
                   >
-                    {msg.text || (
-                      <span className="flex items-center gap-1.5 text-gray-400">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                        Escribiendo...
-                      </span>
+                    {msg.sender === 'user' ? (
+                      <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                    ) : (
+                      msg.text ? (
+                        <ReactMarkdown className="prose dark:prose-invert text-xs max-w-none break-words prose-p:leading-relaxed prose-p:my-1 prose-p:text-gray-100 prose-headings:text-white prose-strong:text-white prose-ul:my-1 prose-li:my-0.5 whitespace-pre-wrap">
+                          {msg.text}
+                        </ReactMarkdown>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-gray-400">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                          Escribiendo...
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
