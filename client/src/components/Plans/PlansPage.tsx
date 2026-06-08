@@ -207,6 +207,7 @@ const APP_PLANS = [
       '**Pago Único (Acceso de Por Vida)**',
       '**Chat con IA Ilimitado**',
       'Hasta **20 chats** abiertos',
+      '**Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Auditor Integral SG-SST)**',
       '**Subida de archivos ilimitada**',
       '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
       '**Skill Editor RIT**',
