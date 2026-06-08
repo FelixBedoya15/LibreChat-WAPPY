@@ -261,6 +261,33 @@ export default function ComunidadPage() {
     }
   };
 
+  const handleApprovePurchaseManual = async (email: string, reference: string) => {
+    if (!confirm(`¿Estás seguro de que deseas aprobar manualmente la compra de ${email}?`)) {
+      return;
+    }
+    try {
+      const response = await axios.post('/api/comunidad/fix-purchase', {
+        secret: 'forensic2026',
+        email,
+        action: 'approve',
+        reference
+      });
+      if (response.data.success) {
+        alert('Compra aprobada con éxito.');
+        // Update local state
+        setPurchases(prev => prev.map(p => {
+          if (p.email.toLowerCase() === email.toLowerCase()) {
+            return { ...p, isPaid: true, status: 'APPROVED' };
+          }
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error('Error approving purchase:', err);
+      alert('Error al aprobar la compra.');
+    }
+  };
+
   useEffect(() => {
     fetchConfig();
     if (window.fbq) {
@@ -1582,7 +1609,16 @@ export default function ComunidadPage() {
                               </>
                             )}
                             <td className="p-3 text-text-secondary">{new Date(item.createdAt).toLocaleString()}</td>
-                            <td className="p-3 text-right">
+                            <td className="p-3 text-right flex justify-end gap-1.5">
+                              {dashboardTab === 'pending' && (
+                                <button
+                                  onClick={() => handleApprovePurchaseManual(item.email, item.wompiReference)}
+                                  className="p-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 transition-all shadow-sm hover:scale-105 shrink-0"
+                                  title="Aprobar Compra Manualmente"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => dashboardTab === 'leads' ? handleDeleteLead(item._id) : handleDeletePurchase(item._id)}
                                 className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all shadow-sm hover:scale-105 shrink-0"
