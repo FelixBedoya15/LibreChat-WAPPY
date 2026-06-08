@@ -106,8 +106,8 @@ const PLANS = [
       '**Todo lo del Plan Wappy Vital**',
       'Conversaciones y chats ilimitados',
       'Somos SST completo',
-      '**Skills** Termómetro Psicosocial',
-      '**Skill** Somos SST Medicina Laboral y Riesgo Psicosocial',
+      'Skills Termómetro Psicosocial',
+      'Skill Somos SST Medicina Laboral y Riesgo Psicosocial',
       'Chat Live (video llamada en vivo para detectar riesgos)',
       'Crea tus propios Agentes de IA',
       'Análisis en Vivo con (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)',
@@ -2166,6 +2166,10 @@ export default function PlansPage() {
                                     : 'año'}
                             </span>
                           </div>
+
+                          <p className="text-xs text-transparent select-none font-semibold mt-1">
+                            &nbsp;
+                          </p>
 
                           {isNotMonthly && (
                             <div className="mt-0.5 text-sm font-bold text-text-primary">
