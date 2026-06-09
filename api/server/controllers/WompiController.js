@@ -422,7 +422,7 @@ const handleWebhook = async (req, res) => {
         }
 
         // Update transaction in our DB
-        if (reference && reference.startsWith('WAP-COM-')) {
+        if (reference && (reference.startsWith('WAP-COM-') || reference.startsWith('WAP-VIT-'))) {
             const ComunidadPurchase = require('../../models/ComunidadPurchase');
             const purchase = await ComunidadPurchase.findOne({ wompiReference: reference });
             if (!purchase) {

@@ -18,6 +18,11 @@ const ComunidadSessionSchema = new mongoose.Schema({
         downloadFile: { type: Number, default: 0 },
         recoverAccess: { type: Number, default: 0 },
         whatsapp: { type: Number, default: 0 }
+    },
+    funnelKey: {
+        type: String,
+        default: 'comunidad',
+        trim: true
     }
 }, { timestamps: true });
 

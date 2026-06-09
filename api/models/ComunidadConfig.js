@@ -4,7 +4,11 @@ const ComunidadConfigSchema = new mongoose.Schema({
     // Central config document for Comunidad Page global settings
     isGlobalSetting: {
         type: Boolean,
-        default: true,
+        default: true
+    },
+    funnelKey: {
+        type: String,
+        default: 'comunidad',
         unique: true
     },
     videoUrl: {
@@ -61,5 +65,22 @@ const ComunidadConfigSchema = new mongoose.Schema({
         trim: true
     }
 }, { timestamps: true });
+
+// Drop old unique index on isGlobalSetting if it exists
+if (mongoose.connection) {
+    mongoose.connection.on('open', async () => {
+        try {
+            const collection = mongoose.connection.db.collection('comunidadconfigs');
+            const indexes = await collection.indexes();
+            const hasOldIndex = indexes.some(idx => idx.name === 'isGlobalSetting_1');
+            if (hasOldIndex) {
+                await collection.dropIndex('isGlobalSetting_1');
+                console.log('[Mongoose Migration] Dropped unique index isGlobalSetting_1 on comunidadconfigs');
+            }
+        } catch (err) {
+            console.error('[Mongoose Migration] Error dropping old index on comunidadconfigs:', err.message);
+        }
+    });
+}
 
 module.exports = mongoose.models.ComunidadConfig || mongoose.model('ComunidadConfig', ComunidadConfigSchema);

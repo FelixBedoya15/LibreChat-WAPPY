@@ -7,11 +7,22 @@ const { Lead } = require('../../models/Lead');
 const ComunidadSession = require('../../models/ComunidadSession');
 const { logger } = require('@librechat/data-schemas');
 
+const getFunnelQuery = (req) => {
+    const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
+    if (funnelKey === 'comunidad') {
+        return { $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] };
+    }
+    return { funnelKey };
+};
+
 const getComunidadConfig = async (req, res) => {
     try {
-        let config = await ComunidadConfig.findOne({ isGlobalSetting: true });
+        const query = getFunnelQuery(req);
+        let config = await ComunidadConfig.findOne(query);
         if (!config) {
+            const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
             config = new ComunidadConfig({
+                funnelKey,
                 isGlobalSetting: true,
                 videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
                 requiresPayment: false,
@@ -38,12 +49,14 @@ const updateComunidadConfig = async (req, res) => {
     try {
         const { 
             videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles,
-            whatsappUrl, extraVideoUrl1, extraVideoTitle1, extraVideoUrl2, extraVideoTitle2
+            whatsappUrl, extraVideoUrl1, extraVideoTitle1, extraVideoUrl2, extraVideoTitle2,
+            funnelKey = 'comunidad'
         } = req.body;
         
-        let config = await ComunidadConfig.findOne({ isGlobalSetting: true });
+        const query = getFunnelQuery(req);
+        let config = await ComunidadConfig.findOne(query);
         if (!config) {
-            config = new ComunidadConfig({ isGlobalSetting: true });
+            config = new ComunidadConfig({ funnelKey, isGlobalSetting: true });
         }
 
         if (videoUrl !== undefined) config.videoUrl = videoUrl;
@@ -68,18 +81,22 @@ const updateComunidadConfig = async (req, res) => {
 
 const createComunidadCheckout = async (req, res) => {
     try {
-        const { fullName, email, phone } = req.body;
+        const { fullName, email, phone, funnelKey = 'comunidad' } = req.body;
         if (!fullName || !email || !phone) {
             return res.status(400).json({ error: 'Todos los campos (nombre, correo, celular) son obligatorios.' });
         }
 
         try {
-            const existingLead = await Lead.findOne({ email: email.toLowerCase().trim() });
+            const leadQuery = funnelKey === 'comunidad'
+                ? { email: email.toLowerCase().trim(), $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+                : { email: email.toLowerCase().trim(), funnelKey };
+            const existingLead = await Lead.findOne(leadQuery);
             if (!existingLead) {
                 const newLead = new Lead({
                     fullName: fullName.trim(),
                     email: email.toLowerCase().trim(),
-                    phone: phone.trim()
+                    phone: phone.trim(),
+                    funnelKey
                 });
                 await newLead.save();
             }
@@ -87,7 +104,10 @@ const createComunidadCheckout = async (req, res) => {
             logger.error('[ComunidadController] Error registering lead:', leadErr);
         }
 
-        let purchase = await ComunidadPurchase.findOne({ email: email.toLowerCase().trim() });
+        const purchaseQuery = funnelKey === 'comunidad'
+            ? { email: email.toLowerCase().trim(), $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { email: email.toLowerCase().trim(), funnelKey };
+        let purchase = await ComunidadPurchase.findOne(purchaseQuery);
         
         if (purchase && purchase.isPaid) {
             return res.json({ 
@@ -104,14 +124,18 @@ const createComunidadCheckout = async (req, res) => {
                 fullName: fullName.trim(),
                 email: email.toLowerCase().trim(),
                 phone: phone.trim(),
-                isPaid: false
+                isPaid: false,
+                funnelKey
             });
         } else {
             purchase.fullName = fullName.trim();
             purchase.phone = phone.trim();
         }
 
-        const config = await ComunidadConfig.findOne({ isGlobalSetting: true });
+        const configQuery = funnelKey === 'comunidad'
+            ? { $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { funnelKey };
+        const config = await ComunidadConfig.findOne(configQuery);
         const price = config ? config.price : 0;
         const requiresPayment = config ? config.requiresPayment : false;
 
@@ -123,7 +147,8 @@ const createComunidadCheckout = async (req, res) => {
         }
 
         const amountInCents = Math.round(price * 100);
-        const reference = `WAP-COM-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const prefix = funnelKey === 'wappyvital' ? 'WAP-VIT' : 'WAP-COM';
+        const reference = `${prefix}-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
         purchase.wompiReference = reference;
         purchase.amountInCents = amountInCents;
@@ -186,7 +211,8 @@ const verifyComunidadTransaction = async (req, res) => {
             status: 'APPROVED', 
             email: purchase.email,
             fullName: purchase.fullName,
-            phone: purchase.phone
+            phone: purchase.phone,
+            funnelKey: purchase.funnelKey || 'comunidad'
         });
     } catch (err) {
         logger.error('[ComunidadController] verifyComunidadTransaction error:', err);
@@ -196,10 +222,13 @@ const verifyComunidadTransaction = async (req, res) => {
 
 const checkComunidadAccess = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, funnelKey = 'comunidad' } = req.body;
         if (!email) return res.status(400).json({ error: 'El correo electrónico es obligatorio.' });
 
-        const purchase = await ComunidadPurchase.findOne({ email: email.toLowerCase().trim(), isPaid: true });
+        const query = funnelKey === 'comunidad'
+            ? { email: email.toLowerCase().trim(), isPaid: true, $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { email: email.toLowerCase().trim(), isPaid: true, funnelKey };
+        const purchase = await ComunidadPurchase.findOne(query);
         if (purchase) {
             return res.json({
                 isPaid: true,
@@ -219,11 +248,14 @@ const checkComunidadAccess = async (req, res) => {
 
 const markVideoFinished = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, funnelKey = 'comunidad' } = req.body;
         if (!email) return res.status(400).json({ error: 'El correo electrónico es obligatorio.' });
 
+        const query = funnelKey === 'comunidad'
+            ? { email: email.toLowerCase().trim(), isPaid: true, $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { email: email.toLowerCase().trim(), isPaid: true, funnelKey };
         const purchase = await ComunidadPurchase.findOneAndUpdate(
-            { email: email.toLowerCase().trim(), isPaid: true },
+            query,
             { $set: { videoWatched: true } },
             { new: true }
         );
@@ -241,7 +273,8 @@ const markVideoFinished = async (req, res) => {
 
 const getAllPurchases = async (req, res) => {
     try {
-        const purchases = await ComunidadPurchase.find().sort({ createdAt: -1 });
+        const query = getFunnelQuery(req);
+        const purchases = await ComunidadPurchase.find(query).sort({ createdAt: -1 });
         return res.json(purchases);
     } catch (err) {
         logger.error('[ComunidadController] getAllPurchases error:', err);
@@ -265,12 +298,12 @@ const deletePurchase = async (req, res) => {
 
 const registerSessionMetric = async (req, res) => {
     try {
-        const { sessionId, durationSeconds, clickType } = req.body;
+        const { sessionId, durationSeconds, clickType, funnelKey = 'comunidad' } = req.body;
         if (!sessionId) {
             return res.status(400).json({ error: 'Falta ID de sesión.' });
         }
 
-        const update = { $set: { updatedAt: new Date() } };
+        const update = { $set: { updatedAt: new Date(), funnelKey } };
 
         if (durationSeconds !== undefined) {
             update.$set.durationSeconds = Number(durationSeconds) || 0;
@@ -298,9 +331,11 @@ const registerSessionMetric = async (req, res) => {
 
 const getMetricsStats = async (req, res) => {
     try {
-        const totalVisits = await ComunidadSession.countDocuments();
+        const query = getFunnelQuery(req);
+        const totalVisits = await ComunidadSession.countDocuments(query);
         
         const durationStats = await ComunidadSession.aggregate([
+            { $match: query },
             {
                 $group: {
                     _id: null,
@@ -312,6 +347,7 @@ const getMetricsStats = async (req, res) => {
         const avgDurationSeconds = durationStats[0]?.avgDuration || 0;
 
         const clickStats = await ComunidadSession.aggregate([
+            { $match: query },
             {
                 $group: {
                     _id: null,
@@ -354,14 +390,17 @@ const getMetricsStats = async (req, res) => {
 
 const markPurchaseTracked = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, funnelKey = 'comunidad' } = req.body;
         if (!email) {
             return res.status(400).json({ error: 'Email is required' });
         }
 
         const normalizedEmail = email.toLowerCase().trim();
+        const query = funnelKey === 'comunidad'
+            ? { email: normalizedEmail, $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { email: normalizedEmail, funnelKey };
         const purchase = await ComunidadPurchase.findOneAndUpdate(
-            { email: normalizedEmail },
+            query,
             { $set: { purchaseTracked: true } },
             { new: true }
         );
@@ -406,11 +445,11 @@ const auditComunidadForensic = async (req, res) => {
         for (const email of emails) {
             const normEmail = email.toLowerCase().trim();
             
-            const lead = await Lead.findOne({ email: normEmail });
-            results.leads.push({ email, lead });
+            const leads = await Lead.find({ email: normEmail });
+            results.leads.push({ email, leads });
 
-            const purchase = await ComunidadPurchase.findOne({ email: normEmail });
-            results.purchases.push({ email, purchase });
+            const purchases = await ComunidadPurchase.find({ email: normEmail });
+            results.purchases.push({ email, purchases });
 
             const user = await User.findOne({ email: normEmail });
             results.users.push({ email, user });
@@ -443,7 +482,7 @@ const auditComunidadForensic = async (req, res) => {
 
 const fixComunidadPurchase = async (req, res) => {
     try {
-        const { secret, email, action, reference, amount } = req.body;
+        const { secret, email, action, reference, amount, funnelKey = 'comunidad' } = req.body;
         if (secret !== 'forensic2026') {
             return res.status(403).json({ error: 'No autorizado' });
         }
@@ -455,8 +494,15 @@ const fixComunidadPurchase = async (req, res) => {
         const normalizedEmail = email.toLowerCase().trim();
 
         if (action === 'approve') {
-            let purchase = await ComunidadPurchase.findOne({ email: normalizedEmail });
-            const lead = await Lead.findOne({ email: normalizedEmail });
+            const query = funnelKey === 'comunidad'
+                ? { email: normalizedEmail, $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+                : { email: normalizedEmail, funnelKey };
+            let purchase = await ComunidadPurchase.findOne(query);
+            
+            const leadQuery = funnelKey === 'comunidad'
+                ? { email: normalizedEmail, $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+                : { email: normalizedEmail, funnelKey };
+            const lead = await Lead.findOne(leadQuery);
 
             if (!purchase) {
                 purchase = new ComunidadPurchase({
@@ -465,9 +511,10 @@ const fixComunidadPurchase = async (req, res) => {
                     phone: lead ? lead.phone : '3000000000',
                     isPaid: true,
                     status: 'APPROVED',
-                    wompiReference: reference || `WAP-COM-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+                    wompiReference: reference || `${funnelKey === 'wappyvital' ? 'WAP-VIT' : 'WAP-COM'}-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
                     amountInCents: amount ? Number(amount) : 2800000,
-                    purchaseTracked: false
+                    purchaseTracked: false,
+                    funnelKey
                 });
             } else {
                 purchase.isPaid = true;

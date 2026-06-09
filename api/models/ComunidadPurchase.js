@@ -41,9 +41,14 @@ const ComunidadPurchaseSchema = new mongoose.Schema({
     purchaseTracked: {
         type: Boolean,
         default: false
+    },
+    funnelKey: {
+        type: String,
+        default: 'comunidad',
+        trim: true
     }
 }, { timestamps: true });
 
-ComunidadPurchaseSchema.index({ email: 1, isPaid: 1 });
+ComunidadPurchaseSchema.index({ email: 1, funnelKey: 1, isPaid: 1 });
 
 module.exports = mongoose.models.ComunidadPurchase || mongoose.model('ComunidadPurchase', ComunidadPurchaseSchema);

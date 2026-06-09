@@ -30,6 +30,17 @@ export default function ComunidadPage() {
   const { user, token } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
 
+  // Determine funnelKey based on URL
+  const funnelKey = window.location.pathname.includes('wappyvital-planea') ? 'wappyvital' : 'comunidad';
+
+  // Storage key helper for LocalStorage partitioning
+  const getStorageKey = (key: string) => {
+    if (funnelKey === 'comunidad') {
+      return key;
+    }
+    return `${key}_${funnelKey}`;
+  };
+
   // Config States (Loaded from Backend DB)
   const [configLoading, setConfigLoading] = useState(true);
   const [requiresPayment, setRequiresPayment] = useState(false);
@@ -49,7 +60,7 @@ export default function ComunidadPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isVideoFinished, setIsVideoFinished] = useState(() => localStorage.getItem('wappy_comunidad_video_finished') === 'true');
+  const [isVideoFinished, setIsVideoFinished] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_video_finished')) === 'true');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -71,7 +82,7 @@ export default function ComunidadPage() {
   // Access State (Free Leads or Paid Purchases)
   const [isAccessChecking, setIsAccessChecking] = useState(true);
   const [isAccessGranted, setIsAccessGranted] = useState(false);
-  const [userEmail, setUserEmail] = useState(() => localStorage.getItem('wappy_comunidad_email') || '');
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_email')) || '');
   const [userFullName, setUserFullName] = useState('');
   
   // Checkout & Recovery Modal States
@@ -85,7 +96,7 @@ export default function ComunidadPage() {
   // Free Lead Modal State (Active when requiresPayment is false)
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [isLeadCaptured, setIsLeadCaptured] = useState(() => {
-    return localStorage.getItem('wappy_lead_captured') === 'true';
+    return localStorage.getItem(getStorageKey('wappy_lead_captured')) === 'true';
   });
 
   // Access Recovery
@@ -144,7 +155,7 @@ export default function ComunidadPage() {
   // 1. Fetch Page Configurations from Backend
   const fetchConfig = async () => {
     try {
-      const response = await axios.get('/api/comunidad/config');
+      const response = await axios.get('/api/comunidad/config', { params: { funnelKey } });
       if (response.data) {
         const data = response.data;
         setVideoUrl(data.videoUrl);
@@ -211,7 +222,7 @@ export default function ComunidadPage() {
       console.log(`[Meta Pixel] Sent Purchase event with Advanced Matching for ${email}`);
     }
     try {
-      await axios.post('/api/comunidad/mark-tracked', { email });
+      await axios.post('/api/comunidad/mark-tracked', { email, funnelKey });
     } catch (err) {
       console.error('[Meta Pixel] Error calling mark-tracked endpoint:', err);
     }
@@ -244,7 +255,7 @@ export default function ComunidadPage() {
         alert('Meta Pixel no está cargado en el navegador o está bloqueado por un adblocker.');
       }
       
-      const response = await axios.post('/api/comunidad/mark-tracked', { email });
+      const response = await axios.post('/api/comunidad/mark-tracked', { email, funnelKey });
       if (response.data.success) {
         setPurchases(prev => prev.map(p => {
           if (p.email.toLowerCase() === email.toLowerCase()) {
@@ -270,7 +281,8 @@ export default function ComunidadPage() {
         secret: 'forensic2026',
         email,
         action: 'approve',
-        reference
+        reference,
+        funnelKey
       });
       if (response.data.success) {
         alert('Compra aprobada con éxito.');
@@ -301,10 +313,10 @@ export default function ComunidadPage() {
       if (transactionId) {
         try {
           setIsAccessChecking(true);
-          const response = await axios.post('/api/comunidad/verify', { transactionId });
+          const response = await axios.post('/api/comunidad/verify', { transactionId, funnelKey });
           if (response.data.success) {
             const { email, fullName, phone } = response.data;
-            localStorage.setItem('wappy_comunidad_email', email);
+            localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
             setIsAccessGranted(true);
             setShowLeadModal(false);
@@ -340,7 +352,7 @@ export default function ComunidadPage() {
     if (configLoading) return;
     
     // Register initial page visit
-    axios.post('/api/comunidad/metrics/session', { sessionId }).catch(err => {});
+    axios.post('/api/comunidad/metrics/session', { sessionId, funnelKey }).catch(err => {});
 
     // Duration heartbeat timer
     let durationCounter = 0;
@@ -348,7 +360,8 @@ export default function ComunidadPage() {
       durationCounter += 10;
       axios.post('/api/comunidad/metrics/session', {
         sessionId,
-        durationSeconds: durationCounter
+        durationSeconds: durationCounter,
+        funnelKey
       }).catch(err => {});
     }, 10000);
 
@@ -357,7 +370,7 @@ export default function ComunidadPage() {
 
   // Click tracking helper
   const trackClick = (clickType: 'playVideo' | 'quickAccess' | 'checkoutSubmit' | 'downloadFile' | 'recoverAccess' | 'whatsapp') => {
-    axios.post('/api/comunidad/metrics/session', { sessionId, clickType }).catch(err => {});
+    axios.post('/api/comunidad/metrics/session', { sessionId, clickType, funnelKey }).catch(err => {});
   };
 
   // 2. Check Access for Returning User
@@ -375,7 +388,7 @@ export default function ComunidadPage() {
       return;
     }
 
-    axios.post('/api/comunidad/check-access', { email: userEmail })
+    axios.post('/api/comunidad/check-access', { email: userEmail, funnelKey })
       .then(res => {
         if (res.data.isPaid) {
           setIsAccessGranted(true);
@@ -427,10 +440,11 @@ export default function ComunidadPage() {
       email,
       phone,
       videoUrl,
+      funnelKey
     })
     .then(() => {
-      localStorage.setItem('wappy_lead_captured', 'true');
-      localStorage.setItem('wappy_lead_data', JSON.stringify({ 
+      localStorage.setItem(getStorageKey('wappy_lead_captured'), 'true');
+      localStorage.setItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
         fullName, 
         email, 
         phone 
@@ -468,7 +482,7 @@ export default function ComunidadPage() {
           events: {
             onReady: (event: any) => {
               setDuration(event.target.getDuration());
-              const savedProgress = localStorage.getItem('wappy_comunidad_video_progress');
+              const savedProgress = localStorage.getItem(getStorageKey('wappy_comunidad_video_progress'));
               if (savedProgress) {
                 const seekTime = parseFloat(savedProgress);
                 if (seekTime > 0 && seekTime < event.target.getDuration() - 2) {
@@ -501,9 +515,9 @@ export default function ComunidadPage() {
               if (totalDuration > 0) setDuration(totalDuration);
 
               // Save progress locally if video is not finished yet
-              const savedFinished = localStorage.getItem('wappy_comunidad_video_finished') === 'true';
+              const savedFinished = localStorage.getItem(getStorageKey('wappy_comunidad_video_finished')) === 'true';
               if (time > 1 && !savedFinished && (!totalDuration || time < totalDuration - 2)) {
-                localStorage.setItem('wappy_comunidad_video_progress', time.toString());
+                localStorage.setItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
               }
 
               // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
@@ -563,9 +577,9 @@ export default function ComunidadPage() {
       setCurrentTime(time);
 
       // Save progress locally if video is not finished yet
-      const savedFinished = localStorage.getItem('wappy_comunidad_video_finished') === 'true';
+      const savedFinished = localStorage.getItem(getStorageKey('wappy_comunidad_video_finished')) === 'true';
       if (time > 1 && !savedFinished && (!video.duration || time < video.duration - 2)) {
-        localStorage.setItem('wappy_comunidad_video_progress', time.toString());
+        localStorage.setItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
       }
       
       // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
@@ -585,7 +599,7 @@ export default function ComunidadPage() {
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
-      const savedProgress = localStorage.getItem('wappy_comunidad_video_progress');
+      const savedProgress = localStorage.getItem(getStorageKey('wappy_comunidad_video_progress'));
       if (savedProgress) {
         const seekTime = parseFloat(savedProgress);
         if (seekTime > 0 && seekTime < video.duration - 2) {
@@ -659,13 +673,13 @@ export default function ComunidadPage() {
   // Video completion callback
   const handleVideoFinished = async () => {
     setIsVideoFinished(true);
-    localStorage.setItem('wappy_comunidad_video_finished', 'true');
-    localStorage.removeItem('wappy_comunidad_video_progress');
+    localStorage.setItem(getStorageKey('wappy_comunidad_video_finished'), 'true');
+    localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
     
     // Save completion state to DB if email is available (in free/paid modes)
     let email = userEmail;
     if (!email) {
-      const leadDataStr = localStorage.getItem('wappy_lead_data');
+      const leadDataStr = localStorage.getItem(getStorageKey('wappy_lead_data'));
       if (leadDataStr) {
         try {
           email = JSON.parse(leadDataStr).email || '';
@@ -798,11 +812,12 @@ export default function ComunidadPage() {
       const { data } = await axios.post('/api/comunidad/checkout', {
         fullName: checkoutFullName.trim(),
         email: checkoutEmail.trim(),
-        phone: checkoutPhone.trim()
+        phone: checkoutPhone.trim(),
+        funnelKey
       });
 
       if (data.freeAccess || data.alreadyPaid) {
-        localStorage.setItem('wappy_comunidad_email', checkoutEmail.trim());
+        localStorage.setItem(getStorageKey('wappy_comunidad_email'), checkoutEmail.trim());
         setUserEmail(checkoutEmail.trim());
         setIsAccessGranted(true);
         setShowLeadModal(false);
@@ -849,9 +864,9 @@ export default function ComunidadPage() {
       if (transaction.status === 'APPROVED') {
         try {
           setIsAccessChecking(true);
-          const response = await axios.post('/api/comunidad/verify', { transactionId: transaction.id });
+          const response = await axios.post('/api/comunidad/verify', { transactionId: transaction.id, funnelKey });
           if (response.data.success) {
-            localStorage.setItem('wappy_comunidad_email', email);
+            localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
             setIsAccessGranted(true);
             setShowLeadModal(false);
@@ -885,9 +900,9 @@ export default function ComunidadPage() {
     setIsRecovering(true);
 
     try {
-      const response = await axios.post('/api/comunidad/check-access', { email: recoveryEmail.trim() });
+      const response = await axios.post('/api/comunidad/check-access', { email: recoveryEmail.trim(), funnelKey });
       if (response.data.isPaid) {
-        localStorage.setItem('wappy_comunidad_email', recoveryEmail.trim());
+        localStorage.setItem(getStorageKey('wappy_comunidad_email'), recoveryEmail.trim());
         setUserEmail(recoveryEmail.trim());
         setIsAccessGranted(true);
         setRecoverySuccess('¡Acceso recuperado con éxito! Bienvenido de vuelta.');
@@ -944,10 +959,11 @@ export default function ComunidadPage() {
         email: checkoutEmail.trim(),
         phone: checkoutPhone.trim(),
         videoUrl,
+        funnelKey
       });
 
-      localStorage.setItem('wappy_lead_captured', 'true');
-      localStorage.setItem('wappy_lead_data', JSON.stringify({ 
+      localStorage.setItem(getStorageKey('wappy_lead_captured'), 'true');
+      localStorage.setItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
         fullName: checkoutFullName, 
         email: checkoutEmail, 
         phone: checkoutPhone 
@@ -1003,7 +1019,8 @@ export default function ComunidadPage() {
         extraVideoUrl1: tempExtraVideoUrl1,
         extraVideoTitle1: tempExtraVideoTitle1,
         extraVideoUrl2: tempExtraVideoUrl2,
-        extraVideoTitle2: tempExtraVideoTitle2
+        extraVideoTitle2: tempExtraVideoTitle2,
+        funnelKey
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1072,7 +1089,8 @@ export default function ComunidadPage() {
 
         // Auto-save immediately to DB to prevent session/save mismatches
         await axios.post('/api/comunidad/config', {
-          downloadableFiles: updatedFiles
+          downloadableFiles: updatedFiles,
+          funnelKey
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -1097,7 +1115,8 @@ export default function ComunidadPage() {
 
     try {
       await axios.post('/api/comunidad/config', {
-        downloadableFiles: updatedFiles
+        downloadableFiles: updatedFiles,
+        funnelKey
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1113,9 +1132,9 @@ export default function ComunidadPage() {
     setIsLoadingLeads(true);
     try {
       const [leadsRes, purchasesRes, metricsRes] = await Promise.all([
-        axios.get('/api/admin/leads', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/comunidad/purchases', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/comunidad/metrics/stats', { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
+        axios.get('/api/admin/leads', { params: { funnelKey }, headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/comunidad/purchases', { params: { funnelKey }, headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/comunidad/metrics/stats', { params: { funnelKey }, headers: { Authorization: `Bearer ${token}` } }).catch(err => {
           console.error('[Admin Dashboard] Fetch metrics stats error:', err);
           return { data: null };
         })
@@ -1255,11 +1274,11 @@ export default function ComunidadPage() {
               <>
                 <button
                   onClick={() => {
-                    localStorage.removeItem('wappy_comunidad_email');
-                    localStorage.removeItem('wappy_lead_captured');
-                    localStorage.removeItem('wappy_lead_data');
-                    localStorage.removeItem('wappy_comunidad_video_finished');
-                    localStorage.removeItem('wappy_comunidad_video_progress');
+                    localStorage.removeItem(getStorageKey('wappy_comunidad_email'));
+                    localStorage.removeItem(getStorageKey('wappy_lead_captured'));
+                    localStorage.removeItem(getStorageKey('wappy_lead_data'));
+                    localStorage.removeItem(getStorageKey('wappy_comunidad_video_finished'));
+                    localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
                     setIsAccessGranted(false);
                     setIsLeadCaptured(false);
                     setShowLeadModal(false);

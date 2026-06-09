@@ -171,6 +171,16 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'wappyvital-planea',
+      element: (
+        <AuthContextProvider>
+          <ComunidadPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'planes',
       element: (
         <AuthContextProvider>

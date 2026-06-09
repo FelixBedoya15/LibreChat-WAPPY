@@ -3,7 +3,7 @@ const { logger } = require('@librechat/data-schemas');
 
 const recordLead = async (req, res) => {
     try {
-        const { fullName, email, phone, videoUrl } = req.body;
+        const { fullName, email, phone, videoUrl, funnelKey = 'comunidad' } = req.body;
 
         if (!fullName || !email || !phone) {
             return res.status(400).json({ message: 'Todos los campos (nombre, correo, celular) son obligatorios.' });
@@ -14,6 +14,7 @@ const recordLead = async (req, res) => {
             email,
             phone,
             videoUrl,
+            funnelKey
         });
 
         const savedLead = await newLead.save();
@@ -26,7 +27,11 @@ const recordLead = async (req, res) => {
 
 const getAllLeads = async (req, res) => {
     try {
-        const leads = await Lead.find().sort({ createdAt: -1 });
+        const funnelKey = req.query.funnelKey || 'comunidad';
+        const query = funnelKey === 'comunidad'
+            ? { $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
+            : { funnelKey };
+        const leads = await Lead.find(query).sort({ createdAt: -1 });
         res.status(200).json(leads);
     } catch (error) {
         logger.error('Error fetching leads', error);

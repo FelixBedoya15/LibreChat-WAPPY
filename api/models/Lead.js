@@ -20,6 +20,11 @@ const leadSchema = mongoose.Schema({
     videoUrl: {
         type: String,
         trim: true,
+    },
+    funnelKey: {
+        type: String,
+        default: 'comunidad',
+        trim: true
     }
 }, { timestamps: true });
 
