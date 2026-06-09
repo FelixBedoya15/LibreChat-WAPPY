@@ -148,11 +148,14 @@ const AuthContextProvider = ({
   };
 
   const isPublicRoute = useCallback((pathname: string) => {
-    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad'];
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/wappyvital'];
     if (publicPaths.includes(pathname)) {
       return true;
     }
     if (pathname.startsWith('/comunidad/') || pathname === '/comunidad') {
+      return true;
+    }
+    if (pathname.startsWith('/wappyvital/') || pathname === '/wappyvital') {
       return true;
     }
     if ((pathname === '/blog' || pathname.startsWith('/blog/')) && !pathname.startsWith('/blog/admin')) {
