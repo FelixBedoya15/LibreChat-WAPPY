@@ -435,6 +435,39 @@ const handleWebhook = async (req, res) => {
             purchase.status = status;
             if (status === 'APPROVED') {
                 purchase.isPaid = true;
+
+                // Auto-provision Wappy Vital plan (role USER_IPEVAR) if reference is WAP-VIT-
+                if (reference.startsWith('WAP-VIT-') && !wasAlreadyApproved) {
+                    try {
+                        const User = mongoose.model('User');
+                        const normEmail = purchase.email.toLowerCase().trim();
+                        const user = await User.findOne({ email: normEmail });
+                        if (user) {
+                            // Update User
+                            user.role = 'USER_IPEVAR';
+                            user.accountStatus = 'active';
+                            user.activeAt = new Date();
+                            user.inactiveAt = null; // Lifetime/no expiry
+                            await user.save();
+
+                            // Update/Create UserPlan
+                            await UserPlan.findOneAndUpdate(
+                                { userId: user._id },
+                                {
+                                    plan: 'ipevar',
+                                    planExpiresAt: null, // Lifetime/no expiry
+                                    cancelAtPeriodEnd: false
+                                },
+                                { upsert: true, new: true }
+                            );
+                            console.log(`[Wompi Webhook] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
+                        } else {
+                            console.log(`[Wompi Webhook] Purchase approved for Wappy Vital, but no registered user found yet for email ${normEmail}`);
+                        }
+                    } catch (provErr) {
+                        console.error('[Wompi Webhook] Error provisioning Wappy Vital for WAP-VIT purchase:', provErr);
+                    }
+                }
             }
             await purchase.save();
             console.log(`[Wompi Webhook] Updated ComunidadPurchase ${reference} to ${status}. Paid: ${purchase.isPaid}`);

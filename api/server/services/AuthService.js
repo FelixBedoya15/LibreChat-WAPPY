@@ -204,6 +204,23 @@ const registerUser = async (user, additionalData = {}) => {
     //determine if this is the first registered user (not counting anonymous_user)
     const isFirstRegisteredUser = (await countUsers()) === 0;
 
+    // Check if user has a paid ComunidadPurchase for 'wappyvital' to auto-assign USER_IPEVAR role
+    let hasPaidWappyVital = false;
+    try {
+      const ComunidadPurchase = require('~/models/ComunidadPurchase');
+      const normEmail = email.toLowerCase().trim();
+      const purchase = await ComunidadPurchase.findOne({
+        email: normEmail,
+        isPaid: true,
+        funnelKey: 'wappyvital'
+      });
+      if (purchase) {
+        hasPaidWappyVital = true;
+      }
+    } catch (checkErr) {
+      logger.error('[registerUser] Error checking ComunidadPurchase for Wappy Vital:', checkErr);
+    }
+
     const salt = bcrypt.genSaltSync(10);
     const newUserData = {
       provider: 'local',
@@ -212,8 +229,16 @@ const registerUser = async (user, additionalData = {}) => {
       name,
       phoneNumber,
       avatar: null,
-      role: isFirstRegisteredUser ? SystemRoles.ADMIN : (process.env.DEFAULT_USER_ROLE || SystemRoles.USER),
-      accountStatus: isFirstRegisteredUser ? 'active' : (process.env.DEFAULT_ACCOUNT_STATUS || 'active'),
+      role: isFirstRegisteredUser 
+        ? SystemRoles.ADMIN 
+        : (hasPaidWappyVital 
+            ? 'USER_IPEVAR' 
+            : (process.env.DEFAULT_USER_ROLE || SystemRoles.USER)),
+      accountStatus: isFirstRegisteredUser 
+        ? 'active' 
+        : (hasPaidWappyVital 
+            ? 'active' 
+            : (process.env.DEFAULT_ACCOUNT_STATUS || 'active')),
       password: bcrypt.hashSync(password, salt),
       ...additionalData,
     };
@@ -223,6 +248,24 @@ const registerUser = async (user, additionalData = {}) => {
 
     const newUser = await createUser(newUserData, appConfig.balance, disableTTL, true);
     newUserId = newUser._id;
+
+    if (hasPaidWappyVital) {
+      try {
+        const UserPlan = require('~/db/models/UserPlan');
+        await UserPlan.findOneAndUpdate(
+          { userId: newUserId },
+          {
+            plan: 'ipevar',
+            planExpiresAt: null,
+            cancelAtPeriodEnd: false
+          },
+          { upsert: true, new: true }
+        );
+        logger.info(`[registerUser] Auto-provisioned Wappy Vital plan (USER_IPEVAR) on registration for ${email}`);
+      } catch (planErr) {
+        logger.error('[registerUser] Error creating UserPlan for Wappy Vital:', planErr);
+      }
+    }
 
     // Process referral/partner ref parameter
     if (ref) {

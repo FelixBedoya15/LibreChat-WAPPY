@@ -1899,52 +1899,110 @@ export default function ComunidadPage() {
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
               <Sparkles className="w-3.5 h-3.5" />
-              CURSO MASTERCLASS SST PREMIUM
+              {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL DE POR VIDA' : 'CURSO MASTERCLASS SST PREMIUM'}
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-5 leading-tight max-w-3xl outfit">
-              Accede al Curso de Gestión de SST con <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Inteligencia Artificial</span>
+              {funnelKey === 'wappyvital' ? (
+                <>
+                  Consigue <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span> + 10 Aplicativos SST
+                </>
+              ) : (
+                <>
+                  Accede al Curso de Gestión de SST con <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Inteligencia Artificial</span>
+                </>
+              )}
             </h1>
 
             <p className="text-sm text-text-secondary max-w-xl mb-8 leading-relaxed">
-              Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.
+              {funnelKey === 'wappyvital' 
+                ? 'Paga una tarifa única y obtén acceso de por vida a Wappy IA, los 15+ agentes especialistas, editores de matrices y todo el kit de aplicativos.'
+                : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.'}
             </p>
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start">
               
               <div className="space-y-5 bg-surface-primary/50 border border-border-medium rounded-3xl p-6 sm:p-8 backdrop-blur-md">
-                <h3 className="text-lg font-bold text-emerald-500 outfit">¿Qué incluye tu compra?</h3>
+                <h3 className="text-lg font-bold text-emerald-500 outfit">
+                  {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
+                </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-text-primary">Videocapacitación Práctica Completa</h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Domina la matriz de riesgos, aplicativos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
-                    </div>
-                  </div>
+                  {funnelKey === 'wappyvital' ? (
+                    <>
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Licencia de Por Vida a Wappy Vital (IA + Matrices)</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Paga una vez y usa Wappy IA para siempre (sin suscripción mensual) para redactar y automatizar tu gestión SST.</p>
+                        </div>
+                      </div>
 
-                  <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-text-primary">Material y Plantillas Editables</h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo al terminar de ver el video.</p>
-                    </div>
-                  </div>
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Más de 15 Agentes Especialistas de SST</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Consultas ilimitadas a agentes entrenados en GTC-45, Riesgo Psicosocial, Consultor Médico y Consultor Jurídico.</p>
+                        </div>
+                      </div>
 
-                  <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-text-primary">Acceso de por Vida y Sin Límite</h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Vuelve a ingresar las veces que quieras con tu correo electrónico para revisar el material y descargar actualizaciones sin volver a pagar.</p>
-                    </div>
-                  </div>
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Skill Canvas, RIT e IPEVAR</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Editores inteligentes para crear matrices y el Reglamento Interno de Trabajo en minutos y exportar a Word/Excel.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">10+ Aplicativos SST + Mentoría Completa</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Todo el kit de plantillas descargables y la capacitación en video para dominar el uso de IA en tu gestión.</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Videocapacitación Práctica Completa</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Domina la matriz de riesgos, aplicativos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Material y Plantillas Editables</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo al terminar de ver el video.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-text-primary">Acceso de por Vida y Sin Límite</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Vuelve a ingresar las veces que quieras con tu correo electrónico para revisar el material y descargar actualizaciones sin volver a pagar.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-border-medium flex flex-col justify-center text-center">
@@ -2115,11 +2173,19 @@ export default function ComunidadPage() {
             
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
               <Sparkles className="w-3.5 h-3.5" />
-              CAPACITACIÓN EXCLUSIVA WAPPY
+              {funnelKey === 'wappyvital' ? 'CAPACITACIÓN EXCLUSIVA WAPPY VITAL' : 'CAPACITACIÓN EXCLUSIVA WAPPY'}
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-6 leading-tight max-w-3xl outfit">
-              Descarga <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+              {funnelKey === 'wappyvital' ? (
+                <>
+                  Lleva tu gestión al siguiente nivel: <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span> + 10 Aplicativos SST
+                </>
+              ) : (
+                <>
+                  Descarga <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                </>
+              )}
             </h1>
 
             {/* Quick Access / Skip Video Banner */}
@@ -2129,7 +2195,15 @@ export default function ComunidadPage() {
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
                     {actualRequiresPayment ? (
                       <>
-                        Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
+                        {funnelKey === 'wappyvital' ? (
+                          <>
+                            Obtendrás la <strong>Licencia de Por Vida a WAPPY VITAL (Wappy IA, 15+ Agentes y Editores de Matrices)</strong>, la mentoría en video y los <strong>más de 10 aplicativos listos</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
+                          </>
+                        ) : (
+                          <>
+                            Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -2406,11 +2480,31 @@ export default function ComunidadPage() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
-                  ¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.
+                  {funnelKey === 'wappyvital' 
+                    ? '¡Ya tienes activa tu Licencia WAPPY VITAL de Por Vida y acceso a todos los aplicativos!' 
+                    : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
                 </h3>
-                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+                  {funnelKey === 'wappyvital'
+                    ? 'Tu cuenta ha sido autorizada de por vida. Utiliza tu correo registrado para iniciar sesión o registrarte en la plataforma y acceder a los más de 15 agentes de IA.'
+                    : 'Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.'}
                 </p>
+                {funnelKey === 'wappyvital' && (
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-105"
+                    >
+                      Iniciar Sesión en WAPPY IA
+                    </button>
+                    <button
+                      onClick={() => navigate('/register')}
+                      className="px-4 py-2 bg-surface-secondary hover:bg-surface-hover text-text-primary border border-border-medium rounded-xl font-bold text-xs transition-all hover:scale-105"
+                    >
+                      Registrar Nueva Cuenta
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
