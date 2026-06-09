@@ -113,10 +113,10 @@ async function validateOpenAIPdf(fileSize: number): Promise<PDFValidationResult>
 }
 
 async function validateGooglePdf(fileSize: number): Promise<PDFValidationResult> {
-  if (fileSize > 20 * 1024 * 1024) {
+  if (fileSize > 50 * 1024 * 1024) {
     return {
       isValid: false,
-      error: "PDF file size exceeds Google's 20MB limit",
+      error: "PDF file size exceeds Google's 50MB limit",
     };
   }
 
@@ -136,10 +136,10 @@ export async function validateVideo(
   provider: Providers,
 ): Promise<VideoValidationResult> {
   if (provider === Providers.GOOGLE || provider === Providers.VERTEXAI) {
-    if (fileSize > 20 * 1024 * 1024) {
+    if (fileSize > 50 * 1024 * 1024) {
       return {
         isValid: false,
-        error: `Video file size (${Math.round(fileSize / (1024 * 1024))}MB) exceeds Google's 20MB limit`,
+        error: `Video file size (${Math.round(fileSize / (1024 * 1024))}MB) exceeds Google's 50MB limit`,
       };
     }
   }
@@ -167,10 +167,10 @@ export async function validateAudio(
   provider: Providers,
 ): Promise<AudioValidationResult> {
   if (provider === Providers.GOOGLE || provider === Providers.VERTEXAI) {
-    if (fileSize > 20 * 1024 * 1024) {
+    if (fileSize > 50 * 1024 * 1024) {
       return {
         isValid: false,
-        error: `Audio file size (${Math.round(fileSize / (1024 * 1024))}MB) exceeds Google's 20MB limit`,
+        error: `Audio file size (${Math.round(fileSize / (1024 * 1024))}MB) exceeds Google's 50MB limit`,
       };
     }
   }
