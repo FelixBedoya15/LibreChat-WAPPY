@@ -1942,7 +1942,7 @@ export default function PlansPage() {
 
             {showUnifiedLayout ? (
               <div className="mx-auto mt-8 max-w-5xl px-4">
-                <div className="grid gap-8 grid-cols-2 lg:gap-12">
+                <div className="grid gap-8 sm:grid-cols-2 lg:gap-12">
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
                     const plan = APP_PLANS.find((p) => p.key === 'ipevar')!;
