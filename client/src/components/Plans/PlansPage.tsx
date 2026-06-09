@@ -1075,7 +1075,7 @@ export default function PlansPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
         {pendingPaymentInfo ? (
           /* ── PENDING PAYMENT INFO VIEW (Compra y Paga Después / async methods) ── */
           <div className="mx-auto max-w-lg text-center">
@@ -1941,8 +1941,8 @@ export default function PlansPage() {
             )}
 
             {showUnifiedLayout ? (
-              <div className="mx-auto mt-8 max-w-5xl px-4">
-                <div className="grid gap-8 sm:grid-cols-2 lg:gap-12">
+              <div className="mx-auto mt-4 sm:mt-8 max-w-5xl px-0 sm:px-4">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8 xl:gap-12">
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
                     const plan = APP_PLANS.find((p) => p.key === 'ipevar')!;
@@ -1975,13 +1975,13 @@ export default function PlansPage() {
 
                     return (
                       <div
-                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} ${
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} ${
                           isActive
                             ? `${plan.borderColor} shadow-2xl ring-2 ring-emerald-500/20`
                             : 'border-border-medium/40 hover:border-emerald-500/30 hover:shadow-2xl'
                         } bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(16,185,129,0.05)]`}
                       >
-                        <div className="absolute -top-3 left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                        <div className="absolute -top-3 left-6 sm:left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
                           ✨ Pago único de por vida
                         </div>
 
@@ -2122,9 +2122,9 @@ export default function PlansPage() {
 
                     return (
                       <div
-                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} border-amber-500/30 shadow-2xl ring-1 ring-amber-500/20 bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.05)]`}
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-8 transition-all duration-500 hover:-translate-y-2 ${plan.gradientBg} border-amber-500/30 shadow-2xl ring-1 ring-amber-500/20 bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.05)]`}
                       >
-                        <div className="absolute -top-3 left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                        <div className="absolute -top-3 left-6 sm:left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
                           ⭐ Plan Profesional Todo Incluido
                         </div>
 
@@ -2239,29 +2239,29 @@ export default function PlansPage() {
                 {/* ── Plans grid (existing 4 plans) ── */}
                 {/* Only show plans that are enabled in visibility config */}
                 <div
-                  className={`mt-4 grid gap-5 ${
+                  className={`mt-4 grid grid-cols-1 gap-5 ${
                     [
                       visibility.showPlanFree,
                       visibility.showPlanGo,
                       visibility.showPlanPlus,
                       visibility.showPlanPro,
                     ].filter(Boolean).length === 1
-                      ? 'mx-auto max-w-sm sm:grid-cols-1'
+                      ? 'mx-auto max-w-sm md:grid-cols-1'
                       : [
                             visibility.showPlanFree,
                             visibility.showPlanGo,
                             visibility.showPlanPlus,
                             visibility.showPlanPro,
                           ].filter(Boolean).length === 2
-                        ? 'mx-auto max-w-2xl sm:grid-cols-2'
+                        ? 'mx-auto max-w-2xl md:grid-cols-2'
                         : [
                               visibility.showPlanFree,
                               visibility.showPlanGo,
                               visibility.showPlanPlus,
                               visibility.showPlanPro,
                             ].filter(Boolean).length === 3
-                          ? 'sm:grid-cols-3'
-                          : 'sm:grid-cols-2 lg:grid-cols-4'
+                          ? 'md:grid-cols-3'
+                          : 'md:grid-cols-2 lg:grid-cols-4'
                   }`}
                 >
                   {PLANS.filter((plan) => {
@@ -2488,7 +2488,7 @@ export default function PlansPage() {
                       <div className="via-border-medium/50 to-border-medium/50 h-px flex-1 bg-gradient-to-l from-transparent" />
                     </div>
 
-                    <div className="grid justify-center gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 justify-center gap-5 md:grid-cols-2 lg:grid-cols-3">
                       {APP_PLANS.map((plan) => {
                         const Icon = APP_ICON_MAP[plan.key];
                         const isUserAdmin = !loading && activePlan === 'admin';
@@ -3071,13 +3071,13 @@ export default function PlansPage() {
                 </p>
 
                 {/* Enterprise plans grid */}
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                   {ENTERPRISE_PLANS.map((plan) => {
                     const Icon = ENTERPRISE_ICON_MAP[plan.key];
                     return (
                       <div
                         key={plan.key}
-                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} border-border-medium/40 hover:border-${plan.borderColor.replace('border-', '')} bg-surface-primary/60 backdrop-blur-sm hover:shadow-lg`}
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-6 transition-all duration-300 ${plan.gradientBg} border-border-medium/40 hover:border-${plan.borderColor.replace('border-', '')} bg-surface-primary/60 backdrop-blur-sm hover:shadow-lg`}
                       >
                         {/* Icon */}
                         <div
