@@ -713,18 +713,17 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                     return next;
                                 });
 
-                                // Send to hook (backend)
+                                // Send to hook (backend) unificado
                                 const base64 = dataUrl.split(',')[1];
-                                sendEvidenceImage(base64);
+                                const telemetryText = `[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`;
+                                sendEvidenceImage(base64, telemetryText);
 
-                                console.log(`[VoiceModal] Auto-posture photo captured and sent. Total photos: ${manualPhotosCountRef.current}`);
-
-                                // Send telemetry data directly to Gemini session!
-                                sendTextMessage(`[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`);
+                                console.log(`[VoiceModal] Auto-posture photo captured and sent with telemetry. Total photos: ${manualPhotosCountRef.current}`);
                             }
                         } else {
                             // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
-                            sendTextMessage(`[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}.`);
+                            const telemetryText = `[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}.`;
+                            sendEvidenceImage("", telemetryText);
                         }
                     }
                 }

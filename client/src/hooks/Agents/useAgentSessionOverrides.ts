@@ -112,7 +112,7 @@ export default function useAgentSessionOverrides({
             // NOTE: 'editor_live' and 'matriz_ipevar' are intentionally excluded
             // from auto-activation so their panels start closed and the user
             // controls them via the toggle in the chat input.
-            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial']);
+            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones']);
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
             // ALWAYS preserve previously active tools when switching agents!
@@ -122,7 +122,7 @@ export default function useAgentSessionOverrides({
             // session block the Canvas panel even when the agent only has canvas.
             const newAgentToolSet = new Set(agent.tools ?? []);
             const PANEL_TOOLS_SET = new Set([
-              'editor_live', 'editor_rit', 'canvas', 'matriz_ipevar', 'somos_sst', 'consultar_analitica_psicosocial',
+              'editor_live', 'editor_rit', 'canvas', 'matriz_ipevar', 'somos_sst', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones',
             ]);
             const prevTools = (prevExt?.tools ?? []).filter((t) => {
               if (!PANEL_TOOLS_SET.has(t)) return true; // Always keep non-panel tools

@@ -515,35 +515,55 @@ class VoiceSession {
                 break;
 
             case 'evidence-image':
-                if (data && data.image) {
-                    logger.info(`[VoiceSession] Received manual evidence image (${data.image.length} chars)`);
-                    if (!this.manualEvidences) {
-                        this.manualEvidences = [];
-                    }
-                    this.manualEvidences.push(data.image);
-                    // Keep up to 10 manual evidence photos
-                    if (this.manualEvidences.length > 10) {
-                        this.manualEvidences.shift();
+                if (data && (data.image || data.text)) {
+                    logger.info(`[VoiceSession] Received evidence payload (has image: ${!!data.image}, has text: ${!!data.text})`);
+                    
+                    if (data.image) {
+                        // Let the model know about this image: set it as the latestFrame 
+                        // so that if the user asks about it, the model has the context.
+                        this.latestFrame = data.image;
                     }
 
-                    // Let the model know about this image: set it as the latestFrame 
-                    // so that if the user asks about it, the model has the context.
-                    this.latestFrame = data.image;
+                    const isTelemetry = !!data.text;
+                    const text = data.text || "Fotos de evidencia";
 
-                    // Build grouped message content
-                    const text = "Fotos de evidencia";
+                    // Build message content
                     const messageContent = [
                         { type: 'text', text }
                     ];
 
-                    for (const img of this.manualEvidences) {
-                        const imageUrl = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
-                        messageContent.push({
-                            type: 'image_url',
-                            image_url: {
-                                url: imageUrl
-                            }
-                        });
+                    if (isTelemetry) {
+                        if (data.image) {
+                            const imageUrl = data.image.startsWith('data:') ? data.image : `data:image/jpeg;base64,${data.image}`;
+                            messageContent.push({
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageUrl
+                                }
+                            });
+                        }
+                    } else {
+                        // Manual evidence photo: group it in manualEvidences
+                        if (!this.manualEvidences) {
+                            this.manualEvidences = [];
+                        }
+                        if (data.image) {
+                            this.manualEvidences.push(data.image);
+                        }
+                        // Keep up to 10 manual evidence photos
+                        if (this.manualEvidences.length > 10) {
+                            this.manualEvidences.shift();
+                        }
+
+                        for (const img of this.manualEvidences) {
+                            const imageUrl = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                            messageContent.push({
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageUrl
+                                }
+                            });
+                        }
                     }
 
                     try {
@@ -555,8 +575,8 @@ class VoiceSession {
                             isNewConvo = true;
                         }
 
-                        if (this.activeEvidenceMessageId) {
-                            // Update existing grouped message
+                        if (!isTelemetry && this.activeEvidenceMessageId) {
+                            // Update existing grouped message (only for manual photos)
                             const messageData = {
                                 messageId: this.activeEvidenceMessageId,
                                 content: messageContent
@@ -564,7 +584,7 @@ class VoiceSession {
                             await updateMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Update' });
                             logger.info(`[VoiceSession] Updated manual evidence image to grouped message: ${this.activeEvidenceMessageId}`);
                         } else {
-                            // Create new grouped message
+                            // Create new message (for telemetry, or for the first manual photo)
                             const messageId = uuidv4();
                             const messageData = {
                                 messageId,
@@ -581,10 +601,17 @@ class VoiceSession {
 
                             const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Save' });
                             if (savedMessage) {
-                                this.activeEvidenceMessageId = messageId;
+                                if (!isTelemetry) {
+                                    this.activeEvidenceMessageId = messageId;
+                                }
                                 this.lastMessageId = messageId;
-                                logger.info(`[VoiceSession] Saved initial manual evidence image to grouped message: ${messageId}`);
+                                logger.info(`[VoiceSession] Saved new ${isTelemetry ? 'telemetry' : 'manual'} evidence message: ${messageId}`);
                             }
+                        }
+
+                        // Send to Gemini Live silently if it's a telemetry alert
+                        if (isTelemetry && this.geminiClient) {
+                            this.geminiClient.sendImageWithText(data.image || null, data.text, false);
                         }
 
                         // Notify client of conversationId if it was new
@@ -601,7 +628,7 @@ class VoiceSession {
                             data: { conversationId: this.conversationId }
                         });
                     } catch (saveError) {
-                        logger.error('[VoiceSession] Error processing manual evidence image in chat DB:', saveError);
+                        logger.error('[VoiceSession] Error processing evidence image in chat DB:', saveError);
                     }
                 }
                 break;

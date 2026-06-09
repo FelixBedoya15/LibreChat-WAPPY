@@ -59,6 +59,8 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools.push('consultar_analitica_psicosocial', 'canvas');
   } else if (fileBasename === 'coordinador_ipevar') {
     tools.push('matriz_ipevar');
+  } else if (fileBasename === 'asistente_de_aci') {
+    tools.push('consultar_analitica_actos_condiciones', 'canvas');
   }
 
   const timestamp = new Date();
@@ -250,6 +252,17 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error adding psicosocial tool to agent:', err);
     }
 
+    // Ensure the ACI agent has the new actos/condiciones analytics tool and canvas
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Analista Predictivo ACI' },
+        { $addToSet: { tools: { $each: ['consultar_analitica_actos_condiciones', 'canvas'] } } }
+      );
+      logger.info('[SyncAgents] Added consultar_analitica_actos_condiciones and canvas tools to Analista Predictivo ACI');
+    } catch (err) {
+      logger.error('[SyncAgents] Error adding actos_condiciones tool to agent:', err);
+    }
+
     return res.json({
       success: true,
       summary: `Sincronización finalizada. Se actualizaron ${successCount} agentes. Warnings/Errores: ${failCount}.`,
@@ -375,6 +388,17 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.info('[CleanupSync] Added consultar_analitica_psicosocial and canvas tools to Especialista en Riesgo Psicosocial');
     } catch (err) {
       logger.error('[CleanupSync] Error adding psicosocial tool to agent:', err);
+    }
+
+    // Ensure the ACI agent has the new actos/condiciones analytics tool and canvas
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Analista Predictivo ACI' },
+        { $addToSet: { tools: { $each: ['consultar_analitica_actos_condiciones', 'canvas'] } } }
+      );
+      logger.info('[CleanupSync] Added consultar_analitica_actos_condiciones and canvas tools to Analista Predictivo ACI');
+    } catch (err) {
+      logger.error('[CleanupSync] Error adding actos_condiciones tool to agent:', err);
     }
 
     return res.json({

@@ -22,6 +22,7 @@ import {
   Edit,
   Save,
   Heart,
+  ShieldAlert,
 } from 'lucide-react';
 import { useRecoilState, useRecoilValue, useRecoilCallback } from 'recoil';
 import { ephemeralAgentByConvoId } from '~/store/agents';
@@ -33,6 +34,7 @@ import CanvasExcelEditor from './CanvasExcelEditor';
 import CanvasSlidesEditor from './CanvasSlidesEditor';
 import CanvasHtmlEditor from './CanvasHtmlEditor';
 import MoodAnalyticsDashboard from '../SGSST/MoodAnalyticsDashboard';
+import ActosCondicionesAnalyticsDashboard from '../SGSST/ActosCondicionesAnalyticsDashboard';
 import ExportDropdown from '../SGSST/ExportDropdown';
 import { UpgradeWall } from '../SGSST/UpgradeWall';
 import { useNavigate } from 'react-router-dom';
@@ -192,7 +194,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
   // Main Canvas session state
-  const [fileType, setFileType] = useState<'text' | 'excel' | 'presentation' | 'html' | 'animo'>('text');
+  const [fileType, setFileType] = useState<'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'>('text');
   const [content, setContent] = useState<string>('');
   const [title, setTitle] = useState<string>('Archivo sin título');
   const [version, setVersion] = useState<number>(1);
@@ -202,11 +204,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
-  const hasActiveSession = !!content || fileType !== 'text';
+  const hasActiveSession = !!content || (fileType !== 'text' && fileType !== 'actos_condiciones' && fileType !== 'animo') || (fileType === 'actos_condiciones' || fileType === 'animo');
 
   // References to handle syncing correctly without stale closures
   const contentRef = useRef<string>('');
-  const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html' | 'animo'>('text');
+  const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'>('text');
   const titleRef = useRef<string>('Archivo sin título');
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
@@ -252,6 +254,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     if (activeTools.includes('consultar_analitica_psicosocial')) {
       setFileType('animo');
       setTitle('Termómetro Psicosocial');
+    } else if (activeTools.includes('consultar_analitica_actos_condiciones')) {
+      setFileType('actos_condiciones');
+      setTitle('Analítica de Actos y Condiciones');
     }
   }, [ephemeralAgent]);
 
@@ -400,8 +405,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           lastUpdatedAtRef.current = data.updatedAt || null;
           const activeTools = (ephemeralAgent as any)?.tools ?? [];
           const isPsychologistActive = activeTools.includes('consultar_analitica_psicosocial');
-          setFileType(isPsychologistActive ? 'animo' : (data.fileType || 'text'));
-          setTitle(isPsychologistActive ? 'Termómetro Psicosocial' : (data.title || 'Archivo sin título'));
+          const isACIActive = activeTools.includes('consultar_analitica_actos_condiciones');
+          setFileType(isPsychologistActive ? 'animo' : (isACIActive ? 'actos_condiciones' : (data.fileType || 'text')));
+          setTitle(isPsychologistActive ? 'Termómetro Psicosocial' : (isACIActive ? 'Analítica de Actos y Condiciones' : (data.title || 'Archivo sin título')));
           setVersion(data.version || 1);
           setHistory(data.history || []);
 
@@ -469,7 +475,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Helper to initialize session and transition new conversation
   const initializeConvoAndSave = async (
-    initialFileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo',
+    initialFileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones',
     initialContent: string,
     initialTitle: string,
   ) => {
@@ -677,6 +683,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           return <Code2 className="h-5 w-5" />;
         case 'animo':
           return <Heart className="h-5 w-5" />;
+        case 'actos_condiciones':
+          return <ShieldAlert className="h-5 w-5" />;
         default:
           return <FileEdit className="h-5 w-5" />;
       }
@@ -711,6 +719,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             border: 'border-red-500/20',
             text: 'text-red-600 dark:text-red-400',
             grad: 'from-red-500/40 via-red-300/20',
+          };
+        case 'actos_condiciones':
+          return {
+            bg: 'bg-orange-500/10',
+            border: 'border-orange-500/20',
+            text: 'text-orange-600 dark:text-orange-400',
+            grad: 'from-orange-500/40 via-orange-300/20',
           };
         default:
           return {
@@ -888,6 +903,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           </div>
         );
       }
+      case 'actos_condiciones': {
+        return (
+          <div className="relative flex-1 flex flex-col min-h-0 bg-surface-secondary overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-6">
+              <ActosCondicionesAnalyticsDashboard isMaximized={isMaximized} />
+            </div>
+          </div>
+        );
+      }
       default:
         return (
           <CanvasTextEditor
@@ -944,7 +968,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         </div>
 
         <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
-          {hasActiveSession && fileType !== 'animo' && (
+          {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -974,7 +998,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             <ExportDropdown content={content} fileName={title} />
           )}
 
-          {hasActiveSession && fileType !== 'text' && fileType !== 'animo' && (
+          {hasActiveSession && fileType !== 'text' && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -1038,7 +1062,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </button>
           )}
 
-          {hasActiveSession && fileType !== 'animo' && (
+          {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
               className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
@@ -1057,7 +1081,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </button>
           )}
 
-          {hasActiveSession && fileType !== 'animo' && (
+          {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
               className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${

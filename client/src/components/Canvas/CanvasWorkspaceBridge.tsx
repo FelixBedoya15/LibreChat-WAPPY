@@ -17,7 +17,7 @@ interface CanvasSessionSummary {
   conversationId: string;
   title: string;
   updatedAt: string;
-  fileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo';
+  fileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones';
 }
 
 interface CanvasWorkspaceBridgeProps {

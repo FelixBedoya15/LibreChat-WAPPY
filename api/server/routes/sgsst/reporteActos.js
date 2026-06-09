@@ -376,4 +376,104 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
     }
 });
 
+// ─── GET /estadisticas — Get aggregated report stats ──────────────────
+router.get('/estadisticas', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId }).lean();
+        
+        const dias = req.query.dias ? Number(req.query.dias) : 30;
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - dias);
+
+        const inboxList = doc?.inboxPublico || [];
+
+        // Filter by date
+        const filteredRecords = inboxList.filter((rec) => {
+            const recordDate = rec.createdAt ? new Date(rec.createdAt) : new Date();
+            return recordDate >= dateLimit;
+        });
+
+        const total = filteredRecords.length;
+        const pendingCount = filteredRecords.filter((r) => r.status !== 'processed').length;
+        const processedCount = filteredRecords.filter((r) => r.status === 'processed').length;
+
+        // Desglose por ubicación
+        const locationMap = {};
+        let actosCount = 0;
+        let condicionesCount = 0;
+        let mixtoCount = 0;
+
+        const actRegex = /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
+        const condRegex = /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
+
+        filteredRecords.forEach((rec) => {
+            const loc = rec.data?.ubicacion?.trim() || 'General';
+            locationMap[loc] = (locationMap[loc] || 0) + 1;
+
+            const desc = rec.data?.descripcion || '';
+            const hasAct = actRegex.test(desc);
+            const hasCond = condRegex.test(desc);
+
+            if (hasAct && hasCond) mixtoCount++;
+            else if (hasAct) actosCount++;
+            else if (hasCond) condicionesCount++;
+            else mixtoCount++;
+        });
+
+        const sortedLocations = Object.entries(locationMap)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => ({ name, count }));
+
+        // Consultar reportes PDF finalizados (Message/Conversation tag)
+        let totalFinalized = 0;
+        const Conversation = mongoose.models.Conversation;
+        if (Conversation && companyId) {
+            totalFinalized = await Conversation.countDocuments({
+                user: req.user.id,
+                tags: { $all: ['sgsst-reporte-actos', `company-${companyId}`] },
+                $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
+            });
+        }
+
+        // Recent reports
+        const sortedRecents = [...filteredRecords]
+            .sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+            })
+            .slice(0, 15)
+            .map((r) => ({
+                id: r.id,
+                fecha: r.data?.fecha || r.createdAt,
+                trabajador: r.trabajador?.nombre || 'Anónimo',
+                cargo: r.trabajador?.cargo || 'No especificado',
+                descripcion: r.data?.descripcion || '',
+                ubicacion: r.data?.ubicacion || 'Sin ubicación',
+                status: r.status || 'pending',
+                hasFoto: !!(r.data?.foto1 || r.data?.foto2 || r.data?.foto3),
+                hasVideo: !!r.data?.video
+            }));
+
+        res.json({
+            totalReportesBuzon: total,
+            periodoDias: dias,
+            pendientes: pendingCount,
+            procesados: processedCount,
+            finalizadosPdf: totalFinalized,
+            preliminarClasificacion: {
+                actos: actosCount,
+                condiciones: condicionesCount,
+                mixto_no_clasificado: mixtoCount
+            },
+            areasFrecuentes: sortedLocations,
+            reportesRecientes: sortedRecents
+        });
+    } catch (error) {
+        logger.error('[SGSST Reporte Actos] Stats error:', error);
+        res.status(500).json({ error: 'Error al obtener estadísticas de reportes' });
+    }
+});
+
 module.exports = router;

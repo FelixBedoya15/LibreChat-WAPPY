@@ -481,11 +481,11 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
     /**
      * Send Evidence Image manually captured by user
      */
-    const sendEvidenceImage = useCallback((base64: string) => {
+    const sendEvidenceImage = useCallback((base64: string, text?: string) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: 'evidence-image',
-            data: { image: base64 }
+            data: { image: base64, text }
         }));
     }, []);
 

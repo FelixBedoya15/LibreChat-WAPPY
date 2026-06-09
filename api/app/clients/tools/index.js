@@ -22,6 +22,7 @@ const SomosSST = require('./structured/SomosSST');
 const ConsultarAgenteEspecializado = require('./structured/ConsultarAgenteEspecializado');
 const BlogEditor = require('./structured/BlogEditor');
 const ConsultarAnaliticaPsicosocial = require('./structured/ConsultarAnaliticaPsicosocial');
+const ConsultarAnaliticaActosCondiciones = require('./structured/ConsultarAnaliticaActosCondiciones');
 
 
 module.exports = {
@@ -48,4 +49,5 @@ module.exports = {
   ConsultarAgenteEspecializado,
   BlogEditor,
   ConsultarAnaliticaPsicosocial,
+  ConsultarAnaliticaActosCondiciones,
 };

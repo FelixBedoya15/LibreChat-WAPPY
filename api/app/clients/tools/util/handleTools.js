@@ -45,6 +45,7 @@ const {
   ConsultarAgenteEspecializado,
   BlogEditor,
   ConsultarAnaliticaPsicosocial,
+  ConsultarAnaliticaActosCondiciones,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -258,6 +259,9 @@ const loadTools = async ({
     },
     consultar_analitica_psicosocial: async (_toolContextMap) => {
       return new ConsultarAnaliticaPsicosocial({ req: options.req });
+    },
+    consultar_analitica_actos_condiciones: async (_toolContextMap) => {
+      return new ConsultarAnaliticaActosCondiciones({ req: options.req });
     },
   };
 

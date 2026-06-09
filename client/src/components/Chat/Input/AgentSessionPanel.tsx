@@ -277,7 +277,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 editor_live: 'Editor Live',
                                 editor_rit: 'Editor RIT',
                                 canvas: 'Canvas',
-                                consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial'
+                                consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
+                                consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones'
                             };
                             const displayName = toolTranslations[toolId] ?? toolId
                                 .split('_')

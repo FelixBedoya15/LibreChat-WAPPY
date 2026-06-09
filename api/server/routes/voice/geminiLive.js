@@ -294,6 +294,40 @@ class GeminiLiveClient extends EventEmitter {
     }
 
     /**
+     * Send both an image and text to Gemini as a user turn
+     * @param {string} base64Image - Base64 encoded JPEG image
+     * @param {string} text - Text to send with the image
+     * @param {boolean} turnComplete - Whether this turn is complete (triggers response)
+     */
+    sendImageWithText(base64Image, text, turnComplete = false) {
+        const parts = [];
+        if (text) {
+            parts.push({ text: text });
+        }
+        if (base64Image) {
+            parts.push({
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: base64Image
+                }
+            });
+        }
+        const message = {
+            clientContent: {
+                turns: [
+                    {
+                        role: 'user',
+                        parts: parts
+                    }
+                ],
+                turnComplete: turnComplete
+            }
+        };
+        logger.info(`[GeminiLive] Sending image with text (turnComplete=${turnComplete}): "${text ? text.substring(0, 50) : ''}..."`);
+        this.send(message);
+    }
+
+    /**
      * Send message to Gemini WebSocket
      */
     send(message) {
