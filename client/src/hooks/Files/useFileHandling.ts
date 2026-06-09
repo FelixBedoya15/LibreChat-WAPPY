@@ -287,11 +287,11 @@ const useFileHandling = (params?: UseFileHandling) => {
       return;
     }
 
-    /* Video duration check (Gemini models support videos, but limited to 10 seconds as requested) */
+    /* Video duration check (Gemini models support videos, but limited to 40 seconds as requested) */
     for (const file of fileList) {
       if (file.type.startsWith('video/')) {
         const duration = await getVideoDuration(file);
-        if (duration > 10) {
+        if (duration > 40) {
           setError('com_error_video_duration');
           setFilesLoading(false);
           return;

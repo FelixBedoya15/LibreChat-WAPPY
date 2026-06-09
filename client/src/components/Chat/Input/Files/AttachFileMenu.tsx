@@ -95,7 +95,7 @@ const AttachFileMenu = ({
   );
 
   const handleUploadClick = (
-    fileType?: 'image' | 'document' | 'multimodal' | 'google_multimodal',
+    fileType?: 'image' | 'image_video' | 'document' | 'multimodal' | 'google_multimodal',
   ) => {
     if (!inputRef.current) {
       return;
@@ -103,6 +103,8 @@ const AttachFileMenu = ({
     inputRef.current.value = '';
     if (fileType === 'image') {
       inputRef.current.accept = 'image/*';
+    } else if (fileType === 'image_video') {
+      inputRef.current.accept = 'image/*,video/*';
     } else if (fileType === 'document') {
       inputRef.current.accept = '.pdf,application/pdf';
     } else if (fileType === 'multimodal') {
@@ -132,7 +134,7 @@ const AttachFileMenu = ({
     };
 
     const createMenuItems = (
-      onAction: (fileType?: 'image' | 'document' | 'multimodal' | 'google_multimodal') => void,
+      onAction: (fileType?: 'image' | 'image_video' | 'document' | 'multimodal' | 'google_multimodal') => void,
     ) => {
       const items: MenuItemProps[] = [];
 
@@ -144,12 +146,12 @@ const AttachFileMenu = ({
         isDocumentSupportedProvider(currentProvider)
       ) {
         if (isGoogle) {
-          // Google/Gemini: solo imágenes en adjunto directo
+          // Google/Gemini: imágenes y videos en adjunto directo
           items.push({
-            label: '📷 Imagen',
+            label: '📷 Imagen / Video',
             onClick: wrapClick(() => {
               setToolResource(undefined);
-              onAction('image');
+              onAction('image_video');
             }),
             icon: <FileImageIcon className="icon-md" />,
           });
