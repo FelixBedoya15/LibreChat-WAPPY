@@ -31,7 +31,7 @@ export default function ComunidadPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   // Determine funnelKey based on URL
-  const funnelKey = window.location.pathname.includes('wappyvital-planea') ? 'wappyvital' : 'comunidad';
+  const funnelKey = window.location.pathname.includes('wappyvital') ? 'wappyvital' : 'comunidad';
 
   // Storage key helper for LocalStorage partitioning
   const getStorageKey = (key: string) => {

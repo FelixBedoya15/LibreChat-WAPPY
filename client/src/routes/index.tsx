@@ -171,7 +171,7 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'wappyvital-planea',
+      path: 'wappyvital',
       element: (
         <AuthContextProvider>
           <ComunidadPage />
