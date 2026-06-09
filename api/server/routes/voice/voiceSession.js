@@ -617,6 +617,20 @@ class VoiceSession {
                 }
                 break;
 
+            case 'message':
+                if (data && data.text) {
+                    logger.info(`[VoiceSession] Received text message from client: "${data.text.substring(0, 100)}..."`);
+                    // Append user text for database saving
+                    this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
+                    
+                    if (this.geminiClient) {
+                        this.geminiClient.sendText(data.text);
+                    } else {
+                        logger.warn('[VoiceSession] Received text message but Gemini client is not ready');
+                    }
+                }
+                break;
+
             case 'interrupt':
                 // User interrupted, stop current Gemini response
                 // TODO: Implement interrupt logic
