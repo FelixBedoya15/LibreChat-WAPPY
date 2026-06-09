@@ -258,6 +258,14 @@ export default function PublicMoodTracker() {
                     return updated;
                   });
                 }
+              } else if (eventType === 'clear_step_maps') {
+                accumulatedText = '';
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  if (updated.length > 0)
+                    updated[updated.length - 1] = { sender: 'agent', text: '' };
+                  return updated;
+                });
               } else if (eventType === 'finalMessage' || eventType === 'message') {
                 // Some configurations deliver the full text here
                 const finalText = parsed.text ?? parsed.data?.text;
