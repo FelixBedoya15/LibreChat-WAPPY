@@ -253,6 +253,64 @@ const verifyComunidadTransaction = async (req, res) => {
             console.log(`[Comunidad Wompi Verify] Unlocked course access for: ${purchase.email}`);
         }
 
+        // Auto-provision Wappy Vital plan if reference is WAP-VIT-
+        if (txData.reference.startsWith('WAP-VIT-')) {
+            try {
+                const User = mongoose.model('User');
+                const normEmail = purchase.email.toLowerCase().trim();
+                let user = await User.findOne({ email: normEmail });
+                if (!user) {
+                    const { createUser } = require('../../models');
+                    const { getAppConfig } = require('../services/Config');
+                    const appConfig = await getAppConfig();
+                    const bcrypt = require('bcryptjs');
+                    const salt = bcrypt.genSaltSync(10);
+                    const hashedPassword = bcrypt.hashSync(purchase.phone.trim(), salt);
+
+                    let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                    let userWithUsername = await User.findOne({ username });
+                    if (userWithUsername) {
+                        username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                    }
+
+                    const newUserData = {
+                        provider: 'local',
+                        email: normEmail,
+                        username,
+                        name: purchase.fullName.trim(),
+                        phoneNumber: purchase.phone.trim(),
+                        avatar: null,
+                        role: 'USER_IPEVAR',
+                        accountStatus: 'active',
+                        password: hashedPassword,
+                    };
+
+                    user = await createUser(newUserData, appConfig?.balance, true, true);
+                    console.log(`[Comunidad Verify] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
+                } else {
+                    user.role = 'USER_IPEVAR';
+                    user.accountStatus = 'active';
+                    user.activeAt = new Date();
+                    user.inactiveAt = null;
+                    await user.save();
+                }
+
+                const UserPlan = require('../../db/models/UserPlan');
+                await UserPlan.findOneAndUpdate(
+                    { userId: user._id },
+                    {
+                        plan: 'ipevar',
+                        planExpiresAt: null,
+                        cancelAtPeriodEnd: false
+                    },
+                    { upsert: true, new: true }
+                );
+                console.log(`[Comunidad Verify] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
+            } catch (provErr) {
+                console.error('[Comunidad Verify] Error auto-provisioning Wappy Vital:', provErr);
+            }
+        }
+
         return res.json({ 
             success: true, 
             status: 'APPROVED', 
@@ -572,6 +630,65 @@ const fixComunidadPurchase = async (req, res) => {
             }
 
             await purchase.save();
+
+            // Auto-provision Wappy Vital plan if funnelKey is wappyvital
+            if (funnelKey === 'wappyvital') {
+                try {
+                    const User = mongoose.model('User');
+                    const normEmail = purchase.email.toLowerCase().trim();
+                    let user = await User.findOne({ email: normEmail });
+                    if (!user) {
+                        const { createUser } = require('../../models');
+                        const { getAppConfig } = require('../services/Config');
+                        const appConfig = await getAppConfig();
+                        const bcrypt = require('bcryptjs');
+                        const salt = bcrypt.genSaltSync(10);
+                        const hashedPassword = bcrypt.hashSync(purchase.phone.trim(), salt);
+
+                        let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                        let userWithUsername = await User.findOne({ username });
+                        if (userWithUsername) {
+                            username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                        }
+
+                        const newUserData = {
+                            provider: 'local',
+                            email: normEmail,
+                            username,
+                            name: purchase.fullName.trim(),
+                            phoneNumber: purchase.phone.trim(),
+                            avatar: null,
+                            role: 'USER_IPEVAR',
+                            accountStatus: 'active',
+                            password: hashedPassword,
+                        };
+
+                        user = await createUser(newUserData, appConfig?.balance, true, true);
+                        console.log(`[Comunidad Fix] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
+                    } else {
+                        user.role = 'USER_IPEVAR';
+                        user.accountStatus = 'active';
+                        user.activeAt = new Date();
+                        user.inactiveAt = null;
+                        await user.save();
+                    }
+
+                    const UserPlan = require('../../db/models/UserPlan');
+                    await UserPlan.findOneAndUpdate(
+                        { userId: user._id },
+                        {
+                            plan: 'ipevar',
+                            planExpiresAt: null,
+                            cancelAtPeriodEnd: false
+                        },
+                        { upsert: true, new: true }
+                    );
+                    console.log(`[Comunidad Fix] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
+                } catch (provErr) {
+                    console.error('[Comunidad Fix] Error auto-provisioning Wappy Vital:', provErr);
+                }
+            }
+
             return res.json({ success: true, message: `Approved and repaired purchase for ${normalizedEmail}`, purchase });
         }
 

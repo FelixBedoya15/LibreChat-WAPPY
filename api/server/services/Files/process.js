@@ -76,7 +76,11 @@ const processFiles = async (files, fileIds) => {
       continue;
     }
     seen.add(file_id);
-    promises.push(updateFileUsage({ file_id }));
+    if (file.filepath && file.filepath.startsWith('/api/sgsst/reporte-actos/public/media/')) {
+      promises.push(Promise.resolve(file));
+    } else {
+      promises.push(updateFileUsage({ file_id }));
+    }
   }
 
   if (!fileIds) {

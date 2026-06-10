@@ -92,6 +92,37 @@ function encodeImage(imagePath) {
  * @returns {Promise<[MongoFile, string]>} - A promise that resolves to an array of results from updateFile and encodeImage.
  */
 async function prepareImagesLocal(req, file) {
+  if (file.filepath && file.filepath.startsWith('/api/sgsst/reporte-actos/public/media/')) {
+    const parts = file.filepath.split('/');
+    const reportId = parts[6];
+    const mediaKey = parts[7];
+    
+    const mongoose = require('mongoose');
+    const ReporteActosData = mongoose.models.ReporteActosData || mongoose.model('ReporteActosData', new mongoose.Schema({
+        user: mongoose.Schema.Types.ObjectId,
+        companyId: mongoose.Schema.Types.ObjectId,
+        inboxPublico: Array,
+    }));
+    
+    const doc = await ReporteActosData.findOne({ "inboxPublico.id": reportId });
+    let base64String = null;
+    if (doc && doc.inboxPublico) {
+      const report = doc.inboxPublico.find(r => String(r.id) === String(reportId));
+      if (report && report.data && report.data[mediaKey]) {
+        const b64Data = report.data[mediaKey];
+        const match = b64Data.match(/^data:([^;]+);base64,(.+)$/);
+        if (match && match.length === 3) {
+          base64String = match[2];
+        }
+      }
+    }
+    
+    const promises = [];
+    promises.push(Promise.resolve(file));
+    promises.push(Promise.resolve(base64String));
+    return await Promise.all(promises);
+  }
+
   const appConfig = req.config;
   const { publicPath, imageOutput } = appConfig.paths;
   const userPath = path.join(imageOutput, req.user.id);

@@ -495,4 +495,44 @@ router.get('/estadisticas', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── GET /public/media/:reportId/:mediaKey — Serve report images/videos as binary stream ───
+router.get('/public/media/:reportId/:mediaKey', async (req, res) => {
+    try {
+        const { reportId, mediaKey } = req.params;
+        if (!['foto1', 'foto2', 'foto3', 'video'].includes(mediaKey)) {
+            return res.status(400).send('Invalid media key');
+        }
+
+        const doc = await ReporteActosData.findOne({ "inboxPublico.id": reportId });
+        if (!doc || !doc.inboxPublico) {
+            return res.status(404).send('Report not found');
+        }
+
+        const report = doc.inboxPublico.find(r => String(r.id) === String(reportId));
+        if (!report || !report.data) {
+            return res.status(404).send('Report data not found');
+        }
+
+        const b64Data = report.data[mediaKey];
+        if (!b64Data) {
+            return res.status(404).send('Media not found');
+        }
+
+        const match = b64Data.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match || match.length !== 3) {
+            return res.status(400).send('Invalid media data format');
+        }
+
+        const mimeType = match[1];
+        const rawBuffer = Buffer.from(match[2], 'base64');
+
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        res.send(rawBuffer);
+    } catch (error) {
+        logger.error('[SGSST ReporteActos] Public media error:', error);
+        res.status(500).send('Error serving media');
+    }
+});
+
 module.exports = router;

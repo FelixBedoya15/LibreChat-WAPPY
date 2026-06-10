@@ -441,29 +441,55 @@ const handleWebhook = async (req, res) => {
                     try {
                         const User = mongoose.model('User');
                         const normEmail = purchase.email.toLowerCase().trim();
-                        const user = await User.findOne({ email: normEmail });
-                        if (user) {
+                        let user = await User.findOne({ email: normEmail });
+                        if (!user) {
+                            const { createUser } = require('../../models');
+                            const { getAppConfig } = require('../services/Config');
+                            const appConfig = await getAppConfig();
+                            const bcrypt = require('bcryptjs');
+                            const salt = bcrypt.genSaltSync(10);
+                            const hashedPassword = bcrypt.hashSync(purchase.phone.trim(), salt);
+
+                            let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                            let userWithUsername = await User.findOne({ username });
+                            if (userWithUsername) {
+                                username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                            }
+
+                            const newUserData = {
+                                provider: 'local',
+                                email: normEmail,
+                                username,
+                                name: purchase.fullName.trim(),
+                                phoneNumber: purchase.phone.trim(),
+                                avatar: null,
+                                role: 'USER_IPEVAR',
+                                accountStatus: 'active',
+                                password: hashedPassword,
+                            };
+
+                            user = await createUser(newUserData, appConfig?.balance, true, true);
+                            console.log(`[Wompi Webhook] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
+                        } else {
                             // Update User
                             user.role = 'USER_IPEVAR';
                             user.accountStatus = 'active';
                             user.activeAt = new Date();
                             user.inactiveAt = null; // Lifetime/no expiry
                             await user.save();
-
-                            // Update/Create UserPlan
-                            await UserPlan.findOneAndUpdate(
-                                { userId: user._id },
-                                {
-                                    plan: 'ipevar',
-                                    planExpiresAt: null, // Lifetime/no expiry
-                                    cancelAtPeriodEnd: false
-                                },
-                                { upsert: true, new: true }
-                            );
-                            console.log(`[Wompi Webhook] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
-                        } else {
-                            console.log(`[Wompi Webhook] Purchase approved for Wappy Vital, but no registered user found yet for email ${normEmail}`);
                         }
+
+                        // Update/Create UserPlan
+                        await UserPlan.findOneAndUpdate(
+                            { userId: user._id },
+                            {
+                                plan: 'ipevar',
+                                planExpiresAt: null, // Lifetime/no expiry
+                                cancelAtPeriodEnd: false
+                            },
+                            { upsert: true, new: true }
+                        );
+                        console.log(`[Wompi Webhook] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
                     } catch (provErr) {
                         console.error('[Wompi Webhook] Error provisioning Wappy Vital for WAP-VIT purchase:', provErr);
                     }

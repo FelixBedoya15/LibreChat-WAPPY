@@ -121,6 +121,8 @@ export default function ComunidadPage() {
   const [isAccessGranted, setIsAccessGranted] = useState(false);
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_email')) || '');
   const [userFullName, setUserFullName] = useState('');
+  const [userPhone, setUserPhone] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_phone')) || '');
+  const [vitalPlanConfig, setVitalPlanConfig] = useState<{ rawPrice: number; displayPrice: string; finalPrice: number } | null>(null);
   
   // Checkout & Recovery Modal States
   const [checkoutFullName, setCheckoutFullName] = useState('');
@@ -359,6 +361,33 @@ export default function ComunidadPage() {
   };
 
   useEffect(() => {
+    if (funnelKey === 'wappyvital') {
+      axios.get('/api/wompi/configured-plans')
+        .then(({ data }) => {
+          const fetchedConfig = data.find((p: any) => p.planId === 'ipevar');
+          if (fetchedConfig) {
+            const rawPrice = fetchedConfig.prices?.lifetime || 150000;
+            const promotion = fetchedConfig.promotions?.lifetime;
+            let discountedPrice = 0;
+            if (promotion?.active && promotion.discountPercentage > 0) {
+              discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+            } else {
+              discountedPrice = Math.round(rawPrice * 0.7);
+            }
+            setVitalPlanConfig({
+              rawPrice,
+              displayPrice: '$' + rawPrice.toLocaleString('es-CO'),
+              finalPrice: discountedPrice
+            });
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching vital plan config from plans API:', err);
+        });
+    }
+  }, [funnelKey]);
+
+  useEffect(() => {
     fetchConfig();
     if (window.fbq) {
       window.fbq('track', 'PageView');
@@ -376,6 +405,10 @@ export default function ComunidadPage() {
             const { email, fullName, phone } = response.data;
             localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
+            if (phone) {
+              localStorage.setItem(getStorageKey('wappy_comunidad_phone'), phone);
+              setUserPhone(phone);
+            }
             setIsAccessGranted(true);
             setShowLeadModal(false);
             
@@ -932,6 +965,10 @@ export default function ComunidadPage() {
           if (response.data.success) {
             localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
+            if (checkoutPhone) {
+              localStorage.setItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
+              setUserPhone(checkoutPhone);
+            }
             setIsAccessGranted(true);
             setShowLeadModal(false);
             triggerMetaPurchasePixel(email, checkoutFullName, checkoutPhone);
@@ -1064,7 +1101,19 @@ export default function ComunidadPage() {
       videoRef.current?.pause();
       setIsPlaying(false);
     }
-    setShowLeadModal(true);
+    
+    if (funnelKey === 'wappyvital') {
+      navigate('/register?plan=vital');
+    } else {
+      setShowLeadModal(true);
+    }
+  };
+
+  const handleScrollToCard = () => {
+    const card = document.getElementById('wappy-vital-card');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   };
 
 
@@ -2342,7 +2391,7 @@ export default function ComunidadPage() {
                       <>
                         {funnelKey === 'wappyvital' ? (
                           <>
-                            Obtén la <strong>Membresía de Por Vida a WAPPY VITAL</strong> (Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores de RIT e IPEVAR) por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (Precio de lanzamiento por tiempo limitado).
+                            ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> (con Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores RIT/IPEVAR) de forma inmediata completando tu registro.
                           </>
                         ) : (
                           <>
@@ -2354,7 +2403,7 @@ export default function ComunidadPage() {
                       <>
                         {funnelKey === 'wappyvital' ? (
                           <>
-                            ⚡ Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> con Chat con IA Ilimitado, 15+ Agentes y Editores RIT/IPEVAR de forma inmediata completando tu registro.
+                            ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> (con Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores RIT/IPEVAR) de forma inmediata completando tu registro.
                           </>
                         ) : (
                           <>
@@ -2371,7 +2420,7 @@ export default function ComunidadPage() {
                 >
                   {actualRequiresPayment ? (
                     funnelKey === 'wappyvital' ? (
-                      `Adquirir Membresía Vital - $${price.toLocaleString('es-CO')} COP`
+                      'Adquirir Membresía Vital'
                     ) : (
                       `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP`
                     )
@@ -2610,7 +2659,7 @@ export default function ComunidadPage() {
             </div>
 
             {funnelKey === 'wappyvital' && !isAccessGranted && (
-              <div className="w-full max-w-md mx-auto mt-12 bg-surface-primary border border-border-medium rounded-3xl p-6 shadow-2xl relative bg-surface-primary/70 backdrop-blur-md text-left">
+              <div id="wappy-vital-card" className="w-full max-w-md mx-auto mt-12 bg-surface-primary border border-border-medium rounded-3xl p-6 shadow-2xl relative bg-surface-primary/70 backdrop-blur-md text-left">
                 {/* top left badge */}
                 <div className="absolute -top-3 left-6 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1 text-[10px] font-bold text-white shadow">
                   ✨ Pago único de por vida
@@ -2636,11 +2685,11 @@ export default function ComunidadPage() {
 
                 <div className="mb-5 flex flex-col items-start gap-1">
                   <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                    ${price.toLocaleString('es-CO')}
+                    {vitalPlanConfig ? vitalPlanConfig.displayPrice : `$${(price || 150000).toLocaleString('es-CO')}`}
                   </span>
                   <div className="flex items-end gap-1">
                     <span className="text-4xl font-black tracking-tight text-emerald-500">
-                      ${Math.round(price * 0.7).toLocaleString('es-CO')}
+                      {vitalPlanConfig ? `$${vitalPlanConfig.finalPrice.toLocaleString('es-CO')}` : `$${Math.round((price || 150000) * 0.7).toLocaleString('es-CO')}`}
                     </span>
                     <span className="mb-1 text-xs font-semibold text-text-secondary">
                       Pago Único
@@ -2699,9 +2748,21 @@ export default function ComunidadPage() {
                     : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
                 </h3>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-                  {funnelKey === 'wappyvital'
-                    ? 'Tu cuenta ha sido autorizada de por vida. Utiliza tu correo registrado para iniciar sesión o registrarte en la plataforma y acceder a los más de 15 agentes de IA.'
-                    : 'Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.'}
+                  {funnelKey === 'wappyvital' ? (
+                    userPhone ? (
+                      <>
+                        Tu cuenta ha sido creada automáticamente. Usa tus credenciales para iniciar sesión:
+                        <br />
+                        <span className="text-text-primary">Usuario:</span> {userEmail}
+                        <br />
+                        <span className="text-text-primary">Contraseña:</span> {userPhone}
+                      </>
+                    ) : (
+                      'Tu cuenta ha sido autorizada de por vida. Utiliza tu correo registrado para iniciar sesión en la plataforma y acceder a los más de 15 agentes de IA.'
+                    )
+                  ) : (
+                    'Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.'
+                  )}
                 </p>
                 {funnelKey === 'wappyvital' && (
                   <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
@@ -2997,12 +3058,12 @@ export default function ComunidadPage() {
         <p>© {new Date().getFullYear()} WAPPY. Todos los derechos reservados.</p>
       </footer>
 
-      {funnelKey === 'wappyvital' && !isUnlocked && (
+      {funnelKey === 'wappyvital' && !isAccessGranted && (
         <button
-          onClick={handleQuickAccessClick}
+          onClick={handleScrollToCard}
           className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-500/35 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 flex items-center gap-2 border border-emerald-400/20 animate-bounce"
         >
-          <span>Ver Oferta</span>
+          <span>Ver Plan Completo</span>
           <ArrowDown className="w-4 h-4" />
         </button>
       )}

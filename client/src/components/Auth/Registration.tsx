@@ -9,6 +9,7 @@ import type { TLoginLayoutContext } from '~/common';
 import { useLocalize, TranslationKeys } from '~/hooks';
 import { Eye, EyeOff } from 'lucide-react';
 import { ErrorMessage } from './ErrorMessage';
+import axios from 'axios';
 
 const Registration: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const Registration: React.FC = () => {
     watch,
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<TRegisterUser>({ mode: 'onChange' });
   const password = watch('password');
@@ -40,12 +42,102 @@ const Registration: React.FC = () => {
   // only require captcha if we have a siteKey
   const requireCaptcha = Boolean(startupConfig?.turnstile?.siteKey);
 
+  const [checkoutLoadingText, setCheckoutLoadingText] = useState<string>('');
+
+  const handleWompiCheckout = async (name: string, email: string, phone: string) => {
+    setCheckoutLoadingText('Creando tu registro de pago en WAPPY...');
+    try {
+      const { data } = await axios.post('/api/comunidad/checkout', {
+        fullName: name,
+        email: email,
+        phone: phone,
+        funnelKey: 'wappyvital'
+      });
+
+      if (data.alreadyPaid || data.freeAccess) {
+        setCheckoutLoadingText('¡Pago confirmado! Redirigiéndote a Wappy...');
+        localStorage.setItem('wappy_comunidad_email_wappyvital', email);
+        localStorage.setItem('wappy_comunidad_phone_wappyvital', phone);
+        setTimeout(() => {
+          navigate('/c/new', { replace: true });
+        }, 1500);
+        return;
+      }
+
+      setCheckoutLoadingText('Abriendo pasarela de pago Wompi...');
+
+      if (!window.WidgetCheckout) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.wompi.co/widget.js';
+          script.async = true;
+          document.body.appendChild(script);
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('No se pudo cargar la pasarela de pago.'));
+        });
+      }
+
+      const checkout = new window.WidgetCheckout({
+        currency: 'COP',
+        amountInCents: data.amountInCents,
+        reference: data.reference,
+        publicKey: data.publicKey,
+        signature: data.signature ? { integrity: data.signature } : undefined,
+        redirectUrl: window.location.origin + '/wappyvital?wompi_redirect=1'
+      });
+
+      setCheckoutLoadingText('Pasarela de pago abierta. Completa tu pago.');
+
+      checkout.open(async (result: any) => {
+        const transaction = result.transaction;
+        if (transaction.status === 'APPROVED') {
+          setCheckoutLoadingText('Verificando pago...');
+          try {
+            await axios.post('/api/comunidad/verify', { transactionId: transaction.id, funnelKey: 'wappyvital' });
+            localStorage.setItem('wappy_comunidad_email_wappyvital', email);
+            localStorage.setItem('wappy_comunidad_phone_wappyvital', phone);
+            setCheckoutLoadingText('¡Pago Aprobado! Redirigiéndote...');
+            setTimeout(() => {
+              navigate('/c/new', { replace: true });
+            }, 1000);
+          } catch (verifyErr) {
+            console.error(verifyErr);
+            navigate('/c/new', { replace: true });
+          }
+        } else if (transaction.status === 'PENDING') {
+          alert('Tu pago está pendiente de aprobación. Podrás acceder tan pronto se confirme.');
+          navigate('/c/new', { replace: true });
+        } else {
+          alert('El pago no fue aprobado. Puedes intentar de nuevo en la sección de planes.');
+          navigate('/c/new', { replace: true });
+        }
+      });
+
+    } catch (err: any) {
+      console.error('[Registration Wompi error]', err);
+      const msg = err.response?.data?.error || err.message || 'Error al iniciar el pago con Wompi.';
+      setErrorMessage(msg);
+      setCheckoutLoadingText('');
+      setTimeout(() => {
+        navigate('/c/new', { replace: true });
+      }, 3000);
+    }
+  };
+
   const registerUser = useRegisterUserMutation({
     onMutate: () => {
       setIsSubmitting(true);
     },
     onSuccess: () => {
       setIsSubmitting(false);
+
+      const isVitalPlan = queryParams.get('plan') === 'vital';
+      if (isVitalPlan) {
+        const values = getValues();
+        handleWompiCheckout(values.name, values.email || '', values.phoneNumber || '');
+        return;
+      }
+
       setCountdown(3);
       const timer = setInterval(() => {
         setCountdown((prevCountdown) => {
@@ -142,6 +234,15 @@ const Registration: React.FC = () => {
         <ErrorMessage>
           {localize('com_auth_error_create')} {errorMessage}
         </ErrorMessage>
+      )}
+      {checkoutLoadingText && (
+        <div
+          className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2 mb-4"
+          role="alert"
+        >
+          <Spinner className="h-4 w-4 shrink-0" />
+          <span>{checkoutLoadingText}</span>
+        </div>
       )}
       {registerUser.isSuccess && countdown > 0 && (
         <div
@@ -267,7 +368,8 @@ const Registration: React.FC = () => {
                   Object.keys(errors).length > 0 ||
                   isSubmitting ||
                   (requireCaptcha && !turnstileToken) ||
-                  !termsAccepted
+                  !termsAccepted ||
+                  !!checkoutLoadingText
                 }
                 type="submit"
                 aria-label="Submit registration"

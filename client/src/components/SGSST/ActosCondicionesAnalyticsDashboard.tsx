@@ -128,6 +128,10 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
       const formattedDate = new Date(createdAt || reportData.fecha).toLocaleDateString('es-CO', {
         day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
+      const mediaUrl1 = reportData?.foto1 ? `/api/sgsst/reporte-actos/public/media/${report.id}/foto1` : null;
+      const mediaUrl2 = reportData?.foto2 ? `/api/sgsst/reporte-actos/public/media/${report.id}/foto2` : null;
+      const mediaUrl3 = reportData?.foto3 ? `/api/sgsst/reporte-actos/public/media/${report.id}/foto3` : null;
+      const videoUrl = reportData?.video ? `/api/sgsst/reporte-actos/public/media/${report.id}/video` : null;
 
       const promptText = `Por favor analiza el siguiente reporte de acto o condición insegura recibido en el buzón público y elabora el formato técnico en el Canvas:
 
@@ -138,14 +142,50 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
 - **Descripción del Peligro/Hallazgo:** ${reportData?.descripcion || 'No proporcionada'}
 
 ### Evidencia Multimedia Adjunta:
-${reportData?.foto1 ? `![Evidencia 1](${reportData.foto1})
-${reportData?.foto1Desc ? `*Detalle:* ${reportData.foto1Desc}` : ''}\n` : ''}${reportData?.foto2 ? `![Evidencia 2](${reportData.foto2})
-${reportData?.foto2Desc ? `*Detalle:* ${reportData.foto2Desc}` : ''}\n` : ''}${reportData?.foto3 ? `![Evidencia 3](${reportData.foto3})
-${reportData?.foto3Desc ? `*Detalle:* ${reportData.foto3Desc}` : ''}\n` : ''}${reportData?.video ? `
-<video src="${reportData.video}" controls style="max-width: 100%; border-radius: 8px; margin-top: 8px;"></video>\n` : ''}
+${mediaUrl1 ? `![Evidencia 1](${mediaUrl1})
+${reportData?.foto1Desc ? `*Detalle:* ${reportData.foto1Desc}` : ''}\n` : ''}${mediaUrl2 ? `![Evidencia 2](${mediaUrl2})
+${reportData?.foto2Desc ? `*Detalle:* ${reportData.foto2Desc}` : ''}\n` : ''}${mediaUrl3 ? `![Evidencia 3](${mediaUrl3})
+${reportData?.foto3Desc ? `*Detalle:* ${reportData.foto3Desc}` : ''}\n` : ''}${videoUrl ? `
+<video src="${videoUrl}" controls style="max-width: 100%; border-radius: 8px; margin-top: 8px;"></video>\n` : ''}
 Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiza las causas básicas e inmediatas, define controles siguiendo la jerarquía y genera el reporte técnico interactivo.`;
 
-      ask({ text: promptText });
+      ask(
+        { text: promptText },
+        {
+          overrideFiles: [
+            mediaUrl1 && {
+              file_id: `${report.id}_foto1`,
+              filepath: mediaUrl1,
+              type: 'image/png',
+              filename: 'foto1.png',
+              height: 512,
+              width: 512,
+            },
+            mediaUrl2 && {
+              file_id: `${report.id}_foto2`,
+              filepath: mediaUrl2,
+              type: 'image/png',
+              filename: 'foto2.png',
+              height: 512,
+              width: 512,
+            },
+            mediaUrl3 && {
+              file_id: `${report.id}_foto3`,
+              filepath: mediaUrl3,
+              type: 'image/png',
+              filename: 'foto3.png',
+              height: 512,
+              width: 512,
+            },
+            videoUrl && {
+              file_id: `${report.id}_video`,
+              filepath: videoUrl,
+              type: 'video/mp4',
+              filename: 'video.mp4',
+            },
+          ].filter(Boolean) as any[],
+        }
+      );
       showToast({ message: 'Reporte enviado al chat con éxito para análisis.', status: 'success' });
       setIsModalOpen(false);
     } catch (err) {
