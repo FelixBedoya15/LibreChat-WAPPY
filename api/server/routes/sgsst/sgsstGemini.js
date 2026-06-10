@@ -26,8 +26,8 @@ const { logger } = require('~/config');
 
 // Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
-  'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
   'gemini-2.5-flash',
 ];
 

@@ -32,6 +32,7 @@ const BlogButton = lazy(() => import('./BlogButton'));
 const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
 const InspeccionButton = lazy(() => import('./InspeccionButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
+const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -272,6 +273,12 @@ const Nav = memo(
                             </button>
                           }
                         />
+                        {/* Bookmarks icon */}
+                        {hasAccessToBookmarks && (
+                          <Suspense fallback={null}>
+                            <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
@@ -333,6 +340,11 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                {hasAccessToBookmarks && (
+                                  <Suspense fallback={null}>
+                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />

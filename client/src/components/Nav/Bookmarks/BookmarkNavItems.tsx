@@ -16,7 +16,7 @@ const BookmarkNavItems: FC<{
       return false;
     }
     // Filter out system/SGSST bookmarks
-    return !tag.tag.startsWith('sgsst-') && tag.tag !== 'report';
+    return !tag.tag.startsWith('sgsst-') && !tag.tag.startsWith('company-') && tag.tag !== 'report';
   });
 
   const getUpdatedSelected = (tag: string) => {

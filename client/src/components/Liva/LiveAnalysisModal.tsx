@@ -1186,6 +1186,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     useEffect(() => {
         if (!isOpen || !selectedTemplate) return;
 
+        // Reset photos for the new session
+        setManualCapturedPhotos([]);
+        manualPhotosCountRef.current = 0;
+
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         }

@@ -211,6 +211,11 @@ export default function SGSSTDashboard() {
         .then(res => { if (!res.ok) throw new Error(`Status ${res.status}`); return res.json(); })
         .then(info => {
             setCompanyInfo(info);
+            if (info && info.logoBase64) {
+                localStorage.setItem('wappy_sst_global_logo', info.logoBase64);
+            } else {
+                localStorage.removeItem('wappy_sst_global_logo');
+            }
             if (!info || Object.keys(info).length === 0) {
                 setMissingFields([...REQUIRED_FIELDS]);
                 setShowCompanyInfo(true);

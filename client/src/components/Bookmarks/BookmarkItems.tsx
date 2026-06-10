@@ -15,7 +15,7 @@ const BookmarkItems: FC<BookmarkItemsProps> = ({ tags, handleSubmit, header }) =
       return false;
     }
     // Filter out system/SGSST bookmarks
-    return !tag.tag.startsWith('sgsst-') && tag.tag !== 'report';
+    return !tag.tag.startsWith('sgsst-') && !tag.tag.startsWith('company-') && tag.tag !== 'report';
   });
 
   return (

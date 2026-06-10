@@ -133,24 +133,71 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             if (Array.isArray(dataArr) && dataArr.length > 0) {
                 setCompanies(dataArr);
                 const active = dataArr.find(c => c.isActive) || dataArr[0];
-                setData(active);
+                
+                const draftKey = `wappy_company_draft_${active._id || 'new'}`;
+                const draftStr = localStorage.getItem(draftKey);
+                if (draftStr) {
+                    try {
+                        const parsed = JSON.parse(draftStr);
+                        setData(parsed);
+                        showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
+                    } catch (e) {
+                        setData(active);
+                    }
+                } else {
+                    setData(active);
+                }
                 syncSignaturesToLocal(active);
             } else {
                 setCompanies([]);
-                setData(INITIAL_DATA);
+                const draftKey = `wappy_company_draft_new`;
+                const draftStr = localStorage.getItem(draftKey);
+                if (draftStr) {
+                    try {
+                        const parsed = JSON.parse(draftStr);
+                        setData(parsed);
+                        showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
+                    } catch (e) {
+                        setData(INITIAL_DATA);
+                    }
+                } else {
+                    setData(INITIAL_DATA);
+                }
             }
         } catch (err) {
             console.error('Error loading companies:', err);
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [token, showToast]);
 
     useEffect(() => {
         if (isOpen) {
             loadCompanies();
         }
     }, [isOpen, loadCompanies]);
+
+    useEffect(() => {
+        if (loading) return;
+        
+        const timer = setTimeout(() => {
+            const isInitial = Object.keys(INITIAL_DATA).every(key => {
+                const val = data[key as keyof CompanyInfoData];
+                const initVal = INITIAL_DATA[key as keyof CompanyInfoData];
+                if (Array.isArray(val)) {
+                    return val.length === 0;
+                }
+                return val === initVal;
+            });
+            
+            if (isInitial) return;
+
+            const draftKey = `wappy_company_draft_${data._id || 'new'}`;
+            localStorage.setItem(draftKey, JSON.stringify(data));
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [data, loading]);
 
     const syncSignaturesToLocal = (info: CompanyInfoData) => {
         try {
@@ -213,11 +260,35 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, [handleChange]);
 
     const handleSelectCompany = (comp: CompanyInfoData) => {
-        setData(comp);
+        const draftKey = `wappy_company_draft_${comp._id || 'new'}`;
+        const draftStr = localStorage.getItem(draftKey);
+        if (draftStr) {
+            try {
+                const parsed = JSON.parse(draftStr);
+                setData(parsed);
+                showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
+            } catch (e) {
+                setData(comp);
+            }
+        } else {
+            setData(comp);
+        }
     };
 
     const handleNewCompany = () => {
-        setData(INITIAL_DATA);
+        const draftKey = `wappy_company_draft_new`;
+        const draftStr = localStorage.getItem(draftKey);
+        if (draftStr) {
+            try {
+                const parsed = JSON.parse(draftStr);
+                setData(parsed);
+                showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
+            } catch (e) {
+                setData(INITIAL_DATA);
+            }
+        } else {
+            setData(INITIAL_DATA);
+        }
     };
 
     const handleActivateCompany = async (id: string) => {
@@ -256,6 +327,18 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             
             if (res.ok) {
                 showToast({ message: 'Información de la empresa guardada', status: 'success', severity: 'success' });
+                const draftKey = `wappy_company_draft_${data._id || 'new'}`;
+                localStorage.removeItem(draftKey);
+
+                if (data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
+                    if (data.logoBase64) {
+                        localStorage.setItem('wappy_sst_global_logo', data.logoBase64);
+                    } else {
+                        localStorage.removeItem('wappy_sst_global_logo');
+                    }
+                    window.dispatchEvent(new Event('storage'));
+                }
+
                 await loadCompanies();
             } else {
                 const errData = await res.json();
@@ -266,7 +349,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         } finally {
             setSaving(false);
         }
-    }, [data, token, showToast, loadCompanies]);
+    }, [data, token, showToast, loadCompanies, companies]);
 
     if (!isOpen) return null;
 
@@ -412,34 +495,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     <Building2 className="h-4 w-4" /> {t('com_ui_company_data_general', 'Datos Generales')}
                                 </h3>
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                    <div className="md:col-span-2">
-                                        <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
-                                        <input className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
-                                        <SingleSelect value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
-                                        <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
-                                        <input className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
-                                        <input className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
-                                        <input className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
-                                        <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
-                                    </div>
                                     <div className="md:col-span-3">
                                         <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary"><ImageIcon className="h-3.5 w-3.5 text-teal-500" />Logotipo de la Empresa (Opcional)</label>
                                         <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-border-medium bg-surface-primary p-4">
@@ -484,6 +539,34 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                 <p className="text-[10.5px] text-text-secondary font-medium">Recomendado: imagen cuadrada o rectangular horizontal, formato PNG/JPG, peso menor a 1MB. Se utilizará para estampar tu marca en los portales QR y reportes.</p>
                                             </div>
                                         </div>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
+                                        <input className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
+                                        <SingleSelect value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
+                                        <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
+                                        <input className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
+                                        <input className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
+                                        <input className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
+                                        <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
                                     </div>
                                 </div>
                             </div>
@@ -770,7 +853,11 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     </div>
                     <div className="flex gap-3">
                         <button
-                            onClick={onClose}
+                            onClick={() => {
+                                const draftKey = `wappy_company_draft_${data._id || 'new'}`;
+                                localStorage.removeItem(draftKey);
+                                onClose();
+                            }}
                             className="rounded-xl border border-border-medium px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
                         >
                             {t('com_ui_cancel', 'Cancelar')}

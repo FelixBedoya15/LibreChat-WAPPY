@@ -169,7 +169,11 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
           ubicacion: r.data?.ubicacion || 'Sin ubicación',
           status: r.status || 'pending',
           hasFoto: !!(r.data?.foto1 || r.data?.foto2 || r.data?.foto3),
-          hasVideo: !!r.data?.video
+          hasVideo: !!r.data?.video,
+          foto1: r.data?.foto1 || null,
+          foto2: r.data?.foto2 || null,
+          foto3: r.data?.foto3 || null,
+          video: r.data?.video || null
         }));
 
       const resultObj = {

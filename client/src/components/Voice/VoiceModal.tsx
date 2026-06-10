@@ -344,6 +344,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     useEffect(() => {
         if (!isOpen) return;
         manualPhotosCountRef.current = 0;
+        setManualCapturedPhotos([]);
         setZoom(1);
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
             audioContextRef.current.resume();

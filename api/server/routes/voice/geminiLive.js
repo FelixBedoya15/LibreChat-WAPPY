@@ -20,7 +20,7 @@ class GeminiLiveClient extends EventEmitter {
             if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name === 'gemini-2.5-flash-native-audio-preview-09-2025') {
                 return name;
             }
-            if (name.includes('3.1') || name.includes('live')) {
+            if (name.includes('3.5') || name.includes('3.1') || name.includes('live')) {
                 return 'gemini-3.1-flash-live-preview';
             }
             if (name.includes('09-2025')) {
@@ -29,7 +29,7 @@ class GeminiLiveClient extends EventEmitter {
             if (name.includes('12-2025')) {
                 return 'gemini-2.5-flash-native-audio-preview-12-2025';
             }
-            if (name.includes('2.5') || name.includes('native-audio') || name.includes('3.5')) {
+            if (name.includes('2.5') || name.includes('native-audio')) {
                 return 'gemini-2.5-flash-native-audio-preview-12-2025';
             }
             return 'gemini-3.1-flash-live-preview';
@@ -55,7 +55,7 @@ class GeminiLiveClient extends EventEmitter {
     async connect() {
         return new Promise((resolve, reject) => {
             try {
-                const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+                const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
                 logger.info(`[GeminiLive] Connecting to endpoint with key ending in: ...${this.apiKey ? this.apiKey.slice(-4) : 'NONE'}`);
                 this.ws = new WebSocket(endpoint);
 

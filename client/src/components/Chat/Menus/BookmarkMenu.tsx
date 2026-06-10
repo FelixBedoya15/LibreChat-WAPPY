@@ -115,7 +115,7 @@ const BookmarkMenu: FC = () => {
     if (data) {
       for (const tag of data) {
         // Filter out system/SGSST bookmarks
-        if (tag.tag.startsWith('sgsst-') || tag.tag === 'report') {
+        if (tag.tag.startsWith('sgsst-') || tag.tag.startsWith('company-') || tag.tag === 'report') {
           continue;
         }
 

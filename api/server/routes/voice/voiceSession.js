@@ -149,7 +149,7 @@ class VoiceSession {
                 if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name === 'gemini-2.5-flash-native-audio-preview-09-2025') {
                     return name;
                 }
-                if (name.includes('3.1') || name.includes('live')) {
+                if (name.includes('3.5') || name.includes('3.1') || name.includes('live')) {
                     return 'gemini-3.1-flash-live-preview';
                 }
                 if (name.includes('09-2025')) {
@@ -158,7 +158,7 @@ class VoiceSession {
                 if (name.includes('12-2025')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
                 }
-                if (name.includes('2.5') || name.includes('native-audio') || name.includes('3.5')) {
+                if (name.includes('2.5') || name.includes('native-audio')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
                 }
                 return 'gemini-3.1-flash-live-preview';
@@ -386,9 +386,7 @@ class VoiceSession {
 
                 // FASE 6: Transcription Correction
                 let textToSave = currentUserText.trim();
-                if (currentAiText.trim()) {
-                    textToSave = await this.correctTranscription(textToSave, currentAiText.trim());
-                }
+                textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]');
 
                 const result = await this.saveUserMessage(textToSave);
                 if (result) {
@@ -932,8 +930,8 @@ class VoiceSession {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
-            // Use Gemini 3.5 Flash for high performance voice transcription corrections
-            const correctionModelName = 'gemini-3.5-flash';
+            // Use Gemini 3.1 Flash Lite for high performance voice transcription corrections
+            const correctionModelName = 'gemini-3.1-flash-lite';
             logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
