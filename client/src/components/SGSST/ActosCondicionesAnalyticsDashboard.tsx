@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
+import { useChatContext } from '~/Providers';
 import { 
   Building2, QrCode, Printer, ShieldAlert, AlertCircle, 
   TrendingUp, Sparkles, Users, BarChart2, Calendar, 
   Download, Eye, Loader2, CheckCircle2, Clock, 
-  FileText, Activity, Trash2, Check
+  FileText, Activity, Trash2, Check, X, Video
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -39,12 +40,17 @@ interface StatsData {
 export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { isMaximized?: boolean }) {
   const { token, user } = useAuthContext();
   const { showToast } = useToastContext();
+  const { ask } = useChatContext();
   
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterDays, setFilterDays] = useState<number>(30);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingReportId, setLoadingReportId] = useState<string | null>(null);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   const showFullView = isMaximized === undefined || isMaximized === true;
 
@@ -86,6 +92,67 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
     if (!publicQrUrl) return '';
     return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(publicQrUrl)}&color=ea580c&bgcolor=ffffff&margin=10`;
   }, [publicQrUrl]);
+
+  const handleOpenReport = async (reportId: string) => {
+    try {
+      setLoadingReportId(reportId);
+      const res = await axios.get(`/api/sgsst/reporte-actos/inbox/${reportId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.report) {
+        setSelectedReport(res.data.report);
+        setIsModalOpen(true);
+      } else {
+        showToast({ message: 'No se encontraron los detalles del reporte.', status: 'error' });
+      }
+    } catch (err) {
+      console.error('Error fetching report details:', err);
+      showToast({ message: 'Error al cargar los detalles del reporte.', status: 'error' });
+    } finally {
+      setLoadingReportId(null);
+    }
+  };
+
+  const handleSendToChat = async (report: any) => {
+    try {
+      let fullReport = report;
+      if (!report.data || !report.data.descripcion) {
+        setLoadingReportId(report.id);
+        const res = await axios.get(`/api/sgsst/reporte-actos/inbox/${report.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fullReport = res.data.report;
+      }
+
+      const { trabajador, data: reportData, createdAt } = fullReport;
+      const formattedDate = new Date(createdAt || reportData.fecha).toLocaleDateString('es-CO', {
+        day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+
+      const promptText = `Por favor analiza el siguiente reporte de acto o condición insegura recibido en el buzón público y elabora el formato técnico en el Canvas:
+
+- **Colaborador:** ${trabajador?.nombre || 'Anónimo'} (${trabajador?.cargo || 'No especificado'})
+- **Cédula:** ${trabajador?.cedula || 'N/A'}
+- **Fecha y Hora:** ${formattedDate}
+- **Ubicación:** ${reportData?.ubicacion || 'Sin ubicación'}
+- **Descripción del Peligro/Hallazgo:** ${reportData?.descripcion || 'No proporcionada'}
+${reportData?.foto1Desc ? `- **Evidencia Fotográfica 1 (Detalle):** ${reportData.foto1Desc}` : ''}
+${reportData?.foto2Desc ? `- **Evidencia Fotográfica 2 (Detalle):** ${reportData.foto2Desc}` : ''}
+${reportData?.foto3Desc ? `- **Evidencia Fotográfica 3 (Detalle):** ${reportData.foto3Desc}` : ''}
+${reportData?.video ? `- **Evidencia de Video:** Adjunto en el reporte (Revisar comportamiento dinámico)` : ''}
+
+Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiza las causas básicas e inmediatas, define controles siguiendo la jerarquía y genera el reporte técnico interactivo.`;
+
+      ask({ text: promptText });
+      showToast({ message: 'Reporte enviado al chat con éxito para análisis.', status: 'success' });
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Error sending report to chat:', err);
+      showToast({ message: 'Error al enviar el reporte al chat.', status: 'error' });
+    } finally {
+      setLoadingReportId(null);
+    }
+  };
 
   const handleMarkProcessed = async (reportId: string) => {
     try {
@@ -627,6 +694,28 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        disabled={loadingReportId !== null || processingId !== null}
+                        onClick={() => handleOpenReport(report.id)}
+                        className="bg-orange-100 hover:bg-orange-200 dark:bg-orange-950/20 dark:hover:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-all disabled:opacity-50"
+                      >
+                        {loadingReportId === report.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                        Abrir
+                      </button>
+
+                      <button
+                        disabled={loadingReportId !== null || processingId !== null}
+                        onClick={() => handleSendToChat(report)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-all disabled:opacity-50 shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Analizar
+                      </button>
+
                       {report.status !== 'processed' && (
                         <button
                           disabled={processingId !== null}
@@ -661,6 +750,185 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
         </div>
 
       </div>
+
+      {/* Modal de Detalle */}
+      {isModalOpen && selectedReport && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-surface-primary border border-border-medium rounded-3xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border-light bg-gradient-to-r from-orange-500/5 to-amber-500/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-orange-100 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 rounded-xl">
+                  <ShieldAlert className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-text-primary uppercase tracking-wider">
+                    Detalle del Reporte Recibido
+                  </h3>
+                  <p className="text-[10px] text-text-secondary font-bold uppercase tracking-wider mt-0.5">
+                    📍 {selectedReport.data?.ubicacion || 'Ubicación General'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setSelectedReport(null);
+                }}
+                className="p-2 rounded-xl text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-6 scrollbar-thin text-xs text-text-primary">
+              
+              {/* Worker & Meta details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-secondary/50 border border-border-light/50 p-4 rounded-2xl">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Reportante</p>
+                  <p className="font-extrabold text-sm text-text-primary">{selectedReport.trabajador?.nombre || 'Anónimo'}</p>
+                  <p className="text-text-secondary text-[11px]">Cargo: <span className="font-semibold">{selectedReport.trabajador?.cargo || 'No especificado'}</span></p>
+                  <p className="text-text-secondary text-[11px]">Cédula: <span className="font-semibold">{selectedReport.trabajador?.cedula || 'N/A'}</span></p>
+                </div>
+                <div className="space-y-2 border-t md:border-t-0 md:border-l border-border-light/50 pt-2 md:pt-0 md:pl-4">
+                  <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Detalles de Registro</p>
+                  <p className="text-text-secondary text-[11px]">Fecha y Hora: <span className="font-semibold">{new Date(selectedReport.createdAt).toLocaleString('es-CO')}</span></p>
+                  <p className="text-text-secondary text-[11px]">Estado: 
+                    <span className={`ml-1 px-2.5 py-0.5 rounded-full border text-[9px] font-bold ${
+                      selectedReport.status === 'processed'
+                        ? 'bg-emerald-50 border-emerald-250 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+                        : 'bg-amber-50 border-amber-250 text-amber-600 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400'
+                    }`}>
+                      {selectedReport.status === 'processed' ? 'Procesado' : 'Pendiente'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Finding Description */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Descripción del Peligro / Hallazgo</p>
+                <div className="p-4 bg-orange-500/5 dark:bg-orange-500/10 border-l-4 border-orange-500 rounded-r-2xl leading-relaxed text-sm">
+                  {selectedReport.data?.descripcion || 'No se proporcionó descripción.'}
+                </div>
+              </div>
+
+              {/* Multimedia Evidence */}
+              {(selectedReport.data?.foto1 || selectedReport.data?.foto2 || selectedReport.data?.foto3 || selectedReport.data?.video) && (
+                <div className="space-y-3 pt-2">
+                  <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Evidencia Multimedia Adjunta</p>
+                  
+                  {/* Photos Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {['foto1', 'foto2', 'foto3'].map((fotoKey, i) => {
+                      const fotoBase64 = selectedReport.data?.[fotoKey];
+                      const fotoDesc = selectedReport.data?.[`${fotoKey}Desc`] || 'Sin descripción adicional';
+                      if (!fotoBase64) return null;
+                      return (
+                        <div key={fotoKey} className="group relative border border-border-light rounded-2xl overflow-hidden bg-surface-secondary shadow-sm hover:shadow-md transition-all">
+                          <div 
+                            className="aspect-square w-full cursor-zoom-in relative overflow-hidden bg-black flex items-center justify-center"
+                            onClick={() => setEnlargedImage(fotoBase64)}
+                          >
+                            <img 
+                              src={fotoBase64} 
+                              alt={`Evidencia ${i + 1}`} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold uppercase transition-all">
+                              🔍 Agrandar
+                            </div>
+                          </div>
+                          <div className="p-2.5 text-[10px] text-text-secondary line-clamp-2">
+                            <strong className="text-text-primary block text-[11px] mb-0.5">Imagen {i + 1}</strong>
+                            {fotoDesc}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Video Player */}
+                  {selectedReport.data?.video && (
+                    <div className="border border-border-light rounded-2xl p-4 bg-surface-secondary space-y-2">
+                      <p className="text-[11px] font-bold text-text-primary flex items-center gap-1.5">
+                        <Video className="w-4 h-4 text-purple-500" />
+                        Video Evidencia Corto (Movimiento y Entorno)
+                      </p>
+                      <video 
+                        src={selectedReport.data.video} 
+                        controls 
+                        className="w-full rounded-xl border border-border-light shadow-inner max-h-[300px] bg-black"
+                      />
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-border-light bg-surface-secondary">
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setSelectedReport(null);
+                }}
+                className="bg-surface-primary hover:bg-surface-hover border border-border-medium text-text-primary font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm"
+              >
+                Cerrar
+              </button>
+
+              {selectedReport.status !== 'processed' && (
+                <button
+                  disabled={processingId !== null}
+                  onClick={async () => {
+                    await handleMarkProcessed(selectedReport.id);
+                    setSelectedReport((prev: any) => prev ? { ...prev, status: 'processed' } : null);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-sm"
+                >
+                  <Check className="w-4 h-4" />
+                  Marcar Procesado
+                </button>
+              )}
+
+              <button
+                disabled={loadingReportId !== null}
+                onClick={() => handleSendToChat(selectedReport)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                Analizar en Chat
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {enlargedImage && (
+        <div 
+          className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full transition-all"
+            onClick={() => setEnlargedImage(null)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img 
+            src={enlargedImage} 
+            alt="Evidencia Ampliada" 
+            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-fadeIn" 
+          />
+        </div>
+      )}
 
     </div>
   );

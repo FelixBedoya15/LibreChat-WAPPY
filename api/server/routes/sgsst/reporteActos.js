@@ -115,6 +115,25 @@ router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── GET /inbox/:reportId — Get details of a single report ───
+router.get('/inbox/:reportId', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId }).lean();
+        if (!doc || !doc.inboxPublico) {
+            return res.status(404).json({ error: 'Reporte no encontrado' });
+        }
+        const report = doc.inboxPublico.find(r => String(r.id) === String(req.params.reportId));
+        if (!report) {
+            return res.status(404).json({ error: 'Reporte no encontrado' });
+        }
+        res.json({ report });
+    } catch (error) {
+        logger.error('[SGSST ReporteActos] Get single report error:', error);
+        res.status(500).json({ error: 'Error al obtener detalles del reporte' });
+    }
+});
+
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
