@@ -145,7 +145,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     try {
                         const parsed = JSON.parse(draftStr);
                         setData(parsed);
-                        showToastRef.current({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
                     } catch (e) {
                         setData(active);
                     }
@@ -161,7 +160,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     try {
                         const parsed = JSON.parse(draftStr);
                         setData(parsed);
-                        showToastRef.current({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
                     } catch (e) {
                         setData(INITIAL_DATA);
                     }
@@ -271,7 +269,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             try {
                 const parsed = JSON.parse(draftStr);
                 setData(parsed);
-                showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
             } catch (e) {
                 setData(comp);
             }
@@ -287,7 +284,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             try {
                 const parsed = JSON.parse(draftStr);
                 setData(parsed);
-                showToast({ message: 'Se ha recuperado un borrador guardado automáticamente.', status: 'info' });
             } catch (e) {
                 setData(INITIAL_DATA);
             }
