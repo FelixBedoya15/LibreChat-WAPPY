@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, Settings, Save, 
+  Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
   AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize, Trash2, 
   Download, Unlock, FileText, Loader2, RefreshCw, Plus, X, ExternalLink, Key 
 } from 'lucide-react';
@@ -55,6 +55,27 @@ export default function ComunidadPage() {
   const [extraVideoTitle1, setExtraVideoTitle1] = useState('Clase Extra 1');
   const [extraVideoUrl2, setExtraVideoUrl2] = useState('');
   const [extraVideoTitle2, setExtraVideoTitle2] = useState('Clase Extra 2');
+  const [extraVideoUrl3, setExtraVideoUrl3] = useState('');
+  const [extraVideoTitle3, setExtraVideoTitle3] = useState('Clase Extra 3');
+  const [extraVideoUrl4, setExtraVideoUrl4] = useState('');
+  const [extraVideoTitle4, setExtraVideoTitle4] = useState('Clase Extra 4');
+  const [extraVideoUrl5, setExtraVideoUrl5] = useState('');
+  const [extraVideoTitle5, setExtraVideoTitle5] = useState('Clase Extra 5');
+  const [extraVideoUrl6, setExtraVideoUrl6] = useState('');
+  const [extraVideoTitle6, setExtraVideoTitle6] = useState('Clase Extra 6');
+  const [extraVideoUrl7, setExtraVideoUrl7] = useState('');
+  const [extraVideoTitle7, setExtraVideoTitle7] = useState('Clase Extra 7');
+  const [extraVideoUrl8, setExtraVideoUrl8] = useState('');
+  const [extraVideoTitle8, setExtraVideoTitle8] = useState('Clase Extra 8');
+  const [extraVideoUrl9, setExtraVideoUrl9] = useState('');
+  const [extraVideoTitle9, setExtraVideoTitle9] = useState('Clase Extra 9');
+  const [extraVideoUrl10, setExtraVideoUrl10] = useState('');
+  const [extraVideoTitle10, setExtraVideoTitle10] = useState('Clase Extra 10');
+
+  // Coupon / Discount States
+  const [couponCode, setCouponCode] = useState('');
+  const [discountApplied, setDiscountApplied] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   // Video State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -78,6 +99,22 @@ export default function ComunidadPage() {
   const isYouTube1 = !!youtubeId1;
   const youtubeId2 = extraVideoUrl2 ? getYouTubeId(extraVideoUrl2) : null;
   const isYouTube2 = !!youtubeId2;
+  const youtubeId3 = extraVideoUrl3 ? getYouTubeId(extraVideoUrl3) : null;
+  const isYouTube3 = !!youtubeId3;
+  const youtubeId4 = extraVideoUrl4 ? getYouTubeId(extraVideoUrl4) : null;
+  const isYouTube4 = !!youtubeId4;
+  const youtubeId5 = extraVideoUrl5 ? getYouTubeId(extraVideoUrl5) : null;
+  const isYouTube5 = !!youtubeId5;
+  const youtubeId6 = extraVideoUrl6 ? getYouTubeId(extraVideoUrl6) : null;
+  const isYouTube6 = !!youtubeId6;
+  const youtubeId7 = extraVideoUrl7 ? getYouTubeId(extraVideoUrl7) : null;
+  const isYouTube7 = !!youtubeId7;
+  const youtubeId8 = extraVideoUrl8 ? getYouTubeId(extraVideoUrl8) : null;
+  const isYouTube8 = !!youtubeId8;
+  const youtubeId9 = extraVideoUrl9 ? getYouTubeId(extraVideoUrl9) : null;
+  const isYouTube9 = !!youtubeId9;
+  const youtubeId10 = extraVideoUrl10 ? getYouTubeId(extraVideoUrl10) : null;
+  const isYouTube10 = !!youtubeId10;
 
   // Access State (Free Leads or Paid Purchases)
   const [isAccessChecking, setIsAccessChecking] = useState(true);
@@ -120,6 +157,22 @@ export default function ComunidadPage() {
   const [tempExtraVideoTitle1, setTempExtraVideoTitle1] = useState(extraVideoTitle1);
   const [tempExtraVideoUrl2, setTempExtraVideoUrl2] = useState(extraVideoUrl2);
   const [tempExtraVideoTitle2, setTempExtraVideoTitle2] = useState(extraVideoTitle2);
+  const [tempExtraVideoUrl3, setTempExtraVideoUrl3] = useState('');
+  const [tempExtraVideoTitle3, setTempExtraVideoTitle3] = useState('Clase Extra 3');
+  const [tempExtraVideoUrl4, setTempExtraVideoUrl4] = useState('');
+  const [tempExtraVideoTitle4, setTempExtraVideoTitle4] = useState('Clase Extra 4');
+  const [tempExtraVideoUrl5, setTempExtraVideoUrl5] = useState('');
+  const [tempExtraVideoTitle5, setTempExtraVideoTitle5] = useState('Clase Extra 5');
+  const [tempExtraVideoUrl6, setTempExtraVideoUrl6] = useState('');
+  const [tempExtraVideoTitle6, setTempExtraVideoTitle6] = useState('Clase Extra 6');
+  const [tempExtraVideoUrl7, setTempExtraVideoUrl7] = useState('');
+  const [tempExtraVideoTitle7, setTempExtraVideoTitle7] = useState('Clase Extra 7');
+  const [tempExtraVideoUrl8, setTempExtraVideoUrl8] = useState('');
+  const [tempExtraVideoTitle8, setTempExtraVideoTitle8] = useState('Clase Extra 8');
+  const [tempExtraVideoUrl9, setTempExtraVideoUrl9] = useState('');
+  const [tempExtraVideoTitle9, setTempExtraVideoTitle9] = useState('Clase Extra 9');
+  const [tempExtraVideoUrl10, setTempExtraVideoUrl10] = useState('');
+  const [tempExtraVideoTitle10, setTempExtraVideoTitle10] = useState('Clase Extra 10');
 
   // Admin Dashboard States (Leads vs Purchases)
   const [isLeadsPanelOpen, setIsLeadsPanelOpen] = useState(false);
@@ -176,22 +229,26 @@ export default function ComunidadPage() {
           setWhatsappUrl(data.whatsappUrl);
           setTempWhatsappUrl(data.whatsappUrl);
         }
-        if (data.extraVideoUrl1 !== undefined) {
-          setExtraVideoUrl1(data.extraVideoUrl1);
-          setTempExtraVideoUrl1(data.extraVideoUrl1);
-        }
-        if (data.extraVideoTitle1 !== undefined) {
-          setExtraVideoTitle1(data.extraVideoTitle1);
-          setTempExtraVideoTitle1(data.extraVideoTitle1);
-        }
-        if (data.extraVideoUrl2 !== undefined) {
-          setExtraVideoUrl2(data.extraVideoUrl2);
-          setTempExtraVideoUrl2(data.extraVideoUrl2);
-        }
-        if (data.extraVideoTitle2 !== undefined) {
-          setExtraVideoTitle2(data.extraVideoTitle2);
-          setTempExtraVideoTitle2(data.extraVideoTitle2);
-        }
+        if (data.extraVideoUrl1 !== undefined) { setExtraVideoUrl1(data.extraVideoUrl1); setTempExtraVideoUrl1(data.extraVideoUrl1); }
+        if (data.extraVideoTitle1 !== undefined) { setExtraVideoTitle1(data.extraVideoTitle1); setTempExtraVideoTitle1(data.extraVideoTitle1); }
+        if (data.extraVideoUrl2 !== undefined) { setExtraVideoUrl2(data.extraVideoUrl2); setTempExtraVideoUrl2(data.extraVideoUrl2); }
+        if (data.extraVideoTitle2 !== undefined) { setExtraVideoTitle2(data.extraVideoTitle2); setTempExtraVideoTitle2(data.extraVideoTitle2); }
+        if (data.extraVideoUrl3 !== undefined) { setExtraVideoUrl3(data.extraVideoUrl3); setTempExtraVideoUrl3(data.extraVideoUrl3); }
+        if (data.extraVideoTitle3 !== undefined) { setExtraVideoTitle3(data.extraVideoTitle3); setTempExtraVideoTitle3(data.extraVideoTitle3); }
+        if (data.extraVideoUrl4 !== undefined) { setExtraVideoUrl4(data.extraVideoUrl4); setTempExtraVideoUrl4(data.extraVideoUrl4); }
+        if (data.extraVideoTitle4 !== undefined) { setExtraVideoTitle4(data.extraVideoTitle4); setTempExtraVideoTitle4(data.extraVideoTitle4); }
+        if (data.extraVideoUrl5 !== undefined) { setExtraVideoUrl5(data.extraVideoUrl5); setTempExtraVideoUrl5(data.extraVideoUrl5); }
+        if (data.extraVideoTitle5 !== undefined) { setExtraVideoTitle5(data.extraVideoTitle5); setTempExtraVideoTitle5(data.extraVideoTitle5); }
+        if (data.extraVideoUrl6 !== undefined) { setExtraVideoUrl6(data.extraVideoUrl6); setTempExtraVideoUrl6(data.extraVideoUrl6); }
+        if (data.extraVideoTitle6 !== undefined) { setExtraVideoTitle6(data.extraVideoTitle6); setTempExtraVideoTitle6(data.extraVideoTitle6); }
+        if (data.extraVideoUrl7 !== undefined) { setExtraVideoUrl7(data.extraVideoUrl7); setTempExtraVideoUrl7(data.extraVideoUrl7); }
+        if (data.extraVideoTitle7 !== undefined) { setExtraVideoTitle7(data.extraVideoTitle7); setTempExtraVideoTitle7(data.extraVideoTitle7); }
+        if (data.extraVideoUrl8 !== undefined) { setExtraVideoUrl8(data.extraVideoUrl8); setTempExtraVideoUrl8(data.extraVideoUrl8); }
+        if (data.extraVideoTitle8 !== undefined) { setExtraVideoTitle8(data.extraVideoTitle8); setTempExtraVideoTitle8(data.extraVideoTitle8); }
+        if (data.extraVideoUrl9 !== undefined) { setExtraVideoUrl9(data.extraVideoUrl9); setTempExtraVideoUrl9(data.extraVideoUrl9); }
+        if (data.extraVideoTitle9 !== undefined) { setExtraVideoTitle9(data.extraVideoTitle9); setTempExtraVideoTitle9(data.extraVideoTitle9); }
+        if (data.extraVideoUrl10 !== undefined) { setExtraVideoUrl10(data.extraVideoUrl10); setTempExtraVideoUrl10(data.extraVideoUrl10); }
+        if (data.extraVideoTitle10 !== undefined) { setExtraVideoTitle10(data.extraVideoTitle10); setTempExtraVideoTitle10(data.extraVideoTitle10); }
       }
     } catch (err) {
       console.error('[Comunidad] Error fetching page config:', err);
@@ -213,11 +270,12 @@ export default function ComunidadPage() {
         }
       }
 
+      const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
       window.fbq('init', '1552188416261002', matchingData);
       window.fbq('track', 'Purchase', {
-        value: price || 28000,
+        value: finalPrice || 28000,
         currency: 'COP',
-        content_name: 'Curso SST IA + 10 Aplicativos'
+        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos'
       });
       console.log(`[Meta Pixel] Sent Purchase event with Advanced Matching for ${email}`);
     }
@@ -246,9 +304,9 @@ export default function ComunidadPage() {
 
         window.fbq('init', '1552188416261002', matchingData);
         window.fbq('track', 'Purchase', {
-          value: price || 28000,
+          value: purchase.amountInCents ? (purchase.amountInCents / 100) : (price || 28000),
           currency: 'COP',
-          content_name: 'Curso SST IA + 10 Aplicativos'
+          content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos'
         });
         console.log(`[Meta Pixel] Sent Manual Purchase event with Advanced Matching for ${email}`);
       } else {
@@ -675,6 +733,10 @@ export default function ComunidadPage() {
     setIsVideoFinished(true);
     localStorage.setItem(getStorageKey('wappy_comunidad_video_finished'), 'true');
     localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
+
+    if (funnelKey === 'wappyvital' && !isAccessGranted) {
+      setShowDiscountModal(true);
+    }
     
     // Save completion state to DB if email is available (in free/paid modes)
     let email = userEmail;
@@ -799,10 +861,11 @@ export default function ComunidadPage() {
     }
 
     trackClick('checkoutSubmit');
+    const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
     if (window.fbq) {
       window.fbq('track', 'InitiateCheckout', {
-        content_name: 'Curso SST IA + 10 Aplicativos',
-        value: price || 28000,
+        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
+        value: finalPrice || 28000,
         currency: 'COP'
       });
     }
@@ -813,7 +876,8 @@ export default function ComunidadPage() {
         fullName: checkoutFullName.trim(),
         email: checkoutEmail.trim(),
         phone: checkoutPhone.trim(),
-        funnelKey
+        funnelKey,
+        discountCode: couponCode.trim()
       });
 
       if (data.freeAccess || data.alreadyPaid) {
@@ -1020,6 +1084,22 @@ export default function ComunidadPage() {
         extraVideoTitle1: tempExtraVideoTitle1,
         extraVideoUrl2: tempExtraVideoUrl2,
         extraVideoTitle2: tempExtraVideoTitle2,
+        extraVideoUrl3: tempExtraVideoUrl3,
+        extraVideoTitle3: tempExtraVideoTitle3,
+        extraVideoUrl4: tempExtraVideoUrl4,
+        extraVideoTitle4: tempExtraVideoTitle4,
+        extraVideoUrl5: tempExtraVideoUrl5,
+        extraVideoTitle5: tempExtraVideoTitle5,
+        extraVideoUrl6: tempExtraVideoUrl6,
+        extraVideoTitle6: tempExtraVideoTitle6,
+        extraVideoUrl7: tempExtraVideoUrl7,
+        extraVideoTitle7: tempExtraVideoTitle7,
+        extraVideoUrl8: tempExtraVideoUrl8,
+        extraVideoTitle8: tempExtraVideoTitle8,
+        extraVideoUrl9: tempExtraVideoUrl9,
+        extraVideoTitle9: tempExtraVideoTitle9,
+        extraVideoUrl10: tempExtraVideoUrl10,
+        extraVideoTitle10: tempExtraVideoTitle10,
         funnelKey
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1036,6 +1116,22 @@ export default function ComunidadPage() {
         setExtraVideoTitle1(tempExtraVideoTitle1);
         setExtraVideoUrl2(tempExtraVideoUrl2);
         setExtraVideoTitle2(tempExtraVideoTitle2);
+        setExtraVideoUrl3(tempExtraVideoUrl3);
+        setExtraVideoTitle3(tempExtraVideoTitle3);
+        setExtraVideoUrl4(tempExtraVideoUrl4);
+        setExtraVideoTitle4(tempExtraVideoTitle4);
+        setExtraVideoUrl5(tempExtraVideoUrl5);
+        setExtraVideoTitle5(tempExtraVideoTitle5);
+        setExtraVideoUrl6(tempExtraVideoUrl6);
+        setExtraVideoTitle6(tempExtraVideoTitle6);
+        setExtraVideoUrl7(tempExtraVideoUrl7);
+        setExtraVideoTitle7(tempExtraVideoTitle7);
+        setExtraVideoUrl8(tempExtraVideoUrl8);
+        setExtraVideoTitle8(tempExtraVideoTitle8);
+        setExtraVideoUrl9(tempExtraVideoUrl9);
+        setExtraVideoTitle9(tempExtraVideoTitle9);
+        setExtraVideoUrl10(tempExtraVideoUrl10);
+        setExtraVideoTitle10(tempExtraVideoTitle10);
         setIsAdminPanelOpen(false);
         setIsVideoFinished(false);
         setCurrentTime(0);
@@ -1768,50 +1864,73 @@ export default function ComunidadPage() {
 
                   <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider pt-2">Clases Complementarias</h4>
 
-                  <div className="p-3 rounded-xl bg-surface-secondary/40 border border-border-medium space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Título Clase Extra 1</label>
-                      <input
-                        type="text"
-                        value={tempExtraVideoTitle1}
-                        onChange={(e) => setTempExtraVideoTitle1(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500"
-                        placeholder="Título para el primer video extra"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Enlace Video Extra 1</label>
-                      <input
-                        type="text"
-                        value={tempExtraVideoUrl1}
-                        onChange={(e) => setTempExtraVideoUrl1(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500 font-mono"
-                        placeholder="URL de video o link de YouTube"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-surface-secondary/40 border border-border-medium space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Título Clase Extra 2</label>
-                      <input
-                        type="text"
-                        value={tempExtraVideoTitle2}
-                        onChange={(e) => setTempExtraVideoTitle2(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500"
-                        placeholder="Título para el segundo video extra"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Enlace Video Extra 2</label>
-                      <input
-                        type="text"
-                        value={tempExtraVideoUrl2}
-                        onChange={(e) => setTempExtraVideoUrl2(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500 font-mono"
-                        placeholder="URL de video o link de YouTube"
-                      />
-                    </div>
+                  <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                      const titleVal = num === 1 ? tempExtraVideoTitle1 :
+                                       num === 2 ? tempExtraVideoTitle2 :
+                                       num === 3 ? tempExtraVideoTitle3 :
+                                       num === 4 ? tempExtraVideoTitle4 :
+                                       num === 5 ? tempExtraVideoTitle5 :
+                                       num === 6 ? tempExtraVideoTitle6 :
+                                       num === 7 ? tempExtraVideoTitle7 :
+                                       num === 8 ? tempExtraVideoTitle8 :
+                                       num === 9 ? tempExtraVideoTitle9 :
+                                       tempExtraVideoTitle10;
+                      const setTitleFn = num === 1 ? setTempExtraVideoTitle1 :
+                                         num === 2 ? setTempExtraVideoTitle2 :
+                                         num === 3 ? setTempExtraVideoTitle3 :
+                                         num === 4 ? setTempExtraVideoTitle4 :
+                                         num === 5 ? setTempExtraVideoTitle5 :
+                                         num === 6 ? setTempExtraVideoTitle6 :
+                                         num === 7 ? setTempExtraVideoTitle7 :
+                                         num === 8 ? setTempExtraVideoTitle8 :
+                                         num === 9 ? setTempExtraVideoTitle9 :
+                                         setTempExtraVideoTitle10;
+                      const urlVal = num === 1 ? tempExtraVideoUrl1 :
+                                     num === 2 ? tempExtraVideoUrl2 :
+                                     num === 3 ? tempExtraVideoUrl3 :
+                                     num === 4 ? tempExtraVideoUrl4 :
+                                     num === 5 ? tempExtraVideoUrl5 :
+                                     num === 6 ? tempExtraVideoUrl6 :
+                                     num === 7 ? tempExtraVideoUrl7 :
+                                     num === 8 ? tempExtraVideoUrl8 :
+                                     num === 9 ? tempExtraVideoUrl9 :
+                                     tempExtraVideoUrl10;
+                      const setUrlFn = num === 1 ? setTempExtraVideoUrl1 :
+                                       num === 2 ? setTempExtraVideoUrl2 :
+                                       num === 3 ? setTempExtraVideoUrl3 :
+                                       num === 4 ? setTempExtraVideoUrl4 :
+                                       num === 5 ? setTempExtraVideoUrl5 :
+                                       num === 6 ? setTempExtraVideoUrl6 :
+                                       num === 7 ? setTempExtraVideoUrl7 :
+                                       num === 8 ? setTempExtraVideoUrl8 :
+                                       num === 9 ? setTempExtraVideoUrl9 :
+                                       setTempExtraVideoUrl10;
+                      return (
+                        <div key={num} className="p-3 rounded-xl bg-surface-secondary/40 border border-border-medium space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Título Clase Extra {num}</label>
+                            <input
+                              type="text"
+                              value={titleVal}
+                              onChange={(e) => setTitleFn(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500"
+                              placeholder={`Título para el video extra ${num}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-text-secondary uppercase mb-0.5">Enlace Video Extra {num}</label>
+                            <input
+                              type="text"
+                              value={urlVal}
+                              onChange={(e) => setUrlFn(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[11px] text-text-primary focus:outline-none focus:border-emerald-500 font-mono"
+                              placeholder="URL de video o link de YouTube"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <button
@@ -1905,7 +2024,7 @@ export default function ComunidadPage() {
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-5 leading-tight max-w-3xl outfit">
               {funnelKey === 'wappyvital' ? (
                 <>
-                  Consigue <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span> + 10 Aplicativos SST
+                  Consigue <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span>
                 </>
               ) : (
                 <>
@@ -1916,7 +2035,7 @@ export default function ComunidadPage() {
 
             <p className="text-sm text-text-secondary max-w-xl mb-8 leading-relaxed">
               {funnelKey === 'wappyvital' 
-                ? 'Paga una tarifa única y obtén acceso de por vida a Wappy IA, los 15+ agentes especialistas, editores de matrices y todo el kit de aplicativos.'
+                ? 'Paga una tarifa única y obtén acceso de por vida a Wappy IA, los 15+ agentes especialistas y editores de matrices de por vida.'
                 : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.'}
             </p>
 
@@ -1935,7 +2054,7 @@ export default function ComunidadPage() {
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Licencia de Por Vida a Wappy Vital (IA + Matrices)</h4>
+                          <h4 className="font-bold text-xs text-text-primary">Membresía de Por Vida a Wappy Vital (IA + Matrices)</h4>
                           <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Paga una vez y usa Wappy IA para siempre (sin suscripción mensual) para redactar y automatizar tu gestión SST.</p>
                         </div>
                       </div>
@@ -1965,8 +2084,8 @@ export default function ComunidadPage() {
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">10+ Aplicativos SST + Mentoría Completa</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Todo el kit de plantillas descargables y la capacitación en video para dominar el uso de IA en tu gestión.</p>
+                          <h4 className="font-bold text-xs text-text-primary">Mentoría y Capacitación Exclusiva</h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Acceso a la mentoría completa en video y clases extra grabadas para dominar el uso de IA en tu gestión.</p>
                         </div>
                       </div>
                     </>
@@ -2006,10 +2125,23 @@ export default function ComunidadPage() {
                 </div>
 
                 <div className="pt-4 border-t border-border-medium flex flex-col justify-center text-center">
-                  <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Costo único del Curso</span>
-                  <span className="text-3xl font-extrabold text-emerald-500 mt-1 outfit">
-                    ${price.toLocaleString('es-CO')} <span className="text-xs font-semibold text-text-secondary font-sans">COP</span>
+                  <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">
+                    {funnelKey === 'wappyvital' ? 'Precio de lanzamiento por tiempo limitado' : 'Costo único del Curso'}
                   </span>
+                  <span className="text-3xl font-extrabold text-emerald-500 mt-1 outfit">
+                    {couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital' ? (
+                      <>
+                        <span className="text-sm line-through text-text-secondary mr-2">${price.toLocaleString('es-CO')}</span>
+                        <span>${Math.round(price * 0.7).toLocaleString('es-CO')}</span>
+                      </>
+                    ) : (
+                      <span>${price.toLocaleString('es-CO')}</span>
+                    )}{' '}
+                    <span className="text-xs font-semibold text-text-secondary font-sans">COP</span>
+                  </span>
+                  {couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital' && (
+                    <span className="text-[10px] text-emerald-500 font-bold mt-1">¡Descuento del 30% aplicado con éxito!</span>
+                  )}
                 </div>
               </div>
 
@@ -2061,6 +2193,19 @@ export default function ComunidadPage() {
                         className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
                       />
                     </div>
+
+                    {funnelKey === 'wappyvital' && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Cupón de Descuento</label>
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                          placeholder="Ej. VITAL30"
+                          className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono uppercase"
+                        />
+                      </div>
+                    )}
 
                     <label className="flex items-start gap-2.5 cursor-pointer group pt-1">
                       <input
@@ -2179,7 +2324,7 @@ export default function ComunidadPage() {
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-6 leading-tight max-w-3xl outfit">
               {funnelKey === 'wappyvital' ? (
                 <>
-                  Lleva tu gestión al siguiente nivel: <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span> + 10 Aplicativos SST
+                  Lleva tu gestión al siguiente nivel: <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span>
                 </>
               ) : (
                 <>
@@ -2197,7 +2342,7 @@ export default function ComunidadPage() {
                       <>
                         {funnelKey === 'wappyvital' ? (
                           <>
-                            Obtendrás la <strong>Licencia de Por Vida a WAPPY VITAL (Wappy IA, 15+ Agentes y Editores de Matrices)</strong>, la mentoría en video y los <strong>más de 10 aplicativos listos</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong>.
+                            Obtén la <strong>Membresía de Por Vida a WAPPY VITAL</strong> (Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores de RIT e IPEVAR) por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (Precio de lanzamiento por tiempo limitado).
                           </>
                         ) : (
                           <>
@@ -2207,7 +2352,15 @@ export default function ComunidadPage() {
                       </>
                     ) : (
                       <>
-                        ⚡ <strong>¿Quieres ahorrar tiempo?</strong> Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                        {funnelKey === 'wappyvital' ? (
+                          <>
+                            ⚡ Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> con Chat con IA Ilimitado, 15+ Agentes y Editores RIT/IPEVAR de forma inmediata completando tu registro.
+                          </>
+                        ) : (
+                          <>
+                            ⚡ <strong>¿Quieres ahorrar tiempo?</strong> Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
+                          </>
+                        )}
                       </>
                     )}
                   </p>
@@ -2216,7 +2369,15 @@ export default function ComunidadPage() {
                   onClick={handleQuickAccessClick}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/25 hover:scale-105 whitespace-nowrap"
                 >
-                  {actualRequiresPayment ? `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP` : 'Registrar y Descargar Ya'}
+                  {actualRequiresPayment ? (
+                    funnelKey === 'wappyvital' ? (
+                      `Adquirir Membresía Vital - $${price.toLocaleString('es-CO')} COP`
+                    ) : (
+                      `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP`
+                    )
+                  ) : (
+                    'Registrar y Descargar Ya'
+                  )}
                 </button>
               </div>
             )}
@@ -2311,11 +2472,18 @@ export default function ComunidadPage() {
 
             </div>
 
-            <div className="w-full max-w-4xl mt-6 text-left">
-              <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-emerald-500" />
-                <h3 className="text-base font-bold text-text-primary outfit">Material Complementario y Plantillas Descargables</h3>
+            {funnelKey === 'wappyvital' && !isUnlocked && (
+              <div className="w-full max-w-3xl mx-auto mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse">
+                <span>🎁 ¡Ve la capacitación completa! Al finalizar el video obtendrás un regalo extra sorpresa.</span>
               </div>
+            )}
+
+            {funnelKey !== 'wappyvital' && (
+              <div className="w-full max-w-4xl mt-6 text-left">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="w-5 h-5 text-emerald-500" />
+                  <h3 className="text-base font-bold text-text-primary outfit">Material Complementario y Plantillas Descargables</h3>
+                </div>
 
               {downloadableFiles.length === 0 ? (
                 <div className="p-8 rounded-2xl border border-border-medium bg-surface-primary/40 text-center text-xs text-text-secondary">
@@ -2374,6 +2542,7 @@ export default function ComunidadPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Clases y Capacitaciones Complementarias */}
             <div className="w-full max-w-4xl mt-12 text-left">
@@ -2383,93 +2552,60 @@ export default function ComunidadPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Clase Extra 1 */}
-                <div className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
-                  <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
-                    <h4 className="font-bold text-xs text-text-primary outfit truncate" title={extraVideoTitle1 || "Clase Extra 1"}>
-                      {extraVideoTitle1 || "Clase Extra 1"}
-                    </h4>
-                  </div>
-                  <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
-                    {extraVideoUrl1 ? (
-                      isYouTube1 ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${youtubeId1}`}
-                          className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
-                          allowFullScreen={isUnlocked}
-                          title={extraVideoTitle1}
-                        />
-                      ) : (
-                        <video
-                          src={extraVideoUrl1}
-                          controls={isUnlocked}
-                          className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
-                        />
-                      )
-                    ) : (
-                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
-                    )}
-
-                    {!isUnlocked && extraVideoUrl1 && (
-                      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
-                        <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
-                        <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
-                          Disponible solo para usuarios Premium. Adquiere los aplicativos para acceder a esta clase.
-                        </p>
-                        <button
-                          onClick={handleQuickAccessClick}
-                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
-                        >
-                          Adquiere ya
-                        </button>
+                {[
+                  { num: 1, url: extraVideoUrl1, title: extraVideoTitle1, youtubeId: youtubeId1, isYouTube: isYouTube1 },
+                  { num: 2, url: extraVideoUrl2, title: extraVideoTitle2, youtubeId: youtubeId2, isYouTube: isYouTube2 },
+                  { num: 3, url: extraVideoUrl3, title: extraVideoTitle3, youtubeId: youtubeId3, isYouTube: isYouTube3 },
+                  { num: 4, url: extraVideoUrl4, title: extraVideoTitle4, youtubeId: youtubeId4, isYouTube: isYouTube4 },
+                  { num: 5, url: extraVideoUrl5, title: extraVideoTitle5, youtubeId: youtubeId5, isYouTube: isYouTube5 },
+                  { num: 6, url: extraVideoUrl6, title: extraVideoTitle6, youtubeId: youtubeId6, isYouTube: isYouTube6 },
+                  { num: 7, url: extraVideoUrl7, title: extraVideoTitle7, youtubeId: youtubeId7, isYouTube: isYouTube7 },
+                  { num: 8, url: extraVideoUrl8, title: extraVideoTitle8, youtubeId: youtubeId8, isYouTube: isYouTube8 },
+                  { num: 9, url: extraVideoUrl9, title: extraVideoTitle9, youtubeId: youtubeId9, isYouTube: isYouTube9 },
+                  { num: 10, url: extraVideoUrl10, title: extraVideoTitle10, youtubeId: youtubeId10, isYouTube: isYouTube10 },
+                ].map((item) => {
+                  if (!item.url) return null;
+                  return (
+                    <div key={item.num} className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
+                      <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
+                        <h4 className="font-bold text-xs text-text-primary outfit truncate" title={item.title || `Clase Extra ${item.num}`}>
+                          {item.title || `Clase Extra ${item.num}`}
+                        </h4>
                       </div>
-                    )}
-                  </div>
-                </div>
+                      <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
+                        {item.isYouTube ? (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${item.youtubeId}`}
+                            className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                            allowFullScreen={isUnlocked}
+                            title={item.title}
+                          />
+                        ) : (
+                          <video
+                            src={item.url}
+                            controls={isUnlocked}
+                            className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                          />
+                        )}
 
-                {/* Clase Extra 2 */}
-                <div className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
-                  <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
-                    <h4 className="font-bold text-xs text-text-primary outfit truncate" title={extraVideoTitle2 || "Clase Extra 2"}>
-                      {extraVideoTitle2 || "Clase Extra 2"}
-                    </h4>
-                  </div>
-                  <div className="aspect-video relative bg-slate-950 flex items-center justify-center">
-                    {extraVideoUrl2 ? (
-                      isYouTube2 ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${youtubeId2}`}
-                          className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
-                          allowFullScreen={isUnlocked}
-                          title={extraVideoTitle2}
-                        />
-                      ) : (
-                        <video
-                          src={extraVideoUrl2}
-                          controls={isUnlocked}
-                          className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
-                        />
-                      )
-                    ) : (
-                      <div className="text-xs text-text-secondary">Clase no configurada por el administrador</div>
-                    )}
-
-                    {!isUnlocked && extraVideoUrl2 && (
-                      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
-                        <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
-                        <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
-                          Disponible solo para usuarios Premium. Adquiere los aplicativos para acceder a esta clase.
-                        </p>
-                        <button
-                          onClick={handleQuickAccessClick}
-                          className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
-                        >
-                          Adquiere ya
-                        </button>
+                        {!isUnlocked && (
+                          <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
+                            <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
+                            <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
+                              Disponible solo para usuarios Premium. Adquiere la membresía para acceder a esta clase.
+                            </p>
+                            <button
+                              onClick={handleQuickAccessClick}
+                              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
+                            >
+                              Adquiere ya
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -2481,7 +2617,7 @@ export default function ComunidadPage() {
               <div className="space-y-2">
                 <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
                   {funnelKey === 'wappyvital' 
-                    ? '¡Ya tienes activa tu Licencia WAPPY VITAL de Por Vida y acceso a todos los aplicativos!' 
+                    ? '¡Ya tienes activa tu Membresía WAPPY VITAL de Por Vida!' 
                     : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
                 </h3>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
@@ -2542,7 +2678,10 @@ export default function ComunidadPage() {
                   {showRecoveryView 
                     ? 'Valida tu correo de compra para acceder al instante'
                     : (actualRequiresPayment 
-                        ? `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                        ? (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital'
+                            ? `Paga una tarifa única de $${Math.round(price * 0.7).toLocaleString('es-CO')} COP (¡30% Descuento Aplicado!)`
+                            : `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                          )
                         : 'Registra tus datos para acceder al video curso'
                       )
                   }
@@ -2592,6 +2731,19 @@ export default function ComunidadPage() {
                     />
                   </div>
                 </div>
+
+                {funnelKey === 'wappyvital' && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Cupón de Descuento</label>
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Ej. VITAL30"
+                      className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono uppercase"
+                    />
+                  </div>
+                )}
 
                 <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
                   <input
@@ -2689,6 +2841,75 @@ export default function ComunidadPage() {
         </div>
       )}
 
+      {showDiscountModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-lg p-4 sm:p-6 z-50 overflow-y-auto">
+          <div className="w-full max-w-md bg-surface-primary border border-emerald-500/30 rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative my-auto">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowDiscountModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition-colors z-10"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 mx-auto mb-4 animate-premium-float">
+              <Sparkles className="w-8 h-8" />
+            </div>
+
+            <h3 className="text-xl font-extrabold text-text-primary leading-tight outfit mb-2">
+              🎉 ¡Felicitaciones por terminar la capacitación!
+            </h3>
+            <p className="text-xs text-text-secondary mb-6 leading-relaxed">
+              Has demostrado un gran compromiso con la Seguridad y Salud en el Trabajo. Como premio, has desbloqueado un **30% de descuento inmediato** para adquirir la Membresía Wappy Vital.
+            </p>
+
+            <div className="bg-surface-secondary border border-dashed border-emerald-500/40 rounded-2xl p-4 mb-6 flex flex-col items-center justify-center gap-2 relative">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider">Código de Descuento</span>
+              <span className="text-2xl font-black text-emerald-500 font-mono tracking-widest">VITAL30</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('VITAL30');
+                  alert('¡Código copiado al portapapeles!');
+                }}
+                className="mt-1 px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold transition-all"
+              >
+                Copiar Código
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setCouponCode('VITAL30');
+                  setShowDiscountModal(false);
+                  
+                  // Scroll to checkout form smoothly
+                  const checkoutForm = document.querySelector('form');
+                  if (checkoutForm) {
+                    checkoutForm.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    handleQuickAccessClick();
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-sm transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:scale-[1.02]"
+              >
+                Aplicar Descuento y Comprar
+              </button>
+              <button
+                onClick={() => setShowDiscountModal(false)}
+                className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-hover text-text-secondary text-xs font-semibold border border-border-medium transition-all"
+              >
+                Ver Oferta Completa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="w-full border-t border-border-medium py-6 mt-10 text-center text-xs text-text-secondary relative z-10 bg-surface-primary/20">
         <div className="flex justify-center gap-6 mb-2">
           <a href="/privacy" className="hover:text-emerald-500 transition-colors">Políticas de Privacidad</a>
@@ -2697,6 +2918,16 @@ export default function ComunidadPage() {
         </div>
         <p>© {new Date().getFullYear()} WAPPY. Todos los derechos reservados.</p>
       </footer>
+
+      {funnelKey === 'wappyvital' && !isUnlocked && (
+        <button
+          onClick={handleQuickAccessClick}
+          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-500/35 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 flex items-center gap-2 border border-emerald-400/20 animate-bounce"
+        >
+          <span>Ver Oferta</span>
+          <ArrowDown className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

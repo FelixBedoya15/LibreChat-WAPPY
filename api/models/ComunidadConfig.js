@@ -63,6 +63,86 @@ const ComunidadConfigSchema = new mongoose.Schema({
         type: String,
         default: 'Clase Extra 2',
         trim: true
+    },
+    extraVideoUrl3: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle3: {
+        type: String,
+        default: 'Clase Extra 3',
+        trim: true
+    },
+    extraVideoUrl4: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle4: {
+        type: String,
+        default: 'Clase Extra 4',
+        trim: true
+    },
+    extraVideoUrl5: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle5: {
+        type: String,
+        default: 'Clase Extra 5',
+        trim: true
+    },
+    extraVideoUrl6: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle6: {
+        type: String,
+        default: 'Clase Extra 6',
+        trim: true
+    },
+    extraVideoUrl7: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle7: {
+        type: String,
+        default: 'Clase Extra 7',
+        trim: true
+    },
+    extraVideoUrl8: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle8: {
+        type: String,
+        default: 'Clase Extra 8',
+        trim: true
+    },
+    extraVideoUrl9: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle9: {
+        type: String,
+        default: 'Clase Extra 9',
+        trim: true
+    },
+    extraVideoUrl10: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    extraVideoTitle10: {
+        type: String,
+        default: 'Clase Extra 10',
+        trim: true
     }
 }, { timestamps: true });
 

@@ -34,7 +34,23 @@ const getComunidadConfig = async (req, res) => {
                 extraVideoUrl1: '',
                 extraVideoTitle1: 'Clase Extra 1',
                 extraVideoUrl2: '',
-                extraVideoTitle2: 'Clase Extra 2'
+                extraVideoTitle2: 'Clase Extra 2',
+                extraVideoUrl3: '',
+                extraVideoTitle3: 'Clase Extra 3',
+                extraVideoUrl4: '',
+                extraVideoTitle4: 'Clase Extra 4',
+                extraVideoUrl5: '',
+                extraVideoTitle5: 'Clase Extra 5',
+                extraVideoUrl6: '',
+                extraVideoTitle6: 'Clase Extra 6',
+                extraVideoUrl7: '',
+                extraVideoTitle7: 'Clase Extra 7',
+                extraVideoUrl8: '',
+                extraVideoTitle8: 'Clase Extra 8',
+                extraVideoUrl9: '',
+                extraVideoTitle9: 'Clase Extra 9',
+                extraVideoUrl10: '',
+                extraVideoTitle10: 'Clase Extra 10'
             });
             await config.save();
         }
@@ -49,7 +65,17 @@ const updateComunidadConfig = async (req, res) => {
     try {
         const { 
             videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles,
-            whatsappUrl, extraVideoUrl1, extraVideoTitle1, extraVideoUrl2, extraVideoTitle2,
+            whatsappUrl, 
+            extraVideoUrl1, extraVideoTitle1, 
+            extraVideoUrl2, extraVideoTitle2,
+            extraVideoUrl3, extraVideoTitle3,
+            extraVideoUrl4, extraVideoTitle4,
+            extraVideoUrl5, extraVideoTitle5,
+            extraVideoUrl6, extraVideoTitle6,
+            extraVideoUrl7, extraVideoTitle7,
+            extraVideoUrl8, extraVideoTitle8,
+            extraVideoUrl9, extraVideoTitle9,
+            extraVideoUrl10, extraVideoTitle10,
             funnelKey = 'comunidad'
         } = req.body;
         
@@ -70,6 +96,22 @@ const updateComunidadConfig = async (req, res) => {
         if (extraVideoTitle1 !== undefined) config.extraVideoTitle1 = extraVideoTitle1;
         if (extraVideoUrl2 !== undefined) config.extraVideoUrl2 = extraVideoUrl2;
         if (extraVideoTitle2 !== undefined) config.extraVideoTitle2 = extraVideoTitle2;
+        if (extraVideoUrl3 !== undefined) config.extraVideoUrl3 = extraVideoUrl3;
+        if (extraVideoTitle3 !== undefined) config.extraVideoTitle3 = extraVideoTitle3;
+        if (extraVideoUrl4 !== undefined) config.extraVideoUrl4 = extraVideoUrl4;
+        if (extraVideoTitle4 !== undefined) config.extraVideoTitle4 = extraVideoTitle4;
+        if (extraVideoUrl5 !== undefined) config.extraVideoUrl5 = extraVideoUrl5;
+        if (extraVideoTitle5 !== undefined) config.extraVideoTitle5 = extraVideoTitle5;
+        if (extraVideoUrl6 !== undefined) config.extraVideoUrl6 = extraVideoUrl6;
+        if (extraVideoTitle6 !== undefined) config.extraVideoTitle6 = extraVideoTitle6;
+        if (extraVideoUrl7 !== undefined) config.extraVideoUrl7 = extraVideoUrl7;
+        if (extraVideoTitle7 !== undefined) config.extraVideoTitle7 = extraVideoTitle7;
+        if (extraVideoUrl8 !== undefined) config.extraVideoUrl8 = extraVideoUrl8;
+        if (extraVideoTitle8 !== undefined) config.extraVideoTitle8 = extraVideoTitle8;
+        if (extraVideoUrl9 !== undefined) config.extraVideoUrl9 = extraVideoUrl9;
+        if (extraVideoTitle9 !== undefined) config.extraVideoTitle9 = extraVideoTitle9;
+        if (extraVideoUrl10 !== undefined) config.extraVideoUrl10 = extraVideoUrl10;
+        if (extraVideoTitle10 !== undefined) config.extraVideoTitle10 = extraVideoTitle10;
 
         await config.save();
         return res.json({ success: true, config });
@@ -81,7 +123,7 @@ const updateComunidadConfig = async (req, res) => {
 
 const createComunidadCheckout = async (req, res) => {
     try {
-        const { fullName, email, phone, funnelKey = 'comunidad' } = req.body;
+        const { fullName, email, phone, funnelKey = 'comunidad', discountCode } = req.body;
         if (!fullName || !email || !phone) {
             return res.status(400).json({ error: 'Todos los campos (nombre, correo, celular) son obligatorios.' });
         }
@@ -136,8 +178,13 @@ const createComunidadCheckout = async (req, res) => {
             ? { $or: [{ funnelKey: 'comunidad' }, { funnelKey: { $exists: false } }] }
             : { funnelKey };
         const config = await ComunidadConfig.findOne(configQuery);
-        const price = config ? config.price : 0;
+        let price = config ? config.price : 0;
         const requiresPayment = config ? config.requiresPayment : false;
+
+        // Apply discount if coupon code is valid (VITAL30 for Wappy Vital)
+        if (discountCode && discountCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') {
+            price = Math.round(price * 0.7); // 30% discount
+        }
 
         if (!requiresPayment || price <= 0) {
             purchase.isPaid = true;
