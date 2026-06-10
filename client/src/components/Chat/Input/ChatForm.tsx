@@ -431,6 +431,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           if (conversationId) {
             console.log('[ChatForm] Invalidate queries for messages live update:', conversationId);
             queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
+            queryClient.invalidateQueries([QueryKeys.allConversations]);
           }
         }}
       />

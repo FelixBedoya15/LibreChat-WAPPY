@@ -11,8 +11,11 @@ import ModelSelector from '~/components/SGSST/ModelSelector';
 import ExportDropdown from '~/components/SGSST/ExportDropdown';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import type { ContextType } from '~/common';
+import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys } from 'librechat-data-provider';
 
 const LivePage = () => {
+    const queryClient = useQueryClient();
     const localize = useLocalize();
     const { token, user } = useAuthContext();
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
@@ -946,6 +949,13 @@ const LivePage = () => {
                     onTextReceived={handleTextReceived}
                     onReportReceived={handleReportReceived}
                     selectedModel={selectedModel}
+                    onConversationUpdated={() => {
+                        if (conversationId && conversationId !== 'new') {
+                            console.log('[LivePage] Invalidate queries for live analysis update:', conversationId);
+                            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
+                        }
+                        queryClient.invalidateQueries([QueryKeys.allConversations]);
+                    }}
                 />
             )}
             </div>

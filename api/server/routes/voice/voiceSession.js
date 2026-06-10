@@ -321,147 +321,15 @@ class VoiceSession {
         // Listen for turn complete
         this.geminiClient.on('turnComplete', async () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
-            logger.info(`[VoiceSession] Accumulated user text length: ${this.userTranscriptionText.length}`);
-            logger.info(`[VoiceSession] Accumulated AI text length: ${this.aiResponseText.length}`);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
-
-            // Capture current turn text before clearing
-            const currentUserText = this.userTranscriptionText;
-            const currentAiText = this.aiResponseText;
-
-            logger.info(`[VoiceSession] Turn Complete. UserText: "${currentUserText}", AIResponse: "${currentAiText}"`);
-
-            let messagesSaved = false;
-            let isNewConversation = false;
-
-            // FASE FAST-TRACK: TRIGGER REPORT GENERATION (Second Brain) IMMEDIATELY
-            // We use the accumulated context + current turn
-            const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
-            this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
-
-            if (this.isGeneratingReport) {
-                logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
-                this.aiTranscriptionBuffer = ''; // Reset buffer even if skipping
-            } else {
-                const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
-                const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
-
-                logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
-                this.aiTranscriptionBuffer = ''; // Reset for next turn
-
-                if (shouldGenerateReport) {
-                    logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
-                    
-                    // Get the frames we will evaluate
-                    let evalFrames = [];
-                    if (this.frameBuffer && this.frameBuffer.length > 0) {
-                        evalFrames = [...this.frameBuffer];
-                    } else if (this.latestFrame) {
-                        evalFrames = [this.latestFrame];
-                    }
-                    
-                    // Notify client IMMEDIATELY so they don't disconnect while waiting
-                    // Include the frames we are analyzing so the frontend can render them perfectly in sync
-                    this.sendToClient({
-                        type: 'report',
-                        data: { 
-                            html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
-                            evaluatedFrames: evalFrames
-                        }
-                    });
-
-                    // Generate report asynchronously in the background
-                    this.isGeneratingReport = true;
-                    this.generateReport(this.config.conversationContext).finally(() => {
-                        this.isGeneratingReport = false;
-                    });
-                }
-            }
-
-            // CRITICAL: Save user message FIRST, then AI message
-            if (currentUserText.trim()) {
-                const preview = currentUserText.substring(0, 100);
-                logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
-                logger.info(`[VoiceSession] Current lastMessageId before user save: ${this.lastMessageId}`);
-
-                // FASE 6: Transcription Correction
-                let textToSave = currentUserText.trim();
-                textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]');
-
-                const result = await this.saveUserMessage(textToSave);
-                if (result) {
-                    messagesSaved = true;
-                    isNewConversation = result.isNewConversation;
-                    logger.info(`[VoiceSession] User message saved. New lastMessageId: ${this.lastMessageId}`);
-                }
-                this.userTranscriptionText = ''; // Reset after saving
-            } else {
-                logger.warn(`[VoiceSession] No user transcription to save. Value: "${currentUserText}"`);
-            }
-
-            // Save AI response AFTER user message (uses updated lastMessageId as parent)
-            if (currentAiText.trim()) {
-                const preview = currentAiText.substring(0, 100);
-                logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
-                logger.info(`[VoiceSession] Current lastMessageId before AI save: ${this.lastMessageId}`);
-
-                await this.saveAiMessage(currentAiText.trim());
-                messagesSaved = true;
-                logger.info(`[VoiceSession] AI message saved. New lastMessageId: ${this.lastMessageId}`);
-                this.aiResponseText = ''; // Reset after saving
-            } else if (this.aiAudioChunkCount > 0) {
-                // AI responded with AUDIO but no text - save voice indicator
-                logger.info(`[VoiceSession] AI responded with ${this.aiAudioChunkCount} audio chunks, no text. Saving voice indicator.`);
-                logger.info(`[VoiceSession] Current lastMessageId before AI save: ${this.lastMessageId}`);
-
-                await this.saveAiMessage('🎤 [Respuesta de voz]');
-                messagesSaved = true;
-                logger.info(`[VoiceSession] AI voice indicator saved. New lastMessageId: ${this.lastMessageId}`);
-                this.aiResponseText = ''; // Also reset to prevent bleeding into next turn
-            } else {
-                logger.warn(`[VoiceSession] No AI response to save. Text: "${currentAiText}", Audio chunks: ${this.aiAudioChunkCount}`);
-                this.aiResponseText = ''; // Reset anyway to avoid accumulation
-            }
-
-
-            // Reset audio counter for next turn
-            this.aiAudioChunkCount = 0;
-
-            // Only update conversation and notify client ONCE at the end
-            if (messagesSaved) {
-                try {
-                    await saveConvo({ user: { id: this.userId } }, {
-                        conversationId: this.conversationId,
-                        endpoint: this.dbEndpoint,
-                        model: this.dbModel,
-                        ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
-                    }, { context: 'VoiceSession - TurnComplete' });
-
-                    // If new conversation, send ID to client
-                    if (isNewConversation) {
-                        this.sendToClient({
-                            type: 'conversationId',
-                            data: { conversationId: this.conversationId }
-                        });
-                    }
-
-                    // Notify client to refresh chat (ONCE)
-                    this.sendToClient({
-                        type: 'conversationUpdated',
-                        data: { conversationId: this.conversationId }
-                    });
-                } catch (error) {
-                    logger.error('[VoiceSession] Error updating conversation:', error);
-                }
-            }
-
+            await this.saveCurrentTurn('TurnComplete');
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
         // Handle client disconnect
         this.clientWs.on('close', () => {
             logger.info(`[VoiceSession] Client disconnected: ${this.userId}`);
-            this.stop();
+            this.stop().catch(err => logger.error('[VoiceSession] Error in stop on close:', err));
         });
 
         // Handle errors
@@ -1547,13 +1415,133 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
         }
     }
 
-    stop() {
+    async saveCurrentTurn(source = 'Unknown') {
+        const currentUserText = this.userTranscriptionText;
+        const currentAiText = this.aiResponseText;
+        const currentAudioCount = this.aiAudioChunkCount;
+
+        if (!currentUserText.trim() && !currentAiText.trim() && currentAudioCount === 0) {
+            return;
+        }
+
+        logger.info(`[VoiceSession] [${source}] Saving pending turn. User: "${currentUserText}", AI: "${currentAiText}", Audio chunks: ${currentAudioCount}`);
+
+        // Reset text and chunk count IMMEDIATELY to prevent multiple saves/race conditions
+        this.userTranscriptionText = '';
+        this.aiResponseText = '';
+        this.aiAudioChunkCount = 0;
+
+        let messagesSaved = false;
+        let isNewConversation = false;
+
+        // FASE FAST-TRACK: TRIGGER REPORT GENERATION (Second Brain) IMMEDIATELY
+        const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
+        this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
+
+        if (this.isGeneratingReport) {
+            logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
+            this.aiTranscriptionBuffer = '';
+        } else {
+            const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
+            const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
+
+            logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
+            this.aiTranscriptionBuffer = ''; // Reset for next turn
+
+            if (shouldGenerateReport) {
+                logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
+                
+                let evalFrames = [];
+                if (this.frameBuffer && this.frameBuffer.length > 0) {
+                    evalFrames = [...this.frameBuffer];
+                } else if (this.latestFrame) {
+                    evalFrames = [this.latestFrame];
+                }
+                
+                this.sendToClient({
+                    type: 'report',
+                    data: { 
+                        html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
+                        evaluatedFrames: evalFrames
+                    }
+                });
+
+                this.isGeneratingReport = true;
+                this.generateReport(this.config.conversationContext).finally(() => {
+                    this.isGeneratingReport = false;
+                });
+            }
+        }
+
+        // Save user message FIRST
+        if (currentUserText.trim()) {
+            let textToSave = currentUserText.trim();
+            // Refine/correct transcription
+            textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]');
+
+            const result = await this.saveUserMessage(textToSave);
+            if (result) {
+                messagesSaved = true;
+                isNewConversation = result.isNewConversation;
+            }
+        }
+
+        // Save AI response AFTER user message
+        if (currentAiText.trim()) {
+            await this.saveAiMessage(currentAiText.trim());
+            messagesSaved = true;
+        } else if (currentAudioCount > 0) {
+            await this.saveAiMessage('🎤 [Respuesta de voz]');
+            messagesSaved = true;
+        }
+
+        if (messagesSaved) {
+            try {
+                await saveConvo({ user: { id: this.userId } }, {
+                    conversationId: this.conversationId,
+                    endpoint: this.dbEndpoint,
+                    model: this.dbModel,
+                    ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
+                }, { context: `VoiceSession - ${source}` });
+
+                if (isNewConversation) {
+                    this.sendToClient({
+                        type: 'conversationId',
+                        data: { conversationId: this.conversationId }
+                    });
+                }
+
+                this.sendToClient({
+                    type: 'conversationUpdated',
+                    data: { conversationId: this.conversationId }
+                });
+            } catch (error) {
+                logger.error('[VoiceSession] Error updating conversation:', error);
+            }
+        }
+    }
+
+    async stop() {
+        if (!this.isActive) return;
         this.isActive = false;
-        this.currentTurnText = '';
+
+        logger.info(`[VoiceSession] Stopping session for user: ${this.userId}...`);
+
+        try {
+            await this.saveCurrentTurn('Disconnect');
+        } catch (saveError) {
+            logger.error('[VoiceSession] Error saving pending turn on stop:', saveError);
+        }
+
+        this.userTranscriptionText = '';
         this.aiResponseText = '';
 
         if (this.geminiClient) {
-            this.geminiClient.disconnect();
+            try {
+                this.geminiClient.disconnect();
+            } catch (err) {
+                logger.error('[VoiceSession] Error disconnecting geminiClient:', err);
+            }
             this.geminiClient = null;
         }
 
@@ -1562,7 +1550,7 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
             activeSessions.delete(this.userId);
         }
 
-        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
     }
 }
 
@@ -1579,7 +1567,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
         if (activeSessions.has(userId)) {
             logger.warn(`[VoiceSession] User ${userId} already has active session`);
             const existingSession = activeSessions.get(userId);
-            existingSession.stop();
+            await existingSession.stop();
         }
 
         // Get user's Google API key
@@ -1677,10 +1665,10 @@ function getSession(userId) {
 /**
  * Stop session for user
  */
-function stopSession(userId) {
+async function stopSession(userId) {
     const session = activeSessions.get(userId);
     if (session) {
-        session.stop();
+        await session.stop();
         return true;
     }
     return false;

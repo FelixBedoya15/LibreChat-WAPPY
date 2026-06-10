@@ -389,6 +389,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onTextReceived: (text: string) => {
             onTextReceived?.(text);
         },
+        onConversationUpdated: () => {
+            onConversationUpdated?.();
+        },
         onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
 
@@ -573,7 +576,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate, handleAudioReceived, captureSnapshot]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate, handleAudioReceived, captureSnapshot, onConversationUpdated]);
 
     const {
         isConnected,

@@ -40,7 +40,7 @@ router.post('/init', requireJwtAuth, async (req, res) => {
 router.post('/stop', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        const result = stopSession(userId);
+        const result = await stopSession(userId);
 
         res.json({
             success: result,
