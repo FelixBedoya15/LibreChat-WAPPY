@@ -5,11 +5,23 @@ import Image from './Image';
 
 const Files = ({ message }: { message?: TMessage }) => {
   const imageFiles = useMemo(() => {
-    return message?.files?.filter((file) => file.type?.startsWith('image/')) || [];
+    return (
+      message?.files?.filter(
+        (file) =>
+          file.type?.startsWith('image/') &&
+          !file.filepath?.startsWith('/api/sgsst/reporte-actos/public/media/')
+      ) || []
+    );
   }, [message?.files]);
 
   const otherFiles = useMemo(() => {
-    return message?.files?.filter((file) => !(file.type?.startsWith('image/') === true)) || [];
+    return (
+      message?.files?.filter(
+        (file) =>
+          !(file.type?.startsWith('image/') === true) &&
+          !file.filepath?.startsWith('/api/sgsst/reporte-actos/public/media/')
+      ) || []
+    );
   }, [message?.files]);
 
   return (
