@@ -3504,18 +3504,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -6455,18 +6455,18 @@ Mensaje del usuario: \${messageText}\` }] }
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -9826,18 +9826,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -13375,18 +13375,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -16906,18 +16906,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -20313,18 +20313,18 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -23860,18 +23860,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -27409,18 +27409,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -33772,18 +33772,18 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -37207,18 +37207,18 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -41962,18 +41962,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();
@@ -45289,18 +45289,18 @@ Respuesta 5: \${w5}\`;
                 }
 
                 // Load global logo
-                const dbLogo = await loadGlobalLogoFromDB();
-                if (dbLogo) {
-                    appDocHeader.logoBase64 = dbLogo;
-                } else if (!appDocHeader.logoBase64) {
-                    appDocHeader.logoBase64 = safeGetLocalStorage('wappy_sst_global_logo') || '';
-                    if (appDocHeader.logoBase64) {
-                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
-                        safeRemoveLocalStorage('wappy_sst_global_logo');
-                    }
+                const localLogo = safeGetLocalStorage('wappy_sst_global_logo');
+                if (localLogo) {
+                    appDocHeader.logoBase64 = localLogo;
+                    await saveGlobalLogoToDB(localLogo);
+                    safeRemoveLocalStorage('wappy_sst_global_logo');
                 } else {
-                    // Logo is in appDocHeader (from embedded template). Save it to DB!
-                    await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    const dbLogo = await loadGlobalLogoFromDB();
+                    if (dbLogo) {
+                        appDocHeader.logoBase64 = dbLogo;
+                    } else if (appDocHeader.logoBase64) {
+                        await saveGlobalLogoToDB(appDocHeader.logoBase64);
+                    }
                 }
 
                 bindDocHeaderToUI();

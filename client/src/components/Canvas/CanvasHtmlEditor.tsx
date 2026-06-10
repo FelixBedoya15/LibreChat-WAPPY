@@ -327,7 +327,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
               <iframe
                 title="Canvas Live View"
                 className="w-full h-full border-none bg-white"
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
                 srcDoc={code}
               />
             </div>

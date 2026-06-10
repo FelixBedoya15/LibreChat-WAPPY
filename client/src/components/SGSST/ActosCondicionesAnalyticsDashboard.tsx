@@ -136,11 +136,13 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
 - **Fecha y Hora:** ${formattedDate}
 - **Ubicación:** ${reportData?.ubicacion || 'Sin ubicación'}
 - **Descripción del Peligro/Hallazgo:** ${reportData?.descripcion || 'No proporcionada'}
-${reportData?.foto1Desc ? `- **Evidencia Fotográfica 1 (Detalle):** ${reportData.foto1Desc}` : ''}
-${reportData?.foto2Desc ? `- **Evidencia Fotográfica 2 (Detalle):** ${reportData.foto2Desc}` : ''}
-${reportData?.foto3Desc ? `- **Evidencia Fotográfica 3 (Detalle):** ${reportData.foto3Desc}` : ''}
-${reportData?.video ? `- **Evidencia de Video:** Adjunto en el reporte (Revisar comportamiento dinámico)` : ''}
 
+### Evidencia Multimedia Adjunta:
+${reportData?.foto1 ? `![Evidencia 1](${reportData.foto1})
+${reportData?.foto1Desc ? `*Detalle:* ${reportData.foto1Desc}` : ''}\n` : ''}${reportData?.foto2 ? `![Evidencia 2](${reportData.foto2})
+${reportData?.foto2Desc ? `*Detalle:* ${reportData.foto2Desc}` : ''}\n` : ''}${reportData?.foto3 ? `![Evidencia 3](${reportData.foto3})
+${reportData?.foto3Desc ? `*Detalle:* ${reportData.foto3Desc}` : ''}\n` : ''}${reportData?.video ? `
+<video src="${reportData.video}" controls style="max-width: 100%; border-radius: 8px; margin-top: 8px;"></video>\n` : ''}
 Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiza las causas básicas e inmediatas, define controles siguiendo la jerarquía y genera el reporte técnico interactivo.`;
 
       ask({ text: promptText });
