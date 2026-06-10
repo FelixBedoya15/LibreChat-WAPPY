@@ -2609,6 +2609,84 @@ export default function ComunidadPage() {
               </div>
             </div>
 
+            {funnelKey === 'wappyvital' && !isAccessGranted && (
+              <div className="w-full max-w-md mx-auto mt-12 bg-surface-primary border border-border-medium rounded-3xl p-6 shadow-2xl relative bg-surface-primary/70 backdrop-blur-md text-left">
+                {/* top left badge */}
+                <div className="absolute -top-3 left-6 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1 text-[10px] font-bold text-white shadow">
+                  ✨ Pago único de por vida
+                </div>
+
+                {/* top right badge */}
+                <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
+                  -30%
+                </div>
+
+                {/* icon */}
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 mt-2">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M3 9H21M9 21V9" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+                    <path d="M13 13L17 17M17 13L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="15" cy="15" r="5" stroke="currentColor" strokeWidth="1.5" opacity="0.2" />
+                  </svg>
+                </div>
+
+                <h3 className="text-xl font-bold text-text-primary mb-1">Wappy Vital</h3>
+                <p className="text-xs text-text-secondary mb-4">¡Pagas una vez, lo usas para siempre!</p>
+
+                <div className="mb-5 flex flex-col items-start gap-1">
+                  <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                    ${price.toLocaleString('es-CO')}
+                  </span>
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-black tracking-tight text-emerald-500">
+                      ${Math.round(price * 0.7).toLocaleString('es-CO')}
+                    </span>
+                    <span className="mb-1 text-xs font-semibold text-text-secondary">
+                      Pago Único
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleQuickAccessClick}
+                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-sm transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:scale-[1.02] mb-6"
+                >
+                  Adquirir Wappy Vital
+                </button>
+
+                <div className="space-y-3 pt-4 border-t border-border-medium/60">
+                  {[
+                    { text: 'Pago Único (Acceso de Por Vida)', included: true, bold: true },
+                    { text: 'Hasta 20 chats abiertos', included: true, bold: false },
+                    { text: 'Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)', included: true, bold: false },
+                    { text: 'Subida de archivos ilimitada', included: true, bold: false },
+                    { text: 'Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)', included: true, bold: false },
+                    { text: 'Skill Editor RIT', included: true, bold: false },
+                    { text: 'Skill IPEVAR', included: true, bold: false },
+                    { text: 'Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural', included: true, bold: false },
+                    { text: 'Descargas y exportaciones ilimitadas', included: true, bold: false },
+                    { text: 'Aula de estudio', included: true, bold: false },
+                    { text: 'Blog WAPPY', included: true, bold: false },
+                    { text: 'Somos SST', included: false, bold: false },
+                    { text: 'Crear Agentes de IA propios', included: false, bold: false },
+                    { text: 'Análisis en Vivo', included: false, bold: false }
+                  ].map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2.5 text-xs">
+                      {feature.included ? (
+                        <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      ) : (
+                        <X className="h-4 w-4 text-red-500 shrink-0 mt-0.5 opacity-60" />
+                      )}
+                      <span className={feature.bold ? 'font-bold text-text-primary' : feature.included ? 'text-text-secondary' : 'text-text-secondary/40 line-through'}>
+                        {feature.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="w-full max-w-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/20 to-emerald-500/10 border-2 border-emerald-500/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-[0_0_25px_rgba(16,185,129,0.15)] hover:shadow-[0_0_35px_rgba(16,185,129,0.25)] transition-all duration-300 mt-10 text-center flex flex-col items-center justify-center gap-3 animate-premium-float">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
               <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
