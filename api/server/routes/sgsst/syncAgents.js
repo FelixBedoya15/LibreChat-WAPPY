@@ -13,6 +13,8 @@ const mongoose = require('mongoose');
 const AGENT_FILE_MAP = {
   'abogado_laboral': 'Consultor Jurídico Laboral',
   'abogado_rit': 'Consultor Jurídico RIT',
+  'abogado_procesos_disciplinarios': 'Consultor de Debido Proceso y Despidos',
+  'abogado_acoso_sexual': 'Consultor de Protocolo de Acoso Sexual',
   'agente_sst': 'Consultor SG-SST',
   'asistente_ats': 'Gestor de Análisis de Trabajo Seguro (ATS)',
   'asistente_de_aci': 'Analista Predictivo ACI',
@@ -61,6 +63,8 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools.push('matriz_ipevar');
   } else if (fileBasename === 'asistente_de_aci') {
     tools.push('consultar_analitica_actos_condiciones', 'canvas');
+  } else if (fileBasename === 'abogado_procesos_disciplinarios' || fileBasename === 'abogado_acoso_sexual') {
+    tools.push('canvas');
   }
 
   const timestamp = new Date();
@@ -808,6 +812,8 @@ router.get('/migrate-names-public', async (req, res) => {
       'Auditor Integral SG-SST',
       'Consultor Jurídico Laboral',
       'Consultor Jurídico RIT',
+      'Consultor de Debido Proceso y Despidos',
+      'Consultor de Protocolo de Acoso Sexual',
       'Especialista GTC-45 (Matriz IPEVAR)',
       'Especialista en Riesgo Químico',
       'Especialista en Riesgo Eléctrico',

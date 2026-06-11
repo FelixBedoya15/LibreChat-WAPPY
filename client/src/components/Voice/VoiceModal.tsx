@@ -103,33 +103,6 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         return name.includes('biomecánica') || name.includes('biomecanica');
     }, [agent]);
 
-    // Check if the agent is an HSE/SST safety agent to enable proactive analysis guidance
-    const isHSEAgent = useMemo(() => {
-        if (!agent) return false;
-        const name = agent.name?.toLowerCase() || '';
-        const desc = agent.description?.toLowerCase() || '';
-        return name.includes('seguridad') || name.includes('salud') || name.includes('sst') || name.includes('hse') || name.includes('riesgo') || name.includes('prevencion') || name.includes('biomecanica') || name.includes('biomecánica') || name.includes('altura') || name.includes('eléctrico') || name.includes('electric') || name.includes('5s') || desc.includes('seguridad') || desc.includes('salud') || desc.includes('prevención');
-    }, [agent]);
-
-    // Determine the focus template guide based on the active agent
-    const templateGuide = useMemo(() => {
-        if (!agent) return "";
-        const name = agent.name?.toLowerCase() || '';
-        if (name.includes('biomecánica') || name.includes('biomecanica')) {
-            return "Tu enfoque de auditoría hoy es RIESGO BIOMECÁNICO CUANTITATIVO CON VISIÓN IA (RULA / REBA). Guíame interpretando los datos cuantitativos de telemetría articular (cervical, tronco, abducción de brazos, flexión de codos y flexión de rodillas) que te enviaré en tiempo real y que se muestran en mi pantalla.";
-        }
-        if (name.includes('altura')) {
-            return "Tu enfoque de auditoría hoy es TRABAJO EN ALTURAS. Guíame a través de la revisión del arnés, los puntos de anclaje, líneas de vida y conectores.";
-        }
-        if (name.includes('eléctric') || name.includes('electric')) {
-            return "Tu enfoque de auditoría hoy es RIESGO ELÉCTRICO. Guíame a través del estado de tableros eléctricos, cableado expuesto y el protocolo LOTO (bloqueo/etiquetado).";
-        }
-        if (name.includes('5s')) {
-            return "Tu enfoque de auditoría hoy es ORDEN Y ASEO (METODOLOGÍA 5S). Guíame a través de la clasificación, el orden, la limpieza, estandarización y disciplina del área.";
-        }
-        return "Tu enfoque de auditoría hoy es INSPECCIÓN GENERAL DE SEGURIDAD INDUSTRIAL (ISO 45001 / GTC 45). Guíame de manera general para auditar el área de trabajo.";
-    }, [agent]);
-
     // Biomechanics vison-AI states and refs
     const [neckAngle, setNeckAngle] = useState<number | null>(null);
     const [trunkAngle, setTrunkAngle] = useState<number | null>(null);
@@ -450,35 +423,12 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     }, [isOpen, isConnected]);
 
-    // Auto-start camera and send initial analysis prompt when READY (after countdown)
+    // Auto-start camera when READY (after countdown)
     useEffect(() => {
         if (isConnected && isOpen && isReady) {
             startCamera(facingMode);
-
-            if (isHSEAgent) {
-                const timer = setTimeout(() => {
-                    console.log("[VoiceModal] Sending initial HSE analysis prompt");
-                    sendTextMessage(`
-                        Actúa como un Auditor Líder Experto en Seguridad y Salud en el Trabajo (SST/HSE) certificado.
-                        
-                        CONTEXTO:
-                        Estás realizando una inspección técnica formal basada en la evidencia visual que estás viendo AHORA MISMO en el video.
-                        ${templateGuide}
-
-                        TU MISIÓN:
-                        Identificar peligros evidentes, evaluar actos inseguros y dar recomendaciones asertivas en tiempo real. 
-
-                        INSTRUCCIONES DE RESPUESTA:
-                        1. **ANÁLISIS INICIAL**: Inicia el análisis proactivamente AHORA MISMO basándote SÓLO en la imagen/video que captas. Comienza hablando de inmediato.
-                        2. **ESTILO**: Háblame profesionalmente. Sé directo y táctico sobre los peligros críticos. 
-                        3. **REPORTE (CRÍTICO)**: Cuando yo te pida generar el informe o reporte de la inspección, tu ÚNICA RESPUESTA debe ser EXACTAMENTE: "Entendido. Estoy procesando lo que vimos para generar el informe técnico detallado." 
-                        NO generes el informe verbalmente ni en HTML. Solo di esa frase y el sistema en el backend se encargará de crearlo.
-                    `);
-                }, 1000); // 1s delay
-                return () => clearTimeout(timer);
-            }
         }
-    }, [isConnected, isOpen, isReady, isHSEAgent, templateGuide, facingMode, sendTextMessage]);
+    }, [isConnected, isOpen, isReady, facingMode]);
 
     const handleClose = () => {
         if (onConversationUpdated && conversationId) {

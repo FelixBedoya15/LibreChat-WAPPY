@@ -37,6 +37,8 @@ const ORDERING = [
   'Auditor Integral SG-SST',
   'Consultor Jurídico Laboral',
   'Consultor Jurídico RIT',
+  'Consultor de Debido Proceso y Despidos',
+  'Consultor de Protocolo de Acoso Sexual',
   'Especialista GTC-45 (Matriz IPEVAR)',
   'Especialista en Riesgo Químico',
   'Especialista en Riesgo Eléctrico',
