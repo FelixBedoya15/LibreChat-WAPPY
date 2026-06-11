@@ -79,52 +79,60 @@ export const SIGNATURE_BLOCK_CONTRATO = `
 // 1. Política de Desconexión Laboral
 export const politicaDesconexionHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #312e81 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(99,102,241,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #c7d2fe; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #c7d2fe; text-align: right; vertical-align: middle; background-color: #f5f3ff; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-007 | V.02</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #c7d2fe; text-align: center; vertical-align: middle; background-color: #f5f3ff; border-bottom: 2px solid #c7d2fe;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #4f46e5; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            POLÍTICA DE DESCONEXIÓN LABORAL Y SALUD DIGITAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #4338ca; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Garantía Constitucional y Bienestar Laboral</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #4f46e5; font-style: italic; font-weight: 500;">Conforme a la Ley 2191 de 2022 y la Reforma Laboral de la República de Colombia (Ley 2466 de 2025)</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #4f46e5; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #c7d2fe; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #c7d2fe; color: #4338ca; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #c7d2fe; font-weight: 600; color: #4f46e5; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #c7d2fe; color: #4338ca; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #c7d2fe; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #c7d2fe; color: #4338ca;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #c7d2fe;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #c7d2fe; color: #4338ca;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #c7d2fe;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #312e81 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15), 0 8px 10px -6px rgba(99, 102, 241, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        POLÍTICA DE DESCONEXIÓN LABORAL Y SALUD DIGITAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Garantía Constitucional y Bienestar Laboral
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Conforme a la Ley 2191 de 2022 y la Reforma Laboral de la República de Colombia (Ley 2466 de 2025)
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-POL-007 | V.02
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #c7d2fe; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #6366f1, #4f46e5); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-bottom: 1px solid #c7d2fe; border-right: 1px solid #c7d2fe; color: #4338ca; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #c7d2fe; border-right: 1px solid #c7d2fe; font-weight: 600; color: #4f46e5; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-bottom: 1px solid #c7d2fe; border-right: 1px solid #c7d2fe; color: #4338ca; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #c7d2fe; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-right: 1px solid #c7d2fe; color: #4338ca;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #c7d2fe;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-right: 1px solid #c7d2fe; color: #4338ca;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -176,52 +184,60 @@ export const politicaDesconexionHTML = `
 // 2. Política de Prevención de Acoso Laboral
 export const politicaAcosoLaboralHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #10b981 0%, #059669 50%, #064e3b 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(16,185,129,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #a7f3d0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #10b981, #059669); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #a7f3d0; text-align: right; vertical-align: middle; background-color: #ecfdf5; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-008 | V.04</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #a7f3d0; text-align: center; vertical-align: middle; background-color: #ecfdf5; border-bottom: 2px solid #a7f3d0;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #059669; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            POLÍTICA DE PREVENCIÓN DEL ACOSO LABORAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #047857; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Convivencia Armónica, Respeto y Dignidad Humana</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #059669; font-style: italic; font-weight: 500;">Enmarcada en la Ley 1010 de 2006, Decretos Reglamentarios y las directrices del Ministerio del Trabajo de Colombia</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #059669; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #a7f3d0; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #a7f3d0; font-weight: 600; color: #059669; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #a7f3d0; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #representante_legal;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #a7f3d0;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #10b981 0%, #059669 50%, #064e3b 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.15), 0 8px 10px -6px rgba(16, 185, 129, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        POLÍTICA DE PREVENCIÓN DEL ACOSO LABORAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Convivencia Armónica, Respeto y Dignidad Humana
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Enmarcada en la Ley 1010 de 2006, Decretos Reglamentarios y las directrices del Ministerio del Trabajo de Colombia
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-POL-008 | V.04
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #a7f3d0; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #10b981, #059669); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #ecfdf5; border-bottom: 1px solid #a7f3d0; border-right: 1px solid #a7f3d0; color: #047857; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #a7f3d0; border-right: 1px solid #a7f3d0; font-weight: 600; color: #059669; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #ecfdf5; border-bottom: 1px solid #a7f3d0; border-right: 1px solid #a7f3d0; color: #047857; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #a7f3d0; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #ecfdf5; border-right: 1px solid #a7f3d0; color: #047857;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #a7f3d0;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #ecfdf5; border-right: 1px solid #a7f3d0; color: #047857;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -274,52 +290,60 @@ export const politicaAcosoLaboralHTML = `
 // 3. Protocolo de Intervención Frente al Acoso Laboral
 export const protocoloAcosoLaboralHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #115e59 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(13,148,136,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #99f6e4; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0d9488, #0f766e); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #99f6e4; text-align: right; vertical-align: middle; background-color: #f0fdfa; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-PRO-009 | V.03</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #99f6e4; text-align: center; vertical-align: middle; background-color: #f0fdfa; border-bottom: 2px solid #99f6e4;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #0f766e; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            PROTOCOLO DE INTERVENCIÓN FRENTE AL ACOSO LABORAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #0f766e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Procedimiento de Queja, Mediación y Debido Proceso</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #0d9488; font-style: italic; font-weight: 500;">Ruta Oficial del Comité de Convivencia Laboral, Garantías de Confidencialidad y Debido Proceso</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #0f766e; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #99f6e4; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #99f6e4; font-weight: 600; color: #0f766e; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #99f6e4; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #99f6e4;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #99f6e4;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #115e59 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0d9488, #0f766e); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        PROTOCOLO DE INTERVENCIÓN FRENTE AL ACOSO LABORAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Procedimiento de Queja, Mediación y Debido Proceso
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Ruta Oficial del Comité de Convivencia Laboral, Garantías de Confidencialidad y Debido Proceso
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-PRO-009 | V.03
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #99f6e4; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #0d9488, #0f766e); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #99f6e4; border-right: 1px solid #99f6e4; color: #0f766e; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #99f6e4; border-right: 1px solid #99f6e4; font-weight: 600; color: #0f766e; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-bottom: 1px solid #99f6e4; border-right: 1px solid #99f6e4; color: #0f766e; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #99f6e4; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-right: 1px solid #99f6e4; color: #0f766e;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #99f6e4;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f0fdfa; border-right: 1px solid #99f6e4; color: #0f766e;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -382,52 +406,60 @@ export const protocoloAcosoLaboralHTML = `
 // 4. Política de Prevención de Acoso Sexual Laboral
 export const politicaAcosoSexualHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #db2777 0%, #be123c 50%, #881337 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(219,39,119,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #fbcfe8; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #db2777, #be123c); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #fbcfe8; text-align: right; vertical-align: middle; background-color: #fdf2f8; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #be123c; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-010 | V.02</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #fbcfe8; text-align: center; vertical-align: middle; background-color: #fdf2f8; border-bottom: 2px solid #fbcfe8;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #be123c; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            POLÍTICA DE PREVENCIÓN DEL ACOSO SEXUAL LABORAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #9f1239; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Tolerancia Cero frente a la Violencia Sexual y de Género</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #be123c; font-style: italic; font-weight: 500;">Estrictamente alineada con la Ley 2365 de 2024 de la República de Colombia y la Ley 1257 de 2008</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #be123c; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #fbcfe8; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #fdf2f8; border: 1px solid #fbcfe8; color: #9f1239; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #fbcfe8; font-weight: 600; color: #be123c; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #fdf2f8; border: 1px solid #fbcfe8; color: #9f1239; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #fbcfe8; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #fdf2f8; border: 1px solid #fbcfe8; color: #9f1239;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #fbcfe8;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #fdf2f8; border: 1px solid #fbcfe8; color: #9f1239;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #fbcfe8;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #db2777 0%, #be123c 50%, #881337 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(219, 39, 119, 0.15), 0 8px 10px -6px rgba(219, 39, 119, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #db2777, #be123c); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        POLÍTICA DE PREVENCIÓN DEL ACOSO SEXUAL LABORAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Tolerancia Cero frente a la Violencia Sexual y de Género
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Estrictamente alineada con la Ley 2365 de 2024 de la República de Colombia y la Ley 1257 de 2008
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-POL-010 | V.02
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #fbcfe8; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #db2777, #be123c); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #fdf2f8; border-bottom: 1px solid #fbcfe8; border-right: 1px solid #fbcfe8; color: #9f1239; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #fbcfe8; border-right: 1px solid #fbcfe8; font-weight: 600; color: #be123c; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #fdf2f8; border-bottom: 1px solid #fbcfe8; border-right: 1px solid #fbcfe8; color: #9f1239; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #fbcfe8; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #fdf2f8; border-right: 1px solid #fbcfe8; color: #9f1239;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #fbcfe8;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #fdf2f8; border-right: 1px solid #fbcfe8; color: #9f1239;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -466,52 +498,60 @@ export const politicaAcosoSexualHTML = `
 // 5. Protocolo de Canalización y Atención al Acoso Sexual
 export const protocoloAcosoSexualHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #4c1d95 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(139,92,246,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #ddd6fe; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #ddd6fe; text-align: right; vertical-align: middle; background-color: #f5f3ff; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-PRO-011 | V.02</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #ddd6fe; text-align: center; vertical-align: middle; background-color: #f5f3ff; border-bottom: 2px solid #ddd6fe;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #7c3aed; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            PROTOCOLO DE ATENCIÓN Y CANALIZACIÓN DEL ACOSO SEXUAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #6d28d9; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Ruta de Protección Inmediata, Fiscalía, SIVIGE y Fuero Legal</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #7c3aed; font-style: italic; font-weight: 500;">Ruta Procedimental Obligatoria en Ejecución de la Ley 2365 de 2024</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #7c3aed; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #ddd6fe; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #ddd6fe; font-weight: 600; color: #7c3aed; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #ddd6fe; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #ddd6fe;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #ddd6fe;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #4c1d95 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.15), 0 8px 10px -6px rgba(139, 92, 246, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        PROTOCOLO DE ATENCIÓN Y CANALIZACIÓN DEL ACOSO SEXUAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Ruta de Protección Inmediata, Fiscalía, SIVIGE y Fuero Legal
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Ruta Procedimental Obligatoria en Ejecución de la Ley 2365 de 2024
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-PRO-011 | V.02
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd6fe; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #8b5cf6, #7c3aed); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-bottom: 1px solid #ddd6fe; border-right: 1px solid #ddd6fe; color: #6d28d9; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #ddd6fe; border-right: 1px solid #ddd6fe; font-weight: 600; color: #7c3aed; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-bottom: 1px solid #ddd6fe; border-right: 1px solid #ddd6fe; color: #6d28d9; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #ddd6fe; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-right: 1px solid #ddd6fe; color: #6d28d9;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #ddd6fe;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f5f3ff; border-right: 1px solid #ddd6fe; color: #6d28d9;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -561,52 +601,60 @@ export const protocoloAcosoSexualHTML = `
 // 6. Política de Equidad de Género y Diversidad
 export const politicaGeneroHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #1e3a8a 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(79,70,229,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #bfdbfe; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #4f46e5, #2563eb); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #bfdbfe; text-align: right; vertical-align: middle; background-color: #eff6ff; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-012 | V.02</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #bfdbfe; text-align: center; vertical-align: middle; background-color: #eff6ff; border-bottom: 2px solid #bfdbfe;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #2563eb; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            POLÍTICA DE EQUIDAD DE GÉNERO, DIVERSIDAD E INCLUSIÓN
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #1d4ed8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Igualdad de Oportunidades, Brecha Salarial Cero y Diversidad</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #2563eb; font-style: italic; font-weight: 500;">En cumplimiento de la Ley 1496 de 2011, ODS 5 de las Naciones Unidas y la Ley 2466 de 2025</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #2563eb; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #bfdbfe; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #bfdbfe; font-weight: 600; color: #2563eb; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #bfdbfe; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #bfdbfe;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8;">Fecha Entrada:</td>
-        <td style="padding: 6px 10px; border: 1px solid #bfdbfe;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #1e3a8a 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #4f46e5, #2563eb); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        POLÍTICA DE EQUIDAD DE GÉNERO, DIVERSIDAD E INCLUSIÓN
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Igualdad de Oportunidades, Brecha Salarial Cero y Diversidad
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        En cumplimiento de la Ley 1496 de 2011, ODS 5 de las Naciones Unidas y la Ley 2466 de 2025
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: SST-POL-012 | V.02
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #bfdbfe; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #4f46e5, #2563eb); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #eff6ff; border-bottom: 1px solid #bfdbfe; border-right: 1px solid #bfdbfe; color: #1d4ed8; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #bfdbfe; border-right: 1px solid #bfdbfe; font-weight: 600; color: #2563eb; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #eff6ff; border-bottom: 1px solid #bfdbfe; border-right: 1px solid #bfdbfe; color: #1d4ed8; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #bfdbfe; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #eff6ff; border-right: 1px solid #bfdbfe; color: #1d4ed8;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #bfdbfe;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #eff6ff; border-right: 1px solid #bfdbfe; color: #1d4ed8;">Fecha Entrada:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
@@ -917,52 +965,60 @@ export const contratoObraLaborHTML = `
 // 11. Nuevo Documento: Procedimiento Sancionatorio Laboral
 export const procedimientoSancionatorioHTML = `
 <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #475569 0%, #334155 50%, #0f172a 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(30,41,59,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-    <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-      <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-      <tr>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #cbd5e1; vertical-align: middle; background-color: #ffffff; width: 50%;">
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #475569, #334155); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-            WP
-          </div>
-        </td>
-        <td colspan="2" style="padding: 14px 16px; border: 1px solid #cbd5e1; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-          <div style="font-size: 9px; font-weight: bold; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: RIT</div>
-          <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: RIT-PROC-001 | V.01</div>
-        </td>
-      </tr>
-      
-      <!-- Fila 2: Título del Documento Centrado -->
-      <tr>
-        <td colspan="4" style="padding: 16px 20px; border: 1px solid #cbd5e1; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-          <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #1e293b; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-            REGULACIÓN DEL PROCEDIMIENTO SANCIONATORIO LABORAL
-          </h1>
-          <p style="margin: 6px 0 0; font-size: 9px; color: #334155; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Debido Proceso Constitucional y Garantía del Derecho de Defensa</p>
-          <p style="margin: 3px 0 0; font-size: 8px; color: #1e293b; font-style: italic; font-weight: 500;">Alineado con el Artículo 115 del Código Sustantivo del Trabajo (Reforma Laboral Ley 2466 de 2025) y la Sentencia C-593 de 2014</p>
-        </td>
-      </tr>
-      
-      <!-- Fila de Encabezado de la Entidad -->
-      <tr>
-        <td colspan="4" style="background-color: #1e293b; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #cbd5e1; text-align: center;">
-          INFORMACIÓN RESUMIDA DE LA ENTIDAD
-        </td>
-      </tr>
-      
-      <!-- Filas de Datos de la Entidad -->
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155; width: 25%;">Empresa:</td>
-        <td style="padding: 6px 10px; border: 1px solid #cbd5e1; font-weight: 600; color: #1e293b; width: 25%;">{{empresa_nombre}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155; width: 25%;">NIT:</td>
-        <td style="padding: 6px 10px; border: 1px solid #cbd5e1; width: 25%;">{{empresa_nit}}</td>
-      </tr>
-      <tr style="font-size: 11px; color: #1e293b;">
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155;">Aprobador:</td>
-        <td style="padding: 6px 10px; border: 1px solid #cbd5e1;">{{representante_legal}}</td>
-        <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155;">Fecha de Vigencia:</td>
-        <td style="padding: 6px 10px; border: 1px solid #cbd5e1;">22/05/2026</td>
-      </tr>
+  <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+  <div style="background: linear-gradient(135deg, #475569 0%, #334155 50%, #0f172a 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(30, 41, 59, 0.15), 0 8px 10px -6px rgba(30, 41, 59, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+    <!-- Logo -->
+    <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255, 255, 255, 0.2); box-sizing: border-box; overflow: hidden;">
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #475569, #334155); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        WP
+      </div>
+    </div>
+    
+    <!-- Título y Subtítulos -->
+    <div style="flex-grow: 1; min-width: 0; text-align: left;">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+        REGULACIÓN DEL PROCEDIMIENTO SANCIONATORIO LABORAL
+      </h1>
+      <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+        Debido Proceso Constitucional y Garantía del Derecho de Defensa
+      </p>
+      <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+        Alineado con el Artículo 115 del Código Sustantivo del Trabajo (Reforma Laboral Ley 2466 de 2025) y la Sentencia C-593 de 2014
+      </p>
+    </div>
+    
+    <!-- Badge Pill -->
+    <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+        CÓDIGO: RIT-PROC-001 | V.01
+      </span>
+    </div>
+  </div>
+
+  <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+  <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+    <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; background-color: #ffffff;">
+      <thead>
+        <tr>
+          <th colspan="4" style="background: linear-gradient(90deg, #475569, #334155); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+            INFORMACIÓN RESUMIDA DE LA ENTIDAD
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; color: #334155; width: 25%;">Empresa:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 600; color: #1e293b; width: 25%;">{{empresa_nombre}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; color: #334155; width: 25%;">NIT:</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #cbd5e1; width: 25%;">{{empresa_nit}}</td>
+        </tr>
+        <tr style="font-size: 11px; color: #1e293b;">
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #cbd5e1; color: #334155;">Aprobador:</td>
+          <td style="padding: 8px 12px; border-right: 1px solid #cbd5e1;">{{representante_legal}}</td>
+          <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #cbd5e1; color: #334155;">Fecha de Vigencia:</td>
+          <td style="padding: 8px 12px;">22/05/2026</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 

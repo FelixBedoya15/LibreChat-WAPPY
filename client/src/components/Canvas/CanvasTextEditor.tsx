@@ -77,52 +77,60 @@ const TEMPLATES = [
     icon: <FileText className="h-4 w-4 text-teal-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(15,118,110,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0f766e, #0ea5e9); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-POL-001 | V.04</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #0f766e; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  POLÍTICA INTEGRADA DE SEGURIDAD Y SALUD EN EL TRABAJO
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">SISTEMA DE GESTIÓN DE LA SEGURIDAD Y SALUD EN EL TRABAJO (SG-SST)</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">Conforme al Decreto 1072 de 2015 de la República de Colombia</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #0f766e; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-                INFORMACIÓN RESUMIDA DE LA ENTIDAD
-              </td>
-            </tr>
-            
-            <!-- Filas de Datos de la Entidad -->
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Empresa:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%;">{{empresa_nombre}}</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">NIT:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">{{empresa_nit}}</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Representante:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">{{representante_legal}}</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Fecha Aprobación:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')}</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0f766e, #0ea5e9); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              POLÍTICA INTEGRADA DE SEGURIDAD Y SALUD EN EL TRABAJO
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              SISTEMA DE GESTIÓN DE LA SEGURIDAD Y SALUD EN EL TRABAJO (SG-SST)
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              Conforme al Decreto 1072 de 2015 de la República de Colombia
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-POL-001 | V.04
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  INFORMACIÓN RESUMIDA DE LA ENTIDAD
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Empresa:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%;">{{empresa_nombre}}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">NIT:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">{{empresa_nit}}</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Representante:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">{{representante_legal}}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Fecha Aprobación:</td>
+                <td style="padding: 8px 12px;">\${new Date().toLocaleDateString('es-ES')}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -180,56 +188,66 @@ const TEMPLATES = [
     icon: <PenTool className="h-4 w-4 text-emerald-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #115e59 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(13,148,136,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0d9488, #0f766e); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-002 | V.05</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #0d9488; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  ACTA DE CONSTITUCIÓN Y APERTURA DEL COMITÉ PARITARIO DE SST
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">COPASST - Período Legal de Operación Vigente</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">En cumplimiento con la Resolución 2013 de 1986 y Decreto 1072 de 2015</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #0d9488; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-                DATOS GENERALES DEL COMITÉ Y LA SESIÓN
-              </td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Razón Social Empresa:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; width: 25%;">\${'{{empresa_nombre}}'}</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">NIT / Cédula Jurídica:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">\${'{{empresa_nit}}'}</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Ciudad de Reunión:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">Bogotá D.C.</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Lugar / Oficina:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">Sala de Juntas Principal / Teams</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Fecha y Hora:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')} | 09:00 AM</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Número de Acta:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0d9488;">ACTA No. 001</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #115e59 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0d9488, #0f766e); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              ACTA DE CONSTITUCIÓN Y APERTURA DEL COMITÉ PARITARIO DE SST
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              COPASST - Período Legal de Operación Vigente
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              En cumplimiento con la Resolución 2013 de 1986 y Decreto 1072 de 2015
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-FOR-002 | V.05
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #0d9488, #0f766e); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  DATOS GENERALES DEL COMITÉ Y LA SESIÓN
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Razón Social Empresa:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; width: 25%;">\${'{{empresa_nombre}}'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">NIT / Cédula Jurídica:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">\${'{{empresa_nit}}'}</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Ciudad de Reunión:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Bogotá D.C.</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Lugar / Oficina:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Sala de Juntas Principal / Teams</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Fecha y Hora:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')} | 09:00 AM</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Número de Acta:</td>
+                <td style="padding: 8px 12px; font-weight: 700; color: #0d9488;">ACTA No. 001</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -336,56 +354,66 @@ const TEMPLATES = [
     icon: <BookOpen className="h-4 w-4 text-sky-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0c4a6e 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(2,132,199,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0284c7, #0369a1); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #0284c7; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-REG-003 | V.03</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #0284c7; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  REGISTRO DE INDUCCIÓN Y ENTRENAMIENTO EN SST
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Proceso de Onboarding, Seguridad y Salud en el Trabajo</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">SG-SST Obligatorio - Conforme al Decreto 1072 de 2015</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #0284c7; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-                DATOS GENERALES DEL TRABAJADOR EN INDUCCIÓN
-              </td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Nombre del Colaborador:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; color: #0284c7; width: 25%;">[Escribir Nombre Completo]</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Cédula de Ciudadanía:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">[Ingresar N° C.C.]</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Cargo / Puesto:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">[Cargo Designado]</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Área / Departamento:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">[Área Operativa]</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Facilitador / Líder SST:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">[Nombre del Facilitador]</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Fecha de Inducción:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')}</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0c4a6e 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.15), 0 8px 10px -6px rgba(2, 132, 199, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0284c7, #0369a1); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              REGISTRO DE INDUCCIÓN Y ENTRENAMIENTO EN SST
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              Proceso de Onboarding, Seguridad y Salud en el Trabajo
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              SG-SST Obligatorio - Conforme al Decreto 1072 de 2015
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-REG-003 | V.03
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #0284c7, #0369a1); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  DATOS GENERALES DEL TRABAJADOR EN INDUCCIÓN
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Nombre del Colaborador:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0284c7; width: 25%;">[Escribir Nombre Completo]</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Cédula de Ciudadanía:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">[Ingresar N° C.C.]</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Cargo / Puesto:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">[Cargo Designado]</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Área / Departamento:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">[Área Operativa]</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Facilitador / Líder SST:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">[Nombre del Facilitador]</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Fecha de Inducción:</td>
+                <td style="padding: 8px 12px;">\${new Date().toLocaleDateString('es-ES')}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -497,50 +525,60 @@ const TEMPLATES = [
     icon: <CheckSquare className="h-4 w-4 text-indigo-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 50%, #1e1b4b 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(79,70,229,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #4f46e5, #3730a3); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-004 | V.05</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #4f46e5; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  FORMATO DE INSPECCIÓN PLANEADA DE SEGURIDAD, ORDEN Y ASEO
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Inspección Periódica a Instalaciones Físicas y Puestos de Trabajo</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">SG-SST de \${'{{empresa_nombre}}'} - Decreto 1072 de 2015</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #4f46e5; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-                INFORMACIÓN DEL REGISTRO E INSPECTOR
-              </td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Nombre del Inspector:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; width: 25%;">[Nombre del Evaluador / COPASST]</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Fecha de Inspección:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">\${new Date().toLocaleDateString('es-ES')}</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Área / Planta Evaluada:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; color: #4f46e5;">[Área Oficinas y Producción]</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Frecuencia Planificada:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">Mensual Obligatoria</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 50%, #1e1b4b 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #4f46e5, #3730a3); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              FORMATO DE INSPECCIÓN PLANEADA DE SEGURIDAD, ORDEN Y ASEO
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              Inspección Periódica a Instalaciones Físicas y Puestos de Trabajo
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              SG-SST de \${'{{empresa_nombre}}'} - Decreto 1072 de 2015
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-FOR-004 | V.05
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #4f46e5, #3730a3); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  INFORMACIÓN DEL REGISTRO E INSPECTOR
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Nombre del Inspector:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; width: 25%;">[Nombre del Evaluador / COPASST]</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Fecha de Inspección:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">\${new Date().toLocaleDateString('es-ES')}</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Área / Planta Evaluada:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0; font-weight: 600; color: #4f46e5;">[Área Oficinas y Producción]</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Frecuencia Planificada:</td>
+                <td style="padding: 8px 12px;">Mensual Obligatoria</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -684,54 +722,64 @@ const TEMPLATES = [
     icon: <ListTodo className="h-4 w-4 text-orange-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #7c2d12 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(234,88,12,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #ea580c, #c2410c); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #ea580c; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-FOR-005 | V.06</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #ea580c; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  ANÁLISIS DE TRABAJO SEGURO (ATS)
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Permiso de Trabajo Ocupacional y Gestión Preventiva de Peligros</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">Obligatorio para Tareas Especiales en \${'{{empresa_nombre}}'}</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #ea580c; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-                DESCRIPCIÓN DE LA TAREA Y RECURSOS
-              </td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Actividad a Realizar:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; color: #ea580c; width: 75%;" colspan="3">Trabajos de Mantenimiento Eléctrico en Alturas</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Ubicación / Área:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">Subestación Eléctrica Principal - Piso 2</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Fecha del Trabajo:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">\${new Date().toLocaleDateString('es-ES')}</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">EPP Específico:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">Casco dieléctrico, guantes dieléctricos, arnés, eslinga doble.</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Equipos / Herramientas:</td>
-              <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">Medidor de tensión certificado, herramientas aisladas de 1000V.</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #7c2d12 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.15), 0 8px 10px -6px rgba(234, 88, 12, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #ea580c, #c2410c); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              ANÁLISIS DE TRABAJO SEGURO (ATS)
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              Permiso de Trabajo Ocupacional y Gestión Preventiva de Peligros
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              Obligatorio para Tareas Especiales en \${'{{empresa_nombre}}'}
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-FOR-005 | V.06
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #ea580c, #c2410c); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  DESCRIPCIÓN DE LA TAREA Y RECURSOS
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Actividad a Realizar:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #ea580c; width: 75%;" colspan="3">Trabajos de Mantenimiento Eléctrico en Alturas</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Ubicación / Área:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Subestación Eléctrica Principal - Piso 2</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Fecha del Trabajo:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">\${new Date().toLocaleDateString('es-ES')}</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">EPP Específico:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">Casco dieléctrico, guantes dieléctricos, arnés, eslinga doble.</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Equipos / Herramientas:</td>
+                <td style="padding: 8px 12px;">Medidor de tensión certificado, herramientas aisladas de 1000V.</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -875,50 +923,60 @@ const TEMPLATES = [
     icon: <ShieldAlert className="h-4 w-4 text-red-500" />,
     html: `
       <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #be123c 0%, #9f1239 50%, #4c0519 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(190,18,60,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-          <table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-            <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-            <tr>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #fca5a5; vertical-align: middle; background-color: #ffffff; width: 50%;">
-                <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #be123c, #9f1239); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-                  WP
-                </div>
-              </td>
-              <td colspan="2" style="padding: 14px 16px; border: 1px solid #fca5a5; text-align: right; vertical-align: middle; background-color: #fff5f5; width: 50%;">
-                <div style="font-size: 9px; font-weight: bold; color: #be123c; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">CÓDIGO: SST-PLN-006 | V.05</div>
-              </td>
-            </tr>
-            
-            <!-- Fila 2: Título del Documento Centrado -->
-            <tr>
-              <td colspan="4" style="padding: 16px 20px; border: 1px solid #fca5a5; text-align: center; vertical-align: middle; background-color: #fff5f5; border-bottom: 2px solid #fca5a5;">
-                <h1 style="margin: 0; font-size: 14px; font-weight: 850; color: #be123c; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-                  PLAN DE PREVENCIÓN, PREPARACIÓN Y RESPUESTA ANTE EMERGENCIAS
-                </h1>
-                <p style="margin: 6px 0 0; font-size: 9px; color: #9f1239; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">Estructura de Brigadas y Protocolos Operativos Normalizados (PON)</p>
-                <p style="margin: 3px 0 0; font-size: 8px; color: #be123c; font-style: italic; font-weight: 500;">SG-SST de \${'{{empresa_nombre}}'} - Conforme al Decreto 1072 de 2015</p>
-              </td>
-            </tr>
-            
-            <!-- Fila de Encabezado de la Entidad -->
-            <tr>
-              <td colspan="4" style="background-color: #be123c; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #fca5a5; text-align: center;">
-                PUNTOS DE RESPUESTA CRÍTICA DE EMERGENCIA
-              </td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #fff5f5; border: 1px solid #fca5a5; color: #9f1239; width: 25%;">Punto de Encuentro:</td>
-              <td style="padding: 6px 10px; border: 1px solid #fca5a5; font-weight: 600; width: 25%;">Zona Verde Norte / Parque Central</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #fff5f5; border: 1px solid #fca5a5; color: #9f1239; width: 25%;">Jefe de Emergencias:</td>
-              <td style="padding: 6px 10px; border: 1px solid #fca5a5; width: 25%;">Coordinador SST / Gerente Operativo</td>
-            </tr>
-            <tr style="font-size: 11px; color: #1e293b;">
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #fff5f5; border: 1px solid #fca5a5; color: #9f1239;">Línea de Bomberos:</td>
-              <td style="padding: 6px 10px; border: 1px solid #fca5a5; font-weight: 600; color: #be123c;">119 / (601) 822-4444</td>
-              <td style="padding: 6px 10px; font-weight: bold; background-color: #fff5f5; border: 1px solid #fca5a5; color: #9f1239;">Línea de ARL (Urgencias):</td>
-              <td style="padding: 6px 10px; border: 1px solid #fca5a5;">01 8000 111 111</td>
-            </tr>
+        <!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+        <div style="background: linear-gradient(135deg, #be123c 0%, #9f1239 50%, #4c0519 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(190, 18, 60, 0.15), 0 8px 10px -6px rgba(190, 18, 60, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+          <!-- Logo -->
+          <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+            <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #be123c, #9f1239); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+              WP
+            </div>
+          </div>
+          
+          <!-- Título y Subtítulos -->
+          <div style="flex-grow: 1; min-width: 0; text-align: left;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+              PLAN DE PREVENCIÓN, PREPARACIÓN Y RESPUESTA ANTE EMERGENCIAS
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+              Estructura de Brigadas y Protocolos Operativos Normalizados (PON)
+            </p>
+            <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+              SG-SST de \${'{{empresa_nombre}}'} - Conforme al Decreto 1072 de 2015
+            </p>
+          </div>
+          
+          <!-- Badge Pill -->
+          <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+              CÓDIGO: SST-PLN-006 | V.05
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+        <div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+          <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #fca5a5; background-color: #ffffff;">
+            <thead>
+              <tr>
+                <th colspan="4" style="background: linear-gradient(90deg, #be123c, #9f1239); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+                  PUNTOS DE RESPUESTA CRÍTICA DE EMERGENCIA
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #fff5f5; border-bottom: 1px solid #fca5a5; border-right: 1px solid #fca5a5; color: #9f1239; width: 25%;">Punto de Encuentro:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #fca5a5; border-right: 1px solid #fca5a5; font-weight: 600; width: 25%;">Zona Verde Norte / Parque Central</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #fff5f5; border-bottom: 1px solid #fca5a5; border-right: 1px solid #fca5a5; color: #9f1239; width: 25%;">Jefe de Emergencias:</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #fca5a5; width: 25%;">Coordinador SST / Gerente Operativo</td>
+              </tr>
+              <tr style="font-size: 11px; color: #1e293b;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #fff5f5; border-right: 1px solid #fca5a5; color: #9f1239;">Línea de Bomberos:</td>
+                <td style="padding: 8px 12px; border-right: 1px solid #fca5a5; font-weight: 600; color: #be123c;">119 / (601) 822-4444</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #fff5f5; border-right: 1px solid #fca5a5; color: #9f1239;">Línea de ARL (Urgencias):</td>
+                <td style="padding: 8px 12px;">01 8000 111 111</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 

@@ -277,18 +277,102 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const markdownToHtml = useCallback((md: string): string => {
     if (!md) return md;
 
+    // Helper to find matching tag depth-wise
+    const findMatchingClosingTag = (html: string, startIndex: number, tagName: string): number => {
+      const openTag = `<${tagName}`;
+      const closeTag = `</${tagName}>`;
+      let depth = 0;
+      let i = startIndex;
+
+      while (i < html.length) {
+        if (html.slice(i, i + openTag.length).toLowerCase() === openTag) {
+          depth++;
+          i += openTag.length;
+        } else if (html.slice(i, i + closeTag.length).toLowerCase() === closeTag) {
+          depth--;
+          if (depth === 0) {
+            return i + closeTag.length;
+          }
+          i += closeTag.length;
+        } else {
+          i++;
+        }
+      }
+      return -1;
+    };
+
     // Check if it's purely HTML (like from an old session or already parsed)
     // If it has markdown headers (#) or bold (**), we should parse it.
     // The regex below might break if we parse HTML, so let's protect HTML blocks.
     // A simple heuristic: if it contains # or **, it's probably markdown mixed with HTML.
-    if (md.trim().startsWith('<') && !md.includes('#') && !md.includes('**')) {
+    if (md.trim().startsWith('<') && !md.includes('#') && !md.includes('**') && !md.includes('---')) {
       return md;
     }
 
-    // Split the content into HTML blocks and Markdown blocks to avoid parsing inside HTML
-    const parts = md.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>)/i);
+    let header = '';
+    let body = md;
+    let signature = '';
 
-    return parts
+    // 1. Extract Header if it exists (can be multiple contiguous HTML blocks like comments, divs, tables, style)
+    let index = 0;
+    while (index < md.length) {
+      const remaining = md.substring(index);
+      const nextCharMatch = remaining.search(/\S/);
+      if (nextCharMatch === -1) break;
+      const actualIndex = index + nextCharMatch;
+      const actualRemaining = md.substring(actualIndex);
+
+      if (actualRemaining.startsWith('<!--')) {
+        const commentEnd = actualRemaining.indexOf('-->');
+        if (commentEnd !== -1) {
+          index = actualIndex + commentEnd + 3;
+          continue;
+        }
+      } else if (actualRemaining.startsWith('<div') || actualRemaining.startsWith('<table') || actualRemaining.startsWith('<style')) {
+        const startTag = actualRemaining.startsWith('<div') ? 'div' : (actualRemaining.startsWith('<table') ? 'table' : 'style');
+        const endIndex = findMatchingClosingTag(md, actualIndex, startTag);
+        if (endIndex !== -1) {
+          index = endIndex;
+          continue;
+        }
+      }
+      break;
+    }
+
+    if (index > 0) {
+      header = md.substring(0, index);
+      body = md.substring(index);
+    }
+
+    // 2. Extract Signature if it exists at the end
+    const sigMarkers = [
+      '<div style="margin-top: 60px;',
+      '<div style="margin-top:60px;',
+      '<div style="margin-top: 50px;',
+      '<div style="margin-top:50px;',
+      '<div style="page-break-inside:avoid;',
+      '<div style="page-break-inside: avoid;',
+      '<div class="signature-placeholder',
+    ];
+
+    let sigStartIndex = -1;
+    for (const marker of sigMarkers) {
+      const idx = body.lastIndexOf(marker);
+      if (idx !== -1 && (sigStartIndex === -1 || idx < sigStartIndex)) {
+        sigStartIndex = idx;
+      }
+    }
+
+    if (sigStartIndex !== -1) {
+      signature = body.substring(sigStartIndex);
+      body = body.substring(0, sigStartIndex);
+    }
+
+    // Now, parse ONLY the body as markdown.
+    // Split the body into HTML blocks and Markdown blocks to avoid parsing inside HTML
+    const parts = body.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>)/i);
+
+    const parsedBody = parts
       .map((part) => {
         if (part.trim().startsWith('<')) {
           return part; // Return HTML blocks as-is
@@ -377,6 +461,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           .replace(/<p>(<hr\/>)<\/p>/g, '$1');
       })
       .join('');
+
+    return header + parsedBody + signature;
   }, []);
 
   // ── Fetch session from database ──────────────────────────────────────────
@@ -470,7 +556,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         return () => clearTimeout(timer);
       }
     }
-    prevIsSubmittingRef.current = isSubmitting;
+    prevIsSubmittingRef.current = isSubmitting as boolean;
   }, [isSubmitting, fetchSession, conversationId]);
 
   // Helper to initialize session and transition new conversation

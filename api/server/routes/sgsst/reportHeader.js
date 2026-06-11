@@ -30,75 +30,90 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   const fecha = date || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
   const ciudad = ci.city ? `${ci.city}${ci.departamento ? ', ' + ci.departamento : ''}` : 'N/A';
 
+  // Build the logo container
+  let logoHtml = '';
+  if (ci.logoBase64) {
+    logoHtml = `<img src="${ci.logoBase64}" style="max-height: 40px; max-width: 90px; object-fit: contain; display: block;" alt="Logo" />`;
+  } else {
+    logoHtml = `
+      <div style="width: 40px; height: 40px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0f766e, #0ea5e9); border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 14px;">
+        ${empresa.substring(0, 2).toUpperCase()}
+      </div>
+    `;
+  }
+
   return `
-<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 3px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(15,118,110,0.12); font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box;">
-<table style="width: 100%; min-width: 700px; border-collapse: collapse; border-radius: 9px; overflow: hidden; font-family: inherit; background-color: #ffffff;">
-  <!-- Fila 1: Logo (Izquierda) y Metadatos de Proceso/Versión (Derecha) -->
-  <tr>
-    <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; vertical-align: middle; background-color: #ffffff; width: 50%;">
-      ${ci.logoBase64 ? `
-          <img src="${ci.logoBase64}" style="max-height: 50px; max-width: 120px; object-fit: contain; display: block;" alt="Logo" />
-      ` : `
-          <div style="width: 50px; height: 50px; display: inline-flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0f766e, #0ea5e9); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 15px;">
-              ${empresa.substring(0, 2).toUpperCase()}
-          </div>
-      `}
-    </td>
-    <td colspan="2" style="padding: 14px 16px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle; background-color: #f8fafc; width: 50%;">
-      <div style="font-size: 9px; font-weight: bold; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">PROCESO: SG-SST</div>
-      <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 3px; letter-spacing: 0.5px;">VERSIÓN: SG-SST | V.02</div>
-    </td>
-  </tr>
+<!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
+<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+  <!-- Logo -->
+  <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+    ${logoHtml}
+  </div>
   
-  <!-- Fila 2: Título del Documento Centrado -->
-  <tr>
-    <td colspan="4" style="padding: 16px 20px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-      <h1 style="margin: 0; font-size: 15px; font-weight: 850; color: #0f766e; text-transform: uppercase; line-height: 1.35; letter-spacing: 0.5px;">
-        ${title}${ci.companyName && !title.toLowerCase().includes(ci.companyName.toLowerCase()) ? ` - ${ci.companyName}` : ''}
-      </h1>
-      <p style="margin: 6px 0 0; font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
-      <p style="margin: 3px 0 0; font-size: 8px; color: #94a3b8; font-style: italic; font-weight: 500;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
-    </td>
-  </tr>
+  <!-- Título y Subtítulos -->
+  <div style="flex-grow: 1; min-width: 0; text-align: left;">
+    <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+      ${title}${ci.companyName && !title.toLowerCase().includes(ci.companyName.toLowerCase()) ? ` - ${ci.companyName}` : ''}
+    </h1>
+    <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+      SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO
+    </p>
+    <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+      Documento Corporativo Oficial - Conforme a la Normatividad Vigente
+    </p>
+  </div>
   
-  <!-- Fila de Encabezado de la Entidad -->
-  <tr>
-    <td colspan="4" style="background-color: #0f766e; color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
-      INFORMACIÓN RESUMIDA DE LA ENTIDAD
-    </td>
-  </tr>
-  
-  <!-- Filas de Datos de la Entidad -->
-  <tr style="font-size: 11px; color: #1e293b;">
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">Empresa:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%;">${empresa} <span style="font-size:9px;color:#64748b;font-weight:normal;">(${companyType})</span></td>
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155; width: 25%;">${nitLabel}:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 25%;">${nit}</td>
-  </tr>
-  <tr style="font-size: 11px; color: #1e293b;">
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Representante:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${representante}${representanteId}</td>
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">N° Trabajadores:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${trabajadores}</td>
-  </tr>
-  <tr style="font-size: 11px; color: #1e293b;">
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Nivel de Riesgo:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${riesgo}</td>
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Ciudad / Depto:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${ciudad}</td>
-  </tr>
-  <tr style="font-size: 11px; color: #1e293b;">
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Fecha de Emisión:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${fecha}</td>
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">ARL:</td>
-    <td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${arl}</td>
-  </tr>
-  <tr style="font-size: 11px; color: #1e293b;">
-    <td style="padding: 6px 10px; font-weight: bold; background-color: #f8fafc; border: 1px solid #e2e8f0; color: #334155;">Norma:</td>
-    <td colspan="3" style="padding: 6px 10px; border: 1px solid #e2e8f0;">${norma}</td>
-  </tr>
-</table>
-</div>`;
+  <!-- Badge Pill -->
+  <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+    <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
+      PROCESO: SG-SST | V.02
+    </span>
+  </div>
+</div>
+
+<!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
+<div style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
+  <table style="width: 100%; min-width: 600px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+    <thead>
+      <tr>
+        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+          INFORMACIÓN RESUMIDA DE LA ENTIDAD
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">Empresa:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; font-weight: 600; color: #0f766e; width: 25%;">${empresa} <span style="font-size:9px;color:#64748b;font-weight:normal;">(${companyType})</span></td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155; width: 25%;">${nitLabel}:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; width: 25%;">${nit}</td>
+      </tr>
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Representante:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${representante}${representanteId}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">N° Trabajadores:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${trabajadores}</td>
+      </tr>
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Nivel de Riesgo:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${riesgo}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Ciudad / Depto:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${ciudad}</td>
+      </tr>
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">Fecha de Emisión:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">${fecha}</td>
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; color: #334155;">ARL:</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${arl}</td>
+      </tr>
+      <tr style="font-size: 11px; color: #1e293b;">
+        <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; border-right: 1px solid #e2e8f0; color: #334155;">Norma:</td>
+        <td colspan="3" style="padding: 8px 12px;">${norma}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
 }
 
 /**
