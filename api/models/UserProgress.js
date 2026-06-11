@@ -4,7 +4,7 @@ const userProgressSchema = mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
+        required: false, // Optional for workers
     },
     companyId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -23,14 +23,31 @@ const userProgressSchema = mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    workerCedula: {
+        type: String,
+        index: true,
+        required: false
+    },
+    workerName: {
+        type: String,
+        required: false
+    },
     lastAccessed: {
         type: Date,
         default: Date.now,
     }
 }, { timestamps: true });
 
-// Ensure one progress record per user per course per company
-userProgressSchema.index({ user: 1, course: 1, companyId: 1 }, { unique: true });
+// Ensure unique progress record per user/course/company using partial filters to handle null user/workerCedula values
+userProgressSchema.index(
+    { user: 1, course: 1, companyId: 1 },
+    { unique: true, partialFilterExpression: { user: { $exists: true, $ne: null } } }
+);
+
+userProgressSchema.index(
+    { workerCedula: 1, course: 1, companyId: 1 },
+    { unique: true, partialFilterExpression: { workerCedula: { $exists: true, $ne: null } } }
+);
 
 const UserProgress = mongoose.models.UserProgress || mongoose.model('UserProgress', userProgressSchema);
 

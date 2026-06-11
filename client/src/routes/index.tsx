@@ -37,6 +37,12 @@ import TrainingDashboard from '~/components/Training/TrainingDashboard';
 import CourseViewer from '~/components/Training/CourseViewer';
 import TrainingAdminDashboard from '~/components/Training/TrainingAdminDashboard';
 import CourseEditor from '~/components/Training/CourseEditor';
+import RutaAprendizajeDashboard from '~/components/RutaAprendizaje/RutaAprendizajeDashboard';
+import RutaAprendizajeAdminDashboard from '~/components/RutaAprendizaje/RutaAprendizajeAdminDashboard';
+import RutaAprendizajeCourseEditor from '~/components/RutaAprendizaje/RutaAprendizajeCourseEditor';
+import RutaAprendizajeCourseViewer from '~/components/RutaAprendizaje/RutaAprendizajeCourseViewer';
+import PublicRutaAprendizaje from '~/components/RutaAprendizaje/PublicRutaAprendizaje';
+import PublicRutaCourseViewer from '~/components/RutaAprendizaje/PublicRutaCourseViewer';
 import BlogDashboard from '~/components/Blog/BlogDashboard';
 import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
 import BlogPostEditor from '~/components/Blog/BlogPostEditor';
@@ -104,6 +110,16 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/perfil-update/:companyId/:workerId?',
       element: <PublicPerfilUpdate />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/ruta-aprendizaje/:companyId',
+      element: <PublicRutaAprendizaje />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/ruta-aprendizaje/:companyId/course/:courseId',
+      element: <PublicRutaCourseViewer />,
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -303,6 +319,22 @@ export const router = createBrowserRouter(
             {
               path: 'training/:courseId/:slug?',
               element: <CourseViewer />,
+            },
+            {
+              path: 'ruta-aprendizaje',
+              element: <RutaAprendizajeDashboard />,
+            },
+            {
+              path: 'ruta-aprendizaje/admin',
+              element: <RutaAprendizajeAdminDashboard />,
+            },
+            {
+              path: 'ruta-aprendizaje/admin/courses/:id',
+              element: <RutaAprendizajeCourseEditor />,
+            },
+            {
+              path: 'ruta-aprendizaje/:courseId/:slug?',
+              element: <RutaAprendizajeCourseViewer />,
             },
             {
               path: 'blog',

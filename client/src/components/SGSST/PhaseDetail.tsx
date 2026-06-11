@@ -5,7 +5,7 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart
+    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -570,6 +570,39 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  {category.id === 'capacitaciones' && (
                                                      <div className="mb-6">
                                                          <ProgramaCapacitaciones />
+                                                     </div>
+                                                 )}
+
+                                                 {/* Show Ruta de Aprendizaje for ruta_aprendizaje category */}
+                                                 {category.id === 'ruta_aprendizaje' && (
+                                                     <div className="mb-6 p-6 rounded-2xl bg-gradient-to-br from-emerald-950/20 via-surface-secondary to-surface-primary border border-border-light dark:border-white/10 shadow-xl space-y-6">
+                                                         <div className="flex items-start gap-4">
+                                                             <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                                                                 <GraduationCap className="w-8 h-8" />
+                                                             </div>
+                                                             <div className="space-y-1">
+                                                                 <h3 className="font-extrabold text-xl text-white">Ruta de Aprendizaje</h3>
+                                                                 <p className="text-sm text-text-secondary">
+                                                                     Administra el programa oficial de capacitación interna de tu empresa. Configura cursos con IA, sube lecciones en video y evalúa a tus trabajadores de forma 100% personalizada.
+                                                                 </p>
+                                                             </div>
+                                                         </div>
+                                                         
+                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                                             <button
+                                                                 onClick={() => navigate('/ruta-aprendizaje/admin')}
+                                                                 className="flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl py-3.5 font-bold text-sm tracking-wide transition-all shadow-lg shadow-blue-900/10 hover:scale-[1.02]"
+                                                             >
+                                                                 <Shield className="w-4 h-4" /> Administrar Rutas y Cursos
+                                                             </button>
+                                                             
+                                                             <button
+                                                                 onClick={() => navigate('/ruta-aprendizaje')}
+                                                                 className="flex items-center justify-center gap-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white border border-slate-700 rounded-xl py-3.5 font-bold text-sm tracking-wide transition-all hover:scale-[1.02]"
+                                                             >
+                                                                 <Eye className="w-4 h-4" /> Ver Portal del Aula
+                                                             </button>
+                                                         </div>
                                                      </div>
                                                  )}
                                                  

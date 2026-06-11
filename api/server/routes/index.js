@@ -46,6 +46,7 @@ const roadmap = require('./roadmap');
 const whatsapp = require('./whatsapp');
 const referrals = require('./referrals');
 const comunidad = require('./comunidad');
+const rutaAprendizaje = require('./rutaAprendizaje');
 
 module.exports = {
   auth,
@@ -97,4 +98,5 @@ module.exports = {
   whatsapp,
   referrals,
   comunidad,
+  rutaAprendizaje,
 };

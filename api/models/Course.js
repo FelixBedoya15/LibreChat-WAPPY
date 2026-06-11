@@ -56,6 +56,17 @@ const courseSchema = mongoose.Schema({
     isFeatured: {
         type: Boolean,
         default: false,
+    },
+    isLearningPath: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CompanyInfo',
+        index: true,
+        required: false
     }
 }, { timestamps: true });
 

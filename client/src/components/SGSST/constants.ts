@@ -51,6 +51,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 3: Dinámica de Exposición' 
         },
         { 
+            id: 'ruta_aprendizaje', title: 'Ruta de Aprendizaje', icon: 'GraduationCap',
+            bioRationale: 'Visualiza, audita y comparte las rutas de capacitación personalizadas diseñadas para la salud y competencia técnica de tu equipo de trabajo.', 
+            normativity: 'Hito 3: Dinámica de Exposición' 
+        },
+        { 
             id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert',
             bioRationale: 'Induce a un estado de consciencia plena antes de ejecutar una tarea riesgosa, evitando el daño inmediato.', 
             normativity: 'Hito 3: Dinámica de Exposición' 

@@ -28,6 +28,7 @@ const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
+const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
 const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
 const InspeccionButton = lazy(() => import('./InspeccionButton'));
@@ -309,6 +310,12 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
+                        {/* Ruta Aprendizaje */}
+                        <Suspense fallback={null}>
+                          {user?.role === 'ADMIN' && (
+                            <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          )}
+                        </Suspense>
                         {/* Blog */}
                         <Suspense fallback={null}>
                           <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -368,6 +375,11 @@ const Nav = memo(
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+                                <Suspense fallback={null}>
+                                  {user?.role === 'ADMIN' && (
+                                    <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  )}
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
