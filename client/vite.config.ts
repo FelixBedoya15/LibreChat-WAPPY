@@ -150,11 +150,17 @@ export default defineConfig(({ command }) => ({
               return 'security-ui';
             }
 
-            if (
-              normalizedId.includes('@codemirror') ||
-              normalizedId.includes('codemirror')
-            ) {
-              return 'codemirror';
+            if (normalizedId.includes('@codemirror/view')) {
+              return 'codemirror-view';
+            }
+            if (normalizedId.includes('@codemirror/state')) {
+              return 'codemirror-state';
+            }
+            if (normalizedId.includes('@codemirror/language')) {
+              return 'codemirror-language';
+            }
+            if (normalizedId.includes('@codemirror')) {
+              return 'codemirror-core';
             }
 
             if (
