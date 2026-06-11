@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import pptxgen from 'pptxgenjs';
 import { 
   Plus, 
   Trash2, 
@@ -1056,6 +1057,302 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
     updateSlide(activeIndex, { bullets: updatedBullets });
   };
 
+  const handleDownloadPptx = () => {
+    const pptx = new pptxgen();
+    pptx.title = title || 'Presentación';
+    pptx.layout = 'LAYOUT_16x9';
+
+    const pptxThemes = {
+      cobalt: { bg: '0F172A', text: 'FFFFFF', accent: '3B82F6' },
+      forest: { bg: '022C22', text: 'FFFFFF', accent: '10B981' },
+      sunset: { bg: '451A03', text: 'FFFFFF', accent: 'F43F5E' },
+      charcoal: { bg: '171717', text: 'FFFFFF', accent: '14B8A6' },
+    };
+
+    const stripHtml = (htmlStr: string) => {
+      if (!htmlStr) return '';
+      return htmlStr
+        .replace(/<\/?[^>]+(>|$)/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&middot;/g, "·")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+    };
+
+    slides.forEach((slide, idx) => {
+      const pSlide = pptx.addSlide();
+      const themeName = slide.theme || 'cobalt';
+      const themeColors = pptxThemes[themeName] || pptxThemes.cobalt;
+
+      pSlide.background = { fill: themeColors.bg };
+
+      // Header info
+      pSlide.addText(`${title} - Diapositiva ${idx + 1}`, {
+        x: 0.5,
+        y: 0.3,
+        w: '90%',
+        h: 0.3,
+        fontSize: 10,
+        color: themeColors.accent,
+        bold: true,
+      });
+
+      const layout = slide.layout || 'bullets';
+      const cleanTitle = stripHtml(slide.title);
+
+      if (layout === 'title') {
+        pSlide.addText(cleanTitle, {
+          x: 1.0,
+          y: 2.2,
+          w: 8.0,
+          h: 2.0,
+          fontSize: 40,
+          color: themeColors.text,
+          bold: true,
+          align: 'center',
+        });
+        pSlide.addShape(pptx.shapes.RECTANGLE, {
+          x: 4.5,
+          y: 4.5,
+          w: 1.0,
+          h: 0.05,
+          fill: { color: themeColors.accent },
+        });
+      } else if (layout === 'split') {
+        if (slide.imageUrl) {
+          pSlide.addImage({
+            path: slide.imageUrl,
+            x: 0.5,
+            y: 1.2,
+            w: 4.2,
+            h: 4.5,
+          });
+        } else {
+          pSlide.addShape(pptx.shapes.RECTANGLE, {
+            x: 0.5,
+            y: 1.2,
+            w: 4.2,
+            h: 4.5,
+            fill: { color: '22252A' },
+          });
+          pSlide.addText('Sin Imagen', {
+            x: 0.5,
+            y: 3.2,
+            w: 4.2,
+            h: 0.5,
+            fontSize: 14,
+            color: '888888',
+            align: 'center',
+          });
+        }
+
+        pSlide.addText(cleanTitle, {
+          x: 5.2,
+          y: 1.2,
+          w: 4.3,
+          h: 1.0,
+          fontSize: 26,
+          color: themeColors.text,
+          bold: true,
+        });
+
+        const bulletObjects = slide.bullets.map((b) => ({
+          text: stripHtml(b),
+          options: { bullet: true, color: themeColors.text, fontSize: 16 },
+        }));
+
+        if (bulletObjects.length > 0) {
+          pSlide.addText(bulletObjects, {
+            x: 5.2,
+            y: 2.3,
+            w: 4.3,
+            h: 3.4,
+          });
+        }
+      } else if (layout === 'media') {
+        if (slide.imageUrl) {
+          pSlide.background = { fill: '000000' };
+          pSlide.addImage({
+            path: slide.imageUrl,
+            x: 0,
+            y: 0,
+            w: 10.0,
+            h: 5.625,
+          });
+        }
+
+        pSlide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0.8,
+          y: 2.5,
+          w: 8.4,
+          h: 2.5,
+          fill: { color: '000000', transparency: 40 },
+        });
+
+        pSlide.addText(cleanTitle, {
+          x: 1.2,
+          y: 2.7,
+          w: 7.6,
+          h: 0.6,
+          fontSize: 28,
+          color: 'FFFFFF',
+          bold: true,
+        });
+
+        const bulletObjects = slide.bullets.map((b) => ({
+          text: stripHtml(b),
+          options: { bullet: true, color: 'FFFFFF', fontSize: 16 },
+        }));
+
+        if (bulletObjects.length > 0) {
+          pSlide.addText(bulletObjects, {
+            x: 1.2,
+            y: 3.5,
+            w: 7.6,
+            h: 1.3,
+          });
+        }
+      } else if (layout === 'table') {
+        pSlide.addText(cleanTitle, {
+          x: 0.5,
+          y: 0.8,
+          w: 9.0,
+          h: 0.8,
+          fontSize: 26,
+          color: themeColors.text,
+          bold: true,
+        });
+
+        const rows: string[][] = [];
+        if (slide.tableHtml) {
+          const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+          const tdRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g;
+          let trMatch;
+          while ((trMatch = trRegex.exec(slide.tableHtml)) !== null) {
+            const rowData: string[] = [];
+            let tdMatch;
+            const innerHtml = trMatch[1];
+            while ((tdMatch = tdRegex.exec(innerHtml)) !== null) {
+              rowData.push(stripHtml(tdMatch[1]).trim());
+            }
+            if (rowData.length > 0) {
+              rows.push(rowData);
+            }
+          }
+        }
+
+        if (rows.length > 0) {
+          const formattedRows = rows.map((row) =>
+            row.map((cell) => ({
+              text: cell,
+              options: {
+                color: themeColors.text,
+                fontSize: 11,
+                fill: { color: themeColors.bg },
+                border: { pt: 1, color: '444444' },
+                align: 'center' as const,
+              },
+            }))
+          );
+          pSlide.addTable(formattedRows, {
+            x: 0.5,
+            y: 1.8,
+            w: 9.0,
+            h: 3.5,
+          });
+        } else {
+          pSlide.addText('Sin datos de tabla', {
+            x: 0.5,
+            y: 2.5,
+            w: 9.0,
+            h: 1.0,
+            fontSize: 16,
+            color: '888888',
+            align: 'center',
+          });
+        }
+      } else if (layout === 'chart') {
+        pSlide.addText(cleanTitle, {
+          x: 0.5,
+          y: 0.8,
+          w: 9.0,
+          h: 0.8,
+          fontSize: 26,
+          color: themeColors.text,
+          bold: true,
+        });
+
+        if (slide.chartConfig && slide.chartConfig.data) {
+          const chartData = slide.chartConfig.data;
+          const labels = chartData.map((d) => d.label);
+          const values = chartData.map((d) => d.val);
+
+          const chartDataForPptx = [
+            {
+              name: slide.chartConfig.title || 'Métricas',
+              labels: labels,
+              values: values,
+            },
+          ];
+
+          let pptxChartType = pptx.ChartType.bar;
+          if (slide.chartConfig.type === 'line') pptxChartType = pptx.ChartType.line;
+          if (slide.chartConfig.type === 'pie') pptxChartType = pptx.ChartType.pie;
+
+          pSlide.addChart(pptxChartType, chartDataForPptx, {
+            x: 1.0,
+            y: 1.8,
+            w: 8.0,
+            h: 3.5,
+            showLegend: true,
+            legendPos: 'b',
+            title: slide.chartConfig.title,
+            titleColor: themeColors.text,
+            titleFontSize: 12,
+          });
+        } else {
+          pSlide.addText('Sin datos de gráfico', {
+            x: 0.5,
+            y: 2.5,
+            w: 9.0,
+            h: 1.0,
+            fontSize: 16,
+            color: '888888',
+            align: 'center',
+          });
+        }
+      } else {
+        pSlide.addText(cleanTitle, {
+          x: 0.5,
+          y: 1.0,
+          w: 9.0,
+          h: 0.8,
+          fontSize: 32,
+          color: themeColors.text,
+          bold: true,
+        });
+
+        const bulletObjects = slide.bullets.map((b) => ({
+          text: stripHtml(b),
+          options: { bullet: true, color: themeColors.text, fontSize: 18 },
+        }));
+
+        if (bulletObjects.length > 0) {
+          pSlide.addText(bulletObjects, {
+            x: 0.5,
+            y: 2.0,
+            w: 9.0,
+            h: 3.2,
+          });
+        }
+      }
+    });
+
+    const cleanFileName = `${title.replace(/[^a-zA-Z0-9-_]/g, '_') || 'presentacion'}.pptx`;
+    pptx.writeFile({ fileName: cleanFileName });
+  };
+
   const handleDownloadPdf = () => {
     const slidesHtml = slides.map((slide, idx) => {
       let themeBgCss = '';
@@ -1123,7 +1420,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
   useEffect(() => {
     if (onRegisterDownload) {
-      onRegisterDownload(handleDownloadPdf);
+      onRegisterDownload(handleDownloadPptx);
     }
   }, [onRegisterDownload, slides, title]);
 
@@ -1907,22 +2204,32 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         })}
                       </div>
 
-                      <div className="pt-2 border-t border-border-medium/60 flex items-center justify-between">
-                        <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Formato de Impresión Landscape</span>
-                        <button
-                          onClick={handleDownloadPdf}
-                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
-                          aria-label="Descargar Diapositivas"
-                        >
-                          <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                            <Download className="h-4 w-4 text-text-primary" />
-                          </div>
-                          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                            <span className="text-sm font-bold tracking-wide text-text-primary">
-                              Descargar Diapositivas
-                            </span>
-                          </div>
-                        </button>
+                      <div className="pt-2 border-t border-border-medium/60 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text-tertiary flex items-center gap-1.5 font-medium">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Descargar PowerPoint
+                          </span>
+                          <button
+                            onClick={handleDownloadPptx}
+                            className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold"
+                            aria-label="Descargar PowerPoint (.pptx)"
+                          >
+                            <Download className="h-4 w-4 mr-1.5" />
+                            <span className="text-xs font-extrabold">PPTX</span>
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text-tertiary flex items-center gap-1.5 font-medium">
+                            <MonitorPlay className="h-3.5 w-3.5 text-teal-500" /> Exportar PDF (Imprimir)
+                          </span>
+                          <button
+                            onClick={handleDownloadPdf}
+                            className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-secondary font-bold"
+                            aria-label="Exportar PDF / Imprimir"
+                          >
+                            <span className="text-xs font-bold">PDF</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
