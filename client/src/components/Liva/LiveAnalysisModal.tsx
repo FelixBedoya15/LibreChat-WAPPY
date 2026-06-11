@@ -62,7 +62,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
     const setShowModalState = useSetRecoilState(store.showLiveAnalysisModal);
-    const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
+    const [selectedVoice, setSelectedVoice] = useState<string>((voiceLiveAnalysis as string) || '');
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -394,7 +394,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         conversationId,
         onConversationIdUpdate,
         disableAudio: false,
-        initialVoice: voiceLiveAnalysis,
+        initialVoice: (voiceLiveAnalysis as string) || '',
         selectedModel,
         template: selectedTemplate || 'general',
         onAudioReceived: (audioData: string) => {
@@ -704,12 +704,70 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         let elbowDegVal: number | null = null;
         let kneeFlexVal: number | null = null;
 
-        // Cervical angle (flexion from vertical)
-        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.5 && (activeEar.visibility ?? 0) > 0.5) {
-            const neckDx = activeShoulder.x - activeEar.x;
-            const neckDy = activeShoulder.y - activeEar.y;
-            const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
-            neckDeg = Math.round(neckRad * (180 / Math.PI));
+        // Cervical angle (flexion/tilt) calculation
+        const nose = landmarks[0];
+        const noseVisible = nose && (nose.visibility ?? 0) > 0.5;
+        const leftEarVisible = leftEar && (leftEar.visibility ?? 0) > 0.5;
+        const rightEarVisible = rightEar && (rightEar.visibility ?? 0) > 0.5;
+        const leftShoulderVisible = leftShoulder && (leftShoulder.visibility ?? 0) > 0.5;
+        const rightShoulderVisible = rightShoulder && (rightShoulder.visibility ?? 0) > 0.5;
+
+        // Determine if we are in frontal view or side view
+        // In frontal view, both shoulders are visible and separated horizontally
+        const isFrontalView = leftShoulderVisible && rightShoulderVisible && 
+                              Math.abs(leftShoulder.x - rightShoulder.x) > 0.12;
+
+        if (isFrontalView) {
+            // Frontal view: use midpoints or nose to estimate head center
+            let headCenterX: number | null = null;
+            let headCenterY: number | null = null;
+
+            if (noseVisible) {
+                // Nose is the most stable center point in frontal view
+                headCenterX = nose.x;
+                headCenterY = nose.y;
+            } else if (leftEarVisible && rightEarVisible) {
+                // Fallback to ears midpoint
+                headCenterX = (leftEar.x + rightEar.x) / 2;
+                headCenterY = (leftEar.y + rightEar.y) / 2;
+            }
+
+            const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
+            const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
+
+            if (headCenterX !== null && headCenterY !== null) {
+                const neckDx = shoulderCenterX - headCenterX;
+                const neckDy = shoulderCenterY - headCenterY;
+                if (neckDy > 0) {
+                    const neckRad = Math.atan2(Math.abs(neckDx), neckDy);
+                    neckDeg = Math.round(neckRad * (180 / Math.PI));
+                }
+            }
+        } else {
+            // Side view: use the visible side's ear and shoulder
+            let activeEar: any = null;
+            let activeShoulder: any = null;
+
+            if (leftEarVisible && leftShoulderVisible) {
+                activeEar = leftEar;
+                activeShoulder = leftShoulder;
+            } else if (rightEarVisible && rightShoulderVisible) {
+                activeEar = rightEar;
+                activeShoulder = rightShoulder;
+            } else {
+                // Fallback to whatever is available
+                activeEar = leftEarVisible ? leftEar : (rightEarVisible ? rightEar : null);
+                activeShoulder = leftShoulderVisible ? leftShoulder : (rightShoulderVisible ? rightShoulder : null);
+            }
+
+            if (activeEar && activeShoulder) {
+                const neckDx = activeShoulder.x - activeEar.x;
+                const neckDy = activeShoulder.y - activeEar.y;
+                if (Math.abs(neckDy) > 0) {
+                    const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
+                    neckDeg = Math.round(neckRad * (180 / Math.PI));
+                }
+            }
         }
 
         // Trunk angle (flexion from vertical)
@@ -766,54 +824,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setElbowAngle(elbowDegVal);
         setKneeAngle(kneeFlexVal);
 
-        // Posture threshold tracking for Auto-Snapshot
-        const now = Date.now();
-        const isNeckCritical = neckDeg !== null && neckDeg > 25;
-        const isTrunkCritical = trunkDeg !== null && trunkDeg > 25;
-        const isArmCritical = armDeg !== null && armDeg > 45;
-        const isElbowCritical = elbowDegVal !== null && (elbowDegVal < 30 || elbowDegVal > 130);
-        const isKneeCritical = kneeFlexVal !== null && kneeFlexVal > 60;
-
-        if (isNeckCritical || isTrunkCritical || isArmCritical || isElbowCritical || isKneeCritical) {
-            if (badPostureStartRef.current === null) {
-                badPostureStartRef.current = now;
-            } else {
-                const duration = now - badPostureStartRef.current;
-                if (duration >= 3000) { // 3 seconds of sustained bad posture
-                    if (now - lastSnapshotTimeRef.current >= 15000) { // 15 seconds cooldown
-                        lastSnapshotTimeRef.current = now;
-                        badPostureStartRef.current = null; // reset
-                        
-                        if (manualPhotosCountRef.current < 10) {
-                            // Capture snapshot
-                            const dataUrl = captureSnapshot();
-                            if (dataUrl) {
-                                // Trigger flash
-                                setIsFlashActive(true);
-                                setTimeout(() => setIsFlashActive(false), 150);
-
-                                setManualCapturedPhotos((prev) => {
-                                    const next = [...prev, dataUrl];
-                                    manualPhotosCountRef.current = next.length;
-                                    return next;
-                                });
-
-                                const base64 = dataUrl.split(',')[1];
-                                const telemetryText = `[Auto-Alerta Biomecánica] Se ha capturado una evidencia de postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}. Por favor, audita este riesgo ergonómico cuantitativo en el informe técnico.`;
-                                sendEvidenceImage(base64, telemetryText);
-                            }
-                        } else {
-                            // Limit of 10 reached: only send text telemetry alert to Gemini session (no image captured)
-                            const telemetryText = `[Alerta Biomecánica] Se ha detectado una postura ergonómica crítica sostenida. Telemetría detectada: Flexión Cervical ${neckDeg}°${neckDeg !== null ? `, Flexión de Tronco ${trunkDeg}°` : ''}${armDeg !== null ? `, Abducción de Brazo ${armDeg}°` : ''}${elbowDegVal !== null ? `, Flexión de Codo ${elbowDegVal}°` : ''}${kneeFlexVal !== null ? `, Flexión de Rodilla ${kneeFlexVal}°` : ''}.`;
-                            sendEvidenceImage("", telemetryText);
-                        }
-                    }
-                }
-            }
-        } else {
-            badPostureStartRef.current = null;
-        }
-    }, [captureSnapshot, sendEvidenceImage, sendTextMessage, setManualCapturedPhotos]);
+        // Posture threshold tracking for Auto-Snapshot has been disabled per user request.
+        // Posture status is updated dynamically for manual capture.
+    }, []);
 
     // ==================== CONTROLLER HELPER FUNCTIONS ====================
 
@@ -957,8 +970,34 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         // Send to backend via WS (extract base64 payload from data URL)
         const base64 = dataUrl.split(',')[1];
-        sendEvidenceImage(base64);
-    }, [captureSnapshot, sendEvidenceImage]);
+
+        // Construct telemetry description at the exact moment of user manual capture
+        let telemetryParts: string[] = [];
+        if (neckAngle !== null) telemetryParts.push(`Flexión Cervical: ${neckAngle}° (${neckInfo.status})`);
+        if (trunkAngle !== null) telemetryParts.push(`Flexión de Tronco: ${trunkAngle}° (${trunkInfo.status})`);
+        if (armAngle !== null) telemetryParts.push(`Abducción de Brazo: ${armAngle}° (${armInfo.status})`);
+        if (elbowAngle !== null) telemetryParts.push(`Flexión de Codo: ${elbowAngle}° (${elbowInfo.status})`);
+        if (kneeAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kneeAngle}° (${kneeInfo.status})`);
+
+        const telemetryText = telemetryParts.length > 0 
+            ? `[Captura de Evidencia Biomecánica] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
+            : `[Captura de Evidencia Manual] Captura de foto de evidencia sin telemetría articular activa en el momento.`;
+
+        sendEvidenceImage(base64, telemetryText);
+    }, [
+        captureSnapshot, 
+        sendEvidenceImage, 
+        neckAngle, 
+        neckInfo.status, 
+        trunkAngle, 
+        trunkInfo.status, 
+        armAngle, 
+        armInfo.status, 
+        elbowAngle, 
+        elbowInfo.status, 
+        kneeAngle, 
+        kneeInfo.status
+    ]);
 
     const handleClose = () => {
         stopMediaTracks();
@@ -1228,10 +1267,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     // Ensure voice is updated when connected
     useEffect(() => {
-        if (isOpen && isConnected && selectedVoice !== voiceLiveAnalysis) {
+        if (isOpen && isConnected && selectedVoice !== (voiceLiveAnalysis as string)) {
             console.log('[LiveAnalysisModal] Syncing voice with global setting:', voiceLiveAnalysis);
-            setSelectedVoice(voiceLiveAnalysis);
-            changeVoice(voiceLiveAnalysis);
+            setSelectedVoice((voiceLiveAnalysis as string) || '');
+            changeVoice((voiceLiveAnalysis as string) || '');
         }
     }, [isOpen, isConnected, voiceLiveAnalysis, changeVoice]);
 
