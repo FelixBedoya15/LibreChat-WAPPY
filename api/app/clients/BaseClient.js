@@ -607,6 +607,8 @@ class BaseClient {
     const { user, head, isEdited, conversationId, responseMessageId, saveOptions, userMessage } =
       await this.handleStartMethods(message, opts);
 
+    await this.injectConversationFilesInfo();
+
     if (opts.progressCallback) {
       opts.onProgress = opts.progressCallback.call(null, {
         ...(opts.progressOptions ?? {}),
@@ -819,6 +821,66 @@ class BaseClient {
     this.savedMessageIds.add(responseMessage.messageId);
     delete responseMessage.tokenCount;
     return responseMessage;
+  }
+
+  async getConversationFiles() {
+    const userId = this.user ?? this.options?.req?.user?.id;
+    const conversationId = this.conversationId;
+
+    let dbFiles = [];
+    if (conversationId && userId) {
+      try {
+        dbFiles = await getFiles({ conversationId, user: userId });
+      } catch (err) {
+        logger.error('[BaseClient] Error fetching conversation files from DB:', err);
+      }
+    }
+
+    let currentFiles = [];
+    if (this.options?.attachments) {
+      try {
+        currentFiles = (await this.options.attachments) || [];
+      } catch (err) {
+        logger.error('[BaseClient] Error resolving current attachments:', err);
+      }
+    }
+
+    const allFiles = [...currentFiles, ...dbFiles];
+    const uniqueFilesMap = new Map();
+    for (const file of allFiles) {
+      if (file && file.file_id) {
+        uniqueFilesMap.set(file.file_id, file);
+      }
+    }
+    return Array.from(uniqueFilesMap.values());
+  }
+
+  async injectConversationFilesInfo() {
+    try {
+      const files = await this.getConversationFiles();
+      const images = files.filter((f) => f && f.type && f.type.startsWith('image/'));
+
+      if (images.length > 0) {
+        let filesInstruction = '\n\n[INSTRUCCIÓN CRÍTICA DE IMÁGENES/ARCHIVOS DE LA CONVERSACIÓN]\n';
+        filesInstruction += 'El usuario ha subido imágenes en este chat. Si el usuario te pide crear o editar un documento en el Canvas (como políticas, manuales, reportes, análisis de trabajo, etc.) en formato "text" (Word) o "html" (aplicación/diseño), y la imagen es relevante para el contenido, DEBES incluir la imagen correspondiente usando exactamente la etiqueta HTML <img> con la siguiente ruta relativa:\n';
+
+        const userId = this.user ?? this.options?.req?.user?.id;
+        for (const img of images) {
+          const downloadUrl = `/api/files/download/${userId}/${img.file_id}`;
+          filesInstruction += `- Nombre original del archivo: "${img.filename}" -> URL de imagen para el documento: <img src="${downloadUrl}" alt="${img.filename}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block;" />\n`;
+        }
+
+        filesInstruction += 'IMPORTANTE: No inventes URLs de imágenes. Solo usa las URLs proporcionadas arriba para las imágenes que el usuario ha subido. Inserta las imágenes en lugares lógicos del documento (por ejemplo, encabezados, firmas, diagramas o fotos ilustrativas según corresponda) para que el documento final luzca profesional y visualmente rico.';
+        filesInstruction += '\n[FIN DE INSTRUCCIÓN DE IMÁGENES]\n\n';
+
+        this.options.promptPrefix = (this.options.promptPrefix ?? '') + filesInstruction;
+        if (this.systemMessage !== undefined) {
+          this.systemMessage = (this.systemMessage ?? '') + filesInstruction;
+        }
+      }
+    } catch (error) {
+      logger.error('[BaseClient] Error injecting conversation files info:', error);
+    }
   }
 
   /**

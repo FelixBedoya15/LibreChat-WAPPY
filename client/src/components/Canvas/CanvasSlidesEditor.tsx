@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import pptxgen from 'pptxgenjs';
 import { 
   Plus, 
   Trash2, 
@@ -1057,7 +1056,8 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
     updateSlide(activeIndex, { bullets: updatedBullets });
   };
 
-  const handleDownloadPptx = () => {
+  const handleDownloadPptx = async () => {
+    const pptxgen = (await import('pptxgenjs')).default;
     const pptx = new pptxgen();
     pptx.title = title || 'Presentación';
     pptx.layout = 'LAYOUT_16x9';
