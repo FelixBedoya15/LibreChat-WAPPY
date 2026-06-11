@@ -21,14 +21,11 @@ function hasHeader(html) {
   return (
     lower.includes('información resumida de la entidad') ||
     lower.includes('linear-gradient') ||
-    lower.includes('empresa / razón social:') ||
-    lower.includes('empresa/razón social:') ||
-    lower.includes('datos generales') ||
     lower.includes('registro de inducción') ||
     lower.includes('formato de inspección') ||
+    lower.includes('datos generales') ||
     lower.includes('proceso: sg-sst') ||
-    lower.includes('proceso:sg-sst') ||
-    (lower.includes('empresa:') && lower.includes('nit:'))
+    lower.includes('proceso:sg-sst')
   );
 }
 
@@ -180,7 +177,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     const activeConvoIds = activeConvos.map((c) => c.conversationId);
 
     const query = companyId ? { companyId } : { user: userId };
-    
+
     if (conversationId) {
       query.conversationId = conversationId;
     } else {
@@ -210,8 +207,6 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 router.get('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const userId = req.user.id;
-    const companyId = await getActiveCompanyId(userId);
 
     let session = await CanvasSession.findOne({ conversationId });
 

@@ -33,6 +33,11 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   return `
 <div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(15,118,110,0.15); position: relative; font-family: sans-serif;">
     <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">PROCESO: SG-SST | V.02</div>
+    ${ci.logoBase64 ? `
+    <div style="margin-bottom: 16px; display: flex; justify-content: center; align-items: center;">
+        <img src="${ci.logoBase64}" style="max-height: 60px; max-width: 180px; object-fit: contain; background-color: rgba(255,255,255,0.95); padding: 5px 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);" alt="Logo" />
+    </div>
+    ` : ''}
     <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0;">
         ${title}
     </h1>
