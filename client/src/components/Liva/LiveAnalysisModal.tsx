@@ -691,7 +691,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         let kneeFlexVal: number | null = null;
 
         // Cervical angle (flexion from vertical)
-        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.75 && (activeEar.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.5 && (activeEar.visibility ?? 0) > 0.5) {
             const neckDx = activeShoulder.x - activeEar.x;
             const neckDy = activeShoulder.y - activeEar.y;
             const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
@@ -699,7 +699,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
 
         // Trunk angle (flexion from vertical)
-        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.75 && (activeHip.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.5 && (activeHip.visibility ?? 0) > 0.5) {
             const trunkDx = activeShoulder.x - activeHip.x;
             const trunkDy = activeHip.y - activeShoulder.y;
             const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
@@ -707,7 +707,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
 
         // Arm angle (abduction from spine)
-        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.75 && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75) {
+        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.5 && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5) {
             const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
             const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -720,7 +720,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
 
         // Elbow flexion angle (relative angle at elbow joint)
-        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75 && (activeWrist.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5 && (activeWrist.visibility ?? 0) > 0.5) {
             const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
             const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -733,7 +733,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
 
         // Knee flexion angle (deviation from 180 degrees)
-        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.75 && (activeKnee.visibility ?? 0) > 0.75 && (activeAnkle.visibility ?? 0) > 0.75) {
+        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.5 && (activeKnee.visibility ?? 0) > 0.5 && (activeAnkle.visibility ?? 0) > 0.5) {
             const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
             const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -1032,7 +1032,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             });
 
             pose.setOptions({
-                modelComplexity: 1,
+                modelComplexity: 2,
                 smoothLandmarks: true,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
@@ -1177,6 +1177,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             prevHasReport.current = false;
             setHasReceivedReport(false);
             setReportNotification(false);
+            setSelectedTemplate(null);
+            setManualCapturedPhotos([]);
+            manualPhotosCountRef.current = 0;
         }
     }, [isOpen]);
 
@@ -1279,7 +1282,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     
                     {/* Top Close Button */}
                     <button 
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="absolute top-6 right-6 p-3 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 hover:text-slate-900 transition-all z-50 shadow-sm"
                     >
                         <X className="w-5 h-5" />

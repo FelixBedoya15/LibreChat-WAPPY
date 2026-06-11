@@ -95,7 +95,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const manualPhotosCountRef = useRef<number>(0);
 
     // Get active agent details
-    const { data: agent } = useGetAgentByIdQuery(agentId, { enabled: !!agentId });
+    const { data: agent, isLoading } = useGetAgentByIdQuery(agentId, { enabled: !!agentId });
 
     const isBiomechanicsAgent = useMemo(() => {
         if (!agent) return false;
@@ -339,40 +339,66 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         sendTextMessage,
     } = useVoiceSession(sessionOptions);
 
-    const prevIsOpenRef = useRef(isOpen);
+    const hasInitiatedConnectionRef = useRef(false);
 
     useEffect(() => {
-        if (!isOpen) return;
-        manualPhotosCountRef.current = 0;
-        setManualCapturedPhotos([]);
-        setZoom(1);
-        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-        }
-        setShowModalState(true);
-        connect();
-        return () => {
-            stopMediaTracks();
-            disconnect();
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-                audioContextRef.current = null;
+        if (!isOpen) {
+            if (hasInitiatedConnectionRef.current) {
+                console.log('[VoiceModal] Modal closed, disconnecting session...');
+                hasInitiatedConnectionRef.current = false;
+                clearAudioQueue();
+                stopMediaTracks();
+                disconnect();
+                if (audioContextRef.current) {
+                    audioContextRef.current.close().catch(console.error);
+                    audioContextRef.current = null;
+                }
             }
-        };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+            return;
+        }
 
-    useEffect(() => {
-        const wasOpen = prevIsOpenRef.current;
-        prevIsOpenRef.current = isOpen;
-        if (!wasOpen && isOpen && !isConnected && !isConnecting) {
+        // Evitar conectar si el agente se está cargando (evita carrera inicial del primer render tras recargar)
+        const isWaitingForAgent = !!agentId && isLoading;
+        if (isWaitingForAgent) {
+            console.log('[VoiceModal] Waiting for agent details query before connecting...');
+            return;
+        }
+
+        if (isOpen && !isConnected && !isConnecting && !hasInitiatedConnectionRef.current) {
+            console.log('[VoiceModal] Connecting voice session...');
+            hasInitiatedConnectionRef.current = true;
+            
+            // Limpieza total de estados locales al iniciar sesión
+            setManualCapturedPhotos([]);
+            manualPhotosCountRef.current = 0;
+            setLastUserTranscript('');
+            setZoom(1);
+
+            if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume();
+            }
+            setShowModalState(true);
             playStartupSound();
             connect();
         }
+    }, [isOpen, isConnected, isConnecting, connect, agentId, isLoading]);
+
+    useEffect(() => {
         if (isOpen && isConnected && selectedVoice !== voiceChatGeneral) {
             setSelectedVoice(voiceChatGeneral);
             changeVoice(voiceChatGeneral);
         }
-    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]);
+    }, [isOpen, isConnected, voiceChatGeneral, selectedVoice, changeVoice]);
+
+    // Cleanup local state when modal is closed to prevent bleeding of photos and text
+    useEffect(() => {
+        if (!isOpen) {
+            setManualCapturedPhotos([]);
+            manualPhotosCountRef.current = 0;
+            setLastUserTranscript('');
+            setZoom(1);
+        }
+    }, [isOpen]);
 
     // Countdown logic - 10 seconds
     useEffect(() => {
@@ -405,10 +431,6 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     }, [isConnected, isOpen, isReady]);
 
     const handleClose = () => {
-        clearAudioQueue();
-        stopMediaTracks();
-        disconnect();
-        setShowModalState(false);
         if (onConversationUpdated && conversationId) {
             onConversationUpdated();
         }
@@ -620,7 +642,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         let kneeFlexVal: number | null = null;
 
         // Cervical angle (flexion from vertical)
-        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.75 && (activeEar.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeEar && (activeShoulder.visibility ?? 0) > 0.5 && (activeEar.visibility ?? 0) > 0.5) {
             const neckDx = activeShoulder.x - activeEar.x;
             const neckDy = activeShoulder.y - activeEar.y;
             const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
@@ -628,7 +650,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
 
         // Trunk angle (flexion from vertical)
-        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.75 && (activeHip.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.5 && (activeHip.visibility ?? 0) > 0.5) {
             const trunkDx = activeShoulder.x - activeHip.x;
             const trunkDy = activeHip.y - activeShoulder.y;
             const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
@@ -636,7 +658,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
 
         // Arm angle (abduction from spine)
-        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.75 && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75) {
+        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.5 && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5) {
             const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
             const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -649,7 +671,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
 
         // Elbow flexion angle (relative angle at elbow joint)
-        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.75 && (activeElbow.visibility ?? 0) > 0.75 && (activeWrist.visibility ?? 0) > 0.75) {
+        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5 && (activeWrist.visibility ?? 0) > 0.5) {
             const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
             const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -662,7 +684,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
 
         // Knee flexion angle (deviation from 180 degrees)
-        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.75 && (activeKnee.visibility ?? 0) > 0.75 && (activeAnkle.visibility ?? 0) > 0.75) {
+        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.5 && (activeKnee.visibility ?? 0) > 0.5 && (activeAnkle.visibility ?? 0) > 0.5) {
             const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
             const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
             const dot = v1.x * v2.x + v1.y * v2.y;
@@ -790,7 +812,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             });
 
             pose.setOptions({
-                modelComplexity: 1,
+                modelComplexity: 2,
                 smoothLandmarks: true,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
