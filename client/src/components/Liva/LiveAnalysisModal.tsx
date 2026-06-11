@@ -309,18 +309,32 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             return null;
         }
         try {
+            // Limit maximum dimension to 640px to reduce payload size and speed up transmission over WebSocket
+            const maxDim = 640;
+            let targetW = w;
+            let targetH = h;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    targetW = maxDim;
+                    targetH = Math.round((h * maxDim) / w);
+                } else {
+                    targetH = maxDim;
+                    targetW = Math.round((w * maxDim) / h);
+                }
+            }
+
             const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
+            canvas.width = targetW;
+            canvas.height = targetH;
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 const sw = w / zoom;
                 const sh = h / zoom;
                 const sx = (w - sw) / 2;
                 const sy = (h - sh) / 2;
-                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                console.log(`[LiveAnalysisModal] Snapshot captured: ${w}x${h} (zoom: ${zoom}x)`);
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                console.log(`[LiveAnalysisModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
                 return dataUrl;
             }
         } catch (e) {
