@@ -37,8 +37,8 @@ describe('Canvas Report Header & Detection Logic', () => {
       });
 
       expect(html).toContain('<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="');
-      expect(html).toContain('max-height: 60px;');
-      expect(html).toContain('max-width: 180px;');
+      expect(html).toContain('max-height: 68px;');
+      expect(html).toContain('max-width: 68px;');
     });
 
     it('should not inject the logo image when logoBase64 is missing', () => {

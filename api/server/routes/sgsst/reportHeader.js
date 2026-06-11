@@ -31,28 +31,33 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   const ciudad = ci.city ? `${ci.city}${ci.departamento ? ', ' + ci.departamento : ''}` : 'N/A';
 
   return `
-<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(15,118,110,0.15); font-family: sans-serif; position: relative;">
-    <!-- Fila Superior: Logo a la izquierda y Proceso a la derecha -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
-        <div style="display: flex; align-items: center; justify-content: flex-start; min-height: 45px; max-width: 60%;">
+<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(15,118,110,0.15); font-family: sans-serif; display: flex; flex-direction: column; gap: 16px; position: relative;">
+    <!-- Fila Superior: Logo y Proceso -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+        <!-- Logo o Iniciales -->
+        <div style="flex: 0 0 80px; width: 80px; height: 80px; display: flex; justify-content: center; align-items: center; background-color: rgba(255, 255, 255, 0.95); padding: 6px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); box-sizing: border-box;">
             ${ci.logoBase64 ? `
-                <img src="${ci.logoBase64}" style="max-height: 45px; max-width: 100%; object-fit: contain; background-color: rgba(255,255,255,0.95); padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);" alt="Logo" />
+                <img src="${ci.logoBase64}" style="max-height: 68px; max-width: 68px; object-fit: contain;" alt="Logo" />
             ` : `
-                <span style="font-weight: 800; font-size: 14px; letter-spacing: 0.5px; opacity: 0.95; text-transform: uppercase;">${empresa}</span>
+                <div style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0f766e, #0ea5e9); border-radius: 6px; color: #ffffff; font-weight: 900; font-size: 22px; letter-spacing: 0.5px;">
+                    ${empresa.substring(0, 2).toUpperCase()}
+                </div>
             `}
         </div>
-        <div style="font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; white-space: nowrap; align-self: flex-start; margin-top: 4px;">
+
+        <!-- Proceso en la Esquina Superior Derecha -->
+        <div style="font-size: 9px; opacity: 0.9; font-weight: 700; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; white-space: nowrap; backdrop-filter: blur(5px);">
             PROCESO: SG-SST | V.02
         </div>
     </div>
-    
-    <!-- Título y contenido (Alineado a la izquierda) -->
-    <div style="text-align: left;">
-        <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0; line-height: 1.3;">
+
+    <!-- Fila Inferior: Título y Contenido -->
+    <div style="text-align: left; width: 100%; margin-top: 4px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0; line-height: 1.25;">
             ${title}${ci.companyName && !title.toLowerCase().includes(ci.companyName.toLowerCase()) ? ` - ${ci.companyName}` : ''}
         </h1>
-        <p style="margin: 8px 0 0; font-size: 12px; opacity: 0.95; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
-        <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
+        <p style="margin: 6px 0 0; font-size: 11px; opacity: 0.95; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
+        <p style="margin: 4px 0 0; font-size: 10px; opacity: 0.75; font-style: italic;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
     </div>
 </div>
 
