@@ -31,18 +31,29 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   const ciudad = ci.city ? `${ci.city}${ci.departamento ? ', ' + ci.departamento : ''}` : 'N/A';
 
   return `
-<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 28px 24px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 15px rgba(15,118,110,0.15); position: relative; font-family: sans-serif;">
-    <div style="position: absolute; top: 12px; right: 16px; font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;">PROCESO: SG-SST | V.02</div>
-    ${ci.logoBase64 ? `
-    <div style="margin-bottom: 16px; display: flex; justify-content: center; align-items: center;">
-        <img src="${ci.logoBase64}" style="max-height: 60px; max-width: 180px; object-fit: contain; background-color: rgba(255,255,255,0.95); padding: 5px 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);" alt="Logo" />
+<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); color: #ffffff; padding: 24px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(15,118,110,0.15); font-family: sans-serif; position: relative;">
+    <!-- Fila Superior: Logo a la izquierda y Proceso a la derecha -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+        <div style="display: flex; align-items: center; justify-content: flex-start; min-height: 45px; max-width: 60%;">
+            ${ci.logoBase64 ? `
+                <img src="${ci.logoBase64}" style="max-height: 45px; max-width: 100%; object-fit: contain; background-color: rgba(255,255,255,0.95); padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);" alt="Logo" />
+            ` : `
+                <span style="font-weight: 800; font-size: 14px; letter-spacing: 0.5px; opacity: 0.95; text-transform: uppercase;">${empresa}</span>
+            `}
+        </div>
+        <div style="font-size: 10px; opacity: 0.85; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; white-space: nowrap; align-self: flex-start; margin-top: 4px;">
+            PROCESO: SG-SST | V.02
+        </div>
     </div>
-    ` : ''}
-    <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0;">
-        ${title}
-    </h1>
-    <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.95; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
-    <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
+    
+    <!-- Título y contenido (Alineado a la izquierda) -->
+    <div style="text-align: left;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff; text-transform: uppercase; border-bottom: none; padding-bottom: 0; line-height: 1.3;">
+            ${title}${ci.companyName && !title.toLowerCase().includes(ci.companyName.toLowerCase()) ? ` - ${ci.companyName}` : ''}
+        </h1>
+        <p style="margin: 8px 0 0; font-size: 12px; opacity: 0.95; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</p>
+        <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.75; font-style: italic;">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
+    </div>
 </div>
 
 <div style="overflow-x: auto; width: 100%; margin-bottom: 24px; font-family: sans-serif;">
