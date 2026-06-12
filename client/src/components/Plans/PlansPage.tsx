@@ -704,35 +704,6 @@ export default function PlansPage() {
     }
   }, [isAuthenticated, pendingSubscribe]);
 
-  // Effect to auto-select plan and interval from URL query params (e.g. from /wappyvital landing page)
-  useEffect(() => {
-    if (!loading && fetchedPlans.length > 0) {
-      const planParam = params.get('plan');
-      const intervalParam = params.get('interval');
-      if (planParam && intervalParam) {
-        const plan = PLANS.find((p) => p.key === planParam);
-        const fetchedConfig = fetchedPlans.find((p) => p.planId === planParam);
-        if (plan && fetchedConfig) {
-          setBillingInterval(intervalParam);
-          const rawPrice = fetchedConfig.prices?.[intervalParam] || 0;
-          const displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
-          let promotion: any = null;
-          if (fetchedConfig.promotions?.[intervalParam]?.active) {
-            promotion = fetchedConfig.promotions[intervalParam];
-          }
-          let discountedPrice = 0;
-          if (promotion && rawPrice > 0) {
-            discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
-          }
-          handleSubscribe(planParam, plan, displayPrice, discountedPrice, rawPrice, promotion);
-          
-          // Clear query params to avoid re-triggering
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, newUrl);
-        }
-      }
-    }
-  }, [loading, fetchedPlans, handleSubscribe]);
 
   useEffect(() => {
     if (successPlan) {
@@ -779,6 +750,36 @@ export default function PlansPage() {
     },
     [],
   );
+
+  // Effect to auto-select plan and interval from URL query params (e.g. from /wappyvital landing page)
+  useEffect(() => {
+    if (!loading && fetchedPlans.length > 0) {
+      const planParam = params.get('plan');
+      const intervalParam = params.get('interval');
+      if (planParam && intervalParam) {
+        const plan = PLANS.find((p) => p.key === planParam);
+        const fetchedConfig = fetchedPlans.find((p) => p.planId === planParam);
+        if (plan && fetchedConfig) {
+          setBillingInterval(intervalParam);
+          const rawPrice = fetchedConfig.prices?.[intervalParam] || 0;
+          const displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+          let promotion: any = null;
+          if (fetchedConfig.promotions?.[intervalParam]?.active) {
+            promotion = fetchedConfig.promotions[intervalParam];
+          }
+          let discountedPrice = 0;
+          if (promotion && rawPrice > 0) {
+            discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+          }
+          handleSubscribe(planParam, plan, displayPrice, discountedPrice, rawPrice, promotion);
+          
+          // Clear query params to avoid re-triggering
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      }
+    }
+  }, [loading, fetchedPlans, handleSubscribe]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
