@@ -472,7 +472,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     ) : (
                         <div className="space-y-6">
                             
-                            {data._id && !data.isActive && (
+                            {data._id && companies.some(c => c._id === data._id && !c.isActive) && (
                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
                                         <Shield className="h-5 w-5" />
