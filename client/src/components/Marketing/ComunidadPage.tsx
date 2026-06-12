@@ -133,6 +133,7 @@ export default function ComunidadPage() {
 
   // Coupon / Discount States
   const [couponCode, setCouponCode] = useState('');
+  const [approvedPurchasesCount, setApprovedPurchasesCount] = useState(0);
   const [discountApplied, setDiscountApplied] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
 
@@ -371,6 +372,9 @@ export default function ComunidadPage() {
         if (data.extraVideoTitle9 !== undefined) { setExtraVideoTitle9(data.extraVideoTitle9); setTempExtraVideoTitle9(data.extraVideoTitle9); }
         if (data.extraVideoUrl10 !== undefined) { setExtraVideoUrl10(data.extraVideoUrl10); setTempExtraVideoUrl10(data.extraVideoUrl10); }
         if (data.extraVideoTitle10 !== undefined) { setExtraVideoTitle10(data.extraVideoTitle10); setTempExtraVideoTitle10(data.extraVideoTitle10); }
+        if (data.approvedPurchasesCount !== undefined) {
+          setApprovedPurchasesCount(data.approvedPurchasesCount);
+        }
       }
     } catch (err) {
       console.error('[Comunidad] Error fetching page config:', err);
@@ -1208,7 +1212,7 @@ export default function ComunidadPage() {
     }
     
     if (funnelKey === 'wappyvital') {
-      navigate('/register?plan=vital');
+      navigate(`/register?plan=vital${couponCode ? `&coupon=${couponCode}` : ''}`);
     } else {
       setShowLeadModal(true);
     }
@@ -2829,6 +2833,16 @@ export default function ComunidadPage() {
                   })}
                 </div>
 
+                <div className="mx-auto my-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl max-w-3xl flex items-center justify-center gap-3 text-red-600 dark:text-red-400">
+                  <span className="flex h-3 w-3 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold tracking-tight">
+                    🔴 ¡OFERTA EXCLUSIVA DE LANZAMIENTO! Solo quedan {Math.max(3, 17 - approvedPurchasesCount)} membresías disponibles a este precio especial.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 text-left">
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
@@ -3023,7 +3037,7 @@ export default function ComunidadPage() {
 
                         <div className="pt-2 mb-6">
                           <button
-                            onClick={() => navigate(`/register?plan=pro&interval=${billingInterval}`)}
+                            onClick={() => navigate(`/register?plan=pro&interval=${billingInterval}${couponCode ? `&coupon=${couponCode}` : ''}`)}
                             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
                           >
                             Adquirir Wappy Pro
@@ -3072,7 +3086,7 @@ export default function ComunidadPage() {
               <div className="space-y-2">
                 <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
                   {funnelKey === 'wappyvital' 
-                    ? '¡Ya tienes activa tu Membresía WAPPY VITAL de Por Vida!' 
+                    ? '¡Ya tienes activa tu Membresía WAPPY de Por Vida!' 
                     : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
                 </h3>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
@@ -3321,7 +3335,7 @@ export default function ComunidadPage() {
               <X className="w-5 h-5" />
             </button>
 
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
 
             <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 mx-auto mb-4 animate-premium-float">
               <Sparkles className="w-8 h-8" />
@@ -3331,7 +3345,7 @@ export default function ComunidadPage() {
               🎉 ¡Felicitaciones por terminar la capacitación!
             </h3>
             <p className="text-xs text-text-secondary mb-6 leading-relaxed">
-              Has demostrado un gran compromiso con la Seguridad y Salud en el Trabajo. Como premio, has desbloqueado un **30% de descuento inmediato** para adquirir la Membresía Wappy Vital.
+              Has demostrado un gran compromiso con la Seguridad y Salud en el Trabajo. Como premio, has desbloqueado un **30% de descuento inmediato** aplicable para adquirir tu membresía (Wappy Vital o Wappy Pro).
             </p>
 
             <div className="bg-surface-secondary border border-dashed border-emerald-500/40 rounded-2xl p-4 mb-6 flex flex-col items-center justify-center gap-2 relative">
@@ -3354,23 +3368,26 @@ export default function ComunidadPage() {
                   setCouponCode('VITAL30');
                   setShowDiscountModal(false);
                   
-                  // Scroll to checkout form smoothly
-                  const checkoutForm = document.querySelector('form');
-                  if (checkoutForm) {
-                    checkoutForm.scrollIntoView({ behavior: 'smooth' });
+                  // Scroll to pricing section smoothly
+                  const pricingToggle = document.querySelector('.grid-cols-2');
+                  if (pricingToggle) {
+                    pricingToggle.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   } else {
-                    handleQuickAccessClick();
+                    const cardsContainer = document.getElementById('wappy-vital-card') || document.querySelector('.grid');
+                    if (cardsContainer) {
+                      cardsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                   }
                 }}
                 className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-sm transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:scale-[1.02]"
               >
-                Aplicar Descuento y Comprar
+                Aplicar Descuento y Ver Planes
               </button>
               <button
                 onClick={() => setShowDiscountModal(false)}
                 className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-hover text-text-secondary text-xs font-semibold border border-border-medium transition-all"
               >
-                Ver Oferta Completa
+                Ver Ofertas
               </button>
             </div>
           </div>

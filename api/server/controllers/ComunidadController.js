@@ -19,8 +19,8 @@ const getComunidadConfig = async (req, res) => {
     try {
         const query = getFunnelQuery(req);
         let config = await ComunidadConfig.findOne(query);
+        const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
         if (!config) {
-            const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
             config = new ComunidadConfig({
                 funnelKey,
                 isGlobalSetting: true,
@@ -54,7 +54,10 @@ const getComunidadConfig = async (req, res) => {
             });
             await config.save();
         }
-        return res.json(config);
+        const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey, isPaid: true });
+        const configObj = config.toObject();
+        configObj.approvedPurchasesCount = approvedPurchasesCount;
+        return res.json(configObj);
     } catch (err) {
         logger.error('[ComunidadController] getComunidadConfig error:', err);
         return res.status(500).json({ error: 'Error al obtener la configuración de la comunidad.' });

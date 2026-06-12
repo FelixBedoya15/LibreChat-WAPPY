@@ -47,11 +47,13 @@ const Registration: React.FC = () => {
   const handleWompiCheckout = async (name: string, email: string, phone: string) => {
     setCheckoutLoadingText('Creando tu registro de pago en WAPPY...');
     try {
+      const couponParam = queryParams.get('coupon');
       const { data } = await axios.post('/api/comunidad/checkout', {
         fullName: name,
         email: email,
         phone: phone,
-        funnelKey: 'wappyvital'
+        funnelKey: 'wappyvital',
+        discountCode: couponParam || undefined
       });
 
       if (data.alreadyPaid || data.freeAccess) {
@@ -124,11 +126,12 @@ const Registration: React.FC = () => {
     }
   };
 
-  const handleStandardWompiCheckout = async (name: string, email: string, phone: string, planId: string, interval: string) => {
+  const handleStandardWompiCheckout = async (name: string, email: string, phone: string, planId: string, interval: string, promoCode?: string) => {
     setCheckoutLoadingText('Creando tu registro de suscripción en WAPPY...');
     try {
       const { data } = await axios.post('/api/wompi/create-transaction', {
-        plan: planId + '|' + interval
+        plan: planId + '|' + interval,
+        promoCode
       });
 
       setCheckoutLoadingText('Abriendo pasarela de pago Wompi...');
@@ -204,7 +207,8 @@ const Registration: React.FC = () => {
       } else if (planParam === 'pro') {
         const values = getValues();
         const intervalParam = queryParams.get('interval') || 'annual';
-        handleStandardWompiCheckout(values.name, values.email || '', values.phoneNumber || '', 'pro', intervalParam);
+        const couponParam = queryParams.get('coupon') || undefined;
+        handleStandardWompiCheckout(values.name, values.email || '', values.phoneNumber || '', 'pro', intervalParam, couponParam);
         return;
       }
 
