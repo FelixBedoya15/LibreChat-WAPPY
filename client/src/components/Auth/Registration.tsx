@@ -124,6 +124,71 @@ const Registration: React.FC = () => {
     }
   };
 
+  const handleStandardWompiCheckout = async (name: string, email: string, phone: string, planId: string, interval: string) => {
+    setCheckoutLoadingText('Creando tu registro de suscripción en WAPPY...');
+    try {
+      const { data } = await axios.post('/api/wompi/create-transaction', {
+        plan: planId + '|' + interval
+      });
+
+      setCheckoutLoadingText('Abriendo pasarela de pago Wompi...');
+
+      if (!window.WidgetCheckout) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.wompi.co/widget.js';
+          script.async = true;
+          document.body.appendChild(script);
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('No se pudo cargar la pasarela de pago.'));
+        });
+      }
+
+      const checkout = new window.WidgetCheckout({
+        currency: 'COP',
+        amountInCents: data.amountInCents,
+        reference: data.reference,
+        publicKey: data.publicKey,
+        signature: data.signature ? { integrity: data.signature } : undefined,
+        redirectUrl: window.location.origin + `/planes?success=1&plan=${planId}`
+      });
+
+      setCheckoutLoadingText('Pasarela de pago abierta. Completa tu pago.');
+
+      checkout.open(async (result: any) => {
+        const transaction = result.transaction;
+        if (transaction.status === 'APPROVED') {
+          setCheckoutLoadingText('Verificando pago...');
+          try {
+            await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
+            setCheckoutLoadingText('¡Pago Aprobado! Redirigiéndote...');
+            setTimeout(() => {
+              navigate(`/planes?success=1&plan=${planId}`, { replace: true });
+            }, 1000);
+          } catch (verifyErr) {
+            console.error(verifyErr);
+            navigate(`/planes?success=1&plan=${planId}`, { replace: true });
+          }
+        } else if (transaction.status === 'PENDING') {
+          alert('Tu pago está pendiente de aprobación. Podrás acceder tan pronto se confirme.');
+          navigate('/planes', { replace: true });
+        } else {
+          alert('El pago no fue aprobado. Puedes intentar de nuevo.');
+          navigate('/planes', { replace: true });
+        }
+      });
+
+    } catch (err: any) {
+      console.error('[Registration Standard Wompi error]', err);
+      const msg = err.response?.data?.error || err.message || 'Error al iniciar el pago con Wompi.';
+      setErrorMessage(msg);
+      setCheckoutLoadingText('');
+      setTimeout(() => {
+        navigate('/planes', { replace: true });
+      }, 3000);
+    }
+  };
+
   const registerUser = useRegisterUserMutation({
     onMutate: () => {
       setIsSubmitting(true);
@@ -131,10 +196,15 @@ const Registration: React.FC = () => {
     onSuccess: () => {
       setIsSubmitting(false);
 
-      const isVitalPlan = queryParams.get('plan') === 'vital';
-      if (isVitalPlan) {
+      const planParam = queryParams.get('plan');
+      if (planParam === 'vital') {
         const values = getValues();
         handleWompiCheckout(values.name, values.email || '', values.phoneNumber || '');
+        return;
+      } else if (planParam === 'pro') {
+        const values = getValues();
+        const intervalParam = queryParams.get('interval') || 'annual';
+        handleStandardWompiCheckout(values.name, values.email || '', values.phoneNumber || '', 'pro', intervalParam);
         return;
       }
 

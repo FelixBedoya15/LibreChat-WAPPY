@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
@@ -24,6 +24,65 @@ function getYouTubeId(url: string) {
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
 }
+
+// SVG Icons copied from PlansPage.tsx
+const IpevarSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5">
+      <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
+    </rect>
+    <path d="M3 9H21M9 21V9" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+    <path d="M13 13L17 17M17 13L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="15" cy="15" r="5" stroke="currentColor" strokeWidth="1.5" opacity="0.2">
+      <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+    </circle>
+  </svg>
+);
+
+const ProSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none">
+    <path
+      d="M2.5 19H21.5L19.5 7L15 12.5L12 4L9 12.5L4.5 7L2.5 19Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity="0.9"
+    >
+      <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
+    </path>
+    <circle cx="12" cy="3" r="1.5" fill="currentColor">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="4.5" cy="6" r="1.5" fill="currentColor">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.6s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="19.5" cy="6" r="1.5" fill="currentColor">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1.2s" repeatCount="indefinite" />
+    </circle>
+  </svg>
+);
+
+const renderFeatureText = (f: string) => {
+  const parts = f.split('**');
+  if (parts.length === 1) {
+    return <span>{f}</span>;
+  }
+  return (
+    <span>
+      {parts.map((part, index) => {
+        if (index % 2 === 1) {
+          return (
+            <strong key={index} className="font-bold text-text-primary">
+              {part}
+            </strong>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+};
 
 export default function ComunidadPage() {
   const navigate = useNavigate();
@@ -122,14 +181,68 @@ export default function ComunidadPage() {
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_email')) || '');
   const [userFullName, setUserFullName] = useState('');
   const [userPhone, setUserPhone] = useState(() => localStorage.getItem(getStorageKey('wappy_comunidad_phone')) || '');
-  const [vitalPlanConfig, setVitalPlanConfig] = useState<{ rawPrice: number; displayPrice: string; finalPrice: number } | null>(null);
-  const [proPlanConfig, setProPlanConfig] = useState<{
-    rawPrice: number;
-    displayPrice: string;
-    finalPrice: number;
-    promotion: any;
-    pricePerMonth: number;
-  } | null>(null);
+  
+  const [billingInterval, setBillingInterval] = useState<string>('annual');
+  const [fetchedPlans, setFetchedPlans] = useState<any[]>([]);
+
+  const vitalPlanConfig = useMemo(() => {
+    const fetchedConfig = fetchedPlans.find((p: any) => p.planId === 'ipevar');
+    if (!fetchedConfig) return null;
+    const fixedInterval = 'lifetime';
+    const rawPrice = fetchedConfig.prices?.[fixedInterval] || 150000;
+    const displayPrice = '$' + rawPrice.toLocaleString('es-CO');
+    let promotion: any = null;
+    if (fetchedConfig.promotions?.[fixedInterval]?.active) {
+      promotion = fetchedConfig.promotions[fixedInterval];
+    }
+    let discountedPrice = 0;
+    if (promotion && rawPrice > 0) {
+      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+    } else {
+      discountedPrice = Math.round(rawPrice * 0.7);
+    }
+    const finalPrice = promotion && promotion.discountPercentage > 0 ? discountedPrice : rawPrice;
+    return {
+      rawPrice,
+      displayPrice,
+      finalPrice,
+      promotion
+    };
+  }, [fetchedPlans]);
+
+  const proPlanConfig = useMemo(() => {
+    const fetchedConfig = fetchedPlans.find((p: any) => p.planId === 'pro');
+    if (!fetchedConfig) return null;
+    const rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
+    const displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+    let promotion: any = null;
+    if (fetchedConfig.promotions?.[billingInterval]?.active) {
+      promotion = fetchedConfig.promotions[billingInterval];
+    }
+    let discountedPrice = 0;
+    if (promotion && rawPrice > 0) {
+      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+    } else {
+      discountedPrice = rawPrice;
+    }
+    const finalPrice = promotion && promotion.discountPercentage > 0 ? discountedPrice : rawPrice;
+    const monthsDivisor =
+      billingInterval === 'quarterly'
+        ? 3
+        : billingInterval === 'semiannual'
+          ? 6
+          : billingInterval === 'annual'
+            ? 12
+            : 1;
+    const pricePerMonth = finalPrice / monthsDivisor;
+    return {
+      rawPrice,
+      displayPrice,
+      finalPrice,
+      promotion,
+      pricePerMonth
+    };
+  }, [fetchedPlans, billingInterval]);
   
   // Checkout & Recovery Modal States
   const [checkoutFullName, setCheckoutFullName] = useState('');
@@ -371,43 +484,7 @@ export default function ComunidadPage() {
     if (funnelKey === 'wappyvital') {
       axios.get('/api/wompi/configured-plans')
         .then(({ data }) => {
-          // Vital Config
-          const fetchedConfig = data.find((p: any) => p.planId === 'ipevar');
-          if (fetchedConfig) {
-            const rawPrice = fetchedConfig.prices?.lifetime || 150000;
-            const promotion = fetchedConfig.promotions?.lifetime;
-            let discountedPrice = 0;
-            if (promotion?.active && promotion.discountPercentage > 0) {
-              discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
-            } else {
-              discountedPrice = Math.round(rawPrice * 0.7);
-            }
-            setVitalPlanConfig({
-              rawPrice,
-              displayPrice: '$' + rawPrice.toLocaleString('es-CO'),
-              finalPrice: discountedPrice
-            });
-          }
-
-          // Pro Config (Annual)
-          const proConfig = data.find((p: any) => p.planId === 'pro');
-          if (proConfig) {
-            const rawPrice = proConfig.prices?.annual || 1166166;
-            const promotion = proConfig.promotions?.annual;
-            let discountedPrice = 0;
-            if (promotion?.active && promotion.discountPercentage > 0) {
-              discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
-            } else {
-              discountedPrice = rawPrice;
-            }
-            setProPlanConfig({
-              rawPrice,
-              displayPrice: '$' + rawPrice.toLocaleString('es-CO'),
-              finalPrice: discountedPrice,
-              promotion,
-              pricePerMonth: Math.round(discountedPrice / 12)
-            });
-          }
+          setFetchedPlans(data);
         })
         .catch(err => {
           console.error('Error fetching vital/pro plan config from plans API:', err);
@@ -2687,159 +2764,302 @@ export default function ComunidadPage() {
             </div>
 
             {funnelKey === 'wappyvital' && !isAccessGranted && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-12 px-4">
-                {/* CARD 1: Wappy Vital */}
-                <div id="wappy-vital-card" className="w-full bg-surface-primary border border-border-medium rounded-3xl p-6 shadow-2xl relative bg-surface-primary/70 backdrop-blur-md text-left flex flex-col justify-between">
-                  <div>
-                    {/* top left badge */}
-                    <div className="absolute -top-3 left-6 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1 text-[10px] font-bold text-white shadow">
-                      ✨ Pago único de por vida
-                    </div>
+              <div className="w-full max-w-5xl mx-auto mt-12 px-4 text-center">
+                {/* Billing Interval Toggle */}
+                <div className="mx-auto mb-10 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 max-w-3xl">
+                  {[
+                    { id: 'monthly', label: 'Mensual' },
+                    { id: 'quarterly', label: 'Trimestral' },
+                    { id: 'semiannual', label: 'Semestral' },
+                    { id: 'annual', label: 'Anual' },
+                  ].map((interval) => {
+                    let maxDiscount = 0;
+                    fetchedPlans.forEach((config: any) => {
+                      if (config.planId === 'pro' && config.promotions?.[interval.id]?.active) {
+                        maxDiscount = Math.max(
+                          maxDiscount,
+                          config.promotions[interval.id].discountPercentage || 0,
+                        );
+                      }
+                    });
 
-                    {/* top right badge */}
-                    <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-[#aadd00]/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
-                      -30%
-                    </div>
-
-                    {/* icon */}
-                    <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 mt-2">
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
-                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M3 9H21M9 21V9" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-                        <path d="M13 13L17 17M17 13L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <circle cx="15" cy="15" r="5" stroke="currentColor" strokeWidth="1.5" opacity="0.2" />
-                      </svg>
-                    </div>
-
-                    <h3 className="text-xl font-bold text-text-primary mb-1">Wappy Vital</h3>
-                    <p className="text-xs text-text-secondary mb-4">¡Pagas una vez, lo usas para siempre!</p>
-
-                    <div className="mb-5 flex flex-col items-start gap-1">
-                      <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                        {vitalPlanConfig ? vitalPlanConfig.displayPrice : `$${(price || 150000).toLocaleString('es-CO')}`}
-                      </span>
-                      <div className="flex items-end gap-1">
-                        <span className="text-4xl font-black tracking-tight text-emerald-500">
-                          {vitalPlanConfig ? `$${vitalPlanConfig.finalPrice.toLocaleString('es-CO')}` : `$${Math.round((price || 150000) * 0.7).toLocaleString('es-CO')}`}
+                    return (
+                      <button
+                        key={interval.id}
+                        onClick={() => setBillingInterval(interval.id)}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 ${
+                          billingInterval === interval.id
+                            ? 'border-emerald-500 bg-emerald-50/50 shadow-md shadow-emerald-500/10 dark:border-emerald-400 dark:bg-emerald-950/20'
+                            : 'border-border-medium/60 bg-surface-primary hover:border-emerald-500/40 hover:bg-surface-hover'
+                        }`}
+                      >
+                        <span
+                          className={`text-base font-bold ${
+                            billingInterval === interval.id
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-text-primary'
+                          }`}
+                        >
+                          {interval.label}
                         </span>
-                        <span className="mb-1 text-xs font-semibold text-text-secondary">
-                          Pago Único
-                        </span>
-                      </div>
-                    </div>
 
-                    <button
-                      onClick={handleQuickAccessClick}
-                      className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-sm transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:scale-[1.02] mb-6"
-                    >
-                      Adquirir Wappy Vital
-                    </button>
-
-                    <div className="space-y-3 pt-4 border-t border-border-medium/60">
-                      {[
-                        { text: 'Pago Único (Acceso de Por Vida)', included: true, bold: true },
-                        { text: 'Hasta 20 chats abiertos', included: true, bold: false },
-                        { text: 'Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)', included: true, bold: false },
-                        { text: 'Subida de archivos ilimitada', included: true, bold: false },
-                        { text: 'Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)', included: true, bold: false },
-                        { text: 'Skill Editor RIT', included: true, bold: false },
-                        { text: 'Skill IPEVAR', included: true, bold: false },
-                        { text: 'Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural', included: true, bold: false },
-                        { text: 'Descargas y exportaciones ilimitadas', included: true, bold: false },
-                        { text: 'Aula de estudio', included: true, bold: false },
-                        { text: 'Blog WAPPY', included: true, bold: false },
-                        { text: 'Somos SST', included: false, bold: false },
-                        { text: 'Crear Agentes de IA propios', included: false, bold: false },
-                        { text: 'Análisis en Vivo', included: false, bold: false }
-                      ].map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2.5 text-xs">
-                          {feature.included ? (
-                            <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                          ) : (
-                            <X className="h-4 w-4 text-red-500 shrink-0 mt-0.5 opacity-60" />
-                          )}
-                          <span className={feature.bold ? 'font-bold text-text-primary' : feature.included ? 'text-text-secondary' : 'text-text-secondary/40 line-through'}>
-                            {feature.text}
+                        {maxDiscount > 0 ? (
+                          <span
+                            className={`mt-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
+                              billingInterval === interval.id
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                            }`}
+                          >
+                            Ahorra {maxDiscount}%
                           </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                        ) : (
+                          <span className="mt-2 text-[11px] font-medium text-text-tertiary">
+                            Precio base
+                          </span>
+                        )}
+
+                        {billingInterval === interval.id && (
+                          <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md">
+                            <Check strokeWidth={3} className="h-3.5 w-3.5" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* CARD 2: Wappy Pro Anual */}
-                <div id="wappy-pro-card" className="w-full bg-surface-primary border border-amber-500/30 rounded-3xl p-6 shadow-2xl relative bg-surface-primary/70 backdrop-blur-md text-left flex flex-col justify-between ring-1 ring-amber-500/20">
-                  <div>
-                    {/* top left badge */}
-                    <div className="absolute -top-3 left-6 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-3 py-1 text-[10px] font-bold text-white shadow">
-                      ⭐ Plan Profesional Todo Incluido
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 text-left">
+                  {/* CARD 1: Wappy Vital */}
+                  {(() => {
+                    const fixedInterval = 'lifetime';
+                    let rawPrice = 150000;
+                    let displayPrice = '$150.000';
 
-                    {/* top right badge */}
-                    {proPlanConfig?.promotion && proPlanConfig.promotion.discountPercentage > 0 && (
-                      <div className="absolute right-5 top-5 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm">
-                        -{proPlanConfig.promotion.discountPercentage}%
-                      </div>
-                    )}
+                    if (vitalPlanConfig) {
+                      rawPrice = vitalPlanConfig.rawPrice;
+                      displayPrice = vitalPlanConfig.displayPrice;
+                    }
 
-                    {/* icon */}
-                    <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mt-2">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
+                    const totalToBill = vitalPlanConfig ? vitalPlanConfig.finalPrice : Math.round(rawPrice * 0.7);
 
-                    <h3 className="text-xl font-bold text-text-primary mb-1">Wappy Pro Anual</h3>
-                    <p className="text-xs text-text-secondary mb-4">Acceso completo para profesionales</p>
-
-                    <div className="mb-5 flex flex-col items-start gap-1">
-                      {proPlanConfig?.promotion && proPlanConfig.promotion.discountPercentage > 0 && (
-                        <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                          {proPlanConfig.displayPrice}
-                        </span>
-                      )}
-                      <div className="flex items-end gap-1">
-                        <span className="text-4xl font-black tracking-tight text-amber-500">
-                          {proPlanConfig ? `$${proPlanConfig.finalPrice.toLocaleString('es-CO')}` : '$1.166.166'}
-                        </span>
-                        <span className="mb-1 text-xs font-semibold text-text-secondary">
-                          / año
-                        </span>
-                      </div>
-                      {proPlanConfig && (
-                        <div className="text-xs font-bold text-text-primary mt-0.5">
-                          ${proPlanConfig.pricePerMonth.toLocaleString('es-CO')}{' '}
-                          <span className="text-xs font-semibold text-text-secondary">/ mes (facturado anual)</span>
+                    return (
+                      <div
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-emerald-500/5 to-teal-500/10 border-emerald-500/20 hover:border-emerald-500/30 hover:shadow-2xl bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(16,185,129,0.05)]`}
+                      >
+                        <div className="absolute -top-3 left-6 sm:left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                          ✨ Pago único de por vida
                         </div>
-                      )}
-                    </div>
 
-                    <button
-                      onClick={() => navigate('/planes?plan=pro&interval=annual')}
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm transition-all duration-300 shadow-lg shadow-amber-500/25 hover:scale-[1.02] mb-6"
-                    >
-                      Adquirir Wappy Pro
-                    </button>
+                        <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
+                          -30%
+                        </div>
 
-                    <div className="space-y-3 pt-4 border-t border-border-medium/60">
-                      {[
-                        { text: 'Todo lo del Plan Wappy Vital', included: true, bold: true },
-                        { text: 'Conversaciones y chats ilimitados', included: true, bold: false },
-                        { text: 'Somos SST completo', included: true, bold: false },
-                        { text: 'Skills Termómetro Psicosocial', included: true, bold: false },
-                        { text: 'Skill Somos SST Medicina Laboral y Riesgo Psicosocial', included: true, bold: false },
-                        { text: 'Chat Live (video llamada en vivo para detectar riesgos)', included: true, bold: false },
-                        { text: 'Crea tus propios Agentes de IA', included: true, bold: false },
-                        { text: 'Análisis en Vivo (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)', included: true, bold: false },
-                        { text: 'Acceso anticipado a nuevas funciones', included: true, bold: false }
-                      ].map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2.5 text-xs text-text-secondary">
-                          <Check className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                          <span className={feature.bold ? 'font-bold text-text-primary' : 'text-text-secondary'}>
-                            {feature.text}
+                        <div className="flex items-center gap-4 mb-6 mt-2">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                            <IpevarSVG className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-extrabold text-text-primary">Wappy Vital</h2>
+                            <p className="text-xs text-text-secondary">¡Pagas una vez, lo usas para siempre!</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-6 flex flex-col items-start gap-1">
+                          <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                            {displayPrice}
                           </span>
+
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black tracking-tight text-emerald-500">
+                              ${Math.round(totalToBill).toLocaleString('es-CO')}
+                            </span>
+                            <span className="text-sm font-bold text-text-secondary">
+                              Pago Único
+                            </span>
+                          </div>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                            ¡Pagas una vez, lo usas para siempre!
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        <div className="pt-2 mb-6">
+                          <button
+                            onClick={handleQuickAccessClick}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
+                          >
+                            Adquirir Wappy Vital
+                          </button>
+                        </div>
+
+                        <div className="border-t border-border-medium/60 my-2"></div>
+
+                        <ul className="mt-4 flex-1 space-y-3">
+                          {[
+                            '**Pago Único (Acceso de Por Vida)**',
+                            '**Hasta 20 chats abiertos**',
+                            '**Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)**',
+                            '**Subida de archivos ilimitada**',
+                            '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
+                            '**Skill Editor RIT**',
+                            '**Skill IPEVAR**',
+                            '**Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural**',
+                            '**Descargas y exportaciones ilimitadas**',
+                            '**Aula de estudio**',
+                            '**Blog WAPPY**',
+                          ].map((f) => {
+                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
+                            return (
+                              <li
+                                key={f}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                              >
+                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                                {renderFeatureText(cleanText)}
+                              </li>
+                            );
+                          })}
+                          {[
+                            'Somos SST',
+                            'Crear Agentes de IA propios',
+                            'Análisis en Vivo'
+                          ].map((f) => (
+                            <li
+                              key={f}
+                              className="flex items-start gap-3 text-xs md:text-sm text-text-tertiary line-through opacity-40"
+                            >
+                              <span className="mt-0.5 h-4 w-4 flex-shrink-0 text-center font-bold text-red-500">✕</span>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+                  {/* CARD 2: Wappy Pro */}
+                  {(() => {
+                    let rawPrice = 0;
+                    let displayPrice = '$1.200.000';
+                    let promotion: any = null;
+                    let pricePerMonth = 100000;
+                    let totalToBill = 1200000;
+
+                    if (proPlanConfig) {
+                      rawPrice = proPlanConfig.rawPrice;
+                      displayPrice = proPlanConfig.displayPrice;
+                      promotion = proPlanConfig.promotion;
+                      pricePerMonth = proPlanConfig.pricePerMonth;
+                      totalToBill = proPlanConfig.finalPrice;
+                    }
+
+                    const isNotMonthly = billingInterval !== 'monthly';
+
+                    return (
+                      <div
+                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-amber-500/5 to-orange-500/10 border-amber-500/30 shadow-2xl ring-1 ring-amber-500/20 bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.05)]`}
+                      >
+                        <div className="absolute -top-3 left-6 sm:left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
+                          ⭐ Plan Profesional Todo Incluido
+                        </div>
+
+                        {promotion && promotion.discountPercentage > 0 && (
+                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
+                            -{promotion.discountPercentage}%
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-4 mb-6 mt-2">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                            <ProSVG className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-extrabold text-text-primary">Wappy Pro</h2>
+                            <p className="text-xs text-text-secondary">Acceso completo para profesionales</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-6 flex flex-col items-start gap-1">
+                          {promotion && promotion.discountPercentage > 0 && (
+                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                              {displayPrice}
+                            </span>
+                          )}
+
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-5xl font-black tracking-tight text-amber-500">
+                              ${Math.round(totalToBill).toLocaleString('es-CO')}
+                            </span>
+                            <span className="text-sm font-bold text-text-secondary">
+                              /
+                              {billingInterval === 'monthly'
+                                ? 'mes'
+                                : billingInterval === 'quarterly'
+                                  ? 'trim.'
+                                  : billingInterval === 'semiannual'
+                                    ? 'sem.'
+                                    : 'año'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-transparent select-none font-semibold mt-1">
+                            &nbsp;
+                          </p>
+
+                          {isNotMonthly && (
+                            <div className="mt-0.5 text-sm font-bold text-text-primary">
+                              ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
+                              <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                            </div>
+                          )}
+
+                          {promotion && (
+                            <div className="mt-2 w-full rounded-md bg-indigo-500/10 px-3 py-1 text-center text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                              {promotion.text || 'Oferta por tiempo limitado'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2 mb-6">
+                          <button
+                            onClick={() => navigate(`/register?plan=pro&interval=${billingInterval}`)}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
+                          >
+                            Adquirir Wappy Pro
+                          </button>
+                        </div>
+
+                        <div className="border-t border-border-medium/60 my-2"></div>
+
+                        <ul className="mt-4 flex-1 space-y-3">
+                          {[
+                            '**Todo lo del Plan Wappy Vital**',
+                            'Conversaciones y chats ilimitados',
+                            'Somos SST completo',
+                            'Skills Termómetro Psicosocial',
+                            'Skill Somos SST Medicina Laboral y Riesgo Psicosocial',
+                            'Chat Live (video llamada en vivo para detectar riesgos)',
+                            'Crea tus propios Agentes de IA',
+                            'Análisis en Vivo con (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)',
+                            'Acceso anticipado a nuevas funciones',
+                          ].map((f) => {
+                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
+                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
+                            return (
+                              <li
+                                key={f}
+                                className={`flex items-start gap-3 text-xs md:text-sm ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
+                              >
+                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+                                {renderFeatureText(cleanText)}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
