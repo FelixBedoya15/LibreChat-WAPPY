@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
   AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize, Trash2, 
-  Download, Unlock, FileText, Loader2, RefreshCw, Plus, X, ExternalLink, Key 
+  Download, Unlock, FileText, Loader2, RefreshCw, Plus, X, ExternalLink, Key,
+  Eye, EyeOff
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
@@ -86,7 +87,7 @@ const renderFeatureText = (f: string) => {
 
 export default function ComunidadPage() {
   const navigate = useNavigate();
-  const { user, token } = useAuthContext();
+  const { user, token, login } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
 
   // Determine funnelKey based on URL
@@ -252,6 +253,9 @@ export default function ComunidadPage() {
   const [checkoutError, setCheckoutError] = useState('');
   const [isCheckoutSubmitting, setIsCheckoutSubmitting] = useState(false);
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const [checkoutPassword, setCheckoutPassword] = useState('');
+  const [showCheckoutPassword, setShowCheckoutPassword] = useState(false);
+  const [selectedCheckoutPlan, setSelectedCheckoutPlan] = useState<'vital' | 'pro' | null>(null);
 
   // Free Lead Modal State (Active when requiresPayment is false)
   const [showLeadModal, setShowLeadModal] = useState(false);
@@ -997,57 +1001,123 @@ export default function ComunidadPage() {
       setCheckoutError('Por favor, ingresa un número de celular válido.');
       return;
     }
+    if (funnelKey === 'wappyvital') {
+      if (!checkoutPassword || checkoutPassword.length < 8) {
+        setCheckoutError('La contraseña debe tener al menos 8 caracteres.');
+        return;
+      }
+    }
     if (!acceptedPolicies) {
       setCheckoutError('Debes aceptar las políticas de WAPPY para continuar.');
       return;
     }
 
     trackClick('checkoutSubmit');
-    const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
-    if (window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
-        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
-        value: finalPrice || 28000,
-        currency: 'COP'
-      });
-    }
     setIsCheckoutSubmitting(true);
 
-    try {
-      const { data } = await axios.post('/api/comunidad/checkout', {
-        fullName: checkoutFullName.trim(),
-        email: checkoutEmail.trim(),
-        phone: checkoutPhone.trim(),
-        funnelKey,
-        discountCode: couponCode.trim()
-      });
+    const finalPlan = selectedCheckoutPlan || 'vital';
 
-      if (data.freeAccess || data.alreadyPaid) {
-        localStorage.setItem(getStorageKey('wappy_comunidad_email'), checkoutEmail.trim());
-        setUserEmail(checkoutEmail.trim());
-        setIsAccessGranted(true);
-        setShowLeadModal(false);
-        if (data.videoWatched) {
-          setIsVideoFinished(true);
+    // 1. Create account first if funnelKey === 'wappyvital'
+    if (funnelKey === 'wappyvital') {
+      try {
+        const username = checkoutEmail.trim().split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        await axios.post('/api/auth/register', {
+          name: checkoutFullName.trim(),
+          email: checkoutEmail.trim(),
+          username,
+          password: checkoutPassword,
+          confirm_password: checkoutPassword,
+          phoneNumber: checkoutPhone.trim()
+        });
+      } catch (regErr: any) {
+        const msg = regErr.response?.data?.message || regErr.message || 'Error al crear la cuenta.';
+        // If email is already in use, we attempt to login anyway. Otherwise, fail.
+        if (!msg.toLowerCase().includes('already') && !msg.toLowerCase().includes('uso') && !msg.toLowerCase().includes('existe')) {
+          setCheckoutError(msg);
+          setIsCheckoutSubmitting(false);
+          return;
         }
+      }
+
+      // Log in
+      try {
+        await login({
+          email: checkoutEmail.trim(),
+          password: checkoutPassword
+        });
+      } catch (logErr: any) {
+        setCheckoutError('El correo ya está registrado con otra contraseña. Por favor, verifica tus datos o inicia sesión.');
         setIsCheckoutSubmitting(false);
         return;
       }
+    }
 
-      if (!window.WidgetCheckout) {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.wompi.co/widget.js';
-        script.async = true;
-        document.body.appendChild(script);
-        
-        script.onload = () => {
-          openWompiWidget(data, checkoutEmail.trim());
-        };
+    // 2. Start Wompi Checkout
+    try {
+      if (funnelKey === 'wappyvital' && finalPlan === 'pro') {
+        // subscription checkout (Wappy Pro)
+        const { data } = await axios.post('/api/wompi/create-transaction', {
+          plan: 'pro|' + billingInterval,
+          promoCode: couponCode.trim() || undefined
+        });
+
+        if (!window.WidgetCheckout) {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.wompi.co/widget.js';
+          script.async = true;
+          document.body.appendChild(script);
+          script.onload = () => {
+            openWompiWidgetPro(data, checkoutEmail.trim());
+          };
+        } else {
+          openWompiWidgetPro(data, checkoutEmail.trim());
+        }
       } else {
-        openWompiWidget(data, checkoutEmail.trim());
+        // standard community checkout (vital / sst)
+        const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
+        if (window.fbq) {
+          window.fbq('track', 'InitiateCheckout', {
+            content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
+            value: finalPrice || 28000,
+            currency: 'COP'
+          });
+        }
+
+        const { data } = await axios.post('/api/comunidad/checkout', {
+          fullName: checkoutFullName.trim(),
+          email: checkoutEmail.trim(),
+          phone: checkoutPhone.trim(),
+          funnelKey,
+          discountCode: couponCode.trim(),
+          password: checkoutPassword
+        });
+
+        if (data.freeAccess || data.alreadyPaid) {
+          localStorage.setItem(getStorageKey('wappy_comunidad_email'), checkoutEmail.trim());
+          setUserEmail(checkoutEmail.trim());
+          setIsAccessGranted(true);
+          setShowLeadModal(false);
+          if (data.videoWatched) {
+            setIsVideoFinished(true);
+          }
+          setIsCheckoutSubmitting(false);
+          return;
+        }
+
+        if (!window.WidgetCheckout) {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.wompi.co/widget.js';
+          script.async = true;
+          document.body.appendChild(script);
+          script.onload = () => {
+            openWompiWidget(data, checkoutEmail.trim());
+          };
+        } else {
+          openWompiWidget(data, checkoutEmail.trim());
+        }
       }
     } catch (err: any) {
-      const errMsg = err.response?.data?.error || err.message || 'Error al iniciar el proceso de pago.';
+      const errMsg = err.response?.data?.error || err?.response?.data?.message || err.message || 'Error al iniciar el proceso de pago.';
       setCheckoutError(errMsg);
       setIsCheckoutSubmitting(false);
     }
@@ -1089,6 +1159,47 @@ export default function ComunidadPage() {
         }
       } else if (transaction.status === 'PENDING') {
         alert('Tu pago está siendo procesado por tu banco. Tan pronto sea aprobado, podrás acceder escribiendo tu correo en la opción "Recuperar acceso".');
+      } else {
+        alert('El pago no fue aprobado. Por favor, intenta de nuevo o con otro medio de pago.');
+      }
+    });
+  };
+
+  const openWompiWidgetPro = (wompiData: any, email: string) => {
+    setIsCheckoutSubmitting(false);
+    
+    const checkout = new window.WidgetCheckout({
+      currency: 'COP',
+      amountInCents: wompiData.amountInCents,
+      reference: wompiData.reference,
+      publicKey: wompiData.publicKey,
+      signature: wompiData.signature ? { integrity: wompiData.signature } : undefined,
+      redirectUrl: window.location.origin + '/c/new'
+    });
+
+    checkout.open(async (result: any) => {
+      const transaction = result.transaction;
+      if (transaction.status === 'APPROVED') {
+        try {
+          setIsAccessChecking(true);
+          await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
+          localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
+          setUserEmail(email);
+          if (checkoutPhone) {
+            localStorage.setItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
+            setUserPhone(checkoutPhone);
+          }
+          alert('¡Suscripción Wappy Pro activada con éxito!');
+          window.location.href = '/c/new';
+        } catch (err) {
+          console.error('[Wompi Verify Pro] Error:', err);
+          window.location.href = '/c/new';
+        } finally {
+          setIsAccessChecking(false);
+        }
+      } else if (transaction.status === 'PENDING') {
+        alert('Tu suscripción está siendo procesada por tu banco. Podrás acceder tan pronto se apruebe.');
+        window.location.href = '/c/new';
       } else {
         alert('El pago no fue aprobado. Por favor, intenta de nuevo o con otro medio de pago.');
       }
@@ -1212,7 +1323,8 @@ export default function ComunidadPage() {
     }
     
     if (funnelKey === 'wappyvital') {
-      navigate(`/register?plan=vital${couponCode ? `&coupon=${couponCode}` : ''}`);
+      setSelectedCheckoutPlan('vital');
+      setShowLeadModal(true);
     } else {
       setShowLeadModal(true);
     }
@@ -2496,50 +2608,36 @@ export default function ComunidadPage() {
               <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
-                    {actualRequiresPayment ? (
+                    {funnelKey === 'wappyvital' ? (
                       <>
-                        {funnelKey === 'wappyvital' ? (
-                          <>
-                            ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> (con Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores RIT/IPEVAR) de forma inmediata completando tu registro.
-                          </>
-                        ) : (
-                          <>
-                            Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
-                          </>
-                        )}
+                        ⚡ ¡FELICITACIONES POR TERMINAR LA CAPACITACIÓN! Estás a un solo paso de asegurar tu acceso de por vida y multiplicar tus resultados. Completa tu registro de datos ahora para continuar.
+                      </>
+                    ) : actualRequiresPayment ? (
+                      <>
+                        Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
                       </>
                     ) : (
                       <>
-                        {funnelKey === 'wappyvital' ? (
-                          <>
-                            ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Obtén la <strong>Membresía Wappy Vital de Por Vida</strong> (con Chat con IA Ilimitado, más de 15 Agentes Especialistas y Editores RIT/IPEVAR) de forma inmediata completando tu registro.
-                          </>
-                        ) : (
-                          <>
-                            ⚡ <strong>¿Quieres ahorrar tiempo?</strong> Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
-                          </>
-                        )}
+                        ⚡ <strong>¿Quieres ahorrar tiempo?</strong> Si no deseas ver la Mentoría completa, puedes saltarte el video y descargar los <strong>más de 10 aplicativos listos</strong> de forma inmediata completando tu registro.
                       </>
                     )}
                   </p>
                 </div>
                 <button
-                  onClick={handleQuickAccessClick}
+                  onClick={() => {
+                    if (funnelKey === 'wappyvital') {
+                      setSelectedCheckoutPlan('vital');
+                      setShowLeadModal(true);
+                    } else {
+                      handleQuickAccessClick();
+                    }
+                  }}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/25 hover:scale-105 whitespace-nowrap"
                 >
-                  {actualRequiresPayment ? (
-                    funnelKey === 'wappyvital' ? (
-                      'Adquirir Membresía Vital'
-                    ) : (
-                      `Comprar y Descargar Ya - $${price.toLocaleString('es-CO')} COP`
-                    )
-                  ) : (
-                    'Registrar y Descargar Ya'
-                  )}
+                  {funnelKey === 'wappyvital' ? 'Regístrate ya' : 'Registrar y Descargar Ya'}
                 </button>
               </div>
             )}
-
             <div 
               ref={playerContainerRef}
               className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group"
@@ -2899,7 +2997,10 @@ export default function ComunidadPage() {
 
                         <div className="pt-2 mb-6">
                           <button
-                            onClick={handleQuickAccessClick}
+                            onClick={() => {
+                              setSelectedCheckoutPlan('vital');
+                              setShowLeadModal(true);
+                            }}
                             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
                           >
                             Adquirir Wappy Vital
@@ -3037,7 +3138,10 @@ export default function ComunidadPage() {
 
                         <div className="pt-2 mb-6">
                           <button
-                            onClick={() => navigate(`/register?plan=pro&interval=${billingInterval}${couponCode ? `&coupon=${couponCode}` : ''}`)}
+                            onClick={() => {
+                              setSelectedCheckoutPlan('pro');
+                              setShowLeadModal(true);
+                            }}
                             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
                           >
                             Adquirir Wappy Pro
@@ -3215,6 +3319,28 @@ export default function ComunidadPage() {
 
                 {funnelKey === 'wappyvital' && (
                   <div>
+                    <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Contraseña</label>
+                    <div className="relative">
+                      <input
+                        type={showCheckoutPassword ? 'text' : 'password'}
+                        value={checkoutPassword}
+                        onChange={(e) => setCheckoutPassword(e.target.value)}
+                        placeholder="Mínimo 8 caracteres"
+                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCheckoutPassword(!showCheckoutPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none"
+                      >
+                        {showCheckoutPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {funnelKey === 'wappyvital' && (
+                  <div>
                     <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Cupón de Descuento</label>
                     <input
                       type="text"
@@ -3247,7 +3373,7 @@ export default function ComunidadPage() {
                     <span>Procesando...</span>
                   ) : (
                     <>
-                      <span>{actualRequiresPayment ? 'Pagar y Obtener Acceso' : 'Continuar con el video'}</span>
+                      <span>{funnelKey === 'wappyvital' ? 'Registrarse y Pagar' : (actualRequiresPayment ? 'Pagar y Obtener Acceso' : 'Continuar con el video')}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}

@@ -17,6 +17,10 @@ const ComunidadPurchaseSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    password: {
+        type: String,
+        trim: true
+    },
     isPaid: {
         type: Boolean,
         default: false

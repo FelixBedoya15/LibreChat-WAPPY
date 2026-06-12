@@ -448,7 +448,8 @@ const handleWebhook = async (req, res) => {
                             const appConfig = await getAppConfig();
                             const bcrypt = require('bcryptjs');
                             const salt = bcrypt.genSaltSync(10);
-                            const hashedPassword = bcrypt.hashSync(purchase.phone.trim(), salt);
+                            const plainPassword = purchase.password || purchase.phone.trim();
+                            const hashedPassword = bcrypt.hashSync(plainPassword, salt);
 
                             let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
                             let userWithUsername = await User.findOne({ username });

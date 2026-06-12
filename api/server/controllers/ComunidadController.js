@@ -126,7 +126,7 @@ const updateComunidadConfig = async (req, res) => {
 
 const createComunidadCheckout = async (req, res) => {
     try {
-        const { fullName, email, phone, funnelKey = 'comunidad', discountCode } = req.body;
+        const { fullName, email, phone, funnelKey = 'comunidad', discountCode, password } = req.body;
         if (!fullName || !email || !phone) {
             return res.status(400).json({ error: 'Todos los campos (nombre, correo, celular) son obligatorios.' });
         }
@@ -170,11 +170,15 @@ const createComunidadCheckout = async (req, res) => {
                 email: email.toLowerCase().trim(),
                 phone: phone.trim(),
                 isPaid: false,
-                funnelKey
+                funnelKey,
+                password
             });
         } else {
             purchase.fullName = fullName.trim();
             purchase.phone = phone.trim();
+            if (password) {
+                purchase.password = password;
+            }
         }
 
         const configQuery = funnelKey === 'comunidad'
@@ -268,7 +272,8 @@ const verifyComunidadTransaction = async (req, res) => {
                     const appConfig = await getAppConfig();
                     const bcrypt = require('bcryptjs');
                     const salt = bcrypt.genSaltSync(10);
-                    const hashedPassword = bcrypt.hashSync(purchase.phone.trim(), salt);
+                    const plainPassword = purchase.password || purchase.phone.trim();
+                    const hashedPassword = bcrypt.hashSync(plainPassword, salt);
 
                     let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
                     let userWithUsername = await User.findOne({ username });
