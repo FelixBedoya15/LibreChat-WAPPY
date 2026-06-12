@@ -281,10 +281,10 @@ export default function AgentPanel() {
   const handleSyncPrompts = useCallback(async () => {
     try {
       showToast({
-        message: 'Limpiando y sincronizando agentes con MongoDB...',
+        message: 'Sincronizando agentes con MongoDB...',
         status: 'info',
       });
-      const response = await axios.post('/api/sgsst/sync-agents/cleanup-and-sync');
+      const response = await axios.post('/api/sgsst/sync-agents/sync');
 
       showToast({
         message: response.data.summary || 'Sincronización completada con éxito.',
