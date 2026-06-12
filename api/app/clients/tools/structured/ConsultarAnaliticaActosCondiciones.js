@@ -90,8 +90,33 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         }, null, 2);
       }
 
-      // ─── ACCIÓN: OBTENER ANÁLISIS ───
-      const doc = await ReporteActosData.findOne({ user: userId, companyId: company._id }).lean();
+      const doc = await ReporteActosData.findOne(
+        { user: userId, companyId: company._id },
+        {
+          inboxPublico: {
+            $map: {
+              input: '$inboxPublico',
+              as: 'item',
+              in: {
+                id: '$$item.id',
+                trabajador: '$$item.trabajador',
+                createdAt: '$$item.createdAt',
+                status: '$$item.status',
+                data: {
+                  fecha: '$$item.data.fecha',
+                  hora: '$$item.data.hora',
+                  ubicacion: '$$item.data.ubicacion',
+                  descripcion: '$$item.data.descripcion',
+                  foto1Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] }, true, false] },
+                  foto2Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] }, true, false] },
+                  foto3Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] }, true, false] },
+                  videoExists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] }, true, false] }
+                }
+              }
+            }
+          }
+        }
+      ).lean();
       
       // Establecer rango de tiempo
       const dateLimit = new Date();
@@ -168,12 +193,12 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
           descripcion: r.data?.descripcion || '',
           ubicacion: r.data?.ubicacion || 'Sin ubicación',
           status: r.status || 'pending',
-          hasFoto: !!(r.data?.foto1 || r.data?.foto2 || r.data?.foto3),
-          hasVideo: !!r.data?.video,
-          foto1: r.data?.foto1 || null,
-          foto2: r.data?.foto2 || null,
-          foto3: r.data?.foto3 || null,
-          video: r.data?.video || null
+          hasFoto: !!(r.data?.foto1Exists || r.data?.foto2Exists || r.data?.foto3Exists),
+          hasVideo: !!r.data?.videoExists,
+          foto1: r.data?.foto1Exists ? 'present' : null,
+          foto2: r.data?.foto2Exists ? 'present' : null,
+          foto3: r.data?.foto3Exists ? 'present' : null,
+          video: r.data?.videoExists ? 'present' : null
         }));
 
       const resultObj = {

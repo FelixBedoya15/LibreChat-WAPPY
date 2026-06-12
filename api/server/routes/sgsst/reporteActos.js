@@ -399,7 +399,33 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
 router.get('/estadisticas', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId }).lean();
+        const doc = await ReporteActosData.findOne(
+            { user: req.user.id, companyId: companyId },
+            {
+                inboxPublico: {
+                    $map: {
+                        input: '$inboxPublico',
+                        as: 'item',
+                        in: {
+                            id: '$$item.id',
+                            trabajador: '$$item.trabajador',
+                            createdAt: '$$item.createdAt',
+                            status: '$$item.status',
+                            data: {
+                                fecha: '$$item.data.fecha',
+                                hora: '$$item.data.hora',
+                                ubicacion: '$$item.data.ubicacion',
+                                descripcion: '$$item.data.descripcion',
+                                foto1Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] }, true, false] },
+                                foto2Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] }, true, false] },
+                                foto3Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] }, true, false] },
+                                videoExists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] }, true, false] }
+                            }
+                        }
+                    }
+                }
+            }
+        ).lean();
         
         const dias = req.query.dias ? Number(req.query.dias) : 30;
         const dateLimit = new Date();
@@ -471,8 +497,8 @@ router.get('/estadisticas', requireJwtAuth, async (req, res) => {
                 descripcion: r.data?.descripcion || '',
                 ubicacion: r.data?.ubicacion || 'Sin ubicación',
                 status: r.status || 'pending',
-                hasFoto: !!(r.data?.foto1 || r.data?.foto2 || r.data?.foto3),
-                hasVideo: !!r.data?.video
+                hasFoto: !!(r.data?.foto1Exists || r.data?.foto2Exists || r.data?.foto3Exists),
+                hasVideo: !!r.data?.videoExists
             }));
 
         res.json({

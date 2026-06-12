@@ -9,7 +9,7 @@ const {
 const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
 
 function hasHeader(html) {
-  if (!html) return false;
+  if (!html || typeof html !== 'string') return false;
   const lower = html.toLowerCase();
   return (
     lower.includes('información resumida de la entidad') ||
@@ -23,7 +23,7 @@ function hasHeader(html) {
 }
 
 function hasSignature(html) {
-  if (!html) return false;
+  if (!html || typeof html !== 'string') return false;
   const lower = html.toLowerCase();
   return (
     lower.includes('signature-placeholder') ||
@@ -39,7 +39,7 @@ function hasSignature(html) {
  * existente en el contenido previo para evitar sobrescribir las ediciones manuales.
  */
 function extractExistingHeader(html) {
-  if (!html || !hasHeader(html)) {
+  if (!html || typeof html !== 'string' || !hasHeader(html)) {
     return null;
   }
 
@@ -69,7 +69,7 @@ function extractExistingHeader(html) {
  * del contenido previo para conservar las firmas digitales y ediciones manuales.
  */
 function extractExistingSignature(html) {
-  if (!html || !hasSignature(html)) return null;
+  if (!html || typeof html !== 'string' || !hasSignature(html)) return null;
 
   const variations = [
     '<div style="margin-top: 60px;',
@@ -98,7 +98,7 @@ async function processTextDocument(content, fileType, title, userId, existingCon
     return content;
   }
 
-  let stringContent = (content || '').trim();
+  let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
 
   const currentHasHeader = hasHeader(stringContent);
   const currentHasSignature = hasSignature(stringContent);
