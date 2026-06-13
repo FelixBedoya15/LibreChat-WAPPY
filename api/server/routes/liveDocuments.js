@@ -179,74 +179,114 @@ function cleanDocxHtml(html) {
 
   // 2. Detectar y eliminar tablas vacías o repetitivas (encabezados/pies de página)
   const tableRegex = /<table\b[^>]*>([\s\S]*?)<\/table>/gi;
-  const tables = [];
+  const tableFreq = {};
   let tMatch;
   while ((tMatch = tableRegex.exec(cleaned)) !== null) {
-    tables.push({
-      full: tMatch[0],
-      text: tMatch[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, '').trim()
-    });
+    const txt = tMatch[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, '').trim();
+    tableFreq[txt] = (tableFreq[txt] || 0) + 1;
   }
   
-  const tableFreq = {};
-  tables.forEach(t => {
-    const txt = t.text;
-    tableFreq[txt] = (tableFreq[txt] || 0) + 1;
-  });
-  
-  tables.forEach(t => {
-    const txt = t.text;
+  cleaned = cleaned.replace(/<table\b[^>]*>([\s\S]*?)<\/table>/gi, (tableMatch, tableContent) => {
+    const txt = tableContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, '').trim();
     const isPageNum = pageNumRegex.test(txt);
     const isEmpty = txt.length === 0;
     const isRepeated = tableFreq[txt] > 1;
     
     if (isEmpty || isPageNum || (isRepeated && txt.length < 150)) {
-      const escapedFull = t.full.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(escapedFull, 'g');
-      cleaned = cleaned.replace(regex, '');
+      return '';
     }
+    return tableMatch;
   });
 
-  // 3. Extraer párrafos para detectar repetitividad en textos normales
+  // 3. Extraer frecuencias de párrafos para limpiar duplicados del título principal
   const pRegex = /<p\b[^>]*>(.*?)<\/p>/gi;
-  const paragraphs = [];
-  let match;
-  while ((match = pRegex.exec(cleaned)) !== null) {
-    paragraphs.push({
-      full: match[0],
-      text: match[1].replace(/<[^>]+>/g, '').trim() // Texto limpio sin sub-etiquetas HTML
-    });
+  const freq = {};
+  let pMatch;
+  while ((pMatch = pRegex.exec(cleaned)) !== null) {
+    const txt = pMatch[1].replace(/<[^>]+>/g, '').trim();
+    freq[txt] = (freq[txt] || 0) + 1;
   }
 
-  // Contar frecuencias de textos cortos de párrafos
-  const freq = {};
-  paragraphs.forEach(p => {
-    if (p.text.length > 2) {
-      freq[p.text] = (freq[p.text] || 0) + 1;
+  // Limpiar numeración de páginas o títulos principales duplicados
+  cleaned = cleaned.replace(/<p\b[^>]*>(.*?)<\/p>/gi, (pMatch, pContent) => {
+    const txt = pContent.replace(/<[^>]+>/g, '').trim();
+    if (pageNumRegex.test(txt)) {
+      return ''; // Strip page numbers
     }
+    if (txt.toLowerCase() === 'reglamento interno de trabajo' && freq[txt] > 1) {
+      freq[txt]--;
+      return ''; // Strip duplicate titles
+    }
+    return pMatch;
   });
 
-  // Umbral dinámico para detectar si se repite como encabezado/pie de página
-  const threshold = Math.max(3, Math.ceil(paragraphs.length * 0.05));
-
-  const toRemove = new Set();
-  Object.keys(freq).forEach(text => {
-    if (freq[text] >= threshold && text.length < 100) {
-      toRemove.add(text);
+  // 4. Unir párrafos divididos por saltos de página/tablas
+  // Unión de <li> contiguos
+  cleaned = cleaned.replace(/<\/li>\s*<li>/gi, (match, offset, string) => {
+    const beforeStr = string.slice(Math.max(0, offset - 100), offset);
+    const beforeText = beforeStr.replace(/<[^>]+>/g, '').trim();
+    const afterStr = string.slice(offset + match.length, offset + match.length + 100);
+    const afterText = afterStr.replace(/<[^>]+>/g, '').trim();
+    
+    if (!beforeText || !afterText) return match;
+    const lastChar = beforeText.slice(-1);
+    const endsWithLetterOrComma = /[a-záéíóúñüA-Z0-9,\(\)]/.test(lastChar) && !/[.!?:]/.test(lastChar);
+    const words = beforeText.split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+    const isIncompleteWord = /^(y|o|de|del|con|que|para|en|por|un|una|el|la|los|las|al|este|esta|se|sus|diecisiete)$/.test(lastWord);
+    const firstChar = afterText.charAt(0);
+    const startsWithLowercaseOrCont = /[a-záéíóúñü\(\d]/.test(firstChar);
+    
+    if ((endsWithLetterOrComma && startsWithLowercaseOrCont) || isIncompleteWord) {
+      return ' ';
     }
+    return match;
   });
 
-  // Reemplazar párrafos repetitivos y números de página
-  paragraphs.forEach(p => {
-    const trimmedText = p.text;
-    if (pageNumRegex.test(trimmedText) || toRemove.has(trimmedText)) {
-      const escapedFull = p.full.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(escapedFull, 'g');
-      cleaned = cleaned.replace(regex, '');
+  // Unión de <p> contiguos
+  cleaned = cleaned.replace(/<\/p>\s*<p\b[^>]*>/gi, (match, offset, string) => {
+    const beforeStr = string.slice(Math.max(0, offset - 100), offset);
+    const beforeText = beforeStr.replace(/<[^>]+>/g, '').trim();
+    const afterStr = string.slice(offset + match.length, offset + match.length + 100);
+    const afterText = afterStr.replace(/<[^>]+>/g, '').trim();
+    
+    if (!beforeText || !afterText) return match;
+    const lastChar = beforeText.slice(-1);
+    const endsWithLetterOrComma = /[a-záéíóúñüA-Z0-9,\(\)]/.test(lastChar) && !/[.!?:]/.test(lastChar);
+    const words = beforeText.split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+    const isIncompleteWord = /^(y|o|de|del|con|que|para|en|por|un|una|el|la|los|las|al|este|esta|se|sus|diecisiete)$/.test(lastWord);
+    const firstChar = afterText.charAt(0);
+    const startsWithLowercaseOrCont = /[a-záéíóúñü\(\d]/.test(firstChar);
+    
+    if ((endsWithLetterOrComma && startsWithLowercaseOrCont) || isIncompleteWord) {
+      return ' ';
     }
+    return match;
   });
 
-  // 4. Promover Títulos, Capítulos y Artículos a encabezados y separar el cuerpo del artículo
+  // Unión de </li> contiguo a <p>
+  cleaned = cleaned.replace(/<\/li>\s*<p\b[^>]*>(.*?)<\/p>/gi, (match, innerContent, offset, string) => {
+    const beforeStr = string.slice(Math.max(0, offset - 100), offset);
+    const beforeText = beforeStr.replace(/<[^>]+>/g, '').trim();
+    const afterText = innerContent.replace(/<[^>]+>/g, '').trim();
+    
+    if (!beforeText || !afterText) return match;
+    const lastChar = beforeText.slice(-1);
+    const endsWithLetterOrComma = /[a-záéíóúñüA-Z0-9,\(\)]/.test(lastChar) && !/[.!?:]/.test(lastChar);
+    const words = beforeText.split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+    const isIncompleteWord = /^(y|o|de|del|con|que|para|en|por|un|una|el|la|los|las|al|este|esta|se|sus|diecisiete)$/.test(lastWord);
+    const firstChar = afterText.charAt(0);
+    const startsWithLowercaseOrCont = /[a-záéíóúñü\(\d]/.test(firstChar);
+    
+    if ((endsWithLetterOrComma && startsWithLowercaseOrCont) || isIncompleteWord) {
+      return ' ' + innerContent + '</li>';
+    }
+    return match;
+  });
+
+  // 5. Promover Títulos, Capítulos y Artículos a encabezados y separar el cuerpo del artículo
   cleaned = cleaned.replace(/<p\b[^>]*>(.*?)<\/p>/gi, (match, innerContent) => {
     const plainText = innerContent.replace(/<[^>]+>/g, '').trim();
     
@@ -282,7 +322,7 @@ function cleanDocxHtml(html) {
     return match;
   });
 
-  // 5. Eliminar párrafos vacíos resultantes o restos de formato
+  // 6. Eliminar párrafos vacíos resultantes o restos de formato
   cleaned = cleaned.replace(/<p\b[^>]*>\s*(?:&nbsp;|<br\s*\/?>)*\s*<\/p>/gi, '');
 
   return cleaned;
