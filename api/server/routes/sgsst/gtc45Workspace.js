@@ -450,6 +450,131 @@ Escribe en español técnico, sin encabezados, sin bullets, como párrafo fluido
     logger.error('[GTC45/ai-chart-conclusion] Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
+// ─── IA: Reconstruir y adaptar una matriz externa (diferente formato) a GTC-45 ───
+router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
+  try {
+    const { rawRows } = req.body;
+    const userId = req.user?.id;
+
+    if (!rawRows || !Array.isArray(rawRows)) {
+      return res.status(400).json({ error: 'Se requiere una lista de filas en "rawRows".' });
+    }
+
+    if (rawRows.length === 0) {
+      return res.json({ matrixRows: [] });
+    }
+
+    const CHUNK_SIZE = 15;
+    const chunks = [];
+    for (let i = 0; i < rawRows.length; i += CHUNK_SIZE) {
+      chunks.push(rawRows.slice(i, i + CHUNK_SIZE));
+    }
+
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
+    logger.info(`[GTC45/ai-parse-matrix] Processing ${rawRows.length} rows for user ${userId} in ${chunks.length} chunks`);
+
+    const promises = chunks.map(async (chunk, chunkIdx) => {
+      const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
+Te hemos proporcionado una lista de filas importadas desde un archivo con una estructura y nombres de columnas arbitrarios.
+Tu tarea es analizar detalladamente el contenido de cada fila y reconstruir/mapear sus datos para que se adapten a nuestro formato estándar de matriz GTC-45 (IPEVAR).
+
+El formato de salida que requerimos para cada fila es un objeto JSON con la siguiente estructura exacta:
+{
+  "proceso": "<área, proceso o sección. Por ejemplo: Administración, Operaciones, Ventas.>",
+  "zona": "<zona, lugar, oficina o sede. Por ejemplo: Planta 1, Oficina principal.>",
+  "actividad": "<actividad o labor principal. Por ejemplo: Digitador, Conducción de vehículo.>",
+  "tareas": "<tareas específicas del puesto.>",
+  "rutinaria": "<'Sí' o 'No'. Estima si la actividad es rutinaria según tu criterio técnico si no se especifica.>",
+  "peligro_descripcion": "<descripción clara del peligro o factor de riesgo detectado.>",
+  "peligro_clasificacion": "<Clasificación estricta del peligro. Debe ser uno de los siguientes: 'Físico', 'Químico', 'Biológico', 'Biomecánico', 'Psicosocial', 'Condiciones de seguridad' o 'Fenómenos naturales'.>",
+  "efectos_posibles": "<efectos posibles a la salud, consecuencias o lesiones esperadas.>",
+  "controles_fuente": "<controles existentes en la fuente (máquina o proceso), o 'Ninguno'.>",
+  "controles_medio": "<controles existentes en el medio (ambiente), o 'Ninguno'.>",
+  "controles_individuo": "<controles existentes en el individuo (persona), o 'Ninguno'.>",
+  "nd": <Nivel de Deficiencia: número entero (0, 2, 6 o 10) según la GTC-45. Si el origen tiene valores cualitativos o numéricos diferentes, mapealos al valor GTC-45 más cercano.>,
+  "ne": <Nivel de Exposición: número entero (1, 2, 3 o 4) según la GTC-45.>,
+  "np": <Nivel de Probabilidad: nd * ne.>,
+  "nc": <Nivel de Consecuencia: número entero (10, 25, 60 o 100) según la GTC-45.>,
+  "nr": <Nivel de Riesgo: np * nc.>,
+  "interpretacion_nr": "<interpretación de NR: 'I' si nr >= 500, 'II' si nr entre 150 y 499, 'III' si nr entre 40 y 149, 'IV' si nr < 40. Por favor, realiza el cálculo y pon la letra correcta.>",
+  "aceptabilidad": "<Aceptabilidad del riesgo según GTC-45: 'No Aceptable' si interpretación es I, 'No Aceptable o Aceptable con control específico' si II, 'Mejorable' si III, 'Aceptable' si IV.>",
+  "medida_eliminacion": "<medida de eliminación propuesta, o 'Ninguno'.>",
+  "medida_sustitucion": "<medida de sustitución propuesta, o 'Ninguno'.>",
+  "medida_ingenieria": "<medida de control de ingeniería propuesta, o 'Ninguno'.>",
+  "medida_administrativa": "<medida de control administrativo (señalización, capacitación, procedimientos) propuesta, o 'Ninguno'.>",
+  "medida_eppu": "<EPP/Equipos recomendados, o 'Ninguno'.>",
+  "factores_reduccion": "<Anexo E: Factores de reducción de riesgo. Propón una justificación técnica o financiera breve si no existe en el origen. NUNCA VACÍO. Escribe 'No aplica' si no aplica.>"
+}
+
+Reglas importantes:
+1. Sé inteligente al inferir los campos basándote en el texto. Si las celdas originales contienen información combinada, sepárala en los campos correspondientes. Por ejemplo, si los controles no están divididos pero hay controles en el individuo, colócalos en controles_individuo.
+2. Si los valores numéricos de ND, NE, NC o NR están ausentes o mal calculados, corrígelos y calcula la probabilidad y riesgo matemáticamente correctos según GTC-45.
+3. El resultado debe ser EXCLUSIVAMENTE un array JSON válido que contenga la misma cantidad de elementos que el original. No incluyes explicaciones previas ni posteriores, ni bloques de código markdown (\`\`\`json).
+
+FILAS ORIGINALES A PROCESAR:
+${JSON.stringify(chunk, null, 2)}
+`;
+
+      const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
+      let text = result.response.text().trim();
+      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        logger.error(`[GTC45/ai-parse-matrix] JSON parse error in chunk ${chunkIdx}:`, err.message, 'Raw:', text.slice(0, 500));
+        throw new Error('La IA devolvió un formato JSON inválido para uno de los lotes. Por favor, intenta de nuevo.');
+      }
+
+      if (!Array.isArray(parsed)) {
+        if (typeof parsed === 'object' && parsed !== null) {
+          parsed = [parsed];
+        } else {
+          throw new Error('La IA no devolvió un listado de filas en el formato esperado.');
+        }
+      }
+
+      return parsed.map(row => ({
+        proceso: row.proceso || '',
+        zona: row.zona || '',
+        actividad: row.actividad || '',
+        tareas: row.tareas || '',
+        rutinaria: row.rutinaria || 'Sí',
+        peligro_descripcion: row.peligro_descripcion || '',
+        peligro_clasificacion: row.peligro_clasificacion || '',
+        efectos_posibles: row.efectos_posibles || '',
+        controles_fuente: row.controles_fuente || 'Ninguno',
+        controles_medio: row.controles_medio || 'Ninguno',
+        controles_individuo: row.controles_individuo || 'Ninguno',
+        nd: Number(row.nd) || 0,
+        ne: Number(row.ne) || 0,
+        np: (Number(row.nd) || 0) * (Number(row.ne) || 0),
+        nc: Number(row.nc) || 0,
+        nr: ((Number(row.nd) || 0) * (Number(row.ne) || 0)) * (Number(row.nc) || 0),
+        interpretacion_nr: row.interpretacion_nr || '',
+        aceptabilidad: row.aceptabilidad || '',
+        medida_eliminacion: row.medida_eliminacion || 'Ninguno',
+        medida_sustitucion: row.medida_sustitucion || 'Ninguno',
+        medida_ingenieria: row.medida_ingenieria || 'Ninguno',
+        medida_administrativa: row.medida_administrativa || 'Ninguno',
+        medida_eppu: row.medida_eppu || 'Ninguno',
+        factores_reduccion: row.factores_reduccion || 'No aplica',
+        nd_cualitativo: null,
+        id: Date.now().toString() + Math.random().toString(36).substring(7)
+      }));
+    });
+
+    const results = await Promise.all(promises);
+    const combinedRows = results.flat();
+
+    logger.info(`[GTC45/ai-parse-matrix] Successfully mapped ${combinedRows.length} rows for user ${userId}`);
+    return res.json({ matrixRows: combinedRows });
+
+  } catch (error) {
+    logger.error('[GTC45/ai-parse-matrix] Error:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

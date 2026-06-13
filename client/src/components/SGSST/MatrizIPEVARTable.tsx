@@ -532,6 +532,51 @@ export default function MatrizIPEVARTable({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isPendingImport = useRef(false);
 
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
+  const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+
+  const handleAiImport = async () => {
+    if (pendingRawRows.length === 0) return;
+    setIsConfirmModalOpen(false);
+    setIsAiImportLoading(true);
+
+    try {
+      const res = await fetch('/api/sgsst/gtc45-workspace/ai-parse-matrix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rawRows: pendingRawRows, modelName: selectedModel }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al procesar con IA.');
+      }
+
+      const data = await res.json();
+      if (data.matrixRows && data.matrixRows.length > 0) {
+        const combined = [...matrixRows, ...data.matrixRows];
+        setMatrixRows(combined);
+        if (actualConvoId && actualConvoId !== 'new') {
+          saveMatrixData(combined);
+        } else {
+          isPendingImport.current = true;
+        }
+        alert(
+          `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato oficial de Wappy.`
+        );
+      } else {
+        alert('No se pudieron recuperar filas procesadas.');
+      }
+    } catch (err: any) {
+      console.error('[Matriz] AI Import error:', err);
+      alert(`Error en la reconstrucción con IA: ${err.message}`);
+    } finally {
+      setIsAiImportLoading(false);
+      setPendingRawRows([]);
+    }
+  };
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -540,10 +585,39 @@ export default function MatrizIPEVARTable({
     reader.onload = async (evt) => {
       try {
         const data = evt.target?.result;
-        let newRows: MatrixRow[] = [];
 
         if (file.name.endsWith('.json')) {
-          newRows = JSON.parse(data as string);
+          const parsed = JSON.parse(data as string);
+          if (Array.isArray(parsed)) {
+            const firstRow = parsed[0] || {};
+            const keys = Object.keys(firstRow);
+            const isStandard = ['proceso', 'actividad', 'peligro_descripcion'].every(k => keys.includes(k));
+
+            if (isStandard) {
+              const withIds = parsed.map(r => ({
+                ...r,
+                id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+                nd: Number(r.nd) || 0,
+                ne: Number(r.ne) || 0,
+                np: Number(r.np) || 0,
+                nc: Number(r.nc) || 0,
+                nr: Number(r.nr) || 0,
+              }));
+              const combined = [...matrixRows, ...withIds];
+              setMatrixRows(combined);
+              if (actualConvoId && actualConvoId !== 'new') {
+                saveMatrixData(combined);
+              } else {
+                isPendingImport.current = true;
+              }
+              alert(`Importados ${withIds.length} riesgos exitosamente.`);
+            } else {
+              setPendingRawRows(parsed);
+              setIsConfirmModalOpen(true);
+            }
+          } else {
+            alert('El archivo JSON debe contener un arreglo de objetos.');
+          }
         } else if (file.name.endsWith('.xlsx')) {
           const wb = XLSX.read(data, { type: 'binary' });
           const sheetName =
@@ -551,47 +625,59 @@ export default function MatrizIPEVARTable({
           const ws = wb.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json(ws);
 
-          newRows = json.map((r: any) => ({
-            proceso: r['Proceso'] || '',
-            zona: r['Zona'] || '',
-            actividad: r['Actividad'] || '',
-            tareas: r['Tareas'] || '',
-            rutinaria: r['Rutinaria'] || 'Sí',
-            peligro_descripcion: r['Descripción del Peligro'] || '',
-            peligro_clasificacion: r['Clasificación'] || '',
-            efectos_posibles: r['Efectos Posibles'] || '',
-            controles_fuente: r['Ctrl. Fuente'] || 'Ninguno',
-            controles_medio: r['Ctrl. Medio'] || 'Ninguno',
-            controles_individuo: r['Ctrl. Individuo'] || 'Ninguno',
-            nd: Number(r['ND']) || 0,
-            ne: Number(r['NE']) || 0,
-            np: Number(r['NP']) || 0,
-            nc: Number(r['NC']) || 0,
-            nr: Number(r['NR']) || 0,
-            interpretacion_nr: r['Interpretación NR'] || '',
-            aceptabilidad: r['Aceptabilidad'] || '',
-            medida_eliminacion: r['Eliminación'] || 'Ninguno',
-            medida_sustitucion: r['Sustitución'] || 'Ninguno',
-            medida_ingenieria: r['Ingeniería'] || 'Ninguno',
-            medida_administrativa: r['Administrativos'] || 'Ninguno',
-            medida_eppu: r['EPP'] || 'Ninguno',
-            factores_reduccion: r['Factores Reducción (Anexo E)'] || 'No aplica',
-            nd_cualitativo: null,
-            id: Date.now().toString() + Math.random().toString(36).substring(7),
-          }));
-        }
-
-        if (newRows.length > 0) {
-          const combined = [...matrixRows, ...newRows];
-          setMatrixRows(combined);
-          if (actualConvoId && actualConvoId !== 'new') {
-            saveMatrixData(combined);
-          } else {
-            isPendingImport.current = true;
+          if (json.length === 0) {
+            alert('El archivo Excel está vacío.');
+            return;
           }
-          alert(
-            `Importados ${newRows.length} riesgos exitosamente. ${!actualConvoId || actualConvoId === 'new' ? '\\nImportante: Empieza a chatear (envía un mensaje) para crear el chat y auto-guardar tu matriz instanciada.' : ''}`,
-          );
+
+          const firstRow = json[0] || {};
+          const keys = Object.keys(firstRow);
+
+          const isStandard = ['Proceso', 'Actividad', 'Descripción del Peligro'].every(k => keys.includes(k)) ||
+                             keys.some(k => k.toLowerCase().includes('proceso') && k.toLowerCase().includes('actividad'));
+
+          if (isStandard) {
+            const newRows = json.map((r: any) => ({
+              proceso: r['Proceso'] || r['proceso'] || '',
+              zona: r['Zona / Lugar'] || r['Zona'] || r['zona'] || '',
+              actividad: r['Actividad'] || r['actividad'] || '',
+              tareas: r['Tareas'] || r['tareas'] || '',
+              rutinaria: r['Rutinaria'] || r['rutinaria'] || 'Sí',
+              peligro_descripcion: r['Descripción del Peligro'] || r['Descripción'] || r['peligro_descripcion'] || '',
+              peligro_clasificacion: r['Clasificación'] || r['clasificacion'] || '',
+              efectos_posibles: r['Efectos Posibles'] || r['efectos_posibles'] || '',
+              controles_fuente: r['Ctrl. Fuente'] || r['controles_fuente'] || 'Ninguno',
+              controles_medio: r['Ctrl. Medio'] || r['controles_medio'] || 'Ninguno',
+              controles_individuo: r['Ctrl. Individuo'] || r['controles_individuo'] || 'Ninguno',
+              nd: Number(r['ND']) || Number(r['nd']) || 0,
+              ne: Number(r['NE']) || Number(r['ne']) || 0,
+              np: Number(r['NP']) || Number(r['np']) || 0,
+              nc: Number(r['NC']) || Number(r['nc']) || 0,
+              nr: Number(r['NR']) || Number(r['nr']) || 0,
+              interpretacion_nr: r['Interpretación NR'] || r['interpretacion_nr'] || '',
+              aceptabilidad: r['Aceptabilidad del Riesgo'] || r['Aceptabilidad'] || r['aceptabilidad'] || '',
+              medida_eliminacion: r['Eliminación'] || r['medida_eliminacion'] || 'Ninguno',
+              medida_sustitucion: r['Sustitución'] || r['medida_sustitucion'] || 'Ninguno',
+              medida_ingenieria: r['Ctrl. Ingeniería'] || r['Ingeniería'] || r['medida_ingenieria'] || 'Ninguno',
+              medida_administrativa: r['Ctrl. Administrativos'] || r['Administrativos'] || r['medida_administrativa'] || 'Ninguno',
+              medida_eppu: r['Equipos/EPP'] || r['EPP'] || r['medida_eppu'] || 'Ninguno',
+              factores_reduccion: r['Factores de Reducción'] || r['Factores Reducción (Anexo E)'] || r['factores_reduccion'] || 'No aplica',
+              nd_cualitativo: null,
+              id: Date.now().toString() + Math.random().toString(36).substring(7),
+            }));
+
+            const combined = [...matrixRows, ...newRows];
+            setMatrixRows(combined);
+            if (actualConvoId && actualConvoId !== 'new') {
+              saveMatrixData(combined);
+            } else {
+              isPendingImport.current = true;
+            }
+            alert(`Importados ${newRows.length} riesgos exitosamente.`);
+          } else {
+            setPendingRawRows(json);
+            setIsConfirmModalOpen(true);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -1839,6 +1925,67 @@ export default function MatrizIPEVARTable({
           </CollapsibleReportBox>
         </div>
       </div>
+
+      {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
+      {isAiImportLoading && (
+        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
+              <div className="absolute inset-2 animate-pulse rounded-full bg-teal-500/40" />
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-text-primary">Adaptando Matriz con IA</h3>
+              <p className="mt-2 text-sm text-text-secondary max-w-xs">
+                Nuestra IA está mapeando las columnas y recalculando los niveles de riesgo según el formato estándar. Esto puede tomar unos segundos...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Confirm Adapt Modal ──────────────────────────────────────── */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
+            <div className="relative p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
+                <Sparkles className="h-6 w-6 animate-pulse" />
+              </div>
+              <h3 className="text-lg font-bold text-text-primary">
+                ¿Reconstruir matriz con IA?
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                Hemos detectado que el archivo cargado no coincide con el formato estándar de Wappy.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
+                ¿Deseas que la IA de Wappy analice y adapte automáticamente tu matriz para que encaje perfectamente con nuestro formato de columnas GTC-45?
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmModalOpen(false);
+                  setPendingRawRows([]);
+                }}
+                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-hover"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAiImport}
+                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-teal-700"
+              >
+                Sí, usar IA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
