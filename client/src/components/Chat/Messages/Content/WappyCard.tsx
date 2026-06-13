@@ -29,7 +29,7 @@ import {
   Bell,
   Calendar,
   Heart,
-  Star
+  Star,
 } from 'lucide-react';
 import cn from '~/utils/cn';
 
@@ -94,22 +94,22 @@ const LucideIcons: Record<string, React.ComponentType<any>> = {
   Bell,
   Calendar,
   Heart,
-  Star
+  Star,
 };
 
 // Convert kebab-case or custom naming to PascalCase Lucide Icon safely from our curated list
 const getIcon = (name?: string): React.ComponentType<any> => {
   if (!name) return HelpCircle;
-  
+
   // Clean name and map common custom names if any
   const cleanName = name.trim();
-  
+
   // Convert kebab-case (e.g., alert-triangle) to PascalCase (AlertTriangle)
   const pascalCase = cleanName
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
-  
+
   const Icon = LucideIcons[pascalCase] || LucideIcons[cleanName];
   if (Icon) return Icon;
 
@@ -135,9 +135,9 @@ const getIcon = (name?: string): React.ComponentType<any> => {
 // Safe and highly tolerant JSON parser with backtracking truncated JSON repair
 const repairJson = (str: string): string | null => {
   let s = str.trim();
-  
+
   // Balance quotes first
-  let quotes = 0;
+  const quotes = 0;
   let inString = false;
   let escaped = false;
   for (let i = 0; i < s.length; i++) {
@@ -155,7 +155,7 @@ const repairJson = (str: string): string | null => {
   }
 
   // Count open brackets/braces
-  let stack: string[] = [];
+  const stack: string[] = [];
   inString = false;
   escaped = false;
   for (let i = 0; i < s.length; i++) {
@@ -188,7 +188,7 @@ const repairJson = (str: string): string | null => {
     if (stack[i] === '{') temp += '}';
     else if (stack[i] === '[') temp += ']';
   }
-  
+
   try {
     JSON.parse(temp);
     return temp;
@@ -206,8 +206,8 @@ const repairJson = (str: string): string | null => {
     if (sub.endsWith(',')) {
       sub = sub.slice(0, -1).trim();
     }
-    
-    let subStack: string[] = [];
+
+    const subStack: string[] = [];
     let subInString = false;
     let subEscaped = false;
     for (let i = 0; i < sub.length; i++) {
@@ -234,17 +234,17 @@ const repairJson = (str: string): string | null => {
         }
       }
     }
-    
+
     if (subInString) {
       sub += '"';
     }
-    
+
     let attempt = sub;
     for (let i = subStack.length - 1; i >= 0; i--) {
       if (subStack[i] === '{') attempt += '}';
       else if (subStack[i] === '[') attempt += ']';
     }
-    
+
     try {
       JSON.parse(attempt);
       return attempt;
@@ -257,19 +257,26 @@ const repairJson = (str: string): string | null => {
 
 const parseTolerantJson = (text: string): CardData | null => {
   let cleaned = text.trim();
-  
+
   // Remove markdown wrapping if present
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```[a-zA-Z-]*\n/, '').replace(/\n```$/, '');
   }
   cleaned = cleaned.trim();
 
+  // Repair broken item separators from LLM generation (e.g. quote before open/close brace)
+  const brokenItemSeparatorRegex = /",?\s*\n\s*"\s*\{\s*\n\s*"/g;
+  cleaned = cleaned.replace(brokenItemSeparatorRegex, '",\n    },\n    {\n    "');
+
+  const brokenItemSeparatorAfterBraceRegex = /\}\s*,?\s*\n\s*"\s*\{\s*\n\s*"/g;
+  cleaned = cleaned.replace(brokenItemSeparatorAfterBraceRegex, '},\n    {\n    "');
+
   try {
     return JSON.parse(cleaned) as CardData;
   } catch (e) {
     // Attempt standard cleanups for slightly malformed JSON (trailing commas, comments)
     try {
-      let repair = cleaned
+      const repair = cleaned
         // Remove single-line comments
         .replace(/\/\/.+$/gm, '')
         // Remove multi-line comments
@@ -299,9 +306,10 @@ const THEMES = {
     text: 'text-indigo-900 dark:text-indigo-100',
     iconBg: 'bg-indigo-100/80 dark:bg-indigo-900/60',
     iconText: 'text-indigo-600 dark:text-indigo-300',
-    badge: 'bg-indigo-100/80 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50',
+    badge:
+      'bg-indigo-100/80 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50',
     glow: 'shadow-indigo-500/5',
-    accent: 'bg-indigo-600 dark:bg-indigo-500'
+    accent: 'bg-indigo-600 dark:bg-indigo-500',
   },
   success: {
     bg: 'bg-emerald-50/40 dark:bg-emerald-950/15',
@@ -309,9 +317,10 @@ const THEMES = {
     text: 'text-emerald-900 dark:text-emerald-100',
     iconBg: 'bg-emerald-100/80 dark:bg-emerald-900/60',
     iconText: 'text-emerald-600 dark:text-emerald-300',
-    badge: 'bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/50',
+    badge:
+      'bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/50',
     glow: 'shadow-emerald-500/5',
-    accent: 'bg-emerald-600 dark:bg-emerald-500'
+    accent: 'bg-emerald-600 dark:bg-emerald-500',
   },
   warning: {
     bg: 'bg-amber-50/40 dark:bg-amber-950/15',
@@ -319,9 +328,10 @@ const THEMES = {
     text: 'text-amber-900 dark:text-amber-100',
     iconBg: 'bg-amber-100/80 dark:bg-amber-900/60',
     iconText: 'text-amber-600 dark:text-amber-300',
-    badge: 'bg-amber-100/80 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/50',
+    badge:
+      'bg-amber-100/80 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/50',
     glow: 'shadow-amber-500/5',
-    accent: 'bg-amber-600 dark:bg-amber-500'
+    accent: 'bg-amber-600 dark:bg-amber-500',
   },
   danger: {
     bg: 'bg-rose-50/40 dark:bg-rose-950/15',
@@ -329,9 +339,10 @@ const THEMES = {
     text: 'text-rose-900 dark:text-rose-100',
     iconBg: 'bg-rose-100/80 dark:bg-rose-900/60',
     iconText: 'text-rose-600 dark:text-rose-300',
-    badge: 'bg-rose-100/80 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-200/50 dark:border-rose-800/50',
+    badge:
+      'bg-rose-100/80 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-200/50 dark:border-rose-800/50',
     glow: 'shadow-rose-500/5',
-    accent: 'bg-rose-600 dark:bg-rose-500'
+    accent: 'bg-rose-600 dark:bg-rose-500',
   },
   info: {
     bg: 'bg-sky-50/40 dark:bg-sky-950/15',
@@ -339,10 +350,11 @@ const THEMES = {
     text: 'text-sky-900 dark:text-sky-100',
     iconBg: 'bg-sky-100/80 dark:bg-sky-900/60',
     iconText: 'text-sky-600 dark:text-sky-300',
-    badge: 'bg-sky-100/80 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-200/50 dark:border-sky-800/50',
+    badge:
+      'bg-sky-100/80 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-200/50 dark:border-sky-800/50',
     glow: 'shadow-sky-500/5',
-    accent: 'bg-sky-600 dark:bg-sky-500'
-  }
+    accent: 'bg-sky-600 dark:bg-sky-500',
+  },
 };
 
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
@@ -362,13 +374,13 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
     if (updatedItems[itemIndex]) {
       updatedItems[itemIndex] = {
         ...updatedItems[itemIndex],
-        checked: !updatedItems[itemIndex].checked
+        checked: !updatedItems[itemIndex].checked,
       };
     }
 
     const updatedData = {
       ...data,
-      items: updatedItems
+      items: updatedItems,
     };
 
     // Serialize and parse
@@ -423,7 +435,10 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
     const textarea = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
     if (textarea) {
       textarea.focus();
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value',
+      )?.set;
       if (nativeInputValueSetter) {
         nativeInputValueSetter.call(textarea, suggestion);
       } else {
@@ -431,8 +446,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
       }
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
       setTimeout(() => {
-        const submitButton = document.querySelector('form button[type="submit"]') as HTMLButtonElement 
-          || document.getElementById('send-button') as HTMLButtonElement;
+        const submitButton =
+          (document.querySelector('form button[type="submit"]') as HTMLButtonElement) ||
+          (document.getElementById('send-button') as HTMLButtonElement);
         if (submitButton) {
           submitButton.click();
         } else {
@@ -449,42 +465,48 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
     // If the card is still generating / streaming, show an elegant premium glassmorphic loader
     if (isSubmitting) {
       return (
-        <div className={cn(
-          "w-full my-3 rounded-2xl border p-5 backdrop-blur-[2px] font-sans whitespace-normal break-words shadow-sm animate-pulse",
-          "bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-100/30 dark:border-indigo-900/30"
-        )}>
+        <div
+          className={cn(
+            'my-3 w-full animate-pulse whitespace-normal break-words rounded-2xl border p-5 font-sans shadow-sm backdrop-blur-[2px]',
+            'border-indigo-100/30 bg-indigo-50/20 dark:border-indigo-900/30 dark:bg-indigo-950/10',
+          )}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-100/30 dark:bg-indigo-900/30 text-indigo-500 shrink-0">
+            <div className="shrink-0 rounded-xl bg-indigo-100/30 p-2.5 text-indigo-500 dark:bg-indigo-900/30">
               <Activity className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="h-4 bg-indigo-100/40 dark:bg-indigo-900/40 rounded w-1/3 mb-2" />
-              <div className="h-3 bg-indigo-100/30 dark:bg-indigo-900/30 rounded w-1/2" />
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 h-4 w-1/3 rounded bg-indigo-100/40 dark:bg-indigo-900/40" />
+              <div className="h-3 w-1/2 rounded bg-indigo-100/30 dark:bg-indigo-900/30" />
             </div>
           </div>
-          <div className="h-[1px] bg-black/5 dark:bg-white/10 my-4" />
+          <div className="my-4 h-[1px] bg-black/5 dark:bg-white/10" />
           <div className="space-y-3">
-            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-3/4" />
-            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-5/6" />
-            <div className="h-3 bg-indigo-100/20 dark:bg-indigo-900/20 rounded w-2/3" />
+            <div className="h-3 w-3/4 rounded bg-indigo-100/20 dark:bg-indigo-900/20" />
+            <div className="h-3 w-5/6 rounded bg-indigo-100/20 dark:bg-indigo-900/20" />
+            <div className="h-3 w-2/3 rounded bg-indigo-100/20 dark:bg-indigo-900/20" />
           </div>
         </div>
       );
     }
 
     // Elegant fallback rendering if JSON parse fails completely
+    /* eslint-disable i18next/no-literal-string */
     return (
-      <div className="my-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300 font-sans whitespace-normal break-words shadow-sm">
+      <div className="my-3 whitespace-normal break-words rounded-2xl border border-red-200 bg-red-50 p-4 font-sans text-red-800 shadow-sm dark:border-red-950 dark:bg-red-950/20 dark:text-red-300">
         <div className="flex items-center gap-2 font-semibold">
           <AlertOctagon className="h-5 w-5 text-red-500" />
           <span>Error al procesar la tarjeta interactiva</span>
         </div>
-        <p className="mt-1 text-xs opacity-90">El bloque de datos no tiene una estructura JSON válida.</p>
-        <pre className="mt-2 max-h-40 overflow-auto rounded bg-red-100/50 p-2 font-mono text-[10px] text-red-900 dark:bg-red-900/30 dark:text-red-200 whitespace-pre-wrap break-all">
+        <p className="mt-1 text-xs opacity-90">
+          El bloque de datos no tiene una estructura JSON válida.
+        </p>
+        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-red-100/50 p-2 font-mono text-[10px] text-red-900 dark:bg-red-900/30 dark:text-red-200">
           {content}
         </pre>
       </div>
     );
+    /* eslint-enable i18next/no-literal-string */
   }
 
   const themeType = data.type || 'primary';
@@ -507,60 +529,69 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   }
 
   return (
-    <div className={cn(
-      "w-full my-3 rounded-2xl border transition-all duration-300",
-      theme.bg,
-      theme.border,
-      theme.glow,
-      "shadow-sm hover:shadow-md backdrop-blur-[2px]",
-      "font-sans whitespace-normal break-words" // SHIELD FROM INHERITED PRE STYLES
-    )}>
+    <div
+      className={cn(
+        'my-3 w-full rounded-2xl border transition-all duration-300',
+        theme.bg,
+        theme.border,
+        theme.glow,
+        'shadow-sm backdrop-blur-[2px] hover:shadow-md',
+        'whitespace-normal break-words font-sans', // SHIELD FROM INHERITED PRE STYLES
+      )}
+    >
       {/* CARD HEADER */}
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-4 cursor-pointer select-none rounded-t-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        className="flex cursor-pointer select-none items-center justify-between rounded-t-2xl p-4 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={cn("p-2 rounded-xl shrink-0 transition-transform duration-300 hover:scale-105", theme.iconBg, theme.iconText)}>
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={cn(
+              'shrink-0 rounded-xl p-2 transition-transform duration-300 hover:scale-105',
+              theme.iconBg,
+              theme.iconText,
+            )}
+          >
             <CardIcon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className={cn("font-bold text-sm leading-snug tracking-wide", theme.text)}>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className={cn('text-sm font-bold leading-snug tracking-wide', theme.text)}>
                 {data.title}
               </div>
               {data.badge && (
-                <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0", theme.badge)}>
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    theme.badge,
+                  )}
+                >
                   {data.badge}
                 </span>
               )}
             </div>
             {data.subtitle && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">
+              <div className="mt-0.5 truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                 {data.subtitle}
               </div>
             )}
           </div>
         </div>
-        <button 
+        <button
           type="button"
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0 ml-2"
+          className="ml-2 shrink-0 rounded-lg p-1 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-200"
         >
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
 
       {/* CARD BODY CONTENT */}
       {isOpen && (
-        <div className="px-4 pb-4 pt-1 animate-fadeIn duration-200">
-          <div className="h-[1px] w-full bg-black/5 dark:bg-white/10 mb-3" />
-          
+        <div className="animate-fadeIn px-4 pb-4 pt-1 duration-200">
+          <div className="mb-3 h-[1px] w-full bg-black/5 dark:bg-white/10" />
+
           {data.description && (
-            <div className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+            <div className="mb-4 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
               {data.description}
             </div>
           )}
@@ -570,31 +601,46 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
             <>
               {/* layout === 'metrics' */}
               {data.layout === 'metrics' && (
-                <div className={cn(
-                  "grid gap-3 mb-4",
-                  data.columns === 2 ? "grid-cols-2" :
-                  data.columns === 3 ? "grid-cols-3" :
-                  data.columns === 4 ? "grid-cols-2 sm:grid-cols-4" :
-                  "grid-cols-2 sm:grid-cols-4"
-                )}>
+                <div
+                  className={cn(
+                    'mb-4 grid gap-3',
+                    data.columns === 2
+                      ? 'grid-cols-2'
+                      : data.columns === 3
+                        ? 'grid-cols-3'
+                        : data.columns === 4
+                          ? 'grid-cols-2 sm:grid-cols-4'
+                          : 'grid-cols-2 sm:grid-cols-4',
+                  )}
+                >
                   {data.items.map((item, idx) => {
                     const itemTheme = item.color ? THEMES[item.color] : theme;
                     return (
-                      <div 
+                      <div
                         key={idx}
                         className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm bg-white/40 dark:bg-zinc-900/40",
-                          itemTheme.border
+                          'flex flex-col items-center justify-center rounded-2xl border bg-white/40 p-4 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm dark:bg-zinc-900/40',
+                          itemTheme.border,
                         )}
                       >
-                        <div className={cn("text-xl md:text-2xl font-extrabold tracking-tight mb-2", itemTheme.iconText)}>
+                        <div
+                          className={cn(
+                            'mb-2 text-xl font-extrabold tracking-tight md:text-2xl',
+                            itemTheme.iconText,
+                          )}
+                        >
                           {item.title}
                         </div>
-                        <div className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 leading-snug">
+                        <div className="text-[11px] font-semibold leading-snug text-gray-600 dark:text-gray-400">
                           {item.description}
                         </div>
                         {item.badge && (
-                          <span className={cn("mt-2 text-[9px] px-1.5 py-0.5 rounded font-medium", itemTheme.badge)}>
+                          <span
+                            className={cn(
+                              'mt-2 rounded px-1.5 py-0.5 text-[9px] font-medium',
+                              itemTheme.badge,
+                            )}
+                          >
                             {item.badge}
                           </span>
                         )}
@@ -606,55 +652,81 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
               {/* layout === 'grid' */}
               {data.layout === 'grid' && (
-                <div className={cn(
-                  "grid gap-4 mb-4",
-                  data.columns === 2 ? "grid-cols-1 sm:grid-cols-2" :
-                  data.columns === 3 ? "grid-cols-1 sm:grid-cols-3" :
-                  data.columns === 4 ? "grid-cols-2 md:grid-cols-4" :
-                  "grid-cols-1 sm:grid-cols-2"
-                )}>
+                <div
+                  className={cn(
+                    'mb-4 grid gap-4',
+                    data.columns === 2
+                      ? 'grid-cols-1 sm:grid-cols-2'
+                      : data.columns === 3
+                        ? 'grid-cols-1 sm:grid-cols-3'
+                        : data.columns === 4
+                          ? 'grid-cols-2 md:grid-cols-4'
+                          : 'grid-cols-1 sm:grid-cols-2',
+                  )}
+                >
                   {data.items.map((item, idx) => {
                     const ItemIcon = getIcon(item.icon);
                     const itemTheme = item.color ? THEMES[item.color] : theme;
-                    const bulletPoints = item.description.split('\n').filter(p => p.trim().length > 0);
+                    const bulletPoints = item.description
+                      .split('\n')
+                      .filter((p) => p.trim().length > 0);
                     return (
-                      <div 
+                      <div
                         key={idx}
                         className={cn(
-                          "p-4 rounded-2xl border bg-white/40 dark:bg-zinc-900/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 flex flex-col justify-between",
-                          itemTheme.border
+                          'flex flex-col justify-between rounded-2xl border bg-white/40 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:bg-zinc-900/40',
+                          itemTheme.border,
                         )}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <div className="font-bold text-xs text-gray-800 dark:text-gray-100">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-bold text-gray-800 dark:text-gray-100">
                               {item.title}
                             </div>
                             {item.badge && (
-                              <span className={cn("text-[9px] px-2 py-0.5 rounded font-semibold", itemTheme.badge)}>
+                              <span
+                                className={cn(
+                                  'rounded px-2 py-0.5 text-[9px] font-semibold',
+                                  itemTheme.badge,
+                                )}
+                              >
                                 {item.badge}
                               </span>
                             )}
                           </div>
-                          
+
                           {bulletPoints.length > 1 ? (
-                            <div className="space-y-1.5 mt-2">
+                            <div className="mt-2 space-y-1.5">
                               {bulletPoints.map((bp, bpIdx) => (
-                                <div key={bpIdx} className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1.5 leading-relaxed">
-                                  <span className={cn("h-1.5 w-1.5 rounded-full mt-1.5 shrink-0", itemTheme.accent)} />
+                                <div
+                                  key={bpIdx}
+                                  className="flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+                                >
+                                  <span
+                                    className={cn(
+                                      'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full',
+                                      itemTheme.accent,
+                                    )}
+                                  />
                                   <span>{bp.replace(/^-\s*/, '')}</span>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                            <div className="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300">
                               {item.description}
                             </div>
                           )}
                         </div>
                         {item.icon && (
-                          <div className="flex justify-end mt-3">
-                            <div className={cn("p-1.5 rounded-lg shrink-0", itemTheme.iconBg, itemTheme.iconText)}>
+                          <div className="mt-3 flex justify-end">
+                            <div
+                              className={cn(
+                                'shrink-0 rounded-lg p-1.5',
+                                itemTheme.iconBg,
+                                itemTheme.iconText,
+                              )}
+                            >
                               <ItemIcon className="h-4 w-4" />
                             </div>
                           </div>
@@ -667,54 +739,62 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
               {/* layout === 'checklist' */}
               {data.layout === 'checklist' && (
-                <div className="grid grid-cols-1 gap-2.5 mb-4">
+                <div className="mb-4 grid grid-cols-1 gap-2.5">
                   {data.items.map((item, idx) => {
                     const itemTheme = item.color ? THEMES[item.color] : theme;
                     const isChecked = !!item.checked;
                     return (
-                      <div 
+                      <div
                         key={idx}
                         onClick={() => handleChecklistToggle(idx)}
                         className={cn(
-                          "flex items-start gap-3 p-3 rounded-xl border border-black/5 dark:border-white/10 transition-all duration-200 cursor-pointer select-none group",
-                          isChecked 
-                            ? "bg-emerald-500/5 dark:bg-emerald-500/5 border-emerald-500/20" 
-                            : "bg-white/40 dark:bg-zinc-900/40 hover:bg-black/5 dark:hover:bg-white/5"
+                          'group flex cursor-pointer select-none items-start gap-3 rounded-xl border border-black/5 p-3 transition-all duration-200 dark:border-white/10',
+                          isChecked
+                            ? 'border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/5'
+                            : 'bg-white/40 hover:bg-black/5 dark:bg-zinc-900/40 dark:hover:bg-white/5',
                         )}
                       >
-                        <div className="flex items-center justify-center pt-0.5 shrink-0">
+                        <div className="flex shrink-0 items-center justify-center pt-0.5">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             readOnly
-                            className="h-4.5 w-4.5 rounded border-gray-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer"
+                            className="h-4.5 w-4.5 cursor-pointer rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/30 dark:border-zinc-700"
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <div className={cn(
-                              "font-semibold text-xs transition-all duration-200",
-                              isChecked 
-                                ? "text-gray-400 dark:text-gray-500 line-through decoration-emerald-500/30" 
-                                : "text-gray-800 dark:text-gray-200"
-                            )}>
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <div
+                              className={cn(
+                                'text-xs font-semibold transition-all duration-200',
+                                isChecked
+                                  ? 'text-gray-400 line-through decoration-emerald-500/30 dark:text-gray-500'
+                                  : 'text-gray-800 dark:text-gray-200',
+                              )}
+                            >
                               {item.title}
                             </div>
                             {item.badge && (
-                              <span className={cn(
-                                "text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", 
-                                isChecked ? "bg-gray-100 dark:bg-zinc-800 text-gray-400" : itemTheme.badge
-                              )}>
+                              <span
+                                className={cn(
+                                  'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium',
+                                  isChecked
+                                    ? 'bg-gray-100 text-gray-400 dark:bg-zinc-800'
+                                    : itemTheme.badge,
+                                )}
+                              >
                                 {item.badge}
                               </span>
                             )}
                           </div>
-                          <div className={cn(
-                            "text-[11px] leading-normal transition-all duration-200",
-                            isChecked 
-                              ? "text-gray-400/80 dark:text-gray-500/80 line-through" 
-                              : "text-gray-600 dark:text-gray-400"
-                          )}>
+                          <div
+                            className={cn(
+                              'text-[11px] leading-normal transition-all duration-200',
+                              isChecked
+                                ? 'text-gray-400/80 line-through dark:text-gray-500/80'
+                                : 'text-gray-600 dark:text-gray-400',
+                            )}
+                          >
                             {item.description}
                           </div>
                         </div>
@@ -726,36 +806,43 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
               {/* layout === 'list' (default) */}
               {(!data.layout || data.layout === 'list') && (
-                <div className="grid grid-cols-1 gap-2.5 mb-4">
+                <div className="mb-4 grid grid-cols-1 gap-2.5">
                   {data.items.map((item, idx) => {
                     const ItemIcon = getIcon(item.icon);
                     const itemTheme = item.color ? THEMES[item.color] : theme;
                     return (
-                      <div 
+                      <div
                         key={idx}
                         className={cn(
-                          "flex gap-3 p-3 rounded-xl border border-black/5 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300 group"
+                          'group flex gap-3 rounded-xl border border-black/5 bg-white/40 p-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-zinc-900/40',
                         )}
                       >
-                        <div className={cn(
-                          "p-1.5 rounded-lg shrink-0 h-fit transition-transform group-hover:scale-105", 
-                          itemTheme.iconBg, 
-                          itemTheme.iconText
-                        )}>
+                        <div
+                          className={cn(
+                            'h-fit shrink-0 rounded-lg p-1.5 transition-transform group-hover:scale-105',
+                            itemTheme.iconBg,
+                            itemTheme.iconText,
+                          )}
+                        >
                           <ItemIcon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <div className="font-semibold text-xs text-gray-800 dark:text-gray-200">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                               {item.title}
                             </div>
                             {item.badge && (
-                              <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0", itemTheme.badge)}>
+                              <span
+                                className={cn(
+                                  'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium',
+                                  itemTheme.badge,
+                                )}
+                              >
                                 {item.badge}
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
+                          <div className="text-[11px] leading-normal text-gray-600 dark:text-gray-400">
                             {item.description}
                           </div>
                         </div>
@@ -769,7 +856,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
           {/* RENDER LINKS / ACTIONS */}
           {data.links && data.links.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-black/5 dark:border-white/10">
+            <div className="flex flex-wrap gap-2 border-t border-black/5 pt-2 dark:border-white/10">
               {data.links.map((link, idx) => {
                 const LinkIcon = getIcon(link.icon || 'ExternalLink');
                 return (
@@ -779,9 +866,9 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide border transition-all duration-200",
-                      "bg-white/80 dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 text-gray-700 dark:text-gray-200 shadow-sm",
-                      "hover:-translate-y-0.5 active:translate-y-0"
+                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200',
+                      'border-gray-200 bg-white/80 text-gray-700 shadow-sm hover:border-gray-300 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-gray-200 dark:hover:border-zinc-600',
+                      'hover:-translate-y-0.5 active:translate-y-0',
                     )}
                   >
                     <LinkIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
@@ -794,16 +881,16 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
           {/* RENDER SUGGESTED QUESTIONS / CHAT PROMPTS (CLAUDE STYLE) */}
           {suggestionsList.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-black/5 dark:border-white/10">
+            <div className="mt-3 flex flex-wrap gap-2 border-t border-black/5 pt-3 dark:border-white/10">
               {suggestionsList.map((suggestion, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleSuggestionClick(suggestion)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-200",
-                    "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 shadow-sm",
-                    "hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    'flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200',
+                    'border-indigo-100 bg-indigo-50 text-indigo-700 shadow-sm hover:bg-indigo-100 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
+                    'cursor-pointer hover:-translate-y-0.5 active:translate-y-0',
                   )}
                 >
                   <span>{suggestion}</span>
@@ -815,7 +902,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
           {/* FOOTER */}
           {data.footer && (
-            <div className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 border-t border-black/5 dark:border-white/10 pt-2 text-right italic font-medium">
+            <div className="mt-3 border-t border-black/5 pt-2 text-right text-[10px] font-medium italic text-gray-400 dark:border-white/10 dark:text-gray-500">
               {data.footer}
             </div>
           )}
