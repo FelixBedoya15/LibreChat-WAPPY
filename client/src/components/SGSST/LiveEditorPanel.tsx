@@ -158,6 +158,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.'
 }) => {
   const { token, user } = useAuthContext();
+  const userId = user?.id || user?._id;
   const [content, setContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('Documento_Live');
   const [isLoading, setIsLoading] = useState(false);
@@ -201,7 +202,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       const withSigs = appendSignatureIfMissing(finalHtml);
       
       const targetId = (!conversationId || conversationId === 'new')
-        ? (user?.id ? `temp-${user.id}` : null)
+        ? (userId ? `temp-${userId}` : null)
         : conversationId;
 
       if (targetId) {
@@ -250,7 +251,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
     const targetId = (!conversationId || conversationId === 'new')
-      ? (user?.id ? `temp-${user.id}` : null)
+      ? (userId ? `temp-${userId}` : null)
       : conversationId;
     if (!targetId) return;
     if (isSavingRef.current) return;
@@ -278,23 +279,23 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     } finally {
       if (isInitial) setIsLoading(false);
     }
-  }, [conversationId, token, user?.id]);
+  }, [conversationId, token, userId]);
 
   useEffect(() => { fetchDocument(true); }, [fetchDocument]);
 
   useEffect(() => {
     const targetId = (!conversationId || conversationId === 'new')
-      ? (user?.id ? `temp-${user.id}` : null)
+      ? (userId ? `temp-${userId}` : null)
       : conversationId;
     if (!targetId) return;
     const interval = setInterval(() => fetchDocument(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [conversationId, fetchDocument, isSubmitting, user?.id]);
+  }, [conversationId, fetchDocument, isSubmitting, userId]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const targetId = (!conversationId || conversationId === 'new')
-      ? (user?.id ? `temp-${user.id}` : null)
+      ? (userId ? `temp-${userId}` : null)
       : conversationId;
     if (!targetId) return;
     try {
@@ -326,7 +327,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [conversationId, token, content, fileName, user?.id]);
+  }, [conversationId, token, content, fileName, userId]);
 
   const prevConvoIdRef = useRef<string | undefined>(conversationId);
 
@@ -379,7 +380,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     if (docContent) {
       const withSigs = appendSignatureIfMissing(docContent);
       const targetId = (!conversationId || conversationId === 'new')
-        ? (user?.id ? `temp-${user.id}` : null)
+        ? (userId ? `temp-${userId}` : null)
         : conversationId;
       if (targetId) {
         const saveRes = await fetch(`/api/live-editor/${targetId}`, {
@@ -408,7 +409,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   // ── Clear ─────────────────────────────────────────────────────────────────
   const handleClear = async () => {
     const targetId = (!conversationId || conversationId === 'new')
-      ? (user?.id ? `temp-${user.id}` : null)
+      ? (userId ? `temp-${userId}` : null)
       : conversationId;
     if (!targetId) return;
     if (!window.confirm('¿Eliminar el documento actual? Esta acción no se puede deshacer.')) return;

@@ -555,6 +555,11 @@ export default function MatrizIPEVARTable({
   const isPendingImport = useRef(false);
   const isDirtyRef = useRef(false);
   const prevConvoIdRef = useRef<string | null>(null);
+  const matrixRowsRef = useRef<MatrixRow[]>(matrixRows);
+
+  useEffect(() => {
+    matrixRowsRef.current = matrixRows;
+  }, [matrixRows]);
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
@@ -910,6 +915,7 @@ export default function MatrizIPEVARTable({
   }, []);
 
   const { token, user } = useAuthContext();
+  const userId = user?.id || user?._id;
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId =
     conversation?.conversationId && conversation.conversationId !== 'new'
@@ -934,7 +940,7 @@ export default function MatrizIPEVARTable({
         // Lógica por defecto (conversación)
         const targetId = id ?? actualConvoId;
         const targetConvoId = (!targetId || targetId === 'new')
-          ? (user?.id ? `temp-${user.id}` : null)
+          ? (userId ? `temp-${userId}` : null)
           : targetId;
         if (!targetConvoId) return;
 
@@ -951,7 +957,7 @@ export default function MatrizIPEVARTable({
         setIsLoading(false);
       }
     },
-    [actualConvoId, token, workerId, user?.id],
+    [actualConvoId, token, workerId, userId],
   );
 
   useEffect(() => {
@@ -963,8 +969,8 @@ export default function MatrizIPEVARTable({
       const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (actualConvoId && actualConvoId !== 'new');
       
       if (isTransitionFromNewToReal) {
-        if (isDirtyRef.current && matrixRows.length > 0) {
-          saveMatrixData(matrixRows);
+        if (isDirtyRef.current && matrixRowsRef.current.length > 0) {
+          saveMatrixData(matrixRowsRef.current);
           isDirtyRef.current = false;
         }
       } else {
@@ -1016,7 +1022,7 @@ export default function MatrizIPEVARTable({
       }
 
       const targetConvoId = (!actualConvoId || actualConvoId === 'new')
-        ? (user?.id ? `temp-${user.id}` : null)
+        ? (userId ? `temp-${userId}` : null)
         : actualConvoId;
       if (!targetConvoId) return;
 
