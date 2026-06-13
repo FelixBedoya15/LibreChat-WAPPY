@@ -581,6 +581,29 @@ export default function MatrizIPEVARTable({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Helper to fill merged cells in place
+    const autofillMergedCells = (ws: any) => {
+      if (!ws || !ws['!merges']) return;
+      ws['!merges'].forEach((merge: any) => {
+        const startRow = merge.s.r;
+        const startCol = merge.s.c;
+        const endRow = merge.e.r;
+        const endCol = merge.e.c;
+
+        const startCellAddress = XLSX.utils.encode_cell({ r: startRow, c: startCol });
+        const startCell = ws[startCellAddress];
+        if (!startCell || startCell.v === undefined) return;
+
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = startCol; c <= endCol; c++) {
+            if (r === startRow && c === startCol) continue;
+            const cellAddress = XLSX.utils.encode_cell({ r, c });
+            ws[cellAddress] = { ...startCell };
+          }
+        }
+      });
+    };
+
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -627,34 +650,85 @@ export default function MatrizIPEVARTable({
         } else if (file.name.endsWith('.xlsx')) {
           const wb = XLSX.read(data, { type: 'binary' });
           
-          let ws = wb.Sheets[wb.SheetNames[0]];
-          if (wb.SheetNames.length > 1) {
-            const matchedName = wb.SheetNames.find((name) => name.toLowerCase().includes('matriz'));
-            if (matchedName) {
-              ws = wb.Sheets[matchedName];
-            } else {
-              let bestSheet = wb.SheetNames[0];
-              let maxRows = 0;
-              for (const name of wb.SheetNames) {
-                const sheet = wb.Sheets[name];
-                const rows = XLSX.utils.sheet_to_json(sheet);
-                if (rows.length > maxRows) {
-                  maxRows = rows.length;
-                  bestSheet = name;
+          let allSheetRows: any[] = [];
+          let hasMatrixSheet = false;
+          
+          for (const sheetName of wb.SheetNames) {
+            const ws = wb.Sheets[sheetName];
+            
+            // 1. Autofill merged cells in the sheet object
+            autofillMergedCells(ws);
+            
+            // 2. Convert to raw arrays
+            const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+            if (rawRows.length === 0) continue;
+            
+            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 keywords
+            let headerRowIdx = -1;
+            for (let r = 0; r < Math.min(20, rawRows.length); r++) {
+              const row = rawRows[r];
+              if (Array.isArray(row) && row.some(cell => {
+                const str = String(cell || '').toLowerCase();
+                return str === 'proceso' || str === 'actividad' || str === 'actividades' || str === 'peligro';
+              })) {
+                headerRowIdx = r;
+                break;
+              }
+            }
+            
+            // If no matrix keywords found in the first 20 rows, skip this sheet (it's a reference sheet)
+            if (headerRowIdx === -1) continue;
+            
+            hasMatrixSheet = true;
+            
+            // 4. Extract and combine headers
+            const headers = rawRows[headerRowIdx].map(h => String(h || '').trim());
+            let startDataRow = headerRowIdx + 1;
+            
+            if (rawRows[startDataRow] && rawRows[startDataRow].some(cell => {
+              const str = String(cell || '').toLowerCase();
+              return str === 'descripcion' || str === 'descripción' || str === 'fuente' || str === 'clasificación' || str === 'clasificacion' || str === 'medio' || str === 'individuo';
+            })) {
+              const subHeaders = rawRows[startDataRow];
+              for (let col = 0; col < headers.length; col++) {
+                const subVal = String(subHeaders[col] || '').trim();
+                const mainVal = headers[col] || '';
+                if (!mainVal && subVal) {
+                  headers[col] = subVal;
+                } else if (mainVal && subVal && subVal !== mainVal) {
+                  headers[col] = `${mainVal} - ${subVal}`;
                 }
               }
-              ws = wb.Sheets[bestSheet];
+              startDataRow++;
+            }
+            
+            // 5. Map rows to objects
+            for (let r = startDataRow; r < rawRows.length; r++) {
+              const row = rawRows[r];
+              if (!row || row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) {
+                continue;
+              }
+              
+              const obj: any = { __sheetName: sheetName };
+              for (let col = 0; col < headers.length; col++) {
+                const key = headers[col] || `Column_${col}`;
+                obj[key] = row[col] !== undefined ? row[col] : '';
+              }
+              allSheetRows.push(obj);
             }
           }
-
-          const json = XLSX.utils.sheet_to_json(ws);
-
-          if (json.length === 0) {
-            alert('El archivo Excel está vacío.');
+          
+          if (!hasMatrixSheet) {
+            alert('No se encontró ninguna hoja con formato de matriz (GTC-45) en el archivo Excel.');
+            return;
+          }
+          
+          if (allSheetRows.length === 0) {
+            alert('El archivo Excel está vacío o no contiene filas de datos.');
             return;
           }
 
-          const firstRow = json[0] || {};
+          const firstRow = allSheetRows[0] || {};
           const keys = Object.keys(firstRow);
 
           const isStandard = (
@@ -666,7 +740,7 @@ export default function MatrizIPEVARTable({
           );
 
           if (isStandard) {
-            const newRows = json.map((r: any) => ({
+            const newRows = allSheetRows.map((r: any) => ({
               proceso: r['Proceso'] || r['proceso'] || '',
               zona: r['Zona / Lugar'] || r['Zona'] || r['zona'] || '',
               actividad: r['Actividad'] || r['actividad'] || '',
@@ -704,7 +778,7 @@ export default function MatrizIPEVARTable({
             }
             alert(`Importados ${newRows.length} riesgos exitosamente.`);
           } else {
-            setPendingRawRows(json);
+            setPendingRawRows(allSheetRows);
             setIsConfirmModalOpen(true);
           }
         }
