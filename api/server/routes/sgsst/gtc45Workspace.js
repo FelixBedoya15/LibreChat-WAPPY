@@ -10,6 +10,13 @@ const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 
+function toSentenceCase(str) {
+  if (!str) return '';
+  const trimmed = String(str).trim();
+  if (trimmed.length === 0) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
@@ -59,10 +66,16 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
+    const normalizedRows = (matrixRows || []).map(row => ({
+      ...row,
+      proceso: toSentenceCase(row.proceso),
+      zona: toSentenceCase(row.zona)
+    }));
+
     let session = await GTC45WorkspaceSession.findOneAndUpdate(
       { conversationId, companyId: companyId },
       {
-        $set: { matrixRows: matrixRows || [], companyId },
+        $set: { matrixRows: normalizedRows, companyId },
         $setOnInsert: { user: userId },
       },
       { upsert: true, new: true },
@@ -482,9 +495,9 @@ Tu tarea es analizar detalladamente el contenido de cada fila y reconstruir/mape
 
 El formato de salida que requerimos para cada fila es un objeto JSON con la siguiente estructura exacta:
 {
-  "proceso": "<área, proceso o sección. Por ejemplo: Administración, Operaciones, Ventas.>",
-  "zona": "<zona, lugar, oficina o sede. Por ejemplo: Planta 1, Oficina principal.>",
-  "actividad": "<actividad o labor principal. Por ejemplo: Digitador, Conducción de vehículo.>",
+  "proceso": "<área, proceso, sección o cargo de la persona en formato tipo oración (primera letra en mayúscula y el resto en minúsculas). Por ejemplo: Administración, Operaciones, Ventas, Auxiliar de Bodega.>",
+  "zona": "<zona, lugar, oficina o sede en formato tipo oración (primera letra en mayúscula y el resto en minúsculas). Por ejemplo: Planta 1, Oficina principal.>",
+  "actividad": "<actividad o labor principal. Por ejemplo: Digitador, Conducción de vehículo, o el cargo si este describe la actividad.>",
   "tareas": "<tareas específicas del puesto.>",
   "rutinaria": "<'Sí' o 'No'. Estima si la actividad es rutinaria según tu criterio técnico si no se especifica.>",
   "peligro_descripcion": "<descripción clara del peligro o factor de riesgo detectado.>",
@@ -538,8 +551,8 @@ ${JSON.stringify(chunk, null, 2)}
       }
 
       return parsed.map(row => ({
-        proceso: row.proceso || '',
-        zona: row.zona || '',
+        proceso: toSentenceCase(row.proceso || ''),
+        zona: toSentenceCase(row.zona || ''),
         actividad: row.actividad || '',
         tareas: row.tareas || '',
         rutinaria: row.rutinaria || 'Sí',

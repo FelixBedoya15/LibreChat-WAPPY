@@ -502,6 +502,28 @@ const AITextarea = ({
   </div>
 );
 
+const toSentenceCase = (str: string): string => {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (trimmed.length === 0) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+const getValueByKeys = (obj: any, aliases: string[]): string => {
+  for (const alias of aliases) {
+    if (obj[alias] !== undefined && obj[alias] !== null) {
+      return String(obj[alias]).trim();
+    }
+    const foundKey = Object.keys(obj).find(
+      (k) => k.toLowerCase().replace(/\s+/g, '') === alias.toLowerCase().replace(/\s+/g, '')
+    );
+    if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
+      return String(obj[foundKey]).trim();
+    }
+  }
+  return '';
+};
+
 // ════════════════════════════════════════════════════════════════════════════
 export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
@@ -527,6 +549,29 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Helper to fill merged cells in place
+    const autofillMergedCells = (ws: any) => {
+      if (!ws || !ws['!merges']) return;
+      ws['!merges'].forEach((merge: any) => {
+        const startRow = merge.s.r;
+        const startCol = merge.s.c;
+        const endRow = merge.e.r;
+        const endCol = merge.e.c;
+
+        const startCellAddress = XLSX.utils.encode_cell({ r: startRow, c: startCol });
+        const startCell = ws[startCellAddress];
+        if (!startCell || startCell.v === undefined) return;
+
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = startCol; c <= endCol; c++) {
+            if (r === startRow && c === startCol) continue;
+            const cellAddress = XLSX.utils.encode_cell({ r, c });
+            ws[cellAddress] = { ...startCell };
+          }
+        }
+      });
+    };
+
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -534,42 +579,125 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         let newRows: MatrixRow[] = [];
 
         if (file.name.endsWith('.json')) {
-          newRows = JSON.parse(data as string);
+          const parsed = JSON.parse(data as string);
+          if (Array.isArray(parsed)) {
+            newRows = parsed.map(r => ({
+              ...r,
+              proceso: toSentenceCase(r.proceso || r.Proceso || r.cargo || r.Cargo || ''),
+              zona: toSentenceCase(r.zona || r.Zona || ''),
+              id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+              nd: Number(r.nd) || 0,
+              ne: Number(r.ne) || 0,
+              np: Number(r.np) || 0,
+              nc: Number(r.nc) || 0,
+              nr: Number(r.nr) || 0,
+            }));
+          }
         } else if (file.name.endsWith('.xlsx')) {
           const wb = XLSX.read(data, { type: 'binary' });
-          const sheetName =
-            wb.SheetNames.find((name) => name.toLowerCase().includes('matriz')) || wb.SheetNames[0];
-          const ws = wb.Sheets[sheetName];
-          const json = XLSX.utils.sheet_to_json(ws);
+          let allSheetRows: any[] = [];
+          let hasMatrixSheet = false;
 
-          newRows = json.map((r: any) => ({
-            proceso: r['Proceso'] || '',
-            zona: r['Zona'] || '',
-            actividad: r['Actividad'] || '',
-            tareas: r['Tareas'] || '',
-            rutinaria: r['Rutinaria'] || 'Sí',
-            peligro_descripcion: r['Descripción del Peligro'] || '',
-            peligro_clasificacion: r['Clasificación'] || '',
-            efectos_posibles: r['Efectos Posibles'] || '',
-            controles_fuente: r['Ctrl. Fuente'] || 'Ninguno',
-            controles_medio: r['Ctrl. Medio'] || 'Ninguno',
-            controles_individuo: r['Ctrl. Individuo'] || 'Ninguno',
-            nd: Number(r['ND']) || 0,
-            ne: Number(r['NE']) || 0,
-            np: Number(r['NP']) || 0,
-            nc: Number(r['NC']) || 0,
-            nr: Number(r['NR']) || 0,
-            interpretacion_nr: r['Interpretación NR'] || '',
-            aceptabilidad: r['Aceptabilidad'] || '',
-            medida_eliminacion: r['Eliminación'] || 'Ninguno',
-            medida_sustitucion: r['Sustitución'] || 'Ninguno',
-            medida_ingenieria: r['Ingeniería'] || 'Ninguno',
-            medida_administrativa: r['Administrativos'] || 'Ninguno',
-            medida_eppu: r['EPP'] || 'Ninguno',
-            factores_reduccion: r['Factores Reducción (Anexo E)'] || 'No aplica',
-            nd_cualitativo: null,
-            id: Date.now().toString() + Math.random().toString(36).substring(7),
-          }));
+          for (const sheetName of wb.SheetNames) {
+            const ws = wb.Sheets[sheetName];
+            autofillMergedCells(ws);
+            const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+            if (rawRows.length === 0) continue;
+
+            let headerRowIdx = -1;
+            for (let r = 0; r < Math.min(20, rawRows.length); r++) {
+              const row = rawRows[r];
+              if (Array.isArray(row) && row.some(cell => {
+                const str = String(cell || '').toLowerCase().trim();
+                return str === 'proceso' || str === 'actividad' || str === 'actividades' || str === 'peligro';
+              })) {
+                headerRowIdx = r;
+                break;
+              }
+            }
+
+            if (headerRowIdx === -1) continue;
+            hasMatrixSheet = true;
+
+            const headers = rawRows[headerRowIdx].map(h => String(h || '').trim());
+            let startDataRow = headerRowIdx + 1;
+
+            if (rawRows[startDataRow] && rawRows[startDataRow].some(cell => {
+              const str = String(cell || '').toLowerCase();
+              return str === 'descripcion' || str === 'descripción' || str === 'fuente' || str === 'clasificación' || str === 'clasificacion' || str === 'medio' || str === 'individuo';
+            })) {
+              const subHeaders = rawRows[startDataRow];
+              for (let col = 0; col < headers.length; col++) {
+                const subVal = String(subHeaders[col] || '').trim();
+                const mainVal = headers[col] || '';
+                if (!mainVal && subVal) {
+                  headers[col] = subVal;
+                } else if (mainVal && subVal && subVal !== mainVal) {
+                  headers[col] = mainVal + ' - ' + subVal;
+                }
+              }
+              startDataRow++;
+            }
+
+            for (let r = startDataRow; r < rawRows.length; r++) {
+              const row = rawRows[r];
+              if (!row || row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) {
+                continue;
+              }
+
+              if (row[0] && String(row[0]).trim().toUpperCase() === 'RIESGOS') {
+                break;
+              }
+
+              const obj: any = { __sheetName: sheetName };
+              for (let col = 0; col < headers.length; col++) {
+                const key = headers[col] || `Column_${col}`;
+                obj[key] = row[col] !== undefined ? row[col] : '';
+              }
+              allSheetRows.push(obj);
+            }
+          }
+
+          if (!hasMatrixSheet) {
+            alert('No se encontró ninguna hoja con formato de matriz (GTC-45) en el archivo Excel.');
+            return;
+          }
+
+          newRows = allSheetRows.map((r: any) => {
+            const ndVal = Number(getValueByKeys(r, ['ND', 'nd', 'Nivel de deficiencia', 'Evaluación del Riesgo - Nivel de deficiencia'])) || 0;
+            const neVal = Number(getValueByKeys(r, ['NE', 'ne', 'Nivel de Exposicion', 'Nivel de exposición', 'Evaluación del Riesgo - Nivel de Exposicion', 'Evaluación del Riesgo - Nivel de exposición'])) || 0;
+            const ncVal = Number(getValueByKeys(r, ['NC', 'nc', 'Nivel de consecuencia', 'Evaluación del Riesgo - Nivel de consecuencia'])) || 0;
+            const npVal = ndVal * neVal;
+            const nrVal = npVal * ncVal;
+            return {
+              proceso: toSentenceCase(getValueByKeys(r, ['Proceso', 'proceso', 'Cargo', 'cargo', 'Cargos', 'cargos'])),
+              zona: toSentenceCase(getValueByKeys(r, ['Zona / Lugar', 'Zona/lugar', 'Zona', 'zona', 'lugar', 'Zona / lugar', 'Lugar'])),
+              actividad: getValueByKeys(r, ['Actividad', 'actividad', 'Actividades', 'actividades']),
+              tareas: getValueByKeys(r, ['Tareas', 'tareas', 'Tarea', 'tarea']),
+              rutinaria: getValueByKeys(r, ['Rutinaria', 'rutinaria', 'Rutinario (si o no)', 'Rutinario', 'rutinario', 'Rutinaria (si/no)', 'Rutinaria (si o no)']) || 'Sí',
+              peligro_descripcion: getValueByKeys(r, ['Descripción del Peligro', 'Descripción', 'peligro_descripcion', 'Peligro - Descripcion', 'Peligro - Descripción', 'Peligro', 'peligro', 'Descripción peligro']),
+              peligro_clasificacion: getValueByKeys(r, ['Clasificación', 'clasificacion', 'Peligro - Clasificación', 'Peligro - Clasificacion', 'Clasificación del peligro', 'Tipo de peligro']),
+              efectos_posibles: getValueByKeys(r, ['Efectos Posibles', 'Efectos posibles', 'efectos_posibles', 'Efectos en la salud', 'Efectos', 'Consecuencias']),
+              controles_fuente: getValueByKeys(r, ['Ctrl. Fuente', 'controles_fuente', 'Controles existentes - Fuente', 'Fuente', 'Control Fuente']) || 'Ninguno',
+              controles_medio: getValueByKeys(r, ['Ctrl. Medio', 'controles_medio', 'Controles existentes - Medio', 'Medio', 'Control Medio']) || 'Ninguno',
+              controles_individuo: getValueByKeys(r, ['Ctrl. Individuo', 'controles_individuo', 'Controles existentes - Persona', 'Controles existentes - Individuo', 'Persona', 'Individuo', 'Control Individuo']) || 'Ninguno',
+              nd: ndVal,
+              ne: neVal,
+              np: npVal,
+              nc: ncVal,
+              nr: nrVal,
+              interpretacion_nr: getValueByKeys(r, ['Interpretación NR', 'interpretacion_nr', 'Interpretación del nivel de probabilidad', 'Evaluación del Riesgo - Interpretacion del nivel de probabilidad']),
+              aceptabilidad: getValueByKeys(r, ['Aceptabilidad del Riesgo', 'Aceptabilidad', 'aceptabilidad', 'Valoración del Riesgo - Aceptabilidad del riesgo']),
+              medida_eliminacion: getValueByKeys(r, ['Eliminación', 'medida_eliminacion', 'Medidas de intervención - Reducción o Eliminación', 'Medidas de intervención - Eliminación']) || 'Ninguno',
+              medida_sustitucion: getValueByKeys(r, ['Sustitución', 'medida_sustitucion', 'Medidas de intervención - Sustitución']) || 'Ninguno',
+              medida_ingenieria: getValueByKeys(r, ['Ctrl. Ingeniería', 'Ingeniería', 'medida_ingenieria', 'Medidas de intervención - Controles de ingeniería']) || 'Ninguno',
+              medida_administrativa: getValueByKeys(r, ['Ctrl. Administrativos', 'Administrativos', 'medida_administrativa', 'Medidas de intervención - Controles administrativos, señalización, advertencia']) || 'Ninguno',
+              medida_eppu: getValueByKeys(r, ['Equipos/EPP', 'EPP', 'medida_eppu', 'Medidas de intervención - Equipos/elementos de protección personal']) || 'Ninguno',
+              factores_reduccion: getValueByKeys(r, ['Factores de Reducción', 'Factores Reducción (Anexo E)', 'factores_reduccion']) || 'No aplica',
+              nd_cualitativo: null,
+              id: Date.now().toString() + Math.random().toString(36).substring(7),
+            };
+          });
         }
 
         if (newRows.length > 0) {
@@ -701,13 +829,19 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
   const saveMatrixData = async (rows: MatrixRow[]) => {
     if (!actualConvoId || actualConvoId === 'new') return;
+    const normalizedRows = rows.map((r) => ({
+      ...r,
+      proceso: toSentenceCase(r.proceso),
+      zona: toSentenceCase(r.zona),
+    }));
     try {
       setIsSaving(true);
       await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ matrixRows: rows }),
+        body: JSON.stringify({ matrixRows: normalizedRows }),
       });
+      setMatrixRows(normalizedRows);
     } catch (e) {
       console.error('[Matriz] Save error:', e);
     } finally {

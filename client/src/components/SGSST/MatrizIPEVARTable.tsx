@@ -504,6 +504,28 @@ const AITextarea = ({
   </div>
 );
 
+const toSentenceCase = (str: string): string => {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (trimmed.length === 0) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+const getValueByKeys = (obj: any, aliases: string[]): string => {
+  for (const alias of aliases) {
+    if (obj[alias] !== undefined && obj[alias] !== null) {
+      return String(obj[alias]).trim();
+    }
+    const foundKey = Object.keys(obj).find(
+      (k) => k.toLowerCase().replace(/\s+/g, '') === alias.toLowerCase().replace(/\s+/g, '')
+    );
+    if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
+      return String(obj[foundKey]).trim();
+    }
+  }
+  return '';
+};
+
 // ════════════════════════════════════════════════════════════════════════════
 export default function MatrizIPEVARTable({
   conversationId,
@@ -555,7 +577,12 @@ export default function MatrizIPEVARTable({
 
       const data = await res.json();
       if (data.matrixRows && data.matrixRows.length > 0) {
-        const combined = [...matrixRows, ...data.matrixRows];
+        const normalized = data.matrixRows.map((r: any) => ({
+          ...r,
+          proceso: toSentenceCase(r.proceso),
+          zona: toSentenceCase(r.zona),
+        }));
+        const combined = [...matrixRows, ...normalized];
         setMatrixRows(combined);
         if (actualConvoId && actualConvoId !== 'new') {
           saveMatrixData(combined);
@@ -615,16 +642,25 @@ export default function MatrizIPEVARTable({
             const firstRow = parsed[0] || {};
             const keys = Object.keys(firstRow);
             const isStandard = (
-              keys.some(k => k.toLowerCase() === 'proceso') &&
-              keys.some(k => k.toLowerCase() === 'actividad') &&
-              keys.some(k => k.toLowerCase().includes('peligro'))
-            ) || (
-              ['proceso', 'actividad', 'peligro_descripcion'].every(k => keys.includes(k))
+              keys.some(k => {
+                const l = k.toLowerCase().replace(/\s+/g, '');
+                return l === 'proceso' || l === 'cargo' || l === 'cargos';
+              }) &&
+              keys.some(k => {
+                const l = k.toLowerCase().replace(/\s+/g, '');
+                return l === 'actividad' || l === 'actividades';
+              }) &&
+              keys.some(k => {
+                const l = k.toLowerCase().replace(/\s+/g, '');
+                return l.includes('peligro') || l.includes('riesgo');
+              })
             );
 
             if (isStandard) {
               const withIds = parsed.map(r => ({
                 ...r,
+                proceso: toSentenceCase(r.proceso || r.Proceso || ''),
+                zona: toSentenceCase(r.zona || r.Zona || ''),
                 id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
                 nd: Number(r.nd) || 0,
                 ne: Number(r.ne) || 0,
@@ -641,7 +677,12 @@ export default function MatrizIPEVARTable({
               }
               alert(`Importados ${withIds.length} riesgos exitosamente.`);
             } else {
-              setPendingRawRows(parsed);
+              const preCleaned = parsed.map((r: any) => ({
+                ...r,
+                Proceso: toSentenceCase(r.Proceso || r.proceso || ''),
+                Zona: toSentenceCase(r.Zona || r.zona || ''),
+              }));
+              setPendingRawRows(preCleaned);
               setIsConfirmModalOpen(true);
             }
           } else {
@@ -668,7 +709,7 @@ export default function MatrizIPEVARTable({
             for (let r = 0; r < Math.min(20, rawRows.length); r++) {
               const row = rawRows[r];
               if (Array.isArray(row) && row.some(cell => {
-                const str = String(cell || '').toLowerCase();
+                const str = String(cell || '').toLowerCase().trim();
                 return str === 'proceso' || str === 'actividad' || str === 'actividades' || str === 'peligro';
               })) {
                 headerRowIdx = r;
@@ -709,6 +750,10 @@ export default function MatrizIPEVARTable({
                 continue;
               }
               
+              if (row[0] && String(row[0]).trim().toUpperCase() === 'RIESGOS') {
+                break;
+              }
+              
               const obj: any = { __sheetName: sheetName };
               for (let col = 0; col < headers.length; col++) {
                 const key = headers[col] || `Column_${col}`;
@@ -732,42 +777,56 @@ export default function MatrizIPEVARTable({
           const keys = Object.keys(firstRow);
 
           const isStandard = (
-            keys.some(k => k.toLowerCase() === 'proceso') &&
-            keys.some(k => k.toLowerCase() === 'actividad') &&
-            keys.some(k => k.toLowerCase().includes('peligro'))
-          ) || (
-            ['Proceso', 'Actividad', 'Descripción del Peligro'].every(k => keys.includes(k))
+            keys.some(k => {
+              const l = k.toLowerCase().replace(/\s+/g, '');
+              return l === 'proceso' || l === 'cargo' || l === 'cargos';
+            }) &&
+            keys.some(k => {
+              const l = k.toLowerCase().replace(/\s+/g, '');
+              return l === 'actividad' || l === 'actividades';
+            }) &&
+            keys.some(k => {
+              const l = k.toLowerCase().replace(/\s+/g, '');
+              return l.includes('peligro') || l.includes('riesgo');
+            })
           );
 
           if (isStandard) {
-            const newRows = allSheetRows.map((r: any) => ({
-              proceso: r['Proceso'] || r['proceso'] || '',
-              zona: r['Zona / Lugar'] || r['Zona'] || r['zona'] || '',
-              actividad: r['Actividad'] || r['actividad'] || '',
-              tareas: r['Tareas'] || r['tareas'] || '',
-              rutinaria: r['Rutinaria'] || r['rutinaria'] || 'Sí',
-              peligro_descripcion: r['Descripción del Peligro'] || r['Descripción'] || r['peligro_descripcion'] || '',
-              peligro_clasificacion: r['Clasificación'] || r['clasificacion'] || '',
-              efectos_posibles: r['Efectos Posibles'] || r['efectos_posibles'] || '',
-              controles_fuente: r['Ctrl. Fuente'] || r['controles_fuente'] || 'Ninguno',
-              controles_medio: r['Ctrl. Medio'] || r['controles_medio'] || 'Ninguno',
-              controles_individuo: r['Ctrl. Individuo'] || r['controles_individuo'] || 'Ninguno',
-              nd: Number(r['ND']) || Number(r['nd']) || 0,
-              ne: Number(r['NE']) || Number(r['ne']) || 0,
-              np: Number(r['NP']) || Number(r['np']) || 0,
-              nc: Number(r['NC']) || Number(r['nc']) || 0,
-              nr: Number(r['NR']) || Number(r['nr']) || 0,
-              interpretacion_nr: r['Interpretación NR'] || r['interpretacion_nr'] || '',
-              aceptabilidad: r['Aceptabilidad del Riesgo'] || r['Aceptabilidad'] || r['aceptabilidad'] || '',
-              medida_eliminacion: r['Eliminación'] || r['medida_eliminacion'] || 'Ninguno',
-              medida_sustitucion: r['Sustitución'] || r['medida_sustitucion'] || 'Ninguno',
-              medida_ingenieria: r['Ctrl. Ingeniería'] || r['Ingeniería'] || r['medida_ingenieria'] || 'Ninguno',
-              medida_administrativa: r['Ctrl. Administrativos'] || r['Administrativos'] || r['medida_administrativa'] || 'Ninguno',
-              medida_eppu: r['Equipos/EPP'] || r['EPP'] || r['medida_eppu'] || 'Ninguno',
-              factores_reduccion: r['Factores de Reducción'] || r['Factores Reducción (Anexo E)'] || r['factores_reduccion'] || 'No aplica',
-              nd_cualitativo: null,
-              id: Date.now().toString() + Math.random().toString(36).substring(7),
-            }));
+            const newRows = allSheetRows.map((r: any) => {
+              const ndVal = Number(getValueByKeys(r, ['ND', 'nd', 'Nivel de deficiencia', 'Evaluación del Riesgo - Nivel de deficiencia'])) || 0;
+              const neVal = Number(getValueByKeys(r, ['NE', 'ne', 'Nivel de Exposicion', 'Nivel de exposición', 'Evaluación del Riesgo - Nivel de Exposicion', 'Evaluación del Riesgo - Nivel de exposición'])) || 0;
+              const ncVal = Number(getValueByKeys(r, ['NC', 'nc', 'Nivel de consecuencia', 'Evaluación del Riesgo - Nivel de consecuencia'])) || 0;
+              const npVal = ndVal * neVal;
+              const nrVal = npVal * ncVal;
+              return {
+                proceso: toSentenceCase(getValueByKeys(r, ['Proceso', 'proceso', 'Cargo', 'cargo', 'Cargos', 'cargos'])),
+                zona: toSentenceCase(getValueByKeys(r, ['Zona / Lugar', 'Zona/lugar', 'Zona', 'zona', 'lugar', 'Zona / lugar', 'Lugar'])),
+                actividad: getValueByKeys(r, ['Actividad', 'actividad', 'Actividades', 'actividades']),
+                tareas: getValueByKeys(r, ['Tareas', 'tareas', 'Tarea', 'tarea']),
+                rutinaria: getValueByKeys(r, ['Rutinaria', 'rutinaria', 'Rutinario (si o no)', 'Rutinario', 'rutinario', 'Rutinaria (si/no)', 'Rutinaria (si o no)']) || 'Sí',
+                peligro_descripcion: getValueByKeys(r, ['Descripción del Peligro', 'Descripción', 'peligro_descripcion', 'Peligro - Descripcion', 'Peligro - Descripción', 'Peligro', 'peligro', 'Descripción peligro']),
+                peligro_clasificacion: getValueByKeys(r, ['Clasificación', 'clasificacion', 'Peligro - Clasificación', 'Peligro - Clasificacion', 'Clasificación del peligro', 'Tipo de peligro']),
+                efectos_posibles: getValueByKeys(r, ['Efectos Posibles', 'Efectos posibles', 'efectos_posibles', 'Efectos en la salud', 'Efectos', 'Consecuencias']),
+                controles_fuente: getValueByKeys(r, ['Ctrl. Fuente', 'controles_fuente', 'Controles existentes - Fuente', 'Fuente', 'Control Fuente']) || 'Ninguno',
+                controles_medio: getValueByKeys(r, ['Ctrl. Medio', 'controles_medio', 'Controles existentes - Medio', 'Medio', 'Control Medio']) || 'Ninguno',
+                controles_individuo: getValueByKeys(r, ['Ctrl. Individuo', 'controles_individuo', 'Controles existentes - Persona', 'Controles existentes - Individuo', 'Persona', 'Individuo', 'Control Individuo']) || 'Ninguno',
+                nd: ndVal,
+                ne: neVal,
+                np: npVal,
+                nc: ncVal,
+                nr: nrVal,
+                interpretacion_nr: getValueByKeys(r, ['Interpretación NR', 'interpretacion_nr', 'Interpretación del nivel de probabilidad', 'Evaluación del Riesgo - Interpretacion del nivel de probabilidad']),
+                aceptabilidad: getValueByKeys(r, ['Aceptabilidad del Riesgo', 'Aceptabilidad', 'aceptabilidad', 'Valoración del Riesgo - Aceptabilidad del riesgo']),
+                medida_eliminacion: getValueByKeys(r, ['Eliminación', 'medida_eliminacion', 'Medidas de intervención - Reducción o Eliminación', 'Medidas de intervención - Eliminación']) || 'Ninguno',
+                medida_sustitucion: getValueByKeys(r, ['Sustitución', 'medida_sustitucion', 'Medidas de intervención - Sustitución']) || 'Ninguno',
+                medida_ingenieria: getValueByKeys(r, ['Ctrl. Ingeniería', 'Ingeniería', 'medida_ingenieria', 'Medidas de intervención - Controles de ingeniería']) || 'Ninguno',
+                medida_administrativa: getValueByKeys(r, ['Ctrl. Administrativos', 'Administrativos', 'medida_administrativa', 'Medidas de intervención - Controles administrativos, señalización, advertencia']) || 'Ninguno',
+                medida_eppu: getValueByKeys(r, ['Equipos/EPP', 'EPP', 'medida_eppu', 'Medidas de intervención - Equipos/elementos de protección personal']) || 'Ninguno',
+                factores_reduccion: getValueByKeys(r, ['Factores de Reducción', 'Factores Reducción (Anexo E)', 'factores_reduccion']) || 'No aplica',
+                nd_cualitativo: null,
+                id: Date.now().toString() + Math.random().toString(36).substring(7),
+              };
+            });
 
             const combined = [...matrixRows, ...newRows];
             setMatrixRows(combined);
@@ -778,7 +837,15 @@ export default function MatrizIPEVARTable({
             }
             alert(`Importados ${newRows.length} riesgos exitosamente.`);
           } else {
-            setPendingRawRows(allSheetRows);
+            const preCleaned = allSheetRows.map((r: any) => {
+              const pVal = getValueByKeys(r, ['Proceso', 'proceso']);
+              const zVal = getValueByKeys(r, ['Zona / Lugar', 'Zona/lugar', 'Zona', 'zona', 'lugar', 'Zona / lugar', 'Lugar']);
+              const copy = { ...r };
+              if (pVal) copy['Proceso'] = toSentenceCase(pVal);
+              if (zVal) copy['Zona'] = toSentenceCase(zVal);
+              return copy;
+            });
+            setPendingRawRows(preCleaned);
             setIsConfirmModalOpen(true);
           }
         }
@@ -920,14 +987,20 @@ export default function MatrizIPEVARTable({
   }, [isSubmitting, actualConvoId, workerId]);
 
   const saveMatrixData = async (rows: MatrixRow[]) => {
+    const normalizedRows = rows.map((r) => ({
+      ...r,
+      proceso: toSentenceCase(r.proceso),
+      zona: toSentenceCase(r.zona),
+    }));
     try {
       setIsSaving(true);
       if (workerId) {
         await fetch(`/api/sgsst/workers/${workerId}/ipevar`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ riesgosIpevar: rows }),
+          body: JSON.stringify({ riesgosIpevar: normalizedRows }),
         });
+        setMatrixRows(normalizedRows);
         return;
       }
 
@@ -935,8 +1008,9 @@ export default function MatrizIPEVARTable({
       await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ matrixRows: rows }),
+        body: JSON.stringify({ matrixRows: normalizedRows }),
       });
+      setMatrixRows(normalizedRows);
     } catch (e) {
       console.error('[Matriz] Save error:', e);
     } finally {
