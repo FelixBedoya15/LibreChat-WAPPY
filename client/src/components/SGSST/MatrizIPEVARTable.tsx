@@ -620,9 +620,27 @@ export default function MatrizIPEVARTable({
           }
         } else if (file.name.endsWith('.xlsx')) {
           const wb = XLSX.read(data, { type: 'binary' });
-          const sheetName =
-            wb.SheetNames.find((name) => name.toLowerCase().includes('matriz')) || wb.SheetNames[0];
-          const ws = wb.Sheets[sheetName];
+          
+          let ws = wb.Sheets[wb.SheetNames[0]];
+          if (wb.SheetNames.length > 1) {
+            const matchedName = wb.SheetNames.find((name) => name.toLowerCase().includes('matriz'));
+            if (matchedName) {
+              ws = wb.Sheets[matchedName];
+            } else {
+              let bestSheet = wb.SheetNames[0];
+              let maxRows = 0;
+              for (const name of wb.SheetNames) {
+                const sheet = wb.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+                if (rows.length > maxRows) {
+                  maxRows = rows.length;
+                  bestSheet = name;
+                }
+              }
+              ws = wb.Sheets[bestSheet];
+            }
+          }
+
           const json = XLSX.utils.sheet_to_json(ws);
 
           if (json.length === 0) {

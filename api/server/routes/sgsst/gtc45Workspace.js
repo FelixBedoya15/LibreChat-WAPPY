@@ -450,6 +450,8 @@ Escribe en español técnico, sin encabezados, sin bullets, como párrafo fluido
     logger.error('[GTC45/ai-chart-conclusion] Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
+});
+
 // ─── IA: Reconstruir y adaptar una matriz externa (diferente formato) a GTC-45 ───
 router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
   try {
