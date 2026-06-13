@@ -159,6 +159,80 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/live-editor/ai-format-rit
+ * Toma el texto o HTML de un RIT cargado por el usuario y lo formatea/organiza con IA en capítulos y artículos.
+ */
+router.post('/ai-format-rit', requireJwtAuth, async (req, res) => {
+  try {
+    const { content, fileName } = req.body;
+    const userId = req.user.id;
+
+    if (!content) {
+      return res.status(400).json({ error: 'El contenido del documento es requerido.' });
+    }
+
+    // Buscar información de la empresa para personalizar el contexto del RIT
+    const companyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }) || await CompanyInfo.findOne({ user: userId });
+    
+    let companyContext = '';
+    if (companyInfo) {
+      const { buildCompanyContextString } = require('./reportHeader');
+      companyContext = `\nDATOS DE LA EMPRESA CONTEXTO:\n${buildCompanyContextString(companyInfo)}\n`;
+    }
+
+    const prompt = `Actúa como un abogado experto en derecho laboral corporativo en Colombia.
+Tu tarea es tomar el siguiente texto o HTML extraído de un Reglamento Interno de Trabajo (RIT) preexistente cargado por el usuario, limpiarlo de ruidos de OCR o de extracción de texto (como firmas sueltas, números de página huérfanos, textos repetitivos de pie de página) y estructurarlo formal y profesionalmente de acuerdo con el Código Sustantivo del Trabajo de Colombia y la legislación laboral vigente a 2026.
+${companyContext}
+REQUERIMIENTOS:
+1. IDIOMA: Español técnico, formal y riguroso.
+2. ESTRUCTURA: Organiza el documento en Capítulos (usando etiquetas <h2>) y Artículos (usando etiquetas <h3>). Ejemplos:
+   <h2>CAPÍTULO I: DISPOSICIONES GENERALES</h2>
+   <h3>Artículo 1º. - Objeto</h3>
+3. CONTENIDO:
+   - Mantén y respeta estrictamente todas las políticas y reglas específicas suministradas por el usuario en su reglamento (horarios de trabajo, deberes, prohibiciones específicas de la empresa, faltas, escala de sanciones, etc.).
+   - Optimiza y eleva la redacción de todas las cláusulas al lenguaje jurídico correspondiente.
+4. FORMATO:
+   - Retorna ÚNICAMENTE el código HTML limpio.
+   - NO incluyas la firma o sección de firmas al final de la página (esta se agrega de manera automatizada en el frontend).
+   - NO agregues etiquetas doctype, <html>, <head>, <body>, ni bloques de estilos <style>.
+   - NO envuelvas la respuesta en bloques de código markdown (como \`\`\`html o \`\`\`).
+
+DOCUMENTO A PROCESAR:
+---
+${content}
+---`;
+
+    logger.info(`[AI Format RIT] Iniciando formateo de RIT para usuario: ${userId}`);
+
+    // Llamar a Gemini 3.5 Flash con rotación de claves
+    const result = await generateWithKeyRotation('gemini-3.5-flash', userId, prompt);
+    const response = result.response;
+    let formattedHtml = response.text();
+
+    // Sanitizar posibles bloques de código markdown devueltos
+    formattedHtml = formattedHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Strip out HTML document wrappers if they exist
+    const bodyMatch = formattedHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+      formattedHtml = bodyMatch[1].trim();
+    }
+    formattedHtml = formattedHtml
+      .replace(/<!DOCTYPE[^>]*>/gi, '')
+      .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+      .replace(/<head>[\s\S]*?<\/head>/gi, '')
+      .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .trim();
+
+    res.json({ success: true, content: formattedHtml });
+  } catch (error) {
+    logger.error('[AI Format RIT] Error:', error);
+    res.status(500).json({ error: 'Falla al estructurar el RIT con IA: ' + error.message });
+  }
+});
+
+/**
  * POST /api/live-editor/offline-report
  * POST /api/live-analysis/offline-report
  * Generates an HSE report from uploaded assets (images/video) and manual notes for low signal environments.

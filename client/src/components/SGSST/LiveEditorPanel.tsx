@@ -17,6 +17,7 @@ import {
   Pencil,
   Check,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
@@ -167,6 +168,63 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  const [showRitPrompt, setShowRitPrompt] = useState(false);
+  const [pendingExtractedData, setPendingExtractedData] = useState<{ html: string; fileName: string } | null>(null);
+
+  const applyExtractedDocument = useCallback(async (
+    data: { html: string; fileName: string },
+    useAI: boolean
+  ) => {
+    if (!conversationId || conversationId === 'new') return;
+    try {
+      setIsLoading(true);
+      let finalHtml = data.html;
+
+      if (useAI) {
+        const aiRes = await fetch('/api/live-editor/ai-format-rit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: data.html, fileName: data.fileName }),
+        });
+        if (!aiRes.ok) {
+          throw new Error('Error al estructurar el documento con IA');
+        }
+        const aiData = await aiRes.json();
+        if (aiData.content) {
+          finalHtml = aiData.content;
+        }
+      }
+
+      const withSigs = appendSignatureIfMissing(finalHtml);
+      const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: withSigs, fileName: data.fileName }),
+      });
+      if (!saveRes.ok) {
+        throw new Error('Error al guardar el documento en el servidor');
+      }
+      const saved = await saveRes.json();
+      lastUpdatedAtRef.current = saved.contentUpdatedAt;
+      setContent(withSigs);
+      setFileName(data.fileName);
+      editorContentRef.current = withSigs;
+      liveEditorRef.current?.setHTML(withSigs);
+      await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      console.error('[LiveEditorPanel] applyExtractedDocument error:', err);
+      alert(err.message || 'Error al procesar el archivo');
+    } finally {
+      setIsLoading(false);
+      setPendingExtractedData(null);
+      setShowRitPrompt(false);
+    }
+  }, [conversationId, token]);
 
   // Imperative handle to push content into the editor without remounting
   const liveEditorRef = useRef<LiveEditorHandle>(null);
@@ -343,21 +401,13 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       }
 
       if (extractedHtml) {
-        const withSigs = appendSignatureIfMissing(extractedHtml);
         const newFileName = file.name.replace(/\.[^.]+$/, '');
-        const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: withSigs, fileName: newFileName }),
-        });
-        const saved = await saveRes.json();
-        lastUpdatedAtRef.current = saved.contentUpdatedAt;
-        setContent(withSigs);
-        setFileName(newFileName);
-        editorContentRef.current = withSigs;
-        liveEditorRef.current?.setHTML(withSigs);
-        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
-        setRefreshTrigger(prev => prev + 1);
+        if (title === 'Editor RIT') {
+          setPendingExtractedData({ html: extractedHtml, fileName: newFileName });
+          setShowRitPrompt(true);
+        } else {
+          await applyExtractedDocument({ html: extractedHtml, fileName: newFileName }, false);
+        }
       }
     } catch (err) {
       console.error('[LiveEditorPanel] Upload error:', err);
@@ -553,6 +603,55 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* ── RIT AI Confirmation Modal ─────────────────────────────────── */}
+      {showRitPrompt && pendingExtractedData && (
+        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
+            <div className="relative p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-600">
+                <Sparkles className="h-6 w-6 animate-pulse" />
+              </div>
+              <h3 className="text-lg font-bold text-text-primary">
+                ¿Organizar reglamento con IA?
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                Hemos extraído el texto de tu reglamento. Podemos usar la IA de Wappy para organizarlo de manera óptima en Capítulos y Artículos estructurados según la legislación laboral de Colombia.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
+                ¿Deseas que la IA estructure el documento de forma legal manteniendo tus reglas específicas?
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRitPrompt(false);
+                  setPendingExtractedData(null);
+                }}
+                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-xs font-semibold text-text-primary transition-all hover:bg-surface-hover"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => applyExtractedDocument(pendingExtractedData, false)}
+                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-xs font-semibold text-text-primary transition-all hover:bg-surface-hover"
+              >
+                Subir tal cual
+              </button>
+              <button
+                type="button"
+                onClick={() => applyExtractedDocument(pendingExtractedData, true)}
+                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-xs font-semibold text-white shadow-md transition-all hover:bg-teal-700"
+              >
+                Sí, usar IA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
