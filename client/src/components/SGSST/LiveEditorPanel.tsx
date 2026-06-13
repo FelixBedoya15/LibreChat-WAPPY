@@ -387,6 +387,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error del servidor (${res.status})`);
+      }
+
       const data = await res.json();
 
       let extractedHtml = '';
@@ -400,17 +406,20 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           .join('\n');
       }
 
-      if (extractedHtml) {
-        const newFileName = file.name.replace(/\.[^.]+$/, '');
-        if (title === 'Editor RIT') {
-          setPendingExtractedData({ html: extractedHtml, fileName: newFileName });
-          setShowRitPrompt(true);
-        } else {
-          await applyExtractedDocument({ html: extractedHtml, fileName: newFileName }, false);
-        }
+      if (!extractedHtml) {
+        throw new Error('No se pudo extraer ningún texto del documento cargado.');
       }
-    } catch (err) {
+
+      const newFileName = file.name.replace(/\.[^.]+$/, '');
+      if (title === 'Editor RIT') {
+        setPendingExtractedData({ html: extractedHtml, fileName: newFileName });
+        setShowRitPrompt(true);
+      } else {
+        await applyExtractedDocument({ html: extractedHtml, fileName: newFileName }, false);
+      }
+    } catch (err: any) {
       console.error('[LiveEditorPanel] Upload error:', err);
+      alert(err.message || 'Error al subir el archivo');
     } finally {
       setIsLoading(false);
       e.target.value = '';
@@ -605,8 +614,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       </div>
 
       {/* ── RIT AI Confirmation Modal ─────────────────────────────────── */}
-      {showRitPrompt && pendingExtractedData && (
-        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      {showRitPrompt && pendingExtractedData && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
             <div className="relative p-6">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-600">
@@ -650,7 +659,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
