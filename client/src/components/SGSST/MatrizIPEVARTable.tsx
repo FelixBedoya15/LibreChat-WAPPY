@@ -591,7 +591,13 @@ export default function MatrizIPEVARTable({
           if (Array.isArray(parsed)) {
             const firstRow = parsed[0] || {};
             const keys = Object.keys(firstRow);
-            const isStandard = ['proceso', 'actividad', 'peligro_descripcion'].every(k => keys.includes(k));
+            const isStandard = (
+              keys.some(k => k.toLowerCase() === 'proceso') &&
+              keys.some(k => k.toLowerCase() === 'actividad') &&
+              keys.some(k => k.toLowerCase().includes('peligro'))
+            ) || (
+              ['proceso', 'actividad', 'peligro_descripcion'].every(k => keys.includes(k))
+            );
 
             if (isStandard) {
               const withIds = parsed.map(r => ({
@@ -651,8 +657,13 @@ export default function MatrizIPEVARTable({
           const firstRow = json[0] || {};
           const keys = Object.keys(firstRow);
 
-          const isStandard = ['Proceso', 'Actividad', 'Descripción del Peligro'].every(k => keys.includes(k)) ||
-                             keys.some(k => k.toLowerCase().includes('proceso') && k.toLowerCase().includes('actividad'));
+          const isStandard = (
+            keys.some(k => k.toLowerCase() === 'proceso') &&
+            keys.some(k => k.toLowerCase() === 'actividad') &&
+            keys.some(k => k.toLowerCase().includes('peligro'))
+          ) || (
+            ['Proceso', 'Actividad', 'Descripción del Peligro'].every(k => keys.includes(k))
+          );
 
           if (isStandard) {
             const newRows = json.map((r: any) => ({
@@ -1169,6 +1180,71 @@ export default function MatrizIPEVARTable({
       <span className="ml-1 opacity-30">↕</span>
     );
 
+  const renderModals = () => (
+    <>
+      {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
+      {isAiImportLoading && (
+        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
+              <div className="absolute inset-2 animate-pulse rounded-full bg-teal-500/40" />
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-text-primary">Adaptando Matriz con IA</h3>
+              <p className="mt-2 text-sm text-text-secondary max-w-xs">
+                Nuestra IA está mapeando las columnas y recalculando los niveles de riesgo según el formato estándar. Esto puede tomar unos segundos...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Confirm Adapt Modal ──────────────────────────────────────── */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
+            <div className="relative p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
+                <Sparkles className="h-6 w-6 animate-pulse" />
+              </div>
+              <h3 className="text-lg font-bold text-text-primary">
+                ¿Reconstruir matriz con IA?
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                Hemos detectado que el archivo cargado no coincide con el formato estándar de Wappy.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
+                ¿Deseas que la IA de Wappy analice y adapte automáticamente tu matriz para que encaje perfectamente con nuestro formato de columnas GTC-45?
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmModalOpen(false);
+                  setPendingRawRows([]);
+                }}
+                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-hover"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAiImport}
+                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-teal-700"
+              >
+                Sí, usar IA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   // ── Guard: no convo ───────────────────────────────────────────────────────
   if (!workerId && (!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
     return (
@@ -1214,6 +1290,7 @@ export default function MatrizIPEVARTable({
           accept=".xlsx,.json"
           onChange={handleImportFile}
         />
+        {renderModals()}
       </div>
     );
   }
@@ -1943,67 +2020,7 @@ export default function MatrizIPEVARTable({
           </CollapsibleReportBox>
         </div>
       </div>
-
-      {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
-      {isAiImportLoading && (
-        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
-            <div className="relative flex h-16 w-16 items-center justify-center">
-              <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
-              <div className="absolute inset-2 animate-pulse rounded-full bg-teal-500/40" />
-              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-bold text-text-primary">Adaptando Matriz con IA</h3>
-              <p className="mt-2 text-sm text-text-secondary max-w-xs">
-                Nuestra IA está mapeando las columnas y recalculando los niveles de riesgo según el formato estándar. Esto puede tomar unos segundos...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── AI Confirm Adapt Modal ──────────────────────────────────────── */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
-            <div className="relative p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
-                <Sparkles className="h-6 w-6 animate-pulse" />
-              </div>
-              <h3 className="text-lg font-bold text-text-primary">
-                ¿Reconstruir matriz con IA?
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                Hemos detectado que el archivo cargado no coincide con el formato estándar de Wappy.
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
-                ¿Deseas que la IA de Wappy analice y adapte automáticamente tu matriz para que encaje perfectamente con nuestro formato de columnas GTC-45?
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsConfirmModalOpen(false);
-                  setPendingRawRows([]);
-                }}
-                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-hover"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleAiImport}
-                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-teal-700"
-              >
-                Sí, usar IA
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderModals()}
     </div>
   );
 
