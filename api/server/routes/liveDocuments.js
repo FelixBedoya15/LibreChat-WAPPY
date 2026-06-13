@@ -174,7 +174,40 @@ function cleanDocxHtml(html) {
   // 1. Eliminar etiquetas <img> completas (incluyendo base64)
   let cleaned = html.replace(/<img\b[^>]*>/gi, '');
 
-  // 2. Extraer párrafos para detectar repetitividad
+  // Expresión regular para números de página comunes
+  const pageNumRegex = /^\s*(p[áa]g\w*\.?\s*\d+(\s*(de|\/)\s*\d+)?|\d+\s*(de|\/)\s*\d+|\bpage\s*\d+(\s*of\s*\d+)?|\b-\s*\d+\s*-|\d+)\s*$/i;
+
+  // 2. Detectar y eliminar tablas vacías o repetitivas (encabezados/pies de página)
+  const tableRegex = /<table\b[^>]*>([\s\S]*?)<\/table>/gi;
+  const tables = [];
+  let tMatch;
+  while ((tMatch = tableRegex.exec(cleaned)) !== null) {
+    tables.push({
+      full: tMatch[0],
+      text: tMatch[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, '').trim()
+    });
+  }
+  
+  const tableFreq = {};
+  tables.forEach(t => {
+    const txt = t.text;
+    tableFreq[txt] = (tableFreq[txt] || 0) + 1;
+  });
+  
+  tables.forEach(t => {
+    const txt = t.text;
+    const isPageNum = pageNumRegex.test(txt);
+    const isEmpty = txt.length === 0;
+    const isRepeated = tableFreq[txt] > 1;
+    
+    if (isEmpty || isPageNum || (isRepeated && txt.length < 150)) {
+      const escapedFull = t.full.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(escapedFull, 'g');
+      cleaned = cleaned.replace(regex, '');
+    }
+  });
+
+  // 3. Extraer párrafos para detectar repetitividad en textos normales
   const pRegex = /<p\b[^>]*>(.*?)<\/p>/gi;
   const paragraphs = [];
   let match;
@@ -192,9 +225,6 @@ function cleanDocxHtml(html) {
       freq[p.text] = (freq[p.text] || 0) + 1;
     }
   });
-
-  // Expresión regular para números de página comunes
-  const pageNumRegex = /^\s*(p[áa]g\w*\.?\s*\d+(\s*(de|\/)\s*\d+)?|\d+\s*(de|\/)\s*\d+|\bpage\s*\d+(\s*of\s*\d+)?|\b-\s*\d+\s*-|\d+)\s*$/i;
 
   // Umbral dinámico para detectar si se repite como encabezado/pie de página
   const threshold = Math.max(3, Math.ceil(paragraphs.length * 0.05));
@@ -216,7 +246,43 @@ function cleanDocxHtml(html) {
     }
   });
 
-  // Eliminar párrafos vacíos resultantes o restos de formato
+  // 4. Promover Títulos, Capítulos y Artículos a encabezados y separar el cuerpo del artículo
+  cleaned = cleaned.replace(/<p\b[^>]*>(.*?)<\/p>/gi, (match, innerContent) => {
+    const plainText = innerContent.replace(/<[^>]+>/g, '').trim();
+    
+    // Título Principal
+    if (/^reglamento\s+interno\s+de\s+trabajo$/i.test(plainText)) {
+      return `<h1>${plainText}</h1>`;
+    }
+    
+    // Capítulo (ej. CAPÍTULO I, CAPÍTULO IV)
+    const chapterMatch = plainText.match(/^(cap[íi]tulo\s+[ivxldcm]+[:.]?)\s*(.*)$/i);
+    if (chapterMatch) {
+      const header = chapterMatch[1];
+      const rest = chapterMatch[2].trim();
+      return rest ? `<h2>${header}</h2><p>${rest}</p>` : `<h2>${header}</h2>`;
+    }
+    
+    // Artículo (ej. ARTÍCULO 1:, ARTÍCULO 10: El trabajo...)
+    const articleMatch = plainText.match(/^(art[íi]culo\s+\d+[:.]?)\s*(.*)$/i);
+    if (articleMatch) {
+      const header = articleMatch[1];
+      const rest = articleMatch[2].trim();
+      return rest ? `<h3>${header}</h3><p>${rest}</p>` : `<h3>${header}</h3>`;
+    }
+
+    // Parágrafo (ej. PARÁGRAFO 1:, PARÁGRAFO 2)
+    const paragrafoMatch = plainText.match(/^(par[áa]grafo\s+\d+[:.]?)\s*(.*)$/i);
+    if (paragrafoMatch) {
+      const header = paragrafoMatch[1];
+      const rest = paragrafoMatch[2].trim();
+      return rest ? `<h4>${header}</h4><p>${rest}</p>` : `<h4>${header}</h4>`;
+    }
+    
+    return match;
+  });
+
+  // 5. Eliminar párrafos vacíos resultantes o restos de formato
   cleaned = cleaned.replace(/<p\b[^>]*>\s*(?:&nbsp;|<br\s*\/?>)*\s*<\/p>/gi, '');
 
   return cleaned;
