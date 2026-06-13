@@ -37,12 +37,43 @@ class GeminiLiveClient extends EventEmitter {
 
         const resolvedModel = mapModelToRealGoogleModel(rawModel);
 
+        const mapVoiceToGeminiLive = (voiceId) => {
+            if (!voiceId) return 'Puck';
+            const clean = voiceId.toLowerCase().trim();
+            switch (clean) {
+                case 'sol':
+                    return 'Aoede';
+                case 'spruce':
+                    return 'Fenrir';
+                case 'ember':
+                    return 'Kore';
+                case 'kore':
+                    return 'Kore';
+                case 'orbit':
+                    return 'Puck';
+                case 'puck':
+                    return 'Puck';
+                case 'charon':
+                    return 'Charon';
+                case 'fenrir':
+                    return 'Fenrir';
+                case 'aoede':
+                    return 'Aoede';
+                default:
+                    // Capitalize first letter as fallback
+                    return voiceId.charAt(0).toUpperCase() + voiceId.slice(1);
+            }
+        };
+
+        const resolvedVoice = mapVoiceToGeminiLive(config.voice || 'Puck');
+
         this.config = {
-            voice: config.voice || 'Puck',
+            voice: resolvedVoice,
             language: config.language || 'es-ES',
             ...config,
             model: resolvedModel,
         };
+        this.config.voice = resolvedVoice;
         this.config.model = resolvedModel;
         this.ws = null;
         this.connected = false;

@@ -1265,6 +1265,39 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [isOpen, selectedTemplate]);
 
+    // Eagerly initialize and resume AudioContext on the first user interaction (click/touch) inside the modal to bypass browser autoplay blocks
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const initAudioOnGesture = () => {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+
+            let ctx = audioContextRef.current;
+            if (!ctx) {
+                ctx = new AudioContextClass({ sampleRate: 24000 });
+                audioContextRef.current = ctx;
+                console.log('[LiveAnalysisModal] AudioContext created eagerly on user gesture:', ctx.state);
+            } else if (ctx.state === 'suspended') {
+                ctx.resume().then(() => {
+                    console.log('[LiveAnalysisModal] AudioContext resumed eagerly on user gesture:', ctx?.state);
+                });
+            }
+            
+            // Remove listeners immediately
+            window.removeEventListener('click', initAudioOnGesture, true);
+            window.removeEventListener('touchstart', initAudioOnGesture, true);
+        };
+
+        window.addEventListener('click', initAudioOnGesture, true);
+        window.addEventListener('touchstart', initAudioOnGesture, true);
+
+        return () => {
+            window.removeEventListener('click', initAudioOnGesture, true);
+            window.removeEventListener('touchstart', initAudioOnGesture, true);
+        };
+    }, [isOpen]);
+
     // Ensure voice is updated when connected
     useEffect(() => {
         if (isOpen && isConnected && selectedVoice !== (voiceLiveAnalysis as string)) {
@@ -1273,6 +1306,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             changeVoice((voiceLiveAnalysis as string) || '');
         }
     }, [isOpen, isConnected, voiceLiveAnalysis, changeVoice]);
+
+
 
     // Auto-start camera and send initial prompt when READY (after countdown)
     useEffect(() => {

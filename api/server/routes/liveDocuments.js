@@ -134,7 +134,8 @@ router.post('/extract', upload.single('file'), async (req, res) => {
         ]
       };
       const result = await mammoth.convertToHtml({ buffer: file.buffer }, options);
-      const html = result.value; 
+      let html = result.value; 
+      html = cleanDocxHtml(html);
       return res.json({ fileName: file.originalname, html, type: 'docx' });
     }
     
@@ -143,10 +144,12 @@ router.post('/extract', upload.single('file'), async (req, res) => {
       const parser = new PDFParse({ data: file.buffer });
       try {
         const data = await parser.getText();
+        let text = data.text;
+        text = cleanPdfText(text);
         
         return res.json({ 
           fileName: file.originalname, 
-          text: data.text, 
+          text: text, 
           type: 'pdf', 
           needsAiFormatting: true 
         });
@@ -162,4 +165,149 @@ router.post('/extract', upload.single('file'), async (req, res) => {
   }
 });
 
+/**
+ * Limpia imágenes y párrafos repetitivos (encabezados/pies) en el HTML extraído de DOCX.
+ */
+function cleanDocxHtml(html) {
+  if (!html) return html;
+  
+  // 1. Eliminar etiquetas <img> completas (incluyendo base64)
+  let cleaned = html.replace(/<img\b[^>]*>/gi, '');
+
+  // 2. Extraer párrafos para detectar repetitividad
+  const pRegex = /<p\b[^>]*>(.*?)<\/p>/gi;
+  const paragraphs = [];
+  let match;
+  while ((match = pRegex.exec(cleaned)) !== null) {
+    paragraphs.push({
+      full: match[0],
+      text: match[1].replace(/<[^>]+>/g, '').trim() // Texto limpio sin sub-etiquetas HTML
+    });
+  }
+
+  // Contar frecuencias de textos cortos de párrafos
+  const freq = {};
+  paragraphs.forEach(p => {
+    if (p.text.length > 2) {
+      freq[p.text] = (freq[p.text] || 0) + 1;
+    }
+  });
+
+  // Expresión regular para números de página comunes
+  const pageNumRegex = /^\s*(p[áa]g\w*\.?\s*\d+(\s*(de|\/)\s*\d+)?|\d+\s*(de|\/)\s*\d+|\bpage\s*\d+(\s*of\s*\d+)?|\b-\s*\d+\s*-|\d+)\s*$/i;
+
+  // Umbral dinámico para detectar si se repite como encabezado/pie de página
+  const threshold = Math.max(3, Math.ceil(paragraphs.length * 0.05));
+
+  const toRemove = new Set();
+  Object.keys(freq).forEach(text => {
+    if (freq[text] >= threshold && text.length < 100) {
+      toRemove.add(text);
+    }
+  });
+
+  // Reemplazar párrafos repetitivos y números de página
+  paragraphs.forEach(p => {
+    const trimmedText = p.text;
+    if (pageNumRegex.test(trimmedText) || toRemove.has(trimmedText)) {
+      const escapedFull = p.full.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(escapedFull, 'g');
+      cleaned = cleaned.replace(regex, '');
+    }
+  });
+
+  // Eliminar párrafos vacíos resultantes o restos de formato
+  cleaned = cleaned.replace(/<p\b[^>]*>\s*(?:&nbsp;|<br\s*\/?>)*\s*<\/p>/gi, '');
+
+  return cleaned;
+}
+
+/**
+ * Limpia encabezados, pies de página y numeración de página en el texto extraído de PDF.
+ */
+function cleanPdfText(text) {
+  if (!text) return text;
+
+  // Split por carácter de salto de página form feed (\f)
+  const pages = text.split(/\f/);
+
+  if (pages.length <= 1) {
+    // Si es solo una página, eliminamos números de página pero no analizamos repetitividad
+    const lines = text.split('\n');
+    const pageNumRegex = /^\s*(p[áa]g\w*\.?\s*\d+(\s*(de|\/)\s*\d+)?|\d+\s*(de|\/)\s*\d+|\bpage\s*\d+(\s*of\s*\d+)?|\b-\s*\d+\s*-|\d+)\s*$/i;
+    const cleanLines = lines.filter(line => !pageNumRegex.test(line));
+    return cleanLines.join('\n');
+  }
+
+  const pageLines = pages.map(page => page.split('\n').map(line => line.trim()));
+  const topFreq = {};
+  const bottomFreq = {};
+
+  pageLines.forEach(lines => {
+    // Tomar las primeras 3 líneas no vacías y con longitud > 2
+    const topLines = lines.slice(0, 3).filter(l => l.length > 2);
+    // Tomar las últimas 3 líneas no vacías y con longitud > 2
+    const bottomLines = lines.slice(-3).filter(l => l.length > 2);
+
+    const uniqueTop = [...new Set(topLines)];
+    const uniqueBottom = [...new Set(bottomLines)];
+
+    uniqueTop.forEach(line => {
+      topFreq[line] = (topFreq[line] || 0) + 1;
+    });
+
+    uniqueBottom.forEach(line => {
+      bottomFreq[line] = (bottomFreq[line] || 0) + 1;
+    });
+  });
+
+  // Umbral: si aparece en el tope/pie de al menos 2 páginas
+  const threshold = Math.max(2, Math.ceil(pages.length * 0.1));
+
+  const headersToRemove = new Set();
+  const footersToRemove = new Set();
+
+  Object.keys(topFreq).forEach(line => {
+    if (topFreq[line] >= threshold) {
+      headersToRemove.add(line);
+    }
+  });
+
+  Object.keys(bottomFreq).forEach(line => {
+    if (bottomFreq[line] >= threshold) {
+      footersToRemove.add(line);
+    }
+  });
+
+  const pageNumRegex = /^\s*(p[áa]g\w*\.?\s*\d+(\s*(de|\/)\s*\d+)?|\d+\s*(de|\/)\s*\d+|\bpage\s*\d+(\s*of\s*\d+)?|\b-\s*\d+\s*-|\d+)\s*$/i;
+
+  const cleanedPages = pageLines.map((lines) => {
+    const totalLines = lines.length;
+    return lines.filter((line, lineIndex) => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+
+      // Descartar si coincide con patrón de número de página
+      if (pageNumRegex.test(trimmed)) {
+        return false;
+      }
+
+      // Descartar si es un encabezado recurrente en las primeras 3 líneas
+      if (lineIndex < 3 && headersToRemove.has(trimmed)) {
+        return false;
+      }
+
+      // Descartar si es un pie de página recurrente en las últimas 3 líneas
+      if (lineIndex >= totalLines - 3 && footersToRemove.has(trimmed)) {
+        return false;
+      }
+
+      return true;
+    });
+  });
+
+  return cleanedPages.map(page => page.join('\n')).join('\f');
+}
+
 module.exports = router;
+

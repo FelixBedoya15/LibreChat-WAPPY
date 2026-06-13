@@ -390,6 +390,39 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     }, [isOpen, isConnected, voiceChatGeneral, selectedVoice, changeVoice]);
 
+    // Eagerly initialize and resume AudioContext on the first user interaction (click/touch) inside the modal to bypass browser autoplay blocks
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const initAudioOnGesture = () => {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+
+            let ctx = audioContextRef.current;
+            if (!ctx) {
+                ctx = new AudioContextClass({ sampleRate: 24000 });
+                audioContextRef.current = ctx;
+                console.log('[VoiceModal] AudioContext created eagerly on user gesture:', ctx.state);
+            } else if (ctx.state === 'suspended') {
+                ctx.resume().then(() => {
+                    console.log('[VoiceModal] AudioContext resumed eagerly on user gesture:', ctx?.state);
+                });
+            }
+            
+            // Remove listeners immediately
+            window.removeEventListener('click', initAudioOnGesture, true);
+            window.removeEventListener('touchstart', initAudioOnGesture, true);
+        };
+
+        window.addEventListener('click', initAudioOnGesture, true);
+        window.addEventListener('touchstart', initAudioOnGesture, true);
+
+        return () => {
+            window.removeEventListener('click', initAudioOnGesture, true);
+            window.removeEventListener('touchstart', initAudioOnGesture, true);
+        };
+    }, [isOpen]);
+
     // Cleanup local state when modal is closed to prevent bleeding of photos and text
     useEffect(() => {
         if (!isOpen) {
@@ -997,7 +1030,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     function handleAudioReceived(audioData: string) {
         try {
             if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
             }
             if (audioContextRef.current.state === 'suspended') {
                 audioContextRef.current.resume();
