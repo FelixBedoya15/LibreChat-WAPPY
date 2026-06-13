@@ -46,6 +46,19 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       }
     }
 
+    // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal
+    if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+      const tempId = `temp-${userId}`;
+      const tempSession = await GTC45WorkspaceSession.findOne({ conversationId: tempId, user: userId });
+      if (tempSession) {
+        tempSession.conversationId = conversationId;
+        tempSession.companyId = companyId;
+        await tempSession.save();
+        session = tempSession;
+        logger.info(`[GTC45Workspace GET] Migrated temporal session for user ${userId} to conversation ${conversationId}`);
+      }
+    }
+
     if (!session) {
       return res.json({ matrixRows: [], chartConclusions: {} });
     }

@@ -189,7 +189,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizIPEVARTable key={conversation?.conversationId ?? 'new'} conversationId={conversation?.conversationId ?? null} />
+                      <MatrizIPEVARTable conversationId={conversation?.conversationId ?? null} />
                     </div>
                   )}
                   {isEditorLiveActive && !isIPEVARActive && (
@@ -202,7 +202,6 @@ function ChatView({ index = 0 }: { index?: number }) {
                         : 'w-1/2',
                     )}>
                       <LiveEditorPanel 
-                        key={conversation?.conversationId ?? 'new'} 
                         conversationId={conversation?.conversationId ?? null}
                         title={isEditorRITActive ? 'Editor RIT' : 'Editor Live'}
                         emptyStateTitle={isEditorRITActive ? 'Editor RIT en espera' : 'Sin documento activo'}

@@ -73,6 +73,17 @@ class MatrizIPEVAR extends Tool {
       
       const userId = this.req?.user?.id;
 
+      if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+        const tempId = `temp-${userId}`;
+        const tempSession = await GTC45Matrix.findOne({ conversationId: tempId, user: userId });
+        if (tempSession) {
+          tempSession.conversationId = conversationId;
+          await tempSession.save();
+          session = tempSession;
+          console.log(`[MatrizIPEVAR Tool] Migrated temporal matrix session for user ${userId} to conversation ${conversationId}`);
+        }
+      }
+
       // LOGICA DE CONTEXTO SGSST EXTERNO
       if (accion === 'consultar_contexto_sgsst') {
          if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }

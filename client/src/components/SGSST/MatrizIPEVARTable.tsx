@@ -553,6 +553,8 @@ export default function MatrizIPEVARTable({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isPendingImport = useRef(false);
+  const isDirtyRef = useRef(false);
+  const prevConvoIdRef = useRef<string | null>(null);
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
@@ -584,11 +586,8 @@ export default function MatrizIPEVARTable({
         }));
         const combined = [...matrixRows, ...normalized];
         setMatrixRows(combined);
-        if (actualConvoId && actualConvoId !== 'new') {
-          saveMatrixData(combined);
-        } else {
-          isPendingImport.current = true;
-        }
+        isDirtyRef.current = true;
+        saveMatrixData(combined);
         alert(
           `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato oficial de Wappy.`
         );
@@ -670,11 +669,8 @@ export default function MatrizIPEVARTable({
               }));
               const combined = [...matrixRows, ...withIds];
               setMatrixRows(combined);
-              if (actualConvoId && actualConvoId !== 'new') {
-                saveMatrixData(combined);
-              } else {
-                isPendingImport.current = true;
-              }
+              isDirtyRef.current = true;
+              saveMatrixData(combined);
               alert(`Importados ${withIds.length} riesgos exitosamente.`);
             } else {
               const preCleaned = parsed.map((r: any) => ({
@@ -830,11 +826,8 @@ export default function MatrizIPEVARTable({
 
             const combined = [...matrixRows, ...newRows];
             setMatrixRows(combined);
-            if (actualConvoId && actualConvoId !== 'new') {
-              saveMatrixData(combined);
-            } else {
-              isPendingImport.current = true;
-            }
+            isDirtyRef.current = true;
+            saveMatrixData(combined);
             alert(`Importados ${newRows.length} riesgos exitosamente.`);
           } else {
             const preCleaned = allSheetRows.map((r: any) => {
@@ -916,7 +909,7 @@ export default function MatrizIPEVARTable({
     }
   }, []);
 
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId =
     conversation?.conversationId && conversation.conversationId !== 'new'
@@ -940,10 +933,15 @@ export default function MatrizIPEVARTable({
 
         // Lógica por defecto (conversación)
         const targetId = id ?? actualConvoId;
-        if (!targetId || targetId === 'new') return;
-        const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetId}`, {
+        const targetConvoId = (!targetId || targetId === 'new')
+          ? (user?.id ? `temp-${user.id}` : null)
+          : targetId;
+        if (!targetConvoId) return;
+
+        const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetConvoId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (res.status === 404) return;
         const data = await res.json();
         if (data?.matrixRows) setMatrixRows(data.matrixRows);
         if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
@@ -953,7 +951,7 @@ export default function MatrizIPEVARTable({
         setIsLoading(false);
       }
     },
-    [actualConvoId, token, workerId],
+    [actualConvoId, token, workerId, user?.id],
   );
 
   useEffect(() => {
@@ -961,12 +959,25 @@ export default function MatrizIPEVARTable({
       fetchMatrix();
       return;
     }
-    if (!actualConvoId || actualConvoId === 'new') return;
-    if (isPendingImport.current && matrixRows.length > 0) {
-      saveMatrixData(matrixRows);
-      isPendingImport.current = false;
+    if (prevConvoIdRef.current !== actualConvoId) {
+      const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (actualConvoId && actualConvoId !== 'new');
+      
+      if (isTransitionFromNewToReal) {
+        if (isDirtyRef.current && matrixRows.length > 0) {
+          saveMatrixData(matrixRows);
+          isDirtyRef.current = false;
+        }
+      } else {
+        setMatrixRows([]);
+        setChartConclusions({});
+        isDirtyRef.current = false;
+        fetchMatrix(actualConvoId);
+      }
+      prevConvoIdRef.current = actualConvoId;
     } else {
-      fetchMatrix(actualConvoId);
+      if (actualConvoId) {
+        fetchMatrix(actualConvoId);
+      }
     }
   }, [actualConvoId, workerId]);
 
@@ -1004,8 +1015,12 @@ export default function MatrizIPEVARTable({
         return;
       }
 
-      if (!actualConvoId || actualConvoId === 'new') return;
-      await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
+      const targetConvoId = (!actualConvoId || actualConvoId === 'new')
+        ? (user?.id ? `temp-${user.id}` : null)
+        : actualConvoId;
+      if (!targetConvoId) return;
+
+      await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ matrixRows: normalizedRows }),
@@ -1040,6 +1055,7 @@ export default function MatrizIPEVARTable({
         row.aceptabilidad = 'Aceptable';
       }
     }
+    isDirtyRef.current = true;
     setMatrixRows(newRows);
   };
 
@@ -1071,11 +1087,13 @@ export default function MatrizIPEVARTable({
       factores_reduccion: 'No aplica',
       nd_cualitativo: null,
     };
+    isDirtyRef.current = true;
     setMatrixRows((prev) => [...prev, newRow]);
   };
 
   const removeRow = (index: number) => {
     const newRows = matrixRows.filter((_, i) => i !== index);
+    isDirtyRef.current = true;
     setMatrixRows(newRows);
     saveMatrixData(newRows);
   };
@@ -1116,6 +1134,7 @@ export default function MatrizIPEVARTable({
         }
 
         newRows[index] = { ...original, ...safeUpdate };
+        isDirtyRef.current = true;
         setMatrixRows(newRows);
       }
     } catch (e) {

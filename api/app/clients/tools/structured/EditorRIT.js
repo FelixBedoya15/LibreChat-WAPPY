@@ -148,7 +148,29 @@ class EditorRIT extends Tool {
 
       // ── LEER ────────────────────────────────────────────────────────────────
       if (accion === 'leer') {
-        const session = await LiveEditorSession.findOne({ conversationId });
+        let session = await LiveEditorSession.findOne({ conversationId });
+        if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+          const tempId = `temp-${userId}`;
+          const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
+          if (tempSession) {
+            tempSession.conversationId = conversationId;
+            await tempSession.save();
+            session = tempSession;
+
+            // También migrar Canvas
+            try {
+              const CanvasSession = require('~/models/CanvasSession');
+              const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
+              if (canvasTemp) {
+                canvasTemp.conversationId = conversationId;
+                await canvasTemp.save();
+              }
+            } catch (canvasErr) {
+              // ignore
+            }
+          }
+        }
+
         if (!session || !session.content) {
           return JSON.stringify({
             mensaje: 'El documento está vacío. Ejecuta accion="cargar_plantilla" primero.',

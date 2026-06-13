@@ -157,7 +157,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   emptyStateTitle = 'Sin documento activo',
   emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.'
 }) => {
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
   const [content, setContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('Documento_Live');
   const [isLoading, setIsLoading] = useState(false);
@@ -200,8 +200,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
       const withSigs = appendSignatureIfMissing(finalHtml);
       
-      if (conversationId && conversationId !== 'new') {
-        const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
+      const targetId = (!conversationId || conversationId === 'new')
+        ? (user?.id ? `temp-${user.id}` : null)
+        : conversationId;
+
+      if (targetId) {
+        const saveRes = await fetch(`/api/live-editor/${targetId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ content: withSigs, fileName: data.fileName }),
@@ -211,7 +215,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         }
         const saved = await saveRes.json();
         lastUpdatedAtRef.current = saved.contentUpdatedAt;
-        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+        if (conversationId && conversationId !== 'new') {
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+        }
       } else {
         lastUpdatedAtRef.current = null;
       }
@@ -243,13 +249,17 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
   // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
-    if (!conversationId || conversationId === 'new') return;
+    const targetId = (!conversationId || conversationId === 'new')
+      ? (user?.id ? `temp-${user.id}` : null)
+      : conversationId;
+    if (!targetId) return;
     if (isSavingRef.current) return;
     try {
       if (isInitial) setIsLoading(true);
-      const res = await fetch(`/api/live-editor/${conversationId}`, {
+      const res = await fetch(`/api/live-editor/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 404) return;
       const data = await res.json();
 
       if (data.contentUpdatedAt && data.contentUpdatedAt !== lastUpdatedAtRef.current) {
@@ -268,19 +278,25 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     } finally {
       if (isInitial) setIsLoading(false);
     }
-  }, [conversationId, token]);
+  }, [conversationId, token, user?.id]);
 
   useEffect(() => { fetchDocument(true); }, [fetchDocument]);
 
   useEffect(() => {
-    if (!conversationId || conversationId === 'new') return;
+    const targetId = (!conversationId || conversationId === 'new')
+      ? (user?.id ? `temp-${user.id}` : null)
+      : conversationId;
+    if (!targetId) return;
     const interval = setInterval(() => fetchDocument(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [conversationId, fetchDocument, isSubmitting]);
+  }, [conversationId, fetchDocument, isSubmitting, user?.id]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    if (!conversationId || conversationId === 'new') return;
+    const targetId = (!conversationId || conversationId === 'new')
+      ? (user?.id ? `temp-${user.id}` : null)
+      : conversationId;
+    if (!targetId) return;
     try {
       isSavingRef.current = true;
       setIsSaving(true);
@@ -288,7 +304,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       const toSave = editorContentRef.current || content;
       if (!toSave) return;
       const finalContent = appendSignatureIfMissing(toSave);
-      const res = await fetch(`/api/live-editor/${conversationId}`, {
+      const res = await fetch(`/api/live-editor/${targetId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content: finalContent, fileName }),
@@ -298,8 +314,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         lastUpdatedAtRef.current = data.contentUpdatedAt;
         setContent(finalContent);
         editorContentRef.current = finalContent;
-        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
-        await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+        if (conversationId && conversationId !== 'new') {
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+        }
         setRefreshTrigger(prev => prev + 1);
       }
     } catch (e) {
@@ -308,14 +326,26 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [conversationId, token, content, fileName]);
+  }, [conversationId, token, content, fileName, user?.id]);
 
-  // Save unsaved local content once conversationId becomes valid
+  const prevConvoIdRef = useRef<string | undefined>(conversationId);
+
   useEffect(() => {
-    if (conversationId && conversationId !== 'new' && content && !lastUpdatedAtRef.current) {
-      handleSave();
+    if (prevConvoIdRef.current !== conversationId) {
+      const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (conversationId && conversationId !== 'new');
+      
+      if (!isTransitionFromNewToReal) {
+        setContent('');
+        setFileName('Documento_Live');
+        editorContentRef.current = '';
+        lastUpdatedAtRef.current = null;
+        if (liveEditorRef.current) {
+          liveEditorRef.current.setHTML('');
+        }
+      }
+      prevConvoIdRef.current = conversationId;
     }
-  }, [conversationId, content, handleSave]);
+  }, [conversationId]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
@@ -348,8 +378,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
     if (docContent) {
       const withSigs = appendSignatureIfMissing(docContent);
-      if (conversationId && conversationId !== 'new') {
-        const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
+      const targetId = (!conversationId || conversationId === 'new')
+        ? (user?.id ? `temp-${user.id}` : null)
+        : conversationId;
+      if (targetId) {
+        const saveRes = await fetch(`/api/live-editor/${targetId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ content: withSigs }),
@@ -358,9 +391,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           const saved = await saveRes.json();
           lastUpdatedAtRef.current = saved.contentUpdatedAt;
         }
-        // Also tag with per-conversation tag so history only shows this chat's doc
-        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
-        await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+        if (conversationId && conversationId !== 'new') {
+          // Also tag with per-conversation tag so history only shows this chat's doc
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+        }
       }
       setContent(withSigs);
       editorContentRef.current = withSigs;
@@ -372,9 +407,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
   // ── Clear ─────────────────────────────────────────────────────────────────
   const handleClear = async () => {
-    if (!conversationId || conversationId === 'new') return;
+    const targetId = (!conversationId || conversationId === 'new')
+      ? (user?.id ? `temp-${user.id}` : null)
+      : conversationId;
+    if (!targetId) return;
     if (!window.confirm('¿Eliminar el documento actual? Esta acción no se puede deshacer.')) return;
-    await fetch(`/api/live-editor/${conversationId}`, {
+    await fetch(`/api/live-editor/${targetId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
