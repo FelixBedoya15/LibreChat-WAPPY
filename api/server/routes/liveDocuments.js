@@ -287,7 +287,7 @@ function cleanDocxHtml(html) {
   });
 
   // 5. Promover Títulos, Capítulos y Artículos a encabezados y separar el cuerpo del artículo
-  cleaned = cleaned.replace(/<p\b[^>]*>(.*?)<\/p>/gi, (match, innerContent) => {
+  cleaned = cleaned.replace(/<(p|h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi, (match, tagName, innerContent) => {
     const plainText = innerContent.replace(/<[^>]+>/g, '').trim();
     
     // Título Principal
