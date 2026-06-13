@@ -176,7 +176,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     data: { html: string; fileName: string },
     useAI: boolean
   ) => {
-    if (!conversationId || conversationId === 'new') return;
     try {
       setIsLoading(true);
       let finalHtml = data.html;
@@ -200,21 +199,27 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       }
 
       const withSigs = appendSignatureIfMissing(finalHtml);
-      const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: withSigs, fileName: data.fileName }),
-      });
-      if (!saveRes.ok) {
-        throw new Error('Error al guardar el documento en el servidor');
+      
+      if (conversationId && conversationId !== 'new') {
+        const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ content: withSigs, fileName: data.fileName }),
+        });
+        if (!saveRes.ok) {
+          throw new Error('Error al guardar el documento en el servidor');
+        }
+        const saved = await saveRes.json();
+        lastUpdatedAtRef.current = saved.contentUpdatedAt;
+        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+      } else {
+        lastUpdatedAtRef.current = null;
       }
-      const saved = await saveRes.json();
-      lastUpdatedAtRef.current = saved.contentUpdatedAt;
+
       setContent(withSigs);
       setFileName(data.fileName);
       editorContentRef.current = withSigs;
       liveEditorRef.current?.setHTML(withSigs);
-      await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       console.error('[LiveEditorPanel] applyExtractedDocument error:', err);
@@ -305,6 +310,13 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     }
   }, [conversationId, token, content, fileName]);
 
+  // Save unsaved local content once conversationId becomes valid
+  useEffect(() => {
+    if (conversationId && conversationId !== 'new' && content && !lastUpdatedAtRef.current) {
+      handleSave();
+    }
+  }, [conversationId, content, handleSave]);
+
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
     let docContent = '';
@@ -375,7 +387,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   // ── Upload DOCX/PDF ──────────────────────────────────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !conversationId || conversationId === 'new') return;
+    if (!file) return;
 
     const formData = new FormData();
     formData.append('file', file);
