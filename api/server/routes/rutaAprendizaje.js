@@ -16,9 +16,26 @@ router.get('/debug/db-dump', async (req, res) => {
         return res.status(403).send('Forbidden');
     }
     try {
-        const courses = await Course.find({}).lean();
-        const companies = await CompanyInfo.find({}).lean();
-        res.json({ courses, companies });
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        const perfiles = await PerfilSociodemograficoData.find({}).lean();
+        
+        let foundWorkers = [];
+        perfiles.forEach(p => {
+            if (p.trabajadores) {
+                p.trabajadores.forEach(t => {
+                    if (t.nombre && t.nombre.toLowerCase().includes('carlos')) {
+                        foundWorkers.push({
+                            workerName: t.nombre,
+                            identificacion: t.identificacion,
+                            companyId: p.companyId,
+                            user: p.user
+                        });
+                    }
+                });
+            }
+        });
+
+        res.json({ foundWorkers });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
