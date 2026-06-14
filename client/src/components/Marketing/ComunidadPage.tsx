@@ -841,7 +841,7 @@ export default function ComunidadPage() {
 
   // Prevent seeking via keyboard
   useEffect(() => {
-    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
+    if (showLeadModal || (funnelKey !== 'wappyvital' && actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -922,7 +922,7 @@ export default function ComunidadPage() {
   };
 
   const togglePlay = () => {
-    if (showLeadModal || (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
+    if (showLeadModal || (funnelKey !== 'wappyvital' && actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled)) return;
 
     // Immediate gating check on play attempt if past gatingSeconds
     const isPastGating = currentTime >= gatingSeconds;
@@ -1609,7 +1609,7 @@ export default function ComunidadPage() {
     document.body.removeChild(link);
   };
 
-  const isUnlocked = isAdmin || isAccessGranted || !gatingEnabled || (!actualRequiresPayment && isLeadCaptured);
+  const isUnlocked = isAdmin || isAccessGranted || (funnelKey !== 'wappyvital' && (!gatingEnabled || (!actualRequiresPayment && isLeadCaptured)));
 
   return (
     <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
@@ -2294,7 +2294,7 @@ export default function ComunidadPage() {
             <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
             <h3 className="font-bold text-text-primary text-base">Cargando embudo interactivo...</h3>
           </div>
-        ) : (actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled) ? (
+        ) : (funnelKey !== 'wappyvital' && actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled) ? (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center justify-center relative z-10 text-center">
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
