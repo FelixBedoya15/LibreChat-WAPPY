@@ -73,7 +73,9 @@ export default function PublicRutaAprendizaje() {
         const loadCoursesAndProgress = async () => {
             setLoadingCourses(true);
             try {
-                const resCourses = await axios.get(`/api/ruta-aprendizaje/public/courses/${companyId}`);
+                const resCourses = await axios.get(
+                    `/api/ruta-aprendizaje/public/courses/${companyId}?cedula=${session.cedula}&cargo=${encodeURIComponent(session.cargo || '')}`
+                );
                 const courseList = resCourses.data;
                 setCourses(courseList);
 

@@ -53,6 +53,17 @@ const courseSchema = mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    assignmentType: {
+        type: String,
+        enum: ['all', 'cargo', 'worker'],
+        default: 'all',
+    },
+    assignedCargos: [{
+        type: String,
+    }],
+    assignedWorkers: [{
+        type: String,
+    }],
     isFeatured: {
         type: Boolean,
         default: false,

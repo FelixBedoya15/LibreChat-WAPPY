@@ -45,6 +45,48 @@ router.get('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =>
     }
 });
 
+// Get list of workers and unique cargos for the active company
+router.get('/admin/company-workers-info', requireJwtAuth, checkAdminRole, async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const companyId = await getActiveCompanyId(userId);
+        
+        if (!companyId) {
+            return res.status(400).json({ message: 'No active company found for this user' });
+        }
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        if (!PerfilSociodemograficoData) {
+            return res.status(200).json({ workers: [], cargos: [] });
+        }
+
+        const perfil = await PerfilSociodemograficoData.findOne({
+            companyId: companyId
+        }).lean();
+
+        if (!perfil || !perfil.trabajadores) {
+            return res.status(200).json({ workers: [], cargos: [] });
+        }
+
+        const workers = perfil.trabajadores.map(t => ({
+            nombre: t.nombre || '',
+            identificacion: t.identificacion || '',
+            cargo: t.cargo || ''
+        }));
+
+        const cargos = Array.from(new Set(
+            perfil.trabajadores
+                .map(t => String(t.cargo || '').trim())
+                .filter(Boolean)
+        )).sort();
+
+        res.status(200).json({ workers, cargos });
+    } catch (error) {
+        logger.error('[Ruta Aprendizaje Admin] Get company workers info error:', error);
+        res.status(500).json({ message: 'Error retrieving workers info' });
+    }
+});
+
 // Get course by ID
 router.get('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res) => {
     try {
@@ -77,7 +119,7 @@ router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =
             return res.status(400).json({ message: 'No active company found for this user' });
         }
 
-        const { title, description, thumbnail, tags, isPublished } = req.body;
+        const { title, description, thumbnail, tags, isPublished, assignmentType, assignedCargos, assignedWorkers } = req.body;
         if (!title) {
             return res.status(400).json({ message: 'Title is required' });
         }
@@ -90,6 +132,9 @@ router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =
             isPublished: isPublished || false,
             isLearningPath: true,
             companyId,
+            assignmentType: assignmentType || 'all',
+            assignedCargos: assignedCargos || [],
+            assignedWorkers: assignedWorkers || [],
             lessons: []
         });
 
@@ -389,15 +434,49 @@ router.get('/public/company/:companyId', async (req, res) => {
 router.get('/public/courses/:companyId', async (req, res) => {
     try {
         const { companyId } = req.params;
+        const { cedula, cargo } = req.query;
+
         if (!mongoose.Types.ObjectId.isValid(companyId)) {
             return res.status(400).json({ error: 'Invalid company ID' });
         }
 
-        const courses = await Course.find({ isPublished: true, isLearningPath: true, companyId })
+        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
+            ? new mongoose.Types.ObjectId(companyId) 
+            : companyId;
+
+        const courses = await Course.find({ 
+            isPublished: true, 
+            isLearningPath: true, 
+            companyId: { $in: [companyId, queryCompanyId] }
+        })
             .select('-lessons.content')
             .lean();
 
-        res.status(200).json(courses);
+        // Filter courses by segment targeting if worker info is provided
+        let filteredCourses = courses;
+        if (cedula && cargo) {
+            const formatStr = (s) => String(s || '').trim().toLowerCase();
+            const wCedula = formatStr(cedula);
+            const wCargo = formatStr(cargo);
+
+            filteredCourses = courses.filter(course => {
+                const type = course.assignmentType || 'all';
+                if (type === 'all') {
+                    return true;
+                }
+                if (type === 'cargo') {
+                    const cargos = (course.assignedCargos || []).map(formatStr);
+                    return cargos.includes(wCargo);
+                }
+                if (type === 'worker') {
+                    const workers = (course.assignedWorkers || []).map(formatStr);
+                    return workers.includes(wCedula);
+                }
+                return true;
+            });
+        }
+
+        res.status(200).json(filteredCourses);
     } catch (error) {
         logger.error('[Ruta Aprendizaje Public] Get courses error:', error);
         res.status(500).json({ error: 'Error retrieving learning path courses' });
@@ -408,20 +487,54 @@ router.get('/public/courses/:companyId', async (req, res) => {
 router.get('/public/courses/:companyId/:courseId', async (req, res) => {
     try {
         const { companyId, courseId } = req.params;
-        const { cedula } = req.query;
+        const { cedula, cargo } = req.query;
 
         if (!mongoose.Types.ObjectId.isValid(companyId) || !mongoose.Types.ObjectId.isValid(courseId)) {
             return res.status(400).json({ error: 'Invalid IDs' });
         }
 
-        const course = await Course.findOne({ _id: courseId, isLearningPath: true, companyId }).lean();
+        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
+            ? new mongoose.Types.ObjectId(companyId) 
+            : companyId;
+
+        const course = await Course.findOne({ 
+            _id: courseId, 
+            isLearningPath: true, 
+            companyId: { $in: [companyId, queryCompanyId] }
+        }).lean();
+
         if (!course) {
             return res.status(404).json({ error: 'Course not found' });
         }
 
+        // Validate course assignment targeting
+        if (cedula && cargo) {
+            const formatStr = (s) => String(s || '').trim().toLowerCase();
+            const wCedula = formatStr(cedula);
+            const wCargo = formatStr(cargo);
+            const type = course.assignmentType || 'all';
+
+            let isAssigned = true;
+            if (type === 'cargo') {
+                const cargos = (course.assignedCargos || []).map(formatStr);
+                isAssigned = cargos.includes(wCargo);
+            } else if (type === 'worker') {
+                const workers = (course.assignedWorkers || []).map(formatStr);
+                isAssigned = workers.includes(wCedula);
+            }
+
+            if (!isAssigned) {
+                return res.status(403).json({ error: 'Este curso no está asignado a tu perfil o cargo.' });
+            }
+        }
+
         let progress = null;
         if (cedula) {
-            progress = await UserProgress.findOne({ workerCedula: String(cedula).trim(), course: courseId, companyId }).lean();
+            progress = await UserProgress.findOne({ 
+                workerCedula: String(cedula).trim(), 
+                course: courseId, 
+                companyId: { $in: [companyId, queryCompanyId] }
+            }).lean();
         }
 
         const responseData = {
@@ -448,7 +561,15 @@ router.post('/public/progress', async (req, res) => {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        const course = await Course.findOne({ _id: courseId, isLearningPath: true, companyId });
+        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
+            ? new mongoose.Types.ObjectId(companyId) 
+            : companyId;
+
+        const course = await Course.findOne({ 
+            _id: courseId, 
+            isLearningPath: true, 
+            companyId: { $in: [companyId, queryCompanyId] }
+        });
         if (!course) {
             return res.status(404).json({ error: 'Course not found' });
         }
@@ -461,14 +582,14 @@ router.post('/public/progress', async (req, res) => {
         let progress = await UserProgress.findOne({ 
             workerCedula: String(workerCedula).trim(), 
             course: courseId, 
-            companyId 
+            companyId: { $in: [companyId, queryCompanyId] }
         });
 
         if (!progress) {
             progress = new UserProgress({
                 workerCedula: String(workerCedula).trim(),
                 workerName,
-                companyId,
+                companyId: queryCompanyId,
                 course: courseId,
                 completedLessons: [lessonId]
             });
@@ -504,10 +625,14 @@ router.post('/public/progress', async (req, res) => {
 router.get('/public/progress/:companyId/:courseId/:cedula', async (req, res) => {
     try {
         const { companyId, courseId, cedula } = req.params;
+        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
+            ? new mongoose.Types.ObjectId(companyId) 
+            : companyId;
+
         const progress = await UserProgress.findOne({ 
             workerCedula: String(cedula).trim(), 
             course: courseId, 
-            companyId 
+            companyId: { $in: [companyId, queryCompanyId] }
         }).lean();
 
         res.json({

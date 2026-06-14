@@ -28,6 +28,16 @@ export default function RutaAprendizajeCourseEditor() {
     const [isPublished, setIsPublished] = useState(false);
     const [lessons, setLessons] = useState<any[]>([]);
 
+    // Targeting states
+    const [assignmentType, setAssignmentType] = useState<'all' | 'cargo' | 'worker'>('all');
+    const [assignedCargos, setAssignedCargos] = useState<string[]>([]);
+    const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
+    const [workerSearch, setWorkerSearch] = useState('');
+
+    // Loaded lists from company directory
+    const [companyCargos, setCompanyCargos] = useState<string[]>([]);
+    const [companyWorkers, setCompanyWorkers] = useState<{ nombre: string; identificacion: string; cargo: string }[]>([]);
+
     // Exam Editor State
     const [showCourseExamModal, setShowCourseExamModal] = useState(false);
     const [courseExam, setCourseExam] = useState<Exam | null>(null);
@@ -116,7 +126,18 @@ export default function RutaAprendizajeCourseEditor() {
         }
     };
 
+    const fetchCompanyWorkersInfo = async () => {
+        try {
+            const response = await axios.get('/api/ruta-aprendizaje/admin/company-workers-info');
+            setCompanyCargos(response.data.cargos || []);
+            setCompanyWorkers(response.data.workers || []);
+        } catch (error) {
+            console.error('Error fetching company workers info:', error);
+        }
+    };
+
     useEffect(() => {
+        fetchCompanyWorkersInfo();
         if (!isNew) {
             fetchCourse();
         }
@@ -133,6 +154,9 @@ export default function RutaAprendizajeCourseEditor() {
             setTagsText((data.tags || []).join(', '));
             setIsPublished(data.isPublished || false);
             setCourseExam(data.exam || null);
+            setAssignmentType(data.assignmentType || 'all');
+            setAssignedCargos(data.assignedCargos || []);
+            setAssignedWorkers(data.assignedWorkers || []);
 
             const sortedLessons = (data.lessons || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
             setLessons(sortedLessons);
@@ -159,7 +183,10 @@ export default function RutaAprendizajeCourseEditor() {
                 thumbnail,
                 tags: tagsText.split(',').map(t => t.trim()).filter(Boolean),
                 isPublished,
-                exam: courseExam
+                exam: courseExam,
+                assignmentType,
+                assignedCargos,
+                assignedWorkers
             };
 
             if (isNew) {
@@ -397,6 +424,127 @@ export default function RutaAprendizajeCourseEditor() {
                                         placeholder="Seguridad, Ergonomía, Normativo"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Course Assignment Targeting */}
+                            <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                                    Asignación del Curso
+                                </h3>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        ¿A quién va dirigido este curso?
+                                    </label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {[
+                                            { value: 'all', label: 'Todos los trabajadores' },
+                                            { value: 'cargo', label: 'Por Cargo' },
+                                            { value: 'worker', label: 'Por Trabajador' }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => setAssignmentType(opt.value as any)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                                                    assignmentType === opt.value
+                                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                        : 'bg-white dark:bg-gray-750 text-gray-700 dark:text-gray-300 border-gray-350 dark:border-gray-650 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {assignmentType === 'cargo' && (
+                                    <div className="bg-gray-50 dark:bg-gray-900/40 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                            Seleccionar Cargos
+                                        </label>
+                                        {companyCargos.length === 0 ? (
+                                            <p className="text-xs text-gray-500 italic">
+                                                No hay cargos registrados en el listado de personal de la empresa.
+                                            </p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                                                {companyCargos.map(cargo => {
+                                                    const isChecked = assignedCargos.includes(cargo);
+                                                    return (
+                                                        <label key={cargo} className="flex items-center gap-2 text-sm bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setAssignedCargos(prev => [...prev, cargo]);
+                                                                    } else {
+                                                                        setAssignedCargos(prev => prev.filter(c => c !== cargo));
+                                                                    }
+                                                                }}
+                                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            <span className="truncate">{cargo}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {assignmentType === 'worker' && (
+                                    <div className="bg-gray-50 dark:bg-gray-900/40 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                Seleccionar Trabajadores ({assignedWorkers.length} seleccionados)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={workerSearch}
+                                                onChange={(e) => setWorkerSearch(e.target.value)}
+                                                placeholder="Buscar por nombre o cédula..."
+                                                className="px-3 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-850 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            />
+                                        </div>
+
+                                        {companyWorkers.length === 0 ? (
+                                            <p className="text-xs text-gray-500 italic">
+                                                No hay trabajadores registrados en la base de datos de la empresa.
+                                            </p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                                                {companyWorkers.filter(w => 
+                                                    w.nombre.toLowerCase().includes(workerSearch.toLowerCase()) || 
+                                                    w.identificacion.includes(workerSearch)
+                                                ).map(w => {
+                                                    const isChecked = assignedWorkers.includes(w.identificacion);
+                                                    return (
+                                                        <label key={w.identificacion} className="flex items-start gap-2 text-sm bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setAssignedWorkers(prev => [...prev, w.identificacion]);
+                                                                    } else {
+                                                                        setAssignedWorkers(prev => prev.filter(id => id !== w.identificacion));
+                                                                    }
+                                                                }}
+                                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+                                                            />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-semibold text-gray-900 dark:text-white truncate">{w.nombre}</p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">C.C. {w.identificacion} | {w.cargo || 'Sin Cargo'}</p>
+                                                            </div>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Course Exam Button */}

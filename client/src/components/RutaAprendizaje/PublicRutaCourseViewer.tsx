@@ -76,7 +76,7 @@ export default function PublicRutaCourseViewer() {
         try {
             setLoading(true);
             const response = await axios.get(
-                `/api/ruta-aprendizaje/public/courses/${companyId}/${courseId}?cedula=${workerCedula}`
+                `/api/ruta-aprendizaje/public/courses/${companyId}/${courseId}?cedula=${workerCedula}&cargo=${encodeURIComponent(session?.cargo || '')}`
             );
             const data = response.data;
             if (data.lessons) {
