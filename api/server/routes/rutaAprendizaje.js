@@ -11,6 +11,19 @@ const { logger } = require('~/config');
 
 const router = express.Router();
 
+router.get('/debug/db-dump', async (req, res) => {
+    if (req.query.secret !== 'wappy123') {
+        return res.status(403).send('Forbidden');
+    }
+    try {
+        const courses = await Course.find({}).lean();
+        const companies = await CompanyInfo.find({}).lean();
+        res.json({ courses, companies });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Helper: Get active company of a user
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
