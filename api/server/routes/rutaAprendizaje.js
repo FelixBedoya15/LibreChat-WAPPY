@@ -19,6 +19,28 @@ async function getActiveCompanyId(userId) {
     return active ? active._id : null;
 }
 
+// Helper: Get all sister company IDs sharing the same NIT
+async function getSisterCompanyIds(companyId) {
+    let companyIds = [companyId];
+    if (mongoose.Types.ObjectId.isValid(companyId)) {
+        companyIds.push(new mongoose.Types.ObjectId(companyId));
+    }
+    try {
+        const currentCompany = await CompanyInfo.findById(companyId);
+        if (currentCompany && currentCompany.nit) {
+            const sisterCompanies = await CompanyInfo.find({ nit: currentCompany.nit }).select('_id').lean();
+            for (const comp of sisterCompanies) {
+                companyIds.push(comp._id);
+                companyIds.push(new mongoose.Types.ObjectId(comp._id));
+            }
+        }
+    } catch (err) {
+        logger.error('[Ruta Aprendizaje Helper] getSisterCompanyIds error:', err);
+    }
+    // Return unique ObjectIds
+    return Array.from(new Set(companyIds.map(id => id.toString()))).map(id => new mongoose.Types.ObjectId(id));
+}
+
 // -------------------------------------------------------------
 // --- Admin Endpoints (Require JWT Authentication & ADMIN role) ---
 // -------------------------------------------------------------
@@ -497,14 +519,12 @@ router.get('/public/courses/:companyId', async (req, res) => {
             return res.status(400).json({ error: 'Invalid company ID' });
         }
 
-        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
-            ? new mongoose.Types.ObjectId(companyId) 
-            : companyId;
+        const allowedCompanyIds = await getSisterCompanyIds(companyId);
 
         const courses = await Course.find({ 
             isPublished: true, 
             isLearningPath: true, 
-            companyId: { $in: [companyId, queryCompanyId] }
+            companyId: { $in: allowedCompanyIds }
         })
             .select('-lessons.content')
             .lean();
@@ -550,14 +570,12 @@ router.get('/public/courses/:companyId/:courseId', async (req, res) => {
             return res.status(400).json({ error: 'Invalid IDs' });
         }
 
-        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
-            ? new mongoose.Types.ObjectId(companyId) 
-            : companyId;
+        const allowedCompanyIds = await getSisterCompanyIds(companyId);
 
         const course = await Course.findOne({ 
             _id: courseId, 
             isLearningPath: true, 
-            companyId: { $in: [companyId, queryCompanyId] }
+            companyId: { $in: allowedCompanyIds }
         }).lean();
 
         if (!course) {
@@ -590,7 +608,7 @@ router.get('/public/courses/:companyId/:courseId', async (req, res) => {
             progress = await UserProgress.findOne({ 
                 workerCedula: String(cedula).trim(), 
                 course: courseId, 
-                companyId: { $in: [companyId, queryCompanyId] }
+                companyId: { $in: allowedCompanyIds }
             }).lean();
         }
 
@@ -618,14 +636,12 @@ router.post('/public/progress', async (req, res) => {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
-            ? new mongoose.Types.ObjectId(companyId) 
-            : companyId;
+        const allowedCompanyIds = await getSisterCompanyIds(companyId);
 
         const course = await Course.findOne({ 
             _id: courseId, 
             isLearningPath: true, 
-            companyId: { $in: [companyId, queryCompanyId] }
+            companyId: { $in: allowedCompanyIds }
         });
         if (!course) {
             return res.status(404).json({ error: 'Course not found' });
@@ -639,7 +655,7 @@ router.post('/public/progress', async (req, res) => {
         let progress = await UserProgress.findOne({ 
             workerCedula: String(workerCedula).trim(), 
             course: courseId, 
-            companyId: { $in: [companyId, queryCompanyId] }
+            companyId: { $in: allowedCompanyIds }
         });
 
         if (!progress) {
@@ -682,14 +698,12 @@ router.post('/public/progress', async (req, res) => {
 router.get('/public/progress/:companyId/:courseId/:cedula', async (req, res) => {
     try {
         const { companyId, courseId, cedula } = req.params;
-        const queryCompanyId = mongoose.Types.ObjectId.isValid(companyId) 
-            ? new mongoose.Types.ObjectId(companyId) 
-            : companyId;
+        const allowedCompanyIds = await getSisterCompanyIds(companyId);
 
         const progress = await UserProgress.findOne({ 
             workerCedula: String(cedula).trim(), 
             course: courseId, 
-            companyId: { $in: [companyId, queryCompanyId] }
+            companyId: { $in: allowedCompanyIds }
         }).lean();
 
         res.json({
