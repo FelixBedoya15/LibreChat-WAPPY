@@ -1017,48 +1017,17 @@ export default function ComunidadPage() {
 
     const finalPlan = selectedCheckoutPlan || 'vital';
 
-    // 1. Create account first if funnelKey === 'wappyvital'
-    if (funnelKey === 'wappyvital') {
-      try {
-        const username = checkoutEmail.trim().split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-        await axios.post('/api/auth/register', {
-          name: checkoutFullName.trim(),
-          email: checkoutEmail.trim(),
-          username,
-          password: checkoutPassword,
-          confirm_password: checkoutPassword,
-          phoneNumber: checkoutPhone.trim()
-        });
-      } catch (regErr: any) {
-        const msg = regErr.response?.data?.message || regErr.message || 'Error al crear la cuenta.';
-        // If email is already in use, we attempt to login anyway. Otherwise, fail.
-        if (!msg.toLowerCase().includes('already') && !msg.toLowerCase().includes('uso') && !msg.toLowerCase().includes('existe')) {
-          setCheckoutError(msg);
-          setIsCheckoutSubmitting(false);
-          return;
-        }
-      }
-
-      // Log in
-      try {
-        await login({
-          email: checkoutEmail.trim(),
-          password: checkoutPassword
-        });
-      } catch (logErr: any) {
-        setCheckoutError('El correo ya está registrado con otra contraseña. Por favor, verifica tus datos o inicia sesión.');
-        setIsCheckoutSubmitting(false);
-        return;
-      }
-    }
-
-    // 2. Start Wompi Checkout
+    // Start Wompi Checkout
     try {
       if (funnelKey === 'wappyvital' && finalPlan === 'pro') {
-        // subscription checkout (Wappy Pro)
-        const { data } = await axios.post('/api/wompi/create-transaction', {
+        // subscription guest checkout (Wappy Pro)
+        const { data } = await axios.post('/api/wompi/guest-checkout', {
+          name: checkoutFullName.trim(),
+          email: checkoutEmail.trim(),
+          password: checkoutPassword,
           plan: 'pro|' + billingInterval,
-          promoCode: couponCode.trim() || undefined
+          promoCode: couponCode.trim() || undefined,
+          phone: checkoutPhone.trim()
         });
 
         if (!window.WidgetCheckout) {
@@ -1101,6 +1070,20 @@ export default function ComunidadPage() {
             setIsVideoFinished(true);
           }
           setIsCheckoutSubmitting(false);
+
+          if (funnelKey === 'wappyvital') {
+            try {
+              await login({
+                email: checkoutEmail.trim(),
+                password: checkoutPassword
+              });
+            } catch (loginErr) {
+              alert('Esta cuenta ya tiene la membresía activa. Por favor, inicia sesión con tu contraseña.');
+              navigate('/login');
+            }
+          } else {
+            alert('¡Ya tienes acceso concedido! Disfruta del curso.');
+          }
           return;
         }
 
@@ -1151,6 +1134,18 @@ export default function ComunidadPage() {
             setIsAccessGranted(true);
             setShowLeadModal(false);
             triggerMetaPurchasePixel(email, checkoutFullName, checkoutPhone);
+
+            // Log in automatically after payment is approved
+            if (funnelKey === 'wappyvital') {
+              try {
+                await login({
+                  email: email.trim(),
+                  password: checkoutPassword
+                });
+              } catch (loginErr) {
+                console.error('[Auto-login] failed after approval:', loginErr);
+              }
+            }
           }
         } catch (err) {
           console.error('[Wompi Verify] Error:', err);
@@ -1182,7 +1177,14 @@ export default function ComunidadPage() {
       if (transaction.status === 'APPROVED') {
         try {
           setIsAccessChecking(true);
-          await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
+          if (wompiData.guestToken) {
+            await axios.post('/api/wompi/guest-verify', {
+              transactionId: transaction.id,
+              guestToken: wompiData.guestToken
+            });
+          } else {
+            await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
+          }
           localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
           setUserEmail(email);
           if (checkoutPhone) {
@@ -1190,7 +1192,16 @@ export default function ComunidadPage() {
             setUserPhone(checkoutPhone);
           }
           alert('¡Suscripción Wappy Pro activada con éxito!');
-          window.location.href = '/c/new';
+          // Log in automatically after payment is approved
+          try {
+            await login({
+              email: email.trim(),
+              password: checkoutPassword
+            });
+          } catch (loginErr) {
+            console.error('[Pro Auto-login] failed:', loginErr);
+            window.location.href = '/c/new';
+          }
         } catch (err) {
           console.error('[Wompi Verify Pro] Error:', err);
           window.location.href = '/c/new';
@@ -2605,13 +2616,19 @@ export default function ComunidadPage() {
 
             {/* Quick Access / Skip Video Banner */}
             {!isUnlocked && (
-              <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300">
+              <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300 animate-premium-float">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
                     {funnelKey === 'wappyvital' ? (
-                      <>
-                        ⚡ ¡FELICITACIONES POR TERMINAR LA CAPACITACIÓN! Estás a un solo paso de asegurar tu acceso de por vida y multiplicar tus resultados. Completa tu registro de datos ahora para continuar.
-                      </>
+                      isVideoFinished ? (
+                        <>
+                          ⚡ ¡FELICITACIONES POR TERMINAR LA CAPACITACIÓN! Estás a un solo paso de asegurar tu acceso de por vida y multiplicar tus resultados. Completa tu registro de datos ahora para continuar.
+                        </>
+                      ) : (
+                        <>
+                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora y completa tu registro para continuar.
+                        </>
+                      )
                     ) : actualRequiresPayment ? (
                       <>
                         Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
@@ -2634,7 +2651,7 @@ export default function ComunidadPage() {
                   }}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/25 hover:scale-105 whitespace-nowrap"
                 >
-                  {funnelKey === 'wappyvital' ? 'Regístrate ya' : 'Registrar y Descargar Ya'}
+                  {funnelKey === 'wappyvital' ? 'Regístrate ya' : 'Registrar and Descargar Ya'}
                 </button>
               </div>
             )}
@@ -2804,7 +2821,11 @@ export default function ComunidadPage() {
             <div className="w-full max-w-4xl mt-12 text-left">
               <div className="flex items-center gap-2 mb-6">
                 <Play className="w-5 h-5 text-emerald-500" />
-                <h3 className="text-base font-bold text-text-primary outfit">Clases y Capacitaciones Complementarias</h3>
+                <h3 className="text-base font-bold text-text-primary outfit">
+                  {funnelKey === 'wappyvital' 
+                    ? 'Clases para sacar el mejor provecho a la plataforma y rentabilidad' 
+                    : 'Clases y Capacitaciones Complementarias'}
+                </h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3182,52 +3203,54 @@ export default function ComunidadPage() {
               </div>
             )}
 
-            <div className="w-full max-w-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/20 to-emerald-500/10 border-2 border-emerald-500/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-[0_0_25px_rgba(16,185,129,0.15)] hover:shadow-[0_0_35px_rgba(16,185,129,0.25)] transition-all duration-300 mt-10 text-center flex flex-col items-center justify-center gap-3 animate-premium-float">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
-              <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
-                <ShieldCheck className="w-6 h-6 animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
-                  {funnelKey === 'wappyvital' 
-                    ? '¡Ya tienes activa tu Membresía WAPPY de Por Vida!' 
-                    : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
-                </h3>
-                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-                  {funnelKey === 'wappyvital' ? (
-                    userPhone ? (
-                      <>
-                        Tu cuenta ha sido creada automáticamente. Usa tus credenciales para iniciar sesión:
-                        <br />
-                        <span className="text-text-primary">Usuario:</span> {userEmail}
-                        <br />
-                        <span className="text-text-primary">Contraseña:</span> {userPhone}
-                      </>
+            {isAccessGranted && (
+              <div className="w-full max-w-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/20 to-emerald-500/10 border-2 border-emerald-500/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-[0_0_25px_rgba(16,185,129,0.15)] hover:shadow-[0_0_35px_rgba(16,185,129,0.25)] transition-all duration-300 mt-10 text-center flex flex-col items-center justify-center gap-3 animate-premium-float">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+                  <ShieldCheck className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-base sm:text-lg font-bold text-text-primary leading-snug">
+                    {funnelKey === 'wappyvital' 
+                      ? '¡Ya tienes activa tu Membresía WAPPY de Por Vida!' 
+                      : '¡Ya tienes acceso completo a todos los aplicativos y herramientas! Disfruta del curso.'}
+                  </h3>
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+                    {funnelKey === 'wappyvital' ? (
+                      userPhone ? (
+                        <>
+                          Tu cuenta ha sido creada automáticamente. Usa tus credenciales para iniciar sesión:
+                          <br />
+                          <span className="text-text-primary">Usuario:</span> {userEmail}
+                          <br />
+                          <span className="text-text-primary">Contraseña:</span> {userPhone}
+                        </>
+                      ) : (
+                        'Tu cuenta ha sido autorizada de por vida. Utiliza tu correo registrado para iniciar sesión en la plataforma y acceder a los más de 15 agentes de IA.'
+                      )
                     ) : (
-                      'Tu cuenta ha sido autorizada de por vida. Utiliza tu correo registrado para iniciar sesión en la plataforma y acceder a los más de 15 agentes de IA.'
-                    )
-                  ) : (
-                    'Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.'
+                      'Aprovecha esta capacitación e integra la IA con la Seguridad y Salud en el Trabajo.'
+                    )}
+                  </p>
+                  {funnelKey === 'wappyvital' && (
+                    <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                      <button
+                        onClick={() => navigate('/login')}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-105"
+                      >
+                        Iniciar Sesión en WAPPY IA
+                      </button>
+                      <button
+                        onClick={() => navigate('/register')}
+                        className="px-4 py-2 bg-surface-secondary hover:bg-surface-hover text-text-primary border border-border-medium rounded-xl font-bold text-xs transition-all hover:scale-105"
+                      >
+                        Registrar Nueva Cuenta
+                      </button>
+                    </div>
                   )}
-                </p>
-                {funnelKey === 'wappyvital' && (
-                  <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
-                    <button
-                      onClick={() => navigate('/login')}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-105"
-                    >
-                      Iniciar Sesión en WAPPY IA
-                    </button>
-                    <button
-                      onClick={() => navigate('/register')}
-                      className="px-4 py-2 bg-surface-secondary hover:bg-surface-hover text-text-primary border border-border-medium rounded-xl font-bold text-xs transition-all hover:scale-105"
-                    >
-                      Registrar Nueva Cuenta
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
           </main>
         )}

@@ -526,14 +526,51 @@ const handleWebhook = async (req, res) => {
                 return res.status(200).send('OK'); // don't fail Wompi
             }
 
-            let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+            let userId = wompiTx.userId;
+            if (!userId && wompiTx.guestEmail) {
+                const User = mongoose.model('User');
+                const normEmail = wompiTx.guestEmail.toLowerCase().trim();
+                let user = await User.findOne({ email: normEmail });
+                if (!user) {
+                    const { createUser } = require('../../models');
+                    const { getAppConfig } = require('../services/Config');
+                    const appConfig = await getAppConfig();
+                    const bcrypt = require('bcryptjs');
+
+                    let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                    let userWithUsername = await User.findOne({ username });
+                    if (userWithUsername) {
+                        username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                    }
+
+                    const newUserData = {
+                        provider: 'local',
+                        email: normEmail,
+                        username,
+                        name: wompiTx.guestName.trim(),
+                        phoneNumber: wompiTx.guestPhone ? wompiTx.guestPhone.trim() : '',
+                        avatar: null,
+                        role: 'USER',
+                        accountStatus: 'active',
+                        password: wompiTx.guestPassword, // already hashed
+                    };
+
+                    user = await createUser(newUserData, appConfig?.balance, true, true);
+                    console.log(`[Wompi Webhook] Auto-created user ${user._id} (${normEmail}) for guest checkout after payment approval`);
+                }
+                userId = user._id;
+                wompiTx.userId = userId;
+                await wompiTx.save();
+            }
+
+            let userPlan = await UserPlan.findOne({ userId });
 
             // ── Option 2: Time Compensation Proration ──────────────────────
             // Same tier → stack 1:1. Different tier → convert unused $ to days of new plan.
             const expiryDate = await calculateProratedExpiry(wompiTx.planId, wompiTx.interval, userPlan);
 
             if (!userPlan) {
-                userPlan = new UserPlan({ userId: wompiTx.userId });
+                userPlan = new UserPlan({ userId });
             }
 
             userPlan.plan = wompiTx.planId;
@@ -860,7 +897,7 @@ const guestCheckout = async (req, res) => {
     try {
         const jwt = require('jsonwebtoken');
         const bcrypt = require('bcryptjs');
-        const { name, email, password, plan: planString, promoCode } = req.body;
+        const { name, email, password, plan: planString, promoCode, phone } = req.body;
 
         if (!name || !email || !password || !planString) {
             return res.status(400).json({ error: 'Faltan campos: name, email, password, plan' });
@@ -874,26 +911,27 @@ const guestCheckout = async (req, res) => {
             return res.status(400).json({ error: 'Plan o intervalo inválido' });
         }
 
-        // ── 1. Find or create user ────────────────────────────────────────
+        // ── 1. Find existing user ────────────────────────────────────────
         const User = mongoose.model('User');
-        let user = await User.findOne({ email: email.toLowerCase().trim() });
+        const normEmail = email.toLowerCase().trim();
+        let user = await User.findOne({ email: normEmail });
 
-        if (!user) {
-            const hashedPassword = await bcrypt.hash(password, 12);
-            const baseUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18);
-            const username = baseUser + Math.floor(Math.random() * 9000 + 1000);
-            user = new User({
-                name,
-                username,
-                email: email.toLowerCase().trim(),
-                password: hashedPassword,
-                role: 'USER',
-                accountStatus: 'active',
-            });
-            await user.save();
-            console.log(`[GuestCheckout] Created new user ${user._id} for ${email}`);
-        } else {
+        let userId = undefined;
+        let guestName = undefined;
+        let guestEmail = undefined;
+        let guestPassword = undefined;
+        let guestPhone = undefined;
+
+        if (user) {
+            userId = user._id;
             console.log(`[GuestCheckout] Found existing user ${user._id} for ${email}`);
+        } else {
+            const hashedPassword = await bcrypt.hash(password, 12);
+            guestName = name;
+            guestEmail = normEmail;
+            guestPassword = hashedPassword;
+            guestPhone = phone || '';
+            console.log(`[GuestCheckout] User does not exist for ${email}. Deferring registration until payment.`);
         }
 
         // ── 2. Calculate price (same logic as createTransaction) ──────────
@@ -910,14 +948,18 @@ const guestCheckout = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
+        let isPromoValid = true;
         if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
-                const isValid = await checkWelcomeCodeExpiry(codeDoc, user._id);
-                if (!isValid) {
+                if (user) {
+                    isPromoValid = await checkWelcomeCodeExpiry(codeDoc, user._id);
+                }
+                if (isPromoValid) {
+                    appliedDiscount = codeDoc.discountPercentage;
+                } else {
                     return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
                 }
-                appliedDiscount = codeDoc.discountPercentage;
             }
         } else if (planDoc.promotions?.[interval]?.active) {
             appliedDiscount = planDoc.promotions[interval].discountPercentage;
@@ -932,12 +974,16 @@ const guestCheckout = async (req, res) => {
         const amountInCents = Math.round(finalPrice * 100);
 
         await WompiTransaction.create({
-            userId: user._id,
+            userId,
             planId,
             interval,
             reference,
             amountInCents,
             status: 'PENDING',
+            guestName,
+            guestEmail,
+            guestPassword,
+            guestPhone
         });
 
         // ── 4. Wompi integrity signature ──────────────────────────────────
@@ -953,9 +999,9 @@ const guestCheckout = async (req, res) => {
 
         // ── 5. Short-lived JWT for post-payment verification ──────────────
         const jwtSecret = process.env.JWT_SECRET;
-        const guestToken = jwt.sign({ id: user._id.toString(), role: user.role }, jwtSecret, { expiresIn: '2h' });
+        const guestToken = jwt.sign({ reference }, jwtSecret, { expiresIn: '2h' });
 
-        console.log(`[GuestCheckout] Transaction ${reference} created for user ${user._id}, plan ${planId}|${interval}`);
+        console.log(`[GuestCheckout] Transaction ${reference} created for ${email}`);
 
         return res.json({ publicKey, reference, amountInCents, currency: 'COP', signature, guestToken });
     } catch (error) {
@@ -1004,12 +1050,49 @@ const guestVerifyTransaction = async (req, res) => {
             wompiTx.transactionId = transactionId;
             await wompiTx.save();
 
+            let userId = wompiTx.userId;
+            if (!userId && wompiTx.guestEmail) {
+                const User = mongoose.model('User');
+                const normEmail = wompiTx.guestEmail.toLowerCase().trim();
+                let user = await User.findOne({ email: normEmail });
+                if (!user) {
+                    const { createUser } = require('../../models');
+                    const { getAppConfig } = require('../services/Config');
+                    const appConfig = await getAppConfig();
+                    const bcrypt = require('bcryptjs');
+
+                    let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                    let userWithUsername = await User.findOne({ username });
+                    if (userWithUsername) {
+                        username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                    }
+
+                    const newUserData = {
+                        provider: 'local',
+                        email: normEmail,
+                        username,
+                        name: wompiTx.guestName.trim(),
+                        phoneNumber: wompiTx.guestPhone ? wompiTx.guestPhone.trim() : '',
+                        avatar: null,
+                        role: 'USER',
+                        accountStatus: 'active',
+                        password: wompiTx.guestPassword, // already hashed
+                    };
+
+                    user = await createUser(newUserData, appConfig?.balance, true, true);
+                    console.log(`[GuestVerify] Auto-created user ${user._id} (${normEmail}) after payment approval`);
+                }
+                userId = user._id;
+                wompiTx.userId = userId;
+                await wompiTx.save();
+            }
+
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (planDoc) {
-                let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+                let userPlan = await UserPlan.findOne({ userId });
                 const expiryDate = await calculateProratedExpiry(wompiTx.planId, wompiTx.interval, userPlan);
 
-                if (!userPlan) userPlan = new UserPlan({ userId: wompiTx.userId });
+                if (!userPlan) userPlan = new UserPlan({ userId });
                 userPlan.plan = wompiTx.planId;
                 userPlan.planExpiresAt = expiryDate;
                 await userPlan.save();
@@ -1023,7 +1106,7 @@ const guestVerifyTransaction = async (req, res) => {
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
                 await User.updateOne(
-                    { _id: wompiTx.userId },
+                    { _id: userId },
                     { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
                 );
 

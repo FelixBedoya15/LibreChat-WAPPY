@@ -114,11 +114,49 @@ const runPollCycle = async () => {
                 if (newStatus === 'APPROVED') {
                     const User = mongoose.model('User');
 
-                    let userPlan = await UserPlan.findOne({ userId: tx.userId });
+                    let userId = tx.userId;
+                    if (!userId && tx.guestEmail) {
+                        const normEmail = tx.guestEmail.toLowerCase().trim();
+                        let user = await User.findOne({ email: normEmail });
+                        if (!user) {
+                            const { createUser } = require('~/models');
+                            const { getAppConfig } = require('~/server/services/Config');
+                            const appConfig = await getAppConfig();
+                            const bcrypt = require('bcryptjs');
+
+                            let username = normEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                            let userWithUsername = await User.findOne({ username });
+                            if (userWithUsername) {
+                                username = `${username}${Math.floor(1000 + Math.random() * 9000)}`;
+                            }
+
+                            const newUserData = {
+                                provider: 'local',
+                                email: normEmail,
+                                username,
+                                name: tx.guestName.trim(),
+                                phoneNumber: tx.guestPhone ? tx.guestPhone.trim() : '',
+                                avatar: null,
+                                role: 'USER',
+                                accountStatus: 'active',
+                                password: tx.guestPassword, // already hashed
+                            };
+
+                            user = await createUser(newUserData, appConfig?.balance, true, true);
+                            console.log(`[WompiPoller] Auto-created user ${user._id} (${normEmail}) for guest checkout after payment approval`);
+                        }
+                        userId = user._id;
+                        await WompiTransaction.updateOne(
+                            { _id: tx._id },
+                            { $set: { userId } }
+                        );
+                    }
+
+                    let userPlan = await UserPlan.findOne({ userId });
                     const expiryDate = await calculateProratedExpiry(tx.planId, tx.interval, userPlan);
 
                     if (!userPlan) {
-                        userPlan = new UserPlan({ userId: tx.userId });
+                        userPlan = new UserPlan({ userId });
                     }
                     userPlan.plan = tx.planId;
                     userPlan.planExpiresAt = expiryDate;
@@ -132,19 +170,19 @@ const runPollCycle = async () => {
                     else if (tx.planId === 'pro') newRole = 'USER_PRO';
 
                     await User.updateOne(
-                        { _id: tx.userId },
+                        { _id: userId },
                         { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
                     );
 
                     // If custom plan, store tools
                     if (tx.planId === 'custom' && tx.customTools?.length > 0) {
                         await UserPlan.updateOne(
-                            { userId: tx.userId },
+                            { userId },
                             { $set: { customTools: tx.customTools, customInterval: tx.interval } }
                         );
                     }
 
-                    console.log(`[WompiPoller] ✅ APPROVED (async): plan ${tx.planId} provisioned for user ${tx.userId}. Expiry: ${expiryDate.toISOString()}`);
+                    console.log(`[WompiPoller] ✅ APPROVED (async): plan ${tx.planId} provisioned for user ${userId}. Expiry: ${expiryDate.toISOString()}`);
 
                     // Trigger referral/affiliate commission & points processing
                     try {
