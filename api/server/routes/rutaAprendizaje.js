@@ -11,35 +11,6 @@ const { logger } = require('~/config');
 
 const router = express.Router();
 
-router.get('/debug/db-dump', async (req, res) => {
-    if (req.query.secret !== 'wappy123') {
-        return res.status(403).send('Forbidden');
-    }
-    try {
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        const perfiles = await PerfilSociodemograficoData.find({}).lean();
-        
-        let foundWorkers = [];
-        perfiles.forEach(p => {
-            if (p.trabajadores) {
-                p.trabajadores.forEach(t => {
-                    if (t.nombre && t.nombre.toLowerCase().includes('carlos')) {
-                        foundWorkers.push({
-                            workerName: t.nombre,
-                            identificacion: t.identificacion,
-                            companyId: p.companyId,
-                            user: p.user
-                        });
-                    }
-                });
-            }
-        });
-
-        res.json({ foundWorkers });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
 
 // Helper: Get active company of a user
 async function getActiveCompanyId(userId) {
@@ -371,17 +342,75 @@ router.post('/admin/generate', requireJwtAuth, checkAdminRole, async (req, res) 
 // -------------------------------------------------------------
 
 // Validate worker identity
+// Validate worker identity
 router.post('/public/login', async (req, res) => {
     try {
-        const { nitOrName, nombre, cedula } = req.body;
+        const { nitOrName, nombre, cedula, companyId } = req.body;
         if (!nitOrName || !nombre || !cedula) {
             return res.status(400).json({ error: 'El NIT/Nombre Empresa, Nombre Trabajador y Cédula son obligatorios' });
         }
 
-        // Find company by NIT or Name
-        let company = await CompanyInfo.findOne({ nit: nitOrName.trim() });
+        const formatStr = (s) => String(s).trim().toLowerCase();
+        const inputNameFormat = formatStr(nombre);
+
+        let company;
+
+        // 1. If companyId is explicitly passed, try that first
+        if (companyId) {
+            company = await CompanyInfo.findById(companyId);
+        }
+
+        // 2. If not found or not passed, find all matching companies by NIT or Name
         if (!company) {
-            company = await CompanyInfo.findOne({ companyName: { $regex: new RegExp(nitOrName.trim(), 'i') } });
+            let matchedCompanies = await CompanyInfo.find({ nit: nitOrName.trim() });
+            if (matchedCompanies.length === 0) {
+                matchedCompanies = await CompanyInfo.find({ companyName: { $regex: new RegExp(nitOrName.trim(), 'i') } });
+            }
+
+            if (matchedCompanies.length === 0) {
+                return res.status(404).json({ error: 'Empresa no encontrada por el NIT o Razón Social ingresado.' });
+            }
+
+            // Find the database model
+            const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+            if (!PerfilSociodemograficoData) {
+                return res.status(500).json({ error: 'Mapeador sociodemográfico no cargado.' });
+            }
+
+            // 3. Search through the matched companies to find where the worker is registered
+            let foundCompany = null;
+            let bestCompany = null;
+
+            for (const comp of matchedCompanies) {
+                const perfil = await PerfilSociodemograficoData.findOne({
+                    user: new mongoose.Types.ObjectId(comp.user),
+                    companyId: comp._id
+                }).lean();
+
+                if (perfil && perfil.trabajadores) {
+                    const match = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
+                    if (match) {
+                        // Check if the name matches (partial match)
+                        const workerNameParts = formatStr(match.nombre).split(' ').filter(p => p.length > 2);
+                        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
+                        if (nameMatches) {
+                            if (!foundCompany) {
+                                foundCompany = comp;
+                            }
+                            // Check if this company has learning path courses
+                            const Course = mongoose.models.Course;
+                            if (Course) {
+                                const hasCourses = await Course.exists({ companyId: comp._id, isLearningPath: true });
+                                if (hasCourses) {
+                                    bestCompany = comp;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            company = bestCompany || foundCompany || matchedCompanies[0];
         }
 
         if (!company) {
@@ -403,7 +432,6 @@ router.post('/public/login', async (req, res) => {
             return res.status(404).json({ error: 'La empresa no cuenta con un listado de trabajadores activo.' });
         }
 
-        const formatStr = (s) => String(s).trim().toLowerCase();
         const workerFound = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
 
         if (!workerFound) {
@@ -412,7 +440,6 @@ router.post('/public/login', async (req, res) => {
 
         // Validate name matches (partial match)
         const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
-        const inputNameFormat = formatStr(nombre);
         const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
 
         if (!nameMatches && workerFound.nombre) {

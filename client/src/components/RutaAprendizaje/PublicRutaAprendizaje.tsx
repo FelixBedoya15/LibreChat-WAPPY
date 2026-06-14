@@ -121,6 +121,7 @@ export default function PublicRutaAprendizaje() {
         try {
             // Validate using company name/nit retrieved from company details
             const response = await axios.post('/api/ruta-aprendizaje/public/login', {
+                companyId: companyDetails._id,
                 nitOrName: companyDetails.nit || companyDetails.companyName,
                 nombre: nombre.trim(),
                 cedula: cedula.trim()
