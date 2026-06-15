@@ -221,11 +221,8 @@ const createComunidadCheckout = async (req, res) => {
                     price = 350000;
                 }
             }
-        }
-
-        // Apply discount if coupon code is valid (VITAL30 for Wappy Vital)
-        if (discountCode && discountCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') {
-            price = Math.round(price * 0.7); // 30% discount
+            // Apply 30% launch discount by default ($350.000 -> $245.000 COP)
+            price = Math.round(price * 0.7);
         }
 
         if (!requiresPayment || price <= 0) {

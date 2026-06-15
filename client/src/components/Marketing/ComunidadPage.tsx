@@ -3575,15 +3575,6 @@ export default function ComunidadPage() {
         <p>© {new Date().getFullYear()} WAPPY. Todos los derechos reservados.</p>
       </footer>
 
-      {funnelKey === 'wappyvital' && !isAccessGranted && (
-        <button
-          onClick={handleScrollToCard}
-          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-500/35 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 flex items-center gap-2 border border-emerald-400/20 animate-bounce"
-        >
-          <span>Ver Plan Completo</span>
-          <ArrowDown className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 }
