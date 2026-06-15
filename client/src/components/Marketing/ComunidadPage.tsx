@@ -727,9 +727,12 @@ export default function ComunidadPage() {
               // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
               const isCurrentlyPlaying = isPlaying || (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1);
               const shouldGate = isCurrentlyPlaying && gatingEnabled && time >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
-                actualRequiresPayment 
-                  ? !isAccessGrantedRef.current 
-                  : (!isLeadCapturedRef.current && !user)
+                funnelKey === 'wappyvital'
+                  ? (!isLeadCapturedRef.current && !user)
+                  : (actualRequiresPayment 
+                      ? !isAccessGrantedRef.current 
+                      : (!isLeadCapturedRef.current && !user)
+                    )
               );
 
               if (shouldGate) {
@@ -788,9 +791,12 @@ export default function ComunidadPage() {
       
       // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
       const shouldGate = gatingEnabled && video.currentTime >= gatingSeconds && !showLeadModalRef.current && !isAdmin && (
-        actualRequiresPayment 
-          ? !isAccessGrantedRef.current 
-          : (!isLeadCapturedRef.current && !user)
+        funnelKey === 'wappyvital'
+          ? (!isLeadCapturedRef.current && !user)
+          : (actualRequiresPayment 
+              ? !isAccessGrantedRef.current 
+              : (!isLeadCapturedRef.current && !user)
+            )
       );
 
       if (shouldGate) {
@@ -927,9 +933,12 @@ export default function ComunidadPage() {
     // Immediate gating check on play attempt if past gatingSeconds
     const isPastGating = currentTime >= gatingSeconds;
     const isGated = gatingEnabled && !isAdmin && (
-      actualRequiresPayment 
-        ? !isAccessGranted 
-        : (!isLeadCaptured && !user)
+      funnelKey === 'wappyvital'
+        ? (!isLeadCaptured && !user)
+        : (actualRequiresPayment 
+            ? !isAccessGranted 
+            : (!isLeadCaptured && !user)
+          )
     );
 
     if (isPastGating && isGated) {
@@ -3262,7 +3271,7 @@ export default function ComunidadPage() {
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setShowLeadModal(false)}
+              onClick={() => { setShowLeadModal(false); setSelectedCheckoutPlan(null); }}
               className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition-colors z-10"
               title="Cerrar"
             >
@@ -3279,18 +3288,24 @@ export default function ComunidadPage() {
                 <h3 className="text-base font-bold text-text-primary leading-tight outfit">
                   {showRecoveryView 
                     ? 'Recuperar Acceso Autorizado' 
-                    : (actualRequiresPayment ? 'Acceder a la Capacitación Completa' : 'Acceso Exclusivo WAPPY')
+                    : ((actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) 
+                        ? 'Acceder a la Capacitación Completa' 
+                        : (funnelKey === 'wappyvital' ? 'Continúa viendo la Capacitación' : 'Acceso Exclusivo WAPPY')
+                      )
                   }
                 </h3>
                 <p className="text-[10px] text-text-secondary">
                   {showRecoveryView 
                     ? 'Valida tu correo de compra para acceder al instante'
-                    : (actualRequiresPayment 
+                    : ((actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) 
                         ? (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital'
                             ? `Paga una tarifa única de $${Math.round(price * 0.7).toLocaleString('es-CO')} COP (¡30% Descuento Aplicado!)`
                             : `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
                           )
-                        : 'Registra tus datos para acceder al video curso'
+                        : (funnelKey === 'wappyvital'
+                            ? 'Registra tus datos para desbloquear el video y continuar aprendiendo'
+                            : 'Registra tus datos para acceder al video curso'
+                          )
                       )
                   }
                 </p>
@@ -3298,7 +3313,7 @@ export default function ComunidadPage() {
             </div>
 
             {!showRecoveryView ? (
-              <form onSubmit={actualRequiresPayment ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
+              <form onSubmit={(actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) ? handleWompiCheckout : handleLeadFormSubmit} className="space-y-3.5">
                 {checkoutError && (
                   <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-1.5">
                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -3340,7 +3355,7 @@ export default function ComunidadPage() {
                   </div>
                 </div>
 
-                {funnelKey === 'wappyvital' && (
+                {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null && (
                   <div>
                     <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Contraseña</label>
                     <div className="relative">
@@ -3362,7 +3377,7 @@ export default function ComunidadPage() {
                   </div>
                 )}
 
-                {funnelKey === 'wappyvital' && (
+                {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null && (
                   <div>
                     <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Cupón de Descuento</label>
                     <input
@@ -3396,13 +3411,21 @@ export default function ComunidadPage() {
                     <span>Procesando...</span>
                   ) : (
                     <>
-                      <span>{funnelKey === 'wappyvital' ? 'Registrarse y Pagar' : (actualRequiresPayment ? 'Pagar y Obtener Acceso' : 'Continuar con el video')}</span>
+                      <span>
+                        {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null
+                          ? 'Registrarse y Pagar' 
+                          : ((actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) 
+                              ? 'Pagar y Obtener Acceso' 
+                              : 'Continuar con el video'
+                            )
+                        }
+                      </span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>
 
-                {actualRequiresPayment && (
+                {(actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) && (
                   <div className="pt-3 text-center border-t border-border-medium/60 mt-1">
                     <button
                       type="button"
