@@ -4,7 +4,7 @@ import {
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
   AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize, Trash2, 
   Download, Unlock, FileText, Loader2, RefreshCw, Plus, X, ExternalLink, Key,
-  Eye, EyeOff
+  Eye, EyeOff, Gift
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
@@ -133,9 +133,7 @@ export default function ComunidadPage() {
   const [extraVideoTitle10, setExtraVideoTitle10] = useState('Clase Extra 10');
 
   // Coupon / Discount States
-  const [couponCode, setCouponCode] = useState(() => {
-    return window.location.pathname.includes('wappyvital') ? 'VITAL30' : '';
-  });
+  const [couponCode, setCouponCode] = useState('');
   const [approvedPurchasesCount, setApprovedPurchasesCount] = useState(0);
   const [discountApplied, setDiscountApplied] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -2940,9 +2938,14 @@ export default function ComunidadPage() {
                           ✨ Pago único de por vida
                         </div>
 
-                        {isDiscountActive && (
+                        {isDiscountActive ? (
                           <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
                             -{discountPercentage}%
+                          </div>
+                        ) : (
+                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-dashed border-emerald-500/30 bg-emerald-950/40 backdrop-blur-[2px] px-3.5 py-1.5 text-xs font-bold text-emerald-400 shadow-sm flex items-center gap-1 animate-pulse">
+                            <Lock className="w-3 h-3 text-emerald-400" />
+                            <span>Descubre -30%</span>
                           </div>
                         )}
 
@@ -2971,9 +2974,23 @@ export default function ComunidadPage() {
                               Pago Único
                             </span>
                           </div>
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
-                            ¡Pagas una vez, lo usas para siempre!
-                          </p>
+                          {isDiscountActive ? (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                              ¡Pagas una vez, lo usas para siempre!
+                            </p>
+                          ) : (
+                            <div className="mt-3 p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                                <Gift className="w-4 h-4 animate-bounce" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Premio Especial</p>
+                                <p className="text-[11px] text-text-secondary leading-normal mt-0.5">
+                                  Mira el video completo para desbloquear tu <strong className="text-emerald-500">30% de descuento</strong> ($245.000 COP) y regalos.
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-2 mb-6">
