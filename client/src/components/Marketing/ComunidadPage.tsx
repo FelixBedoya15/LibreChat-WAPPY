@@ -2897,70 +2897,6 @@ export default function ComunidadPage() {
 
             {funnelKey === 'wappyvital' && !isAccessGranted && (
               <div className="w-full max-w-5xl mx-auto mt-12 px-4 text-center">
-                {/* Billing Interval Toggle */}
-                <div className="mx-auto mb-10 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 max-w-3xl">
-                  {[
-                    { id: 'monthly', label: 'Mensual' },
-                    { id: 'quarterly', label: 'Trimestral' },
-                    { id: 'semiannual', label: 'Semestral' },
-                    { id: 'annual', label: 'Anual' },
-                  ].map((interval) => {
-                    let maxDiscount = 0;
-                    fetchedPlans.forEach((config: any) => {
-                      if (config.planId === 'pro' && config.promotions?.[interval.id]?.active) {
-                        maxDiscount = Math.max(
-                          maxDiscount,
-                          config.promotions[interval.id].discountPercentage || 0,
-                        );
-                      }
-                    });
-
-                    return (
-                      <button
-                        key={interval.id}
-                        onClick={() => setBillingInterval(interval.id)}
-                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 ${
-                          billingInterval === interval.id
-                            ? 'border-emerald-500 bg-emerald-50/50 shadow-md shadow-emerald-500/10 dark:border-emerald-400 dark:bg-emerald-950/20'
-                            : 'border-border-medium/60 bg-surface-primary hover:border-emerald-500/40 hover:bg-surface-hover'
-                        }`}
-                      >
-                        <span
-                          className={`text-base font-bold ${
-                            billingInterval === interval.id
-                              ? 'text-emerald-700 dark:text-emerald-400'
-                              : 'text-text-primary'
-                          }`}
-                        >
-                          {interval.label}
-                        </span>
-
-                        {maxDiscount > 0 ? (
-                          <span
-                            className={`mt-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
-                              billingInterval === interval.id
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm'
-                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                            }`}
-                          >
-                            Ahorra {maxDiscount}%
-                          </span>
-                        ) : (
-                          <span className="mt-2 text-[11px] font-medium text-text-tertiary">
-                            Precio base
-                          </span>
-                        )}
-
-                        {billingInterval === interval.id && (
-                          <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md">
-                            <Check strokeWidth={3} className="h-3.5 w-3.5" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
                 <div className="mx-auto my-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl max-w-3xl flex items-center justify-center gap-3 text-red-600 dark:text-red-400">
                   <span className="flex h-3 w-3 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -2971,7 +2907,7 @@ export default function ComunidadPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 text-left">
+                <div className="grid grid-cols-1 max-w-md mx-auto gap-8 text-left">
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
                     const fixedInterval = 'lifetime';
@@ -3078,132 +3014,6 @@ export default function ComunidadPage() {
                               {f}
                             </li>
                           ))}
-                        </ul>
-                      </div>
-                    );
-                  })()}
-
-                  {/* CARD 2: Wappy Pro */}
-                  {(() => {
-                    let rawPrice = 0;
-                    let displayPrice = '$1.200.000';
-                    let promotion: any = null;
-                    let pricePerMonth = 100000;
-                    let totalToBill = 1200000;
-
-                    if (proPlanConfig) {
-                      rawPrice = proPlanConfig.rawPrice;
-                      displayPrice = proPlanConfig.displayPrice;
-                      promotion = proPlanConfig.promotion;
-                      pricePerMonth = proPlanConfig.pricePerMonth;
-                      totalToBill = proPlanConfig.finalPrice;
-                    }
-
-                    const isNotMonthly = billingInterval !== 'monthly';
-
-                    return (
-                      <div
-                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-5 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-amber-500/5 to-orange-500/10 border-amber-500/30 shadow-2xl ring-1 ring-amber-500/20 bg-surface-primary/60 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.05)]`}
-                      >
-                        <div className="absolute -top-3 left-6 sm:left-8 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-1 text-xs font-bold text-white shadow-lg">
-                          ⭐ Plan Profesional Todo Incluido
-                        </div>
-
-                        {promotion && promotion.discountPercentage > 0 && (
-                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
-                            -{promotion.discountPercentage}%
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4 mb-6 mt-2">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                            <ProSVG className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <h2 className="text-2xl font-extrabold text-text-primary">Wappy Pro</h2>
-                            <p className="text-xs text-text-secondary">Acceso completo para profesionales</p>
-                          </div>
-                        </div>
-
-                        <div className="mb-6 flex flex-col items-start gap-1">
-                          {promotion && promotion.discountPercentage > 0 && (
-                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                              {displayPrice}
-                            </span>
-                          )}
-
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-5xl font-black tracking-tight text-amber-500">
-                              ${Math.round(totalToBill).toLocaleString('es-CO')}
-                            </span>
-                            <span className="text-sm font-bold text-text-secondary">
-                              /
-                              {billingInterval === 'monthly'
-                                ? 'mes'
-                                : billingInterval === 'quarterly'
-                                  ? 'trim.'
-                                  : billingInterval === 'semiannual'
-                                    ? 'sem.'
-                                    : 'año'}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-transparent select-none font-semibold mt-1">
-                            &nbsp;
-                          </p>
-
-                          {isNotMonthly && (
-                            <div className="mt-0.5 text-sm font-bold text-text-primary">
-                              ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
-                              <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
-                            </div>
-                          )}
-
-                          {promotion && (
-                            <div className="mt-2 w-full rounded-md bg-indigo-500/10 px-3 py-1 text-center text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                              {promotion.text || 'Oferta por tiempo limitado'}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="pt-2 mb-6">
-                          <button
-                            onClick={() => {
-                              setSelectedCheckoutPlan('pro');
-                              setShowLeadModal(true);
-                            }}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/15 transition-all hover:opacity-90 hover:shadow-xl hover:scale-[1.02] duration-300"
-                          >
-                            Adquirir Wappy Pro
-                          </button>
-                        </div>
-
-                        <div className="border-t border-border-medium/60 my-2"></div>
-
-                        <ul className="mt-4 flex-1 space-y-3">
-                          {[
-                            '**Todo lo del Plan Wappy Vital**',
-                            'Conversaciones y chats ilimitados',
-                            'Somos SST completo',
-                            'Skills Termómetro Psicosocial',
-                            'Skill Somos SST Medicina Laboral y Riesgo Psicosocial',
-                            'Chat Live (video llamada en vivo para detectar riesgos)',
-                            'Crea tus propios Agentes de IA',
-                            'Análisis en Vivo con (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)',
-                            'Acceso anticipado a nuevas funciones',
-                          ].map((f) => {
-                            const isWholeLineHighlighted = f.startsWith('**') && f.endsWith('**');
-                            const cleanText = f.startsWith('**') && f.endsWith('**') ? f.slice(2, -2) : f;
-                            return (
-                              <li
-                                key={f}
-                                className={`flex items-start gap-3 text-xs md:text-sm ${isWholeLineHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}
-                              >
-                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
-                                {renderFeatureText(cleanText)}
-                              </li>
-                            );
-                          })}
                         </ul>
                       </div>
                     );
