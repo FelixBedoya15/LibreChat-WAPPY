@@ -133,7 +133,9 @@ export default function ComunidadPage() {
   const [extraVideoTitle10, setExtraVideoTitle10] = useState('Clase Extra 10');
 
   // Coupon / Discount States
-  const [couponCode, setCouponCode] = useState('');
+  const [couponCode, setCouponCode] = useState(() => {
+    return window.location.pathname.includes('wappyvital') ? 'VITAL30' : '';
+  });
   const [approvedPurchasesCount, setApprovedPurchasesCount] = useState(0);
   const [discountApplied, setDiscountApplied] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -2635,7 +2637,7 @@ export default function ComunidadPage() {
                         </>
                       ) : (
                         <>
-                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora y completa tu registro para continuar.
+                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora (¡al finalizar recibirás un premio especial!) y completa tu registro para continuar.
                         </>
                       )
                     ) : actualRequiresPayment ? (
@@ -2912,15 +2914,23 @@ export default function ComunidadPage() {
                   {/* CARD 1: Wappy Vital */}
                   {(() => {
                     const fixedInterval = 'lifetime';
-                    let rawPrice = 150000;
-                    let displayPrice = '$150.000';
+                    let rawPrice = 350000;
+                    let displayPrice = '$350.000';
 
                     if (vitalPlanConfig) {
                       rawPrice = vitalPlanConfig.rawPrice;
                       displayPrice = vitalPlanConfig.displayPrice;
+                    } else if (price > 0) {
+                      rawPrice = price;
+                      displayPrice = '$' + price.toLocaleString('es-CO');
                     }
 
-                    const totalToBill = vitalPlanConfig ? vitalPlanConfig.finalPrice : Math.round(rawPrice * 0.7);
+                    const hasPromoInDB = vitalPlanConfig?.promotion && vitalPlanConfig.promotion.discountPercentage > 0;
+                    const isDiscountActive = couponCode.toUpperCase().trim() === 'VITAL30' || hasPromoInDB;
+                    const discountPercentage = hasPromoInDB ? vitalPlanConfig.promotion.discountPercentage : 30;
+                    const totalToBill = isDiscountActive 
+                      ? (hasPromoInDB ? vitalPlanConfig.finalPrice : Math.round(rawPrice * 0.7)) 
+                      : rawPrice;
 
                     return (
                       <div
@@ -2930,9 +2940,11 @@ export default function ComunidadPage() {
                           ✨ Pago único de por vida
                         </div>
 
-                        <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
-                          -30%
-                        </div>
+                        {isDiscountActive && (
+                          <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
+                            -{discountPercentage}%
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-4 mb-6 mt-2">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
@@ -2945,9 +2957,11 @@ export default function ComunidadPage() {
                         </div>
 
                         <div className="mb-6 flex flex-col items-start gap-1">
-                          <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                            {displayPrice}
-                          </span>
+                          {isDiscountActive && (
+                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                              {displayPrice}
+                            </span>
+                          )}
 
                           <div className="flex items-baseline gap-2">
                             <span className="text-5xl font-black tracking-tight text-emerald-500">
