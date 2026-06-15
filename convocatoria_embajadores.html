@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convocatoria Oficial – Embajadores WAPPY SST</title>
+    
+    <!-- Google Fonts: Outfit (headings) & Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --------------------------------------------------
+           1. CORE DESIGN SYSTEM & CSS VARIABLES
+           -------------------------------------------------- */
+        :root {
+            --bg-dark: #070a13;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --border-color: rgba(34, 197, 94, 0.2);
+            --primary: #22c55e;
+            --primary-glow: rgba(34, 197, 94, 0.15);
+            --secondary: #10b981;
+            --accent: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --transition-speed: 0.4s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* --------------------------------------------------
+           2. DYNAMIC BACKGROUND EFFECTS (GLOWS & STARS)
+           -------------------------------------------------- */
+        .ambient-glow-1 {
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, rgba(6, 182, 212, 0.04) 50%, rgba(0,0,0,0) 70%);
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 1;
+            animation: pulse-glow 15s infinite alternate;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(34, 197, 94, 0.04) 50%, rgba(0,0,0,0) 70%);
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 1;
+            animation: pulse-glow 20s infinite alternate-reverse;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            background-image: 
+                radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 40px 70px, rgba(34, 197, 94, 0.6), rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 50px 160px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90px 40px, rgba(6, 182, 212, 0.6), rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            opacity: 0.2;
+            animation: star-drift 100s linear infinite;
+        }
+
+        @keyframes star-drift {
+            from { background-position: 0px 0px; }
+            to { background-position: 200px 400px; }
+        }
+
+        /* --------------------------------------------------
+           3. MAIN LAYOUT: HEADER, PROGRESS, DECK, FOOTER
+           -------------------------------------------------- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2.5rem;
+            z-index: 10;
+            background: linear-gradient(to bottom, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0) 100%);
+        }
+
+        .header-logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .wappy-logo {
+            height: 36px;
+            filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.5));
+        }
+
+        .wappy-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 850;
+            background: linear-gradient(135deg, #fff 40%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.05em;
+        }
+
+        .convocatoria-badge {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: var(--primary);
+            padding: 0.3rem 0.65rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            z-index: 20;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 7.69%; /* 1/13 slides */
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+            transition: width 0.3s ease;
+        }
+
+        /* Slide Deck Area */
+        .presentation-deck {
+            flex-grow: 1;
+            position: relative;
+            z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem 2.5rem;
+            perspective: 1500px;
+        }
+
+        /* Slide Container */
+        .slide {
+            position: absolute;
+            width: 95%;
+            max-width: 1120px;
+            height: 74vh;
+            min-height: 480px;
+            max-height: 78vh;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96) translateZ(-40px);
+            transition: opacity var(--transition-speed) ease, transform var(--transition-speed) cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1.75rem 2.25rem;
+            border-radius: 20px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            
+            /* Scrollbar safety handles */
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(34, 197, 94, 0.25) transparent;
+        }
+
+        /* Custom Scrollbar Styles */
+        .slide::-webkit-scrollbar {
+            width: 5px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background-color: rgba(34, 197, 94, 0.25);
+            border-radius: 10px;
+        }
+        .slide::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(34, 197, 94, 0.45);
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateZ(0px);
+            z-index: 10;
+        }
+
+        /* Footer Controls */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2.5rem;
+            z-index: 10;
+            background: linear-gradient(to top, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0) 100%);
+        }
+
+        .slide-counter {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        .slide-dots {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: var(--primary);
+            transform: scale(1.3);
+            box-shadow: 0 0 6px var(--primary);
+        }
+
+        .slide-navigation {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .nav-btn:hover {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: var(--primary);
+            transform: scale(1.08);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.15;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-notes {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-notes:hover, .btn-notes.active {
+            background: rgba(6, 182, 212, 0.08);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: var(--accent);
+        }
+
+        /* --------------------------------------------------
+           4. TYPOGRAPHY & INTERIOR ELEMENTS (WAPPY SPEC)
+           -------------------------------------------------- */
+        .title-gradient {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 2.3rem;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #ffffff 30%, var(--primary) 70%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.01em;
+        }
+
+        .subtitle-gradient {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            line-height: 1.2;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .slide-paragraph {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            max-width: 850px;
+        }
+
+        .highlight-text {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Grid & Card Structures */
+        .slide-grid-2 {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 1.75rem;
+            align-items: center;
+        }
+
+        .slide-grid-equal {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.75rem;
+            align-items: center;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 0.75rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        /* Glassmorphism Card Style */
+        .wappy-card {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wappy-card:hover {
+            background: rgba(34, 197, 94, 0.03);
+            border-color: rgba(34, 197, 94, 0.25);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(34, 197, 94, 0.04);
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: #fff;
+        }
+
+        .card-description {
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: var(--text-muted);
+        }
+
+        /* List Styling */
+        .feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .feature-check {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1rem;
+            margin-top: 0.1rem;
+        }
+
+        /* --------------------------------------------------
+           5. INTERACTIVE WIDGETS (SIMULATOR & EXCLUSIVITY)
+           -------------------------------------------------- */
+        .simulator-box {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1rem 1.25rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .sim-control {
+            margin-bottom: 0.85rem;
+        }
+
+        .sim-control label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+
+        .sim-val {
+            color: var(--primary);
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .sim-slider {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            outline: none;
+            border-radius: 10px;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .sim-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+            transition: transform 0.1s ease;
+        }
+
+        .sim-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .results-panel {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem;
+        }
+
+        .res-box {
+            text-align: center;
+        }
+
+        .res-lbl {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.15rem;
+        }
+
+        .res-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .res-val.total {
+            font-size: 1.45rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge-sim-bonus {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+
+        /* Interactive Exclusivity Tracker */
+        .exclusivity-widget {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.6rem 0.85rem;
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            font-size: 0.85rem;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .municipality-result {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .muni-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .muni-type {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
+        }
+
+        .muni-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-limited-1 {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: #f59e0b;
+        }
+
+        .badge-limited-2 {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            color: #06b6d4;
+        }
+
+        /* --------------------------------------------------
+           6. AVATARS & ROLES DESIGN (EMBAJADORES VISUAL)
+           -------------------------------------------------- */
+        .ambassadors-showcase {
+            display: grid;
+            grid-template-columns: 1.1fr 0.95fr 0.95fr;
+            gap: 1.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .ambassador-profile {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1.25rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .ambassador-profile.leader {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(6, 182, 212, 0.02) 100%);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            transform: scale(1.02);
+        }
+
+        .avatar-container {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            margin-bottom: 0.75rem;
+            position: relative;
+            padding: 3px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+        }
+
+        .leader .avatar-container {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #0f172a;
+        }
+
+        .profile-badge {
+            position: absolute;
+            bottom: -2px;
+            background: var(--primary);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 0.1rem 0.45rem;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .leader .profile-badge {
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            color: #000;
+        }
+
+        .amb-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 0.15rem;
+            color: #fff;
+        }
+
+        .amb-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .amb-perks {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            padding-top: 0.5rem;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .amb-perk-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .amb-perk-bullet {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* --------------------------------------------------
+           7. ARL BRANDS EXHIBITION (CAROUSEL / LOGOS)
+           -------------------------------------------------- */
+        .arl-showcase {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.25rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .arl-logo-card {
+            background: rgba(255, 255, 255, 0.005);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            padding: 0.65rem 1.25rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            min-width: 125px;
+            transition: all 0.3s ease;
+        }
+
+        .arl-logo-card:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: var(--accent);
+            transform: scale(1.03);
+        }
+
+        .arl-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+        }
+
+        .arl-sura { color: #0033a0; text-shadow: 0 0 6px rgba(0, 51, 160, 0.2); }
+        .arl-colmena { color: #e87722; text-shadow: 0 0 6px rgba(232, 119, 34, 0.2); }
+        .arl-axa { color: #d32f2f; text-shadow: 0 0 6px rgba(211, 47, 47, 0.2); }
+        .arl-bolivar { color: #ffcd00; text-shadow: 0 0 6px rgba(255, 205, 0, 0.2); }
+
+        /* --------------------------------------------------
+           8. ACTION BUTTONS & CTA
+           -------------------------------------------------- */
+        .cta-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .wappy-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+            border: none;
+            color: #000;
+            padding: 0.85rem 2.25rem;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.15rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 16px rgba(34, 197, 94, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .wappy-btn:hover {
+            transform: scale(1.03) translateY(-1px);
+            box-shadow: 0 12px 20px rgba(34, 197, 94, 0.3);
+            color: #000;
+        }
+
+        .wappy-btn svg {
+            transition: transform 0.3s ease;
+        }
+
+        .wappy-btn:hover svg {
+            transform: translateX(4px);
+        }
+
+        .btn-subtext {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        /* --------------------------------------------------
+           9. SPEAKER NOTES SIDEBAR
+           -------------------------------------------------- */
+        .notes-sidebar {
+            position: absolute;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100%;
+            background: rgba(10, 15, 30, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            z-index: 100;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            backdrop-filter: blur(20px);
+        }
+
+        .notes-sidebar.open {
+            right: 0;
+        }
+
+        .notes-header {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .notes-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            color: var(--text-muted);
+        }
+
+        .notes-content p {
+            margin-bottom: 0.75rem;
+        }
+
+        .notes-content ul {
+            margin-left: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .notes-content li {
+            margin-bottom: 0.4rem;
+        }
+
+        .close-notes {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .close-notes:hover {
+            color: #fff;
+        }
+
+        /* Responsive scaling */
+        @media(max-width: 900px) {
+            .slide-grid-2, .slide-grid-equal {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .slide {
+                height: 80vh;
+                padding: 1.25rem 1.5rem;
+            }
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .grid-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+            .ambassadors-showcase {
+                grid-template-columns: 1fr;
+            }
+            .title-gradient {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dynamic glows & background particles -->
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+    <div class="stars"></div>
+
+    <!-- Top Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Presentation Header -->
+    <header>
+        <div class="header-logo-container">
+            <!-- Wappy logo from client public assets if available -->
+            <img src="client/public/assets/logo.png" onerror="this.src='Agentes/Miniaturas/Logos /logo-bg-removebg-preview.png'; this.onerror=null;" alt="Wappy Logo" class="wappy-logo">
+            <span class="wappy-brand">WAPPY</span>
+        </div>
+        <div class="convocatoria-badge">Convocatoria Embajadores SST</div>
+    </header>
+
+    <!-- Presentation Slide Deck -->
+    <main class="presentation-deck">
+
+        <!-- SLIDE 1: PORTADA -->
+        <section class="slide active" id="slide-1" data-slide-index="1">
+            <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+                <div style="margin-bottom: 1rem;">
+                    <img src="Agentes/Miniaturas/Logos /logo-bg-removebg-preview.png" onerror="this.src='client/public/assets/logo.png'; this.onerror=null;" alt="Logo Wappy Convocatoria" style="height: 100px; filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.35));">
+                </div>
+                <h1 class="title-gradient" style="font-size: 3rem; margin-bottom: 0.25rem;">CONVOCATORIA OFICIAL</h1>
+                <h2 class="subtitle-gradient" style="font-size: 1.9rem; margin-top: 0rem; margin-bottom: 1.5rem;">EMBAJADORES WAPPY SST 2026</h2>
+                <p class="slide-paragraph" style="margin: 0 auto 1.75rem auto; font-size: 1rem;">
+                    Una oportunidad única para quienes creen en el futuro de nuestra profesión y desean liderar la transformación digital en Seguridad y Salud en el Trabajo.
+                </p>
+                <div style="display: flex; justify-content: center; gap: 2rem;">
+                    <div style="text-align: left; border-left: 2px solid var(--primary); padding-left: 1rem;">
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted);">Fecha</div>
+                        <div style="font-family: 'Outfit'; font-weight: 700; color: #fff; font-size: 0.95rem;">15 de Junio</div>
+                    </div>
+                    <div style="text-align: left; border-left: 2px solid var(--accent); padding-left: 1rem;">
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted);">Hora</div>
+                        <div style="font-family: 'Outfit'; font-weight: 700; color: #fff; font-size: 0.95rem;">4:00 p.m.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: EL PROPÓSITO & LA INTELIGENCIA ARTIFICIAL -->
+        <section class="slide" id="slide-2" data-slide-index="2">
+            <div class="slide-grid-2">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">NUESTRO PROPÓSITO</div>
+                    <h2 class="title-gradient">IA + Profesión SST</h2>
+                    <p class="slide-paragraph">
+                        WAPPY nació con un propósito claro: <span class="highlight-text">ayudar a preservar y fortalecer</span> la profesión de Seguridad y Salud en el Trabajo ante la llegada de la Inteligencia Artificial.
+                    </p>
+                    <p class="slide-paragraph">
+                        No creemos que la IA venga a reemplazarnos; <span class="highlight-text">creemos que viene a transformar</span> la forma en que trabajamos. Por eso creamos una plataforma para desarrollar las habilidades y herramientas del futuro.
+                    </p>
+                    <div style="background: rgba(34, 197, 94, 0.03); border-left: 3px solid var(--primary); padding: 0.75rem 1.25rem; border-radius: 0 10px 10px 0; font-style: italic; font-size: 0.9rem; line-height: 1.4;">
+                        "Tengo una visión muy clara: no voy a descansar hasta ver a WAPPY presente en todos los municipios de Colombia."
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <svg viewBox="0 0 200 200" width="100%" height="180" style="max-width: 200px; filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.2));">
+                        <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(34, 197, 94, 0.12)" stroke-width="2"/>
+                        <circle cx="100" cy="100" r="65" fill="none" stroke="rgba(6, 182, 212, 0.08)" stroke-width="1.5"/>
+                        <path d="M100 45 L145 65 L145 110 C145 145 100 165 100 165 C100 165 55 145 55 110 L55 65 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="2">
+                            <animate attributeName="stroke-dasharray" from="0 400" to="400 0" fill="freeze" />
+                        </path>
+                        <circle cx="100" cy="100" r="13" fill="url(#coreGrad)">
+                            <animate attributeName="r" values="11;14;11" dur="3s" repeatCount="indefinite" />
+                        </circle>
+                        <path d="M92 100 L108 100 M100 92 L100 108" stroke="#000" stroke-width="1.5" />
+                        
+                        <defs>
+                            <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#22c55e" />
+                                <stop offset="100%" stop-color="#06b6d4" />
+                            </linearGradient>
+                            <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#22c55e" />
+                                <stop offset="100%" stop-color="#10b981" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: PERFILES DE EMBAJADORES -->
+        <section class="slide" id="slide-3" data-slide-index="3">
+            <div style="text-align: center; margin-bottom: 0.75rem;">
+                <div class="convocatoria-badge" style="margin-bottom: 0.25rem; display: inline-block;">ESTRUCTURA DEL PROGRAMA</div>
+                <h2 class="title-gradient" style="font-size: 2.2rem; margin-bottom: 0.25rem;">Perfiles de Embajadores WAPPY</h2>
+                <p class="slide-paragraph" style="margin: 0 auto; font-size: 0.9rem;">
+                    Hemos estructurado dos roles de liderazgo regional para expandir y soportar WAPPY en toda Colombia.
+                </p>
+            </div>
+            
+            <div class="ambassadors-showcase">
+                <!-- LEADER AMBASSADOR -->
+                <div class="ambassador-profile leader">
+                    <div class="avatar-container">
+                        <img src="Agentes/Miniaturas/Avatar /Avatar1.png" alt="Embajador Líder Avatar" class="avatar-img">
+                        <div class="profile-badge">LÍDER NACIONAL</div>
+                    </div>
+                    <h3 class="amb-name">Embajador Líder</h3>
+                    <p class="amb-role">Enlace Regional & Mentor Wappy</p>
+                    <div class="amb-perks">
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Soporte directo a la red local</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Coordinación y metas nacionales</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Mayor potencial de ingresos regional</div>
+                    </div>
+                </div>
+
+                <!-- EMBASSADOR 1 -->
+                <div class="ambassador-profile">
+                    <div class="avatar-container">
+                        <img src="Agentes/Miniaturas/Avatar /avatar2.png" alt="Embajador Oficial Avatar" class="avatar-img">
+                        <div class="profile-badge" style="background:#06b6d4;">OFICIAL</div>
+                    </div>
+                    <h3 class="amb-name">Embajador Regional</h3>
+                    <p class="amb-role">Consultor de Transformación Digital</p>
+                    <div class="amb-perks">
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Representación territorial exclusiva</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Gestión y ventas directas en región</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Soporte a consultores SST locales</div>
+                    </div>
+                </div>
+
+                <!-- EMBASSADOR 2 -->
+                <div class="ambassador-profile">
+                    <div class="avatar-container">
+                        <img src="Agentes/Miniaturas/Avatar /avatar3.png" alt="Embajador Riesgos Avatar" class="avatar-img">
+                        <div class="profile-badge" style="background:#06b6d4;">OFICIAL</div>
+                    </div>
+                    <h3 class="amb-name">Embajador Corporativo</h3>
+                    <p class="amb-role">Especialista de Alianzas ARL</p>
+                    <div class="amb-perks">
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Intermediación de riesgos laborales</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Vinculación mediante Wappy LTDA</div>
+                        <div class="amb-perk-item"><span class="amb-perk-bullet">✓</span> Acompañamiento a cuentas clave</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: ¿QUÉ RECIBIRÁN? - BENEFICIOS PRO -->
+        <section class="slide" id="slide-4" data-slide-index="4">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">BENEFICIOS EXCLUSIVOS</div>
+                    <h2 class="title-gradient">Herramientas y Soporte Pro</h2>
+                    <p class="slide-paragraph">
+                        Creemos que el éxito de nuestros embajadores es el éxito de WAPPY. Por eso te respaldamos con lo mejor de nuestra tecnología y mentoría de por vida.
+                    </p>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>Licencia WAPPY Pro de por vida:</strong> Acceso completo a todos los módulos sin costos mensuales.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>Asesorías ilimitadas:</strong> Mentorías y soporte comercial directo con el fundador.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>Desarrollo personalizado:</strong> Diseños de software a la medida en la plataforma para tus proyectos especiales regionales.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="grid-3" style="grid-template-columns: 1fr; gap: 0.75rem;">
+                    <div class="wappy-card">
+                        <div class="card-icon">💎</div>
+                        <h4 class="card-title">Licencia Wappy Pro</h4>
+                        <p class="card-description">Tu herramienta diaria de trabajo, totalmente libre de costos, para siempre.</p>
+                    </div>
+                    <div class="wappy-card">
+                        <div class="card-icon">⚡</div>
+                        <h4 class="card-title">Acceso Prioritario</h4>
+                        <p class="card-description">Prueba y despliega antes que nadie las nuevas herramientas de IA desarrolladas para SST.</p>
+                    </div>
+                    <div class="wappy-card">
+                        <div class="card-icon">🎨</div>
+                        <h4 class="card-title">Customización</h4>
+                        <p class="card-description">Diseñamos vistas o funciones necesarias para cerrar tus clientes corporativos.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: ESTRUCTURA COMERCIAL - PLANES Y COMISIONES -->
+        <section class="slide" id="slide-5" data-slide-index="5">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">BENEFICIOS ECONÓMICOS</div>
+                    <h2 class="title-gradient">Esquema de Comisiones</h2>
+                    <p class="slide-paragraph">
+                        Genera ingresos recurrentes y estables recomendando las suscripciones y planes del ecosistema Wappy.
+                    </p>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="feature-check">💰</span>
+                            <span><strong>20% de Comisión Directa:</strong> Sobre todas tus ventas de planes Wappy. Otorgado según la temporalidad que adquiera el cliente.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">🚀</span>
+                            <span><strong>Bono por Cumplimiento (+5% Extra):</strong> Al lograr <strong>3 suscripciones en el mes</strong> (comisión sube a un 25% en total).</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">📅</span>
+                            <span><strong>Fechas de Pago Fijas:</strong> Las liquidaciones se abonan directamente los días <strong>5 y 25 de cada mes</strong>.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">🧪</span>
+                            <span><strong>Cuentas de Prueba:</strong> Cuentas demo para facilitar cierres comerciales con tus prospectos.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="wappy-card" style="border-color: rgba(6, 182, 212, 0.25); height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; padding: 1.25rem;">
+                    <h4 style="font-family: 'Outfit'; color: var(--accent); font-size: 1.1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.4rem;">Portafolio de Suscripciones Wappy</h4>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 0.25rem;">
+                            <span style="color:#fff; font-weight:600;">Plan Wappy Vital (Un Pago)</span>
+                            <span style="color:var(--primary); font-weight:700;">$350.000 COP</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 0.25rem;">
+                            <span style="color:#fff; font-weight:600;">Wappy Pro - Mensual</span>
+                            <span style="color:var(--primary); font-weight:700;">$114.330 COP / mes</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 0.25rem;">
+                            <span style="color:#fff; font-weight:600;">Wappy Pro - Trimestral</span>
+                            <span style="color:var(--primary); font-weight:700;">$331.270 COP / trim</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 0.25rem;">
+                            <span style="color:#fff; font-weight:600;">Wappy Pro - Semestral</span>
+                            <span style="color:var(--primary); font-weight:700;">$641.960 COP / sem</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-bottom: 0.25rem;">
+                            <span style="color:#fff; font-weight:600;">Wappy Pro - Anual</span>
+                            <span style="color:var(--primary); font-weight:700;">$1.200.000 COP / año</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: INTERMEDIACIÓN DE RIESGOS LABORALES ARL -->
+        <section class="slide" id="slide-6" data-slide-index="6">
+            <div class="slide-grid-2">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">LÍNEA CORPORATIVA DE RIESGOS</div>
+                    <h2 class="title-gradient" style="font-size: 2.3rem;">Alianzas ARL & Acompañamiento</h2>
+                    <p class="slide-paragraph">
+                        Accede a un esquema comercial de intermediación de riesgos laborales con el respaldo institucional de <span class="highlight-text">WAPPY LTDA</span>.
+                    </p>
+                    <ul class="feature-list" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>70% de la Comisión Directiva ARL:</strong> Recibes el 70% de las comisiones generadas por la ARL para el embajador (liquidado posterior a retención de impuestos).</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>Responsabilidad del Embajador:</strong> Te encargas de la gestión comercial, vinculación y acompañamiento continuo de la empresa.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">✓</span>
+                            <span><strong>Software Incluido para Empresas:</strong> Dependiendo de la cotización y recursos que genere la empresa, se evaluará otorgarles el <strong>Plan Vital</strong> o <strong>Plan Pro</strong> sin costo durante la vigencia de su contrato ARL con WAPPY LTDA.</span>
+                        </li>
+                    </ul>
+                    
+                    <div class="arl-showcase">
+                        <div class="arl-logo-card"><span class="arl-name arl-sura">SURA</span></div>
+                        <div class="arl-logo-card"><span class="arl-name arl-colmena">COLMENA</span></div>
+                        <div class="arl-logo-card"><span class="arl-name arl-axa">AXA Colpatria</span></div>
+                        <div class="arl-logo-card"><span class="arl-name arl-bolivar">BOLÍVAR</span></div>
+                    </div>
+                </div>
+                <div class="wappy-card" style="background: rgba(6, 182, 212, 0.02); border-color: rgba(6, 182, 212, 0.15); height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; padding: 1.25rem;">
+                    <div style="font-size: 2rem; text-align: center;">💼</div>
+                    <h3 style="font-family: 'Outfit'; text-align: center; color: #fff; font-size: 1.05rem;">Proceso ARL</h3>
+                    <p style="font-size: 0.8rem; line-height: 1.45; color: var(--text-muted);">
+                        1. El embajador prospecta y vincula la empresa.<br>
+                        2. Se realiza el corretaje a través de Wappy LTDA.<br>
+                        3. El embajador lidera el acompañamiento SST de la empresa.<br>
+                        4. Wappy otorga la licencia de software (Vital/Pro) a la empresa mientras dure el contrato ARL.<br>
+                        5. Se dispersa el 70% neto de comisiones recibidas de la ARL.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: SIMULADOR INTERACTIVO DE INGRESOS -->
+        <section class="slide" id="slide-7" data-slide-index="7">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">SIMULADOR DE NEGOCIO</div>
+                    <h2 class="title-gradient" style="font-size: 2.3rem;">Proyecta tus Ingresos</h2>
+                    <p class="slide-paragraph">
+                        Ajusta los controles interactivos para estimar tu rentabilidad mensual como Embajador Wappy SST según tu plan de trabajo comercial.
+                    </p>
+                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                        • Planes Wappy Pro Mensuales calculados sobre el valor básico de $114.330 COP/mes.
+                        <br>
+                        • Planes Wappy Pro Anuales calculados sobre el valor de $1.200.000 COP/año.
+                        <br>
+                        • Planes Wappy Vital calculados a un pago único de $350.000 COP.
+                        <br>
+                        • Comisiones ARL calculadas al 70% de la comisión total de la ARL antes de IVA y posterior a retención de impuestos.
+                    </div>
+                </div>
+                
+                <div class="simulator-box">
+                    <h3 style="font-family: 'Outfit'; font-size: 1.1rem; margin-bottom: 0.75rem; color: #fff; text-align: center;">
+                        Calculadora de Comisiones Wappy
+                        <span id="bonusBadge" class="badge-sim-bonus" style="display:none;">+5% Bono Activo</span>
+                    </h3>
+                    
+                    <div class="sim-control">
+                        <label>
+                            <span>Planes Wappy Pro Mensuales ($114.330)</span>
+                            <span class="sim-val" id="plansVal">5</span>
+                        </label>
+                        <input type="range" min="0" max="40" value="5" class="sim-slider" id="plansRange">
+                    </div>
+
+                    <div class="sim-control">
+                        <label>
+                            <span>Planes Wappy Pro Anuales ($1.200.000)</span>
+                            <span class="sim-val" id="annualVal">1</span>
+                        </label>
+                        <input type="range" min="0" max="10" value="1" class="sim-slider" id="annualRange">
+                    </div>
+
+                    <div class="sim-control">
+                        <label>
+                            <span>Planes Wappy Vital Vendidos ($350.000)</span>
+                            <span class="sim-val" id="vitalVal">2</span>
+                        </label>
+                        <input type="range" min="0" max="20" value="2" class="sim-slider" id="vitalRange">
+                    </div>
+                    
+                    <div class="sim-control">
+                        <label>
+                            <span>Comisión total de la ARL a Wappy</span>
+                            <span class="sim-val" id="arlVal">$800.000</span>
+                        </label>
+                        <input type="range" min="0" max="3000000" step="50000" value="800000" class="sim-slider" id="arlRange">
+                    </div>
+                    
+                    <div class="results-panel">
+                        <div class="res-box">
+                            <div class="res-lbl">Tasa Wappy (<span id="commissionRateLabel">20%</span>)</div>
+                            <div class="res-val" id="wappyEarn">$494.330</div>
+                        </div>
+                        <div class="res-box">
+                            <div class="res-lbl">ARL (70% Neto)</div>
+                            <div class="res-val" id="arlEarn">$560.000</div>
+                        </div>
+                        <div class="res-box" style="grid-column: span 2; margin-top: 0.25rem; padding-top: 0.25rem; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                            <div class="res-lbl">Total Ingresos Estimados</div>
+                            <div class="res-val total" id="totalEarn">$1.054.330 COP</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: EXCLUSIVIDAD TERRITORIAL -->
+        <section class="slide" id="slide-8" data-slide-index="8">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">CRECIMIENTO SEGURO</div>
+                    <h2 class="title-gradient">Exclusividad Territorial</h2>
+                    <p class="slide-paragraph">
+                        Para asegurar una ventaja competitiva real y proteger tu inversión de tiempo, limitamos la cantidad de embajadores autorizados en el país.
+                    </p>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="feature-check">📍</span>
+                            <span><strong>Ciudades Principales:</strong> Máximo dos (2) embajadores autorizados por territorio.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">📍</span>
+                            <span><strong>Municipios:</strong> Un único (1) embajador oficial, incluyendo cobertura de municipios aledaños.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">📍</span>
+                            <span><strong>Red Sólida:</strong> Garantiza exclusividad para desarrollar tus prospectos sin competencia interna.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="exclusivity-widget">
+                    <h3 style="font-family: 'Outfit'; font-size: 1.05rem; color: #fff; text-align: center;">Consulte Disponibilidad de Territorio</h3>
+                    <div class="search-container">
+                        <input type="text" class="search-input" placeholder="Buscar municipio (ej: Medellín, Sopó, Envigado...)" id="muniSearch">
+                    </div>
+                    <div class="municipality-result" id="muniResult">
+                        <div>
+                            <div class="muni-name" id="muniResName">Medellín</div>
+                            <div class="muni-type" id="muniResType">Ciudad Principal</div>
+                        </div>
+                        <div class="muni-badge badge-limited-2" id="muniResBadge">2 Embajadores Max</div>
+                    </div>
+                    <div style="font-size: 0.75rem; text-align: center; color: var(--text-muted); font-style: italic;">
+                        * La asignación definitiva se realiza en la entrevista de selección.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: RESERVA TERRITORIAL -->
+        <section class="slide" id="slide-9" data-slide-index="9">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">GARANTÍA DE EXCLUSIVIDAD</div>
+                    <h2 class="title-gradient">Reserva Territorial</h2>
+                    <p class="slide-paragraph">
+                        Para congelar tu plaza y asegurar tu exclusividad en el territorio seleccionado frente a otros postulantes, se realiza una reserva territorial de la plaza.
+                    </p>
+                    <ul class="feature-list" style="font-size: 0.85rem;">
+                        <li class="feature-item">
+                            <span class="feature-check">📌</span>
+                            <span><strong>Monto de Reserva:</strong> Tiene un valor de <strong>$650.000 COP</strong> por embajador.</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">🔄</span>
+                            <span><strong>Retorno del 100% de la Garantía:</strong> NO representa un cobro o gasto definitivo. Al realizar tu <strong>primera venta de un Plan Pro Anual ($1.200.000 COP)</strong>, se realizará el retorno/reembolso completo de este monto ($650.000 COP).</span>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-check">🎯</span>
+                            <span><strong>¿Por qué se hace?:</strong> Para garantizar formalmente el territorio exclusivo del embajador, demostrando compromiso recíproco y evitando el bloqueo de municipios por inactividad.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="wappy-card" style="border-color: rgba(34, 197, 94, 0.35); height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 1.5rem; text-align: center; gap: 0.5rem;">
+                    <div style="font-size: 2.2rem; color: var(--primary);">🔒</div>
+                    <h3 style="font-family: 'Outfit'; color: #fff; font-size: 1.1rem;">Reserva de Plaza Activa</h3>
+                    <p style="font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">
+                        Garantiza y protege legalmente tu municipio dentro del contrato.
+                    </p>
+                    <div style="background: rgba(34, 197, 94, 0.03); border: 1px dashed var(--primary); padding: 0.85rem; border-radius: 10px; font-size: 0.9rem; font-weight: 700; color: #fff; margin-top: 0.5rem;">
+                        Retorno de $650.000 COP <br>
+                        <span style="color: var(--primary); font-size: 0.75rem; font-weight: 500;">Reembolsado con tu 1ª venta del Plan Pro Anual</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 10: FORMALIZACIÓN & CONTRATO DE CORRETAJE -->
+        <section class="slide" id="slide-10" data-slide-index="10">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">TRANSPARENCIA Y LEGALIDAD</div>
+                    <h2 class="title-gradient">Formalización del Programa</h2>
+                    <p class="slide-paragraph">
+                        Garantizamos una relación comercial legal y transparente para proteger la dedicación de nuestros Embajadores en cada territorio de Colombia.
+                    </p>
+                    <p class="slide-paragraph">
+                        La vinculación oficial de los embajadores seleccionados se formalizará mediante un marco legal claro que define comisiones, alcance y exclusividad.
+                    </p>
+                    
+                    <div style="background: rgba(34, 197, 94, 0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem 1rem;">
+                        <h4 style="font-family: 'Outfit'; color: var(--primary); margin-bottom: 0.15rem; font-size: 0.95rem;">WAPPY LTDA</h4>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                            NIT 901437310 <br>
+                            Persona Jurídica responsable del desarrollo de la plataforma, contratación y dispersión de comisiones.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="wappy-card" style="border-color: rgba(34, 197, 94, 0.25); height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 1.5rem;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--primary);">📄</div>
+                    <h3 style="font-family: 'Outfit'; color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem;">Contrato de Corretaje</h3>
+                    <p style="font-size: 0.85rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 0.75rem;">
+                        Instrumento jurídico regulado por el Código de Comercio de Colombia, que otorga:
+                    </p>
+                    <div style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; color: var(--text-muted);">
+                        <div>• Derecho explícito a la exclusividad territorial regional.</div>
+                        <div>• Respaldo en la liquidación mensual los días 5 y 25 de cada mes.</div>
+                        <div>• Reglas y comisiones claras por corretaje comercial y ARL.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 11: PRIMERA REUNIÓN INFORMATIVA -->
+        <section class="slide" id="slide-11" data-slide-index="11">
+            <div class="slide-grid-equal">
+                <div>
+                    <div class="convocatoria-badge" style="margin-bottom: 0.75rem; display: inline-block;">REUNIÓN DE ALINEACIÓN</div>
+                    <h2 class="title-gradient">Primera Convocatoria</h2>
+                    <p class="slide-paragraph">
+                        Acompáñanos en esta sesión virtual para conocer en profundidad el modelo de negocio y resolver todas tus inquietudes.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+                        <div class="wappy-card" style="padding: 0.75rem 1rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Día Clave</div>
+                            <div style="font-family: 'Outfit'; font-size: 1.15rem; font-weight: 700; color: #fff; margin-top: 0.15rem;">15 de Junio</div>
+                        </div>
+                        <div class="wappy-card" style="padding: 0.75rem 1rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Hora Colombia</div>
+                            <div style="font-family: 'Outfit'; font-size: 1.15rem; font-weight: 700; color: #fff; margin-top: 0.15rem;">4:00 p.m.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="wappy-card" style="border-color: rgba(6, 182, 212, 0.15);">
+                    <h3 style="font-family: 'Outfit'; font-size: 1rem; color: var(--accent); margin-bottom: 0.5rem;">¿Qué explicaremos en detalle?</h3>
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+                        <li>✓ Beneficios económicos detallados y bono del +5% extra.</li>
+                        <li>✓ Requisitos de ingreso y perfil de selección.</li>
+                        <li>✓ Alcance exacto de la exclusividad territorial.</li>
+                        <li>✓ Condiciones de la Reserva Territorial y su reembolso.</li>
+                        <li>✓ Estructura comercial ARL (70% del corretaje neto).</li>
+                        <li>✓ Plan nacional de expansión y visión de WAPPY.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 12: ¿PARA QUIÉN ES? & CTA -->
+        <section class="slide" id="slide-12" data-slide-index="12">
+            <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+                <div class="convocatoria-badge" style="margin-bottom: 0.5rem; display: inline-block;">INSCRIPCIONES ABIERTAS</div>
+                <h2 class="title-gradient" style="font-size: 2.4rem; margin-bottom: 0.75rem;">¿Listo para Liderar tu Región?</h2>
+                <p class="slide-paragraph" style="margin: 0 auto 1.25rem auto;">
+                    Esta convocatoria está dirigida a profesionales, consultores, asesores, tecnólogos, especialistas y empresas de SST que quieran liderar la transformación digital en Colombia.
+                </p>
+                
+                <div class="cta-container">
+                    <a href="https://wa.me/573102913651?text=QUIERO%20SER%20EMBAJADOR%20WAPPY" target="_blank" class="wappy-btn">
+                        <span>👉 QUIERO SER EMBAJADOR WAPPY</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
+                    <div class="btn-subtext">Los cupos son limitados y la asignación territorial se realiza de manera selectiva.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 13: VISIÓN FINAL / CIERRE -->
+        <section class="slide" id="slide-13" data-slide-index="13">
+            <div style="text-align: center; max-width: 850px; margin: 0 auto;">
+                <div style="margin-bottom: 1.5rem;">
+                    <svg viewBox="0 0 100 100" width="70" height="70" style="filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.35));">
+                        <path d="M50 15 L85 30 L85 60 C85 80 50 90 50 90 C50 90 15 80 15 60 L15 30 Z" fill="none" stroke="var(--primary)" stroke-width="2.5" />
+                        <path d="M35 50 L45 60 L65 40" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <h2 class="title-gradient" style="font-size: 2.2rem; margin-bottom: 1.5rem; line-height: 1.3;">
+                    "El futuro de la Seguridad y Salud en el Trabajo no se construirá resistiéndonos a la tecnología, sino aprendiendo a utilizarla a nuestro favor."
+                </h2>
+                <p class="slide-paragraph" style="margin: 0 auto; font-size: 1.1rem;">
+                    Ese es el propósito de <span class="highlight-text">WAPPY</span>. Esta es una invitación para construir juntos esa visión.
+                </p>
+                <div style="margin-top: 2.25rem; font-family: 'Outfit'; font-size: 1.05rem; color: #fff; font-weight: 600;">
+                    ¡Muchas Gracias! 🚀
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Presentation Footer Controls -->
+    <footer>
+        <button class="btn-notes" id="toggleNotesBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Notas de Orador [N]</span>
+        </button>
+
+        <div class="slide-dots" id="dotsContainer">
+            <!-- Dynamically populated -->
+        </div>
+
+        <div class="slide-counter">
+            <span id="currentSlideNum">1</span> / <span id="totalSlidesNum">13</span>
+        </div>
+
+        <div class="slide-navigation">
+            <button class="nav-btn" id="prevBtn" aria-label="Slide anterior" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <button class="nav-btn" id="nextBtn" aria-label="Próximo slide">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Speaker Notes Sidebar -->
+    <aside class="notes-sidebar" id="notesSidebar">
+        <div class="notes-header">
+            <span>Notas del Presentador</span>
+            <button class="close-notes" id="closeNotesBtn">✕</button>
+        </div>
+        <div class="notes-content" id="speakerNotes">
+            <!-- Dynamically populated notes based on active slide -->
+        </div>
+    </aside>
+
+    <!-- --------------------------------------------------
+       10. CLIENT SIDE JAVASCRIPT
+       -------------------------------------------------- -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slides = document.querySelectorAll('.slide');
+            const totalSlides = slides.length;
+            let currentSlideIndex = 0;
+
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const currentSlideNum = document.getElementById('currentSlideNum');
+            const totalSlidesNum = document.getElementById('totalSlidesNum');
+            const dotsContainer = document.getElementById('dotsContainer');
+            const progressBar = document.getElementById('progressBar');
+            const toggleNotesBtn = document.getElementById('toggleNotesBtn');
+            const notesSidebar = document.getElementById('notesSidebar');
+            const closeNotesBtn = document.getElementById('closeNotesBtn');
+            const speakerNotes = document.getElementById('speakerNotes');
+
+            totalSlidesNum.textContent = totalSlides;
+
+            // --------------------------------------------------
+            // SPEAKER NOTES DATA
+            // --------------------------------------------------
+            const notesData = {
+                1: `<h3>Portada e Introducción</h3>
+                    <p>• <strong>Objetivo:</strong> Dar la bienvenida a los asistentes a la convocatoria de Embajadores WAPPY SST.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li>Presentarse y manifestar el agrado de compartir esta oportunidad con profesionales apasionados.</li>
+                        <li>Explicar que hoy 15 de junio es la primera convocatoria informativa oficial para configurar la red de embajadores.</li>
+                        <li>Agradecer el tiempo de los profesionales, asesores, consultores y empresas conectados.</li>
+                    </ul>`,
+                2: `<h3>El Propósito y la IA en SST</h3>
+                    <p>• <strong>Objetivo:</strong> Transmitir la misión central y filosofía de Wappy.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li>Explicar el nacimiento de WAPPY: respuesta al miedo de la llegada de la IA.</li>
+                        <li>Enfatizar: La IA no nos reemplaza, potencia y automatiza tareas repetitivas del SST.</li>
+                        <li><strong>Visión de Expansión:</strong> Declaración de llevar WAPPY a todos los rincones de Colombia.</li>
+                    </ul>`,
+                3: `<h3>Perfiles y Estructura</h3>
+                    <p>• <strong>Objetivo:</strong> Explicar los roles de liderazgo regionales.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li><strong>Embajador Líder:</strong> Persona clave de enlace. Ayuda a dinamizar la red regional y tiene canales prioritarios con la gerencia general de WAPPY.</li>
+                        <li><strong>Embajador Regional / Corporativo:</strong> Enfocados en la transformación digital y comisiones corporativas.</li>
+                        <li>Apoyarse visualmente en los avatares integrados de los perfiles.</li>
+                    </ul>`,
+                4: `<h3>Beneficios Tecnológicos y de Soporte</h3>
+                    <p>• <strong>Objetivo:</strong> Detallar las herramientas que se entregan de por vida.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li><strong>Licencia Pro de por vida:</strong> Sin cargos mensuales. Herramienta de trabajo definitiva para sus propios clientes.</li>
+                        <li><strong>Asesorías directas:</strong> Espacios privados con el fundador para estrategia y ventas.</li>
+                        <li><strong>Desarrollo a la medida:</strong> Si el embajador tiene un cliente importante con una necesidad muy específica, el equipo técnico de Wappy la desarrolla.</li>
+                    </ul>`,
+                5: `<h3>Estructura Económica y Comisiones</h3>
+                    <p>• <strong>Objetivo:</strong> Detallar el esquema de comisiones y precios reales.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li><strong>Comisión Base del 20%:</strong> Sobre las ventas de planes Wappy. La comisión se abona de acuerdo a la temporalidad (mes, trimestre, semestre, año).</li>
+                        <li><strong>Bono de Cumplimiento (+5% Extra):</strong> Al lograr 3 suscripciones en el mes, la comisión del mes asciende al 25%.</li>
+                        <li><strong>Fechas de Pago:</strong> Abonos fijos y transparentes los días 5 y 25 de cada mes.</li>
+                    </ul>`,
+                6: `<h3>Alianzas ARL & WAPPY LTDA</h3>
+                    <p>• <strong>Objetivo:</strong> Explicar la línea de ingresos por intermediación.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li><strong>70% de Retribución:</strong> Wappy entrega el 70% de las comisiones que pague la ARL (Sura, Colmena, Bolívar, AXA) neto después de retención de impuestos.</li>
+                        <li><strong>Compromiso:</strong> El embajador se encarga de la empresa y su acompañamiento/asesoría SST.</li>
+                        <li><strong>Software para la Empresa:</strong> Dependiendo del volumen y recursos generados por la empresa, Wappy LTDA le otorgará una licencia Plan Vital o Plan Pro gratis mientras dure el contrato ARL.</li>
+                    </ul>`,
+                7: `<h3>Simulador de Ingresos (Real e Interactivo)</h3>
+                    <p>• <strong>Objetivo:</strong> Realizar un ejercicio práctico con los precios reales del Plan Vital, Pro Mensual y Pro Anual ($1.200.000).</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li>Interactuar con los sliders en tiempo real.</li>
+                        <li>Explicar que la tasa de comisión sube del 20% al 25% automáticamente al sumar 3 o más suscripciones totales vendidas (entre mensuales, anuales o vitales).</li>
+                    </ul>`,
+                8: `<h3>Exclusividad Territorial</h3>
+                    <p>• <strong>Objetivo:</strong> Enfatizar la escasez y el valor del territorio.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li>La exclusividad es limitada y selectiva.</li>
+                        <li>Ciudades grandes (ej. Medellín, Bogotá): máximo 2 embajadores.</li>
+                        <li>Municipios aledaños u otros: únicamente 1 embajador.</li>
+                        <li>Usa el buscador para interactuar con la audiencia: pregunta de qué municipios se conectan y busca en el panel.</li>
+                    </ul>`,
+                9: `<h3>Reserva Territorial</h3>
+                    <p>• <strong>Objetivo:</strong> Explicar la Reserva de $650.000 COP de forma positiva y transparente.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li><strong>Propósito:</strong> No es una compra ni un cobro definitivo; es un depósito de seriedad para garantizar y apartar el territorio. Evita que otros postulantes tomen tu lugar.</li>
+                        <li><strong>Reembolso Automático:</strong> Con la primera venta del Plan Pro Anual ($1.200.000 COP) se retorna de inmediato el 100% de la reserva ($650.000 COP) al embajador.</li>
+                    </ul>`,
+                10: `<h3>Legalidad y Formalización</h3>
+                    <p>• <strong>Objetivo:</strong> Brindar seguridad y profesionalismo.</p>
+                    <p>• <strong>Ideas Clave:</strong></p>
+                    <ul>
+                        <li>Explicar que la relación comercial se oficializa mediante un <strong>Contrato de Corretaje</strong> regulado.</li>
+                        <li>Persona jurídica contratante: WAPPY LTDA (NIT 901437310).</li>
+                        <li>Liquidaciones fijas los días 5 y 25 de cada mes.</li>
+                        <li>Esto da total tranquilidad y legalidad para presentar cuentas de cobro.</li>
+                    </ul>`,
+                11: `<h3>La Reunión del 15 de Junio</h3>
+                     <p>• <strong>Objetivo:</strong> Confirmar los detalles de la sesión.</p>
+                     <p>• <strong>Ideas Clave:</strong></p>
+                     <ul>
+                         <li>Hoy a las 4:00 p.m. abriremos el micrófono para debatir estos puntos en profundidad.</li>
+                         <li>Estructurar temas: permanencias, requisitos detallados de selección y plan de expansión nacional de Wappy.</li>
+                     </ul>`,
+                12: `<h3>Llamado a la Acción</h3>
+                     <p>• <strong>Objetivo:</strong> Impulsar la postulación inmediata.</p>
+                     <p>• <strong>Ideas Clave:</strong></p>
+                     <ul>
+                         <li>Invitar a escribir un mensaje privado con el texto exacto: "QUIERO SER EMBAJADOR WAPPY".</li>
+                         <li>Recordar que los cupos territoriales se asignan en orden de postulación y entrevista exitosa.</li>
+                     </ul>`,
+                13: `<h3>Cierre Inspirador</h3>
+                     <p>• <strong>Objetivo:</strong> Dejar un mensaje potente en la mente de los asistentes.</p>
+                     <p>• <strong>Ideas Clave:</strong></p>
+                     <ul>
+                         <li>Reiterar la visión: la tecnología no nos reemplaza, nos impulsa.</li>
+                         <li>Agradecer y convocar a todos a ser los pioneros de la IA aplicada a la SST en Colombia.</li>
+                     </ul>`
+            };
+
+            // Initialize slide dots
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('dot');
+                if (i === 0) dot.classList.add('active');
+                dot.addEventListener('click', () => goToSlide(i));
+                dotsContainer.appendChild(dot);
+            }
+
+            const dots = document.querySelectorAll('.dot');
+
+            // --------------------------------------------------
+            // NAVIGATION CONTROLLER
+            // --------------------------------------------------
+            function updateSlideState() {
+                slides.forEach((slide, index) => {
+                    if (index === currentSlideIndex) {
+                        slide.classList.add('active');
+                        slide.scrollTop = 0; // Reset scroll position when switching to slide
+                    } else {
+                        slide.classList.remove('active');
+                    }
+                });
+
+                // Update dots
+                dots.forEach((dot, index) => {
+                    if (index === currentSlideIndex) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                });
+
+                // Update counter and progress
+                currentSlideNum.textContent = currentSlideIndex + 1;
+                const progressPercent = ((currentSlideIndex + 1) / totalSlides) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+
+                // Update disabled buttons
+                prevBtn.disabled = currentSlideIndex === 0;
+                nextBtn.disabled = currentSlideIndex === totalSlides - 1;
+
+                // Update speaker notes
+                updateSpeakerNotes();
+            }
+
+            function goToSlide(index) {
+                if (index >= 0 && index < totalSlides) {
+                    currentSlideIndex = index;
+                    updateSlideState();
+                }
+            }
+
+            function nextSlide() {
+                if (currentSlideIndex < totalSlides - 1) {
+                    currentSlideIndex++;
+                    updateSlideState();
+                }
+            }
+
+            function prevSlide() {
+                if (currentSlideIndex > 0) {
+                    currentSlideIndex--;
+                    updateSlideState();
+                }
+            }
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === ' ') {
+                    if (e.key === ' ') e.preventDefault();
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                } else if (e.key.toLowerCase() === 'n') {
+                    toggleNotes();
+                }
+            });
+
+            prevBtn.addEventListener('click', prevSlide);
+            nextBtn.addEventListener('click', nextSlide);
+
+            // --------------------------------------------------
+            // SPEAKER NOTES CONTROL
+            // --------------------------------------------------
+            function updateSpeakerNotes() {
+                const activeIndex = currentSlideIndex + 1;
+                speakerNotes.innerHTML = notesData[activeIndex] || '<p>No hay notas para este slide.</p>';
+            }
+
+            function toggleNotes() {
+                notesSidebar.classList.toggle('open');
+                toggleNotesBtn.classList.toggle('active');
+            }
+
+            toggleNotesBtn.addEventListener('click', toggleNotes);
+            closeNotesBtn.addEventListener('click', toggleNotes);
+
+            updateSpeakerNotes(); // Initialize
+
+            // --------------------------------------------------
+            // INTERACTIVE SIMULATOR MATHS
+            // --------------------------------------------------
+            const plansRange = document.getElementById('plansRange');
+            const plansVal = document.getElementById('plansVal');
+            const annualRange = document.getElementById('annualRange');
+            const annualVal = document.getElementById('annualVal');
+            const vitalRange = document.getElementById('vitalRange');
+            const vitalVal = document.getElementById('vitalVal');
+            const arlRange = document.getElementById('arlRange');
+            const arlVal = document.getElementById('arlVal');
+            
+            const wappyEarn = document.getElementById('wappyEarn');
+            const arlEarn = document.getElementById('arlEarn');
+            const totalEarn = document.getElementById('totalEarn');
+            const bonusBadge = document.getElementById('bonusBadge');
+            const commissionRateLabel = document.getElementById('commissionRateLabel');
+
+            function formatCOP(number) {
+                return '$' + Math.round(number).toLocaleString('es-CO') + ' COP';
+            }
+
+            function updateSimulator() {
+                const plansPro = parseInt(plansRange.value);
+                const plansAnnual = parseInt(annualRange.value);
+                const plansVital = parseInt(vitalRange.value);
+                const arlCommissionTotal = parseInt(arlRange.value);
+
+                plansVal.textContent = plansPro;
+                annualVal.textContent = plansAnnual;
+                vitalVal.textContent = plansVital;
+                arlVal.textContent = '$' + arlCommissionTotal.toLocaleString('es-CO');
+
+                // Commission Rate Logic:
+                // Base: 20%
+                // fulfillment bonus: +5% extra if total active plans sold in the month >= 3
+                const totalSubscriptions = plansPro + plansAnnual + plansVital;
+                let commissionRate = 0.20;
+
+                if (totalSubscriptions >= 3) {
+                    commissionRate = 0.25;
+                    bonusBadge.style.display = 'inline-block';
+                    commissionRateLabel.textContent = '25%';
+                } else {
+                    bonusBadge.style.display = 'none';
+                    commissionRateLabel.textContent = '20%';
+                }
+
+                // Prices:
+                // Wappy Pro Monthly: $114.330
+                // Wappy Pro Annual: $1.200.000
+                // Wappy Vital: $350.000
+                const proIncome = plansPro * 114330 * commissionRate;
+                const annualIncome = plansAnnual * 1200000 * commissionRate;
+                const vitalIncome = plansVital * 350000 * commissionRate;
+                const wappyTotalIncome = proIncome + annualIncome + vitalIncome;
+
+                // ARL commission: 70% share
+                const arlIncome = arlCommissionTotal * 0.70;
+                
+                const total = wappyTotalIncome + arlIncome;
+
+                wappyEarn.textContent = '$' + Math.round(wappyTotalIncome).toLocaleString('es-CO');
+                arlEarn.textContent = '$' + Math.round(arlIncome).toLocaleString('es-CO');
+                totalEarn.textContent = formatCOP(total);
+            }
+
+            plansRange.addEventListener('input', updateSimulator);
+            annualRange.addEventListener('input', updateSimulator);
+            vitalRange.addEventListener('input', updateSimulator);
+            arlRange.addEventListener('input', updateSimulator);
+            updateSimulator(); // Initial run
+
+            // --------------------------------------------------
+            // INTERACTIVE EXCLUSIVITY SEARCH TRACKER
+            // --------------------------------------------------
+            const muniSearch = document.getElementById('muniSearch');
+            const muniResName = document.getElementById('muniResName');
+            const muniResType = document.getElementById('muniResType');
+            const muniResBadge = document.getElementById('muniResBadge');
+
+            const databaseTerritorios = {
+                'medellin': { name: 'Medellín', type: 'Ciudad Principal (Antioquia)', max: 2, badgeClass: 'badge-limited-2' },
+                'bogota': { name: 'Bogotá D.C.', type: 'Distrito Capital', max: 2, badgeClass: 'badge-limited-2' },
+                'cali': { name: 'Cali', type: 'Ciudad Principal (Valle)', max: 2, badgeClass: 'badge-limited-2' },
+                'barranquilla': { name: 'Barranquilla', type: 'Ciudad Principal (Atlántico)', max: 2, badgeClass: 'badge-limited-2' },
+                'sopo': { name: 'Sopó', type: 'Municipio Exclusivo (Cundinamarca)', max: 1, badgeClass: 'badge-limited-1' },
+                'chia': { name: 'Chía', type: 'Municipio Exclusivo (Cundinamarca)', max: 1, badgeClass: 'badge-limited-1' },
+                'envigado': { name: 'Envigado', type: 'Municipio Exclusivo (Antioquia)', max: 1, badgeClass: 'badge-limited-1' },
+                'sabaneta': { name: 'Sabaneta', type: 'Municipio Exclusivo (Antioquia)', max: 1, badgeClass: 'badge-limited-1' },
+                'rionegro': { name: 'Rionegro', type: 'Municipio Exclusivo (Antioquia)', max: 1, badgeClass: 'badge-limited-1' },
+                'bucaramanga': { name: 'Bucaramanga', type: 'Ciudad Principal (Santander)', max: 2, badgeClass: 'badge-limited-2' },
+                'pereira': { name: 'Pereira', type: 'Ciudad Principal (Risaralda)', max: 2, badgeClass: 'badge-limited-2' }
+            };
+
+            muniSearch.addEventListener('input', () => {
+                const query = muniSearch.value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                if (query.length === 0) {
+                    muniResName.textContent = 'Medellín';
+                    muniResType.textContent = 'Ciudad Principal';
+                    muniResBadge.textContent = '2 Embajadores Max';
+                    muniResBadge.className = 'muni-badge badge-limited-2';
+                    return;
+                }
+
+                // Check matches in database
+                let found = null;
+                for (let key in databaseTerritorios) {
+                    if (key.includes(query) || query.includes(key)) {
+                        found = databaseTerritorios[key];
+                        break;
+                    }
+                }
+
+                if (found) {
+                    muniResName.textContent = found.name;
+                    muniResType.textContent = found.type;
+                    muniResBadge.textContent = found.max === 2 ? '2 Embajadores Max' : '1 Embajador Max';
+                    muniResBadge.className = `muni-badge ${found.badgeClass}`;
+                } else {
+                    const nameCapitalized = muniSearch.value.charAt(0).toUpperCase() + muniSearch.value.slice(1);
+                    muniResName.textContent = nameCapitalized;
+                    muniResType.textContent = 'Municipio (Sujeto a Validación)';
+                    muniResBadge.textContent = '1 Embajador Max';
+                    muniResBadge.className = 'muni-badge badge-limited-1';
+                }
+            });
+
+            // Swipe Gestures for Mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            
+            const deck = document.querySelector('.presentation-deck');
+            
+            deck.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            deck.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+
+            function handleSwipe() {
+                const threshold = 50;
+                if (touchStartX - touchEndX > threshold) {
+                    nextSlide();
+                }
+                if (touchEndX - touchStartX > threshold) {
+                    prevSlide();
+                }
+            }
+
+        });
+    </script>
+</body>
+</html>

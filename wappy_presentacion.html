@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAPPY IA - Presentación de la Plataforma de IA para SST</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* DESIGN SYSTEM (WAPPY BRAND RULES) */
+    :root {
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      
+      --color-bg: #090d16;
+      --color-card-bg: rgba(15, 23, 42, 0.65);
+      --color-border: rgba(34, 197, 94, 0.15);
+      --color-border-hover: rgba(34, 197, 94, 0.4);
+      
+      --color-primary: #22c55e;
+      --color-primary-dark: #16a34a;
+      --color-secondary: #10b981;
+      --color-accent: #06b6d4;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--color-bg);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ambient Glow Effects */
+    .glow-bg {
+      position: absolute;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(140px);
+      z-index: 0;
+      opacity: 0.15;
+      transition: all 1s ease-in-out;
+    }
+
+    .glow-1 {
+      top: -10%;
+      right: -10%;
+      background: var(--color-primary);
+    }
+
+    .glow-2 {
+      bottom: -10%;
+      left: -10%;
+      background: var(--color-accent);
+    }
+
+    /* Main Container (Responsive Grid layout) */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      width: 100vw;
+      transition: grid-template-columns 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .app-container.teleprompter-active {
+      grid-template-columns: 1.15fr 0.85fr;
+    }
+
+    /* HEADER */
+    header {
+      padding: 1.2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(9, 13, 22, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-text {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 1.6rem;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-sst {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--color-primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-action:hover {
+      background: rgba(34, 197, 94, 0.1);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: translateY(-2px);
+    }
+
+    .btn-action.active {
+      background: linear-gradient(135deg, var(--color-primary-dark), var(--color-secondary));
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+    }
+
+    /* PRESENTATION SLIDES SECTION */
+    .presentation-viewport {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    .slides-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 1200px;
+      max-height: 680px;
+    }
+
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(50px) scale(0.98);
+      transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+                  transform 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+                  visibility 0.5s;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      z-index: 2;
+    }
+
+    .slide.previous {
+      transform: translateX(-50px) scale(0.98);
+    }
+
+    /* SLIDE COMPONENTS AND TEXT */
+    .slide-title {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: clamp(1.8rem, 4.2vh, 2.8rem);
+      line-height: 1.15;
+      margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem);
+      letter-spacing: -1px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(0.85rem, 2vh, 1.15rem);
+      color: var(--text-secondary);
+      margin-bottom: clamp(0.6rem, 2vh, 1.2rem);
+      font-weight: 300;
+      line-height: 1.45;
+    }
+
+    /* Glassmorphism Card Style */
+    .glass-card {
+      background: var(--color-card-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      padding: clamp(1rem, 3.2vh, 2rem) clamp(1.2rem, 3.5vw, 2.5rem);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow-y: auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      
+      scrollbar-width: thin;
+      scrollbar-color: rgba(34, 197, 94, 0.25) transparent;
+    }
+
+    .glass-card::-webkit-scrollbar {
+      width: 5px;
+    }
+    .glass-card::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .glass-card::-webkit-scrollbar-thumb {
+      background-color: rgba(34, 197, 94, 0.25);
+      border-radius: 10px;
+    }
+
+    .glass-card:hover {
+      border-color: var(--color-border-hover);
+      box-shadow: 0 20px 40px rgba(34, 197, 94, 0.05);
+    }
+
+    /* Cover Layout & Avatar Circle Rules */
+    .cover-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: clamp(1rem, 3vw, 3rem);
+      align-items: center;
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .avatar-circle {
+      position: relative;
+      width: clamp(170px, 34vh, 265px);
+      height: clamp(170px, 34vh, 265px);
+      border-radius: 50%;
+      border: 4px solid var(--color-primary);
+      background: #090d16;
+      box-shadow: 0 0 35px rgba(34, 197, 94, 0.35);
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      animation: pulseGlow 4s infinite alternate;
+    }
+
+    .avatar-circle img {
+      width: 93%;
+      height: 93%;
+      object-fit: contain;
+      object-position: bottom center;
+      display: block;
+      z-index: 1;
+    }
+
+    .avatar-circle::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 32%;
+      background: linear-gradient(to top, #090d16 10%, rgba(9, 13, 22, 0) 100%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .presenter-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.3rem 0.8rem;
+      border-radius: 50px;
+      font-size: clamp(0.75rem, 1.8vh, 0.85rem);
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem);
+      width: fit-content;
+    }
+
+    /* Grid Layouts */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(1rem, 2.5vw, 2rem);
+    }
+
+    .grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(0.8rem, 1.8vw, 1.5rem);
+    }
+
+    .feature-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: clamp(0.8rem, 2vh, 1.5rem);
+      transition: all 0.3s ease;
+    }
+
+    .feature-box:hover {
+      background: rgba(34, 197, 94, 0.04);
+      border-color: rgba(34, 197, 94, 0.2);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(34, 197, 94, 0.15);
+      border-radius: 8px;
+      color: var(--color-primary);
+      margin-bottom: 0.8rem;
+      font-weight: bold;
+    }
+
+    .feature-box h4 {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      margin-bottom: 0.4rem;
+      font-weight: 700;
+    }
+
+    .feature-box p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* Big Numbers Stat style */
+    .stat-card {
+      text-align: center;
+      padding: clamp(0.8rem, 2.5vh, 1.8rem) 1rem;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stat-number {
+      font-family: var(--font-heading);
+      font-size: clamp(2rem, 5.5vh, 3.2rem);
+      font-weight: 800;
+      color: var(--color-primary);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-label {
+      font-size: clamp(0.75rem, 1.8vh, 0.9rem);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* MOCKUP INTERACTIVE INTERFACES inside slides */
+    .mockup-window {
+      background: #0d1527;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 380px;
+      width: 100%;
+    }
+
+    .mockup-header {
+      background: #080d1a;
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .mockup-dots {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .mockup-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .mockup-dot.red { background: #ef4444; }
+    .mockup-dot.yellow { background: #f59e0b; }
+    .mockup-dot.green { background: #10b981; }
+
+    .mockup-title {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      font-weight: 600;
+    }
+
+    .mockup-body {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* Chat Mockup Styles */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 0.3fr 0.7fr;
+      height: 100%;
+    }
+
+    .chat-sidebar {
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      background: #0a101f;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .chat-agent-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 0.75rem;
+      border: 1px solid transparent;
+    }
+
+    .chat-agent-item.active {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.2);
+      color: var(--color-primary);
+    }
+
+    .chat-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 0.8rem;
+    }
+
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      overflow-y: auto;
+      margin-bottom: 0.5rem;
+    }
+
+    .chat-msg {
+      padding: 0.6rem 0.8rem;
+      border-radius: 12px;
+      max-width: 85%;
+      line-height: 1.4;
+      font-size: 0.8rem;
+    }
+
+    .chat-msg.user {
+      background: rgba(255, 255, 255, 0.05);
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+
+    .chat-msg.bot {
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chat-input-box {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.8rem;
+      color: white;
+    }
+
+    /* IPEVAR Matrix Table Mockup */
+    .mockup-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .mockup-table th {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.5rem;
+      text-align: left;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mockup-table td {
+      padding: 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .badge-risk-high {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    /* Canvas Mockup Node Grid */
+    .canvas-layout {
+      position: relative;
+      height: 100%;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+      background-size: 15px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 1.5rem;
+    }
+
+    .canvas-node {
+      background: #0f172a;
+      border: 1px dashed var(--color-primary);
+      border-radius: 8px;
+      padding: 0.8rem;
+      width: 140px;
+      font-size: 0.75rem;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    /* TELEPROMPTER PANEL */
+    .teleprompter-panel {
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0b111e;
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .app-container.teleprompter-active .teleprompter-panel {
+      display: flex;
+      animation: slideInRight 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .prompter-header {
+      padding: 1.2rem 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(9, 13, 22, 0.5);
+    }
+
+    .prompter-title {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--color-accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .prompter-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .control-group {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .btn-ctrl {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      width: 32px;
+      height: 32px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .btn-ctrl:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-ctrl:first-child {
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .prompter-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12rem 2rem 15rem 2rem; /* Pad top and bottom to center current text */
+      scroll-behavior: smooth;
+      position: relative;
+    }
+
+    /* Center line indicator overlay */
+    .reading-marker {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 110px;
+      border-top: 1px dashed rgba(34, 197, 94, 0.25);
+      border-bottom: 1px dashed rgba(34, 197, 94, 0.25);
+      background: linear-gradient(to right, rgba(34, 197, 94, 0.03), transparent);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .prompter-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .prompter-block {
+      opacity: 0.25;
+      transform: scale(0.96);
+      transition: all 0.4s ease;
+      margin-bottom: 2.5rem;
+      font-size: 1.5rem;
+      line-height: 1.8;
+      font-weight: 500;
+    }
+
+    .prompter-block.active {
+      opacity: 1;
+      transform: scale(1.02);
+      color: var(--text-primary);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+
+    .prompter-block.active .script-highlight {
+      background: linear-gradient(120deg, rgba(34, 197, 94, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%);
+      border-left: 4px solid var(--color-primary);
+      padding-left: 0.75rem;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* FOOTER CONTROLS */
+    footer {
+      padding: 1.5rem 3rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(9, 13, 22, 0.9);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .progress-bar-container {
+      flex: 1;
+      max-width: 400px;
+      margin: 0 2rem;
+      position: relative;
+    }
+
+    .progress-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+      width: 100%;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+      border-radius: 3px;
+      width: 8.33%; /* 1 of 12 slides */
+      transition: width 0.4s ease;
+    }
+
+    .progress-text {
+      font-size: 0.8rem;
+      color: var(--text-tertiary);
+      margin-top: 0.4rem;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .navigation-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-nav {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: scale(1.08);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn-nav svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .btn-play-prompter {
+      background: var(--color-primary);
+      color: #000;
+      border: none;
+      padding: 0 1.5rem;
+      height: 45px;
+      border-radius: 25px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-play-prompter:hover {
+      background: white;
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(255,255,255,0.25);
+    }
+
+    .slide-indicator-dots {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: var(--color-primary);
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    /* KEYFRAMES */
+    @keyframes pulseGlow {
+      from {
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        border-color: var(--color-primary);
+      }
+      to {
+        box-shadow: 0 0 40px rgba(6, 182, 212, 0.4);
+        border-color: var(--color-accent);
+      }
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 900px) {
+      .cover-layout {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 1.5rem;
+      }
+      .avatar-wrapper {
+        order: -1;
+      }
+      .avatar-circle {
+        width: 160px;
+        height: 160px;
+      }
+      .slide-title {
+        font-size: 2.2rem;
+      }
+      .grid-3col {
+        grid-template-columns: 1fr;
+      }
+      .grid-2col {
+        grid-template-columns: 1fr;
+      }
+      .app-container.teleprompter-active {
+        grid-template-columns: 1fr;
+      }
+      .app-container.teleprompter-active .presentation-viewport {
+        display: none;
+      }
+      header {
+        padding: 1rem;
+      }
+      footer {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Ambient Glows -->
+  <div class="glow-bg glow-1"></div>
+  <div class="glow-bg glow-2"></div>
+
+  <div class="app-container" id="appContainer">
+    
+    <!-- HEADER -->
+    <header>
+      <div class="logo-container">
+        <!-- Embedded animated W logo -->
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#logo-gradient)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <animate attributeName="stroke-dasharray" from="0 100" to="100 0" dur="2s" repeatCount="indefinite"/>
+          </path>
+          <defs>
+            <linearGradient id="logo-gradient" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#22c55e" />
+              <stop offset="1" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">WAPPY IA</span>
+        <span class="badge-sst">SST</span>
+      </div>
+
+      <div class="header-controls">
+        <button class="btn-action" id="btnTeleprompter" onclick="toggleTeleprompter()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.82 2.82 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+          Modo Grabación (Teleprompter)
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN PRESENTATION SLIDESPORT -->
+    <div class="presentation-viewport">
+      <div class="slides-wrapper">
+        
+        <!-- Slide 1: Welcome -->
+        <div class="slide active" id="slide-1">
+          <div class="glass-card cover-layout">
+            <div>
+              <div class="presenter-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Presentación de Plataforma de IA para SST
+              </div>
+              <h1 class="slide-title">Bienvenido a la <span class="gradient-text">Nueva Era de la SST</span></h1>
+              <p class="slide-subtitle">Descubre cómo optimizar tu tiempo de gestión, elevar tus ingresos y centrarte en lo verdaderamente importante: la prevención en campo.</p>
+            </div>
+            <div class="avatar-wrapper">
+              <div class="avatar-circle">
+                <img src="Agentes/Miniaturas/Avatar%20/Avatar1.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix'">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2: El Dolor Oculto -->
+        <div class="slide" id="slide-2">
+          <div class="glass-card">
+            <h2 class="slide-title" style="font-size: 2.8rem;">El Dolor Oculto del <span class="gradient-text">Prevencionista</span></h2>
+            <p class="slide-subtitle" style="margin-bottom: 1.5rem;">Pasamos más del 80% de nuestra jornada atascados en laberintos administrativos.</p>
+            
+            <div class="grid-3col">
+              <div class="stat-card">
+                <div class="stat-number">10h</div>
+                <div class="stat-label">En una sola Matriz</div>
+              </div>
+              <div class="stat-card" style="border-color: rgba(6, 182, 212, 0.15)">
+                <div class="stat-number">80%</div>
+                <div class="stat-label">Carga Administrativa</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number">0%</div>
+                <div class="stat-label">Prevención Real en Campo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 3: La IA Shift -->
+        <div class="slide" id="slide-3">
+          <div class="glass-card grid-2col" style="align-items: center;">
+            <div>
+              <h2 class="slide-title" style="font-size: 2.5rem;">La IA no te reemplaza. <span class="gradient-text">El profesional que la use, sí.</span></h2>
+              <p class="slide-subtitle" style="font-size: 1.15rem; margin-top: 1rem;">El panorama laboral está cambiando radicalmente. O nos adaptamos o quedamos rezagados frente a quienes ya producen el triple en la mitad de tiempo.</p>
+            </div>
+            <div style="display: flex; justify-content: center;">
+              <svg width="220" height="220" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="40" stroke="url(#brain-grad-2)" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <circle cx="50" cy="20" r="6" fill="#22c55e"><animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite"/></circle>
+                <circle cx="20" cy="60" r="5" fill="#06b6d4"><animate attributeName="r" values="3;6;3" dur="2.5s" repeatCount="indefinite"/></circle>
+                <circle cx="80" cy="60" r="5" fill="#10b981"><animate attributeName="r" values="3;6;3" dur="1.8s" repeatCount="indefinite"/></circle>
+                <line x1="50" y1="20" x2="20" y2="60" stroke="#22c55e" stroke-width="1"/>
+                <line x1="50" y1="20" x2="80" y2="60" stroke="#10b981" stroke-width="1"/>
+                <line x1="20" y1="60" x2="80" y2="60" stroke="#06b6d4" stroke-width="1"/>
+                <circle cx="50" cy="50" r="12" fill="#090d16" stroke="url(#brain-grad-2)" stroke-width="2"/>
+                <path d="M48 46H52V54H48V46Z" fill="#22c55e"/>
+                <defs>
+                  <linearGradient id="brain-grad-2" x1="20" y1="20" x2="80" y2="80">
+                    <stop stop-color="#22c55e" />
+                    <stop offset="1" stop-color="#06b6d4" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 4: Presentación Felix Bedoya -->
+        <div class="slide" id="slide-4">
+          <div class="glass-card cover-layout">
+            <div>
+              <div class="presenter-badge" style="border-color: rgba(6, 182, 212, 0.3); color: var(--color-accent)">
+                👨‍💻 El Creador
+              </div>
+              <h1 class="slide-title">Mucho gusto, soy <span class="gradient-text">Felix Bedoya</span></h1>
+              <p class="slide-subtitle" style="font-size: 1.15rem; line-height: 1.6;">
+                Psicólogo especialista en SST y Desarrollador Senior con más de 8 años de experiencia. He trabajado con las ARLs más grandes del país diseñando soluciones y ahora quiero compartir contigo la plataforma que mejoró mis ingresos y calidad de vida.
+              </p>
+              <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <span class="badge-sst" style="background: rgba(6, 182, 212, 0.08); border-color: var(--color-accent); color: var(--color-accent);">+8 Años Exp</span>
+                <span class="badge-sst">Psicólogo SST</span>
+                <span class="badge-sst" style="background: rgba(34, 197, 94, 0.08);">Dev Senior</span>
+              </div>
+            </div>
+            <div class="avatar-wrapper">
+              <div class="avatar-circle">
+                <img src="Agentes/Miniaturas/Avatar%20/avatar3.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix3'">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 5: Felix Bedoya - Rentabilidad -->
+        <div class="slide" id="slide-5">
+          <div class="glass-card grid-2col" style="align-items: center;">
+            <div>
+              <div class="presenter-badge" style="border-color: rgba(6, 182, 212, 0.3); color: var(--color-accent)">
+                💡 Mi Caso de Éxito
+              </div>
+              <h2 class="slide-title" style="font-size: 2.3rem;">De la Frustración a la <span class="gradient-text">Rentabilidad</span></h2>
+              <p class="slide-subtitle" style="font-size: 1.05rem; line-height: 1.5; margin-bottom: 0;">
+                "Al unir la tecnología y la IA con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió atender más clientes, asegurar mayor calidad legal con las ARLs más grandes de Colombia y escalar mis ingresos drásticamente."
+              </p>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+              <div class="avatar-circle" style="width: 160px; height: 160px;">
+                <img src="Agentes/Miniaturas/Avatar%20/avatar2.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix2'">
+              </div>
+              <div style="text-align: center;">
+                <h4 style="font-size: 1.2rem; font-weight: 800;">Felix Bedoya</h4>
+                <p style="color: var(--color-primary); font-size: 0.9rem; font-weight: 600;">Fundador de Wappy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 6: Demo 1 - WAPPY CHAT con Agentes -->
+        <div class="slide" id="slide-6">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Wappy Chat <span class="gradient-text">con Agentes</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Chatea con más de 15 IAs especialistas entrenadas en Medicina Laboral, Derecho y Psicología Organizacional.</p>
+          </div>
+        </div>
+
+        <!-- Slide 7: Demo 2 - Herramienta Canvas -->
+        <div class="slide" id="slide-7">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Herramienta <span class="gradient-text">Canvas</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Organiza tus ideas, flujos de procesos y planes de trabajo en un tablero visual interactivo sin fricciones.</p>
+          </div>
+        </div>
+
+        <!-- Slide 8: Demo 3 - Matriz IPEVAR -->
+        <div class="slide" id="slide-8">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Matriz <span class="gradient-text">IPEVAR</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Identifica peligros, evalúa riesgos y define medidas de control bajo la GTC 45 asistido por IA.</p>
+          </div>
+        </div>
+
+        <!-- Slide 9: Demo 4 - Reglamento Interno -->
+        <div class="slide" id="slide-9">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Reglamento <span class="gradient-text">Interno de Trabajo</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Estructura y redacta el reglamento interno adaptado a la normatividad laboral colombiana en un par de clics.</p>
+          </div>
+        </div>
+
+        <!-- Slide 10: Demo 5 - Análisis en Vivo -->
+        <div class="slide" id="slide-10">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Análisis <span class="gradient-text">en Vivo</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Procesa y diagnostica métricas de ausentismo, incidentes y reportes de condiciones inseguras en tiempo real.</p>
+          </div>
+        </div>
+
+        <!-- Slide 11: Demo 6 - Aula de Estudio & Blog -->
+        <div class="slide" id="slide-11">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
+            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Aula de <span class="gradient-text">Estudio y Blog</span></h2>
+            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Mantente al día con capacitaciones continuas, tutoriales y noticias del ámbito legal y operativo de la SST.</p>
+          </div>
+        </div>
+
+        <!-- Slide 12: Call to Action -->
+        <div class="slide" id="slide-12">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h2 class="slide-title" style="font-size: 3.2rem;">Únete a la <span class="gradient-text">Revolución</span></h2>
+            <p class="slide-subtitle" style="max-width: 600px;">El futuro de la Seguridad y Salud en el Trabajo ya está aquí y habla tu mismo idioma. No te quedes atrás.</p>
+            
+            <a href="#" class="btn-play-prompter" style="margin-top: 1rem; padding: 0.8rem 2.5rem; height: auto; font-size: 1.2rem; text-decoration: none;">
+              Registrarse ya
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+            
+            <!-- Gift Coupon Card -->
+            <div style="margin-top: 1.8rem; background: rgba(34, 197, 94, 0.08); border: 2px dashed var(--color-primary); padding: 0.8rem 1.8rem; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.6rem; color: #fff;">
+              🎁 Cupón de regalo: <span style="color: var(--color-accent); font-weight: 800; font-size: 1.3rem; letter-spacing: 1px; font-family: var(--font-heading);">VITAL30</span> (Descuento al adquirir cualquiera de nuestros planes)
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TELEPROMPTER PANEL -->
+    <div class="teleprompter-panel" id="teleprompterPanel">
+      <div class="prompter-header">
+        <span class="prompter-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          TELEPROMPTER - GUION DE APOYO
+        </span>
+        <div class="prompter-controls">
+          <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: bold; margin-right: 0.5rem;">TAMAÑO TEXTO:</div>
+          <div class="control-group">
+            <button class="btn-ctrl" onclick="changeFontSize(-2)">A-</button>
+            <button class="btn-ctrl" onclick="changeFontSize(2)">A+</button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: bold; margin-left: 0.5rem; margin-right: 0.5rem;">VELOCIDAD:</div>
+          <div class="control-group">
+            <button class="btn-ctrl" onclick="changeSpeed(-1)">-</button>
+            <button class="btn-ctrl" onclick="changeSpeed(1)">+</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="prompter-viewport" id="prompterViewport">
+        <div class="reading-marker"></div>
+        <div class="prompter-content" id="prompterContent">
+          <!-- Text blocks loaded dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="navigation-controls">
+        <button class="btn-nav" id="btnPrev" onclick="changeSlide(-1)">
+          <svg viewBox="0 0 24 24"><path d="M15.41 16.58L10.83 12L15.41 7.41L14 6L8 12L14 18L15.41 16.58Z"/></svg>
+        </button>
+        <button class="btn-nav" id="btnNext" onclick="changeSlide(1)">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.58L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.58Z"/></svg>
+        </button>
+        <button class="btn-play-prompter" id="btnPlayScroll" style="display:none;" onclick="toggleAutoScroll()">
+          <span id="playIcon">▶</span>
+          <span id="playText">Autoscroll</span>
+        </button>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Diapositiva 1 de 12</div>
+      </div>
+
+      <div class="slide-indicator-dots" id="dotsContainer">
+        <!-- Dots loaded dynamically -->
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // PRESENTATION STATE
+    let currentSlideIndex = 0;
+    const totalSlides = 12;
+    let prompterActive = false;
+    let prompterFontSize = 24; // pixels
+    let scrollInterval = null;
+    let isScrolling = false;
+    let scrollSpeed = 2; // 1 to 10 scale
+
+    // SCRIPTS FOR EACH SLIDE (Felix's 12 slides pitch)
+    const slideScripts = [
+      // Slide 1: Welcome
+      "Hola a todos. Si eres consultor, especialista, profesional o tecnólogo en Seguridad y Salud en el Trabajo, quiero hacerte una pregunta: ¿Cuánto tiempo de tu semana te la pasas llenando papeles y formatos en lugar de estar en el campo previniendo accidentes?",
+      // Slide 2: El dolor
+      "La realidad es dura. Desde WAPPY LTDA, como agencia de seguros e intermediarios de riesgos laborales, hemos visto cómo los prevencionistas se ven envueltos en una gestión del tiempo agotadora. Diseñar una matriz de peligros de forma decente te puede tomar 8, 10 o incluso más horas de trabajo. Y a eso súmale: investigaciones de accidentes, análisis de puestos de trabajo, políticas... al final del día, lo administrativo nos ahoga y nos hace perder de vista lo más importante: la prevención y promoción en el campo, con la gente.",
+      // Slide 3: IA Shift
+      "Por eso creamos WAPPY. Nació de la necesidad urgente de automatizar el tiempo, generar recursos eficientes y mejorar la calidad de nuestro servicio. Hoy, la Inteligencia Artificial está cambiando las reglas del juego. Seguro has escuchado que la IA va a desplazar empleos. Pero déjame decirte algo: la IA no te va a reemplazar; te va a reemplazar el profesional de SST que sí aprenda a usar la IA. Wappy está diseñado para que esa tecnología trabaje para ti, dándote superpoderes administrativos para que tú te enfoques en la estrategia y en la vida de los trabajadores.",
+      // Slide 4: Presentación Felix
+      "Mucho gusto, soy Felix Bedoya. Soy psicólogo especialista en SST y desarrollador senior con más de 8 años de experiencia en el mercado, trabajando con las ARLs más grandes de Colombia. Hoy les voy a compartir mi plataforma de IA para SST y cómo logré mejorar mis ingresos, mi tiempo y la calidad de mi trabajo.",
+      // Slide 5: Éxito Felix
+      "Durante años viví en carne propia el cansancio de las entregas interminables. Pero cuando uní la IA con la SST, mi vida profesional dio un giro de 180 grados: multipliqué mis ingresos, optimicé mi tiempo y elevé la calidad de mi trabajo. Wappy es la herramienta que yo mismo diseñé para salvar mi tiempo, y hoy quiero compartirla contigo.",
+      // Slide 6: Demo 1 Chat
+      "Comencemos con el corazón de Wappy: el Chat con Agentes. Aquí cuentas con más de 15 agentes especialistas. Puedes chatear con un abogado laboral, un médico ocupacional o un higienista para resolver dudas normativas y técnicas al instante, redactando respuestas profesionales basadas en legislación vigente.",
+      // Slide 7: Demo 2 Canvas
+      "La Herramienta Canvas es tu espacio de trabajo visual. Te permite estructurar ideas, diseñar flujos de procesos y organizar la información de tus clientes en una pizarra interactiva súper intuitiva, facilitando la planificación y co-creación en tiempo real.",
+      // Slide 8: Demo 3 IPEVAR
+      "La joya de la corona: la Matriz IPEVAR interactiva. Olvídate de pasar 10 horas en Excel. Con Wappy puedes identificar peligros, evaluar riesgos y definir medidas de control bajo la GTC 45, de forma asistida y en solo minutos directamente a través del chat, con un LiveEditor listo para descargar en Word.",
+      // Slide 9: Demo 4 Reglamento
+      "Elaborar un Reglamento Interno de Trabajo suele ser un proceso tedioso y lleno de riesgos legales. Con Wappy, nuestro agente experto en Derecho Laboral redacta la estructura y el contenido completo del reglamento, adaptado a la normatividad colombiana y a las especificidades de la empresa en un par de clics.",
+      // Slide 10: Demo 5 Análisis
+      "Con la función de Análisis en Vivo, puedes cargar bases de datos de ausentismo, accidentes de trabajo o resultados de inspecciones, y nuestra IA procesará los datos al instante, generando diagnósticos predictivos y reportes visuales listos para presentar a la gerencia.",
+      // Slide 11: Demo 6 Aula
+      "Finalmente, contamos con el Aula de Estudio y nuestro Blog de SST. Un espacio de formación continua y noticias de actualidad regulatoria, donde puedes mantenerte al día con las últimas tendencias de la industria y aprender a dominar las herramientas de IA aplicadas a la prevención.",
+      // Slide 12: Call to Action
+      "Te invito a iniciar este viaje conmigo. No te quedes atrás en la era digital. Automatiza tu gestión, protege a tus trabajadores con herramientas modernas y lleva tu consultoría al siguiente nivel. Entra a Wappy, regístrate ya mismo y aprovecha nuestro cupón de regalo especial VITAL30 para obtener un descuento exclusivo en cualquiera de nuestros planes al adquirirlo. ¡Vamos allá!"
+    ];
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      buildDots();
+      buildPrompterText();
+      updateSlideView();
+      
+      // Keyboard Navigation listener
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+          changeSlide(1);
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          changeSlide(-1);
+          e.preventDefault();
+        }
+      });
+    });
+
+    // BUILD DOT INDICATORS
+    function buildDots() {
+      const dotsContainer = document.getElementById('dotsContainer');
+      dotsContainer.innerHTML = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `dot ${i === 0 ? 'active' : ''}`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    // BUILD TELEPROMPTER TEXT IN RIGHT PANEL
+    function buildPrompterText() {
+      const container = document.getElementById('prompterContent');
+      container.innerHTML = '';
+      
+      slideScripts.forEach((scriptText, index) => {
+        const block = document.createElement('div');
+        block.className = `prompter-block ${index === 0 ? 'active' : ''}`;
+        block.id = `prompter-block-${index}`;
+        block.style.fontSize = `${prompterFontSize}px`;
+        
+        block.innerHTML = `
+          <div class="script-highlight">
+            <span style="color: var(--color-accent); font-weight: 800; font-size: 0.8rem; display: block; margin-bottom: 0.2rem;">DIAPOSITIVA ${index + 1}</span>
+            ${scriptText}
+          </div>
+        `;
+        
+        block.onclick = () => {
+          goToSlide(index);
+        };
+        
+        container.appendChild(block);
+      });
+    }
+
+    // TOGGLE TELEPROMPTER MODE
+    function toggleTeleprompter() {
+      prompterActive = !prompterActive;
+      const appContainer = document.getElementById('appContainer');
+      const btn = document.getElementById('btnTeleprompter');
+      const playBtn = document.getElementById('btnPlayScroll');
+      
+      if (prompterActive) {
+        appContainer.classList.add('teleprompter-active');
+        btn.classList.add('active');
+        playBtn.style.display = 'flex';
+        setTimeout(centerActivePrompterBlock, 400);
+      } else {
+        appContainer.classList.remove('teleprompter-active');
+        btn.classList.remove('active');
+        playBtn.style.display = 'none';
+        stopAutoScroll();
+      }
+    }
+
+    // CHANGE SLIDE BY DELTA
+    function changeSlide(delta) {
+      let nextIndex = currentSlideIndex + delta;
+      if (nextIndex >= 0 && nextIndex < totalSlides) {
+        goToSlide(nextIndex);
+      }
+    }
+
+    // GO TO SPECIFIC SLIDE INDEX
+    function goToSlide(index) {
+      document.querySelector(`#slide-${currentSlideIndex + 1}`).classList.remove('active');
+      document.querySelector(`#slide-${currentSlideIndex + 1}`).classList.remove('previous');
+      if (currentSlideIndex > 0) {
+        document.querySelector(`#slide-${currentSlideIndex}`).classList.remove('previous');
+      }
+      
+      const prevIndex = currentSlideIndex;
+      currentSlideIndex = index;
+      
+      if (currentSlideIndex > 0) {
+        document.querySelector(`#slide-${currentSlideIndex}`).classList.add('previous');
+      }
+      
+      document.querySelector(`#slide-${currentSlideIndex + 1}`).classList.add('active');
+      
+      updateSlideView();
+      updatePrompterActiveBlock(prevIndex);
+    }
+
+    // UPDATE UI CONTROLS AND BAR
+    function updateSlideView() {
+      document.getElementById('btnPrev').disabled = currentSlideIndex === 0;
+      document.getElementById('btnNext').disabled = currentSlideIndex === totalSlides - 1;
+      
+      const percentage = ((currentSlideIndex + 1) / totalSlides) * 100;
+      document.getElementById('progressBarFill').style.width = `${percentage}%`;
+      document.getElementById('progressText').textContent = `Diapositiva ${currentSlideIndex + 1} de ${totalSlides}`;
+      
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((dot, idx) => {
+        if (idx === currentSlideIndex) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+    }
+
+    // SYNC ACTIVE PROMPTER TEXT
+    function updatePrompterActiveBlock(oldIndex) {
+      const prevBlock = document.getElementById(`prompter-block-${oldIndex}`);
+      const activeBlock = document.getElementById(`prompter-block-${currentSlideIndex}`);
+      
+      if (prevBlock) prevBlock.classList.remove('active');
+      if (activeBlock) {
+        activeBlock.classList.add('active');
+        centerActivePrompterBlock();
+      }
+    }
+
+    // CENTER ACTIVE BLOCK IN VIEWPORT
+    function centerActivePrompterBlock() {
+      if (!prompterActive) return;
+      
+      const viewport = document.getElementById('prompterViewport');
+      const activeBlock = document.getElementById(`prompter-block-${currentSlideIndex}`);
+      
+      if (viewport && activeBlock) {
+        const viewportHeight = viewport.clientHeight;
+        const blockTop = activeBlock.offsetTop;
+        const blockHeight = activeBlock.clientHeight;
+        const scrollPosition = blockTop - (viewportHeight / 2) + (blockHeight / 2);
+        
+        viewport.scrollTo({
+          top: scrollPosition,
+          behavior: 'smooth'
+        });
+      }
+    }
+
+    // TELEPROMPTER CONTROLS
+    function changeFontSize(delta) {
+      prompterFontSize = Math.max(16, Math.min(48, prompterFontSize + delta));
+      const blocks = document.querySelectorAll('.prompter-block');
+      blocks.forEach(b => {
+        b.style.fontSize = `${prompterFontSize}px`;
+      });
+      centerActivePrompterBlock();
+    }
+
+    function changeSpeed(delta) {
+      scrollSpeed = Math.max(1, Math.min(10, scrollSpeed + delta));
+      if (isScrolling) {
+        stopAutoScroll();
+        startAutoScroll();
+      }
+    }
+
+    function toggleAutoScroll() {
+      if (isScrolling) {
+        stopAutoScroll();
+      } else {
+        startAutoScroll();
+      }
+    }
+
+    function startAutoScroll() {
+      isScrolling = true;
+      document.getElementById('playText').textContent = 'Pausar';
+      document.getElementById('playIcon').textContent = '⏸';
+      
+      const viewport = document.getElementById('prompterViewport');
+      const intervalMs = Math.max(5, 50 - (scrollSpeed * 4));
+      
+      scrollInterval = setInterval(() => {
+        viewport.scrollTop += 1;
+        checkViewportScrollCollision();
+      }, intervalMs);
+    }
+
+    function stopAutoScroll() {
+      isScrolling = false;
+      document.getElementById('playText').textContent = 'Autoscroll';
+      document.getElementById('playIcon').textContent = '▶';
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+      }
+    }
+
+    // Check if scroll has moved closer to another block, making that slide active
+    function checkViewportScrollCollision() {
+      const viewport = document.getElementById('prompterViewport');
+      const viewportCenter = viewport.scrollTop + (viewport.clientHeight / 2);
+      
+      let closestBlockIdx = currentSlideIndex;
+      let minDistance = Infinity;
+      
+      for (let i = 0; i < totalSlides; i++) {
+        const block = document.getElementById(`prompter-block-${i}`);
+        if (!block) continue;
+        
+        const blockCenter = block.offsetTop + (block.clientHeight / 2);
+        const distance = Math.abs(viewportCenter - blockCenter);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestBlockIdx = i;
+        }
+      }
+      
+      if (closestBlockIdx !== currentSlideIndex) {
+        const oldIndex = currentSlideIndex;
+        currentSlideIndex = closestBlockIdx;
+        
+        document.querySelector(`#slide-${oldIndex + 1}`).classList.remove('active');
+        document.querySelector(`#slide-${oldIndex + 1}`).classList.remove('previous');
+        if (oldIndex > 0) {
+          document.querySelector(`#slide-${oldIndex}`).classList.remove('previous');
+        }
+        
+        if (currentSlideIndex > 0) {
+          document.querySelector(`#slide-${currentSlideIndex}`).classList.add('previous');
+        }
+        document.querySelector(`#slide-${currentSlideIndex + 1}`).classList.add('active');
+        
+        updateSlideView();
+        
+        const prevBlock = document.getElementById(`prompter-block-${oldIndex}`);
+        const activeBlock = document.getElementById(`prompter-block-${currentSlideIndex}`);
+        if (prevBlock) prevBlock.classList.remove('active');
+        if (activeBlock) activeBlock.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
