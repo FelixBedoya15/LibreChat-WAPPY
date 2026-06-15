@@ -2635,7 +2635,7 @@ export default function ComunidadPage() {
                         </>
                       ) : (
                         <>
-                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora (¡al finalizar recibirás un premio especial!) y completa tu registro para continuar.
+                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora (¡al finalizar recibirás tu 30% de descuento!) y completa tu registro para continuar.
                         </>
                       )
                     ) : actualRequiresPayment ? (
@@ -2984,9 +2984,9 @@ export default function ComunidadPage() {
                                 <Gift className="w-4 h-4 animate-bounce" />
                               </div>
                               <div>
-                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Premio Especial</p>
+                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Descuento Especial</p>
                                 <p className="text-[11px] text-text-secondary leading-normal mt-0.5">
-                                  Mira el video completo para desbloquear tu <strong className="text-emerald-500">30% de descuento</strong> ($245.000 COP) y regalos.
+                                  Mira el video completo para desbloquear tu <strong className="text-emerald-500">30% de descuento</strong> ($245.000 COP).
                                 </p>
                               </div>
                             </div>
