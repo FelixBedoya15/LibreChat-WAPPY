@@ -2635,7 +2635,7 @@ export default function ComunidadPage() {
                         </>
                       ) : (
                         <>
-                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora (¡al finalizar recibirás tu 30% de descuento!) y completa tu registro para continuar.
+                          ⚡ ¡PRECIO DE LANZAMIENTO POR TIEMPO LIMITADO! Asegura tu acceso de por vida y multiplica tu rentabilidad en SST. Mira la capacitación ahora y completa tu registro para continuar. 🎁 ¡AL FINALIZAR RECIBIRÁS TU 30% DE DESCUENTO!
                         </>
                       )
                     ) : actualRequiresPayment ? (
