@@ -2491,7 +2491,7 @@ export default function ComunidadPage() {
                           type="text"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value)}
-                          placeholder="Ej. VITAL30"
+                          placeholder="Ej. PROMO30"
                           className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono uppercase"
                         />
                       </div>
@@ -2849,8 +2849,9 @@ export default function ComunidadPage() {
                   { num: 8, url: extraVideoUrl8, title: extraVideoTitle8, youtubeId: youtubeId8, isYouTube: isYouTube8 },
                   { num: 9, url: extraVideoUrl9, title: extraVideoTitle9, youtubeId: youtubeId9, isYouTube: isYouTube9 },
                   { num: 10, url: extraVideoUrl10, title: extraVideoTitle10, youtubeId: youtubeId10, isYouTube: isYouTube10 },
-                ].map((item) => {
-                  if (!item.url) return null;
+                ].filter((item) => !!item.url)
+                 .map((item, index) => {
+                  const isItemUnlocked = isUnlocked || index === 0;
                   return (
                     <div key={item.num} className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
                       <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
@@ -2862,19 +2863,19 @@ export default function ComunidadPage() {
                         {item.isYouTube ? (
                           <iframe
                             src={`https://www.youtube.com/embed/${item.youtubeId}`}
-                            className={`w-full h-full border-0 ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
-                            allowFullScreen={isUnlocked}
+                            className={`w-full h-full border-0 ${!isItemUnlocked ? 'pointer-events-none select-none' : ''}`}
+                            allowFullScreen={isItemUnlocked}
                             title={item.title}
                           />
                         ) : (
                           <video
                             src={item.url}
-                            controls={isUnlocked}
-                            className={`w-full h-full object-contain ${!isUnlocked ? 'pointer-events-none select-none' : ''}`}
+                            controls={isItemUnlocked}
+                            className={`w-full h-full object-contain ${!isItemUnlocked ? 'pointer-events-none select-none' : ''}`}
                           />
                         )}
 
-                        {!isUnlocked && (
+                        {!isItemUnlocked && (
                           <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
                             <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
                             <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
@@ -3194,7 +3195,7 @@ export default function ComunidadPage() {
                       type="text"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Ej. VITAL30"
+                      placeholder="Ej. PROMO30"
                       className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono uppercase"
                     />
                   </div>
@@ -3223,7 +3224,7 @@ export default function ComunidadPage() {
                     <>
                       <span>
                         {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null
-                          ? 'Registrarse y Pagar' 
+                          ? 'Registrarse' 
                           : ((actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) 
                               ? 'Pagar y Obtener Acceso' 
                               : 'Continuar con el video'
