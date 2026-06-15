@@ -1043,10 +1043,10 @@ export default function ComunidadPage() {
           const script = document.createElement('script');
           script.src = 'https://checkout.wompi.co/widget.js';
           script.async = true;
-          document.body.appendChild(script);
           script.onload = () => {
             openWompiWidgetPro(data, checkoutEmail.trim());
           };
+          document.body.appendChild(script);
         } else {
           openWompiWidgetPro(data, checkoutEmail.trim());
         }
@@ -1100,10 +1100,10 @@ export default function ComunidadPage() {
           const script = document.createElement('script');
           script.src = 'https://checkout.wompi.co/widget.js';
           script.async = true;
-          document.body.appendChild(script);
           script.onload = () => {
             openWompiWidget(data, checkoutEmail.trim());
           };
+          document.body.appendChild(script);
         } else {
           openWompiWidget(data, checkoutEmail.trim());
         }
