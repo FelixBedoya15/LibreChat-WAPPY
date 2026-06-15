@@ -54,7 +54,7 @@ const getComunidadConfig = async (req, res) => {
             });
             await config.save();
         }
-        const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey, isPaid: true });
+        const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey });
         const configObj = config.toObject();
         configObj.approvedPurchasesCount = approvedPurchasesCount;
 
