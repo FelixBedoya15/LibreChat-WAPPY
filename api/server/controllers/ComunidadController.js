@@ -57,6 +57,24 @@ const getComunidadConfig = async (req, res) => {
         const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey, isPaid: true });
         const configObj = config.toObject();
         configObj.approvedPurchasesCount = approvedPurchasesCount;
+
+        if (funnelKey === 'wappyvital') {
+            configObj.requiresPayment = true;
+            if (!configObj.price || configObj.price <= 0) {
+                try {
+                    const Plan = require('../../models/Plan');
+                    const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
+                    if (plan && plan.prices) {
+                        configObj.price = plan.prices.lifetime || plan.prices.annual || 350000;
+                    } else {
+                        configObj.price = 350000;
+                    }
+                } catch (planErr) {
+                    configObj.price = 350000;
+                }
+            }
+        }
+
         return res.json(configObj);
     } catch (err) {
         logger.error('[ComunidadController] getComunidadConfig error:', err);
@@ -186,7 +204,24 @@ const createComunidadCheckout = async (req, res) => {
             : { funnelKey };
         const config = await ComunidadConfig.findOne(configQuery);
         let price = config ? config.price : 0;
-        const requiresPayment = config ? config.requiresPayment : false;
+        let requiresPayment = config ? config.requiresPayment : false;
+
+        if (funnelKey === 'wappyvital') {
+            requiresPayment = true;
+            if (price <= 0) {
+                try {
+                    const Plan = require('../../models/Plan');
+                    const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
+                    if (plan && plan.prices) {
+                        price = plan.prices.lifetime || plan.prices.annual || 350000;
+                    } else {
+                        price = 350000;
+                    }
+                } catch (planErr) {
+                    price = 350000;
+                }
+            }
+        }
 
         // Apply discount if coupon code is valid (VITAL30 for Wappy Vital)
         if (discountCode && discountCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') {
