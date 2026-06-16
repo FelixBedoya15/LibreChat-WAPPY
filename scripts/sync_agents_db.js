@@ -40,6 +40,41 @@ const AGENT_FILE_MAP = {
   'experto_mineria_subterranea': 'Especialista en Minería Subterránea y Alto Riesgo'
 };
 
+const AGENT_CATEGORY_MAP = {
+  'profesional_sst': 'gestion_consultoria_sg_sst',
+  'agente_sst': 'gestion_consultoria_sg_sst',
+  'auditor_sg_sst': 'gestion_consultoria_sg_sst',
+  'redactor_blog': 'gestion_consultoria_sg_sst',
+  'abogado_laboral': 'legal_cumplimiento',
+  'abogado_rit': 'legal_cumplimiento',
+  'abogado_procesos_disciplinarios': 'legal_cumplimiento',
+  'abogado_acoso_sexual': 'legal_cumplimiento',
+  'coordinador_ipevar': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_quimico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_electrico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_biologico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_vial': 'especialistas_riesgos_especificos',
+  'experto_en_tareas_de_alto_riesgo': 'especialistas_riesgos_especificos',
+  'experto_en_emergencias': 'especialistas_riesgos_especificos',
+  'experto_mineria_subterranea': 'especialistas_riesgos_especificos',
+  'asistente_inv_at': 'investigacion_inspeccion',
+  'asistente_inv_el': 'investigacion_inspeccion',
+  'asistente_de_aci': 'investigacion_inspeccion',
+  'analista_ipt_ergonomico': 'investigacion_inspeccion',
+  'simulador_accidentes': 'investigacion_inspeccion',
+  'asistente_metodo_rosa': 'ergonomia_salud_bienestar',
+  'fisioterapeuta_laboral': 'ergonomia_salud_bienestar',
+  'medico_laboral': 'ergonomia_salud_bienestar',
+  'psicologo_especialista_sst': 'ergonomia_salud_bienestar',
+  'asistente_de_salud_mental': 'ergonomia_salud_bienestar',
+  'asistente_en_nutricion': 'ergonomia_salud_bienestar',
+  'asistente_en_primeros_auxilios': 'ergonomia_salud_bienestar',
+  'asistente_ats': 'operaciones_campo_capacitacion',
+  'asistente_permiso_tsa': 'operaciones_campo_capacitacion',
+  'asistente_en_capacitaciones': 'operaciones_campo_capacitacion',
+  'gestor_gestion_ambiental': 'gestion_ambiental'
+};
+
 async function sync() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/LibreChat';
   console.log(`Connecting to MongoDB at: ${mongoUri}...`);
@@ -72,18 +107,20 @@ async function sync() {
       continue;
     }
 
-    if (agent.instructions === mdContent) {
-      console.log(`[NO_CHANGE] "${dbName}" - Instructions already matching.`);
+    const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
+
+    if (agent.instructions === mdContent && agent.category === targetCategory) {
+      console.log(`[NO_CHANGE] "${dbName}" - Instructions and category already matching.`);
       noChangeCount++;
       continue;
     }
 
-    // Update agent instructions in database
+    // Update agent instructions and category in database
     await Agent.findOneAndUpdate(
       { id: agent.id },
-      { $set: { instructions: mdContent } }
+      { $set: { instructions: mdContent, category: targetCategory } }
     );
-    console.log(`[SUCCESS] "${dbName}" - Instructions successfully synchronized.`);
+    console.log(`[SUCCESS] "${dbName}" - Instructions and category successfully synchronized.`);
     successCount++;
   }
 

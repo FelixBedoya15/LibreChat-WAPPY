@@ -45,6 +45,54 @@ const AGENT_FILE_MAP = {
   'experto_mineria_subterranea': 'Especialista en Minería Subterránea y Alto Riesgo'
 };
 
+const AGENT_CATEGORY_MAP = {
+  // 1. Gestión y Consultoría del SG-SST
+  'profesional_sst': 'gestion_consultoria_sg_sst',
+  'agente_sst': 'gestion_consultoria_sg_sst',
+  'auditor_sg_sst': 'gestion_consultoria_sg_sst',
+  'redactor_blog': 'gestion_consultoria_sg_sst',
+
+  // 2. Legal y Cumplimiento
+  'abogado_laboral': 'legal_cumplimiento',
+  'abogado_rit': 'legal_cumplimiento',
+  'abogado_procesos_disciplinarios': 'legal_cumplimiento',
+  'abogado_acoso_sexual': 'legal_cumplimiento',
+
+  // 3. Especialistas en Riesgos Específicos
+  'coordinador_ipevar': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_quimico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_electrico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_biologico': 'especialistas_riesgos_especificos',
+  'experto_en_riesgo_vial': 'especialistas_riesgos_especificos',
+  'experto_en_tareas_de_alto_riesgo': 'especialistas_riesgos_especificos',
+  'experto_en_emergencias': 'especialistas_riesgos_especificos',
+  'experto_mineria_subterranea': 'especialistas_riesgos_especificos',
+
+  // 4. Investigación e Inspección
+  'asistente_inv_at': 'investigacion_inspeccion',
+  'asistente_inv_el': 'investigacion_inspeccion',
+  'asistente_de_aci': 'investigacion_inspeccion',
+  'analista_ipt_ergonomico': 'investigacion_inspeccion',
+  'simulador_accidentes': 'investigacion_inspeccion',
+
+  // 5. Ergonomía, Salud y Bienestar
+  'asistente_metodo_rosa': 'ergonomia_salud_bienestar',
+  'fisioterapeuta_laboral': 'ergonomia_salud_bienestar',
+  'medico_laboral': 'ergonomia_salud_bienestar',
+  'psicologo_especialista_sst': 'ergonomia_salud_bienestar',
+  'asistente_de_salud_mental': 'ergonomia_salud_bienestar',
+  'asistente_en_nutricion': 'ergonomia_salud_bienestar',
+  'asistente_en_primeros_auxilios': 'ergonomia_salud_bienestar',
+
+  // 6. Operaciones de Campo y Capacitación
+  'asistente_ats': 'operaciones_campo_capacitacion',
+  'asistente_permiso_tsa': 'operaciones_campo_capacitacion',
+  'asistente_en_capacitaciones': 'operaciones_campo_capacitacion',
+
+  // 7. Gestión Ambiental
+  'gestor_gestion_ambiental': 'gestion_ambiental'
+};
+
 async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   let agent = await Agent.findOne({ name: dbName });
   if (agent) {
@@ -73,6 +121,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
 
   const timestamp = new Date();
   const defaultModel = fileBasename === 'psicologo_especialista_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+  const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
   const agentData = {
     id: agentId,
     name: dbName,
@@ -83,7 +132,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools,
     is_whatsapp_enabled: false,
     author: new mongoose.Types.ObjectId(authorId),
-    category: 'general',
+    category: targetCategory,
     versions: [
       {
         name: dbName,
@@ -212,21 +261,23 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
         // Find corresponding agent in MongoDB or create if missing
         const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
 
-        // Check if there is actual difference in instructions to avoid unnecessary saves
-        if (agent.instructions === mdContent) {
+        const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
+
+        // Check if there is actual difference in instructions and category to avoid unnecessary saves
+        if (agent.instructions === mdContent && agent.category === targetCategory) {
           results.push({
             file: `${fileBasename}.md`,
             agentName: dbName,
             status: 'NO_CHANGE',
-            message: 'Las instrucciones ya coinciden exactamente.'
+            message: 'Las instrucciones y categoría ya coinciden exactamente.'
           });
           continue;
         }
 
-        // Update the instructions of the agent
+        // Update the instructions and category of the agent
         await Agent.findOneAndUpdate(
           { id: agent.id },
-          { $set: { instructions: mdContent } }
+          { $set: { instructions: mdContent, category: targetCategory } }
         );
 
         logger.info(`[SyncAgents] Successfully updated agent: "${dbName}" (${agent.id})`);
@@ -370,12 +421,14 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
         // ── Step 2: Sync cleaned content to MongoDB or create if missing ──────
         const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
 
-        if (agent.instructions === mdContent) {
-          results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'NO_CHANGE', message: 'Las instrucciones ya coinciden.' });
+        const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
+
+        if (agent.instructions === mdContent && agent.category === targetCategory) {
+          results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'NO_CHANGE', message: 'Las instrucciones y categoría ya coinciden.' });
           continue;
         }
 
-        await Agent.findOneAndUpdate({ _id: agent._id }, { $set: { instructions: mdContent } });
+        await Agent.findOneAndUpdate({ _id: agent._id }, { $set: { instructions: mdContent, category: targetCategory } });
         syncedCount++;
         logger.info(`[CleanupSync] Synced "${dbName}" to MongoDB.`);
         results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'SUCCESS', message: 'Limpiado y sincronizado exitosamente.' });

@@ -116,7 +116,7 @@ export function renderEndpointModels(
   };
 
   const grouped = modelsToRender.reduce((acc, model) => {
-    const cat = model.category || 'general';
+    const cat = CATEGORY_MAP[model.category || ''] ? (model.category || '') : 'general';
     if (!acc[cat]) {
       acc[cat] = [];
     }
