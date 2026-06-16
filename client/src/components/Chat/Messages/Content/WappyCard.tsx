@@ -884,26 +884,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
             </div>
           )}
 
-          {/* RENDER SUGGESTED QUESTIONS / CHAT PROMPTS (CLAUDE STYLE) */}
-          {suggestionsList.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2 border-t border-black/5 pt-3 dark:border-white/10">
-              {suggestionsList.map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200',
-                    'border-indigo-100 bg-indigo-50 text-indigo-700 shadow-sm hover:bg-indigo-100 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
-                    'cursor-pointer hover:-translate-y-0.5 active:translate-y-0',
-                  )}
-                >
-                  <span>{suggestion}</span>
-                  <ArrowUpRight className="h-3.5 w-3.5 opacity-80" />
-                </button>
-              ))}
-            </div>
-          )}
+
 
           {/* FOOTER */}
           {data.footer && (

@@ -13,6 +13,7 @@ import Container from './Container';
 import Markdown from './Markdown';
 import { cn } from '~/utils';
 import store from '~/store/settings';
+import { ArrowUpRight } from 'lucide-react';
 
 const ERROR_CONNECTION_TEXT = 'Error connecting to server, try refreshing the page.';
 const DELAYED_ERROR_TIMEOUT = 5500;
@@ -91,6 +92,109 @@ export const ErrorMessage = ({
   );
 };
 
+const extractAllSuggestions = (text: string): { cleanText: string; suggestions: string[] } => {
+  if (!text) return { cleanText: '', suggestions: [] };
+
+  const suggestionsSet = new Set<string>();
+
+  // 1. Extract suggestions from any wappy-card or card JSON block
+  const wappyCardRegex = /```(?:wappy-card|card)\s*([\s\S]*?)\s*```/g;
+  let match;
+  while ((match = wappyCardRegex.exec(text)) !== null) {
+    const blockContent = match[1].trim();
+    try {
+      const suggestionsRegex = /"(?:suggestions|buttons)"\s*:\s*\[([\s\S]*?)\]/;
+      const sugMatch = blockContent.match(suggestionsRegex);
+      if (sugMatch) {
+        const arrayStr = `[${sugMatch[1]}]`;
+        const cleanedArrayStr = arrayStr
+          .replace(/,(\s*[}\]])/g, '$1') // remove trailing commas
+          .replace(/\/\/.+$/gm, '') // remove comments
+          .trim();
+        try {
+          const parsed = JSON.parse(cleanedArrayStr);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item) => {
+              if (typeof item === 'string') {
+                suggestionsSet.add(item.trim());
+              } else if (item && typeof item === 'object') {
+                const val = item.label || item.text;
+                if (typeof val === 'string') {
+                  suggestionsSet.add(val.trim());
+                }
+              }
+            });
+          }
+        } catch (e) {
+          // Fallback parsing via regex if it's partially streamed
+          const strRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"/g;
+          let strMatch;
+          while ((strMatch = strRegex.exec(cleanedArrayStr)) !== null) {
+            const val = strMatch[1];
+            if (val && !['label', 'text', 'suggestions', 'buttons'].includes(val)) {
+              suggestionsSet.add(val.trim());
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // 2. Extract plain text suggestions from the end of the message
+  const textWithoutCards = text.replace(/```(?:wappy-card|card)[\s\S]*?```/g, '').trim();
+  const lines = textWithoutCards.split('\n');
+  const textSuggestions: string[] = [];
+  let suggestionIndexStartInCleaned = lines.length;
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) {
+      if (textSuggestions.length > 0) continue;
+      continue;
+    }
+
+    const numberedMatch = line.match(/^(?:\d+\.|\*|-)\s*(.+)$/);
+    const isQuestion = line.startsWith('¿') && line.endsWith('?');
+
+    if (numberedMatch) {
+      let suggestionText = numberedMatch[1].trim();
+      suggestionText = suggestionText.replace(/\*\*/g, ''); // Remove bold markdown
+      textSuggestions.unshift(suggestionText);
+      suggestionIndexStartInCleaned = i;
+    } else if (isQuestion) {
+      if (textSuggestions.length === 0) {
+        textSuggestions.unshift(line);
+        suggestionIndexStartInCleaned = i;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  textSuggestions.forEach((s) => suggestionsSet.add(s));
+
+  let cleanText = text;
+  if (textSuggestions.length > 0) {
+    const cleanLines = lines.slice(0, suggestionIndexStartInCleaned);
+    while (cleanLines.length > 0 && !cleanLines[cleanLines.length - 1].trim()) {
+      cleanLines.pop();
+    }
+    const lastPart = lines.slice(suggestionIndexStartInCleaned).join('\n');
+    const lastPartEscaped = lastPart.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(lastPartEscaped + '\\s*$');
+    cleanText = text.replace(regex, '').trim();
+  }
+
+  return {
+    cleanText,
+    suggestions: Array.from(suggestionsSet),
+  };
+};
+
 const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplayProps) => {
   const { isSubmitting = false, isLatestMessage = false } = useMessageContext();
   const enableUserMsgMarkdown = useRecoilValue(store.enableUserMsgMarkdown);
@@ -104,23 +208,60 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
     return (message as any)?.isHtmlReport === true || (text && text.trim().startsWith('<div class="report-container"'));
   }, [message, text]);
 
+  const { cleanText, suggestions } = useMemo(() => {
+    if (isCreatedByUser || isHtmlReport || !text) {
+      return { cleanText: text, suggestions: [] as string[] };
+    }
+    return extractAllSuggestions(text);
+  }, [text, isCreatedByUser, isHtmlReport]);
+
   const content = useMemo(() => {
     if (isHtmlReport) {
       return (
         <div 
           className="w-full max-h-[650px] overflow-y-auto border border-white/10 rounded-2xl p-5 bg-black/45 backdrop-blur-md shadow-2xl prose dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: text }}
+          dangerouslySetInnerHTML={{ __html: cleanText }}
         />
       );
     }
     if (!isCreatedByUser) {
-      return <Markdown content={text} isLatestMessage={isLatestMessage} />;
+      return <Markdown content={cleanText} isLatestMessage={isLatestMessage} />;
     }
     if (enableUserMsgMarkdown) {
-      return <MarkdownLite content={text} />;
+      return <MarkdownLite content={cleanText} />;
     }
-    return <>{text}</>;
-  }, [isCreatedByUser, enableUserMsgMarkdown, text, isLatestMessage, isHtmlReport]);
+    return <>{cleanText}</>;
+  }, [isCreatedByUser, enableUserMsgMarkdown, cleanText, isLatestMessage, isHtmlReport]);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    const textarea = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value',
+      )?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(textarea, suggestion);
+      } else {
+        textarea.value = suggestion;
+      }
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      setTimeout(() => {
+        const submitButton =
+          (document.querySelector('form button[type="submit"]') as HTMLButtonElement) ||
+          (document.getElementById('send-button') as HTMLButtonElement);
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          const form = textarea.closest('form');
+          if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }
+      }, 50);
+    }
+  };
 
   return (
     <Container message={message}>
@@ -134,6 +275,25 @@ const DisplayMessage = ({ text, isCreatedByUser, message, showCursor }: TDisplay
         )}
       >
         {content}
+        {suggestions.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-black/5 pt-4 dark:border-white/10">
+            {suggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200',
+                  'border-indigo-100 bg-indigo-50 text-indigo-700 shadow-sm hover:bg-indigo-100 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
+                  'cursor-pointer hover:-translate-y-0.5 active:translate-y-0',
+                )}
+              >
+                <span>{suggestion}</span>
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-80" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </Container>
   );
