@@ -40,13 +40,19 @@ export default function Header() {
 
   // ── Matrix / Live Editor expand state (synced via Recoil) ───────────────────────
   const isIPEVARActive = useRecoilValue(store.isIPEVARActive);
+  const isPESVActive = useRecoilValue(store.isPESVActive);
   const isEditorLiveActive = useRecoilValue(store.isEditorLiveActive);
   const isCanvasActive = useRecoilValue(store.isCanvasActive);
   const [ipevarMaximized, setIpevarMaximized] = useRecoilState(store.ipevarMaximized);
+  const [pesvMaximized, setPesvMaximized] = useRecoilState(store.pesvMaximized);
   const [canvasMaximized, setCanvasMaximized] = useRecoilState(store.canvasMaximized);
 
   const toggleIpevar = () => {
     setIpevarMaximized((prev) => !prev);
+  };
+
+  const togglePesv = () => {
+    setPesvMaximized((prev) => !prev);
   };
 
   const toggleCanvas = () => {
@@ -77,19 +83,30 @@ export default function Header() {
             {hasAccessToMultiConvo === true && <AddMultiConvo />}
              {isSmallScreen && (
                <>
-                 {/* Botón expandir Panel Lateral — solo mobile y solo cuando alguna de las herramientas está activa */}
-                 {(isIPEVARActive || isEditorLiveActive) && (
-                   <button
-                     onClick={toggleIpevar}
-                     className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
-                     aria-label={ipevarMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
-                   >
-                     {ipevarMaximized
-                       ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
-                       : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
-                   </button>
-                 )}
-                 {isCanvasActive && !isIPEVARActive && !isEditorLiveActive && (
+                  {/* Botón expandir Panel Lateral — solo mobile y solo cuando alguna de las herramientas está activa */}
+                  {(isIPEVARActive || isEditorLiveActive) && (
+                    <button
+                      onClick={toggleIpevar}
+                      className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
+                      aria-label={ipevarMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
+                    >
+                      {ipevarMaximized
+                        ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
+                        : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
+                    </button>
+                  )}
+                  {isPESVActive && (
+                    <button
+                      onClick={togglePesv}
+                      className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
+                      aria-label={pesvMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
+                    >
+                      {pesvMaximized
+                        ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
+                        : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
+                    </button>
+                  )}
+                  {isCanvasActive && !isIPEVARActive && !isPESVActive && !isEditorLiveActive && (
                    <button
                      onClick={toggleCanvas}
                      className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"

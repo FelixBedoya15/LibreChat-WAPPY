@@ -15,6 +15,7 @@ const GoogleImageTools = require('./structured/GoogleImageTools');
 const TavilySearchResults = require('./structured/TavilySearchResults');
 const n8nWebhook = require('./structured/n8n');
 const MatrizIPEVAR = require('./structured/MatrizIPEVAR');
+const MatrizPESV = require('./structured/MatrizPESV');
 const EditorLive = require('./structured/EditorLive');
 const EditorRIT = require('./structured/EditorRIT');
 const CanvasTool = require('./structured/CanvasTool');
@@ -42,6 +43,7 @@ module.exports = {
   GoogleImageTools,
   n8nWebhook,
   MatrizIPEVAR,
+  MatrizPESV,
   EditorLive,
   EditorRIT,
   CanvasTool,

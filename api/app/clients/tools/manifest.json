@@ -209,6 +209,13 @@
     "authConfig": []
   },
   {
+    "name": "Matriz PESV",
+    "pluginKey": "matriz_pesv",
+    "description": "Añade, evalúa o actualiza peligros y riesgos viales directamente en la Matriz PESV en tiempo real según el Plan Estratégico de Seguridad Vial. Activa la tabla vial interactiva en el chat.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2833/2833324.png",
+    "authConfig": []
+  },
+  {
     "name": "Editor Live",
     "pluginKey": "editor_live",
     "description": "Permite al agente crear, leer y editar un documento directamente en el chat. El agente puede generar documentos SST desde cero, editar secciones específicas, buscar y reemplazar normatividad, e insertar contenido. El usuario ve los cambios en tiempo real en el panel lateral.",

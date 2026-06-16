@@ -20,6 +20,7 @@ import Footer from './Footer';
 import { cn } from '~/utils';
 import store from '~/store';
 import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
+import MatrizPESVTable from '../SGSST/MatrizPESVTable';
 import LiveEditorPanel from '../SGSST/LiveEditorPanel';
 import CanvasPanel from '../Canvas/CanvasPanel';
 const isMobileScreen = () => window.innerWidth <= 768;
@@ -85,6 +86,12 @@ function ChatView({ index = 0 }: { index?: number }) {
     return tools.includes('matriz_ipevar');
   }, [ephemeralAgent]);
 
+  // ── PESV: open only when user explicitly toggles it ON ───────────────────
+  const isPESVActive = React.useMemo(() => {
+    const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
+    return tools.includes('matriz_pesv');
+  }, [ephemeralAgent]);
+
   // ── EDITOR LIVE: open only when user explicitly toggles it ON ────────────
   const isEditorLiveActive = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
@@ -118,22 +125,26 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
+  const setIsPESVActive = useSetRecoilState(store.isPESVActive);
   const setIsEditorLiveActive = useSetRecoilState(store.isEditorLiveActive);
   const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
 
   useEffect(() => {
     setIsIPEVARActive(isIPEVARActive);
+    setIsPESVActive(isPESVActive);
     setIsEditorLiveActive(isEditorLiveActive);
     setIsCanvasActive(isCanvasActive);
     return () => {
       setIsIPEVARActive(false);
+      setIsPESVActive(false);
       setIsEditorLiveActive(false);
       setIsCanvasActive(false);
     };
-  }, [isIPEVARActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsEditorLiveActive, setIsCanvasActive]);
+  }, [isIPEVARActive, isPESVActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsPESVActive, setIsEditorLiveActive, setIsCanvasActive]);
 
   // ── Mobile/Maximize: track whether panels are expanded via global state ──
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);
+  const [pesvMobileExpanded] = useRecoilState(store.pesvMaximized);
   const [canvasMaximized] = useRecoilState(store.canvasMaximized);
 
   let content: JSX.Element | null | undefined;
@@ -190,6 +201,18 @@ function ChatView({ index = 0 }: { index?: number }) {
                         : 'w-1/2',
                     )}>
                       <MatrizIPEVARTable conversationId={conversation?.conversationId ?? null} />
+                    </div>
+                  )}
+                  {isPESVActive && (
+                    <div className={cn(
+                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary gt45-matrix-panel',
+                      isMobileScreen()
+                        ? pesvMobileExpanded
+                          ? 'fixed inset-0 z-[9990] w-full'
+                          : 'hidden'
+                        : 'w-1/2',
+                    )}>
+                      <MatrizPESVTable conversationId={conversation?.conversationId ?? null} />
                     </div>
                   )}
                   {isEditorLiveActive && !isIPEVARActive && (

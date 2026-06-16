@@ -37,6 +37,16 @@ const isIPEVARActive = atom<boolean>({
   default: false,
 });
 
+const isPESVActive = atom<boolean>({
+  key: 'isPESVActive',
+  default: false,
+});
+
+const pesvMaximized = atom<boolean>({
+  key: 'pesvMaximized',
+  default: false,
+});
+
 const isEditorLiveActive = atom<boolean>({
   key: 'isEditorLiveActive',
   default: false,
@@ -60,6 +70,8 @@ export default {
   chatBadges,
   ipevarMaximized,
   isIPEVARActive,
+  isPESVActive,
+  pesvMaximized,
   isEditorLiveActive,
   isCanvasActive,
   canvasMaximized,
