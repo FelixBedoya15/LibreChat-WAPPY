@@ -142,16 +142,16 @@ const extractAllSuggestions = (text: string): { cleanText: string; suggestions: 
     }
   }
 
-  // 2. Extract plain text suggestions from the end of the message
+  // 2. Extract plain text suggestions from the end of the message (supporting tailing footers)
   const textWithoutCards = text.replace(/```(?:wappy-card|card)[\s\S]*?```/g, '').trim();
   const lines = textWithoutCards.split('\n');
   const textSuggestions: string[] = [];
-  let suggestionIndexStartInCleaned = lines.length;
+  const suggestionIndices = new Set<number>();
+  let hasStarted = false;
 
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line) {
-      if (textSuggestions.length > 0) continue;
       continue;
     }
 
@@ -162,31 +162,32 @@ const extractAllSuggestions = (text: string): { cleanText: string; suggestions: 
       let suggestionText = numberedMatch[1].trim();
       suggestionText = suggestionText.replace(/\*\*/g, ''); // Remove bold markdown
       textSuggestions.unshift(suggestionText);
-      suggestionIndexStartInCleaned = i;
+      suggestionIndices.add(i);
+      hasStarted = true;
     } else if (isQuestion) {
-      if (textSuggestions.length === 0) {
-        textSuggestions.unshift(line);
-        suggestionIndexStartInCleaned = i;
-      } else {
+      textSuggestions.unshift(line);
+      suggestionIndices.add(i);
+      hasStarted = true;
+    } else {
+      if (hasStarted) {
         break;
       }
-    } else {
-      break;
+      // Allow skipping up to 3 trailing non-matching lines (like polite footer sentences)
+      if (lines.length - 1 - i >= 3) {
+        break;
+      }
     }
   }
 
   textSuggestions.forEach((s) => suggestionsSet.add(s));
 
   let cleanText = text;
-  if (textSuggestions.length > 0) {
-    const cleanLines = lines.slice(0, suggestionIndexStartInCleaned);
-    while (cleanLines.length > 0 && !cleanLines[cleanLines.length - 1].trim()) {
-      cleanLines.pop();
-    }
-    const lastPart = lines.slice(suggestionIndexStartInCleaned).join('\n');
+  if (suggestionIndices.size > 0) {
+    const lastPart = lines.filter((_, idx) => suggestionIndices.has(idx)).join('\n');
     const lastPartEscaped = lastPart.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(lastPartEscaped + '\\s*$');
+    const regex = new RegExp(lastPartEscaped.split('\\n').join('\\s*\\n\\s*'), 'g');
     cleanText = text.replace(regex, '').trim();
+    cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
   }
 
   return {
