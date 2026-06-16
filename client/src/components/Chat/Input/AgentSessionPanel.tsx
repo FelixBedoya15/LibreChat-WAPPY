@@ -274,6 +274,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 memory: 'Memoria',
                                 somos_sst: 'Somos SST',
                                 matriz_ipevar: 'Matriz IPEVAR',
+                                matriz_pesv: 'Matriz PESV',
                                 editor_live: 'Editor Live',
                                 editor_rit: 'Editor RIT',
                                 canvas: 'Canvas',

@@ -123,7 +123,7 @@ function ToolSelectDialog({
   };
 
   const filteredTools = (regularTools || []).filter((tool: TPlugin) => {
-    if (tool.pluginKey === 'matriz_ipevar' && !isAdmin) {
+    if ((tool.pluginKey === 'matriz_ipevar' || tool.pluginKey === 'matriz_pesv') && !isAdmin) {
       return false;
     }
     return tool.name?.toLowerCase().includes(searchValue.toLowerCase());
