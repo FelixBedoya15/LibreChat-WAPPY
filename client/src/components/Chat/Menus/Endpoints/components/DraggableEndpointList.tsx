@@ -170,7 +170,15 @@ export const DraggableEndpointList: React.FC<DraggableEndpointListProps> = ({
     const groupedItems = React.useMemo(() => {
         const groups: Record<string, typeof items> = {};
         items.forEach((item) => {
-            const cat = CATEGORY_MAP[item.category || ''] ? (item.category || '') : 'general';
+            let cat = item.category || 'general';
+            if (cat === 'profesionales_sst') {
+                cat = 'gestion_consultoria_sg_sst';
+            } else if (cat === 'asistentes') {
+                cat = 'operaciones_campo_capacitacion';
+            }
+            if (!CATEGORY_MAP[cat]) {
+                cat = 'general';
+            }
             if (!groups[cat]) {
                 groups[cat] = [];
             }

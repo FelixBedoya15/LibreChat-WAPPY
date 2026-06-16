@@ -116,7 +116,15 @@ export function renderEndpointModels(
   };
 
   const grouped = modelsToRender.reduce((acc, model) => {
-    const cat = CATEGORY_MAP[model.category || ''] ? (model.category || '') : 'general';
+    let cat = model.category || 'general';
+    if (cat === 'profesionales_sst') {
+      cat = 'gestion_consultoria_sg_sst';
+    } else if (cat === 'asistentes') {
+      cat = 'operaciones_campo_capacitacion';
+    }
+    if (!CATEGORY_MAP[cat]) {
+      cat = 'general';
+    }
     if (!acc[cat]) {
       acc[cat] = [];
     }

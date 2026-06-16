@@ -625,7 +625,12 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                       >
                         <div
                           className={cn(
-                            'mb-2 text-xl font-extrabold tracking-tight md:text-2xl',
+                            'mb-2 font-extrabold tracking-tight text-center break-words',
+                            String(item.title || '').length > 15
+                              ? 'text-[11px] md:text-[13px] leading-snug'
+                              : String(item.title || '').length > 6
+                                ? 'text-sm md:text-base'
+                                : 'text-xl md:text-2xl',
                             itemTheme.iconText,
                           )}
                         >
