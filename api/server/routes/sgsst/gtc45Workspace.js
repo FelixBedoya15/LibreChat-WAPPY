@@ -39,10 +39,20 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     if (!session) {
       session = await GTC45WorkspaceSession.findOne({ conversationId });
       logger.debug(`[GTC45Workspace GET] fallback lookup result: ${session ? `found (user=${session.user}, rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
-      if (session && !session.user) {
-        session.user = userId;
-        await session.save();
-        logger.info(`[GTC45Workspace GET] Adopted legacy session ${conversationId} for user ${userId}`);
+      if (session) {
+        let modified = false;
+        if (!session.user) {
+          session.user = userId;
+          modified = true;
+        }
+        if (!session.companyId && companyId) {
+          session.companyId = companyId;
+          modified = true;
+        }
+        if (modified) {
+          await session.save();
+          logger.info(`[GTC45Workspace GET] Adopted and populated user/companyId for legacy session ${conversationId}`);
+        }
       }
     }
 

@@ -40,7 +40,9 @@ const AGENT_FILE_MAP = {
   'profesional_sst': 'Consultor Senior SG-SST',
   'psicologo_especialista_sst': 'Especialista en Riesgo Psicosocial',
   'simulador_accidentes': 'Simulador de Accidentes SST',
-  'redactor_blog': 'Estratega de Contenidos Corporativos'
+  'redactor_blog': 'Estratega de Contenidos Corporativos',
+  'gestor_gestion_ambiental': 'Consultor de Gestión Ambiental',
+  'experto_mineria_subterranea': 'Especialista en Minería Subterránea y Alto Riesgo'
 };
 
 async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
@@ -64,6 +66,8 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   } else if (fileBasename === 'asistente_de_aci') {
     tools.push('consultar_analitica_actos_condiciones', 'canvas');
   } else if (fileBasename === 'abogado_procesos_disciplinarios' || fileBasename === 'abogado_acoso_sexual') {
+    tools.push('canvas');
+  } else if (fileBasename === 'gestor_gestion_ambiental' || fileBasename === 'experto_mineria_subterranea') {
     tools.push('canvas');
   }
 
@@ -834,7 +838,9 @@ router.get('/migrate-names-public', async (req, res) => {
       'Gestor de Análisis de Trabajo Seguro (ATS)',
       'Gestor de Permisos de Trabajo (TSA)',
       'Gestor de Formación Continua',
-      'Estratega de Contenidos Corporativos'
+      'Estratega de Contenidos Corporativos',
+      'Consultor de Gestión Ambiental',
+      'Especialista en Minería Subterránea y Alto Riesgo'
     ];
 
     const agents = await Agent.find({});
@@ -949,7 +955,9 @@ router.get('/migrate-names-public', async (req, res) => {
       'Gestor de Análisis de Trabajo Seguro (ATS)',
       'Gestor de Permisos de Trabajo (TSA)',
       'Gestor de Formación Continua',
-      'Estratega de Contenidos Corporativos'
+      'Estratega de Contenidos Corporativos',
+      'Consultor de Gestión Ambiental',
+      'Especialista en Minería Subterránea y Alto Riesgo'
     ];
 
     const agents = await Agent.find({});

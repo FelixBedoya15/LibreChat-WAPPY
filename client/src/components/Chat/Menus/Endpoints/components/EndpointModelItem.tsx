@@ -98,21 +98,58 @@ export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelI
 
 export function renderEndpointModels(
   endpoint: Endpoint | null,
-  models: Array<{ name: string; isGlobal?: boolean }>,
+  models: Array<{ name: string; isGlobal?: boolean; category?: string }>,
   selectedModel: string | null,
   filteredModels?: string[],
 ) {
-  const modelsToRender = filteredModels || models.map((model) => model.name);
+  const modelsToRender = models.filter((m) => !filteredModels || filteredModels.includes(m.name));
 
-  return modelsToRender.map(
-    (modelId) =>
-      endpoint && (
-        <EndpointModelItem
-          key={modelId}
-          modelId={modelId}
-          endpoint={endpoint}
-          isSelected={selectedModel === modelId}
-        />
-      ),
+  const CATEGORY_MAP = {
+    'gestion_consultoria_sg_sst': 'Gestión y Consultoría del SG-SST',
+    'legal_cumplimiento': 'Legal y Cumplimiento',
+    'especialistas_riesgos_especificos': 'Especialistas en Riesgos Específicos',
+    'investigacion_inspeccion': 'Investigación e Inspección',
+    'ergonomia_salud_bienestar': 'Ergonomía, Salud y Bienestar',
+    'operaciones_campo_capacitacion': 'Operaciones de Campo y Capacitación',
+    'gestion_ambiental': 'Gestión Ambiental',
+    'general': 'General',
+  };
+
+  const grouped = modelsToRender.reduce((acc, model) => {
+    const cat = model.category || 'general';
+    if (!acc[cat]) {
+      acc[cat] = [];
+    }
+    acc[cat].push(model);
+    return acc;
+  }, {} as Record<string, typeof models>);
+
+  return (
+    <div>
+      {Object.entries(CATEGORY_MAP).map(([catValue, catLabel]) => {
+        const groupItems = grouped[catValue] || [];
+        if (groupItems.length === 0) {
+          return null;
+        }
+        return (
+          <div key={catValue} className="mb-2">
+            <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary bg-surface-secondary/50 rounded-md my-1 select-none">
+              {catLabel}
+            </div>
+            {groupItems.map(
+              (model) =>
+                endpoint && (
+                  <EndpointModelItem
+                    key={model.name}
+                    modelId={model.name}
+                    endpoint={endpoint}
+                    isSelected={selectedModel === model.name}
+                  />
+                ),
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

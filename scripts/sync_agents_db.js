@@ -35,7 +35,9 @@ const AGENT_FILE_MAP = {
   'medico_laboral': 'Consultor Médico Ocupacional',
   'profesional_sst': 'Consultor Senior SG-SST',
   'psicologo_especialista_sst': 'Especialista en Riesgo Psicosocial',
-  'redactor_blog': 'Estratega de Contenidos Corporativos'
+  'redactor_blog': 'Estratega de Contenidos Corporativos',
+  'gestor_gestion_ambiental': 'Consultor de Gestión Ambiental',
+  'experto_mineria_subterranea': 'Especialista en Minería Subterránea y Alto Riesgo'
 };
 
 async function sync() {

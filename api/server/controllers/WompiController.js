@@ -659,7 +659,11 @@ const verifyTransaction = async (req, res) => {
         const wompiDomain = isSandbox ? 'sandbox.wompi.co' : 'production.wompi.co';
         
         // Fetch real transaction info from Wompi
-        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`);
+        const headers = {};
+        if (process.env.WOMPI_PRIVATE_KEY) {
+            headers['Authorization'] = `Bearer ${process.env.WOMPI_PRIVATE_KEY}`;
+        }
+        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`, { headers });
         const result = await response.json();
         const txData = result.data;
         if (!txData) return res.status(404).json({ error: 'Transacción no encontrada en Wompi' });
@@ -1033,7 +1037,11 @@ const guestVerifyTransaction = async (req, res) => {
         // Use same logic as verifyTransaction but with userId from token
         const isSandbox = process.env.WOMPI_PUBLIC_KEY?.startsWith('pub_test_');
         const wompiDomain = isSandbox ? 'sandbox.wompi.co' : 'production.wompi.co';
-        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`);
+        const headers = {};
+        if (process.env.WOMPI_PRIVATE_KEY) {
+            headers['Authorization'] = `Bearer ${process.env.WOMPI_PRIVATE_KEY}`;
+        }
+        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`, { headers });
         const result = await response.json();
         const txData = result.data;
         if (!txData) return res.status(404).json({ error: 'Transacción no encontrada en Wompi' });

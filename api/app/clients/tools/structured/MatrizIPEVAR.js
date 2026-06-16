@@ -2,6 +2,7 @@ const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const mongoose = require('mongoose');
 const GTC45Matrix = require('~/models/GTC45WorkspaceSession');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 class MatrizIPEVAR extends Tool {
   constructor(fields = {}) {
@@ -69,15 +70,28 @@ class MatrizIPEVAR extends Tool {
       const { accion, riesgos, filtro_proceso, filtro_actividad, filtro_peligro, ids_a_borrar } = input;
 
       // Obtener sesión
-      let session = await GTC45Matrix.findOne({ conversationId });
-      
       const userId = this.req?.user?.id;
+      let companyId = null;
+      if (userId) {
+        let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!active) active = await CompanyInfo.findOne({ user: userId });
+        companyId = active ? active._id : null;
+      }
 
+      // Obtener sesión
+      let session = await GTC45Matrix.findOne({ conversationId });
+      if (session && !session.companyId && companyId) {
+        session.companyId = companyId;
+        await session.save();
+        console.log(`[MatrizIPEVAR Tool] Populated missing companyId ${companyId} for session ${conversationId}`);
+      }
+      
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
         const tempId = `temp-${userId}`;
         const tempSession = await GTC45Matrix.findOne({ conversationId: tempId, user: userId });
         if (tempSession) {
           tempSession.conversationId = conversationId;
+          if (companyId) tempSession.companyId = companyId;
           await tempSession.save();
           session = tempSession;
           console.log(`[MatrizIPEVAR Tool] Migrated temporal matrix session for user ${userId} to conversation ${conversationId}`);
@@ -219,6 +233,7 @@ class MatrizIPEVAR extends Tool {
         session = new GTC45Matrix({
           conversationId,
           user: userId || undefined,
+          companyId: companyId || undefined,
           matrixRows: []
         });
       }
@@ -281,6 +296,9 @@ class MatrizIPEVAR extends Tool {
       // Ensure user inheritance for orphaned sessions during upsert
       if (!session.user && userId) {
         session.user = userId;
+      }
+      if (!session.companyId && companyId) {
+        session.companyId = companyId;
       }
       
       // Mongoose needs this flag if we modify mixed Arrays manually

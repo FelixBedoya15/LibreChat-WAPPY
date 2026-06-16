@@ -972,6 +972,8 @@ export default function MatrizIPEVARTable({
         if (isDirtyRef.current && matrixRowsRef.current.length > 0) {
           saveMatrixData(matrixRowsRef.current);
           isDirtyRef.current = false;
+        } else {
+          fetchMatrix(actualConvoId);
         }
       } else {
         setMatrixRows([]);

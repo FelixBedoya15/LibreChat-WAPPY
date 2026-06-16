@@ -695,16 +695,46 @@ const getAgentCategories = async (_req, res) => {
 
     const formattedCategories = [
       {
-        value: 'profesionales_sst',
-        label: 'Profesionales SST',
+        value: 'gestion_consultoria_sg_sst',
+        label: 'Gestión y Consultoría del SG-SST',
         count: 0,
-        description: 'Categoría para Profesionales SST',
+        description: 'Categoría para Gestión y Consultoría del SG-SST',
       },
       {
-        value: 'asistentes',
-        label: 'Asistentes',
+        value: 'legal_cumplimiento',
+        label: 'Legal y Cumplimiento',
         count: 0,
-        description: 'Categoría para Asistentes',
+        description: 'Categoría para Legal y Cumplimiento',
+      },
+      {
+        value: 'especialistas_riesgos_especificos',
+        label: 'Especialistas en Riesgos Específicos',
+        count: 0,
+        description: 'Categoría para Especialistas en Riesgos Específicos',
+      },
+      {
+        value: 'investigacion_inspeccion',
+        label: 'Investigación e Inspección',
+        count: 0,
+        description: 'Categoría para Investigación e Inspección',
+      },
+      {
+        value: 'ergonomia_salud_bienestar',
+        label: 'Ergonomía, Salud y Bienestar',
+        count: 0,
+        description: 'Categoría para Ergonomía, Salud y Bienestar',
+      },
+      {
+        value: 'operaciones_campo_capacitacion',
+        label: 'Operaciones de Campo y Capacitación',
+        count: 0,
+        description: 'Categoría para Operaciones de Campo y Capacitación',
+      },
+      {
+        value: 'gestion_ambiental',
+        label: 'Gestión Ambiental',
+        count: 0,
+        description: 'Categoría para Gestión Ambiental',
       },
     ];
 

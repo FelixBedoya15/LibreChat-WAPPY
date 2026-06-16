@@ -221,8 +221,28 @@ const createComunidadCheckout = async (req, res) => {
                     price = 350000;
                 }
             }
-            // Apply 30% launch discount by default ($350.000 -> $245.000 COP)
-            price = Math.round(price * 0.7);
+            // Apply discount dynamically if a valid promo code is provided
+            let appliedDiscount = 0;
+            if (discountCode) {
+                const cleanCode = discountCode.toUpperCase().trim();
+                if (cleanCode === 'VITAL30') {
+                    appliedDiscount = 30;
+                } else {
+                    try {
+                        const PromoCode = require('../../models/PromoCode');
+                        const codeDoc = await PromoCode.findOne({ code: cleanCode, active: true }).lean();
+                        if (codeDoc) {
+                            appliedDiscount = codeDoc.discountPercentage;
+                        }
+                    } catch (promoErr) {
+                        console.error('[Comunidad Checkout] Error looking up promo code:', promoErr);
+                    }
+                }
+            }
+
+            if (appliedDiscount > 0) {
+                price = Math.round(price * (1 - appliedDiscount / 100));
+            }
         }
 
         if (!requiresPayment || price <= 0) {
@@ -274,7 +294,11 @@ const verifyComunidadTransaction = async (req, res) => {
         const isSandbox = process.env.WOMPI_PUBLIC_KEY?.startsWith('pub_test_');
         const wompiDomain = isSandbox ? 'sandbox.wompi.co' : 'production.wompi.co';
 
-        const response = await axios.get(`https://${wompiDomain}/v1/transactions/${transactionId}`);
+        const headers = {};
+        if (process.env.WOMPI_PRIVATE_KEY) {
+            headers['Authorization'] = `Bearer ${process.env.WOMPI_PRIVATE_KEY}`;
+        }
+        const response = await axios.get(`https://${wompiDomain}/v1/transactions/${transactionId}`, { headers });
         const txData = response.data?.data;
         if (!txData) return res.status(404).json({ error: 'Transacción no encontrada en Wompi.' });
 

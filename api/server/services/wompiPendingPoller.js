@@ -94,7 +94,11 @@ const runPollCycle = async () => {
             try {
                 if (!tx.transactionId) continue;
 
-                const response = await fetch(`https://${wompiDomain}/v1/transactions/${tx.transactionId}`);
+                const headers = {};
+                if (process.env.WOMPI_PRIVATE_KEY) {
+                    headers['Authorization'] = `Bearer ${process.env.WOMPI_PRIVATE_KEY}`;
+                }
+                const response = await fetch(`https://${wompiDomain}/v1/transactions/${tx.transactionId}`, { headers });
                 if (!response.ok) continue;
 
                 const result = await response.json();

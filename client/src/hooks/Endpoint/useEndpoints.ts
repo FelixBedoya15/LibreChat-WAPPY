@@ -117,6 +117,7 @@ export const useEndpoints = ({
         result.models = sortedAgents.map((agent) => ({
           name: agent.id,
           isGlobal: agent.isPublic ?? false,
+          category: agent.category || 'general',
         }));
         result.agentNames = agents?.reduce((acc, agent) => {
           acc[agent.id] = agent.name || '';

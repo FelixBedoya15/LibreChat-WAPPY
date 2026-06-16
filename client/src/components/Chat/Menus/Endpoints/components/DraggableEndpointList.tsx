@@ -122,7 +122,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 
 interface DraggableEndpointListProps {
     endpoint: Endpoint;
-    models: Array<{ name: string; isGlobal?: boolean; order?: number }>;
+    models: Array<{ name: string; isGlobal?: boolean; order?: number; category?: string }>;
     selectedModel: string | null;
     onReorder: (newOrder: string[]) => void;
 }
@@ -156,24 +156,57 @@ export const DraggableEndpointList: React.FC<DraggableEndpointListProps> = ({
         onReorder(newOrderIds);
     }, [items, onReorder]);
 
-    // If we are dragging, we use the local state 'items'.
-    // If not, we might fall back to props 'models' if needed, but 'useEffect' syncs them.
-    // Actually, dragging updates 'items' immediately.
+    const CATEGORY_MAP = React.useMemo(() => ({
+        'gestion_consultoria_sg_sst': 'Gestión y Consultoría del SG-SST',
+        'legal_cumplimiento': 'Legal y Cumplimiento',
+        'especialistas_riesgos_especificos': 'Especialistas en Riesgos Específicos',
+        'investigacion_inspeccion': 'Investigación e Inspección',
+        'ergonomia_salud_bienestar': 'Ergonomía, Salud y Bienestar',
+        'operaciones_campo_capacitacion': 'Operaciones de Campo y Capacitación',
+        'gestion_ambiental': 'Gestión Ambiental',
+        'general': 'General'
+    }), []);
+
+    const groupedItems = React.useMemo(() => {
+        const groups: Record<string, typeof items> = {};
+        items.forEach((item) => {
+            const cat = item.category || 'general';
+            if (!groups[cat]) {
+                groups[cat] = [];
+            }
+            groups[cat].push(item);
+        });
+        return groups;
+    }, [items]);
 
     return (
         <div>
-            {items.map((model, index) => (
-                <DraggableItem
-                    key={model.name}
-                    id={model.name}
-                    index={index}
-                    modelId={model.name}
-                    endpoint={endpoint}
-                    isSelected={selectedModel === model.name}
-                    moveItem={moveItem}
-                    onDrop={handleDrop}
-                />
-            ))}
+            {Object.entries(CATEGORY_MAP).map(([catValue, catLabel]) => {
+                const groupItems = groupedItems[catValue] || [];
+                if (groupItems.length === 0) return null;
+                return (
+                    <div key={catValue} className="mb-2">
+                        <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary bg-surface-secondary/50 rounded-md my-1 select-none">
+                            {catLabel}
+                        </div>
+                        {groupItems.map((model) => {
+                            const originalIndex = items.findIndex(item => item.name === model.name);
+                            return (
+                                <DraggableItem
+                                    key={model.name}
+                                    id={model.name}
+                                    index={originalIndex}
+                                    modelId={model.name}
+                                    endpoint={endpoint}
+                                    isSelected={selectedModel === model.name}
+                                    moveItem={moveItem}
+                                    onDrop={handleDrop}
+                                />
+                            );
+                        })}
+                    </div>
+                );
+            })}
         </div>
     );
 };

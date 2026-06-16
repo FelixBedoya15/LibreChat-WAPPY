@@ -3359,7 +3359,7 @@ export default function ComunidadPage() {
               🎉 ¡Felicitaciones por terminar la capacitación!
             </h3>
             <p className="text-xs text-text-secondary mb-6 leading-relaxed">
-              Has demostrado un gran compromiso con la Seguridad y Salud en el Trabajo. Como premio, has desbloqueado un **30% de descuento inmediato** aplicable para adquirir tu membresía (Wappy Vital o Wappy Pro).
+              Has demostrado un gran compromiso con la Seguridad y Salud en el Trabajo. Como premio, has desbloqueado un <strong className="font-extrabold text-emerald-500">30% de descuento inmediato</strong> aplicable para adquirir tu membresía (Wappy Vital o Wappy Pro).
             </p>
 
             <div className="bg-surface-secondary border border-dashed border-emerald-500/40 rounded-2xl p-4 mb-6 flex flex-col items-center justify-center gap-2 relative">
