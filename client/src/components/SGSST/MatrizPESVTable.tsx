@@ -417,7 +417,7 @@ export default function MatrizPESVTable({ conversationId }: { conversationId: st
           <div className="h-4 w-px bg-border-medium" />
 
           {/* Model Selector */}
-          <ModelSelector value={selectedAIModel} onChange={setSelectedAIModel} />
+          <ModelSelector selectedModel={selectedAIModel} onSelectModel={setSelectedAIModel} />
 
           {/* Expand Button */}
           <button
