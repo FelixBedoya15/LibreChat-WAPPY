@@ -173,6 +173,10 @@ const userSchema = new Schema<IUser>(
     lastDownloadDate: {
       type: Date,
     },
+    pushSubscriptions: {
+      type: Array,
+      default: [],
+    },
   },
   { timestamps: true },
 );
