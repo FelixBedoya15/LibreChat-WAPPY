@@ -22,16 +22,17 @@ function urlBase64ToUint8Array(base64String) {
  * @param {string} token - User auth jwt token
  */
 export async function subscribeToPushNotifications(publicVapidKey, token) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('Este navegador o dispositivo no soporta Notificaciones Push.');
-    return null;
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Service Workers no están disponibles en este navegador.');
+  }
+  if (!('PushManager' in window)) {
+    throw new Error('PushManager no está disponible en este navegador. En iOS/iPhone, la app debe estar instalada como PWA (Añadida al inicio) para soportar notificaciones push.');
   }
 
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.warn('El usuario denegó los permisos de notificación.');
-      return null;
+      throw new Error('Permiso de notificaciones denegado.');
     }
 
     const registration = await navigator.serviceWorker.ready;
@@ -62,7 +63,7 @@ export async function subscribeToPushNotifications(publicVapidKey, token) {
     return subscription;
   } catch (error) {
     console.error('Error al suscribirse a notificaciones push:', error);
-    return null;
+    throw error;
   }
 }
 

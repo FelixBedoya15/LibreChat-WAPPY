@@ -41,6 +41,7 @@ export interface IUser extends Document {
   phoneNumber?: string;
   downloadsToday?: number;
   lastDownloadDate?: Date;
+  pushSubscriptions?: any[];
 }
 
 export interface BalanceConfig {

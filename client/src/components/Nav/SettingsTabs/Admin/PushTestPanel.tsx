@@ -43,15 +43,22 @@ export default function PushTestPanel() {
             return;
         }
 
-        const sub = await subscribeToPushNotifications(vapidKey, token);
-        if ('Notification' in window) {
-            setPermissionStatus(Notification.permission);
-        }
-
-        if (sub) {
-            showToast({ message: 'Dispositivo suscrito exitosamente a Notificaciones Push.', status: 'success' });
-        } else {
-            showToast({ message: 'No se pudo completar la suscripción. Asegúrate de conceder permisos.', status: 'error' });
+        try {
+            const sub = await subscribeToPushNotifications(vapidKey, token);
+            if ('Notification' in window) {
+                setPermissionStatus(Notification.permission);
+            }
+            if (sub) {
+                showToast({ message: 'Dispositivo suscrito exitosamente a Notificaciones Push.', status: 'success' });
+            }
+        } catch (error: any) {
+            if ('Notification' in window) {
+                setPermissionStatus(Notification.permission);
+            }
+            showToast({ 
+                message: `Error al suscribir: ${error.message || error}`, 
+                status: 'error' 
+            });
         }
     };
 
