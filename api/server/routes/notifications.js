@@ -207,7 +207,7 @@ router.post('/test-push', requireJwtAuth, async (req, res) => {
           user.markModified('pushSubscriptions');
           await user.save();
         }
-        logger.error(`[Notifications] Push failed for endpoint: ${sub.endpoint}`, err);
+        logger.error(`[Notifications] Push failed for endpoint: ${sub.endpoint}. StatusCode: ${err.statusCode}, Body: ${err.body}`, err);
       })
     );
 
@@ -264,7 +264,7 @@ router.post('/admin-push', requireJwtAuth, async (req, res) => {
                   admin.markModified('pushSubscriptions');
                   await admin.save();
                 }
-                logger.error(`[Notifications] Push failed for admin: ${admin.email}`, err);
+                logger.error(`[Notifications] Push failed for admin: ${admin.email}. StatusCode: ${err.statusCode}, Body: ${err.body}`, err);
               })
           );
         }
