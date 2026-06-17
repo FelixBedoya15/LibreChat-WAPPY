@@ -2923,7 +2923,7 @@ export default function ComunidadPage() {
               </div>
             </div>
 
-            {funnelKey === 'wappyvital' && !isAccessGranted && (
+            {funnelKey === 'wappyvital' && !isAccessGranted && isVideoFinished && (
               <div className="w-full max-w-5xl mx-auto mt-12 px-4 text-center">
                 <div className="mx-auto my-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl max-w-3xl flex items-center justify-center gap-3 text-red-600 dark:text-red-400">
                   <span className="flex h-3 w-3 relative">
