@@ -442,7 +442,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
 
         console.log(`[InvestigacionATEL] Generando informe. Modelo: ${finalModelName}`);
 
-        const generateWithTimeout = async (mod, prmpt, timeoutMs = 180000) => {
+        const generateWithTimeout = async (mod, prmpt, timeoutMs = 300000) => {
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('TIMEOUT: La generación superó el tiempo límite.')), timeoutMs)
             );

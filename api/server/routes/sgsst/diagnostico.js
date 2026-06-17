@@ -463,7 +463,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
         const selectedModel = req.body.modelName || preferredModel;
 
         // Helper: generate with timeout (90 seconds)
-        const generateWithTimeout = async (model, prompt, timeoutMs = 180000) => {
+        const generateWithTimeout = async (model, prompt, timeoutMs = 300000) => {
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
             );
