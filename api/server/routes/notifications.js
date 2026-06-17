@@ -112,22 +112,9 @@ const webpush = require('web-push');
 const { User } = require('~/db/models');
 
 let vapidKeys = {
-  publicKey: process.env.VAPID_PUBLIC_KEY,
-  privateKey: process.env.VAPID_PRIVATE_KEY
+  publicKey: process.env.VAPID_PUBLIC_KEY || 'BMK6k5UeEvAIz_tb9HLjTPkB1mf7M_EFvxr9DlZAHMCqQOu3dm8TIrT-N_FJZ27-3iilV5uSM0GpDNOAAoJzLXU',
+  privateKey: process.env.VAPID_PRIVATE_KEY || 'ln0eeUodJQ7NCpur01_V1KOdW_3qVqao99rPm-NYAsU'
 };
-
-if (!vapidKeys.publicKey || !vapidKeys.privateKey) {
-  const generated = webpush.generateVAPIDKeys();
-  vapidKeys.publicKey = generated.publicKey;
-  vapidKeys.privateKey = generated.privateKey;
-  console.log('\n==================================================');
-  console.log('WARNING: VAPID keys for Web Push are missing in .env!');
-  console.log('Temporary session keys generated:');
-  console.log(`VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
-  console.log(`VAPID_PRIVATE_KEY=${vapidKeys.privateKey}`);
-  console.log('Copy these to your .env file to make subscriptions persistent!');
-  console.log('==================================================\n');
-}
 
 webpush.setVapidDetails(
   'mailto:soporte@wappy.club',
@@ -210,19 +197,25 @@ router.post('/test-push', requireJwtAuth, async (req, res) => {
       url: '/'
     });
 
+    let errorOccurred = null;
     const sendPromises = user.pushSubscriptions.map(sub => 
-      webpush.sendNotification(sub, payload).catch(err => {
+      webpush.sendNotification(sub, payload).catch(async (err) => {
+        errorOccurred = err.message || String(err);
         // If subscription is expired or invalid, remove it
         if (err.statusCode === 410 || err.statusCode === 404) {
           user.pushSubscriptions = user.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
           user.markModified('pushSubscriptions');
+          await user.save();
         }
         logger.error(`[Notifications] Push failed for endpoint: ${sub.endpoint}`, err);
       })
     );
 
     await Promise.all(sendPromises);
-    await user.save();
+
+    if (errorOccurred) {
+      return res.status(500).json({ error: `Push failed: ${errorOccurred}` });
+    }
 
     res.json({ success: true, message: 'Test notification sent.' });
   } catch (error) {

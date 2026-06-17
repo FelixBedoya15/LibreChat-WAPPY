@@ -75,9 +75,10 @@ export default function PushTestPanel() {
             setSendingLocal(true);
             await axios.post('/api/notifications/test-push');
             showToast({ message: 'Notificación de prueba local enviada.', status: 'success' });
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            showToast({ message: 'Error al enviar notificación de prueba. ¿Ya te suscribiste?', status: 'error' });
+            const errMsg = error.response?.data?.error || 'Error al enviar notificación de prueba. ¿Ya te suscribiste?';
+            showToast({ message: errMsg, status: 'error' });
         } finally {
             setSendingLocal(false);
         }
