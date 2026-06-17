@@ -122,6 +122,8 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
+logger.info(`[Notifications] VAPID Public Key initialized: ${vapidKeys.publicKey}`);
+
 // GET /api/notifications/vapid-public-key - Fetch VAPID Public Key for client subscription
 router.get('/vapid-public-key', requireJwtAuth, (req, res) => {
   res.json({ publicKey: vapidKeys.publicKey });

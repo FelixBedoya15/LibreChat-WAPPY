@@ -37,6 +37,17 @@ export async function subscribeToPushNotifications(publicVapidKey, token) {
 
     const registration = await navigator.serviceWorker.ready;
     
+    // Force unsubscribe existing subscription if present to ensure the new VAPID keys are used
+    try {
+      const existingSub = await registration.pushManager.getSubscription();
+      if (existingSub) {
+        console.log('[Push] Unsubscribing existing subscription before creating a new one.');
+        await existingSub.unsubscribe();
+      }
+    } catch (e) {
+      console.warn('[Push] Error trying to unsubscribe existing subscription:', e);
+    }
+    
     // Subscribe the user to Push Services
     const subscribeOptions = {
       userVisibleOnly: true,
