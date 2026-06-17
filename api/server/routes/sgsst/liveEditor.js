@@ -86,24 +86,30 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
 
     // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
-      const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
-      if (tempSession) {
-        tempSession.conversationId = conversationId;
-        tempSession.companyId = companyId;
-        await tempSession.save();
-        session = tempSession;
+      const { Conversation } = require('~/db/models');
+      const convo = await Conversation.findOne({ conversationId }, 'createdAt').lean();
+      const isNewConvo = convo && convo.createdAt && (Date.now() - new Date(convo.createdAt).getTime() < 120000);
 
-        // También migrar Canvas
-        try {
-          const CanvasSession = require('~/models/CanvasSession');
-          const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
-          if (canvasTemp) {
-            canvasTemp.conversationId = conversationId;
-            await canvasTemp.save();
+      if (isNewConvo) {
+        const tempId = `temp-${userId}`;
+        const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
+        if (tempSession) {
+          tempSession.conversationId = conversationId;
+          tempSession.companyId = companyId;
+          await tempSession.save();
+          session = tempSession;
+
+          // También migrar Canvas
+          try {
+            const CanvasSession = require('~/models/CanvasSession');
+            const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
+            if (canvasTemp) {
+              canvasTemp.conversationId = conversationId;
+              await canvasTemp.save();
+            }
+          } catch (canvasErr) {
+            logger.error('[LiveEditor Migración Canvas] Error:', canvasErr);
           }
-        } catch (canvasErr) {
-          logger.error('[LiveEditor Migración Canvas] Error:', canvasErr);
         }
       }
     }

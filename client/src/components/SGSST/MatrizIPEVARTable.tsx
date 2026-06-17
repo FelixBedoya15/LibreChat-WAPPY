@@ -591,7 +591,7 @@ export default function MatrizIPEVARTable({
         }));
         const combined = [...matrixRows, ...normalized];
         setMatrixRows(combined);
-        isDirtyRef.current = true;
+        isDirtyRef.current = false;
         saveMatrixData(combined);
         alert(
           `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato oficial de Wappy.`
@@ -674,7 +674,7 @@ export default function MatrizIPEVARTable({
               }));
               const combined = [...matrixRows, ...withIds];
               setMatrixRows(combined);
-              isDirtyRef.current = true;
+              isDirtyRef.current = false;
               saveMatrixData(combined);
               alert(`Importados ${withIds.length} riesgos exitosamente.`);
             } else {
@@ -937,12 +937,11 @@ export default function MatrizIPEVARTable({
           return;
         }
 
-        // Lógica por defecto (conversación)
         const targetId = id ?? actualConvoId;
-        const targetConvoId = (!targetId || targetId === 'new')
-          ? (userId ? `temp-${userId}` : null)
-          : targetId;
-        if (!targetConvoId) return;
+        if (!targetId || targetId === 'new') {
+          return;
+        }
+        const targetConvoId = targetId;
 
         const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetConvoId}`, {
           headers: { Authorization: `Bearer ${token}` },

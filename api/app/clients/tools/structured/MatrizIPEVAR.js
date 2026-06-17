@@ -87,14 +87,20 @@ class MatrizIPEVAR extends Tool {
       }
       
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-        const tempId = `temp-${userId}`;
-        const tempSession = await GTC45Matrix.findOne({ conversationId: tempId, user: userId });
-        if (tempSession) {
-          tempSession.conversationId = conversationId;
-          if (companyId) tempSession.companyId = companyId;
-          await tempSession.save();
-          session = tempSession;
-          console.log(`[MatrizIPEVAR Tool] Migrated temporal matrix session for user ${userId} to conversation ${conversationId}`);
+        const { Conversation } = require('~/db/models');
+        const convo = await Conversation.findOne({ conversationId }, 'createdAt').lean();
+        const isNewConvo = convo && convo.createdAt && (Date.now() - new Date(convo.createdAt).getTime() < 120000);
+
+        if (isNewConvo) {
+          const tempId = `temp-${userId}`;
+          const tempSession = await GTC45Matrix.findOne({ conversationId: tempId, user: userId });
+          if (tempSession) {
+            tempSession.conversationId = conversationId;
+            if (companyId) tempSession.companyId = companyId;
+            await tempSession.save();
+            session = tempSession;
+            console.log(`[MatrizIPEVAR Tool] Migrated temporal matrix session for user ${userId} to conversation ${conversationId}`);
+          }
         }
       }
 
