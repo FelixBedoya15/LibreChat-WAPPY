@@ -142,7 +142,7 @@ export default function MatrizPESVTable({ conversationId }: { conversationId: st
 
   // AI & manual conclusions
   const [savedConclusions, setSavedConclusions] = useState<Record<string, string>>({});
-  const [selectedAIModel, setSelectedAIModel] = useState(AI_MODELS[0].value);
+  const [selectedAIModel, setSelectedAIModel] = useState(AI_MODELS[0].id);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportHTML, setReportHTML] = useState('');
   const editorRef = useRef<LiveEditorHandle>(null);
