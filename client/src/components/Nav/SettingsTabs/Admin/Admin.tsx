@@ -5,6 +5,7 @@ import RolePermissionsTable from './RolePermissionsTable';
 import SubscriptionPlansTable from './SubscriptionPlansTable';
 import PromoCodesTable from './PromoCodesTable';
 import PaymentAnalyticsDashboard from './PaymentAnalyticsDashboard';
+import PushTestPanel from './PushTestPanel';
 // import TicketManagement from '~/components/Tickets/TicketManagement';
 import { cn } from '~/utils';
 
@@ -94,6 +95,17 @@ export default function Admin() {
                         >
                             Analítica Pagos
                         </button>
+                        <button
+                            onClick={() => setActiveTab('push-test')}
+                            className={cn(
+                                "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                                activeTab === 'push-test'
+                                    ? "border-b-2 border-red-500 text-red-600 dark:text-red-400"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            Notificaciones Push
+                        </button>
                     </div>
                 </div>
             </div>
@@ -108,6 +120,8 @@ export default function Admin() {
                     <SubscriptionPlansTable />
                 ) : activeTab === 'analytics' ? (
                     <PaymentAnalyticsDashboard />
+                ) : activeTab === 'push-test' ? (
+                    <PushTestPanel />
                 ) : (
                     <PromoCodesTable />
                 )}
