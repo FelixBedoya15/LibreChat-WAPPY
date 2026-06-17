@@ -440,7 +440,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
 
         const parts = [systemPromptText, ...imageParts];
 
-        console.log(`[InvestigacionATEL] Generando informe. Modelo: ${selectedModelName}`);
+        console.log(`[InvestigacionATEL] Generando informe. Modelo: ${finalModelName}`);
 
         const generateWithTimeout = async (mod, prmpt, timeoutMs = 180000) => {
             const timeoutPromise = new Promise((_, reject) =>
