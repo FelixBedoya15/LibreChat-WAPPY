@@ -29,6 +29,7 @@ const getComunidadConfig = async (req, res) => {
                 price: 0,
                 gatingSeconds: 120,
                 gatingEnabled: true,
+                showQuickAccessBanner: true,
                 downloadableFiles: [],
                 whatsappUrl: 'https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4',
                 extraVideoUrl1: '',
@@ -56,22 +57,23 @@ const getComunidadConfig = async (req, res) => {
         }
         const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey });
         const configObj = config.toObject();
+        if (configObj.showQuickAccessBanner === undefined) {
+            configObj.showQuickAccessBanner = true;
+        }
         configObj.approvedPurchasesCount = approvedPurchasesCount;
 
         if (funnelKey === 'wappyvital') {
             configObj.requiresPayment = true;
-            if (!configObj.price || configObj.price <= 0) {
-                try {
-                    const Plan = require('../../models/Plan');
-                    const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
-                    if (plan && plan.prices) {
-                        configObj.price = plan.prices.lifetime || plan.prices.annual || 350000;
-                    } else {
-                        configObj.price = 350000;
-                    }
-                } catch (planErr) {
+            try {
+                const Plan = require('../../models/Plan');
+                const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
+                if (plan && plan.prices) {
+                    configObj.price = plan.prices.lifetime || plan.prices.annual || 350000;
+                } else {
                     configObj.price = 350000;
                 }
+            } catch (planErr) {
+                configObj.price = 350000;
             }
         }
 
@@ -86,7 +88,7 @@ const updateComunidadConfig = async (req, res) => {
     try {
         const { 
             videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles,
-            whatsappUrl, 
+            whatsappUrl, showQuickAccessBanner,
             extraVideoUrl1, extraVideoTitle1, 
             extraVideoUrl2, extraVideoTitle2,
             extraVideoUrl3, extraVideoTitle3,
@@ -111,6 +113,7 @@ const updateComunidadConfig = async (req, res) => {
         if (price !== undefined) config.price = Number(price) || 0;
         if (gatingSeconds !== undefined) config.gatingSeconds = Number(gatingSeconds) || 120;
         if (gatingEnabled !== undefined) config.gatingEnabled = gatingEnabled;
+        if (showQuickAccessBanner !== undefined) config.showQuickAccessBanner = showQuickAccessBanner;
         if (downloadableFiles !== undefined) config.downloadableFiles = downloadableFiles;
         if (whatsappUrl !== undefined) config.whatsappUrl = whatsappUrl;
         if (extraVideoUrl1 !== undefined) config.extraVideoUrl1 = extraVideoUrl1;
@@ -208,19 +211,18 @@ const createComunidadCheckout = async (req, res) => {
 
         if (funnelKey === 'wappyvital') {
             requiresPayment = true;
-            if (price <= 0) {
-                try {
-                    const Plan = require('../../models/Plan');
-                    const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
-                    if (plan && plan.prices) {
-                        price = plan.prices.lifetime || plan.prices.annual || 350000;
-                    } else {
-                        price = 350000;
-                    }
-                } catch (planErr) {
+            try {
+                const Plan = require('../../models/Plan');
+                const plan = await Plan.findOne({ planId: 'ipevar' }).lean();
+                if (plan && plan.prices) {
+                    price = plan.prices.lifetime || plan.prices.annual || 350000;
+                } else {
                     price = 350000;
                 }
+            } catch (planErr) {
+                price = 350000;
             }
+
             // Apply discount dynamically if a valid promo code is provided
             let appliedDiscount = 0;
             if (discountCode) {

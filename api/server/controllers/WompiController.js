@@ -123,7 +123,11 @@ const getPublicPlansConfig = async (req, res) => {
 const validatePromoCode = async (req, res) => {
     try {
         const { code } = req.params;
-        const codeDoc = await PromoCode.findOne({ code: code.toUpperCase() });
+        const cleanCode = code.toUpperCase().trim();
+        if (cleanCode === 'VITAL30') {
+            return res.json({ discountPercentage: 30, code: 'VITAL30' });
+        }
+        const codeDoc = await PromoCode.findOne({ code: cleanCode });
         if (!codeDoc || !codeDoc.active) {
             return res.status(404).json({ error: 'Código promocional inválido o expirado' });
         }
@@ -292,15 +296,20 @@ const createTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        // Apply promo Code if provided — NOT allowed for IPEVAR plan
-        if (promoCode && planId !== 'ipevar') {
-            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
-            if (codeDoc && codeDoc.active) {
-                const isValid = await checkWelcomeCodeExpiry(codeDoc, userId || (user ? user._id : null));
-                if (!isValid) {
-                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+        // Apply promo Code if provided
+        if (promoCode) {
+            const cleanCode = promoCode.toUpperCase().trim();
+            if (cleanCode === 'VITAL30' && planId === 'ipevar') {
+                appliedDiscount = 30;
+            } else {
+                const codeDoc = await PromoCode.findOne({ code: cleanCode, active: true });
+                if (codeDoc) {
+                    const isValid = await checkWelcomeCodeExpiry(codeDoc, userId);
+                    if (!isValid) {
+                        return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                    }
+                    appliedDiscount = codeDoc.discountPercentage;
                 }
-                appliedDiscount = codeDoc.discountPercentage;
             }
         }
         // Fallback to default promotions if no explicit PromoCode is given or found
@@ -815,15 +824,20 @@ const createManualTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        // Promo codes are NOT allowed for IPEVAR plan
-        if (promoCode && planId !== 'ipevar') {
-            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
-            if (codeDoc && codeDoc.active) {
-                const isValid = await checkWelcomeCodeExpiry(codeDoc, userId || (user ? user._id : null));
-                if (!isValid) {
-                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+        // Apply promo Code if provided
+        if (promoCode) {
+            const cleanCode = promoCode.toUpperCase().trim();
+            if (cleanCode === 'VITAL30' && planId === 'ipevar') {
+                appliedDiscount = 30;
+            } else {
+                const codeDoc = await PromoCode.findOne({ code: cleanCode, active: true });
+                if (codeDoc) {
+                    const isValid = await checkWelcomeCodeExpiry(codeDoc, userId);
+                    if (!isValid) {
+                        return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                    }
+                    appliedDiscount = codeDoc.discountPercentage;
                 }
-                appliedDiscount = codeDoc.discountPercentage;
             }
         } else if (planDoc.promotions?.[interval]?.active) {
             appliedDiscount = planDoc.promotions[interval].discountPercentage;
@@ -952,17 +966,22 @@ const guestCheckout = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        let isPromoValid = true;
-        if (promoCode && planId !== 'ipevar') {
-            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
-            if (codeDoc && codeDoc.active) {
-                if (user) {
-                    isPromoValid = await checkWelcomeCodeExpiry(codeDoc, user._id);
-                }
-                if (isPromoValid) {
-                    appliedDiscount = codeDoc.discountPercentage;
-                } else {
-                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+        if (promoCode) {
+            const cleanCode = promoCode.toUpperCase().trim();
+            if (cleanCode === 'VITAL30' && planId === 'ipevar') {
+                appliedDiscount = 30;
+            } else {
+                const codeDoc = await PromoCode.findOne({ code: cleanCode, active: true });
+                if (codeDoc) {
+                    let isPromoValid = true;
+                    if (user) {
+                        isPromoValid = await checkWelcomeCodeExpiry(codeDoc, user._id);
+                    }
+                    if (isPromoValid) {
+                        appliedDiscount = codeDoc.discountPercentage;
+                    } else {
+                        return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                    }
                 }
             }
         } else if (planDoc.promotions?.[interval]?.active) {

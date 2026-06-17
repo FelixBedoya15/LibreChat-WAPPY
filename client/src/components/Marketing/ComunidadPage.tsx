@@ -105,6 +105,8 @@ export default function ComunidadPage() {
   const [configLoading, setConfigLoading] = useState(true);
   const [requiresPayment, setRequiresPayment] = useState(false);
   const [price, setPrice] = useState(0);
+  const [showQuickAccessBanner, setShowQuickAccessBanner] = useState(true);
+  const [tempShowQuickAccessBanner, setTempShowQuickAccessBanner] = useState(true);
   const actualRequiresPayment = requiresPayment && price > 0;
   const [gatingSeconds, setGatingSeconds] = useState(120);
   const [gatingEnabled, setGatingEnabled] = useState(true);
@@ -211,6 +213,10 @@ export default function ComunidadPage() {
       promotion
     };
   }, [fetchedPlans]);
+
+  const basePrice = (funnelKey === 'wappyvital') 
+    ? (vitalPlanConfig?.rawPrice || 350000) 
+    : price;
 
   const proPlanConfig = useMemo(() => {
     const fetchedConfig = fetchedPlans.find((p: any) => p.planId === 'pro');
@@ -344,6 +350,8 @@ export default function ComunidadPage() {
         setTempRequiresPayment(data.requiresPayment);
         setPrice(data.price);
         setTempPrice(data.price);
+        setShowQuickAccessBanner(data.showQuickAccessBanner !== undefined ? data.showQuickAccessBanner : true);
+        setTempShowQuickAccessBanner(data.showQuickAccessBanner !== undefined ? data.showQuickAccessBanner : true);
         const gatingSecs = data.gatingSeconds !== undefined ? data.gatingSeconds : 120;
         const gatingActive = data.gatingEnabled !== undefined ? data.gatingEnabled : true;
         setGatingSeconds(gatingSecs);
@@ -400,7 +408,7 @@ export default function ComunidadPage() {
         }
       }
 
-      const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
+      const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(basePrice * 0.7) : basePrice;
       window.fbq('init', '1552188416261002', matchingData);
       window.fbq('track', 'Purchase', {
         value: finalPrice || 28000,
@@ -1052,7 +1060,7 @@ export default function ComunidadPage() {
         }
       } else {
         // standard community checkout (vital / sst)
-        const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(price * 0.7) : price;
+        const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(basePrice * 0.7) : basePrice;
         if (window.fbq) {
           window.fbq('track', 'InitiateCheckout', {
             content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
@@ -1368,6 +1376,7 @@ export default function ComunidadPage() {
         price: tempPrice,
         gatingSeconds: tempGatingSeconds,
         gatingEnabled: tempGatingEnabled,
+        showQuickAccessBanner: tempShowQuickAccessBanner,
         downloadableFiles: tempFiles,
         whatsappUrl: tempWhatsappUrl,
         extraVideoUrl1: tempExtraVideoUrl1,
@@ -1400,6 +1409,7 @@ export default function ComunidadPage() {
         setPrice(tempPrice);
         setGatingSeconds(tempGatingSeconds);
         setGatingEnabled(tempGatingEnabled);
+        setShowQuickAccessBanner(tempShowQuickAccessBanner);
         setDownloadableFiles(tempFiles);
         setWhatsappUrl(tempWhatsappUrl);
         setExtraVideoUrl1(tempExtraVideoUrl1);
@@ -2141,6 +2151,23 @@ export default function ComunidadPage() {
                       />
                     </div>
                   )}
+                  
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-border-medium">
+                    <div>
+                      <h5 className="text-xs font-bold text-text-primary">¿Mostrar Banner de Registro Rápido?</h5>
+                      <p className="text-[10px] text-text-secondary mt-0.5">Muestra u oculta el banner superior de acceso rápido con el botón "Regístrate ya".</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={tempShowQuickAccessBanner} 
+                        onChange={(e) => setTempShowQuickAccessBanner(e.target.checked)} 
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-border-medium peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1">Enlace de WhatsApp de la Comunidad</label>
                     <input
@@ -2421,11 +2448,11 @@ export default function ComunidadPage() {
                   <span className="text-3xl font-extrabold text-emerald-500 mt-1 outfit">
                     {couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital' ? (
                       <>
-                        <span className="text-sm line-through text-text-secondary mr-2">${price.toLocaleString('es-CO')}</span>
-                        <span>${Math.round(price * 0.7).toLocaleString('es-CO')}</span>
+                        <span className="text-sm line-through text-text-secondary mr-2">${basePrice.toLocaleString('es-CO')}</span>
+                        <span>${Math.round(basePrice * 0.7).toLocaleString('es-CO')}</span>
                       </>
                     ) : (
-                      <span>${price.toLocaleString('es-CO')}</span>
+                      <span>${basePrice.toLocaleString('es-CO')}</span>
                     )}{' '}
                     <span className="text-xs font-semibold text-text-secondary font-sans">COP</span>
                   </span>
@@ -2624,7 +2651,7 @@ export default function ComunidadPage() {
             </h1>
 
             {/* Quick Access / Skip Video Banner */}
-            {!isUnlocked && (
+            {!isUnlocked && (funnelKey === 'wappyvital' ? (showQuickAccessBanner || isVideoFinished) : showQuickAccessBanner) && (
               <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300 animate-premium-float">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
@@ -3141,8 +3168,8 @@ export default function ComunidadPage() {
                     ? 'Valida tu correo de compra para acceder al instante'
                     : ((actualRequiresPayment && (funnelKey !== 'wappyvital' || selectedCheckoutPlan !== null)) 
                         ? (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital'
-                            ? `Paga una tarifa única de $${Math.round(price * 0.7).toLocaleString('es-CO')} COP (¡30% Descuento Aplicado!)`
-                            : `Paga una tarifa única de $${price.toLocaleString('es-CO')} COP para continuar viendo`
+                            ? `Paga una tarifa única de $${Math.round(basePrice * 0.7).toLocaleString('es-CO')} COP (¡30% Descuento Aplicado!)`
+                            : `Paga una tarifa única de $${basePrice.toLocaleString('es-CO')} COP para continuar viendo`
                           )
                         : (funnelKey === 'wappyvital'
                             ? 'Registra tus datos para desbloquear el video y continuar aprendiendo'

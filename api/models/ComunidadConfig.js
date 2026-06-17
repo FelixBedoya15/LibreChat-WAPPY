@@ -143,6 +143,10 @@ const ComunidadConfigSchema = new mongoose.Schema({
         type: String,
         default: 'Clase Extra 10',
         trim: true
+    },
+    showQuickAccessBanner: {
+        type: Boolean,
+        default: true
     }
 }, { timestamps: true });
 
