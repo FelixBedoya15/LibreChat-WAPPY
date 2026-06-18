@@ -38,6 +38,7 @@ const {
   GoogleImageTools,
   n8nWebhook,
   MatrizIPEVAR,
+  MatrizPESV,
   EditorLive,
   EditorRIT,
   CanvasTool,
@@ -236,6 +237,10 @@ const loadTools = async ({
     matriz_ipevar: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
       return new MatrizIPEVAR({ req: options.req });
+    },
+    matriz_pesv: async (_toolContextMap) => {
+      // Passes `req` so the tool can read conversationId from req.body
+      return new MatrizPESV({ req: options.req });
     },
     editor_live: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
