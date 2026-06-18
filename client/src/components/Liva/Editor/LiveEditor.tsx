@@ -57,6 +57,7 @@ interface LiveEditorProps {
 export interface LiveEditorHandle {
   setHTML: (html: string) => void;
   insertHTML: (html: string) => void;
+  getHTML: () => string;
 }
 
 const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
@@ -512,6 +513,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const newContent = editorRef.current.innerHTML;
         setContent(newContent);
         onUpdate(newContent);
+      },
+      getHTML: () => {
+        return editorRef.current ? editorRef.current.innerHTML : '';
       },
     }));
 

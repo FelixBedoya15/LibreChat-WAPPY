@@ -9,6 +9,7 @@ interface CanvasExcelEditorProps {
   onUpdate: (content: string) => void;
   title: string;
   onRegisterDownload?: (fn: () => void) => void;
+  isMaximized?: boolean;
 }
 
 function refToCoords(ref: string): { row: number; col: number } | null {
@@ -142,7 +143,7 @@ function getColumnLabel(index: number): string {
   return label;
 }
 
-const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title, onRegisterDownload }) => {
+const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, onUpdate, title, onRegisterDownload, isMaximized = false }) => {
   const [sheets, setSheets] = useState<{ [sheetName: string]: string[][] }>({ 'Hoja 1': [['', '', ''], ['', '', ''], ['', '', '']] });
   const [activeSheet, setActiveSheet] = useState<string>('Hoja 1');
   const data = sheets[activeSheet] || [['', '', ''], ['', '', ''], ['', '', '']];
@@ -702,20 +703,22 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
               </div>
             </button>
 
-            <button
-              onClick={toggleFullscreen}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
-              title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-text-primary">
-                  {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-                </span>
-              </div>
-            </button>
+            {isMaximized && (
+              <button
+                onClick={toggleFullscreen}
+                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+              >
+                <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                  {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
+                </div>
+                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                  <span className="text-sm font-bold tracking-wide text-text-primary">
+                    {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+                  </span>
+                </div>
+              </button>
+            )}
 
             <button
               onClick={handleExportExcel}

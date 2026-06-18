@@ -115,8 +115,8 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools.push('consultar_analitica_actos_condiciones', 'canvas');
   } else if (fileBasename === 'abogado_procesos_disciplinarios' || fileBasename === 'abogado_acoso_sexual') {
     tools.push('canvas');
-  } else if (fileBasename === 'gestor_gestion_ambiental' || fileBasename === 'experto_mineria_subterranea') {
-    tools.push('canvas');
+  } else if (fileBasename === 'experto_en_riesgo_vial') {
+    tools.push('matriz_pesv', 'canvas', 'context');
   }
 
   const timestamp = new Date();
@@ -322,6 +322,17 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error adding actos_condiciones tool to agent:', err);
     }
 
+    // Ensure the Road Safety agent has the matriz_pesv, canvas and context tools
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Vial' },
+        { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+      );
+      logger.info('[SyncAgents] Added matriz_pesv, canvas, and context tools to Especialista en Riesgo Vial');
+    } catch (err) {
+      logger.error('[SyncAgents] Error adding road safety tools to agent:', err);
+    }
+
     return res.json({
       success: true,
       summary: `Sincronización finalizada. Se actualizaron ${successCount} agentes. Warnings/Errores: ${failCount}.`,
@@ -460,6 +471,17 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.info('[CleanupSync] Added consultar_analitica_actos_condiciones and canvas tools to Analista Predictivo ACI');
     } catch (err) {
       logger.error('[CleanupSync] Error adding actos_condiciones tool to agent:', err);
+    }
+
+    // Ensure the Road Safety agent has the matriz_pesv, canvas and context tools
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Vial' },
+        { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+      );
+      logger.info('[CleanupSync] Added matriz_pesv, canvas, and context tools to Especialista en Riesgo Vial');
+    } catch (err) {
+      logger.error('[CleanupSync] Error adding road safety tools to agent:', err);
     }
 
     return res.json({

@@ -940,6 +940,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             initialContent={content}
             onUpdate={handleContentUpdate}
             title={title}
+            isMaximized={isMaximized}
             onRegisterDownload={(fn) => {
               downloadRef.current = fn;
             }}
