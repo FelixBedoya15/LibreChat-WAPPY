@@ -330,7 +330,7 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 
       const { isManual } = req.body;
 
-      if (contentChanged || titleChanged) {
+      if (isManual || contentChanged || titleChanged) {
         if (isManual) {
           const nextVersion = session.version + 1;
 

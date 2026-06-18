@@ -179,7 +179,7 @@ interface CanvasPanelProps {
 }
 
 const POLL_INTERVAL_MS = 2500;
-const DEBOUNCE_SAVE_MS = 1200;
+const DEBOUNCE_SAVE_MS = 10000;
 
 const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const { token, user } = useAuthContext();
@@ -624,7 +624,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         if (data.success) {
           muteAutoSave(2000);
           if (data.content !== undefined) {
-            setContent(data.content);
+            // Update ref to keep content fresh, but do not setContent state to avoid cursor jumping
             contentRef.current = data.content;
           }
           setVersion(data.version);
@@ -646,7 +646,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const queueSave = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      saveSession();
+      saveSession(undefined, true);
     }, DEBOUNCE_SAVE_MS);
   }, [saveSession]);
 
