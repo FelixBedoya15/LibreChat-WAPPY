@@ -630,6 +630,20 @@ const startServer = async () => {
     await initializeOAuthReconnectManager();
     await checkMigrations();
 
+    // Ensure the Road Safety agent has the required tools in the database
+    try {
+      const { Agent } = require('./db/models');
+      if (Agent) {
+        await Agent.findOneAndUpdate(
+          { name: 'Especialista en Riesgo Vial' },
+          { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+        );
+        logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Vial');
+      }
+    } catch (err) {
+      logger.error('[Startup] Failed to automatically update Road Safety agent tools:', err);
+    }
+
     // Start background poller for async payment methods (e.g. Compra y Paga Después / Bancolombia BNPL)
     const { startWompiPoller } = require('./services/wompiPendingPoller');
     startWompiPoller();
