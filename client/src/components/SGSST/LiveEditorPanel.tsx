@@ -281,7 +281,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     }
   }, [conversationId, token, userId]);
 
-  useEffect(() => { fetchDocument(true); }, [fetchDocument]);
+  // Fetching is now coordinated within the conversation transition effect to avoid race conditions
 
   useEffect(() => {
     const targetId = (!conversationId || conversationId === 'new')
@@ -352,7 +352,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       }
       prevConvoIdRef.current = conversationId;
     }
-  }, [conversationId, userId, token]);
+    
+    // Fetch document for the new conversation ID immediately after cleanup/checks
+    fetchDocument(true);
+  }, [conversationId, userId, token, fetchDocument]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
