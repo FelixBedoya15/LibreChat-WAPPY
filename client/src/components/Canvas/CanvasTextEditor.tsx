@@ -1376,7 +1376,11 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
   // Sync content updates imperatively if content changes from outside (e.g. backend polling)
   useEffect(() => {
     if (initialContent && liveEditorRef.current) {
-      liveEditorRef.current.setHTML(initialContent);
+      const currentHTML = liveEditorRef.current.getHTML();
+      const normalize = (html: string) => html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '').trim();
+      if (normalize(initialContent) !== normalize(currentHTML)) {
+        liveEditorRef.current.setHTML(initialContent);
+      }
     }
   }, [initialContent]);
 

@@ -2256,7 +2256,7 @@ export default function MatrizPage() {
                       {/* Date 1 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 1 (Carlos Gómez)</label>
+                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 1 (WAPPY LTDA - Tecnología)</label>
                           <input
                             type="text"
                             value={tempDate1}
@@ -2280,7 +2280,7 @@ export default function MatrizPage() {
                       {/* Date 2 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 2 (Sofía Restrepo)</label>
+                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 2 (WAPPY LTDA - Seguros)</label>
                           <input
                             type="text"
                             value={tempDate2}
@@ -2304,7 +2304,7 @@ export default function MatrizPage() {
                       {/* Date 3 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 3 (Wappy AI)</label>
+                          <label className="block text-[10px] font-semibold text-text-secondary mb-1">Opción Fecha 3 (WAPPY IA - Asistente)</label>
                           <input
                             type="text"
                             value={tempDate3}
@@ -3022,65 +3022,65 @@ export default function MatrizPage() {
                       ¿Quiénes Somos?
                     </span>
                     <h3 className="text-xl sm:text-2xl font-black text-text-primary mt-2 leading-tight">
-                      Liderando la Fusión de la SST y la Inteligencia Artificial
+                      WAPPY LTDA: Liderando la Fusión de la SST y la Inteligencia Artificial
                     </h3>
                     <p className="text-xs text-text-secondary mt-1.5 leading-relaxed max-w-2xl">
-                      En Wappy, no solo creamos herramientas; redefinimos la forma en que los profesionales de Seguridad y Salud en el Trabajo gestionan sus riesgos. Combinamos el conocimiento metodológico tradicional con modelos avanzados de lenguaje para automatizar el 80% de las tareas manuales y repetitivas, permitiéndote tomar decisiones más rápidas e inteligentes.
+                      Nacida en Medellín, Colombia, <strong>WAPPY LTDA</strong> (NIT 901437310-3) es una empresa de innovación tecnológica y agencia de seguros aprobada ante el Fondo de Riesgos Laborales. Redefinimos la gestión de Seguridad y Salud en el Trabajo (SST) uniendo el rigor legal tradicional con herramientas de IA de última generación para proteger vidas y optimizar la productividad empresarial.
                     </p>
                   </div>
                 </div>
 
-                <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-6">Nuestros Mentores y Expertos</h4>
+                <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-6">Nuestras Líneas de Respaldo y Soluciones</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Card 1: Carlos Gómez */}
+                  {/* Card 1: Tecnología e IA */}
                   <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-emerald-500/30 transition-all duration-300 flex flex-col items-center text-center group">
                     <div className="relative mb-4 animate-float-avatar-1">
                       <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-md" />
                       <img 
                         src="/assets/avatars/Avatar1.png" 
-                        alt="Carlos Gómez" 
+                        alt="Desarrollo Tecnológico e IA" 
                         className="w-16 h-16 rounded-full object-cover border-2 border-emerald-500/30 avatar-glow-emerald"
                       />
                     </div>
-                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-emerald-400 transition-colors">Carlos Gómez</h5>
-                    <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider mt-0.5">Fundador & Investigador IA</p>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-emerald-400 transition-colors">Tecnología e IA</h5>
+                    <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider mt-0.5">Plataforma WAPPY IA</p>
                     <p className="text-[10px] text-text-secondary mt-2 leading-normal">
-                      Auditor e Investigador en Seguridad y Salud. Pionero en el desarrollo de algoritmos de automatización de matrices IPEVAR y codificación de software inteligente de prevención laboral.
+                      Desarrollamos soluciones de software avanzadas y modelos de lenguaje de IA para automatizar el 80% de las tareas administrativas, redacción de documentos y matrices de riesgo en SST.
                     </p>
                   </div>
 
-                  {/* Card 2: Sofía Restrepo */}
+                  {/* Card 2: Seguros y ARL */}
                   <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-teal-500/30 transition-all duration-300 flex flex-col items-center text-center group">
                     <div className="relative mb-4 animate-float-avatar-2">
                       <div className="absolute inset-0 bg-teal-500/10 rounded-full blur-md" />
                       <img 
                         src="/assets/avatars/avatar2.png" 
-                        alt="Sofía Restrepo" 
+                        alt="Seguros e Intermediación ARL" 
                         className="w-16 h-16 rounded-full object-cover border-2 border-teal-500/30 avatar-glow-teal"
                       />
                     </div>
-                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-teal-400 transition-colors">Sofía Restrepo</h5>
-                    <p className="text-[9px] text-teal-400 font-bold uppercase tracking-wider mt-0.5">Consultora Senior SST</p>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-teal-400 transition-colors">Seguros y ARL</h5>
+                    <p className="text-[9px] text-teal-400 font-bold uppercase tracking-wider mt-0.5">WAPPY LTDA Agencia de Seguros</p>
                     <p className="text-[10px] text-text-secondary mt-2 leading-normal">
-                      Con más de 10 años implementando el SG-SST en múltiples industrias. Experta metodológica responsable de la validación legal y técnica de cada diagnóstico generado.
+                      Agencia de seguros e intermediaria de riesgos laborales registrada en Colombia. Gestionamos la asesoría y el respaldo con las principales ARLs para optimizar los tiempos preventivos.
                     </p>
                   </div>
 
-                  {/* Card 3: Wappy AI */}
+                  {/* Card 3: Consultoría SST */}
                   <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-cyan-500/30 transition-all duration-300 flex flex-col items-center text-center group">
                     <div className="relative mb-4 animate-float-avatar-3">
                       <div className="absolute inset-0 bg-cyan-500/10 rounded-full blur-md" />
                       <img 
                         src="/assets/avatars/avatar3.png" 
-                        alt="Wappy AI" 
+                        alt="Consultoría y Cumplimiento Legal" 
                         className="w-16 h-16 rounded-full object-cover border-2 border-cyan-500/30 avatar-glow-cyan"
                       />
                     </div>
-                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-cyan-400 transition-colors">Wappy AI</h5>
-                    <p className="text-[9px] text-cyan-400 font-bold uppercase tracking-wider mt-0.5">Asistente Digital Experto</p>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-cyan-400 transition-colors">Consultoría SST</h5>
+                    <p className="text-[9px] text-cyan-400 font-bold uppercase tracking-wider mt-0.5">Asistente Experto Regulado</p>
                     <p className="text-[10px] text-text-secondary mt-2 leading-normal">
-                      El motor inteligente de la plataforma. Entrenado específicamente con la legislación colombiana (Res. 0312, Dec. 1072, GTC-45), listo para resolver consultas y diseñar planes de trabajo en segundos.
+                      Garantizamos la validación técnica y el cumplimiento de la legislación colombiana (Res. 0312, Dec. 1072, GTC-45) en cada diagnóstico y plan diseñado para las empresas aliadas.
                     </p>
                   </div>
                 </div>
@@ -3369,11 +3369,11 @@ export default function MatrizPage() {
                     <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-md group-hover:blur-lg transition-all" />
                     <img 
                       src="/assets/avatars/Avatar1.png" 
-                      alt="Carlos Gómez Decoración" 
+                      alt="WAPPY LTDA Decoración" 
                       className="w-20 h-20 rounded-full object-cover border-2 border-emerald-500/30 avatar-glow-emerald shadow-lg"
                     />
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 text-[9px] font-bold text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap">
-                      Carlos G.
+                      WAPPY LTDA
                     </div>
                   </div>
                 </div>
@@ -3383,11 +3383,11 @@ export default function MatrizPage() {
                     <div className="absolute inset-0 bg-teal-500/20 rounded-full blur-md group-hover:blur-lg transition-all" />
                     <img 
                       src="/assets/avatars/avatar2.png" 
-                      alt="Sofía Restrepo Decoración" 
+                      alt="WAPPY IA Decoración" 
                       className="w-20 h-20 rounded-full object-cover border-2 border-teal-500/30 avatar-glow-teal shadow-lg"
                     />
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 text-[9px] font-bold text-teal-400 px-2 py-0.5 rounded-full border border-teal-500/20 whitespace-nowrap">
-                      Sofía R.
+                      WAPPY IA
                     </div>
                   </div>
                 </div>
@@ -3425,7 +3425,7 @@ export default function MatrizPage() {
                 {/* Grid of 3 Date Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto text-left relative z-20">
                   
-                  {/* Card 1: Carlos Gómez */}
+                  {/* Card 1: WAPPY LTDA (Tecnología) */}
                   <div className="group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_50px_rgba(16,185,129,0.15)] bg-surface-primary/60 backdrop-blur-md">
                     <div className="absolute -top-4 right-6 sm:right-8 whitespace-nowrap rounded-full bg-emerald-500 px-3.5 py-1 text-[10px] font-bold text-slate-950 uppercase tracking-wider shadow-md">
                       Sesión 1
@@ -3436,15 +3436,15 @@ export default function MatrizPage() {
                         <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-md" />
                         <img 
                           src="/assets/avatars/Avatar1.png" 
-                          alt="Carlos Gómez" 
+                          alt="WAPPY LTDA" 
                           className="w-24 h-24 rounded-full object-cover border-4 border-emerald-500/40 avatar-glow-emerald"
                         />
                         <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-[10px] font-extrabold text-slate-950 px-2.5 py-0.5 rounded-full whitespace-nowrap shadow">
-                          Carlos Gómez
+                          WAPPY LTDA
                         </div>
                       </div>
                       <span className="text-xs text-emerald-400 font-bold uppercase tracking-widest mt-1">
-                        Ponente Experto
+                        Tecnología e IA
                       </span>
                     </div>
 
@@ -3472,7 +3472,7 @@ export default function MatrizPage() {
                     </div>
                   </div>
 
-                  {/* Card 2: Sofía Restrepo */}
+                  {/* Card 2: WAPPY LTDA (ARL & Seguros) */}
                   <div className="group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-teal-500/5 to-teal-500/10 border-teal-500/20 hover:border-teal-500/40 hover:shadow-[0_0_50px_rgba(20,184,166,0.15)] bg-surface-primary/60 backdrop-blur-md">
                     <div className="absolute -top-4 right-6 sm:right-8 whitespace-nowrap rounded-full bg-teal-500 px-3.5 py-1 text-[10px] font-bold text-slate-950 uppercase tracking-wider shadow-md">
                       Sesión 2
@@ -3483,15 +3483,15 @@ export default function MatrizPage() {
                         <div className="absolute inset-0 bg-teal-500/20 rounded-full blur-md" />
                         <img 
                           src="/assets/avatars/avatar2.png" 
-                          alt="Sofía Restrepo" 
+                          alt="WAPPY LTDA" 
                           className="w-24 h-24 rounded-full object-cover border-4 border-teal-500/40 avatar-glow-teal"
                         />
                         <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-teal-500 text-[10px] font-extrabold text-slate-950 px-2.5 py-0.5 rounded-full whitespace-nowrap shadow">
-                          Sofía Restrepo
+                          WAPPY LTDA
                         </div>
                       </div>
                       <span className="text-xs text-teal-400 font-bold uppercase tracking-widest mt-1">
-                        Ponente Experta
+                        Seguros y ARL
                       </span>
                     </div>
 
@@ -3519,7 +3519,7 @@ export default function MatrizPage() {
                     </div>
                   </div>
 
-                  {/* Card 3: Wappy AI */}
+                  {/* Card 3: WAPPY IA (Asistente) */}
                   <div className="group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 sm:p-8 transition-all duration-500 hover:-translate-y-2 from-cyan-500/5 to-cyan-500/10 border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] bg-surface-primary/60 backdrop-blur-md">
                     <div className="absolute -top-4 right-6 sm:right-8 whitespace-nowrap rounded-full bg-cyan-500 px-3.5 py-1 text-[10px] font-bold text-slate-950 uppercase tracking-wider shadow-md">
                       Sesión 3
@@ -3530,15 +3530,15 @@ export default function MatrizPage() {
                         <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-md" />
                         <img 
                           src="/assets/avatars/avatar3.png" 
-                          alt="Wappy AI" 
+                          alt="WAPPY IA" 
                           className="w-24 h-24 rounded-full object-cover border-4 border-cyan-500/40 avatar-glow-cyan"
                         />
                         <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-cyan-500 text-[10px] font-extrabold text-slate-950 px-2.5 py-0.5 rounded-full whitespace-nowrap shadow">
-                          Wappy AI
+                          WAPPY IA
                         </div>
                       </div>
                       <span className="text-xs text-cyan-400 font-bold uppercase tracking-widest mt-1">
-                        Mentor IA Asistente
+                        Asistente Experto
                       </span>
                     </div>
 
