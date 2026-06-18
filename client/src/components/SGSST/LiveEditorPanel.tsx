@@ -18,6 +18,7 @@ import {
   Check,
   X,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
@@ -158,10 +159,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.'
 }) => {
   const { token, user } = useAuthContext();
-  const userId = user?.id || user?._id;
+  const userId = user?.id || (user as any)?._id;
+  const conversation = useRecoilValue(store.conversationByIndex(0));
   const [content, setContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('Documento_Live');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
@@ -178,7 +181,13 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     useAI: boolean
   ) => {
     try {
-      setIsLoading(true);
+      if (useAI) {
+        setShowRitPrompt(false);
+        setIsAiProcessing(true);
+      } else {
+        setShowRitPrompt(false);
+        setIsLoading(true);
+      }
       let finalHtml = data.html;
 
       if (useAI) {
@@ -191,7 +200,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           body: JSON.stringify({ content: data.html, fileName: data.fileName }),
         });
         if (!aiRes.ok) {
-          throw new Error('Error al estructurar el documento con IA');
+          const errorData = await aiRes.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Error al estructurar el documento con IA');
         }
         const aiData = await aiRes.json();
         if (aiData.content) {
@@ -217,7 +227,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         const saved = await saveRes.json();
         lastUpdatedAtRef.current = saved.contentUpdatedAt;
         if (conversationId && conversationId !== 'new') {
-          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token || '');
         }
       } else {
         lastUpdatedAtRef.current = null;
@@ -233,10 +243,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       alert(err.message || 'Error al procesar el archivo');
     } finally {
       setIsLoading(false);
+      setIsAiProcessing(false);
       setPendingExtractedData(null);
       setShowRitPrompt(false);
     }
-  }, [conversationId, token]);
+  }, [conversationId, token, userId]);
 
   // Imperative handle to push content into the editor without remounting
   const liveEditorRef = useRef<LiveEditorHandle>(null);
@@ -251,7 +262,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
     const targetId = (!conversationId || conversationId === 'new')
-      ? (userId ? `temp-${userId}` : null)
+      ? null
       : conversationId;
     if (!targetId) return;
     if (isSavingRef.current) return;
@@ -260,7 +271,16 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       const res = await fetch(`/api/live-editor/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 404) return;
+      if (res.status === 404) {
+        setContent('');
+        setFileName('Documento_Live');
+        editorContentRef.current = '';
+        lastUpdatedAtRef.current = null;
+        if (liveEditorRef.current) {
+          liveEditorRef.current.setHTML('');
+        }
+        return;
+      }
       const data = await res.json();
 
       if (data.contentUpdatedAt && data.contentUpdatedAt !== lastUpdatedAtRef.current) {
@@ -279,7 +299,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     } finally {
       if (isInitial) setIsLoading(false);
     }
-  }, [conversationId, token, userId]);
+  }, [conversationId, token]);
 
   // Fetching is now coordinated within the conversation transition effect to avoid race conditions
 
@@ -316,8 +336,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         setContent(finalContent);
         editorContentRef.current = finalContent;
         if (conversationId && conversationId !== 'new') {
-          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
-          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token || '');
+          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token || '');
         }
         setRefreshTrigger(prev => prev + 1);
       }
@@ -329,10 +349,14 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     }
   }, [conversationId, token, content, fileName, userId]);
 
-  const prevConvoIdRef = useRef<string | undefined>(conversationId);
+  const prevConvoIdRef = useRef<string | null | undefined>(conversationId);
+  const prevConvoRef = useRef<any>(conversation);
 
   useEffect(() => {
-    if (prevConvoIdRef.current !== conversationId) {
+    const convoIdChanged = prevConvoIdRef.current !== conversationId;
+    const convoObjChanged = prevConvoRef.current !== conversation;
+
+    if (convoIdChanged || convoObjChanged) {
       const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (conversationId && conversationId !== 'new');
       
       if (!isTransitionFromNewToReal) {
@@ -351,11 +375,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         }
       }
       prevConvoIdRef.current = conversationId;
+      prevConvoRef.current = conversation;
     }
     
     // Fetch document for the new conversation ID immediately after cleanup/checks
     fetchDocument(true);
-  }, [conversationId, userId, token, fetchDocument]);
+  }, [conversationId, conversation, userId, token, fetchDocument]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
@@ -403,8 +428,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         }
         if (conversationId && conversationId !== 'new') {
           // Also tag with per-conversation tag so history only shows this chat's doc
-          await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
-          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
+          await tagConversation(conversationId, LIVE_EDITOR_TAG, token || '');
+          await tagConversation(conversationId, liveEditorConvoTag(conversationId), token || '');
         }
       }
       setContent(withSigs);
@@ -717,6 +742,26 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
               >
                 Sí, usar IA
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── AI Processing Loading Overlay ─────────────────────────────── */}
+      {isAiProcessing && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
+              <div className="absolute inset-2 animate-pulse rounded-full bg-teal-500/40" />
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-text-primary">Estructurando Reglamento con IA</h3>
+              <p className="mt-2 text-sm text-text-secondary max-w-xs">
+                Nuestra IA está analizando y organizando el reglamento en capítulos y artículos estructurados según la legislación laboral colombiana. Esto puede tomar unos segundos...
+              </p>
             </div>
           </div>
         </div>,
