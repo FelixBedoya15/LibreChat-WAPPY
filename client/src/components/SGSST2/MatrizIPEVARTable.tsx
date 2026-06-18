@@ -509,16 +509,35 @@ const toSentenceCase = (str: string): string => {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
 
+const cleanKey = (k: any): string => {
+  return String(k || '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+};
+
 const getValueByKeys = (obj: any, aliases: string[]): string => {
+  if (obj && obj.__normalizedMap) {
+    for (const alias of aliases) {
+      const normalizedAlias = cleanKey(alias);
+      if (obj.__normalizedMap[normalizedAlias] !== undefined && obj.__normalizedMap[normalizedAlias] !== null) {
+        const val = String(obj.__normalizedMap[normalizedAlias]).trim();
+        if (val) return val;
+      }
+    }
+  }
   for (const alias of aliases) {
     if (obj[alias] !== undefined && obj[alias] !== null) {
-      return String(obj[alias]).trim();
+      const val = String(obj[alias]).trim();
+      if (val) return val;
     }
     const foundKey = Object.keys(obj).find(
-      (k) => k.toLowerCase().replace(/\s+/g, '') === alias.toLowerCase().replace(/\s+/g, '')
+      (k) => cleanKey(k) === cleanKey(alias)
     );
     if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
-      return String(obj[foundKey]).trim();
+      const val = String(obj[foundKey]).trim();
+      if (val) return val;
     }
   }
   return '';
@@ -527,6 +546,8 @@ const getValueByKeys = (obj: any, aliases: string[]): string => {
 // ════════════════════════════════════════════════════════════════════════════
 export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [isSaving, setIsSaving] = useState(false);
   const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
   const [isLoading, setIsLoading] = useState(false);
@@ -599,6 +620,22 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           let hasMatrixSheet = false;
 
           for (const sheetName of wb.SheetNames) {
+            // Skip non-matrix sheets or reference/example sheets
+            const nameLower = sheetName.toLowerCase();
+            if (
+              nameLower.includes('ejemplo') || 
+              nameLower.includes('criterio') || 
+              nameLower.includes('cambio') || 
+              nameLower.includes('factor') || 
+              nameLower.includes('medida') || 
+              nameLower.includes('indice') || 
+              nameLower.includes('índice') || 
+              nameLower.includes('hoja') || 
+              nameLower.includes('psicosocial')
+            ) {
+              continue;
+            }
+
             const ws = wb.Sheets[sheetName];
             autofillMergedCells(ws);
             const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
@@ -617,9 +654,20 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             }
 
             if (headerRowIdx === -1) continue;
+
+            // Trim trailing blank/far-right headers
+            const rawHeaders = rawRows[headerRowIdx];
+            let lastHeaderIdx = rawHeaders.length - 1;
+            while (lastHeaderIdx >= 0 && (!rawHeaders[lastHeaderIdx] || lastHeaderIdx > 80)) {
+              lastHeaderIdx--;
+            }
+            const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
+
+            if (sliceLen < 15) continue;
+
             hasMatrixSheet = true;
 
-            const headers = rawRows[headerRowIdx].map(h => String(h || '').trim());
+            const headers = rawHeaders.slice(0, sliceLen).map(h => String(h || '').trim());
             let startDataRow = headerRowIdx + 1;
 
             if (rawRows[startDataRow] && rawRows[startDataRow].some(cell => {
@@ -650,10 +698,14 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
               }
 
               const obj: any = { __sheetName: sheetName };
+              const normalizedMap: any = {};
               for (let col = 0; col < headers.length; col++) {
                 const key = headers[col] || `Column_${col}`;
-                obj[key] = row[col] !== undefined ? row[col] : '';
+                const val = row[col] !== undefined ? row[col] : '';
+                obj[key] = val;
+                normalizedMap[cleanKey(key)] = val;
               }
+              obj.__normalizedMap = normalizedMap;
               allSheetRows.push(obj);
             }
           }
@@ -663,37 +715,68 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             return;
           }
 
+          const mapND = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('muyalto')) return 10;
+            if (s.includes('alto')) return 6;
+            if (s.includes('medio')) return 2;
+            if (s.includes('bajo')) return 0;
+            return 0;
+          };
+          const mapNE = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('continua')) return 4;
+            if (s.includes('frecuente')) return 3;
+            if (s.includes('ocasional')) return 2;
+            if (s.includes('esporadica')) return 1;
+            return 0;
+          };
+          const mapNC = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('mortal') || s.includes('catastrofico')) return 100;
+            if (s.includes('muygrave')) return 60;
+            if (s.includes('grave')) return 25;
+            if (s.includes('leve')) return 10;
+            return 0;
+          };
+
           newRows = allSheetRows.map((r: any) => {
-            const ndVal = Number(getValueByKeys(r, ['ND', 'nd', 'Nivel de deficiencia', 'Evaluación del Riesgo - Nivel de deficiencia'])) || 0;
-            const neVal = Number(getValueByKeys(r, ['NE', 'ne', 'Nivel de Exposicion', 'Nivel de exposición', 'Evaluación del Riesgo - Nivel de Exposicion', 'Evaluación del Riesgo - Nivel de exposición'])) || 0;
-            const ncVal = Number(getValueByKeys(r, ['NC', 'nc', 'Nivel de consecuencia', 'Evaluación del Riesgo - Nivel de consecuencia'])) || 0;
+            const ndVal = mapND(getValueByKeys(r, ['niveldedeficienciand', 'nd', 'niveldedeficiencia']));
+            const neVal = mapNE(getValueByKeys(r, ['niveldeexposicionne', 'ne', 'niveldeexposicion']));
+            const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
             const npVal = ndVal * neVal;
             const nrVal = npVal * ncVal;
             return {
-              proceso: toSentenceCase(getValueByKeys(r, ['Proceso', 'proceso', 'Cargo', 'cargo', 'Cargos', 'cargos'])),
-              zona: toSentenceCase(getValueByKeys(r, ['Zona / Lugar', 'Zona/lugar', 'Zona', 'zona', 'lugar', 'Zona / lugar', 'Lugar'])),
-              actividad: getValueByKeys(r, ['Actividad', 'actividad', 'Actividades', 'actividades']),
-              tareas: getValueByKeys(r, ['Tareas', 'tareas', 'Tarea', 'tarea']),
-              rutinaria: getValueByKeys(r, ['Rutinaria', 'rutinaria', 'Rutinario (si o no)', 'Rutinario', 'rutinario', 'Rutinaria (si/no)', 'Rutinaria (si o no)']) || 'Sí',
-              peligro_descripcion: getValueByKeys(r, ['Descripción del Peligro', 'Descripción', 'peligro_descripcion', 'Peligro - Descripcion', 'Peligro - Descripción', 'Peligro', 'peligro', 'Descripción peligro']),
-              peligro_clasificacion: getValueByKeys(r, ['Clasificación', 'clasificacion', 'Peligro - Clasificación', 'Peligro - Clasificacion', 'Clasificación del peligro', 'Tipo de peligro']),
-              efectos_posibles: getValueByKeys(r, ['Efectos Posibles', 'Efectos posibles', 'efectos_posibles', 'Efectos en la salud', 'Efectos', 'Consecuencias']),
-              controles_fuente: getValueByKeys(r, ['Ctrl. Fuente', 'controles_fuente', 'Controles existentes - Fuente', 'Fuente', 'Control Fuente']) || 'Ninguno',
-              controles_medio: getValueByKeys(r, ['Ctrl. Medio', 'controles_medio', 'Controles existentes - Medio', 'Medio', 'Control Medio']) || 'Ninguno',
-              controles_individuo: getValueByKeys(r, ['Ctrl. Individuo', 'controles_individuo', 'Controles existentes - Persona', 'Controles existentes - Individuo', 'Persona', 'Individuo', 'Control Individuo']) || 'Ninguno',
+              proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'cargo', 'cargos'])),
+              zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar'])),
+              actividad: getValueByKeys(r, ['actividad', 'actividades']),
+              tareas: getValueByKeys(r, ['tareas', 'tarea']),
+              rutinaria: getValueByKeys(r, ['rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
+              peligro_descripcion: getValueByKeys(r, ['descripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
+              peligro_clasificacion: getValueByKeys(r, ['clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
+              efectos_posibles: getValueByKeys(r, ['efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo']),
+              controles_fuente: getValueByKeys(r, ['ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
+              controles_medio: getValueByKeys(r, ['ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
+              controles_individuo: getValueByKeys(r, ['ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
               nd: ndVal,
               ne: neVal,
               np: npVal,
               nc: ncVal,
               nr: nrVal,
-              interpretacion_nr: getValueByKeys(r, ['Interpretación NR', 'interpretacion_nr', 'Interpretación del nivel de probabilidad', 'Evaluación del Riesgo - Interpretacion del nivel de probabilidad']),
-              aceptabilidad: getValueByKeys(r, ['Aceptabilidad del Riesgo', 'Aceptabilidad', 'aceptabilidad', 'Valoración del Riesgo - Aceptabilidad del riesgo']),
-              medida_eliminacion: getValueByKeys(r, ['Eliminación', 'medida_eliminacion', 'Medidas de intervención - Reducción o Eliminación', 'Medidas de intervención - Eliminación']) || 'Ninguno',
-              medida_sustitucion: getValueByKeys(r, ['Sustitución', 'medida_sustitucion', 'Medidas de intervención - Sustitución']) || 'Ninguno',
-              medida_ingenieria: getValueByKeys(r, ['Ctrl. Ingeniería', 'Ingeniería', 'medida_ingenieria', 'Medidas de intervención - Controles de ingeniería']) || 'Ninguno',
-              medida_administrativa: getValueByKeys(r, ['Ctrl. Administrativos', 'Administrativos', 'medida_administrativa', 'Medidas de intervención - Controles administrativos, señalización, advertencia']) || 'Ninguno',
-              medida_eppu: getValueByKeys(r, ['Equipos/EPP', 'EPP', 'medida_eppu', 'Medidas de intervención - Equipos/elementos de protección personal']) || 'Ninguno',
-              factores_reduccion: getValueByKeys(r, ['Factores de Reducción', 'Factores Reducción (Anexo E)', 'factores_reduccion']) || 'No aplica',
+              interpretacion_nr: getValueByKeys(r, ['interpretacionnr', 'interpretaciondelniveldeprobabilidad', 'aceptabilidad']),
+              aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo']),
+              medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
+              medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
+              medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
+              medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
+              medida_eppu: getValueByKeys(r, ['equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
+              factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
               nd_cualitativo: null,
               id: Date.now().toString() + Math.random().toString(36).substring(7),
             };
@@ -738,6 +821,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''
   >('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, filterProceso, filterCalificacion, filterClasificacion]);
 
   // ── Drag & Resize Drawer ────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1152,6 +1239,12 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     sortDir,
   ]);
 
+  const paginatedRows = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    return displayRows.slice(startIdx, endIdx);
+  }, [displayRows, currentPage, pageSize]);
+
   const procesosUnicos = useMemo(
     () => [...new Set(matrixRows.map((r) => r.proceso).filter(Boolean))],
     [matrixRows],
@@ -1513,7 +1606,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                 </tr>
               </thead>
               <tbody>
-                {displayRows.map(({ row, idx }) => (
+                {paginatedRows.map(({ row, idx }) => (
                   <tr
                     key={idx}
                     className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors"
@@ -1820,13 +1913,52 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             </table>
           </div>
         )}
-        <div className="border-t border-border-light bg-surface-tertiary px-4 py-2">
+        <div className="border-t border-border-light bg-surface-tertiary px-4 py-2 flex items-center justify-between gap-4 flex-wrap">
           <button
             onClick={addRow}
             className="flex items-center gap-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
           >
             <Plus className="h-3 w-3" /> Añadir Fila
           </button>
+
+          {displayRows.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-text-secondary select-none">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 hover:bg-surface-tertiary disabled:opacity-40 transition-all font-medium disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="px-2">
+                Página <strong>{currentPage}</strong> de {Math.ceil(displayRows.length / pageSize) || 1} (Total: {displayRows.length} riesgos)
+              </span>
+              <button
+                disabled={currentPage >= Math.ceil(displayRows.length / pageSize)}
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(displayRows.length / pageSize), prev + 1))}
+                className="rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 hover:bg-surface-tertiary disabled:opacity-40 transition-all font-medium disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+              
+              <div className="ml-4 flex items-center gap-1.5">
+                <span>Mostrar:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-md border border-border-medium bg-surface-secondary px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-teal-500 font-medium"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

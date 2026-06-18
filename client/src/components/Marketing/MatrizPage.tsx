@@ -1670,10 +1670,12 @@ export default function MatrizPage() {
   return (
     <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
       
-      {/* Dynamic Glow Accents */}
+      {/* Dynamic Glow Accents & Cyber Grid */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/5 dark:bg-emerald-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 dark:bg-purple-600/10 blur-[120px]" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-100 z-0"></div>
+        <div className="absolute top-[-10%] left-[-15%] w-[60vw] h-[60vw] rounded-full bg-emerald-500/10 dark:bg-emerald-600/15 blur-[150px] z-0" />
+        <div className="absolute top-[40%] right-[-15%] w-[50vw] h-[50vw] rounded-full bg-teal-500/10 dark:bg-teal-600/10 blur-[130px] z-0" />
+        <div className="absolute bottom-[-10%] left-[10%] w-[65vw] h-[65vw] rounded-full bg-cyan-500/10 dark:bg-cyan-600/15 blur-[160px] z-0" />
       </div>
 
       <style>{`
@@ -1682,8 +1684,35 @@ export default function MatrizPage() {
           50% { transform: translateY(-6px); }
           100% { transform: translateY(0px); }
         }
+        @keyframes cyber-pulse {
+          0%, 100% { border-color: rgba(16, 185, 129, 0.2); box-shadow: 0 0 15px rgba(16, 185, 129, 0.05); }
+          50% { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 25px rgba(16, 185, 129, 0.15); }
+        }
         .animate-premium-float {
           animation: floatEffect 4s ease-in-out infinite;
+        }
+        .bg-grid-pattern {
+          background-size: 30px 30px;
+          background-image: 
+            linear-gradient(to right, rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+        }
+        .dark .bg-grid-pattern {
+          background-size: 30px 30px;
+          background-image: 
+            linear-gradient(to right, rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+        }
+        .cyber-card {
+          backdrop-blur: 16px;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          animation: cyber-pulse 6s infinite alternate;
+        }
+        .light .cyber-card {
+          background: rgba(255, 255, 255, 0.8);
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          animation: cyber-pulse 6s infinite alternate;
         }
       `}</style>
 
@@ -1696,9 +1725,13 @@ export default function MatrizPage() {
         {/* Top Header Navbar */}
         <nav className="w-full max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
-              <img src="/assets/logo.png" alt="WAPPY Logo" className="h-14 sm:h-20 w-auto relative z-10" />
+            <div className="relative group cursor-pointer">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 blur-lg rounded-full opacity-75 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <img 
+                src="/assets/logo.png" 
+                alt="WAPPY Logo" 
+                className="h-14 sm:h-20 w-auto relative z-10 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3" 
+              />
             </div>
           </div>
 
@@ -2806,94 +2839,95 @@ export default function MatrizPage() {
                 </button>
               </div>
             )}
-            <div 
-              ref={playerContainerRef}
-              className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group"
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              {isYouTube ? (
-                <iframe
-                  id="wappy-yt-player"
-                  ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&controls=0&disablekb=1&rel=0&modestbranding=1&fs=0&iv_load_policy=3&showinfo=0`}
-                  className="w-full h-full object-cover pointer-events-none select-none border-0"
-                  allow="autoplay; encrypted-media"
-                  title="YouTube Video Player"
-                />
-              ) : isYouTubeChannelError ? (
-                <div className="w-full h-full bg-surface-secondary flex flex-col items-center justify-center p-6 text-center select-none">
-                  <ShieldAlert className="w-12 h-12 text-amber-500 mb-2 animate-bounce" />
-                  <h4 className="font-bold text-text-primary text-base">Enlace de YouTube no soportado</h4>
-                  <p className="text-xs text-text-secondary mt-1 max-w-sm leading-normal">
-                    Ingresa un link directo de video (ej: https://www.youtube.com/watch?v=VIDEO_ID) para que funcione.
-                  </p>
-                </div>
-              ) : (
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  className="w-full h-full object-cover pointer-events-none select-none"
-                  playsInline
-                  controls={false}
-                />
-              )}
-
+            <div className="w-full max-w-4xl p-1 bg-gradient-to-tr from-emerald-500/20 via-teal-500/35 to-cyan-500/25 rounded-[32px] shadow-[0_0_50px_rgba(16,185,129,0.12)] mb-8 hover:shadow-[0_0_60px_rgba(16,185,129,0.22)] transition-all duration-500">
               <div 
-                onClick={togglePlay}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="absolute inset-0 z-20 cursor-pointer select-none"
-              />
+                ref={playerContainerRef}
+                className="w-full relative rounded-[28px] overflow-hidden border border-border-medium/60 bg-slate-950 shadow-inner aspect-video group"
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                {isYouTube ? (
+                  <iframe
+                    id="wappy-yt-player"
+                    ref={iframeRef}
+                    src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&controls=0&disablekb=1&rel=0&modestbranding=1&fs=0&iv_load_policy=3&showinfo=0`}
+                    className="w-full h-full object-cover pointer-events-none select-none border-0"
+                    allow="autoplay; encrypted-media"
+                    title="YouTube Video Player"
+                  />
+                ) : isYouTubeChannelError ? (
+                  <div className="w-full h-full bg-surface-secondary flex flex-col items-center justify-center p-6 text-center select-none">
+                    <ShieldAlert className="w-12 h-12 text-amber-500 mb-2 animate-bounce" />
+                    <h4 className="font-bold text-text-primary text-base">Enlace de YouTube no soportado</h4>
+                    <p className="text-xs text-text-secondary mt-1 max-w-sm leading-normal">
+                      Ingresa un link directo de video (ej: https://www.youtube.com/watch?v=VIDEO_ID) para que funcione.
+                    </p>
+                  </div>
+                ) : (
+                  <video
+                    ref={videoRef}
+                    src={videoUrl}
+                    className="w-full h-full object-cover pointer-events-none select-none"
+                    playsInline
+                    controls={false}
+                  />
+                )}
 
-              {!isPlaying && !showLeadModal && !isYouTubeChannelError && (
                 <div 
                   onClick={togglePlay}
-                  className="absolute inset-0 flex items-center justify-center bg-slate-950/40 hover:bg-slate-950/30 transition-all duration-300 cursor-pointer z-25"
-                >
-                  <div className="w-20 h-20 flex items-center justify-center rounded-full bg-emerald-500 text-white dark:text-slate-950 shadow-lg shadow-emerald-500/35 transform hover:scale-110 transition-transform duration-300">
-                    <Play className="w-9 h-9 fill-current ml-1" />
-                  </div>
-                </div>
-              )}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  className="absolute inset-0 z-20 cursor-pointer select-none"
+                />
 
-              <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-slate-950/90 to-transparent flex flex-col justify-end z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="w-full h-1 bg-white/20 relative">
+                {!isPlaying && !showLeadModal && !isYouTubeChannelError && (
                   <div 
-                    className="h-full bg-emerald-500 transition-all duration-200 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
-                    style={{ width: `${getProgressBarWidth()}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between px-6 py-3">
-                  <button 
                     onClick={togglePlay}
-                    className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                    className="absolute inset-0 flex items-center justify-center bg-slate-950/40 hover:bg-slate-950/30 transition-all duration-300 cursor-pointer z-25"
                   >
-                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                  </button>
+                    <div className="w-20 h-20 flex items-center justify-center rounded-full bg-emerald-500 text-white dark:text-slate-950 shadow-lg shadow-emerald-500/35 transform hover:scale-110 transition-transform duration-300">
+                      <Play className="w-9 h-9 fill-current ml-1" />
+                    </div>
+                  </div>
+                )}
 
-                  <div className="flex items-center gap-3">
+                <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-slate-950/90 to-transparent flex flex-col justify-end z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="w-full h-1 bg-white/20 relative">
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-200 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
+                      style={{ width: `${getProgressBarWidth()}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between px-6 py-3">
                     <button 
-                      onClick={toggleFullscreen}
+                      onClick={togglePlay}
                       className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
                     >
-                      {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                      {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
                     </button>
 
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[10px] text-slate-300 select-none">
-                      <Lock className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                      <span>Reproducción Protegida WAPPY</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={toggleFullscreen}
+                        className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                      >
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                      </button>
+
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[10px] text-slate-300 select-none">
+                        <Lock className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        <span>Reproducción Protegida WAPPY</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
             </div>
 
             {funnelKey === 'wappyvital' && !isUnlocked && (
@@ -2967,6 +3001,91 @@ export default function MatrizPage() {
               )}
             </div>
             )}
+
+            {/* --- Sección Quiénes Somos --- */}
+            <div className="w-full max-w-4xl mt-16 text-left relative z-20">
+              <div className="cyber-card rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-md border border-emerald-500/25">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-500/5 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-border-medium/60 mb-8">
+                  <div className="relative group shrink-0">
+                    <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full group-hover:blur-lg transition-all" />
+                    <img 
+                      src="/assets/logo.png" 
+                      alt="Wappy Emblem" 
+                      className="w-16 h-16 rounded-2xl object-contain border border-emerald-500/20 shadow-md relative z-10" 
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                      ¿Quiénes Somos?
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-text-primary mt-2 leading-tight">
+                      Liderando la Fusión de la SST y la Inteligencia Artificial
+                    </h3>
+                    <p className="text-xs text-text-secondary mt-1.5 leading-relaxed max-w-2xl">
+                      En Wappy, no solo creamos herramientas; redefinimos la forma en que los profesionales de Seguridad y Salud en el Trabajo gestionan sus riesgos. Combinamos el conocimiento metodológico tradicional con modelos avanzados de lenguaje para automatizar el 80% de las tareas manuales y repetitivas, permitiéndote tomar decisiones más rápidas e inteligentes.
+                    </p>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-6">Nuestros Mentores y Expertos</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Card 1: Carlos Gómez */}
+                  <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-emerald-500/30 transition-all duration-300 flex flex-col items-center text-center group">
+                    <div className="relative mb-4 animate-float-avatar-1">
+                      <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-md" />
+                      <img 
+                        src="/assets/avatars/Avatar1.png" 
+                        alt="Carlos Gómez" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-emerald-500/30 avatar-glow-emerald"
+                      />
+                    </div>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-emerald-400 transition-colors">Carlos Gómez</h5>
+                    <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider mt-0.5">Fundador & Investigador IA</p>
+                    <p className="text-[10px] text-text-secondary mt-2 leading-normal">
+                      Auditor e Investigador en Seguridad y Salud. Pionero en el desarrollo de algoritmos de automatización de matrices IPEVAR y codificación de software inteligente de prevención laboral.
+                    </p>
+                  </div>
+
+                  {/* Card 2: Sofía Restrepo */}
+                  <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-teal-500/30 transition-all duration-300 flex flex-col items-center text-center group">
+                    <div className="relative mb-4 animate-float-avatar-2">
+                      <div className="absolute inset-0 bg-teal-500/10 rounded-full blur-md" />
+                      <img 
+                        src="/assets/avatars/avatar2.png" 
+                        alt="Sofía Restrepo" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-teal-500/30 avatar-glow-teal"
+                      />
+                    </div>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-teal-400 transition-colors">Sofía Restrepo</h5>
+                    <p className="text-[9px] text-teal-400 font-bold uppercase tracking-wider mt-0.5">Consultora Senior SST</p>
+                    <p className="text-[10px] text-text-secondary mt-2 leading-normal">
+                      Con más de 10 años implementando el SG-SST en múltiples industrias. Experta metodológica responsable de la validación legal y técnica de cada diagnóstico generado.
+                    </p>
+                  </div>
+
+                  {/* Card 3: Wappy AI */}
+                  <div className="p-5 rounded-2xl bg-slate-900/40 dark:bg-slate-900/60 border border-border-medium/60 hover:border-cyan-500/30 transition-all duration-300 flex flex-col items-center text-center group">
+                    <div className="relative mb-4 animate-float-avatar-3">
+                      <div className="absolute inset-0 bg-cyan-500/10 rounded-full blur-md" />
+                      <img 
+                        src="/assets/avatars/avatar3.png" 
+                        alt="Wappy AI" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-cyan-500/30 avatar-glow-cyan"
+                      />
+                    </div>
+                    <h5 className="font-extrabold text-xs text-text-primary group-hover:text-cyan-400 transition-colors">Wappy AI</h5>
+                    <p className="text-[9px] text-cyan-400 font-bold uppercase tracking-wider mt-0.5">Asistente Digital Experto</p>
+                    <p className="text-[10px] text-text-secondary mt-2 leading-normal">
+                      El motor inteligente de la plataforma. Entrenado específicamente con la legislación colombiana (Res. 0312, Dec. 1072, GTC-45), listo para resolver consultas y diseñar planes de trabajo en segundos.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Clases y Capacitaciones Complementarias */}
             <div className="w-full max-w-4xl mt-12 text-left">
