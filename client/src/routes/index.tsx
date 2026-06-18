@@ -12,6 +12,7 @@ import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
 import ComunidadPage from '~/components/Marketing/ComunidadPage';
+import MatrizPage from '~/components/Marketing/MatrizPage';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import {
   Login,
@@ -191,6 +192,16 @@ export const router = createBrowserRouter(
       element: (
         <AuthContextProvider>
           <ComunidadPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matriz',
+      element: (
+        <AuthContextProvider>
+          <MatrizPage />
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),

@@ -199,15 +199,15 @@ router.post('/test-push', requireJwtAuth, async (req, res) => {
       url: '/'
     });
 
+    const failedEndpoints = [];
     let errorOccurred = null;
+
     const sendPromises = user.pushSubscriptions.map(sub => 
       webpush.sendNotification(sub, payload).catch(async (err) => {
         errorOccurred = err.message || String(err);
-        // If subscription is expired or invalid, remove it
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          user.pushSubscriptions = user.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
-          user.markModified('pushSubscriptions');
-          await user.save();
+        // If subscription is expired, invalid, or belongs to old VAPID keys (403), mark for removal
+        if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 403) {
+          failedEndpoints.push(sub.endpoint);
         }
         logger.error(`[Notifications] Push failed for endpoint: ${sub.endpoint}. StatusCode: ${err.statusCode}, Body: ${err.body}`, err);
       })
@@ -215,7 +215,14 @@ router.post('/test-push', requireJwtAuth, async (req, res) => {
 
     await Promise.all(sendPromises);
 
-    if (errorOccurred) {
+    // Batch update database once
+    if (failedEndpoints.length > 0) {
+      user.pushSubscriptions = user.pushSubscriptions.filter(s => !failedEndpoints.includes(s.endpoint));
+      user.markModified('pushSubscriptions');
+      await user.save();
+    }
+
+    if (errorOccurred && user.pushSubscriptions.length === 0) {
       return res.status(500).json({ error: `Push failed: ${errorOccurred}` });
     }
 
@@ -244,6 +251,7 @@ router.post('/admin-push', requireJwtAuth, async (req, res) => {
     
     let totalSent = 0;
     const sendPromises = [];
+    const adminFailedEndpointsMap = new Map(); // adminId -> Array of failed endpoints
 
     const payload = JSON.stringify({
       title: title,
@@ -259,12 +267,13 @@ router.post('/admin-push', requireJwtAuth, async (req, res) => {
               .then(() => {
                 totalSent++;
               })
-              .catch(async (err) => {
-                // Remove expired subscription
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                  admin.pushSubscriptions = admin.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
-                  admin.markModified('pushSubscriptions');
-                  await admin.save();
+              .catch((err) => {
+                // If subscription is expired, invalid, or belongs to old VAPID keys (403), mark for removal
+                if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 403) {
+                  if (!adminFailedEndpointsMap.has(admin.id)) {
+                    adminFailedEndpointsMap.set(admin.id, []);
+                  }
+                  adminFailedEndpointsMap.get(admin.id).push(sub.endpoint);
                 }
                 logger.error(`[Notifications] Push failed for admin: ${admin.email}. StatusCode: ${err.statusCode}, Body: ${err.body}`, err);
               })
@@ -274,6 +283,18 @@ router.post('/admin-push', requireJwtAuth, async (req, res) => {
     }
 
     await Promise.all(sendPromises);
+
+    // Batch update database for each admin once
+    for (const admin of admins) {
+      const failedEndpoints = adminFailedEndpointsMap.get(admin.id);
+      if (failedEndpoints && failedEndpoints.length > 0) {
+        admin.pushSubscriptions = admin.pushSubscriptions.filter(s => !failedEndpoints.includes(s.endpoint));
+        admin.markModified('pushSubscriptions');
+        await admin.save().catch(saveErr => {
+          logger.error(`[Notifications] Failed to save updated subscriptions for admin: ${admin.email}`, saveErr);
+        });
+      }
+    }
 
     res.json({ success: true, message: `Notification broadcasted to ${totalSent} administrator devices.` });
   } catch (error) {

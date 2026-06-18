@@ -11,7 +11,9 @@ import {
   Sparkles, 
   Cpu, 
   Plus,
-  Lock
+  Lock,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { PREMIUM_SST_COMPONENTS } from './sstTemplates';
@@ -55,6 +57,42 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'code');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const el = iframeContainerRef.current || containerRef.current;
+    if (!document.fullscreenElement) {
+      try {
+        if (el?.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          await (el as any).webkitRequestFullscreen();
+        }
+      } catch (err) {
+        console.error('Fullscreen request failed:', err);
+      }
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      } catch (err) {
+        console.error('Exit fullscreen failed:', err);
+      }
+    }
+  };
 
   // Safely fallback activeTab to "code" if not maximized or on mobile screen and currently in "split"
   useEffect(() => {
@@ -147,7 +185,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const showSidebar = isMaximized && sidebarOpen;
 
   return (
-    <div className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
+    <div ref={containerRef} className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
       
       {/* Mobile Sidebar Backdrop Overlay */}
       {isMaximized && sidebarOpen && (
@@ -285,20 +323,39 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={handleDownloadHtml}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
-            aria-label="Descargar HTML"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-              <Download className="h-4 w-4 text-text-primary" />
-            </div>
-            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-sm font-bold tracking-wide text-text-primary">
-                Descargar HTML
-              </span>
-            </div>
-          </button>
+          <div className="flex items-center gap-2">
+            {(activeTab === 'preview' || activeTab === 'split') && (
+              <button
+                onClick={toggleFullscreen}
+                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+              >
+                <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                  {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
+                </div>
+                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                  <span className="text-sm font-bold tracking-wide text-text-primary">
+                    {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+                  </span>
+                </div>
+              </button>
+            )}
+
+            <button
+              onClick={handleDownloadHtml}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              aria-label="Descargar HTML"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                <Download className="h-4 w-4 text-text-primary" />
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-text-primary">
+                  Descargar HTML
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Main Workspace splits */}
@@ -323,7 +380,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
           {/* Right Side: Iframe Live Preview */}
           {(activeTab === 'split' || activeTab === 'preview') && (
-            <div className="flex-1 h-full bg-white relative">
+            <div ref={iframeContainerRef} className="flex-1 h-full bg-white relative">
               <iframe
                 title="Canvas Live View"
                 className="w-full h-full border-none bg-white"

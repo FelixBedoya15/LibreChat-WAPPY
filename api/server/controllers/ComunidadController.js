@@ -32,6 +32,12 @@ const getComunidadConfig = async (req, res) => {
                 showQuickAccessBanner: true,
                 downloadableFiles: [],
                 whatsappUrl: 'https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4',
+                matrizDate1: 'Martes 7:00 PM',
+                matrizWhatsappUrl1: '',
+                matrizDate2: 'Jueves 7:00 PM',
+                matrizWhatsappUrl2: '',
+                matrizDate3: 'Sábado 4:00 PM',
+                matrizWhatsappUrl3: '',
                 extraVideoUrl1: '',
                 extraVideoTitle1: 'Clase Extra 1',
                 extraVideoUrl2: '',
@@ -89,6 +95,9 @@ const updateComunidadConfig = async (req, res) => {
         const { 
             videoUrl, requiresPayment, price, gatingSeconds, gatingEnabled, downloadableFiles,
             whatsappUrl, showQuickAccessBanner,
+            matrizDate1, matrizWhatsappUrl1,
+            matrizDate2, matrizWhatsappUrl2,
+            matrizDate3, matrizWhatsappUrl3,
             extraVideoUrl1, extraVideoTitle1, 
             extraVideoUrl2, extraVideoTitle2,
             extraVideoUrl3, extraVideoTitle3,
@@ -116,6 +125,12 @@ const updateComunidadConfig = async (req, res) => {
         if (showQuickAccessBanner !== undefined) config.showQuickAccessBanner = showQuickAccessBanner;
         if (downloadableFiles !== undefined) config.downloadableFiles = downloadableFiles;
         if (whatsappUrl !== undefined) config.whatsappUrl = whatsappUrl;
+        if (matrizDate1 !== undefined) config.matrizDate1 = matrizDate1;
+        if (matrizWhatsappUrl1 !== undefined) config.matrizWhatsappUrl1 = matrizWhatsappUrl1;
+        if (matrizDate2 !== undefined) config.matrizDate2 = matrizDate2;
+        if (matrizWhatsappUrl2 !== undefined) config.matrizWhatsappUrl2 = matrizWhatsappUrl2;
+        if (matrizDate3 !== undefined) config.matrizDate3 = matrizDate3;
+        if (matrizWhatsappUrl3 !== undefined) config.matrizWhatsappUrl3 = matrizWhatsappUrl3;
         if (extraVideoUrl1 !== undefined) config.extraVideoUrl1 = extraVideoUrl1;
         if (extraVideoTitle1 !== undefined) config.extraVideoTitle1 = extraVideoTitle1;
         if (extraVideoUrl2 !== undefined) config.extraVideoUrl2 = extraVideoUrl2;

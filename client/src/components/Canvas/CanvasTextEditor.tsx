@@ -16,8 +16,10 @@ import {
   Scale,
   Heart,
   ShieldAlert,
-  Link2
+  Link2,
+  Upload
 } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import { ritTemplateTradicional } from './rit_template_tradicional';
 import { ritTemplateHumanista } from './rit_template_humanista';
@@ -1244,10 +1246,125 @@ const INLAYS = [
 ];
 
 const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onUpdate, onApplyTemplate, reportSourceData, isMaximized }) => {
+  const { token } = useAuthContext();
   const liveEditorRef = useRef<LiveEditorHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'templates' | 'inlays'>('templates');
   const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  const mergeWordContent = (newHtml: string) => {
+    const currentHtml = liveEditorRef.current?.getHTML() || initialContent || '';
+    
+    // Extract banner/header from currentHtml
+    let headerHtml = '';
+    const headerStartIdx = currentHtml.indexOf('<div style="background: linear-gradient');
+    if (headerStartIdx !== -1) {
+      let tableEndMatch = currentHtml.match(/<\/table>\s*<\/div>/i);
+      if (!tableEndMatch) {
+        tableEndMatch = currentHtml.match(/<\/table>/i);
+      }
+      if (tableEndMatch) {
+        const endIdx = currentHtml.indexOf(tableEndMatch[0], headerStartIdx);
+        if (endIdx !== -1) {
+          headerHtml = currentHtml.substring(headerStartIdx, endIdx + tableEndMatch[0].length);
+        }
+      }
+    } else {
+      const tableStartIdx = currentHtml.indexOf('<div style="overflow-x: auto;');
+      if (tableStartIdx !== -1) {
+        let tableEndMatch = currentHtml.match(/<\/table>\s*<\/div>/i) || currentHtml.match(/<\/table>/i);
+        if (tableEndMatch) {
+          const endIdx = currentHtml.indexOf(tableEndMatch[0], tableStartIdx);
+          if (endIdx !== -1) {
+            headerHtml = currentHtml.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
+          }
+        }
+      }
+    }
+    
+    // Extract signature from currentHtml
+    let signatureHtml = '';
+    const variations = [
+      '<div style="margin-top: 60px;',
+      '<div style="margin-top:60px;',
+      '<div style="margin-top: 50px;',
+      '<div style="margin-top:50px;',
+      '<div style="page-break-inside:avoid;',
+      '<div class="signature-placeholder',
+    ];
+    for (const variation of variations) {
+      const index = currentHtml.lastIndexOf(variation);
+      if (index !== -1) {
+        signatureHtml = currentHtml.substring(index);
+        break;
+      }
+    }
+
+    let mergedHtml = '';
+    if (headerHtml) {
+      mergedHtml += headerHtml + '\n\n';
+    }
+    mergedHtml += newHtml;
+    if (signatureHtml) {
+      mergedHtml += '\n\n' + signatureHtml;
+    } else {
+      mergedHtml += '\n\n' + DEFAULT_SIGNATURE_BLOCK;
+    }
+
+    return mergedHtml;
+  };
+
+  const handleWordUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setIsUploading(true);
+      const res = await fetch('/api/live/documents/extract', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error del servidor (${res.status})`);
+      }
+
+      const data = await res.json();
+      let extractedHtml = '';
+      if (data.html) {
+        extractedHtml = data.html;
+      } else if (data.text) {
+        extractedHtml = data.text
+          .split('\n\n')
+          .filter((p: string) => p.trim())
+          .map((p: string) => `<p>${p.trim().replace(/\n/g, '<br/>')}</p>`)
+          .join('\n');
+      }
+
+      if (!extractedHtml) {
+        throw new Error('No se pudo extraer ningún texto del documento cargado.');
+      }
+
+      const mergedHtml = mergeWordContent(extractedHtml);
+
+      liveEditorRef.current?.setHTML(mergedHtml);
+      onUpdate(mergedHtml);
+
+    } catch (err: any) {
+      console.error('[CanvasTextEditor] Upload error:', err);
+      alert(err.message || 'Error al subir el archivo');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleImportTable = (html: string) => {
     if (liveEditorRef.current) {
@@ -1405,15 +1522,35 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold text-text-secondary">Documento de Texto</span>
           </div>
-          <button
-            onClick={() => setIsBridgeOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
-            title="Conectar con otros Lienzos (Excel)"
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Conectar Lienzo (Excel)</span>
-            <span className="sm:hidden">Conectar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 cursor-pointer shadow-sm disabled:opacity-50"
+              title="Cargar archivo Word (.docx) respetando el diseño"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{isUploading ? 'Cargando...' : 'Cargar Word'}</span>
+              <span className="sm:hidden">{isUploading ? '...' : 'Cargar'}</span>
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".docx"
+              onChange={handleWordUpload}
+            />
+
+            <button
+              onClick={() => setIsBridgeOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
+              title="Conectar con otros Lienzos (Excel)"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Conectar Lienzo (Excel)</span>
+              <span className="sm:hidden">Conectar</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden relative">
@@ -1423,7 +1560,7 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
             onUpdate={onUpdate}
             reportType="general"
             paperMode={true}
-            hideFullscreen={true} // Fullscreen handled by the outer Canvas container
+            hideFullscreen={false} // Fullscreen button enabled in the editor toolbar
             reportSourceData={reportSourceData}
             hideToolbarWhenCollapsed={!isMaximized}
           />

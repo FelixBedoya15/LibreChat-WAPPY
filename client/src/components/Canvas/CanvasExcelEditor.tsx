@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, FileSpreadsheet, Download, RefreshCw, Grid, BarChart2, TrendingUp, Sparkles, Copy, X, PieChart, Info } from 'lucide-react';
+import { Plus, Trash2, FileSpreadsheet, Download, RefreshCw, Grid, BarChart2, TrendingUp, Sparkles, Copy, X, PieChart, Info, Maximize, Minimize } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -149,6 +149,41 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [formulaValue, setFormulaValue] = useState<string>('');
   const gridRef = useRef<HTMLDivElement>(null);
+  const excelWrapperRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const el = excelWrapperRef.current;
+    if (!document.fullscreenElement) {
+      try {
+        if (el?.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          await (el as any).webkitRequestFullscreen();
+        }
+      } catch (err) {
+        console.error('Fullscreen request failed:', err);
+      }
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      } catch (err) {
+        console.error('Exit fullscreen failed:', err);
+      }
+    }
+  };
 
   // Estados para el panel de análisis gráfico
   const [isChartPanelOpen, setIsChartPanelOpen] = useState<boolean>(false);
@@ -569,7 +604,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
   }, [onRegisterDownload, data, title]);
 
   return (
-    <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
+    <div ref={excelWrapperRef} className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
       {/* Excel Formula & Controls Bar */}
       <div className="flex flex-col gap-2 p-3 border-b border-border-medium bg-surface-secondary">
         <div className="flex items-center gap-2">
@@ -663,6 +698,21 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                 <span className="text-sm font-bold tracking-wide">
                   Analizar
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
+                {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
+              </div>
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-sm font-bold tracking-wide text-text-primary">
+                  {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                 </span>
               </div>
             </button>

@@ -147,6 +147,36 @@ const ComunidadConfigSchema = new mongoose.Schema({
     showQuickAccessBanner: {
         type: Boolean,
         default: true
+    },
+    matrizDate1: {
+        type: String,
+        default: 'Fecha 1',
+        trim: true
+    },
+    matrizWhatsappUrl1: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    matrizDate2: {
+        type: String,
+        default: 'Fecha 2',
+        trim: true
+    },
+    matrizWhatsappUrl2: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    matrizDate3: {
+        type: String,
+        default: 'Fecha 3',
+        trim: true
+    },
+    matrizWhatsappUrl3: {
+        type: String,
+        default: '',
+        trim: true
     }
 }, { timestamps: true });
 
