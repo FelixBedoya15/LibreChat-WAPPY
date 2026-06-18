@@ -271,6 +271,63 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     titleRef.current = title;
   }, [title]);
 
+  // Save pending changes immediately on unmount, changing chat, or closing the tab
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (saveTimeoutRef.current) {
+        const activeConvoId = conversationId;
+        if (activeConvoId && activeConvoId !== 'new') {
+          fetch(`/api/sgsst/canvas/${activeConvoId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              content:
+                fileTypeRef.current === 'text'
+                  ? appendSignatureIfMissing(contentRef.current)
+                  : contentRef.current,
+              title: titleRef.current,
+              fileType: fileTypeRef.current,
+              isManual: true,
+            }),
+            keepalive: true,
+          });
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+        const activeConvoId = conversationId;
+        if (activeConvoId && activeConvoId !== 'new') {
+          fetch(`/api/sgsst/canvas/${activeConvoId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              content:
+                fileTypeRef.current === 'text'
+                  ? appendSignatureIfMissing(contentRef.current)
+                  : contentRef.current,
+              title: titleRef.current,
+              fileType: fileTypeRef.current,
+              isManual: true,
+            }),
+          }).catch(err => console.error('[CanvasPanel] Save on exit error:', err));
+        }
+      }
+    };
+  }, [conversationId, token]);
+
   // ── Markdown → HTML conversion (for agent-created content) ─────────────
   // The CanvasTool sends markdown; the LiveEditor renders HTML.
   // This lightweight converter handles the common cases produced by LLMs.
