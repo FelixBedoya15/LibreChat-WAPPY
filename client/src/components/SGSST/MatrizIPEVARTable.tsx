@@ -1756,7 +1756,34 @@ export default function MatrizIPEVARTable({
       </div>
 
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto custom-scrollbar-ipevar">
+        <style>{`
+          .custom-scrollbar-ipevar::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-track {
+            background: #1e293b;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 6px;
+            border: 2px solid #f1f5f9;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border: 2px solid #1e293b;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
+            background: #0d9488;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
+            background: #0f766e;
+          }
+        `}</style>
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
