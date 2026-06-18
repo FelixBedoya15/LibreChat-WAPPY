@@ -653,12 +653,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const handleContentUpdate = (newContent: string) => {
     const updated =
       fileTypeRef.current === 'text' ? appendSignatureIfMissing(newContent) : newContent;
+    // Update ref only (not state) to prevent parent state re-renders and editor cursor jumping
+    contentRef.current = updated;
     if (isMutingAutoSaveRef.current) {
-      setContent(updated);
-      contentRef.current = updated;
       return;
     }
-    setContent(updated);
     queueSave();
   };
 

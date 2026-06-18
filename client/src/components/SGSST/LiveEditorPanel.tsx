@@ -343,10 +343,16 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         if (liveEditorRef.current) {
           liveEditorRef.current.setHTML('');
         }
+        if (userId && token && (conversationId === 'new' || !conversationId)) {
+          fetch(`/api/live-editor/temp-${userId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(err => console.error('[LiveEditorPanel] Clear temp error:', err));
+        }
       }
       prevConvoIdRef.current = conversationId;
     }
-  }, [conversationId]);
+  }, [conversationId, userId, token]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
