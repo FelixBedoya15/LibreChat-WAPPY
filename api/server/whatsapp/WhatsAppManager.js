@@ -159,6 +159,37 @@ class WhatsAppManager {
     }
   }
 
+  cleanLockFiles(userId) {
+    const userSessionPath = path.join(this.sessionPath, `session-${userId}`);
+    if (!fs.existsSync(userSessionPath)) return;
+
+    const filesToDelete = ['SingletonLock', 'SingletonSocket', 'SingletonCookie'];
+    
+    const deleteRecursive = (dir) => {
+      if (!fs.existsSync(dir)) return;
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            deleteRecursive(fullPath);
+          } else if (filesToDelete.includes(entry.name) || entry.name.toLowerCase().includes('singleton')) {
+            try {
+              fs.unlinkSync(fullPath);
+              console.log(`[WhatsApp Manager] Deleted lock/singleton file: ${fullPath}`);
+            } catch (err) {
+              console.error(`[WhatsApp Manager] Failed to delete lock file ${fullPath}:`, err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[WhatsApp Manager] Error reading directory ${dir}:`, err);
+      }
+    };
+
+    deleteRecursive(userSessionPath);
+  }
+
   async startClientForUser(userId) {
     if (this.clients.has(userId)) {
       const currentStatus = this.statuses.get(userId);
@@ -166,9 +197,9 @@ class WhatsAppManager {
     }
 
     console.log(`[WhatsApp Manager] Booting client for user: ${userId}`);
+    this.cleanLockFiles(userId);
     this.statuses.set(userId, 'STARTING');
     this.qrCodes.delete(userId);
-
     const puppeteerOptions = {
       headless: true,
       args: [
