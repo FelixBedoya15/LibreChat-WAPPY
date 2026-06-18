@@ -158,7 +158,36 @@ router.post('/extract', upload.single('file'), async (req, res) => {
       }
     }
 
-    return res.status(400).json({ error: 'Formato de archivo no soportado. Debe ser .docx o .pdf' });
+    // DOC Handling (HTML/MHTML format exported by the app)
+    if (originalName.endsWith('.doc') || originalName.endsWith('.html') || originalName.endsWith('.htm')) {
+      let html = file.buffer.toString('utf-8');
+      
+      // If it is MHTML format, extract the HTML content part
+      if (html.includes('Content-Type: text/html')) {
+        const boundaryMatch = html.match(/boundary="([^"]+)"/);
+        if (boundaryMatch) {
+          const boundary = boundaryMatch[1];
+          const parts = html.split(`--${boundary}`);
+          const htmlPart = parts.find(p => p.includes('Content-Type: text/html'));
+          if (htmlPart) {
+            const headerEndIndex = htmlPart.indexOf('\r\n\r\n');
+            if (headerEndIndex !== -1) {
+              html = htmlPart.substring(headerEndIndex + 4);
+            } else {
+              const altEndIndex = htmlPart.indexOf('\n\n');
+              if (altEndIndex !== -1) {
+                html = htmlPart.substring(altEndIndex + 2);
+              }
+            }
+          }
+        }
+      }
+      
+      html = cleanDocxHtml(html);
+      return res.json({ fileName: file.originalname, html, type: 'doc' });
+    }
+ 
+    return res.status(400).json({ error: 'Formato de archivo no soportado. Debe ser .docx, .doc o .pdf' });
   } catch (error) {
     logger.error('Error extracting file content:', error);
     res.status(500).json({ error: 'Error al extraer el contenido del archivo' });

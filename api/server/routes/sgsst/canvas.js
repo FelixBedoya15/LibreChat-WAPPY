@@ -328,27 +328,37 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 
       const titleChanged = session.title !== savedTitle && savedTitle !== undefined;
 
+      const { isManual } = req.body;
+
       if (contentChanged || titleChanged) {
-        const nextVersion = session.version + 1;
+        if (isManual) {
+          const nextVersion = session.version + 1;
 
-        // Agregar al historial limitando a los últimos 20 cambios
-        const newHistoryItem = {
-          version: nextVersion,
-          content: processedContent ?? session.content,
-          title: savedTitle,
-          fileType: fileType || session.fileType,
-          updatedAt: new Date(),
-        };
+          // Agregar al historial limitando a los últimos 20 cambios
+          const newHistoryItem = {
+            version: nextVersion,
+            content: processedContent ?? session.content,
+            title: savedTitle,
+            fileType: fileType || session.fileType,
+            updatedAt: new Date(),
+          };
 
-        const maxHistory = req.user.role === 'USER' ? 5 : 20;
-        const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
+          const maxHistory = req.user.role === 'USER' ? 5 : 20;
+          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
 
-        session.content = processedContent ?? session.content;
-        session.title = savedTitle;
-        if (fileType) session.fileType = fileType;
-        if (companyId) session.companyId = companyId; // Sync active company ID
-        session.version = nextVersion;
-        session.history = updatedHistory;
+          session.content = processedContent ?? session.content;
+          session.title = savedTitle;
+          if (fileType) session.fileType = fileType;
+          if (companyId) session.companyId = companyId; // Sync active company ID
+          session.version = nextVersion;
+          session.history = updatedHistory;
+        } else {
+          // Auto-save: update content/title in-place without creating a new version
+          session.content = processedContent ?? session.content;
+          session.title = savedTitle;
+          if (fileType) session.fileType = fileType;
+          if (companyId) session.companyId = companyId; // Sync active company ID
+        }
 
         await session.save();
       }

@@ -597,7 +597,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
   const saveSession = useCallback(
-    async (customId?: string) => {
+    async (customId?: string, isManual = false) => {
       const activeConvoId = customId || conversationId;
       if (!activeConvoId || activeConvoId === 'new') return;
       isSavingRef.current = true;
@@ -617,6 +617,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 : contentRef.current,
             title: titleRef.current,
             fileType: fileTypeRef.current,
+            isManual,
           }),
         });
         const data = await res.json();
@@ -1059,7 +1060,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                await saveSession();
+                await saveSession(undefined, true);
               }}
               disabled={isSaving}
               className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"

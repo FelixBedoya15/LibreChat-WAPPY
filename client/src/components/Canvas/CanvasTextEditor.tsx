@@ -1531,7 +1531,7 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 cursor-pointer shadow-sm disabled:opacity-50"
-              title="Cargar archivo Word (.docx) respetando el diseño"
+              title="Cargar archivo Word (.docx, .doc) respetando el diseño"
             >
               <Upload className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{isUploading ? 'Cargando...' : 'Cargar Word'}</span>
@@ -1541,7 +1541,7 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".docx"
+              accept=".docx,.doc"
               onChange={handleWordUpload}
             />
 
