@@ -214,11 +214,10 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     const np = nd * ne;
     updatedFields.np = np;
 
-    let interpretacion_np = '';
+    let interpretacion_np = 'Bajo (B)';
     if (np >= 24) interpretacion_np = 'Muy Alto (MA)';
     else if (np >= 10) interpretacion_np = 'Alto (A)';
     else if (np >= 6) interpretacion_np = 'Medio (M)';
-    else if (np >= 2) interpretacion_np = 'Bajo (B)';
     updatedFields.interpretacion_np = interpretacion_np;
 
     const nc = Number(updatedFields.nc) || 0;
@@ -625,11 +624,10 @@ ${JSON.stringify(chunk, null, 2)}
         const ncVal = Number(row.nc) || 0;
         const nrVal = npVal * ncVal;
 
-        let interpretacion_np = '';
+        let interpretacion_np = 'Bajo (B)';
         if (npVal >= 24) interpretacion_np = 'Muy Alto (MA)';
         else if (npVal >= 10) interpretacion_np = 'Alto (A)';
         else if (npVal >= 6) interpretacion_np = 'Medio (M)';
-        else if (npVal >= 2) interpretacion_np = 'Bajo (B)';
 
         let interpretacion_nr = 'IV';
         if (nrVal >= 600) interpretacion_nr = 'I';

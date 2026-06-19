@@ -258,11 +258,10 @@ class MatrizIPEVAR extends Tool {
         const nc = Number(riesgo.nc) || 0;
         const nr = np * nc;
 
-        let interpretacion_np = '';
+        let interpretacion_np = 'Bajo (B)';
         if (np >= 24) interpretacion_np = 'Muy Alto (MA)';
         else if (np >= 10) interpretacion_np = 'Alto (A)';
         else if (np >= 6) interpretacion_np = 'Medio (M)';
-        else if (np >= 2) interpretacion_np = 'Bajo (B)';
 
         let interpretacion_nr = 'IV';
         if (nr >= 600) interpretacion_nr = 'I';

@@ -39,8 +39,8 @@ export interface MatrixRow {
   requisito_legal?: 'Sí' | 'No' | ''; // NUEVA: Criterio - Requisito legal
 }
 
-export const getInterpretacionNP = (np: number): string => {
-  if (!np) return '—';
+export const getInterpretacionNP = (np: number | undefined | null): string => {
+  if (np === undefined || np === null || isNaN(np)) return '—';
   if (np >= 24) return 'Muy Alto (MA)';
   if (np >= 10) return 'Alto (A)';
   if (np >= 6) return 'Medio (M)';
