@@ -18,25 +18,24 @@ class MatrizPESV extends Tool {
       filtro_peligro: z.string().optional().describe('Filtro para leer.'),
       ids_a_borrar: z.array(z.string()).optional().describe('Arreglo de IDs de los riesgos que deseas eliminar. Solamente usado cuando accion="borrar".'),
       riesgos: z.array(z.object({
-        proceso: z.string().describe('El proceso o área general.'),
-        zona: z.string().describe('Lugar o zona de trabajo / trayecto.'),
-        actor_vial: z.string().describe('Actor vial (Peatón, Pasajero, Conductor de motocicleta, Conductor de vehículo liviano, Conductor de vehículo pesado, Ciclista, etc.).'),
-        tipo_desplazamiento: z.enum(['Misional', 'In itinere']).describe('Tipo de desplazamiento.'),
-        factor_riesgo: z.enum(['Factor Humano', 'Factor Vehicular', 'Factor Infraestructura', 'Entorno/Otros']).describe('Factor de riesgo vial analizado.'),
-        peligro_descripcion: z.string().describe('Descripción del riesgo vial (ej. exceso de velocidad, microsueños, frenos desgastados, lluvia, etc.).'),
-        consecuencias: z.string().describe('Posibles efectos, lesiones o consecuencias en la salud.'),
-        controles_existentes_persona: z.string().default('Ninguno').describe('Controles en la persona.'),
-        controles_existentes_vehiculo: z.string().default('Ninguno').describe('Controles en el vehículo.'),
-        controles_existentes_via: z.string().default('Ninguno').describe('Controles en la vía / entorno.'),
-        probabilidad: z.number().describe('Nivel de Probabilidad (1 a 4).'),
-        severidad: z.number().describe('Nivel de Consecuencia/Severidad (10, 25, 60 o 100).'),
-        medida_eliminacion: z.string().default('Ninguno').describe('Medidas: Eliminación.'),
-        medida_sustitucion: z.string().default('Ninguno').describe('Medidas: Sustitución.'),
-        medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería.'),
-        medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos.'),
-        medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos y seguridad pasiva.'),
-        factores_reduccion: z.string().default('No aplica').describe('Explicación detallada de cómo reducirá el riesgo la intervención y su relación costo-beneficio.'),
-        responsable: z.string().default('Ninguno').describe('Cargo responsable de la implementación de los controles.'),
+        grupo_trabajo: z.string().describe('Clasificación Grupos de trabajo (ej. OPERATIVO, ADMINISTRATIVO).'),
+        cargo: z.string().describe('Cargo individual del trabajador.'),
+        tipo_desplazamiento: z.string().describe('Tipo de desplazamiento ("Misional" o "In itinere").'),
+        rol_via: z.string().describe('Rol en la vía (Conductor de vehículo pesado, Conductor de vehículo liviano, Conductor de motocicleta, Peatón, Pasajero, Ciclista, Otro).'),
+        factor_riesgo: z.string().describe('Factor de riesgo (Factor Humano, Factor Vehicular, Factor Infraestructura, Entorno/Otros).'),
+        peligro_descripcion: z.string().describe('Descripción del peligro o riesgo vial analizado.'),
+        np_cualitativo: z.string().describe('Nivel de Probabilidad cualitativo: "MUY PROBABLE", "MEDIANAMENTE PROBABLE", "PROBABLE", "POCO PROBABLE" o "NO ES PROBABLE".'),
+        ne_cualitativo: z.string().describe('Nivel de Exposición cualitativo: "CONSTANTE", "FRECUENTE", "OCASIONAL", "ESPORADICO" o "MINIMA".'),
+        nc_cualitativo: z.string().describe('Nivel de Consecuencia cualitativo: "CRITICO", "PELIGROSO", "MODERADO", "MARGINAL" o "INSIGNIFICANTE".'),
+        controles_existentes_descripcion: z.string().default('Ninguno').describe('Interpretación o descripción de los controles existentes.'),
+        controles_existentes_tipo: z.string().default('Ninguno').describe('Tipo de control (INDIVIDUO, MEDIO, MEDIO-INDIVIDUO, VEHICULO, INFRAESTRUCTURA).'),
+        tratamiento_accion: z.string().default('Ninguno').describe('Acción de tratamiento (ACEPTARLO, EVITARLO, ELIMINAR LA FUENTE QUE OCACIONA, MODIFICAR LOS FACTORES DE EXPOSICION).'),
+        plan_accion_medio: z.string().default('Ninguno').describe('Planes propuestos para el medio.'),
+        plan_accion_individuo: z.string().default('Ninguno').describe('Planes propuestos para el individuo.'),
+        responsable: z.string().default('Responsable PESV').describe('Cargo responsable del control.'),
+        fecha_programacion: z.string().default('Permanente').describe('Fecha o frecuencia de programación.'),
+        estado: z.string().default('PLANEADA').describe('Estado de la tarea ("PLANEADA" o "CERRADA").'),
+        observaciones: z.string().default('').describe('Observaciones adicionales.')
       })).optional().describe('Lista de riesgos viales. OBLIGATORIO si accion="escribir". Vacío en otros casos.')
     });
   }
@@ -158,10 +157,13 @@ class MatrizPESV extends Tool {
         
         let rows = session.matrixRows;
         if (filtro_proceso) {
-          rows = rows.filter(r => r.proceso && r.proceso.toLowerCase().includes(filtro_proceso.toLowerCase()));
+          rows = rows.filter(r => 
+            (r.grupo_trabajo && r.grupo_trabajo.toLowerCase().includes(filtro_proceso.toLowerCase())) ||
+            (r.cargo && r.cargo.toLowerCase().includes(filtro_proceso.toLowerCase()))
+          );
         }
         if (filtro_actor_vial) {
-          rows = rows.filter(r => r.actor_vial && r.actor_vial.toLowerCase().includes(filtro_actor_vial.toLowerCase()));
+          rows = rows.filter(r => r.rol_via && r.rol_via.toLowerCase().includes(filtro_actor_vial.toLowerCase()));
         }
         if (filtro_peligro) {
           rows = rows.filter(r => r.peligro_descripcion && r.peligro_descripcion.toLowerCase().includes(filtro_peligro.toLowerCase()));
@@ -210,38 +212,95 @@ class MatrizPESV extends Tool {
       let insertedCount = 0;
       let updatedCount = 0;
 
-      for (const riesgo of riesgos) {
-        // Calificación de riesgo PESV: Probabilidad * Severidad
-        const probabilidad = Number(riesgo.probabilidad) || 0;
-        const severidad = Number(riesgo.severidad) || 0;
-        const nivel_riesgo = probabilidad * severidad;
+      const mapNP = (lbl) => {
+        const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (norm.includes('MUY PROBABLE')) return 5;
+        if (norm.includes('MEDIANAMENTE') || norm.includes('MEDIA')) return 4;
+        if (norm.includes('POCO PROBABLE')) return 2;
+        if (norm.includes('NO ES PROBABLE') || norm.includes('NO PROBABLE')) return 1;
+        if (norm.includes('PROBABLE')) return 3;
+        return 3;
+      };
 
-        // Interpretación simplificada del nivel de riesgo vial
-        let interpretacion_nr = 'Bajo';
-        let aceptabilidad = 'Aceptable';
+      const mapNE = (lbl) => {
+        const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (norm.includes('CONSTANTE')) return 5;
+        if (norm.includes('FRECUENTE')) return 4;
+        if (norm.includes('OCASIONAL')) return 3;
+        if (norm.includes('ESPORADICO')) return 2;
+        if (norm.includes('MINIMA')) return 1;
+        return 3;
+      };
+
+      const mapNC = (lbl) => {
+        const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (norm.includes('CRITICO')) return 5;
+        if (norm.includes('PELIGROSO')) return 4;
+        if (norm.includes('MODERADO')) return 3;
+        if (norm.includes('MARGINAL')) return 2;
+        if (norm.includes('INSIGNIFICANTE')) return 1;
+        return 3;
+      };
+
+      const getNPLabel = (val) => {
+        if (val === 5) return 'MUY PROBABLE';
+        if (val === 4) return 'MEDIANAMENTE PROBABLE';
+        if (val === 2) return 'POCO PROBABLE';
+        if (val === 1) return 'NO ES PROBABLE';
+        return 'PROBABLE';
+      };
+
+      const getNELabel = (val) => {
+        if (val === 5) return 'CONSTANTE';
+        if (val === 4) return 'FRECUENTE';
+        if (val === 2) return 'ESPORADICO';
+        if (val === 1) return 'MINIMA';
+        return 'OCASIONAL';
+      };
+
+      const getNCLabel = (val) => {
+        if (val === 5) return 'CRITICO';
+        if (val === 4) return 'PELIGROSO';
+        if (val === 2) return 'MARGINAL';
+        if (val === 1) return 'INSIGNIFICANTE';
+        return 'MODERADO';
+      };
+
+      for (const riesgo of riesgos) {
+        // Calificación de riesgo vial (Suma de Probabilidad + Exposición + Consecuencia)
+        const np_cuantitativo = Number(riesgo.np_cuantitativo) || mapNP(riesgo.np_cualitativo);
+        const ne_cuantitativo = Number(riesgo.ne_cuantitativo) || mapNE(riesgo.ne_cualitativo);
+        const nc_cuantitativo = Number(riesgo.nc_cuantitativo) || mapNC(riesgo.nc_cualitativo);
+        const calificacion = np_cuantitativo + ne_cuantitativo + nc_cuantitativo;
+
+        let nivel_riesgo = 'NIVEL DE RIESGO BAJO';
+        let aceptabilidad = 'ACEPTABLE';
         
-        if (nivel_riesgo >= 200) {
-          interpretacion_nr = 'Crítico';
-          aceptabilidad = 'No Aceptable';
-        } else if (nivel_riesgo >= 100) {
-          interpretacion_nr = 'Alto';
-          aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
-        } else if (nivel_riesgo >= 40) {
-          interpretacion_nr = 'Medio';
-          aceptabilidad = 'Aceptable con Control Específico';
+        if (calificacion >= 12) {
+          nivel_riesgo = 'NIVEL DE RIESGO ALTO o CRITICO';
+          aceptabilidad = 'NO ACEPTABLE';
+        } else if (calificacion >= 8) {
+          nivel_riesgo = 'NIVEL DE RIESGO MEDIO o MODERADO';
+          aceptabilidad = 'ACEPTABLE CON CONTROL ESPECIFICO';
         }
 
         const row = {
           ...riesgo,
+          np_cuantitativo,
+          ne_cuantitativo,
+          nc_cuantitativo,
+          np_cualitativo: getNPLabel(np_cuantitativo),
+          ne_cualitativo: getNELabel(ne_cuantitativo),
+          nc_cualitativo: getNCLabel(nc_cuantitativo),
+          calificacion,
           nivel_riesgo,
-          interpretacion_nr,
           aceptabilidad,
         };
 
         // Búsqueda por clave compuesta para actualización o inserción
         const targetIndex = session.matrixRows.findIndex(r => 
-          r.proceso?.toLowerCase() === riesgo.proceso?.toLowerCase() &&
-          r.actor_vial?.toLowerCase() === riesgo.actor_vial?.toLowerCase() &&
+          r.grupo_trabajo?.toLowerCase() === riesgo.grupo_trabajo?.toLowerCase() &&
+          r.cargo?.toLowerCase() === riesgo.cargo?.toLowerCase() &&
           r.peligro_descripcion?.toLowerCase() === riesgo.peligro_descripcion?.toLowerCase()
         );
 

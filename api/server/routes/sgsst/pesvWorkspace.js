@@ -85,8 +85,8 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     const normalizedRows = (matrixRows || []).map(row => ({
       ...row,
-      proceso: toSentenceCase(row.proceso),
-      zona: toSentenceCase(row.zona)
+      grupo_trabajo: toSentenceCase(row.grupo_trabajo),
+      cargo: toSentenceCase(row.cargo)
     }));
 
     let session = await PESVWorkspaceSession.findOneAndUpdate(
@@ -123,45 +123,52 @@ router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
 Tienes esta fila de Matriz de Riesgos Viales con datos fijados por el usuario que JAMÁS debes modificar:
 
 ═══ DATOS FIJOS (NO MODIFICAR) ═══
-PROCESO: ${row.proceso || ''}
-ZONA/TRAYECTO: ${row.zona || ''}
-ACTOR VIAL: ${row.actor_vial || ''}
+GRUPO TRABAJO: ${row.grupo_trabajo || ''}
+CARGO: ${row.cargo || ''}
 TIPO DESPLAZAMIENTO: ${row.tipo_desplazamiento || ''}
+ROL EN LA VÍA: ${row.rol_via || ''}
 FACTOR DE RIESGO VIAL: ${row.factor_riesgo || ''}
 PELIGRO/DESCRIPCIÓN: ${row.peligro_descripcion || ''}
-EFECTOS POSIBLES/CONSECUENCIAS: ${row.consecuencias || ''}
-CONTROLES EXISTENTES:
-  - En la Persona: ${row.controles_existentes_persona || 'Ninguno'}
-  - En el Vehículo: ${row.controles_existentes_vehiculo || 'Ninguno'}
-  - En la Vía / Entorno: ${row.controles_existentes_via || 'Ninguno'}
-Probabilidad actual: ${row.probabilidad || 'No definida'} | Severidad actual: ${row.severidad || 'No definida'}
+CONTROLES EXISTENTES / INTERPRETACIÓN: ${row.controles_existentes_descripcion || 'Ninguno'}
+TIPO DE CONTROL EXISTENTE: ${row.controles_existentes_tipo || 'Ninguno'}
 
 ═══ TU ÚNICA TAREA ═══
-Basándote EXCLUSIVAMENTE en los datos fijos de arriba (no los modifiques ni inventes controles existentes nuevos):
-1. Determina el Nivel de Probabilidad (1 a 4) y el Nivel de Severidad (10, 25, 60 o 100) según criterios técnicos del PESV.
-2. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP/Seguridad Pasiva adecuadas específicas para riesgo vial.
-3. Completa factores_reduccion con justificación técnica y costo-beneficio de controles propuestos.
-4. Asigna un responsable de los controles (ej. Responsable PESV, Gestor de Flota, Conductor).
+Basándote EXCLUSIVAMENTE en los datos fijos de arriba:
+1. Determina los niveles de Probabilidad (NP), Exposición (NE) y Consecuencia (NC) utilizando las siguientes escalas cualitativas de la Guía ANSV 2022 (Paso 6):
+   - Nivel de Probabilidad (NP):
+     * "MUY PROBABLE" (El evento vial es altamente probable que ocurra - valor 5)
+     * "MEDIANAMENTE PROBABLE" (El evento vial es moderadamente probable - valor 4)
+     * "PROBABLE" (El evento vial es probable que ocurra - valor 3)
+     * "POCO PROBABLE" (El evento vial es poco factible - valor 2)
+     * "NO ES PROBABLE" (El evento vial es extremadamente improbable - valor 1)
+   - Nivel de Exposición (NE):
+     * "CONSTANTE" (Exposición diaria o continua - valor 5)
+     * "FRECUENTE" (Exposición regular varias veces a la semana - valor 4)
+     * "OCASIONAL" (Exposición esporádica o algunas veces - valor 3)
+     * "ESPORADICO" (Exposición muy baja o eventual - valor 2)
+     * "MINIMA" (Exposición mínima o casi inexistente - valor 1)
+   - Nivel de Consecuencia (NC):
+     * "CRITICO" (Fatalidades o incapacidades totales permanentes - valor 5)
+     * "PELIGROSO" (Lesiones muy graves con incapacidades permanentes parciales - valor 4)
+     * "MODERADO" (Lesiones con incapacidades temporales significativas - valor 3)
+     * "MARGINAL" (Lesiones menores con incapacidades breves - valor 2)
+     * "INSIGNIFICANTE" (Lesiones muy leves sin incapacidad o daños menores - valor 1)
 
-REGLA ABSOLUTA: Mantén "controles_existentes_persona", "controles_existentes_vehiculo" y "controles_existentes_via" idénticos a los fijados arriba.
+2. Propón la Acción de Tratamiento ("tratamiento_accion"), que debe ser una de: "ACEPTARLO", "EVITARLO", "ELIMINAR LA FUENTE QUE OCACIONA", "MODIFICAR LOS FACTORES DE EXPOSICION".
+3. Propón los planes de acción para el medio ("plan_accion_medio") y para el individuo ("plan_accion_individuo").
+4. Asigna un responsable de los controles ("responsable", ej: Coordinador PESV, Gestor de Flotas, Conductor) y las observaciones pertinentes.
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos exactos:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown y sin envolver en \`\`\`json) con estos campos exactos:
 {
-  "probabilidad": <número 1-4>,
-  "severidad": <número 10|25|60|100>,
-  "nivel_riesgo": <probabilidad * severidad>,
-  "interpretacion_nr": "<Crítico|Alto|Medio|Bajo>",
-  "aceptabilidad": "<No Aceptable|No Aceptable o Aceptable con Control Específico|Aceptable con Control Específico|Aceptable>",
-  "controles_existentes_persona": "${(row.controles_existentes_persona || 'Ninguno').replace(/"/g, '\\"')}",
-  "controles_existentes_vehiculo": "${(row.controles_existentes_vehiculo || 'Ninguno').replace(/"/g, '\\"')}",
-  "controles_existentes_via": "${(row.controles_existentes_via || 'Ninguno').replace(/"/g, '\\"')}",
-  "medida_eliminacion": "<medida propuesta o Ninguno>",
-  "medida_sustitucion": "<medida propuesta o Ninguno>",
-  "medida_ingenieria": "<control de ingeniería o seguridad pasiva propuesto o Ninguno>",
-  "medida_administrativa": "<control administrativo, capacitación, rutograma propuesto o Ninguno>",
-  "medida_eppu": "<EPP/seguridad pasiva específico recomendado o Ninguno>",
-  "factores_reduccion": "<Justificación costo-beneficio y mecanismo técnico de reducción del riesgo vial. NUNCA VACÍO.>",
-  "responsable": "<Responsable de implementar el control, ej: Coordinador PESV o Conductor>"
+  "np_cualitativo": "<MUY PROBABLE|MEDIANAMENTE PROBABLE|PROBABLE|POCO PROBABLE|NO ES PROBABLE>",
+  "ne_cualitativo": "<CONSTANTE|FRECUENTE|OCASIONAL|ESPORADICO|MINIMA>",
+  "nc_cualitativo": "<CRITICO|PELIGROSO|MODERADO|MARGINAL|INSIGNIFICANTE>",
+  "tratamiento_accion": "<ACEPTARLO|EVITARLO|ELIMINAR LA FUENTE QUE OCACIONA|MODIFICAR LOS FACTORES DE EXPOSICION>",
+  "plan_accion_medio": "<plan propuesto para el medio>",
+  "plan_accion_individuo": "<plan propuesto para el individuo>",
+  "responsable": "<Coordinador PESV o Conductor o Gestor de Flota>",
+  "fecha_programacion": "<fecha o periodicidad, ej: Permanente o Mensual>",
+  "observaciones": "<observaciones opcionales o vacías>"
 }`;
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
@@ -177,9 +184,55 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
       return res.status(500).json({ error: 'La IA devolvió un formato JSON inválido. Intenta de nuevo.' });
     }
 
-    if (updatedFields.probabilidad && updatedFields.severidad) {
-      updatedFields.nivel_riesgo = updatedFields.probabilidad * updatedFields.severidad;
+    const mapNP = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('MUY PROBABLE')) return 5;
+      if (norm.includes('MEDIANAMENTE') || norm.includes('MEDIA')) return 4;
+      if (norm.includes('POCO PROBABLE')) return 2;
+      if (norm.includes('NO ES PROBABLE') || norm.includes('NO PROBABLE')) return 1;
+      if (norm.includes('PROBABLE')) return 3;
+      return 3;
+    };
+    const mapNE = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CONSTANTE')) return 5;
+      if (norm.includes('FRECUENTE')) return 4;
+      if (norm.includes('OCASIONAL')) return 3;
+      if (norm.includes('ESPORADICO') || norm.includes('ESPORÁDICO')) return 2;
+      if (norm.includes('MINIMA') || norm.includes('MÍNIMA')) return 1;
+      return 3;
+    };
+    const mapNC = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CRITICO') || norm.includes('CRÍTICO')) return 5;
+      if (norm.includes('PELIGROSO')) return 4;
+      if (norm.includes('MODERADO')) return 3;
+      if (norm.includes('MARGINAL')) return 2;
+      if (norm.includes('INSIGNIFICANTE')) return 1;
+      return 3;
+    };
+
+    const np_cuantitativo = mapNP(updatedFields.np_cualitativo);
+    const ne_cuantitativo = mapNE(updatedFields.ne_cualitativo);
+    const nc_cuantitativo = mapNC(updatedFields.nc_cualitativo);
+    const calificacion = np_cuantitativo + ne_cuantitativo + nc_cuantitativo;
+    
+    let nivel_riesgo = 'NIVEL DE RIESGO BAJO';
+    let aceptabilidad = 'ACEPTABLE';
+    if (calificacion >= 12) {
+      nivel_riesgo = 'NIVEL DE RIESGO ALTO o CRITICO';
+      aceptabilidad = 'NO ACEPTABLE';
+    } else if (calificacion >= 8) {
+      nivel_riesgo = 'NIVEL DE RIESGO MEDIO o MODERADO';
+      aceptabilidad = 'ACEPTABLE CON CONTROL ESPECIFICO';
     }
+
+    updatedFields.np_cuantitativo = np_cuantitativo;
+    updatedFields.ne_cuantitativo = ne_cuantitativo;
+    updatedFields.nc_cuantitativo = nc_cuantitativo;
+    updatedFields.calificacion = calificacion;
+    updatedFields.nivel_riesgo = nivel_riesgo;
+    updatedFields.aceptabilidad = aceptabilidad;
 
     return res.json({ updatedFields });
   } catch (error) {
@@ -189,10 +242,9 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
 });
 
 // Helper: Generar HTML de gráficas PESV
-function getHexPESVColor(nr) {
-  if (nr >= 200) return '#dc2626'; // Rojo - Crítico
-  if (nr >= 100) return '#ea580c'; // Naranja - Alto
-  if (nr >= 40) return '#eab308'; // Amarillo - Medio
+function getHexPESVColor(calificacion) {
+  if (calificacion >= 12) return '#dc2626'; // Rojo - Alto o Crítico
+  if (calificacion >= 8) return '#ea580c'; // Naranja/Amarillo - Medio
   return '#16a34a'; // Verde - Bajo
 }
 
@@ -201,36 +253,40 @@ function buildPesvChartsHtml(matrixRows) {
   
   const mapActor = {};
   matrixRows.forEach(r => {
-    const k = (r.actor_vial || 'Sin clasificar').trim();
-    if (!mapActor[k]) mapActor[k] = { count: 0, totalNR: 0 };
+    const k = (r.rol_via || 'Sin clasificar').trim();
+    if (!mapActor[k]) mapActor[k] = { count: 0, totalScore: 0 };
     mapActor[k].count++;
-    mapActor[k].totalNR += Number(r.nivel_riesgo) || 0;
+    mapActor[k].totalScore += Number(r.calificacion) || 0;
   });
-  const chartActor = Object.entries(mapActor).map(([actor, d]) => ({ actor, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg);
-  const maxActor = Math.max(...chartActor.map(d => d.avg), 1);
+  const chartActor = Object.entries(mapActor).map(([actor, d]) => ({ actor, count: d.count, avg: Math.round((d.totalScore / d.count) * 10) / 10 })).sort((a,b) => b.avg - a.avg);
+  const maxActor = 15;
 
   const mapFactor = {};
   matrixRows.forEach(r => {
     const k = (r.factor_riesgo || 'Sin clasificar').trim();
-    if (!mapFactor[k]) mapFactor[k] = { count: 0, totalNR: 0 };
+    if (!mapFactor[k]) mapFactor[k] = { count: 0, totalScore: 0 };
     mapFactor[k].count++;
-    mapFactor[k].totalNR += Number(r.nivel_riesgo) || 0;
+    mapFactor[k].totalScore += Number(r.calificacion) || 0;
   });
-  const chartFactor = Object.entries(mapFactor).map(([factor, d]) => ({ factor, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg);
-  const maxFactor = Math.max(...chartFactor.map(d => d.avg), 1);
+  const chartFactor = Object.entries(mapFactor).map(([factor, d]) => ({ factor, count: d.count, avg: Math.round((d.totalScore / d.count) * 10) / 10 })).sort((a,b) => b.avg - a.avg);
+  const maxFactor = 15;
 
   const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(String(v).toLowerCase().trim());
-  let persona = 0, vehiculo = 0, via = 0;
+  
+  let persona = 0, medio = 0, vehiculo = 0, infra = 0;
   matrixRows.forEach(r => {
-    if (!empty(r.controles_existentes_persona)) persona++;
-    if (!empty(r.controles_existentes_vehiculo)) vehiculo++;
-    if (!empty(r.controles_existentes_via)) via++;
+    const t = String(r.controles_existentes_tipo || '').toUpperCase();
+    if (t.includes('INDIVIDUO') || t.includes('PERSONA')) persona++;
+    if (t.includes('MEDIO')) medio++;
+    if (t.includes('VEHICULO') || t.includes('VEHÍCULO')) vehiculo++;
+    if (t.includes('INFRAESTRUCTURA') || t.includes('VIA') || t.includes('VÍA')) infra++;
   });
   const total = matrixRows.length || 1;
   const chartControls = [
-    { label: 'En el Factor Humano (Persona)', value: persona, pct: Math.round((persona/total)*100) },
-    { label: 'En el Vehículo', value: vehiculo, pct: Math.round((vehiculo/total)*100) },
-    { label: 'En la Vía / Entorno', value: via, pct: Math.round((via/total)*100) },
+    { label: 'Control en el Individuo (Persona)', value: persona, pct: Math.round((persona/total)*100) },
+    { label: 'Control en el Medio', value: medio, pct: Math.round((medio/total)*100) },
+    { label: 'Control en el Vehículo', value: vehiculo, pct: Math.round((vehiculo/total)*100) },
+    { label: 'Control en la Vía / Infraestructura', value: infra, pct: Math.round((infra/total)*100) },
   ];
 
   function renderBar(label, value, max, color) {
@@ -254,11 +310,11 @@ function buildPesvChartsHtml(matrixRows) {
       </h3>
       <div style="display:flex; flex-direction:column; gap:20px;">
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgo Promedio por Actor Vial (NR Promedio)</h4>
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Calificación Promedio por Actor Vial (Rango 3-15)</h4>
           ${chartActor.map(d => renderBar(d.actor, d.avg, maxActor, getHexPESVColor(d.avg))).join('')}
         </div>
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgo Promedio por Factor PESV</h4>
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Calificación Promedio por Factor PESV</h4>
           ${chartFactor.map(d => renderBar(d.factor, d.avg, maxFactor, getHexPESVColor(d.avg))).join('')}
         </div>
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
@@ -296,7 +352,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
     });
 
     const matrixSummary = matrixRows.map((r, i) =>
-      `[${i+1}] Actor: ${r.actor_vial} | Desplazamiento: ${r.tipo_desplazamiento} | Factor: ${r.factor_riesgo} | Peligro: ${r.peligro_descripcion} | NR: ${r.nivel_riesgo} (${r.interpretacion_nr}) | Consecuencia: ${r.consecuencias}`
+      `[${i+1}] Grupo Trabajo: ${r.grupo_trabajo} | Cargo: ${r.cargo} | Actor: ${r.rol_via} | Desplazamiento: ${r.tipo_desplazamiento} | Factor: ${r.factor_riesgo} | Peligro: ${r.peligro_descripcion} | Calificación (3-15): ${r.calificacion} (${r.nivel_riesgo}) | Aceptabilidad: ${r.aceptabilidad}`
     ).join('\n');
 
     const prompt = `Eres un auditor certificado y consultor experto en Planes Estratégicos de Seguridad Vial (PESV) según la Resolución 40595 de 2022 en Colombia.
@@ -387,36 +443,35 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     if (rawRows.length === 0) return res.json({ matrixRows: [] });
 
-    const prompt = `Eres un experto certificado en el Plan Estratégico de Seguridad Vial (PESV) en Colombia.
+    const prompt = `Eres un experto certificado en el Plan Estratégico de Seguridad Vial (PESV) en Colombia y la normatividad de la Resolución 40595 de 2022.
 Te proporciono una lista de filas importadas desde un archivo con columnas arbitrarias.
 Analiza los datos y transfórmalos a nuestro formato estándar de matriz PESV:
 
 Estructura requerida para cada objeto de la lista JSON:
 {
-  "proceso": "<proceso o área en tipo oración>",
-  "zona": "<zona, sede o trayecto en tipo oración>",
-  "actor_vial": "<Peatón|Pasajero|Conductor de motocicleta|Conductor de vehículo liviano|Conductor de vehículo pesado|Ciclista>",
+  "grupo_trabajo": "<grupo de trabajo o área en tipo oración>",
+  "cargo": "<cargo del trabajador expuesto en tipo oración>",
   "tipo_desplazamiento": "<Misional|In itinere>",
+  "rol_via": "<Peatón|Pasajero|Conductor de motocicleta|Conductor de vehículo liviano|Conductor de vehículo pesado|Ciclista|Otro>",
   "factor_riesgo": "<Factor Humano|Factor Vehicular|Factor Infraestructura|Entorno/Otros>",
   "peligro_descripcion": "<descripción clara del peligro vial>",
-  "consecuencias": "<lesiones o consecuencias posibles>",
-  "controles_existentes_persona": "<controles en la persona o 'Ninguno'>",
-  "controles_existentes_vehiculo": "<controles en el vehículo o 'Ninguno'>",
-  "controles_existentes_via": "<controles en la vía/entorno o 'Ninguno'>",
-  "probabilidad": <número entero 1-4>,
-  "severidad": <número entero 10|25|60|100>,
-  "medida_eliminacion": "<medida propuesta o 'Ninguno'>",
-  "medida_sustitucion": "<medida propuesta o 'Ninguno'>",
-  "medida_ingenieria": "<medida propuesta o 'Ninguno'>",
-  "medida_administrativa": "<medida propuesta o 'Ninguno'>",
-  "medida_eppu": "<medida propuesta o 'Ninguno'>",
-  "factores_reduccion": "<mecanismo de reducción del riesgo vial>",
-  "responsable": "<Responsable de implementar el control>"
+  "np_cualitativo": "<MUY PROBABLE|MEDIANAMENTE PROBABLE|PROBABLE|POCO PROBABLE|NO ES PROBABLE>",
+  "ne_cualitativo": "<CONSTANTE|FRECUENTE|OCASIONAL|ESPORADICO|MINIMA>",
+  "nc_cualitativo": "<CRITICO|PELIGROSO|MODERADO|MARGINAL|INSIGNIFICANTE>",
+  "controles_existentes_descripcion": "<interpretación o descripción de los controles existentes o 'Ninguno'>",
+  "controles_existentes_tipo": "<INDIVIDUO|MEDIO|MEDIO-INDIVIDUO|VEHICULO|INFRAESTRUCTURA|Ninguno>",
+  "tratamiento_accion": "<ACEPTARLO|EVITARLO|ELIMINAR LA FUENTE QUE OCACIONA|MODIFICAR LOS FACTORES DE EXPOSICION|Ninguno>",
+  "plan_accion_medio": "<plan propuesto para el medio o 'Ninguno'>",
+  "plan_accion_individuo": "<plan propuesto para el individuo o 'Ninguno'>",
+  "responsable": "<Coordinador PESV o Conductor o Gestor de Flota>",
+  "fecha_programacion": "<fecha o periodicidad, ej: Permanente o Mensual>",
+  "estado": "<PLANEADA|CERRADA>",
+  "observaciones": "<observaciones adicionales o vacías>"
 }
 
 Reglas:
-1. Calcula la probabilidad (1-4) y severidad (10, 25, 60, 100) según criterios del PESV.
-2. El resultado debe ser EXCLUSIVAMENTE una lista JSON válida sin explicaciones ni markdown.
+1. Determina los niveles cualitativos de NP, NE y NC según el peligro vial y las guías.
+2. El resultado debe ser EXCLUSIVAMENTE una lista JSON válida sin explicaciones ni markdown ni envolverse en \`\`\`json.
 
 FILAS ORIGINALES:
 ${JSON.stringify(rawRows, null, 2)}`;
@@ -429,15 +484,61 @@ ${JSON.stringify(rawRows, null, 2)}`;
     let parsed = JSON.parse(text);
     if (!Array.isArray(parsed)) parsed = [parsed];
 
-    const mappedRows = parsed.map(row => ({
-      ...row,
-      proceso: toSentenceCase(row.proceso || ''),
-      zona: toSentenceCase(row.zona || ''),
-      nivel_riesgo: (Number(row.probabilidad) || 0) * (Number(row.severidad) || 0),
-      interpretacion_nr: (Number(row.probabilidad) || 0) * (Number(row.severidad) || 0) >= 200 ? 'Crítico' : (Number(row.probabilidad) || 0) * (Number(row.severidad) || 0) >= 100 ? 'Alto' : 'Medio',
-      aceptabilidad: (Number(row.probabilidad) || 0) * (Number(row.severidad) || 0) >= 200 ? 'No Aceptable' : 'Aceptable con Control Específico',
-      id: Date.now().toString() + Math.random().toString(36).substring(7)
-    }));
+    const mapNP = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('MUY PROBABLE')) return 5;
+      if (norm.includes('MEDIANAMENTE') || norm.includes('MEDIA')) return 4;
+      if (norm.includes('POCO PROBABLE')) return 2;
+      if (norm.includes('NO ES PROBABLE') || norm.includes('NO PROBABLE')) return 1;
+      if (norm.includes('PROBABLE')) return 3;
+      return 3;
+    };
+    const mapNE = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CONSTANTE')) return 5;
+      if (norm.includes('FRECUENTE')) return 4;
+      if (norm.includes('OCASIONAL')) return 3;
+      if (norm.includes('ESPORADICO') || norm.includes('ESPORÁDICO')) return 2;
+      if (norm.includes('MINIMA') || norm.includes('MÍNIMA')) return 1;
+      return 3;
+    };
+    const mapNC = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CRITICO') || norm.includes('CRÍTICO')) return 5;
+      if (norm.includes('PELIGROSO')) return 4;
+      if (norm.includes('MODERADO')) return 3;
+      if (norm.includes('MARGINAL')) return 2;
+      if (norm.includes('INSIGNIFICANTE')) return 1;
+      return 3;
+    };
+
+    const mappedRows = parsed.map(row => {
+      const np_cuantitativo = Number(row.np_cuantitativo) || mapNP(row.np_cualitativo);
+      const ne_cuantitativo = Number(row.ne_cuantitativo) || mapNE(row.ne_cualitativo);
+      const nc_cuantitativo = Number(row.nc_cuantitativo) || mapNC(row.nc_cualitativo);
+      const calificacion = np_cuantitativo + ne_cuantitativo + nc_cuantitativo;
+      
+      let nivel_riesgo = 'NIVEL DE RIESGO BAJO';
+      let aceptabilidad = 'ACEPTABLE';
+      if (calificacion >= 12) {
+        nivel_riesgo = 'NIVEL DE RIESGO ALTO o CRITICO';
+        aceptabilidad = 'NO ACEPTABLE';
+      } else if (calificacion >= 8) {
+        nivel_riesgo = 'NIVEL DE RIESGO MEDIO o MODERADO';
+        aceptabilidad = 'ACEPTABLE CON CONTROL ESPECIFICO';
+      }
+
+      return {
+        ...row,
+        np_cuantitativo,
+        ne_cuantitativo,
+        nc_cuantitativo,
+        calificacion,
+        nivel_riesgo,
+        aceptabilidad,
+        id: Date.now().toString() + Math.random().toString(36).substring(7)
+      };
+    });
 
     return res.json({ matrixRows: mappedRows });
   } catch (error) {

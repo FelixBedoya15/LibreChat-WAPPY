@@ -15,10 +15,9 @@ interface DashboardProps {
   isMaximized?: boolean;
 }
 
-const getPESVColor = (nr: number) => {
-  if (nr >= 200) return { bg: 'bg-red-500', text: 'text-red-500' };
-  if (nr >= 100) return { bg: 'bg-orange-500', text: 'text-orange-500' };
-  if (nr >= 40) return { bg: 'bg-yellow-500', text: 'text-yellow-500' };
+const getPESVColor = (calificacion: number) => {
+  if (calificacion >= 12) return { bg: 'bg-red-500', text: 'text-red-500' };
+  if (calificacion >= 8) return { bg: 'bg-orange-500', text: 'text-orange-500' };
   return { bg: 'bg-green-500', text: 'text-green-500' };
 };
 
@@ -98,69 +97,71 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
 const MatrizPESVDashboard = ({ matrixRows, conversationId, token, savedConclusions, onConclusionSaved, isMaximized }: DashboardProps) => {
 
   const chartA = useMemo(() => {
-    const map: Record<string, { count: number; totalNR: number; max: number }> = {};
+    const map: Record<string, { count: number; totalScore: number; max: number }> = {};
     matrixRows.forEach(r => {
-      const k = r.actor_vial?.trim() || 'Sin clasificar';
-      if (!map[k]) map[k] = { count: 0, totalNR: 0, max: 0 };
+      const k = r.rol_via?.trim() || 'Sin clasificar';
+      if (!map[k]) map[k] = { count: 0, totalScore: 0, max: 0 };
       map[k].count++;
-      map[k].totalNR += Number(r.nivel_riesgo) || 0;
-      map[k].max = Math.max(map[k].max, Number(r.nivel_riesgo) || 0);
+      map[k].totalScore += Number(r.calificacion) || 0;
+      map[k].max = Math.max(map[k].max, Number(r.calificacion) || 0);
     });
     return Object.entries(map)
-      .map(([actor, d]) => ({ actor, count: d.count, avg: Math.round(d.totalNR / d.count), max: d.max }))
+      .map(([actor, d]) => ({ actor, count: d.count, avg: Math.round((d.totalScore / d.count) * 10) / 10, max: d.max }))
       .sort((a, b) => b.avg - a.avg);
   }, [matrixRows]);
 
   const chartB = useMemo(() => {
-    const map: Record<string, { count: number; totalNR: number; max: number }> = {};
+    const map: Record<string, { count: number; totalScore: number; max: number }> = {};
     matrixRows.forEach(r => {
       const k = r.factor_riesgo?.trim() || 'Otros';
-      if (!map[k]) map[k] = { count: 0, totalNR: 0, max: 0 };
+      if (!map[k]) map[k] = { count: 0, totalScore: 0, max: 0 };
       map[k].count++;
-      map[k].totalNR += Number(r.nivel_riesgo) || 0;
-      map[k].max = Math.max(map[k].max, Number(r.nivel_riesgo) || 0);
+      map[k].totalScore += Number(r.calificacion) || 0;
+      map[k].max = Math.max(map[k].max, Number(r.calificacion) || 0);
     });
     return Object.entries(map)
-      .map(([factor, d]) => ({ factor, count: d.count, avg: Math.round(d.totalNR / d.count), max: d.max }))
+      .map(([factor, d]) => ({ factor, count: d.count, avg: Math.round((d.totalScore / d.count) * 10) / 10, max: d.max }))
       .sort((a, b) => b.avg - a.avg);
   }, [matrixRows]);
 
   const chartC = useMemo(() => {
-    const empty = (v?: string) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(v.toLowerCase().trim());
-    let persona = 0, vehiculo = 0, via = 0;
+    let persona = 0, medio = 0, vehiculo = 0, infra = 0;
     matrixRows.forEach(r => {
-      if (!empty(r.controles_existentes_persona)) persona++;
-      if (!empty(r.controles_existentes_vehiculo)) vehiculo++;
-      if (!empty(r.controles_existentes_via)) via++;
+      const t = String(r.controles_existentes_tipo || '').toUpperCase();
+      if (t.includes('INDIVIDUO') || t.includes('PERSONA')) persona++;
+      if (t.includes('MEDIO')) medio++;
+      if (t.includes('VEHICULO') || t.includes('VEHÍCULO')) vehiculo++;
+      if (t.includes('INFRAESTRUCTURA') || t.includes('VIA') || t.includes('VÍA')) infra++;
     });
     const total = matrixRows.length || 1;
     return [
-      { label: 'En la Persona (Humano)', value: persona, pct: Math.round((persona / total) * 100) },
-      { label: 'En el Vehículo', value: vehiculo, pct: Math.round((vehiculo / total) * 100) },
-      { label: 'En la Vía / Entorno', value: via, pct: Math.round((via / total) * 100) },
+      { label: 'Control en el Individuo (Persona)', value: persona, pct: Math.round((persona / total) * 100) },
+      { label: 'Control en el Medio', value: medio, pct: Math.round((medio / total) * 100) },
+      { label: 'Control en el Vehículo', value: vehiculo, pct: Math.round((vehiculo / total) * 100) },
+      { label: 'Control en la Vía / Infraestructura', value: infra, pct: Math.round((infra / total) * 100) },
     ];
   }, [matrixRows]);
 
   const chartD = useMemo(() => {
-    const map: Record<string, { count: number; totalNR: number }> = {};
+    const map: Record<string, { count: number; totalScore: number }> = {};
     matrixRows.forEach(r => {
       const k = r.tipo_desplazamiento || 'Misional';
-      if (!map[k]) map[k] = { count: 0, totalNR: 0 };
+      if (!map[k]) map[k] = { count: 0, totalScore: 0 };
       map[k].count++;
-      map[k].totalNR += Number(r.nivel_riesgo) || 0;
+      map[k].totalScore += Number(r.calificacion) || 0;
     });
     return Object.entries(map).map(([type, d]) => ({
       type,
       count: d.count,
-      avg: Math.round(d.totalNR / d.count)
+      avg: Math.round((d.totalScore / d.count) * 10) / 10
     }));
   }, [matrixRows]);
 
   if (matrixRows.length === 0) return null;
 
-  const maxChartA = Math.max(...chartA.map(d => d.avg), 1);
-  const maxChartB = Math.max(...chartB.map(d => d.avg), 1);
-  const maxChartD = Math.max(...chartD.map(d => d.avg), 1);
+  const maxChartA = 15;
+  const maxChartB = 15;
+  const maxChartD = 15;
 
   return (
     <div className="mt-6 mb-6 space-y-6">
@@ -178,7 +179,7 @@ const MatrizPESVDashboard = ({ matrixRows, conversationId, token, savedConclusio
         <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
           <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
-            Riesgo Promedio por Actor Vial (NR Promedio)
+            Calificación Promedio por Actor Vial (Rango 3-15)
           </h4>
           <div className="space-y-3">
             {chartA.map(d => {
@@ -195,7 +196,7 @@ const MatrizPESVDashboard = ({ matrixRows, conversationId, token, savedConclusio
         <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
           <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
             <Truck className="h-4 w-4 text-sky-600" />
-            Riesgos por Factor PESV
+            Calificación por Factor PESV
           </h4>
           <div className="space-y-3">
             {chartB.map(d => {
@@ -231,7 +232,7 @@ const MatrizPESVDashboard = ({ matrixRows, conversationId, token, savedConclusio
         <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
           <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-orange-500" />
-            Nivel de Riesgo por Tipo de Desplazamiento
+            Nivel de Calificación por Tipo de Desplazamiento
           </h4>
           <div className="space-y-3">
             {chartD.map(d => {

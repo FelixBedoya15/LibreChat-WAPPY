@@ -42,7 +42,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   }
 
   // --- INTERACTIVE SLICER (DROPDOWN) ---
-  const procesos = [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))];
+  const procesos = [...new Set(matrixRows.map(r => r.grupo_trabajo).filter(Boolean))];
   if (procesos.length === 0) procesos.push('Sin Datos');
 
   // Hidden Column Z for Data Validation Source
@@ -51,8 +51,8 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   procesos.forEach((p, i) => wsDash.getCell(`Z${i+2}`).value = p);
   const numProcesos = procesos.length + 1;
 
-  wsDash.getCell('B6').value = ' 🔍 FILTRO MAESTRO (PROCESO):';
-  wsDash.getCell('B6').font = { size: 14, bold: true, color: { argb: 'FF1E293B' }, name: 'Book Antiqua' };
+  wsDash.getCell('B6').value = ' 🔍 FILTRO MAESTRO (GRUPO TRABAJO):';
+  wsDash.getCell('B6').font = { size: 12, bold: true, color: { argb: 'FF1E293B' }, name: 'Book Antiqua' };
   wsDash.getCell('B6').alignment = { vertical: 'middle', horizontal: 'right' };
 
   const filterCell = wsDash.getCell('C6');
@@ -94,7 +94,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz PESV'!A2:A${totalRows}), COUNTIF('Matriz PESV'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' };
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz PESV'!O2:O${totalRows}, "No Aceptable"), COUNTIFS('Matriz PESV'!O2:O${totalRows}, "No Aceptable", 'Matriz PESV'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz PESV'!O2:O${totalRows}, "NO ACEPTABLE"), COUNTIFS('Matriz PESV'!O2:O${totalRows}, "NO ACEPTABLE", 'Matriz PESV'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' };
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -150,10 +150,9 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   let dashRow = 12;
   dashRow = createCardHeader(dashRow, 'Riesgos por Aceptabilidad PESV');
   const aceptabilidades = [
-    { name: 'No Aceptable', color: 'FFEF4444' },
-    { name: 'No Aceptable o Aceptable con Control Específico', color: 'FFF97316' },
-    { name: 'Aceptable con Control Específico', color: 'FFEAB308' },
-    { name: 'Aceptable', color: 'FF22C55E' }
+    { name: 'NO ACEPTABLE', color: 'FFEF4444' },
+    { name: 'ACEPTABLE CON CONTROL ESPECIFICO', color: 'FFEAB308' },
+    { name: 'ACEPTABLE', color: 'FF22C55E' }
   ];
   const startCard1 = dashRow;
 
@@ -168,12 +167,12 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   dashRow += 3;
-  dashRow = createCardHeader(dashRow, 'Riesgos por Actor Vial');
-  const actores = ['Peatón', 'Pasajero', 'Conductor de motocicleta', 'Conductor de vehículo liviano', 'Conductor de vehículo pesado', 'Ciclista'];
+  dashRow = createCardHeader(dashRow, 'Riesgos por Rol en la Vía');
+  const actores = ['Peatón', 'Pasajero', 'Conductor de motocicleta', 'Conductor de vehículo liviano', 'Conductor de vehículo pesado', 'Ciclista', 'Otro'];
   const startCard2 = dashRow;
 
   actores.forEach((act, idx) => {
-    addCardRow(dashRow, act, getInteractiveFormula('C', act), idx === actores.length - 1, 'FF0284C7');
+    addCardRow(dashRow, act, getInteractiveFormula('D', act), idx === actores.length - 1, 'FF0284C7');
     dashRow++;
   });
 
@@ -191,32 +190,34 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
 
   wsMatriz.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: totalRows, column: 22 }
+    to: { row: totalRows, column: 24 }
   };
 
   wsMatriz.columns = [
-    { header: 'Proceso', key: 'proceso', width: 28 },
-    { header: 'Zona / Trayecto', key: 'zona', width: 22 },
-    { header: 'Actor Vial', key: 'actor_vial', width: 25 },
+    { header: 'Grupo de Trabajo', key: 'grupo_trabajo', width: 28 },
+    { header: 'Cargo', key: 'cargo', width: 22 },
     { header: 'Tipo Desplazamiento', key: 'tipo_desplazamiento', width: 20 },
+    { header: 'Rol en la Vía', key: 'rol_via', width: 25 },
     { header: 'Factor de Riesgo', key: 'factor_riesgo', width: 22 },
     { header: 'Descripción del Peligro', key: 'peligro_descripcion', width: 50 },
-    { header: 'Efectos / Consecuencias', key: 'consecuencias', width: 35 },
-    { header: 'Ctrl. Persona', key: 'controles_existentes_persona', width: 25 },
-    { header: 'Ctrl. Vehículo', key: 'controles_existentes_vehiculo', width: 25 },
-    { header: 'Ctrl. Vía / Entorno', key: 'controles_existentes_via', width: 25 },
-    { header: 'Probabilidad', key: 'probabilidad', width: 12 },
-    { header: 'Severidad', key: 'severidad', width: 12 },
-    { header: 'Nivel de Riesgo', key: 'nivel_riesgo', width: 15 },
-    { header: 'Interpretación NR', key: 'interpretacion_nr', width: 20 },
-    { header: 'Aceptabilidad del Riesgo', key: 'aceptabilidad', width: 40 },
-    { header: 'Eliminación', key: 'medida_eliminacion', width: 25 },
-    { header: 'Sustitución', key: 'medida_sustitucion', width: 25 },
-    { header: 'Ctrl. Ingeniería', key: 'medida_ingenieria', width: 25 },
-    { header: 'Ctrl. Administrativos', key: 'medida_administrativa', width: 30 },
-    { header: 'Equipos/EPP', key: 'medida_eppu', width: 30 },
-    { header: 'Factores de Reducción', key: 'factores_reduccion', width: 65 },
+    { header: 'NP Cualitativo', key: 'np_cualitativo', width: 20 },
+    { header: 'NP Cuantitativo', key: 'np_cuantitativo', width: 15 },
+    { header: 'NE Cualitativo', key: 'ne_cualitativo', width: 20 },
+    { header: 'NE Cuantitativo', key: 'ne_cuantitativo', width: 15 },
+    { header: 'NC Cualitativo', key: 'nc_cualitativo', width: 20 },
+    { header: 'NC Cuantitativo', key: 'nc_cuantitativo', width: 15 },
+    { header: 'Calificación', key: 'calificacion', width: 15 },
+    { header: 'Nivel de Riesgo', key: 'nivel_riesgo', width: 30 },
+    { header: 'Aceptabilidad del Riesgo', key: 'aceptabilidad', width: 35 },
+    { header: 'Controles Existentes', key: 'controles_existentes_descripcion', width: 35 },
+    { header: 'Tipo de Controles', key: 'controles_existentes_tipo', width: 20 },
+    { header: 'Tratamiento / Acción', key: 'tratamiento_accion', width: 25 },
+    { header: 'Plan Acción (Medio)', key: 'plan_accion_medio', width: 30 },
+    { header: 'Plan Acción (Individuo)', key: 'plan_accion_individuo', width: 30 },
     { header: 'Responsable', key: 'responsable', width: 25 },
+    { header: 'Fecha / Periodicidad', key: 'fecha_programacion', width: 20 },
+    { header: 'Estado', key: 'estado', width: 15 },
+    { header: 'Observaciones', key: 'observaciones', width: 35 }
   ];
 
   wsMatriz.getRow(1).eachCell((cell) => {
@@ -230,28 +231,30 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   matrixRows.forEach((row, index) => {
     const rowNumber = index + 2;
     const addedRow = wsMatriz.addRow({
-      proceso: row.proceso,
-      zona: row.zona,
-      actor_vial: row.actor_vial,
+      grupo_trabajo: row.grupo_trabajo,
+      cargo: row.cargo,
       tipo_desplazamiento: row.tipo_desplazamiento,
+      rol_via: row.rol_via,
       factor_riesgo: row.factor_riesgo,
       peligro_descripcion: row.peligro_descripcion,
-      consecuencias: row.consecuencias,
-      controles_existentes_persona: row.controles_existentes_persona,
-      controles_existentes_vehiculo: row.controles_existentes_vehiculo,
-      controles_existentes_via: row.controles_existentes_via,
-      probabilidad: Number(row.probabilidad) || 0,
-      severidad: Number(row.severidad) || 0,
-      nivel_riesgo: { formula: `K${rowNumber}*L${rowNumber}`, result: row.nivel_riesgo },
-      interpretacion_nr: row.interpretacion_nr,
+      np_cualitativo: row.np_cualitativo,
+      np_cuantitativo: Number(row.np_cuantitativo) || 3,
+      ne_cualitativo: row.ne_cualitativo,
+      ne_cuantitativo: Number(row.ne_cuantitativo) || 3,
+      nc_cualitativo: row.nc_cualitativo,
+      nc_cuantitativo: Number(row.nc_cuantitativo) || 3,
+      calificacion: { formula: `H${rowNumber}+J${rowNumber}+L${rowNumber}`, result: row.calificacion },
+      nivel_riesgo: row.nivel_riesgo,
       aceptabilidad: row.aceptabilidad,
-      medida_eliminacion: row.medida_eliminacion,
-      medida_sustitucion: row.medida_sustitucion,
-      medida_ingenieria: row.medida_ingenieria,
-      medida_administrativa: row.medida_administrativa,
-      medida_eppu: row.medida_eppu,
-      factores_reduccion: row.factores_reduccion,
+      controles_existentes_descripcion: row.controles_existentes_descripcion,
+      controles_existentes_tipo: row.controles_existentes_tipo,
+      tratamiento_accion: row.tratamiento_accion,
+      plan_accion_medio: row.plan_accion_medio,
+      plan_accion_individuo: row.plan_accion_individuo,
       responsable: row.responsable,
+      fecha_programacion: row.fecha_programacion,
+      estado: row.estado,
+      observaciones: row.observaciones,
     });
 
     addedRow.height = 40;
@@ -263,7 +266,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
       cell.alignment = { vertical: 'top', wrapText: true, indent: 1 };
       
-      if (colNumber === 4 || colNumber === 5 || (colNumber >= 11 && colNumber <= 15)) {
+      if (colNumber === 3 || colNumber === 4 || colNumber === 5 || colNumber === 8 || colNumber === 10 || colNumber === 12 || colNumber === 13 || colNumber === 14 || colNumber === 15 || colNumber === 17 || colNumber === 18 || colNumber === 23) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
       cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
@@ -272,14 +275,23 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
 
   const finalTotalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
-  // Nivel de Riesgo (Columna M)
+  // Calificación (Columna M)
   wsMatriz.addConditionalFormatting({
     ref: `M2:M${finalTotalRows}`,
     rules: [
-      { type: 'cellIs', operator: 'greaterThanOrEqual', formulae: ['200'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Crítico
-      { type: 'cellIs', operator: 'between', formulae: ['100', '199'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Alto
-      { type: 'cellIs', operator: 'between', formulae: ['40', '99'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Medio
-      { type: 'cellIs', operator: 'between', formulae: ['0', '39'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } } // Bajo
+      { type: 'cellIs', operator: 'greaterThanOrEqual', formulae: ['12'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
+      { type: 'cellIs', operator: 'between', formulae: ['8', '11'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Amarillo
+      { type: 'cellIs', operator: 'between', formulae: ['3', '7'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } } // Verde
+    ]
+  });
+
+  // Nivel de Riesgo (Columna N)
+  wsMatriz.addConditionalFormatting({
+    ref: `N2:N${finalTotalRows}`,
+    rules: [
+      { type: 'cellIs', operator: 'equal', formulae: ['"NIVEL DE RIESGO ALTO o CRITICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"NIVEL DE RIESGO MEDIO o MODERADO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"NIVEL DE RIESGO BAJO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
     ]
   });
 
@@ -287,10 +299,9 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   wsMatriz.addConditionalFormatting({
     ref: `O2:O${finalTotalRows}`,
     rules: [
-      { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
-      { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable o Aceptable con Control Específico"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
-      { type: 'cellIs', operator: 'equal', formulae: ['"Aceptable con Control Específico"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
-      { type: 'cellIs', operator: 'equal', formulae: ['"Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
+      { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"ACEPTABLE CON CONTROL ESPECIFICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
     ]
   });
 

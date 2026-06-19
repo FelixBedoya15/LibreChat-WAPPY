@@ -27,8 +27,19 @@ import {
   MatrixRow,
   ACTORES_VIALES,
   FACTORES_RIESGO,
-  PROBABILIDAD_ESCALA,
-  SEVERIDAD_ESCALA,
+  NP_CUALITATIVO_OPCIONES,
+  NE_CUALITATIVO_OPCIONES,
+  NC_CUALITATIVO_OPCIONES,
+  ESTADO_OPCIONES,
+  TRATAMIENTO_ACCION_OPCIONES,
+  CONTROLES_TIPO_OPCIONES,
+  mapNPCualitativoToNum,
+  mapNECualitativoToNum,
+  mapNCCualitativoToNum,
+  getNPCualitativoLabel,
+  getNECualitativoLabel,
+  getNCCualitativoLabel,
+  getInterpretacionPESV,
 } from './MatrizPESVConstants';
 import MatrizPESVDashboard from './MatrizPESVDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
@@ -326,6 +337,8 @@ export default function MatrizPESVTable({
   const [filterProceso, setFilterProceso] = useState('');
   const [filterActor, setFilterActor] = useState('');
   const [filterNivel, setFilterNivel] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [dashboardHeight, setDashboardHeight] = useState(25);
@@ -442,26 +455,38 @@ export default function MatrizPESVTable({
     const updated = [...matrixRows];
     const item = { ...updated[idx], [field]: value };
 
-    // Calculamos Nivel de Riesgo (Probabilidad * Severidad) y sus consecuencias
-    if (field === 'probabilidad' || field === 'severidad') {
-      const p = Number(item.probabilidad) || 0;
-      const s = Number(item.severidad) || 0;
-      const nr = p * s;
-      item.nivel_riesgo = nr;
-
-      if (nr >= 200) {
-        item.interpretacion_nr = 'Crítico';
-        item.aceptabilidad = 'No Aceptable';
-      } else if (nr >= 100) {
-        item.interpretacion_nr = 'Alto';
-        item.aceptabilidad = 'No Aceptable';
-      } else if (nr >= 40) {
-        item.interpretacion_nr = 'Medio';
-        item.aceptabilidad = 'Aceptable con Control Específico';
-      } else {
-        item.interpretacion_nr = 'Bajo';
-        item.aceptabilidad = 'Aceptable';
+    // Recalculamos Calificación (NP + NE + NC) y Nivel de Riesgo / Aceptabilidad
+    if (
+      field === 'np_cualitativo' ||
+      field === 'ne_cualitativo' ||
+      field === 'nc_cualitativo' ||
+      field === 'np_cuantitativo' ||
+      field === 'ne_cuantitativo' ||
+      field === 'nc_cuantitativo'
+    ) {
+      if (field === 'np_cualitativo') {
+        item.np_cuantitativo = mapNPCualitativoToNum(value);
+      } else if (field === 'ne_cualitativo') {
+        item.ne_cuantitativo = mapNECualitativoToNum(value);
+      } else if (field === 'nc_cualitativo') {
+        item.nc_cuantitativo = mapNCCualitativoToNum(value);
+      } else if (field === 'np_cuantitativo') {
+        item.np_cualitativo = getNPCualitativoLabel(Number(value)) as any;
+      } else if (field === 'ne_cuantitativo') {
+        item.ne_cualitativo = getNECualitativoLabel(Number(value)) as any;
+      } else if (field === 'nc_cuantitativo') {
+        item.nc_cualitativo = getNCCualitativoLabel(Number(value)) as any;
       }
+
+      const np = Number(item.np_cuantitativo) || 3;
+      const ne = Number(item.ne_cuantitativo) || 3;
+      const nc = Number(item.nc_cuantitativo) || 3;
+      const calif = np + ne + nc;
+      item.calificacion = calif;
+
+      const interp = getInterpretacionPESV(calif);
+      item.nivel_riesgo = interp.nivel;
+      item.aceptabilidad = interp.aceptabilidad;
     }
 
     updated[idx] = item;
@@ -472,28 +497,30 @@ export default function MatrizPESVTable({
     isDirtyRef.current = true;
     const newRow: MatrixRow = {
       id: Date.now().toString() + Math.random().toString(36).substring(7),
-      proceso: 'General',
-      zona: 'Vías internas / Trayecto',
-      actor_vial: 'Conductor de vehículo liviano',
+      grupo_trabajo: 'Operativo',
+      cargo: 'Conductor',
       tipo_desplazamiento: 'Misional',
+      rol_via: 'Conductor de vehículo liviano',
       factor_riesgo: 'Factor Humano',
-      peligro_descripcion: 'Fatiga / Microsueños',
-      consecuencias: 'Accidente de tránsito, colisión, traumas, fatalidad.',
-      controles_existentes_persona: 'Ninguno',
-      controles_existentes_vehiculo: 'Ninguno',
-      controles_existentes_via: 'Ninguno',
-      probabilidad: 2,
-      severidad: 60,
-      nivel_riesgo: 120,
-      interpretacion_nr: 'Alto',
-      aceptabilidad: 'No Aceptable',
-      medida_eliminacion: 'Ninguno',
-      medida_sustitucion: 'Ninguno',
-      medida_ingenieria: 'Ninguno',
-      medida_administrativa: 'Capacitación en higiene del sueño',
-      medida_eppu: 'Cinturón de seguridad',
-      factores_reduccion: 'Mitiga probabilidad de microsueños mediante concientización.',
+      peligro_descripcion: 'Fatiga extrema y microsueños durante conducción nocturna',
+      np_cualitativo: 'PROBABLE',
+      np_cuantitativo: 3,
+      ne_cualitativo: 'OCASIONAL',
+      ne_cuantitativo: 3,
+      nc_cualitativo: 'MODERADO',
+      nc_cuantitativo: 3,
+      calificacion: 9,
+      nivel_riesgo: 'NIVEL DE RIESGO MEDIO o MODERADO',
+      aceptabilidad: 'ACEPTABLE CON CONTROL ESPECIFICO',
+      controles_existentes_descripcion: 'Capacitación básica en conducción defensiva',
+      controles_existentes_tipo: 'INDIVIDUO',
+      tratamiento_accion: 'MODIFICAR LOS FACTORES DE EXPOSICION',
+      plan_accion_medio: 'Definir pausas activas obligatorias cada 2 horas de trayecto',
+      plan_accion_individuo: 'Implementar checklist preoperacional de fatiga y sueño',
       responsable: 'Responsable PESV',
+      fecha_programacion: 'Permanente',
+      estado: 'PLANEADA',
+      observaciones: ''
     };
     const newRows = [...matrixRows, newRow];
     setMatrixRows(newRows);
@@ -595,8 +622,8 @@ export default function MatrizPESVTable({
       if (data.matrixRows && data.matrixRows.length > 0) {
         const normalized = data.matrixRows.map((r: any) => ({
           ...r,
-          proceso: toSentenceCase(r.proceso),
-          zona: toSentenceCase(r.zona),
+          grupo_trabajo: toSentenceCase(r.grupo_trabajo),
+          cargo: toSentenceCase(r.cargo),
         }));
         const combined = [...matrixRows, ...normalized];
         setMatrixRows(combined);
@@ -654,8 +681,8 @@ export default function MatrizPESVTable({
             const firstRow = parsed[0] || {};
             const keys = Object.keys(firstRow);
             const isStandard = (
-              keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'actorvial') &&
-              keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'factorderiesgo')
+              keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'grupotrabajo') &&
+              keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'factorriesgo')
             );
 
             if (isStandard) {
@@ -670,10 +697,185 @@ export default function MatrizPESVTable({
           }
         } else {
           const workbook = XLSX.read(data, { type: 'binary' });
-          const wsName = workbook.SheetNames[0];
-          const ws = workbook.Sheets[wsName];
+          let targetSheetName = '';
+          const sheetNames = workbook.SheetNames;
+          
+          targetSheetName = sheetNames.find(name => 
+            name.toUpperCase().includes('3-MATRIZ') || 
+            name.toUpperCase().includes('MATRIZ') || 
+            name.toUpperCase().includes('PESV')
+          ) || '';
+
+          if (!targetSheetName) {
+            for (const name of sheetNames) {
+              const ws = workbook.Sheets[name];
+              const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+              const colCount = range.e.c - range.s.c + 1;
+              if (colCount > 15) {
+                targetSheetName = name;
+                break;
+              }
+            }
+          }
+
+          if (!targetSheetName) {
+            targetSheetName = sheetNames[0];
+          }
+
+          const ws = workbook.Sheets[targetSheetName];
           autofillMergedCells(ws);
 
+          // 1. Try index-based parsing by scanning for a header row in the first 25 rows
+          const gridRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+          if (gridRows.length === 0) {
+            alert('El archivo Excel está vacío.');
+            return;
+          }
+
+          let headerRowIdx = -1;
+          for (let r = 0; r < Math.min(25, gridRows.length); r++) {
+            const row = gridRows[r];
+            if (Array.isArray(row) && row.some(cell => {
+              const str = String(cell || '').toLowerCase().trim();
+              return str.includes('grupo de trabajo') || str.includes('grupotrabajo') || str.includes('clasificacion grupos de trabajo') || str.includes('clasificación grupos de trabajo');
+            })) {
+              headerRowIdx = r;
+              break;
+            }
+          }
+
+          if (headerRowIdx !== -1) {
+            let startDataRow = headerRowIdx + 1;
+            if (gridRows[startDataRow] && gridRows[startDataRow].some(cell => {
+              const str = String(cell || '').toLowerCase();
+              return str.includes('peligros') || str.includes('probabilidad') || str.includes('exposición') || str.includes('exposicion') || str.includes('consecuencia') || str.includes('calificación') || str.includes('calificacion') || str.includes('medio') || str.includes('individuo');
+            })) {
+              startDataRow++;
+            }
+
+            const mapped: MatrixRow[] = [];
+            for (let r = startDataRow; r < gridRows.length; r++) {
+              const row = gridRows[r];
+              if (!row || row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) {
+                continue;
+              }
+
+              // Check if description or cargo is present to avoid importing fully empty placeholder rows
+              const peligro_desc = String(row[5] || '').trim();
+              const cargo = String(row[1] || '').trim();
+              if (!peligro_desc && !cargo) {
+                continue;
+              }
+
+              // Map variables
+              const np_cual = String(row[6] || '').trim();
+              let np_cuant = Number(row[7]) || 0;
+              let final_np_cual = 'PROBABLE';
+              let final_np_cuant = 3;
+              if (np_cual) {
+                final_np_cuant = mapNPCualitativoToNum(np_cual);
+                final_np_cual = getNPCualitativoLabel(final_np_cuant);
+              } else if (np_cuant) {
+                final_np_cuant = np_cuant;
+                final_np_cual = getNPCualitativoLabel(np_cuant);
+              }
+
+              const ne_cual = String(row[8] || '').trim();
+              let ne_cuant = Number(row[9]) || 0;
+              let final_ne_cual = 'OCASIONAL';
+              let final_ne_cuant = 3;
+              if (ne_cual) {
+                final_ne_cuant = mapNECualitativoToNum(ne_cual);
+                final_ne_cual = getNECualitativoLabel(final_ne_cuant);
+              } else if (ne_cuant) {
+                final_ne_cuant = ne_cuant;
+                final_ne_cual = getNECualitativoLabel(ne_cuant);
+              }
+
+              const nc_cual = String(row[10] || '').trim();
+              let nc_cuant = Number(row[11]) || 0;
+              let final_nc_cual = 'MODERADO';
+              let final_nc_cuant = 3;
+              if (nc_cual) {
+                final_nc_cuant = mapNCCualitativoToNum(nc_cual);
+                final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
+              } else if (nc_cuant) {
+                final_nc_cuant = nc_cuant;
+                final_nc_cual = getNCCualitativoLabel(nc_cuant);
+              }
+
+              const calif = final_np_cuant + final_ne_cuant + final_nc_cuant;
+              const interp = getInterpretacionPESV(calif);
+
+              // Normalize tipo_desplazamiento
+              const rawDesp = String(row[2] || '').trim().toLowerCase();
+              const tipo_desp: 'Misional' | 'In itinere' = rawDesp.includes('itinere') ? 'In itinere' : 'Misional';
+
+              // Normalize rol_via
+              const rawRol = String(row[3] || '').trim().toLowerCase();
+              let rol: any = 'Peatón';
+              if (rawRol.includes('motocicleta') || rawRol.includes('moto')) rol = 'Conductor de motocicleta';
+              else if (rawRol.includes('pesado')) rol = 'Conductor de vehículo pesado';
+              else if (rawRol.includes('liviano') || rawRol.includes('automovil') || rawRol.includes('carro')) rol = 'Conductor de vehículo liviano';
+              else if (rawRol.includes('peaton') || rawRol.includes('peatón')) rol = 'Peatón';
+              else if (rawRol.includes('pasajero')) rol = 'Pasajero';
+              else if (rawRol.includes('ciclista') || rawRol.includes('bici')) rol = 'Ciclista';
+              else if (rawRol.includes('otro')) rol = 'Otro';
+              else {
+                const matched = ACTORES_VIALES.find(v => v.toLowerCase().includes(rawRol) || rawRol.includes(v.toLowerCase()));
+                if (matched) rol = matched;
+              }
+
+              // Normalize factor_riesgo
+              const rawFactor = String(row[4] || '').trim().toLowerCase();
+              let factor: any = 'Factor Humano';
+              if (rawFactor.includes('humano')) factor = 'Factor Humano';
+              else if (rawFactor.includes('vehicular') || rawFactor.includes('vehiculo')) factor = 'Factor Vehicular';
+              else if (rawFactor.includes('infraestructura')) factor = 'Factor Infraestructura';
+              else if (rawFactor.includes('entorno') || rawFactor.includes('otros') || rawFactor.includes('otro')) factor = 'Entorno/Otros';
+
+              // Normalize estado
+              const rawEstado = String(row[22] || '').trim().toUpperCase();
+              const est: any = rawEstado.includes('CERRADA') ? 'CERRADA' : 'PLANEADA';
+
+              mapped.push({
+                id: Date.now().toString() + Math.random().toString(36).substring(7),
+                grupo_trabajo: toSentenceCase(String(row[0] || '').trim() || 'General'),
+                cargo: toSentenceCase(String(row[1] || '').trim() || 'General'),
+                tipo_desplazamiento: tipo_desp,
+                rol_via: rol,
+                factor_riesgo: factor,
+                peligro_descripcion: peligro_desc,
+                np_cualitativo: final_np_cual as any,
+                np_cuantitativo: final_np_cuant,
+                ne_cualitativo: final_ne_cual as any,
+                ne_cuantitativo: final_ne_cuant,
+                nc_cualitativo: final_nc_cual as any,
+                nc_cuantitativo: final_nc_cuant,
+                calificacion: calif,
+                nivel_riesgo: interp.nivel,
+                aceptabilidad: interp.aceptabilidad,
+                controles_existentes_descripcion: String(row[15] || '').trim() || 'Ninguno',
+                controles_existentes_tipo: String(row[16] || '').trim() || 'Ninguno',
+                tratamiento_accion: String(row[17] || '').trim() || 'Ninguno',
+                plan_accion_medio: String(row[18] || '').trim() || 'Ninguno',
+                plan_accion_individuo: String(row[19] || '').trim() || 'Ninguno',
+                responsable: String(row[20] || '').trim() || 'Responsable PESV',
+                fecha_programacion: String(row[21] || '').trim() || 'Permanente',
+                estado: est,
+                observaciones: String(row[23] || '').trim(),
+              });
+            }
+
+            const combined = [...matrixRows, ...mapped];
+            setMatrixRows(combined);
+            saveMatrixData(combined);
+            alert(`¡Se importaron exitosamente ${mapped.length} riesgos viales desde el formato oficial!`);
+            e.target.value = '';
+            return;
+          }
+
+          // 2. Fallback to standard key-based JSON parsing if no headers match in first 25 rows
           const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
           if (rawRows.length === 0) {
             alert('El archivo Excel está vacío.');
@@ -683,49 +885,81 @@ export default function MatrizPESVTable({
           const first = rawRows[0];
           const keys = Object.keys(first);
           const isStandard = (
-            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'actorvial') &&
-            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'factorderiesgo')
+            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'grupotrabajo' || k.toLowerCase().replace(/\s+/g, '') === 'clasificaciongruposdetrabajo') &&
+            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'factorriesgo' || k.toLowerCase().replace(/\s+/g, '') === 'factorderiesgo')
           );
 
           if (isStandard) {
-            const mapped: MatrixRow[] = rawRows.map((r) => ({
-              id: Date.now().toString() + Math.random().toString(36).substring(7),
-              proceso: toSentenceCase(getValueByKeys(r, ['proceso'])),
-              zona: toSentenceCase(getValueByKeys(r, ['zona', 'zonatrayecto', 'trayecto'])),
-              actor_vial: getValueByKeys(r, ['actorvial']),
-              tipo_desplazamiento: (getValueByKeys(r, ['tipodesplazamiento', 'desplazamiento']) === 'In itinere' ? 'In itinere' : 'Misional') as any,
-              factor_riesgo: (getValueByKeys(r, ['factorriesgo', 'riesgofactor']) || 'Factor Humano') as any,
-              peligro_descripcion: getValueByKeys(r, ['peligrodescripcion', 'peligro', 'descripcion']),
-              consecuencias: getValueByKeys(r, ['consecuencias', 'efectos']),
-              controles_existentes_persona: getValueByKeys(r, ['controlesexistentespersona', 'controlpersona']),
-              controles_existentes_vehiculo: getValueByKeys(r, ['controlesexistentesvehiculo', 'controlvehiculo']),
-              controles_existentes_via: getValueByKeys(r, ['controlesexistentesvia', 'controlvia']),
-              probabilidad: Number(getValueByKeys(r, ['probabilidad', 'prob'])) || 2,
-              severidad: Number(getValueByKeys(r, ['severidad', 'sev'])) || 25,
-              medida_eliminacion: getValueByKeys(r, ['medidaeliminacion', 'eliminacion']),
-              medida_sustitucion: getValueByKeys(r, ['medidasustitucion', 'sustitucion']),
-              medida_ingenieria: getValueByKeys(r, ['medidaingenieria', 'ingenieria']),
-              medida_administrativa: getValueByKeys(r, ['medidaadministrativa', 'administrativa', 'controlesadministrativos']),
-              medida_eppu: getValueByKeys(r, ['medidaeppu', 'epp', 'equipos']),
-              factores_reduccion: getValueByKeys(r, ['factoresreduccion', 'reduccion']),
-              responsable: getValueByKeys(r, ['responsable']) || 'Responsable PESV',
-            })).map((item) => {
-              const nr = item.probabilidad * item.severidad;
-              item.nivel_riesgo = nr;
-              if (nr >= 200) {
-                item.interpretacion_nr = 'Crítico';
-                item.aceptabilidad = 'No Aceptable';
-              } else if (nr >= 100) {
-                item.interpretacion_nr = 'Alto';
-                item.aceptabilidad = 'No Aceptable';
-              } else if (nr >= 40) {
-                item.interpretacion_nr = 'Medio';
-                item.aceptabilidad = 'Aceptable con Control Específico';
-              } else {
-                item.interpretacion_nr = 'Bajo';
-                item.aceptabilidad = 'Aceptable';
+            const mapped: MatrixRow[] = rawRows.map((r) => {
+              const np_cual = getValueByKeys(r, ['npcualitativo', 'np cualitativo', 'probabilidad cualitativo']);
+              let np_cuant = Number(getValueByKeys(r, ['npcuantitativo', 'np cuantitativo', 'np'])) || 0;
+              
+              let final_np_cual = 'PROBABLE';
+              let final_np_cuant = 3;
+              if (np_cual) {
+                final_np_cuant = mapNPCualitativoToNum(np_cual);
+                final_np_cual = getNPCualitativoLabel(final_np_cuant);
+              } else if (np_cuant) {
+                final_np_cuant = np_cuant;
+                final_np_cual = getNPCualitativoLabel(np_cuant);
               }
-              return item;
+
+              const ne_cual = getValueByKeys(r, ['necualitativo', 'ne cualitativo', 'exposicion cualitativo']);
+              let ne_cuant = Number(getValueByKeys(r, ['necuantitativo', 'ne cuantitativo', 'ne'])) || 0;
+              
+              let final_ne_cual = 'OCASIONAL';
+              let final_ne_cuant = 3;
+              if (ne_cual) {
+                final_ne_cuant = mapNECualitativoToNum(ne_cual);
+                final_ne_cual = getNECualitativoLabel(final_ne_cuant);
+              } else if (ne_cuant) {
+                final_ne_cuant = ne_cuant;
+                final_ne_cual = getNECualitativoLabel(ne_cuant);
+              }
+
+              const nc_cual = getValueByKeys(r, ['nccualitativo', 'nc cualitativo', 'consecuencia cualitativo']);
+              let nc_cuant = Number(getValueByKeys(r, ['nccuantitativo', 'nc cuantitativo', 'nc'])) || 0;
+              
+              let final_nc_cual = 'MODERADO';
+              let final_nc_cuant = 3;
+              if (nc_cual) {
+                final_nc_cuant = mapNCCualitativoToNum(nc_cual);
+                final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
+              } else if (nc_cuant) {
+                final_nc_cuant = nc_cuant;
+                final_nc_cual = getNCCualitativoLabel(nc_cuant);
+              }
+
+              const calif = final_np_cuant + final_ne_cuant + final_nc_cuant;
+              const interp = getInterpretacionPESV(calif);
+
+              return {
+                id: Date.now().toString() + Math.random().toString(36).substring(7),
+                grupo_trabajo: getValueByKeys(r, ['grupo_trabajo', 'grupotrabajo', 'grupo de trabajo', 'clasificacion grupos de trabajo', 'clasificaciongruposdetrabajo']) || 'General',
+                cargo: getValueByKeys(r, ['cargo', 'cargos', 'cargos individuales', 'cargo individual', 'cargosindividuales']) || 'General',
+                tipo_desplazamiento: (getValueByKeys(r, ['tipodesplazamiento', 'desplazamiento']) === 'In itinere' ? 'In itinere' : 'Misional') as any,
+                rol_via: getValueByKeys(r, ['rol_via', 'rolvia', 'rol en la via', 'rolenlavia', 'actor_vial', 'actorvial']) || 'Peatón',
+                factor_riesgo: (getValueByKeys(r, ['factorriesgo', 'factor de riesgo', 'factorderiesgo']) || 'Factor Humano') as any,
+                peligro_descripcion: getValueByKeys(r, ['peligro_descripcion', 'peligrodescripcion', 'peligro', 'peligros', 'descripcion de peligro', 'descripciondelpeligro', 'peligros descripcion', 'peligrosdescripcion']),
+                np_cualitativo: final_np_cual as any,
+                np_cuantitativo: final_np_cuant,
+                ne_cualitativo: final_ne_cual as any,
+                ne_cuantitativo: final_ne_cuant,
+                nc_cualitativo: final_nc_cual as any,
+                nc_cuantitativo: final_nc_cuant,
+                calificacion: calif,
+                nivel_riesgo: interp.nivel,
+                aceptabilidad: interp.aceptabilidad,
+                controles_existentes_descripcion: getValueByKeys(r, ['controles_existentes_descripcion', 'controlesexistentesdescripcion', 'controles existentes', 'controlesexistentes', 'interpretacion de controles', 'interpretacioncontroles']),
+                controles_existentes_tipo: getValueByKeys(r, ['controles_existentes_tipo', 'controlesexistentestipo', 'tipo de controles', 'tipodecontroles']),
+                tratamiento_accion: getValueByKeys(r, ['tratamiento_accion', 'tratamientoaccion', 'tratamiento', 'acciones / tratamiento', 'accionestratamiento']),
+                plan_accion_medio: getValueByKeys(r, ['plan_accion_medio', 'planaccionmedio', 'medio', 'controles medio', 'controlesmedio']),
+                plan_accion_individuo: getValueByKeys(r, ['plan_accion_individuo', 'planaccionindividuo', 'individuo', 'controles individuo', 'controlesindividuo']),
+                responsable: getValueByKeys(r, ['responsable', 'responsables']) || 'Responsable PESV',
+                fecha_programacion: getValueByKeys(r, ['fecha_programacion', 'fechaprogramacion', 'fecha', 'fecha de programacion', 'fecha programacion']),
+                estado: (getValueByKeys(r, ['estado', 'estados']) || 'PLANEADA') as any,
+                observaciones: getValueByKeys(r, ['observaciones', 'observacion']),
+              };
             });
 
             const combined = [...matrixRows, ...mapped];
@@ -752,28 +986,30 @@ export default function MatrizPESVTable({
 
   const handleExportExcel = () => {
     const dataToExport = matrixRows.map((r) => ({
-      Proceso: r.proceso,
-      'Zona / Trayecto': r.zona,
-      'Actor Vial': r.actor_vial,
-      'Tipo Desplazamiento': r.tipo_desplazamiento,
+      'Grupo de Trabajo': r.grupo_trabajo,
+      'Cargo': r.cargo,
+      'Tipo de Desplazamiento': r.tipo_desplazamiento,
+      'Rol en la Vía': r.rol_via,
       'Factor de Riesgo': r.factor_riesgo,
-      'Descripción Peligro': r.peligro_descripcion,
-      Consecuencias: r.consecuencias,
-      'Ctrl. Persona': r.controles_existentes_persona,
-      'Ctrl. Vehículo': r.controles_existentes_vehiculo,
-      'Ctrl. Vía / Entorno': r.controles_existentes_via,
-      Probabilidad: r.probabilidad,
-      Severidad: r.severidad,
-      'Nivel de Riesgo': (r.probabilidad || 0) * (r.severidad || 0),
-      Criticidad: r.interpretacion_nr || 'Bajo',
-      Aceptabilidad: r.aceptabilidad || 'Aceptable',
-      'Medida: Eliminación': r.medida_eliminacion,
-      'Medida: Sustitución': r.medida_sustitucion,
-      'Medida: Ingeniería': r.medida_ingenieria,
-      'Medida: Administrativo': r.medida_administrativa,
-      'Medida: EPP': r.medida_eppu,
-      'Factores Reducción': r.factores_reduccion,
-      Responsable: r.responsable,
+      'Descripción del Peligro': r.peligro_descripcion,
+      'NP Cualitativo': r.np_cualitativo,
+      'NP Cuantitativo': r.np_cuantitativo,
+      'NE Cualitativo': r.ne_cualitativo,
+      'NE Cuantitativo': r.ne_cuantitativo,
+      'NC Cualitativo': r.nc_cualitativo,
+      'NC Cuantitativo': r.nc_cuantitativo,
+      'Calificación': r.calificacion,
+      'Nivel de Riesgo': r.nivel_riesgo,
+      'Aceptabilidad': r.aceptabilidad,
+      'Controles Existentes': r.controles_existentes_descripcion,
+      'Tipo de Controles': r.controles_existentes_tipo,
+      'Tratamiento / Acción': r.tratamiento_accion,
+      'Plan Acción (Medio)': r.plan_accion_medio,
+      'Plan Acción (Individuo)': r.plan_accion_individuo,
+      'Responsable': r.responsable,
+      'Fecha / Periodicidad': r.fecha_programacion,
+      'Estado': r.estado,
+      'Observaciones': r.observaciones
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -785,25 +1021,30 @@ export default function MatrizPESVTable({
   const handleExportTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
       {
-        Proceso: 'Operación Comercial',
-        'Zona / Trayecto': 'Calle 26 - Aeropuerto',
-        'Actor Vial': 'Conductor de vehículo liviano',
-        'Tipo Desplazamiento': 'Misional',
+        'Grupo de Trabajo': 'Operativo',
+        'Cargo': 'Conductor de reparto',
+        'Tipo de Desplazamiento': 'Misional',
+        'Rol en la Vía': 'Conductor de vehículo liviano',
         'Factor de Riesgo': 'Factor Humano',
-        'Descripción Peligro': 'Fatiga extrema y microsueños',
-        Consecuencias: 'Colisión frontal contra infraestructura, traumas severos, fatalidad.',
-        'Ctrl. Persona': 'Capacitación en conducción defensiva',
-        'Ctrl. Vehículo': 'Mantenimiento preventivo mensual',
-        'Ctrl. Vía / Entorno': 'Ninguno',
-        Probabilidad: 2,
-        Severidad: 60,
-        'Medida: Eliminación': 'Ninguno',
-        'Medida: Sustitución': 'Ninguno',
-        'Medida: Ingeniería': 'Sensores de alerta de carril en el vehículo',
-        'Medida: Administrativo': 'Definir pausas activas obligatorias de 15 minutos cada 2 horas',
-        'Medida: EPP': 'Uso correcto del cinturón de seguridad de tres puntos',
-        'Factores Reducción': 'Reduce probabilidad en un 40% según estadísticas.',
-        Responsable: 'Coordinador de Logística / PESV',
+        'Descripción del Peligro': 'Fatiga extrema y microsueños durante conducción nocturna',
+        'NP Cualitativo': 'PROBABLE',
+        'NP Cuantitativo': 3,
+        'NE Cualitativo': 'OCASIONAL',
+        'NE Cuantitativo': 3,
+        'NC Cualitativo': 'MODERADO',
+        'NC Cuantitativo': 3,
+        'Calificación': 9,
+        'Nivel de Riesgo': 'NIVEL DE RIESGO MEDIO o MODERADO',
+        'Aceptabilidad': 'ACEPTABLE CON CONTROL ESPECIFICO',
+        'Controles Existentes': 'Capacitación básica en conducción defensiva',
+        'Tipo de Controles': 'INDIVIDUO',
+        'Tratamiento / Acción': 'MODIFICAR LOS FACTORES DE EXPOSICION',
+        'Plan Acción (Medio)': 'Definir pausas activas obligatorias cada 2 horas de trayecto',
+        'Plan Acción (Individuo)': 'Implementar checklist preoperacional de fatiga y sueño',
+        'Responsable': 'Responsable PESV',
+        'Fecha / Periodicidad': 'Permanente',
+        'Estado': 'PLANEADA',
+        'Observaciones': 'Revisión semestral'
       },
     ]);
     const wb = XLSX.utils.book_new();
@@ -819,21 +1060,25 @@ export default function MatrizPESVTable({
     if (q) {
       rows = rows.filter(({ row }) =>
         [
-          row.proceso,
-          row.zona,
-          row.actor_vial,
+          row.grupo_trabajo,
+          row.cargo,
+          row.rol_via,
           row.factor_riesgo,
           row.peligro_descripcion,
-          row.consecuencias,
+          row.controles_existentes_descripcion,
+          row.plan_accion_medio,
+          row.plan_accion_individuo,
+          row.responsable,
+          row.observaciones
         ].some((f) => f?.toLowerCase().includes(q)),
       );
     }
-    if (filterProceso) rows = rows.filter(({ row }) => row.proceso === filterProceso);
-    if (filterActor) rows = rows.filter(({ row }) => row.actor_vial === filterActor);
+    if (filterProceso) rows = rows.filter(({ row }) => row.grupo_trabajo === filterProceso || row.cargo === filterProceso);
+    if (filterActor) rows = rows.filter(({ row }) => row.rol_via === filterActor);
     if (filterNivel) {
       rows = rows.filter(({ row }) => {
-        const nr = (row.probabilidad || 0) * (row.severidad || 0);
-        const classification = nr >= 200 ? 'Crítico' : nr >= 100 ? 'Alto' : nr >= 40 ? 'Medio' : 'Bajo';
+        const calif = row.calificacion || 0;
+        const classification = calif >= 12 ? 'Alto' : calif >= 8 ? 'Medio' : 'Bajo';
         return classification === filterNivel;
       });
     }
@@ -842,9 +1087,9 @@ export default function MatrizPESVTable({
       rows.sort((a, b) => {
         let va = a.row[sortField as keyof MatrixRow];
         let vb = b.row[sortField as keyof MatrixRow];
-        if (sortField === 'nivel_riesgo') {
-          va = (a.row.probabilidad || 0) * (a.row.severidad || 0);
-          vb = (b.row.probabilidad || 0) * (b.row.severidad || 0);
+        if (sortField === 'nivel_riesgo' || sortField === 'calificacion') {
+          va = a.row.calificacion || 0;
+          vb = b.row.calificacion || 0;
         }
         if (typeof va === 'number' && typeof vb === 'number') {
           return sortDir === 'asc' ? va - vb : vb - va;
@@ -857,10 +1102,20 @@ export default function MatrizPESVTable({
     return rows;
   }, [matrixRows, filterText, filterProceso, filterActor, filterNivel, sortField, sortDir]);
 
-  const procesosUnicos = useMemo(
-    () => [...new Set(matrixRows.map((r) => r.proceso).filter(Boolean))],
-    [matrixRows],
-  );
+  const paginatedRows = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    return displayRows.slice(startIdx, endIdx);
+  }, [displayRows, currentPage, pageSize]);
+
+  const procesosUnicos = useMemo(() => {
+    const set = new Set<string>();
+    matrixRows.forEach(r => {
+      if (r.grupo_trabajo) set.add(r.grupo_trabajo);
+      if (r.cargo) set.add(r.cargo);
+    });
+    return Array.from(set).filter(Boolean);
+  }, [matrixRows]);
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -1146,10 +1401,9 @@ export default function MatrizPESVTable({
           onChange={setFilterNivel}
           placeholder="Todas las criticidades"
           options={[
-            { value: 'Crítico', label: '🔴 Crítico (>=200)' },
-            { value: 'Alto', label: '🟠 Alto (100-199)' },
-            { value: 'Medio', label: '🟡 Medio (40-99)' },
-            { value: 'Bajo', label: '🟢 Bajo (<40)' },
+            { value: 'Alto', label: '🔴 Alto o Crítico (12-15)' },
+            { value: 'Medio', label: '🟡 Medio o Moderado (8-11)' },
+            { value: 'Bajo', label: '🟢 Bajo (3-7)' },
           ]}
         />
 
@@ -1176,7 +1430,34 @@ export default function MatrizPESVTable({
       </div>
 
       {/* ── Tabla de spreadsheet ── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto custom-scrollbar-ipevar">
+        <style>{`
+          .custom-scrollbar-ipevar::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-track {
+            background: #1e293b;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 6px;
+            border: 2px solid #f1f5f9;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border: 2px solid #1e293b;
+          }
+          .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
+            background: #0ea5e9;
+          }
+          .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
+            background: #0284c7;
+          }
+        `}</style>
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <Truck className="h-10 w-10 opacity-20" />
@@ -1197,81 +1478,76 @@ export default function MatrizPESVTable({
                 <tr>
                   <th
                     className="min-w-[150px] cursor-pointer px-4 py-3 text-left hover:text-sky-600"
-                    onClick={() => toggleSort('proceso')}
+                    onClick={() => toggleSort('grupo_trabajo')}
                   >
-                    PROCESO <SortIcon field="proceso" />
+                    GRUPO TRABAJO <SortIcon field="grupo_trabajo" />
                   </th>
-                  <th className="min-w-[150px] px-4 py-3 text-left">ZONA / TRAYECTO</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left">ACTOR VIAL</th>
+                  <th
+                    className="min-w-[150px] cursor-pointer px-4 py-3 text-left hover:text-sky-600"
+                    onClick={() => toggleSort('cargo')}
+                  >
+                    CARGO <SortIcon field="cargo" />
+                  </th>
                   <th className="min-w-[140px] px-4 py-3 text-center">DESPLAZAMIENTO</th>
+                  <th className="min-w-[180px] px-4 py-3 text-left">ROL EN LA VÍA</th>
                   <th className="min-w-[160px] px-4 py-3 text-left">FACTOR RIESGO</th>
                   <th className="min-w-[220px] border-l-2 border-sky-500/20 px-4 py-3 text-left">DESCRIPCIÓN PELIGRO</th>
-                  <th className="min-w-[220px] px-4 py-3 text-left">CONSECUENCIAS</th>
+                  
+                  {/* Evaluación cualitativa / cuantitativa */}
+                  <th className="min-w-[160px] border-l-2 border-purple-500/20 px-4 py-3 text-center text-purple-700 dark:text-purple-400">NP CUALITATIVO</th>
+                  <th className="min-w-[80px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NP CUANT</th>
+                  <th className="min-w-[160px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NE CUALITATIVO</th>
+                  <th className="min-w-[80px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NE CUANT</th>
+                  <th className="min-w-[160px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NC CUALITATIVO</th>
+                  <th className="min-w-[80px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NC CUANT</th>
+                  
+                  <th className="min-w-[85px] cursor-pointer border-l-2 border-orange-500/20 px-4 py-3 text-center text-orange-700 hover:text-orange-500 dark:text-orange-400" onClick={() => toggleSort('calificacion')}>CALIF <SortIcon field="calificacion" /></th>
+                  <th className="min-w-[140px] border-l border-border-light px-4 py-3 text-center text-slate-700 dark:text-slate-400">NIVEL RIESGO</th>
+                  <th className="min-w-[160px] border-l border-border-light px-4 py-3 text-center text-slate-700 dark:text-slate-400">ACEPTABILIDAD</th>
                   
                   {/* Controles Existentes */}
-                  <th className="min-w-[180px] border-l-2 border-blue-500/20 px-4 py-3 text-left text-blue-700 dark:text-blue-400">CTRL. PERSONA</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">CTRL. VEHÍCULO</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">CTRL. VÍA / ENTORNO</th>
+                  <th className="min-w-[200px] border-l-2 border-blue-500/20 px-4 py-3 text-left text-blue-700 dark:text-blue-400">CONTROLES EXISTENTES</th>
+                  <th className="min-w-[160px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">TIPO CONTROLES</th>
+                  <th className="min-w-[180px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">TRATAMIENTO ACCIÓN</th>
                   
-                  {/* Evaluación */}
-                  <th className="min-w-[80px] border-l-2 border-purple-500/20 px-4 py-3 text-center text-purple-700 dark:text-purple-400">PROB</th>
-                  <th className="min-w-[80px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">SEV</th>
-                  <th className="min-w-[80px] cursor-pointer border-l-2 border-orange-500/20 px-4 py-3 text-center text-orange-700 hover:text-orange-500 dark:text-orange-400" onClick={() => toggleSort('nivel_riesgo')}>NR <SortIcon field="nivel_riesgo" /></th>
-                  <th className="min-w-[130px] border-l border-border-light px-4 py-3 text-center text-slate-700 dark:text-slate-400">CRITICIDAD</th>
+                  {/* Plan de Acción */}
+                  <th className="min-w-[200px] border-l-2 border-emerald-500/20 px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (MEDIO)</th>
+                  <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (INDIVIDUO)</th>
                   
-                  {/* Medidas de intervención */}
-                  <th className="min-w-[200px] border-l-2 border-emerald-500/20 px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">ELIMINACIÓN</th>
-                  <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">SUSTITUCIÓN</th>
-                  <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">INGENIERÍA</th>
-                  <th className="min-w-[220px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">ADMINISTRATIVOS</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">EPP</th>
-                  
-                  <th className="min-w-[220px] border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 text-left text-purple-700 dark:bg-purple-900/10 dark:text-purple-400">FACTORES REDUCCIÓN</th>
-                  <th className="min-w-[160px] px-4 py-3 text-left">RESPONSABLE</th>
+                  <th className="min-w-[160px] border-l border-border-light px-4 py-3 text-left">RESPONSABLE</th>
+                  <th className="min-w-[140px] px-4 py-3 text-left">FECHA / PERIODICIDAD</th>
+                  <th className="min-w-[130px] px-4 py-3 text-center">ESTADO</th>
+                  <th className="min-w-[220px] px-4 py-3 text-left">OBSERVACIONES</th>
                   <th className="sticky right-0 z-[200] min-w-[100px] border-l border-border-light bg-surface-secondary px-4 py-3 text-center shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
-                {displayRows.map(({ row, idx }) => {
-                  const nr = (row.probabilidad || 0) * (row.severidad || 0);
-                  const crit = getCriticidadLabel(nr);
+                {paginatedRows.map(({ row, idx }) => {
+                  const crit = getCriticidadLabel(row.calificacion || 0);
 
                   return (
                     <tr
-                      key={idx}
+                      key={row.id || idx}
                       className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors"
                     >
-                      {/* Proceso */}
+                      {/* Grupo Trabajo */}
                       <td className="px-4 py-3">
                         <textarea
                           rows={2}
                           className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
-                          value={row.proceso || ''}
-                          onChange={(e) => handleCellChange(idx, 'proceso', e.target.value)}
+                          value={row.grupo_trabajo || ''}
+                          onChange={(e) => handleCellChange(idx, 'grupo_trabajo', e.target.value)}
                         />
                       </td>
 
-                      {/* Zona */}
+                      {/* Cargo */}
                       <td className="px-4 py-3">
                         <textarea
                           rows={2}
                           className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
-                          value={row.zona || ''}
-                          onChange={(e) => handleCellChange(idx, 'zona', e.target.value)}
+                          value={row.cargo || ''}
+                          onChange={(e) => handleCellChange(idx, 'cargo', e.target.value)}
                         />
-                      </td>
-
-                      {/* Actor Vial */}
-                      <td className="px-4 py-3">
-                        <select
-                          className="w-full min-w-[160px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
-                          value={row.actor_vial || 'Peatón'}
-                          onChange={(e) => handleCellChange(idx, 'actor_vial', e.target.value)}
-                        >
-                          {ACTORES_VIALES.map((a) => (
-                            <option key={a} value={a}>{a}</option>
-                          ))}
-                        </select>
                       </td>
 
                       {/* Tipo Desplazamiento */}
@@ -1283,6 +1559,19 @@ export default function MatrizPESVTable({
                         >
                           <option value="Misional">Misional</option>
                           <option value="In itinere">In itinere</option>
+                        </select>
+                      </td>
+
+                      {/* Rol en la Vía */}
+                      <td className="px-4 py-3">
+                        <select
+                          className="w-full min-w-[160px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          value={row.rol_via || 'Peatón'}
+                          onChange={(e) => handleCellChange(idx, 'rol_via', e.target.value)}
+                        >
+                          {ACTORES_VIALES.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
                         </select>
                       </td>
 
@@ -1312,152 +1601,134 @@ export default function MatrizPESVTable({
                         />
                       </td>
 
-                      {/* Consecuencias */}
-                      <td className="px-4 py-3">
-                        <AITextarea
-                          value={row.consecuencias || ''}
-                          onChange={(v) => handleCellChange(idx, 'consecuencias', v)}
-                          minW="210px"
-                          fieldLabel="Consecuencias / Efectos"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
+                      {/* NP Cualitativo */}
+                      <td className="border-l border-border-light px-4 py-3 text-center">
+                        <select
+                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          value={row.np_cualitativo || 'PROBABLE'}
+                          onChange={(e) => handleCellChange(idx, 'np_cualitativo', e.target.value)}
+                        >
+                          {NP_CUALITATIVO_OPCIONES.map((opt) => (
+                            <option key={opt.label} value={opt.label} title={opt.desc}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* NP Cuantitativo */}
+                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                        {row.np_cuantitativo || 3}
+                      </td>
+
+                      {/* NE Cualitativo */}
+                      <td className="px-4 py-3 text-center">
+                        <select
+                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          value={row.ne_cualitativo || 'OCASIONAL'}
+                          onChange={(e) => handleCellChange(idx, 'ne_cualitativo', e.target.value)}
+                        >
+                          {NE_CUALITATIVO_OPCIONES.map((opt) => (
+                            <option key={opt.label} value={opt.label} title={opt.desc}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* NE Cuantitativo */}
+                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                        {row.ne_cuantitativo || 3}
+                      </td>
+
+                      {/* NC Cualitativo */}
+                      <td className="px-4 py-3 text-center">
+                        <select
+                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          value={row.nc_cualitativo || 'MODERADO'}
+                          onChange={(e) => handleCellChange(idx, 'nc_cualitativo', e.target.value)}
+                        >
+                          {NC_CUALITATIVO_OPCIONES.map((opt) => (
+                            <option key={opt.label} value={opt.label} title={opt.desc}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* NC Cuantitativo */}
+                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                        {row.nc_cuantitativo || 3}
+                      </td>
+
+                      {/* Calificación */}
+                      <td className="border-l border-border-light text-center font-extrabold text-orange-700 dark:text-orange-400 px-4 py-3">
+                        {row.calificacion || 9}
+                      </td>
+
+                      {/* Nivel de Riesgo */}
+                      <td className={`border-l border-border-light text-center px-4 py-3 text-xs tracking-wider ${crit.text}`}>
+                        {crit.label}
+                      </td>
+
+                      {/* Aceptabilidad */}
+                      <td className={`border-l border-border-light text-center px-4 py-3 text-xs font-bold tracking-wider ${row.aceptabilidad === 'NO ACEPTABLE' ? 'text-red-700 dark:text-red-400' : row.aceptabilidad?.includes('ESPECIFICO') ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {row.aceptabilidad || 'ACEPTABLE'}
                       </td>
 
                       {/* Controles Existentes */}
                       <td className="border-l border-border-light bg-blue-500/5 px-4 py-3">
                         <AITextarea
-                          value={row.controles_existentes_persona || ''}
-                          onChange={(v) => handleCellChange(idx, 'controles_existentes_persona', v)}
-                          minW="170px"
-                          fieldLabel="Control Persona"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-blue-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.controles_existentes_vehiculo || ''}
-                          onChange={(v) => handleCellChange(idx, 'controles_existentes_vehiculo', v)}
-                          minW="170px"
-                          fieldLabel="Control Vehículo"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-blue-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.controles_existentes_via || ''}
-                          onChange={(v) => handleCellChange(idx, 'controles_existentes_via', v)}
-                          minW="170px"
-                          fieldLabel="Control Vía / Entorno"
+                          value={row.controles_existentes_descripcion || ''}
+                          onChange={(v) => handleCellChange(idx, 'controles_existentes_descripcion', v)}
+                          minW="180px"
+                          fieldLabel="Controles Existentes / Diagnóstico"
                           row={row}
                           token={token}
                           selectedModel={selectedModel}
                         />
                       </td>
 
-                      {/* Probabilidad */}
-                      <td className="border-l border-border-light px-4 py-3 text-center">
+                      {/* Tipo Controles */}
+                      <td className="bg-blue-500/5 px-4 py-3">
                         <select
-                          className="bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-bold outline-none dark:text-gray-200"
-                          value={row.probabilidad || 2}
-                          onChange={(e) => handleCellChange(idx, 'probabilidad', Number(e.target.value))}
+                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          value={row.controles_existentes_tipo || 'Ninguno'}
+                          onChange={(e) => handleCellChange(idx, 'controles_existentes_tipo', e.target.value)}
                         >
-                          {PROBABILIDAD_ESCALA.map((p) => (
-                            <option key={p.value} value={p.value} title={p.desc}>{p.value}</option>
+                          {CONTROLES_TIPO_OPCIONES.map((o) => (
+                            <option key={o} value={o}>{o}</option>
                           ))}
                         </select>
                       </td>
 
-                      {/* Severidad */}
-                      <td className="px-4 py-3 text-center">
+                      {/* Tratamiento Acción */}
+                      <td className="bg-blue-500/5 px-4 py-3">
                         <select
-                          className="bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-bold outline-none dark:text-gray-200"
-                          value={row.severidad || 25}
-                          onChange={(e) => handleCellChange(idx, 'severidad', Number(e.target.value))}
+                          className="w-full min-w-[160px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          value={row.tratamiento_accion || 'Ninguno'}
+                          onChange={(e) => handleCellChange(idx, 'tratamiento_accion', e.target.value)}
                         >
-                          {SEVERIDAD_ESCALA.map((s) => (
-                            <option key={s.value} value={s.value} title={s.desc}>{s.value}</option>
+                          {TRATAMIENTO_ACCION_OPCIONES.map((o) => (
+                            <option key={o} value={o}>{o}</option>
                           ))}
                         </select>
                       </td>
 
-                      {/* NR */}
-                      <td className="border-l border-border-light text-center font-bold px-4 py-3">{nr}</td>
-
-                      {/* Criticidad */}
-                      <td className={`border-l border-border-light text-center px-4 py-3 text-xs tracking-wider ${crit.text}`}>
-                        {crit.label}
-                      </td>
-
-                      {/* Medidas de intervención */}
+                      {/* Plan Acción Medio */}
                       <td className="border-l border-border-light bg-emerald-500/5 px-4 py-3">
                         <AITextarea
-                          value={row.medida_eliminacion || ''}
-                          onChange={(v) => handleCellChange(idx, 'medida_eliminacion', v)}
+                          value={row.plan_accion_medio || ''}
+                          onChange={(v) => handleCellChange(idx, 'plan_accion_medio', v)}
                           minW="190px"
-                          fieldLabel="Medida: Eliminación"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-emerald-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.medida_sustitucion || ''}
-                          onChange={(v) => handleCellChange(idx, 'medida_sustitucion', v)}
-                          minW="190px"
-                          fieldLabel="Medida: Sustitución"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-emerald-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.medida_ingenieria || ''}
-                          onChange={(v) => handleCellChange(idx, 'medida_ingenieria', v)}
-                          minW="190px"
-                          fieldLabel="Medida: Ingeniería"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-emerald-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.medida_administrativa || ''}
-                          onChange={(v) => handleCellChange(idx, 'medida_administrativa', v)}
-                          minW="210px"
-                          fieldLabel="Medida: Administrativo"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-                      <td className="bg-emerald-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.medida_eppu || ''}
-                          onChange={(v) => handleCellChange(idx, 'medida_eppu', v)}
-                          minW="170px"
-                          fieldLabel="Medida: EPP"
+                          fieldLabel="Plan de Acción - Medio"
                           row={row}
                           token={token}
                           selectedModel={selectedModel}
                         />
                       </td>
 
-                      {/* Factores de reducción */}
-                      <td className="border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 dark:bg-purple-900/10">
+                      {/* Plan Acción Individuo */}
+                      <td className="bg-emerald-500/5 px-4 py-3">
                         <AITextarea
-                          value={row.factores_reduccion || ''}
-                          onChange={(v) => handleCellChange(idx, 'factores_reduccion', v)}
-                          minW="210px"
-                          fieldLabel="Factores de Reducción"
+                          value={row.plan_accion_individuo || ''}
+                          onChange={(v) => handleCellChange(idx, 'plan_accion_individuo', v)}
+                          minW="190px"
+                          fieldLabel="Plan de Acción - Individuo"
                           row={row}
                           token={token}
                           selectedModel={selectedModel}
@@ -1465,12 +1736,48 @@ export default function MatrizPESVTable({
                       </td>
 
                       {/* Responsable */}
-                      <td className="px-4 py-3">
+                      <td className="border-l border-border-light px-4 py-3">
                         <textarea
                           rows={2}
                           className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                           value={row.responsable || ''}
                           onChange={(e) => handleCellChange(idx, 'responsable', e.target.value)}
+                        />
+                      </td>
+
+                      {/* Fecha / Periodicidad */}
+                      <td className="px-4 py-3">
+                        <textarea
+                          rows={2}
+                          className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                          value={row.fecha_programacion || ''}
+                          onChange={(e) => handleCellChange(idx, 'fecha_programacion', e.target.value)}
+                        />
+                      </td>
+
+                      {/* Estado */}
+                      <td className="px-4 py-3 text-center">
+                        <select
+                          className="bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200 font-semibold"
+                          value={row.estado || 'PLANEADA'}
+                          onChange={(e) => handleCellChange(idx, 'estado', e.target.value)}
+                        >
+                          {ESTADO_OPCIONES.map((o) => (
+                            <option key={o} value={o}>{o || 'Ninguno'}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Observaciones */}
+                      <td className="px-4 py-3">
+                        <AITextarea
+                          value={row.observaciones || ''}
+                          onChange={(v) => handleCellChange(idx, 'observaciones', v)}
+                          minW="210px"
+                          fieldLabel="Observaciones del Riesgo Vial"
+                          row={row}
+                          token={token}
+                          selectedModel={selectedModel}
                         />
                       </td>
 
@@ -1504,13 +1811,52 @@ export default function MatrizPESVTable({
             </table>
           </div>
         )}
-        <div className="border-t border-border-light bg-surface-tertiary px-4 py-2">
+        <div className="border-t border-border-light bg-surface-tertiary px-4 py-2 flex items-center justify-between">
           <button
             onClick={addRow}
             className="flex items-center gap-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
           >
             <Plus className="h-3 w-3" /> Añadir Fila
           </button>
+
+          {displayRows.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-text-secondary select-none">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 hover:bg-surface-tertiary disabled:opacity-40 transition-all font-medium disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="px-2">
+                Página <strong>{currentPage}</strong> de {Math.ceil(displayRows.length / pageSize) || 1} (Total: {displayRows.length} riesgos)
+              </span>
+              <button
+                disabled={currentPage >= Math.ceil(displayRows.length / pageSize)}
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(displayRows.length / pageSize), prev + 1))}
+                className="rounded-md border border-border-medium bg-surface-secondary px-2.5 py-1 hover:bg-surface-tertiary disabled:opacity-40 transition-all font-medium disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+              
+              <div className="ml-4 flex items-center gap-1.5">
+                <span>Mostrar:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-md border border-border-medium bg-surface-secondary px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
