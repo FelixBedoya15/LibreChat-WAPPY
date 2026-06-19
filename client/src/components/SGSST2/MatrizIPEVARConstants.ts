@@ -116,7 +116,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   rad_ionizante: {
     label: 'Físico — Radiaciones Ionizantes',
     keywords: ['radiación ionizante', 'rayos x', 'gamma', 'radiactiv', 'nuclear'],
-    note: 'NOTA GTC-45 §Anexo C: Cuando se tenga sospecha de exposición a un agente altamente radiactivo, se deben realizar mediciones para determinar el nivel de exposición en referencia al TLV (véase Anexo D), sin dejar de valorarlo cualitativamente mientras se obtienen las mediciones.',
+    note: 'NOTA GTC-45 Anexo C: Cuando se tenga sospecha de exposición a un agente altamente radiactivo, se deben realizar mediciones para determinar el nivel de exposición en referencia al TLV (véase Anexo D), sin dejar de valorarlo cualitativamente mientras se obtienen las mediciones.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Sospecha o certeza de exposición a agente radiactivo. Sin medición, sin controles ni EPP. Valorar cualitativamente mientras se obtienen mediciones.' },
       { value: 6, label: 'A (Alto)', description: 'Exposición posible según tipo de trabajo similar, sin medición formal disponible aún.' },
@@ -137,7 +137,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biologico: {
     label: 'Biológico',
     keywords: ['biológico', 'biologic', 'bacteria', 'virus', 'hongo', 'parásito', 'infectocontagios'],
-    note: 'NOTA GTC-45 §Anexo C: La información específica sobre clasificación de agentes biológicos puede consultarse en el cuadro de Clasificación de Peligros (véase el Anexo A de la GTC-45).',
+    note: 'NOTA GTC-45 Anexo C: La información específica sobre clasificación de agentes biológicos puede consultarse en el cuadro de Clasificación de Peligros (véase el Anexo A de la GTC-45).',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Exposición a agentes biológicos de alto riesgo (clase 3 o 4 según Anexo A) sin barreras ni EPP.' },
       { value: 6, label: 'A (Alto)', description: 'Exposición posible a agentes clase 2-3, sin vacunación disponible y sin protocolos formales.' },
@@ -148,7 +148,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biomecanico_postura: {
     label: 'Biomecánico — Postura',
     keywords: ['postura', 'sedentari', 'sentado', 'espalda', 'computador', 'digitaci', 'cuello'],
-    note: 'NOTA GTC-45 §Anexo C: Postura (prolongada mantenida, forzada, antigravitacional).',
+    note: 'NOTA GTC-45 Anexo C: Postura (prolongada mantenida, forzada, antigravitacional).',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Posturas con un riesgo extremo de lesión musculoesquelética. Deben tomarse medidas correctivas inmediatamente.' },
       { value: 6, label: 'A (Alto)', description: 'Posturas de trabajo con riesgo significativo de lesión. Se deben modificar las condiciones de trabajo tan pronto como sea posible.' },
@@ -159,7 +159,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biomecanico_repetitivo: {
     label: 'Biomecánico — Movimiento Repetitivo',
     keywords: ['repetitiv', 'movimiento', 'digitaci', 'teclado', 'mouse', 'mano'],
-    note: 'NOTA GTC-45 §Anexo C: Movimientos repetitivos.',
+    note: 'NOTA GTC-45 Anexo C: Movimientos repetitivos.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Actividad que exige movimientos rápidos y continuos, a un ritmo difícil de mantener (ciclos de trabajo < 30s ó 1 min, o concentración de movimientos usando pocos músculos > 50% del tiempo).' },
       { value: 6, label: 'A (Alto)', description: 'Actividad que exige movimientos rápidos y continuos, con la posibilidad de realizar pausas ocasionales (ciclos < 30s ó 1 min, o > 50% del tiempo).' },
@@ -170,7 +170,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biomecanico_esfuerzo: {
     label: 'Biomecánico — Esfuerzo',
     keywords: ['esfuerzo', 'fuerza', 'tension'],
-    note: 'NOTA GTC-45 §Anexo C: Esfuerzo.',
+    note: 'NOTA GTC-45 Anexo C: Esfuerzo.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Actividad intensa en donde el esfuerzo es visible en la expresión facial del trabajador y/o la contracción muscular es visible.' },
       { value: 6, label: 'A (Alto)', description: 'Actividad pesada, con resistencia.' },
@@ -181,7 +181,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biomecanico_cargas: {
     label: 'Biomecánico — Manipulación de Cargas',
     keywords: ['carga', 'levantamiento', 'peso', 'manipulacion', 'caja', 'empuje', 'traccion'],
-    note: 'NOTA GTC-45 §Anexo C: Manipulación manual de cargas.',
+    note: 'NOTA GTC-45 Anexo C: Manipulación manual de cargas.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Manipulación manual de cargas con un riesgo extremo de lesión musculoesquelética. Deben tomarse medidas correctivas inmediatamente.' },
       { value: 6, label: 'A (Alto)', description: 'Manipulación manual de cargas con riesgo significativo de lesión. Se deben modificar las condiciones de trabajo tan pronto como sea posible.' },
@@ -192,7 +192,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   biomecanico: {
     label: 'Biomecánico (Genérico)',
     keywords: ['biomecan', 'ergon'],
-    note: 'NOTA GTC-45 §Anexo C: Riesgo biomecánico genérico. Utilice clasificación por tipos (postura, repetición, etc.) si es posible.',
+    note: 'NOTA GTC-45 Anexo C: Riesgo biomecánico genérico. Utilice clasificación por tipos (postura, repetición, etc.) si es posible.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Alta carga física, movimiento repetitivo extremo y/o postura forzada mantenida toda la jornada sin pausas ni controles.' },
       { value: 6, label: 'A (Alto)', description: 'Carga moderada-alta, posturas forzadas frecuentes, controles insuficientes.' },
@@ -203,7 +203,7 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   psicosocial: {
     label: 'Psicosocial',
     keywords: ['psicosocial', 'estrés', 'mental', 'burnout', 'acoso', 'fatiga', 'carga mental', 'turno'],
-    note: 'NOTA GTC-45 §Anexo C: Escala basada en la interpretación genérica de niveles de riesgo psicosocial intralaboral propuesta en la Batería de Instrumentos para Evaluación de Factores de Riesgo Psicosocial del Ministerio de la Protección Social, 2010.',
+    note: 'NOTA GTC-45 Anexo C: Escala basada en la interpretación genérica de niveles de riesgo psicosocial intralaboral propuesta en la Batería de Instrumentos para Evaluación de Factores de Riesgo Psicosocial del Ministerio de la Protección Social, 2010.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Nivel de riesgo psicosocial MUY ALTO según Batería Ministerio Protección Social 2010. Sin intervención.' },
       { value: 6, label: 'A (Alto)', description: 'Nivel de riesgo psicosocial ALTO según Batería. Intervenciones insuficientes.' },

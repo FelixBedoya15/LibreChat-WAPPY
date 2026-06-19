@@ -145,7 +145,8 @@ const AnnexCSelector = ({
   const typeKey = detectAnnexCType(row.peligro_clasificacion, row.peligro_descripcion);
   if (!typeKey) return null;
   const entry = ANNEX_C_CRITERIA[typeKey];
-  const selected = entry.criteria.find((c) => c.value === row.nd_cualitativo);
+  const currentND = row.nd_cualitativo !== null && row.nd_cualitativo !== undefined ? Number(row.nd_cualitativo) : Number(row.nd);
+  const selected = entry.criteria.find((c) => c.value === currentND);
   const isPsicosocial = typeKey === 'psicosocial';
 
   const selectedDominioObj = PSICOSOCIAL_BATTERY.find(
@@ -233,7 +234,7 @@ const AnnexCSelector = ({
                       type="button"
                       onClick={() => onSelect(c.value)}
                       className={`rounded-full border px-2 py-0.5 text-[9px] font-bold transition-colors ${
-                        row.nd_cualitativo === c.value
+                        currentND === c.value
                           ? 'border-teal-600 bg-teal-500 text-white'
                           : 'border-border-medium bg-surface-secondary text-text-primary hover:border-teal-400'
                       }`}
@@ -330,14 +331,14 @@ const AnnexCSelector = ({
                     setOpen(false);
                   }}
                   className={`w-full px-3 py-2 text-left transition-colors ${
-                    row.nd_cualitativo === c.value
+                    currentND === c.value
                       ? 'bg-teal-50 dark:bg-teal-900/20'
                       : 'hover:bg-surface-secondary'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-3.5 shrink-0">
-                      {row.nd_cualitativo === c.value && (
+                      {currentND === c.value && (
                         <Check className="h-3 w-3 text-teal-500" />
                       )}
                     </span>
