@@ -439,7 +439,7 @@ export default function MatrizCompatibilidadTable({
 
         {/* Controles de Acción */}
         <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
-          <ModelSelector model={selectedModel} setModel={setSelectedModel} />
+          <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
           
           <div className="flex items-center gap-1.5">
             {/* Importar */}
