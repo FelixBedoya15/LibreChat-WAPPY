@@ -41,6 +41,9 @@ class MatrizIPEVAR extends Tool {
         medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos apropiados.'),
         factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E). CRÍTICO: No pongas solo un resumen, DEBES ser altamente analítico explicando extensamente por qué y cómo los controles propuestos reducirán el riesgo, sustentando la viabilidad técnica/financiera y la relación costo-beneficio del plan.'),
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
+        nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Por defecto 1.'),
+        peor_consecuencia: z.string().default('Ninguna').describe('Peor consecuencia posible si el peligro se materializa.'),
+        requisito_legal: z.enum(['Sí', 'No', '']).default('').describe('¿Existe un requisito legal específico asociado al peligro? ("Sí", "No", o vacío).'),
       })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío en otros casos.')
     });
   }
@@ -255,22 +258,26 @@ class MatrizIPEVAR extends Tool {
         const nc = Number(riesgo.nc) || 0;
         const nr = np * nc;
 
+        let interpretacion_np = '';
+        if (np >= 24) interpretacion_np = 'Muy Alto (MA)';
+        else if (np >= 10) interpretacion_np = 'Alto (A)';
+        else if (np >= 6) interpretacion_np = 'Medio (M)';
+        else if (np >= 2) interpretacion_np = 'Bajo (B)';
+
         let interpretacion_nr = 'IV';
-        if (nr >= 4000) interpretacion_nr = 'I';
-        else if (nr >= 500) interpretacion_nr = 'I';
+        if (nr >= 600) interpretacion_nr = 'I';
         else if (nr >= 150) interpretacion_nr = 'II';
         else if (nr >= 40) interpretacion_nr = 'III';
 
-        const aceptabilidad =
-          interpretacion_nr === 'I'
-            ? 'No Aceptable'
-            : interpretacion_nr === 'II'
-              ? 'No Aceptable o Aceptable con Control Específico'
-              : 'Aceptable';
+        let aceptabilidad = 'Aceptable';
+        if (interpretacion_nr === 'I') aceptabilidad = 'No Aceptable';
+        else if (interpretacion_nr === 'II') aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
+        else if (interpretacion_nr === 'III') aceptabilidad = 'Mejorable';
 
         const row = {
           ...riesgo,
           np,
+          interpretacion_np,
           nc,
           nr,
           interpretacion_nr,

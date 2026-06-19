@@ -33,7 +33,20 @@ export interface MatrixRow {
   nd_cualitativo?: number | null; // Anexo C GTC-45 (10|6|2|0)
   psicosocial_dominio?: string; // Batería Riesgo Psicosocial MPS 2010 — Dominio
   psicosocial_dimension?: string; // Batería Riesgo Psicosocial MPS 2010 — Dimensión
+  interpretacion_np?: string; // NUEVA: Interpretación del Nivel de Probabilidad
+  nro_expuestos?: number; // NUEVA: Criterio - Número de expuestos
+  peor_consecuencia?: string; // NUEVA: Criterio - Peor consecuencia
+  requisito_legal?: 'Sí' | 'No' | ''; // NUEVA: Criterio - Requisito legal
 }
+
+export const getInterpretacionNP = (np: number): string => {
+  if (!np) return '—';
+  if (np >= 24) return 'Muy Alto (MA)';
+  if (np >= 10) return 'Alto (A)';
+  if (np >= 6) return 'Medio (M)';
+  return 'Bajo (B)';
+};
+
 
 export interface AnnexCOption {
   value: number;

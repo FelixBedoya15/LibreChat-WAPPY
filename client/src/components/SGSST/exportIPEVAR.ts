@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { MatrixRow } from './MatrizIPEVARConstants';
+import { MatrixRow, getInterpretacionNP } from './MatrizIPEVARConstants';
 
 export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const wb = new ExcelJS.Workbook();
@@ -214,7 +214,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // Activar Filtros Automáticos sin usar addTable para no perder control del color de cabecera
   wsMatriz.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: totalRows, column: 24 }
+    to: { row: totalRows, column: 28 }
   };
 
   wsMatriz.columns = [
@@ -232,10 +232,14 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     { header: 'ND', key: 'nd', width: 10 },
     { header: 'NE', key: 'ne', width: 10 },
     { header: 'NP', key: 'np', width: 10 },
+    { header: 'Interpretación NP', key: 'interpretacion_np', width: 18 },
     { header: 'NC', key: 'nc', width: 10 },
     { header: 'NR (Nivel)', key: 'nr', width: 12 },
     { header: 'Interpretación NR', key: 'interpretacion_nr', width: 22 },
     { header: 'Aceptabilidad del Riesgo', key: 'aceptabilidad', width: 40 },
+    { header: 'Nro. Expuestos', key: 'nro_expuestos', width: 15 },
+    { header: 'Peor Consecuencia', key: 'peor_consecuencia', width: 30 },
+    { header: 'Requisito Legal', key: 'requisito_legal', width: 15 },
     { header: 'Eliminación', key: 'medida_eliminacion', width: 25 },
     { header: 'Sustitución', key: 'medida_sustitucion', width: 25 },
     { header: 'Ctrl. Ingeniería', key: 'medida_ingenieria', width: 25 },
@@ -271,10 +275,14 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       nd: Number(row.nd) || 0,
       ne: Number(row.ne) || 0,
       np: { formula: `L${rowNumber}*M${rowNumber}`, result: row.np },
+      interpretacion_np: getInterpretacionNP(row.np),
       nc: Number(row.nc) || 0,
-      nr: { formula: `N${rowNumber}*O${rowNumber}`, result: row.nr },
+      nr: { formula: `N${rowNumber}*P${rowNumber}`, result: row.nr },
       interpretacion_nr: row.interpretacion_nr,
       aceptabilidad: row.aceptabilidad,
+      nro_expuestos: row.nro_expuestos !== undefined ? row.nro_expuestos : 1,
+      peor_consecuencia: row.peor_consecuencia || '',
+      requisito_legal: row.requisito_legal || '',
       medida_eliminacion: row.medida_eliminacion,
       medida_sustitucion: row.medida_sustitucion,
       medida_ingenieria: row.medida_ingenieria,
@@ -292,7 +300,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
       cell.alignment = { vertical: 'top', wrapText: true, indent: 1 }; // Indentación ligera
       
-      if (colNumber === 5 || (colNumber >= 12 && colNumber <= 17)) {
+      if (colNumber === 5 || (colNumber >= 12 && colNumber <= 18)) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
       
@@ -317,9 +325,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // NR (Columna P)
+  // NR (Columna Q)
   wsMatriz.addConditionalFormatting({
-    ref: `P2:P${finalTotalRows}`,
+    ref: `Q2:Q${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'between', formulae: ['150', '500'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -328,9 +336,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Interpretación NR (Columna Q)
+  // Interpretación NR (Columna R)
   wsMatriz.addConditionalFormatting({
-    ref: `Q2:Q${finalTotalRows}`,
+    ref: `R2:R${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"I"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'equal', formulae: ['"II"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -339,9 +347,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Aceptabilidad (Columna R)
+  // Aceptabilidad (Columna S)
   wsMatriz.addConditionalFormatting({
-    ref: `R2:R${finalTotalRows}`,
+    ref: `S2:S${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable o Aceptable con Control Específico"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja

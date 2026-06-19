@@ -29,6 +29,7 @@ import {
   ANNEX_C_CRITERIA,
   detectAnnexCType,
   PSICOSOCIAL_BATTERY,
+  getInterpretacionNP,
 } from './MatrizIPEVARConstants';
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
@@ -881,6 +882,13 @@ export default function MatrizIPEVARTable({
               const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
               const npVal = ndVal * neVal;
               const nrVal = npVal * ncVal;
+              
+              // Clean up legal requirement value: map "si"/"sí" to "Sí", "no" to "No", otherwise empty
+              const rawReq = String(getValueByKeys(r, ['existenciarequisitolegal', 'requisitolegal', 'requisitolegalasociado']) || '').trim().toLowerCase();
+              let mappedReq: 'Sí' | 'No' | '' = '';
+              if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
+              else if (rawReq.includes('no')) mappedReq = 'No';
+
               return {
                 proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'cargo', 'cargos'])),
                 zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar'])),
@@ -896,10 +904,14 @@ export default function MatrizIPEVARTable({
                 nd: ndVal,
                 ne: neVal,
                 np: npVal,
+                interpretacion_np: getInterpretacionNP(npVal),
                 nc: ncVal,
                 nr: nrVal,
-                interpretacion_nr: getValueByKeys(r, ['interpretacionnr', 'interpretaciondelniveldeprobabilidad', 'aceptabilidad']),
-                aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo']),
+                interpretacion_nr: getValueByKeys(r, ['interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo', 'interpretaciondelnr']),
+                aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
+                nro_expuestos: Number(getValueByKeys(r, ['nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
+                peor_consecuencia: getValueByKeys(r, ['peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
+                requisito_legal: mappedReq,
                 medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
                 medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
                 medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
@@ -1133,8 +1145,9 @@ export default function MatrizIPEVARTable({
     if (['nd', 'ne', 'nc'].includes(field as string)) {
       const row = newRows[index];
       row.np = (Number(row.nd) || 0) * (Number(row.ne) || 0);
+      row.interpretacion_np = getInterpretacionNP(row.np);
       row.nr = row.np * (Number(row.nc) || 0);
-      if (row.nr >= 500) {
+      if (row.nr >= 600) {
         row.interpretacion_nr = 'I';
         row.aceptabilidad = 'No Aceptable';
       } else if (row.nr >= 150) {
@@ -1179,6 +1192,10 @@ export default function MatrizIPEVARTable({
       medida_eppu: 'Ninguno',
       factores_reduccion: 'No aplica',
       nd_cualitativo: null,
+      interpretacion_np: '',
+      nro_expuestos: 1,
+      peor_consecuencia: '',
+      requisito_legal: '',
     };
     isDirtyRef.current = true;
     setMatrixRows((prev) => [...prev, newRow]);
@@ -1845,6 +1862,9 @@ export default function MatrizIPEVARTable({
                   <th className="min-w-[60px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">
                     NP
                   </th>
+                  <th className="min-w-[140px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">
+                    INTERPRETACIÓN NP
+                  </th>
                   <th className="min-w-[60px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">
                     NC
                   </th>
@@ -1855,10 +1875,23 @@ export default function MatrizIPEVARTable({
                     NR <SortIcon field="nr" />
                   </th>
                   <th
-                    className="min-w-[170px] cursor-pointer border-l border-border-light px-4 py-3 text-left text-slate-700 hover:text-slate-900 dark:text-slate-400"
+                    className="min-w-[130px] cursor-pointer border-l border-border-light px-4 py-3 text-center text-slate-700 hover:text-slate-900 dark:text-slate-400"
                     onClick={() => toggleSort('interpretacion_nr')}
                   >
-                    SIGNIFICADO EXPLICACIÓN <SortIcon field="interpretacion_nr" />
+                    INTERPRETACIÓN NR <SortIcon field="interpretacion_nr" />
+                  </th>
+                  <th className="min-w-[180px] border-l border-border-light px-4 py-3 text-left text-slate-700 dark:text-slate-400">
+                    ACEPTABILIDAD DEL RIESGO
+                  </th>
+                  {/* Criterios para establecer controles */}
+                  <th className="min-w-[100px] border-l-2 border-sky-500/20 px-4 py-3 text-center text-sky-700 dark:text-sky-400">
+                    NRO. EXPUESTOS
+                  </th>
+                  <th className="min-w-[180px] px-4 py-3 text-left text-sky-700 dark:text-sky-400">
+                    PEOR CONSECUENCIA
+                  </th>
+                  <th className="min-w-[120px] px-4 py-3 text-center text-sky-700 dark:text-sky-400">
+                    REQUISITO LEGAL
                   </th>
                   {/* Clasificación visible entre NR y Eliminación */}
                   <th
@@ -2049,6 +2082,24 @@ export default function MatrizIPEVARTable({
                     <td className="bg-purple-500/5 px-4 py-3 text-center font-bold text-purple-600 dark:text-purple-400">
                       {row.np}
                     </td>
+                    <td className="bg-purple-500/5 px-4 py-3 align-middle text-center">
+                      {(() => {
+                        const interpretacion = getInterpretacionNP(row.np);
+                        if (!interpretacion || interpretacion === '—') return '—';
+                        const color = interpretacion.includes('Muy Alto')
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                          : interpretacion.includes('Alto')
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                            : interpretacion.includes('Medio')
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300'
+                              : 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300';
+                        return (
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${color}`}>
+                            {interpretacion}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="bg-purple-500/5 px-4 py-3">
                       <input
                         type="number"
@@ -2062,16 +2113,73 @@ export default function MatrizIPEVARTable({
                     >
                       <div className="text-base">{row.nr}</div>
                     </td>
-                    <td className="whitespace-nowrap border-l border-border-light px-4 py-3 align-middle text-[11px] font-medium text-text-secondary">
-                      {row.interpretacion_nr === 'I'
-                        ? '🔴 Nivel I — No Aceptable'
-                        : row.interpretacion_nr === 'II'
-                          ? '🟠 Nivel II — Aceptable con control'
-                          : row.interpretacion_nr === 'III'
-                            ? '🟡 Nivel III — Mejorable'
-                            : row.interpretacion_nr === 'IV'
-                              ? '🟢 Nivel IV — Aceptable'
-                              : row.interpretacion_nr || '—'}
+                    <td className="whitespace-nowrap border-l border-border-light px-4 py-3 align-middle text-center">
+                      {(() => {
+                        const val = row.interpretacion_nr || '—';
+                        const color = val === 'I'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                          : val === 'II'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                            : val === 'III'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300'
+                              : val === 'IV'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                                : 'bg-surface-tertiary text-text-secondary';
+                        return (
+                          <span className={`inline-block rounded-full px-3 py-0.5 text-[10px] font-extrabold ${color}`}>
+                            Nivel {val}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="whitespace-nowrap border-l border-border-light px-4 py-3 align-middle">
+                      {(() => {
+                        const val = row.aceptabilidad || '—';
+                        const color = val.toLowerCase().includes('no aceptable')
+                          ? val.toLowerCase().includes('específico')
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                          : val.toLowerCase().includes('mejorable')
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300'
+                            : val.toLowerCase().includes('aceptable')
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                              : 'bg-surface-tertiary text-text-secondary';
+                        return (
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${color}`}>
+                            {val}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    {/* Criterios para establecer controles */}
+                    <td className="bg-sky-500/5 px-4 py-3">
+                      <input
+                        type="number"
+                        className="w-16 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        value={row.nro_expuestos !== undefined ? row.nro_expuestos : 1}
+                        onChange={(e) => handleCellChange(idx, 'nro_expuestos', Number(e.target.value) || 0)}
+                        min={0}
+                      />
+                    </td>
+                    <td className="bg-sky-500/5 px-4 py-3">
+                      <textarea
+                        rows={2}
+                        className="w-full min-w-[150px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 text-xs"
+                        value={row.peor_consecuencia || ''}
+                        onChange={(e) => handleCellChange(idx, 'peor_consecuencia', e.target.value)}
+                        placeholder="Ej. Lesión grave..."
+                      />
+                    </td>
+                    <td className="bg-sky-500/5 px-4 py-3 text-center">
+                      <select
+                        className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
+                        value={row.requisito_legal || ''}
+                        onChange={(e) => handleCellChange(idx, 'requisito_legal', e.target.value)}
+                      >
+                        <option value="" className="bg-surface-primary dark:bg-surface-secondary text-text-secondary">—</option>
+                        <option value="Sí" className="bg-surface-primary dark:bg-surface-secondary text-text-primary">Sí</option>
+                        <option value="No" className="bg-surface-primary dark:bg-surface-secondary text-text-primary">No</option>
+                      </select>
                     </td>
 
                     {/* Clasificación visible con badge de color */}

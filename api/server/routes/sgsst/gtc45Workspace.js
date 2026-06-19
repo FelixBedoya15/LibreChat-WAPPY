@@ -156,27 +156,28 @@ CONTROLES EXISTENTES (YA REGISTRADOS POR EL USUARIO — NO INVENTAR NI MODIFICAR
   - Medio: ${row.controles_medio || 'Ninguno'}
   - Individuo: ${row.controles_individuo || 'Ninguno'}
 ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | NC actual: ${row.nc || 'No definido'}
+Nro. Expuestos: ${row.nro_expuestos || 1}
+Peor Consecuencia: ${row.peor_consecuencia || 'No definida'}
+Requisito Legal: ${row.requisito_legal || 'No especificado'}
 
 ═══ TU ÚNICA TAREA ═══
-Basándote EXCLUSIVAMENTE en los datos fijos de arriba (no los modifiques ni inventes nada nuevo sobre ellos):
-1. Determina ND, NE, NC correctos según GTC-45:2012 (Anexo C para ND cualitativo si aplica).
-2. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas.
+Basándote EXCLUSIVAMENTE en los datos fijos de arriba:
+1. Determina ND, NE, NC correctos según GTC-45:2012. 
+   IMPORTANTE DE ESTABILIDAD: Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), DEBES conservarlos exactamente igual en tu respuesta en los campos "nd", "ne" y "nc". Solo recalcula si están vacíos, son cero o si el usuario modificó sustancialmente los controles existentes arriba.
+2. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas a futuro.
 3. Completa factores_reduccion con justificación técnica y costo-beneficio (Anexo E). NUNCA dejar vacío.
+4. Si los campos nro_expuestos, peor_consecuencia y requisito_legal están vacíos o no definidos, propón o estima valores adecuados basados en el peligro. De lo contrario, consérvalos.
 
-REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies. NO inventes controles nuevos en esas celdas.
+REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies.
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos exactos:
 {
   "nd": <número 1-10>,
   "ne": <número 1-4>,
-  "nc": <número 10|25|60|100|150>,
-  "np": <nd * ne>,
-  "nr": <np * nc>,
-  "interpretacion_nr": <"I"|"II"|"III"|"IV">,
-  "aceptabilidad": <"No Aceptable"|"No Aceptable o Aceptable con control específico"|"Aceptable"|"Mejorable">,
-  "controles_fuente": "${(row.controles_fuente || 'Ninguno').replace(/"/g, '\\"')}",
-  "controles_medio": "${(row.controles_medio || 'Ninguno').replace(/"/g, '\\"')}",
-  "controles_individuo": "${(row.controles_individuo || 'Ninguno').replace(/"/g, '\\"')}",
+  "nc": <número 10|25|60|100>,
+  "nro_expuestos": ${row.nro_expuestos || 1},
+  "peor_consecuencia": "<peor consecuencia o proponer si está vacía>",
+  "requisito_legal": "<'Sí'|'No'|'', proponer si está vacía>",
   "medida_eliminacion": "<medida propuesta o Ninguno>",
   "medida_sustitucion": "<medida propuesta o Ninguno>",
   "medida_ingenieria": "<control de ingeniería propuesto o Ninguno>",
@@ -201,9 +202,41 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
       return res.status(500).json({ error: 'La IA devolvió un formato JSON inválido. Intenta de nuevo.' });
     }
 
-    // Recalculate np and nr server-side for safety
-    if (updatedFields.nd && updatedFields.ne) updatedFields.np = updatedFields.nd * updatedFields.ne;
-    if (updatedFields.np && updatedFields.nc) updatedFields.nr = updatedFields.np * updatedFields.nc;
+    // Recalculate NP, Interpretación NP, NR, Interpretación NR and Aceptabilidad server-side to ensure 100% GTC-45 accuracy and stability
+    const nd = Number(updatedFields.nd) || 0;
+    const ne = Number(updatedFields.ne) || 0;
+    const np = nd * ne;
+    updatedFields.np = np;
+
+    let interpretacion_np = '';
+    if (np >= 24) interpretacion_np = 'Muy Alto (MA)';
+    else if (np >= 10) interpretacion_np = 'Alto (A)';
+    else if (np >= 6) interpretacion_np = 'Medio (M)';
+    else if (np >= 2) interpretacion_np = 'Bajo (B)';
+    updatedFields.interpretacion_np = interpretacion_np;
+
+    const nc = Number(updatedFields.nc) || 0;
+    const nr = np * nc;
+    updatedFields.nr = nr;
+
+    let interpretacion_nr = 'IV';
+    if (nr >= 600) interpretacion_nr = 'I';
+    else if (nr >= 150) interpretacion_nr = 'II';
+    else if (nr >= 40) interpretacion_nr = 'III';
+    else interpretacion_nr = 'IV';
+    updatedFields.interpretacion_nr = interpretacion_nr;
+
+    let aceptabilidad = 'Aceptable';
+    if (interpretacion_nr === 'I') aceptabilidad = 'No Aceptable';
+    else if (interpretacion_nr === 'II') aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
+    else if (interpretacion_nr === 'III') aceptabilidad = 'Mejorable';
+    else aceptabilidad = 'Aceptable';
+    updatedFields.aceptabilidad = aceptabilidad;
+
+    // Enforce default existing controls just in case
+    updatedFields.controles_fuente = row.controles_fuente || 'Ninguno';
+    updatedFields.controles_medio = row.controles_medio || 'Ninguno';
+    updatedFields.controles_individuo = row.controles_individuo || 'Ninguno';
 
     logger.info(`[GTC45/ai-update-row] Row updated for user ${userId}, NR=${updatedFields.nr}`);
     return res.json({ updatedFields });
@@ -579,34 +612,68 @@ ${JSON.stringify(chunk, null, 2)}
         }
       }
 
-      return parsed.map(row => ({
-        proceso: toSentenceCase(row.proceso || ''),
-        zona: toSentenceCase(row.zona || ''),
-        actividad: row.actividad || '',
-        tareas: row.tareas || '',
-        rutinaria: row.rutinaria || 'Sí',
-        peligro_descripcion: row.peligro_descripcion || '',
-        peligro_clasificacion: row.peligro_clasificacion || '',
-        efectos_posibles: row.efectos_posibles || '',
-        controles_fuente: row.controles_fuente || 'Ninguno',
-        controles_medio: row.controles_medio || 'Ninguno',
-        controles_individuo: row.controles_individuo || 'Ninguno',
-        nd: Number(row.nd) || 0,
-        ne: Number(row.ne) || 0,
-        np: (Number(row.nd) || 0) * (Number(row.ne) || 0),
-        nc: Number(row.nc) || 0,
-        nr: ((Number(row.nd) || 0) * (Number(row.ne) || 0)) * (Number(row.nc) || 0),
-        interpretacion_nr: row.interpretacion_nr || '',
-        aceptabilidad: row.aceptabilidad || '',
-        medida_eliminacion: row.medida_eliminacion || 'Ninguno',
-        medida_sustitucion: row.medida_sustitucion || 'Ninguno',
-        medida_ingenieria: row.medida_ingenieria || 'Ninguno',
-        medida_administrativa: row.medida_administrativa || 'Ninguno',
-        medida_eppu: row.medida_eppu || 'Ninguno',
-        factores_reduccion: row.factores_reduccion || 'No aplica',
-        nd_cualitativo: null,
-        id: Date.now().toString() + Math.random().toString(36).substring(7)
-      }));
+      return parsed.map(row => {
+        const ndVal = Number(row.nd) || 0;
+        const neVal = Number(row.ne) || 0;
+        const npVal = ndVal * neVal;
+        const ncVal = Number(row.nc) || 0;
+        const nrVal = npVal * ncVal;
+
+        let interpretacion_np = '';
+        if (npVal >= 24) interpretacion_np = 'Muy Alto (MA)';
+        else if (npVal >= 10) interpretacion_np = 'Alto (A)';
+        else if (npVal >= 6) interpretacion_np = 'Medio (M)';
+        else if (npVal >= 2) interpretacion_np = 'Bajo (B)';
+
+        let interpretacion_nr = 'IV';
+        if (nrVal >= 600) interpretacion_nr = 'I';
+        else if (nrVal >= 150) interpretacion_nr = 'II';
+        else if (nrVal >= 40) interpretacion_nr = 'III';
+
+        let aceptabilidad = 'Aceptable';
+        if (interpretacion_nr === 'I') aceptabilidad = 'No Aceptable';
+        else if (interpretacion_nr === 'II') aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
+        else if (interpretacion_nr === 'III') aceptabilidad = 'Mejorable';
+
+        // Clean up legal requirement value: map "si"/"sí" to "Sí", "no" to "No", otherwise empty
+        const rawReq = String(row.requisito_legal || '').trim().toLowerCase();
+        let mappedReq = '';
+        if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
+        else if (rawReq.includes('no')) mappedReq = 'No';
+
+        return {
+          proceso: toSentenceCase(row.proceso || ''),
+          zona: toSentenceCase(row.zona || ''),
+          actividad: row.actividad || '',
+          tareas: row.tareas || '',
+          rutinaria: row.rutinaria || 'Sí',
+          peligro_descripcion: row.peligro_descripcion || '',
+          peligro_clasificacion: row.peligro_clasificacion || '',
+          efectos_posibles: row.efectos_posibles || '',
+          controles_fuente: row.controles_fuente || 'Ninguno',
+          controles_medio: row.controles_medio || 'Ninguno',
+          controles_individuo: row.controles_individuo || 'Ninguno',
+          nd: ndVal,
+          ne: neVal,
+          np: npVal,
+          interpretacion_np,
+          nc: ncVal,
+          nr: nrVal,
+          interpretacion_nr,
+          aceptabilidad,
+          nro_expuestos: Number(row.nro_expuestos) || 1,
+          peor_consecuencia: row.peor_consecuencia || '',
+          requisito_legal: mappedReq,
+          medida_eliminacion: row.medida_eliminacion || 'Ninguno',
+          medida_sustitucion: row.medida_sustitucion || 'Ninguno',
+          medida_ingenieria: row.medida_ingenieria || 'Ninguno',
+          medida_administrativa: row.medida_administrativa || 'Ninguno',
+          medida_eppu: row.medida_eppu || 'Ninguno',
+          factores_reduccion: row.factores_reduccion || 'No aplica',
+          nd_cualitativo: null,
+          id: Date.now().toString() + Math.random().toString(36).substring(7)
+        };
+      });
     });
 
     const results = await Promise.all(promises);
