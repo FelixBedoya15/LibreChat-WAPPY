@@ -1473,7 +1473,7 @@ export default function MatrizPESVTable({
           </div>
         ) : (
           <div className="min-w-max">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-xs">
               <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold uppercase tracking-wide text-text-secondary border-b border-border-medium">
                 <tr>
                   <th
@@ -1553,7 +1553,7 @@ export default function MatrizPESVTable({
                       {/* Tipo Desplazamiento */}
                       <td className="px-4 py-3 text-center">
                         <select
-                          className="bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none font-medium dark:text-gray-200"
+                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-medium"
                           value={row.tipo_desplazamiento || 'Misional'}
                           onChange={(e) => handleCellChange(idx, 'tipo_desplazamiento', e.target.value)}
                         >
@@ -1565,7 +1565,7 @@ export default function MatrizPESVTable({
                       {/* Rol en la Vía */}
                       <td className="px-4 py-3">
                         <select
-                          className="w-full min-w-[160px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          className="w-full min-w-[160px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                           value={row.rol_via || 'Peatón'}
                           onChange={(e) => handleCellChange(idx, 'rol_via', e.target.value)}
                         >
@@ -1578,7 +1578,7 @@ export default function MatrizPESVTable({
                       {/* Factor Riesgo */}
                       <td className="px-4 py-3">
                         <select
-                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                           value={row.factor_riesgo || 'Factor Humano'}
                           onChange={(e) => handleCellChange(idx, 'factor_riesgo', e.target.value)}
                         >
@@ -1602,9 +1602,9 @@ export default function MatrizPESVTable({
                       </td>
 
                       {/* NP Cualitativo */}
-                      <td className="border-l border-border-light px-4 py-3 text-center">
+                      <td className="border-l border-border-light bg-purple-500/5 px-4 py-3 text-center">
                         <select
-                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-semibold text-purple-700 dark:text-purple-400"
                           value={row.np_cualitativo || 'PROBABLE'}
                           onChange={(e) => handleCellChange(idx, 'np_cualitativo', e.target.value)}
                         >
@@ -1615,14 +1615,14 @@ export default function MatrizPESVTable({
                       </td>
 
                       {/* NP Cuantitativo */}
-                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                      <td className="bg-purple-500/5 px-4 py-3 text-center font-mono font-bold text-purple-700 dark:text-purple-400">
                         {row.np_cuantitativo || 3}
                       </td>
 
                       {/* NE Cualitativo */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="bg-purple-500/5 px-4 py-3 text-center">
                         <select
-                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-semibold text-purple-700 dark:text-purple-400"
                           value={row.ne_cualitativo || 'OCASIONAL'}
                           onChange={(e) => handleCellChange(idx, 'ne_cualitativo', e.target.value)}
                         >
@@ -1633,14 +1633,14 @@ export default function MatrizPESVTable({
                       </td>
 
                       {/* NE Cuantitativo */}
-                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                      <td className="bg-purple-500/5 px-4 py-3 text-center font-mono font-bold text-purple-700 dark:text-purple-400">
                         {row.ne_cuantitativo || 3}
                       </td>
 
                       {/* NC Cualitativo */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="bg-purple-500/5 px-4 py-3 text-center">
                         <select
-                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-purple-500 rounded p-1 font-semibold outline-none dark:text-gray-200"
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-semibold text-purple-700 dark:text-purple-400"
                           value={row.nc_cualitativo || 'MODERADO'}
                           onChange={(e) => handleCellChange(idx, 'nc_cualitativo', e.target.value)}
                         >
@@ -1651,23 +1651,47 @@ export default function MatrizPESVTable({
                       </td>
 
                       {/* NC Cuantitativo */}
-                      <td className="px-4 py-3 text-center font-bold text-purple-700 dark:text-purple-400">
+                      <td className="bg-purple-500/5 px-4 py-3 text-center font-mono font-bold text-purple-700 dark:text-purple-400">
                         {row.nc_cuantitativo || 3}
                       </td>
 
                       {/* Calificación */}
-                      <td className="border-l border-border-light text-center font-extrabold text-orange-700 dark:text-orange-400 px-4 py-3">
-                        {row.calificacion || 9}
+                      <td className="border-l-2 border-orange-500/20 bg-orange-500/5 px-4 py-3 text-center align-middle font-black text-orange-700 dark:text-orange-400">
+                        <div className="text-base">{row.calificacion || 9}</div>
                       </td>
 
                       {/* Nivel de Riesgo */}
-                      <td className={`border-l border-border-light text-center px-4 py-3 text-xs tracking-wider ${crit.text}`}>
-                        {crit.label}
+                      <td className="border-l border-border-light text-center px-4 py-3 align-middle bg-surface-primary dark:bg-surface-secondary">
+                        {(() => {
+                          const val = crit.label || '—';
+                          const color = val.includes('ALTO') || val.includes('CRITICO') || val.includes('CRÍTICO')
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                            : val.includes('MEDIO') || val.includes('MODERADO')
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                              : 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300';
+                          return (
+                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider ${color}`}>
+                              {val}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Aceptabilidad */}
-                      <td className={`border-l border-border-light text-center px-4 py-3 text-xs font-bold tracking-wider ${row.aceptabilidad === 'NO ACEPTABLE' ? 'text-red-700 dark:text-red-400' : row.aceptabilidad?.includes('ESPECIFICO') ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
-                        {row.aceptabilidad || 'ACEPTABLE'}
+                      <td className="border-l border-border-light text-center px-4 py-3 align-middle bg-surface-primary dark:bg-surface-secondary">
+                        {(() => {
+                          const val = row.aceptabilidad || 'ACEPTABLE';
+                          const color = val.includes('NO ACEPTABLE')
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                            : val.includes('ESPECIFICO') || val.includes('ESPECÍFICO')
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                              : 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300';
+                          return (
+                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider ${color}`}>
+                              {val}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Controles Existentes */}
@@ -1686,7 +1710,7 @@ export default function MatrizPESVTable({
                       {/* Tipo Controles */}
                       <td className="bg-blue-500/5 px-4 py-3">
                         <select
-                          className="w-full min-w-[140px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                           value={row.controles_existentes_tipo || 'Ninguno'}
                           onChange={(e) => handleCellChange(idx, 'controles_existentes_tipo', e.target.value)}
                         >
@@ -1699,7 +1723,7 @@ export default function MatrizPESVTable({
                       {/* Tratamiento Acción */}
                       <td className="bg-blue-500/5 px-4 py-3">
                         <select
-                          className="w-full min-w-[160px] bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200"
+                          className="w-full min-w-[160px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                           value={row.tratamiento_accion || 'Ninguno'}
                           onChange={(e) => handleCellChange(idx, 'tratamiento_accion', e.target.value)}
                         >
@@ -1758,7 +1782,7 @@ export default function MatrizPESVTable({
                       {/* Estado */}
                       <td className="px-4 py-3 text-center">
                         <select
-                          className="bg-transparent border-0 focus:ring-1 focus:ring-sky-500 rounded p-1 outline-none dark:text-gray-200 font-semibold"
+                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-semibold"
                           value={row.estado || 'PLANEADA'}
                           onChange={(e) => handleCellChange(idx, 'estado', e.target.value)}
                         >
