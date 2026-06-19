@@ -150,7 +150,7 @@ TU TAREA:
 5. Propón requisitos de almacenamiento detallados y técnicos (ej. "Gabinetes resistentes a la corrosión, diques de contención de derrames, ventilación forzada a nivel de piso").
 
 REGLAS DE FORMATO:
-Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdown ni código ```) que contenga exactamente estas propiedades:
+Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdown ni código \`\`\`) que contenga exactamente estas propiedades:
 {
   "estado_fisico": "<Líquido|Sólido|Gas>",
   "clasificacion_onu": "<Clase ONU sugerida>",
