@@ -247,6 +247,7 @@ const startServer = async () => {
   app.use('/api/sgsst/sync-agents', routes.sgsst.syncAgents);
   app.use('/api/sgsst/gtc45-workspace', routes.sgsst.gtc45Workspace);
   app.use('/api/sgsst/pesv-workspace', routes.sgsst.pesvWorkspace);
+  app.use('/api/sgsst/chemical-compatibility', routes.sgsst.chemicalCompatibilityWorkspace);
   app.use('/api/sgsst/workers', routes.sgsst.workers);
   app.use('/api/sgsst/canvas', routes.sgsst.canvas);
   app.use('/api/live-editor', routes.sgsst.liveEditor);

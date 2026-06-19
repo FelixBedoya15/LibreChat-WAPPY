@@ -117,6 +117,8 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools.push('canvas');
   } else if (fileBasename === 'experto_en_riesgo_vial') {
     tools.push('matriz_pesv', 'canvas', 'context');
+  } else if (fileBasename === 'experto_en_riesgo_quimico') {
+    tools.push('matriz_compatibilidad', 'canvas');
   }
 
   const timestamp = new Date();
@@ -333,6 +335,17 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error adding road safety tools to agent:', err);
     }
 
+    // Ensure the Chemical Risk agent has the matriz_compatibilidad and canvas tools
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Químico' },
+        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+      );
+      logger.info('[SyncAgents] Added matriz_compatibilidad and canvas tools to Especialista en Riesgo Químico');
+    } catch (err) {
+      logger.error('[SyncAgents] Error adding chemical compatibility tools to agent:', err);
+    }
+
     return res.json({
       success: true,
       summary: `Sincronización finalizada. Se actualizaron ${successCount} agentes. Warnings/Errores: ${failCount}.`,
@@ -482,6 +495,17 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.info('[CleanupSync] Added matriz_pesv, canvas, and context tools to Especialista en Riesgo Vial');
     } catch (err) {
       logger.error('[CleanupSync] Error adding road safety tools to agent:', err);
+    }
+
+    // Ensure the Chemical Risk agent has the matriz_compatibilidad and canvas tools
+    try {
+      await Agent.findOneAndUpdate(
+        { name: 'Especialista en Riesgo Químico' },
+        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+      );
+      logger.info('[CleanupSync] Added matriz_compatibilidad and canvas tools to Especialista en Riesgo Químico');
+    } catch (err) {
+      logger.error('[CleanupSync] Error adding chemical compatibility tools to agent:', err);
     }
 
     return res.json({

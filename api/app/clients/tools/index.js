@@ -16,6 +16,7 @@ const TavilySearchResults = require('./structured/TavilySearchResults');
 const n8nWebhook = require('./structured/n8n');
 const MatrizIPEVAR = require('./structured/MatrizIPEVAR');
 const MatrizPESV = require('./structured/MatrizPESV');
+const MatrizCompatibilidad = require('./structured/MatrizCompatibilidad');
 const EditorLive = require('./structured/EditorLive');
 const EditorRIT = require('./structured/EditorRIT');
 const CanvasTool = require('./structured/CanvasTool');
@@ -44,6 +45,7 @@ module.exports = {
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,
+  MatrizCompatibilidad,
   EditorLive,
   EditorRIT,
   CanvasTool,

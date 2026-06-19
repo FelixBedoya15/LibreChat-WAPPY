@@ -216,6 +216,13 @@
     "authConfig": []
   },
   {
+    "name": "Matriz de Compatibilidad Química",
+    "pluginKey": "matriz_compatibilidad",
+    "description": "Añade, consulta, evalúa o actualiza inventarios de sustancias químicas y su compatibilidad de almacenamiento (semáforo Verde/Amarillo/Rojo) en tiempo real según Decreto 1496 de 2018 y NTC 3966. Activa la tabla interactiva de compatibilidad química.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2833/2833324.png",
+    "authConfig": []
+  },
+  {
     "name": "Editor Live",
     "pluginKey": "editor_live",
     "description": "Permite al agente crear, leer y editar un documento directamente en el chat. El agente puede generar documentos SST desde cero, editar secciones específicas, buscar y reemplazar normatividad, e insertar contenido. El usuario ve los cambios en tiempo real en el panel lateral.",

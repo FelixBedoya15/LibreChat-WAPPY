@@ -22,6 +22,7 @@ const participacionIpevar = require('./participacionIpevar');
 const altaDireccion = require('./altaDireccion');
 const gtc45Workspace = require('./gtc45Workspace');
 const pesvWorkspace = require('./pesvWorkspace');
+const chemicalCompatibilityWorkspace = require('./matrizCompatibilidad');
 const liveEditor = require('./liveEditor');
 const canvas = require('./canvas');
 const patchAgentPrompt = require('./patchAgentPrompt');
@@ -58,6 +59,7 @@ module.exports = {
     signatures: require('./signatures'),
     gtc45Workspace,
     pesvWorkspace,
+    chemicalCompatibilityWorkspace,
     liveEditor,
     canvas,
     patchAgentPrompt,

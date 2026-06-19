@@ -39,6 +39,7 @@ const {
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,
+  MatrizCompatibilidad,
   EditorLive,
   EditorRIT,
   CanvasTool,
@@ -241,6 +242,9 @@ const loadTools = async ({
     matriz_pesv: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
       return new MatrizPESV({ req: options.req });
+    },
+    matriz_compatibilidad: async (_toolContextMap) => {
+      return new MatrizCompatibilidad({ req: options.req });
     },
     editor_live: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body

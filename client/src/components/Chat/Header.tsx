@@ -38,13 +38,14 @@ export default function Header() {
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
-  // ── Matrix / Live Editor expand state (synced via Recoil) ───────────────────────
   const isIPEVARActive = useRecoilValue(store.isIPEVARActive);
   const isPESVActive = useRecoilValue(store.isPESVActive);
+  const isChemicalCompatibilityActive = useRecoilValue(store.isChemicalCompatibilityActive);
   const isEditorLiveActive = useRecoilValue(store.isEditorLiveActive);
   const isCanvasActive = useRecoilValue(store.isCanvasActive);
   const [ipevarMaximized, setIpevarMaximized] = useRecoilState(store.ipevarMaximized);
   const [pesvMaximized, setPesvMaximized] = useRecoilState(store.pesvMaximized);
+  const [chemicalMaximized, setChemicalMaximized] = useRecoilState(store.chemicalCompatibilityMaximized);
   const [canvasMaximized, setCanvasMaximized] = useRecoilState(store.canvasMaximized);
 
   const toggleIpevar = () => {
@@ -53,6 +54,10 @@ export default function Header() {
 
   const togglePesv = () => {
     setPesvMaximized((prev) => !prev);
+  };
+
+  const toggleChemical = () => {
+    setChemicalMaximized((prev) => !prev);
   };
 
   const toggleCanvas = () => {
@@ -102,6 +107,17 @@ export default function Header() {
                       aria-label={pesvMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
                     >
                       {pesvMaximized
+                        ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
+                        : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
+                    </button>
+                  )}
+                  {isChemicalCompatibilityActive && (
+                    <button
+                      onClick={toggleChemical}
+                      className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
+                      aria-label={chemicalMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
+                    >
+                      {chemicalMaximized
                         ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
                         : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
                     </button>

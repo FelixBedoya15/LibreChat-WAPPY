@@ -62,6 +62,16 @@ const canvasMaximized = atom<boolean>({
   default: false,
 });
 
+const isChemicalCompatibilityActive = atom<boolean>({
+  key: 'isChemicalCompatibilityActive',
+  default: false,
+});
+
+const chemicalCompatibilityMaximized = atom<boolean>({
+  key: 'chemicalCompatibilityMaximized',
+  default: false,
+});
+
 export default {
   hideBannerHint,
   messageAttachmentsMap,
@@ -75,4 +85,6 @@ export default {
   isEditorLiveActive,
   isCanvasActive,
   canvasMaximized,
+  isChemicalCompatibilityActive,
+  chemicalCompatibilityMaximized,
 };
