@@ -159,6 +159,32 @@ class WhatsAppManager {
     }
   }
 
+  cleanSingletonLock(userId) {
+    const sessionDir = path.join(this.sessionPath, `session-${userId}`);
+    const pathsToClean = [
+      path.join(sessionDir, 'SingletonLock'),
+      path.join(sessionDir, 'Default', 'SingletonLock'),
+      path.join(sessionDir, 'SingletonCookie'),
+      path.join(sessionDir, 'Default', 'SingletonCookie'),
+      path.join(sessionDir, 'SingletonSocket'),
+      path.join(sessionDir, 'Default', 'SingletonSocket')
+    ];
+
+    for (const p of pathsToClean) {
+      try {
+        const stats = fs.lstatSync(p);
+        if (stats) {
+          fs.unlinkSync(p);
+          console.log(`[WhatsApp Manager] Removed stale file/symlink: ${p}`);
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error(`[WhatsApp Manager] Error checking/removing lock file ${p}:`, err.message);
+        }
+      }
+    }
+  }
+
   async startClientForUser(userId) {
     if (this.clients.has(userId)) {
       const currentStatus = this.statuses.get(userId);
@@ -168,6 +194,9 @@ class WhatsAppManager {
     console.log(`[WhatsApp Manager] Booting client for user: ${userId}`);
     this.statuses.set(userId, 'STARTING');
     this.qrCodes.delete(userId);
+
+    // Clean stale lock files (SingletonLock symlinks)
+    this.cleanSingletonLock(userId);
 
     const puppeteerOptions = {
       headless: true,
@@ -318,6 +347,36 @@ class WhatsAppManager {
       this.clients.delete(userId);
       this.statuses.set(userId, 'OFFLINE');
       this.qrCodes.delete(userId);
+    }
+  }
+
+  async destroyClientForUser(userId) {
+    const client = this.clients.get(userId);
+    if (client) {
+      try {
+        await client.logout();
+      } catch (err) {
+        console.error(`[WhatsApp Manager] Error during client.logout() for ${userId}:`, err);
+      }
+      try {
+        await client.destroy();
+      } catch (err) {
+        console.error(`[WhatsApp Manager] Error during client.destroy() for ${userId}:`, err);
+      }
+      this.clients.delete(userId);
+      this.statuses.set(userId, 'OFFLINE');
+      this.qrCodes.delete(userId);
+    }
+
+    // Also delete the session folder to fully reset the session
+    const sessionDir = path.join(this.sessionPath, `session-${userId}`);
+    try {
+      if (fs.existsSync(sessionDir)) {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+        console.log(`[WhatsApp Manager] Removed session directory for user: ${userId}`);
+      }
+    } catch (err) {
+      console.error(`[WhatsApp Manager] Error removing session directory ${sessionDir}:`, err);
     }
   }
 

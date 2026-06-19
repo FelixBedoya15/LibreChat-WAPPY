@@ -265,6 +265,13 @@ class MatrizPESV extends Tool {
       session.markModified('matrixRows');
       await session.save();
 
+      // Clean up temporary session if this is a real conversation
+      if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+        const tempId = `temp-${userId}`;
+        await mongoose.models.PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+        console.log(`[MatrizPESV Tool] Cleaned up temporary session for user ${userId}`);
+      }
+
       return JSON.stringify({
         success: true,
         message: `Operación masiva PESV completada. Se procesaron ${riesgos.length} riesgos viales.`,

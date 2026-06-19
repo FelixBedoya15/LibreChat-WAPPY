@@ -160,6 +160,18 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
     // Sincronizar hacia el Canvas
     await syncLiveEditorToCanvas(conversationId, session.content, session.fileName, userId);
 
+    if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+      const tempId = `temp-${userId}`;
+      await LiveEditorSession.deleteOne({ conversationId: tempId, user: userId });
+      try {
+        const CanvasSession = require('~/models/CanvasSession');
+        await CanvasSession.deleteOne({ conversationId: tempId });
+      } catch (canvasErr) {
+        logger.error('[LiveEditor Clean Temp Canvas] Error:', canvasErr);
+      }
+      logger.info(`[LiveEditor PUT] Deleted temporary session for user ${userId} since real session was created.`);
+    }
+
     res.json({ success: true, contentUpdatedAt: session.contentUpdatedAt, fileName: session.fileName });
   } catch (error) {
     logger.error('[LiveEditor PUT] Error:', error);

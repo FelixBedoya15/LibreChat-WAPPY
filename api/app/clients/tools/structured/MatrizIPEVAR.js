@@ -43,7 +43,7 @@ class MatrizIPEVAR extends Tool {
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
         nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Por defecto 1.'),
         peor_consecuencia: z.string().default('Ninguna').describe('Peor consecuencia posible si el peligro se materializa.'),
-        requisito_legal: z.enum(['Sí', 'No', '']).default('').describe('¿Existe un requisito legal específico asociado al peligro? ("Sí", "No", o vacío).'),
+        requisito_legal: z.string().default('').describe('¿Existe un requisito legal específico asociado al peligro? ("Sí", "No", o vacío).'),
       })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío en otros casos.')
     });
   }
@@ -317,6 +317,13 @@ class MatrizIPEVAR extends Tool {
       // Mongoose needs this flag if we modify mixed Arrays manually
       session.markModified('matrixRows');
       await session.save();
+
+      // Clean up temporary session if this is a real conversation
+      if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+        const tempId = `temp-${userId}`;
+        await GTC45Matrix.deleteOne({ conversationId: tempId, user: userId });
+        console.log(`[MatrizIPEVAR Tool] Cleaned up temporary session for user ${userId}`);
+      }
 
       console.log(`[MatrizIPEVAR Tool] Transacción Masiva Exitosa. Insertados: ${insertedCount}, Actualizados: ${updatedCount}`);
 

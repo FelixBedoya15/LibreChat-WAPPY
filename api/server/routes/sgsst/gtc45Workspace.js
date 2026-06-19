@@ -110,6 +110,12 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true },
     );
 
+    if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+      const tempId = `temp-${userId}`;
+      await GTC45WorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+      logger.info(`[GTC45Workspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
+    }
+
     res.json({ success: true, matrixRows: session.matrixRows });
   } catch (error) {
     logger.error('[GTC45Workspace] Error updating matrix:', error);

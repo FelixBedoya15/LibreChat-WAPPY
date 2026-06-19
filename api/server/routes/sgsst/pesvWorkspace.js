@@ -98,6 +98,12 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true },
     );
 
+    if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+      const tempId = `temp-${userId}`;
+      await PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+      logger.info(`[PESVWorkspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
+    }
+
     res.json({ success: true, matrixRows: session.matrixRows });
   } catch (error) {
     logger.error('[PESVWorkspace] Error updating matrix:', error);
