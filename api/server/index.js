@@ -109,6 +109,7 @@ const startServer = async () => {
   app.use(staticCache(appConfig.paths.dist));
   app.use(staticCache(appConfig.paths.fonts));
   app.use(staticCache(appConfig.paths.assets));
+  app.use('/Agentes', staticCache(path.resolve(__dirname, '../../Agentes'), { skipGzipScan: true }));
 
   if (!ALLOW_SOCIAL_LOGIN) {
     console.warn('Social logins are disabled. Set ALLOW_SOCIAL_LOGIN=true to enable them.');
@@ -599,6 +600,10 @@ const startServer = async () => {
     </script>
 </body>
 </html>`);
+  });
+
+  app.get(['/portafolio', '/portafolio.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });
 
   app.use(ErrorController);

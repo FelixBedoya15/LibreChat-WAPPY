@@ -613,7 +613,17 @@ const PerfilesCargo = () => {
     };
 
     // ─── Excel Import/Export ──────────────────────────────────────────────────
+    const safeJoin = (val: any): string => {
+        if (Array.isArray(val)) return val.join(', ');
+        if (typeof val === 'string') return val;
+        return '';
+    };
+
     const handleExportExcel = () => {
+        if (!perfiles || perfiles.length === 0) {
+            showToast({ message: 'No hay perfiles de cargo para exportar', severity: NotificationSeverity.WARNING });
+            return;
+        }
         const dataToExport = perfiles.map(p => ({
             'Nombre del Cargo': p.nombreCargo || '',
             'Área': p.area || '',
@@ -627,10 +637,10 @@ const PerfilesCargo = () => {
             'Exigencia Mental': p.exigenciaMental || '',
             'Opera Maquinaria': p.operaMaquinaria || '',
             'Descripción Detallada': p.contextoAdicional || '',
-            'EPP Requeridos': (p.eppSeleccionados || []).join(', '),
-            'Entrenamientos Requeridos': (p.entrenamientosSeleccionados || []).join(', '),
-            'Controles en la Fuente': (p.controlesFuenteSeleccionados || []).join(', '),
-            'Controles en el Medio': (p.controlesMedioSeleccionados || []).join(', '),
+            'EPP Requeridos': safeJoin(p.eppSeleccionados),
+            'Entrenamientos Requeridos': safeJoin(p.entrenamientosSeleccionados),
+            'Controles en la Fuente': safeJoin(p.controlesFuenteSeleccionados),
+            'Controles en el Medio': safeJoin(p.controlesMedioSeleccionados),
             'Reporte Generado': p.report || ''
         }));
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);

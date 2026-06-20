@@ -1077,6 +1077,15 @@ class AgentClient extends BaseClient {
           if (config?.configurable?.endpointOption?.model_parameters) {
             config.configurable.endpointOption.model_parameters.model = currentModel;
           }
+
+          // Apply fallback model to all secondary agents that match primaryAgentModel
+          if (this.agentConfigs && this.agentConfigs.size > 0) {
+            for (const secondaryAg of this.agentConfigs.values()) {
+              if (secondaryAg.model_parameters && secondaryAg.model_parameters.model === primaryAgentModel) {
+                secondaryAg.model_parameters.model = currentModel;
+              }
+            }
+          }
           // Reset attempt errors for new model
           attemptErrors = [];
         }

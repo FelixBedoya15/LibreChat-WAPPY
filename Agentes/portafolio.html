@@ -936,9 +936,295 @@
       transform: translateY(0);
     }
 
+    /* FOOTER STYLING */
+    footer {
+      background: #04060d;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 5rem 0 3rem 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3.5rem;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 2.2rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 550;
+      font-size: 0.95rem;
+      transition: var(--transition-base);
+    }
+
+    .footer-link:hover {
+      color: var(--color-primary);
+      transform: translateY(-2px);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-tertiary);
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    }
+
+    /* MERCADO DE AGENTES SECTION STYLES */
+    .filter-container {
+      display: flex;
+      justify-content: center;
+      gap: 0.8rem;
+      margin-bottom: 3rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--color-border);
+      color: var(--text-secondary);
+      padding: 0.6rem 1.4rem;
+      border-radius: 30px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: var(--transition-base);
+    }
+
+    .filter-btn:hover {
+      color: var(--text-primary);
+      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(34, 197, 94, 0.03);
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: #060913;
+      border-color: transparent;
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.25);
+    }
+
+    .agentes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+
+    .agente-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 2rem 1.8rem;
+      border-radius: 20px;
+      transition: var(--transition-base);
+    }
+
+    .agente-card.hidden {
+      display: none;
+    }
+
+    .agente-category-badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--color-accent);
+      margin-bottom: 0.8rem;
+      display: block;
+    }
+
+    .agente-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .agente-prompt-snippet {
+      font-size: 0.8rem;
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.25);
+      border-left: 2px solid var(--color-primary);
+      padding: 0.5rem 0.75rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+      color: #a7f3d0;
+      line-height: 1.4;
+      flex-grow: 1;
+    }
+
+    /* ANÁLISIS EN VIVO SECTION STYLES */
+    .live-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .camera-preview {
+      border: 1px solid var(--color-border);
+      border-radius: 28px;
+      padding: 1.2rem;
+      background: rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    .camera-screen {
+      width: 100%;
+      height: 380px;
+      background: #020408;
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Simulation of human posture and boxes */
+    .camera-view-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Scan line */
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--color-primary), var(--color-accent), transparent);
+      animation: scanEffect 3.5s infinite linear;
+      z-index: 5;
+      box-shadow: 0 0 15px var(--color-primary);
+    }
+
+    @keyframes scanEffect {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+
+    /* Rec Badge */
+    .rec-badge {
+      position: absolute;
+      top: 1.2rem;
+      left: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 0.4rem 0.8rem;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      z-index: 6;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .rec-dot {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: blinkRed 1s infinite alternate;
+    }
+
+    @keyframes blinkRed {
+      from { opacity: 0.3; }
+      to { opacity: 1; }
+    }
+
+    /* Bounding boxes & detections */
+    .detection-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .detection-box {
+      position: absolute;
+      border: 2px solid var(--color-accent);
+      background: rgba(6, 182, 212, 0.05);
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .detection-label {
+      background: var(--color-accent);
+      color: #060913;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 0.1rem 0.4rem;
+      align-self: flex-start;
+      border-radius: 0 0 4px 0;
+      text-transform: uppercase;
+    }
+
+    .telemetry-panel {
+      position: absolute;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      background: rgba(6, 9, 19, 0.85);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 12px;
+      padding: 0.8rem;
+      font-size: 0.75rem;
+      width: 170px;
+      z-index: 6;
+      backdrop-filter: blur(8px);
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.3rem;
+      color: var(--text-secondary);
+    }
+
+    .telemetry-row strong {
+      color: var(--color-primary);
+    }
+
     /* RESPONSIVE LAYOUTS */
     @media (max-width: 1024px) {
-      .hero-grid, .creador-grid, .cta-card, .bio-philosophy {
+      .hero-grid, .creador-grid, .cta-card, .bio-philosophy, .live-grid {
         grid-template-columns: 1fr;
         gap: 3rem;
         text-align: center;
@@ -954,7 +1240,7 @@
         order: -1;
       }
 
-      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container {
+      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
         grid-template-columns: 1fr 1fr;
       }
 
@@ -972,7 +1258,7 @@
         display: none; /* Mobile menu fallback simplified for direct launch */
       }
 
-      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container {
+      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
         grid-template-columns: 1fr;
       }
 
@@ -984,6 +1270,25 @@
         flex-direction: column;
         text-align: center;
         padding: 1.5rem;
+      }
+
+      .footer-top {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1.5rem;
+      }
+
+      .footer-links {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.8rem;
       }
     }
   </style>
@@ -1018,12 +1323,12 @@
 
       <nav>
         <a href="#hero" class="nav-link">Inicio</a>
-        <a href="#dolor" class="nav-link">El Dolor</a>
         <a href="#somossst" class="nav-link">Somos SST</a>
+        <a href="#agentes" class="nav-link">Agentes IA</a>
+        <a href="#live-analysis" class="nav-link">Análisis en Vivo</a>
         <a href="#herramientas" class="nav-link">Herramientas</a>
         <a href="#planes" class="nav-link">Planes</a>
-        <a href="#creador" class="nav-link">El Creador</a>
-        <a href="planes" class="btn btn-secondary nav-cta" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Registrarse</a>
+        <a href="https://wappy.club/register" class="btn btn-secondary nav-cta" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Registrarse</a>
       </nav>
     </div>
   </header>
@@ -1040,7 +1345,7 @@
           WAPPY IA es el ecosistema especializado en el SG-SST colombiano. Redacta matrices, evalúa vulnerabilidades y haz seguimiento a tus trabajadores con inteligencia artificial adaptada a las normas locales.
         </p>
         <div class="hero-actions">
-          <a href="planes" class="btn btn-primary">Registrarse gratis</a>
+          <a href="https://wappy.club/register" class="btn btn-primary">Registrarse gratis</a>
           <a href="#somossst" class="btn btn-secondary">Explorar Módulos</a>
         </div>
       </div>
@@ -1263,6 +1568,204 @@
     </div>
   </section>
 
+  <!-- MERCADO DE AGENTES IA (+15 AGENTES) -->
+  <section id="agentes">
+    <div class="container">
+      <div class="section-header text-center reveal">
+        <span class="section-label">Mercado de Expertos</span>
+        <h2 class="section-title">Más de 15 <span class="gradient-text">Agentes Especializados</span> en SST</h2>
+        <p class="section-desc">Cada tarea crítica de SST cuenta con un agente experto pre-entrenado con normatividad colombiana y metodologías de prevención.</p>
+      </div>
+
+      <!-- Filtro de Categorías -->
+      <div class="filter-container reveal">
+        <button class="filter-btn active" onclick="filterAgents('all')">Todos</button>
+        <button class="filter-btn" onclick="filterAgents('legal')">Abogados / Legal</button>
+        <button class="filter-btn" onclick="filterAgents('salud')">Salud y Psicología</button>
+        <button class="filter-btn" onclick="filterAgents('prevencion')">Técnicos y Prevención</button>
+        <button class="filter-btn" onclick="filterAgents('auditoria')">Auditoría y Riesgos</button>
+      </div>
+
+      <div class="agentes-grid reveal">
+        <!-- Agente 1: Abogado Laboral RIT -->
+        <div class="glass-card agente-card" data-category="legal">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Legal</span>
+          <h3>Abogado Laboral RIT</h3>
+          <p>Asesora en Reglamentos Internos de Trabajo, contratos y la jornada reducida de 42 horas en Colombia.</p>
+          <div class="agente-prompt-snippet">
+            "Analiza el art. 108 del CST y redacta las cláusulas de jornada laboral ajustadas a la Ley 2101 de 2021..."
+          </div>
+        </div>
+
+        <!-- Agente 2: Psicólogo Especialista SST -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Salud</span>
+          <h3>Psicólogo Especialista</h3>
+          <p>Experto en riesgo psicosocial, clima laboral, acoso laboral y análisis de termómetro psicosocial.</p>
+          <div class="agente-prompt-snippet">
+            "Genera una recomendación de intervención psicosocial para una empresa con alta carga de estrés en atención al cliente..."
+          </div>
+        </div>
+
+        <!-- Agente 3: Médico Laboral -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Salud</span>
+          <h3>Médico Laboral</h3>
+          <p>Gestiona profesiogramas, interpreta aptitudes clínicas y redacta recomendaciones para reintegros.</p>
+          <div class="agente-prompt-snippet">
+            "Estructura las restricciones médicas recomendadas para un trabajador operario con diagnóstico de túnel carpiano..."
+          </div>
+        </div>
+
+        <!-- Agente 4: Coordinador IPEVAR GTC-45 -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Coordinador IPEVAR</h3>
+          <p>Identifica y valora peligros bajo la GTC-45. Inyecta y evalúa filas en tu matriz en tiempo real.</p>
+          <div class="agente-prompt-snippet">
+            "Evalúa el peligro biológico por exposición a virus en personal asistencial médico usando la metodología GTC-45..."
+          </div>
+        </div>
+
+        <!-- Agente 5: Experto en Riesgo Químico -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Experto en Riesgo Químico</h3>
+          <p>Crea matrices de compatibilidad química y fichas técnicas bajo el Sistema Globalmente Armonizado.</p>
+          <div class="agente-prompt-snippet">
+            "Determina la compatibilidad de almacenamiento entre Ácido Nítrico y Alcohol Isopropílico según el SGA..."
+          </div>
+        </div>
+
+        <!-- Agente 6: Experto en Riesgo Eléctrico -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Riesgo Eléctrico (RETIE)</h3>
+          <p>Asesora en distancias de seguridad, arcos eléctricos y cumplimiento de la normativa RETIE.</p>
+          <div class="agente-prompt-snippet">
+            "Genera el checklist de auditoría preliminar para tableros eléctricos de media tensión bajo RETIE..."
+          </div>
+        </div>
+
+        <!-- Agente 7: Investigador ATEL -->
+        <div class="glass-card agente-card" data-category="auditoria">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Auditoría</span>
+          <h3>Investigador ATEL</h3>
+          <p>Indaga incidentes y accidentes de trabajo usando metodologías como los 5 Porqués y espina de pescado.</p>
+          <div class="agente-prompt-snippet">
+            "Estructura la investigación causa-raíz utilizando el árbol de causas para una caída a nivel en pasillos..."
+          </div>
+        </div>
+
+        <!-- Agente 8: Auditor SG-SST -->
+        <div class="glass-card agente-card" data-category="auditoria">
+          <div class="card-glow"></div>
+          <span class="agente-category-badge">Auditoría</span>
+          <h3>Auditor SG-SST</h3>
+          <p>Audita los 60 estándares mínimos de la Resolución 0312 y redacta planes de acción correctiva.</p>
+          <div class="agente-prompt-snippet">
+            "Evalúa la conformidad del estándar de capacitación (Resol. 0312) y genera el plan de mejora respectivo..."
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANÁLISIS EN VIVO (VISIÓN COMPUTACIONAL) -->
+  <section id="live-analysis">
+    <div class="container">
+      <div class="live-grid">
+        <div class="camera-preview reveal">
+          <div class="camera-screen">
+            <!-- Simulated camera feed with css elements -->
+            <div class="camera-view-container">
+              <!-- Scanning line animation -->
+              <div class="scan-line"></div>
+              
+              <!-- Red Rec button -->
+              <div class="rec-badge">
+                <div class="rec-dot"></div>
+                <span>CÁMARA IA - EN VIVO</span>
+              </div>
+              
+              <!-- SVG Silhouette representing a worker -->
+              <svg width="200" height="280" viewBox="0 0 100 150" fill="none" style="opacity: 0.65;">
+                <circle cx="50" cy="25" r="12" stroke="#22c55e" stroke-width="1.5" />
+                <path d="M50 37 L50 90 M50 50 L20 70 M50 50 L80 65 M50 90 L35 130 M50 90 L65 130" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+                <!-- Joints -->
+                <circle cx="50" cy="37" r="3" fill="#22c55e"/>
+                <circle cx="50" cy="50" r="3" fill="#22c55e"/>
+                <circle cx="20" cy="70" r="3" fill="#ef4444"/>
+                <circle cx="80" cy="65" r="3" fill="#22c55e"/>
+                <circle cx="35" cy="130" r="3" fill="#22c55e"/>
+                <circle cx="65" cy="130" r="3" fill="#22c55e"/>
+              </svg>
+
+              <!-- Bounding Box 1: Spine / Posture -->
+              <div class="detection-box" style="top: 25%; left: 35%; width: 35%; height: 45%; border-color: #f59e0b; background: rgba(245, 158, 11, 0.05); box-shadow: 0 0 12px rgba(245,158,11,0.35);">
+                <div class="detection-label" style="background: #f59e0b;">OWAS Nivel 3</div>
+              </div>
+
+              <!-- Bounding Box 2: Arm / Elevation -->
+              <div class="detection-box" style="top: 30%; left: 68%; width: 22%; height: 25%;">
+                <div class="detection-label">Brazo &gt; 45°</div>
+              </div>
+
+              <!-- Telemetry Overlay -->
+              <div class="telemetry-panel">
+                <div class="telemetry-row"><span>Estado:</span><strong>Escaneando</strong></div>
+                <div class="telemetry-row"><span>Ergonomía:</span><span style="color: #ef4444;">Riesgo Alto</span></div>
+                <div class="telemetry-row"><span>Ángulo Tronco:</span><strong>42.5°</strong></div>
+                <div class="telemetry-row"><span>Frecuencia:</span><strong>15 fps</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay: 0.15s;">
+          <span class="section-label">Visión Artificial en Campo</span>
+          <h2 class="section-title">Análisis en Vivo <span class="gradient-text">por Cámara</span></h2>
+          <p class="section-desc" style="margin-bottom: 2rem;">
+            WAPPY IA te permite abrir la cámara de tu celular o laptop en el campo de trabajo y auditar en tiempo real riesgos ergonómicos, biomecánicos y físicos con visión computacional integrada.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2.5rem;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(34, 197, 94, 0.1); display: flex; align-items: center; justify-content: center; color: var(--color-primary); flex-shrink: 0; font-weight: bold; font-size: 0.9rem; border: 1px solid rgba(34,197,94,0.3);">✓</div>
+              <div>
+                <h4 style="font-size: 1.1rem; margin-bottom: 0.2rem; color: var(--text-primary);">Evaluación de Ergonomía Inmediata</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Analiza posturas bajo el método OWAS y ROSA de forma instantánea. Mide ángulos de brazos, piernas e inclinación de la columna en vivo.</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(6, 182, 212, 0.1); display: flex; align-items: center; justify-content: center; color: var(--color-accent); flex-shrink: 0; font-weight: bold; font-size: 0.9rem; border: 1px solid rgba(6,182,212,0.3);">✓</div>
+              <div>
+                <h4 style="font-size: 1.1rem; margin-bottom: 0.2rem; color: var(--text-primary);">Detección Automática de Riesgos</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Identifica ausencias de EPP obligatorios (casco, chaleco, arnés), riesgos de caídas de alturas, manipulación manual de cargas pesadas y desorden (5S).</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(34, 197, 94, 0.1); display: flex; align-items: center; justify-content: center; color: var(--color-primary); flex-shrink: 0; font-weight: bold; font-size: 0.9rem; border: 1px solid rgba(34,197,94,0.3);">✓</div>
+              <div>
+                <h4 style="font-size: 1.1rem; margin-bottom: 0.2rem; color: var(--text-primary);">Dictado de Observaciones y Reporte IA</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Habla directamente con la IA durante la inspección. El sistema transcribirá tus observaciones, las cruzará con los riesgos detectados por cámara y redactará el informe en PDF.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- HERRAMIENTAS DE AGENTES IA -->
   <section id="herramientas">
     <div class="container">
@@ -1385,7 +1888,7 @@
             </li>
           </ul>
 
-          <a href="planes" class="btn btn-secondary text-center" style="width: 100%; justify-content: center;">Adquirir Vital</a>
+          <a href="https://wappy.club/planes" class="btn btn-secondary text-center" style="width: 100%; justify-content: center;">Adquirir Vital</a>
         </div>
 
         <!-- Plan 2: Wappy Pro -->
@@ -1393,7 +1896,7 @@
           <span class="plan-badge">Poder Total</span>
           <div class="card-glow"></div>
           <div class="plan-name">Wappy Pro</div>
-          <div class="plan-tier-type">Suscripción Mensual</div>
+          <div class="plan-tier-type">Suscripción Anual</div>
           <div class="plan-tagline">Para asesores avanzados y empresas que requieren la gestión integrada de Somos SST y modelos predictivos.</div>
           
           <ul class="plan-features-list">
@@ -1427,7 +1930,7 @@
             </li>
           </ul>
 
-          <a href="planes" class="btn btn-primary text-center" style="width: 100%; justify-content: center;">Adquirir Pro</a>
+          <a href="https://wappy.club/planes" class="btn btn-primary text-center" style="width: 100%; justify-content: center;">Adquirir Pro</a>
         </div>
 
       </div>
@@ -1503,9 +2006,11 @@
         </div>
         <div class="footer-links">
           <a href="#hero" class="footer-link">Inicio</a>
-          <a href="#dolor" class="footer-link">El Dolor</a>
           <a href="#somossst" class="footer-link">Somos SST</a>
+          <a href="#agentes" class="footer-link">Agentes IA</a>
+          <a href="#live-analysis" class="footer-link">Análisis en Vivo</a>
           <a href="#herramientas" class="footer-link">Herramientas</a>
+          <a href="https://wappy.club/contactanos" class="footer-link">Contáctanos</a>
         </div>
       </div>
       <div class="footer-bottom">
@@ -1563,6 +2068,32 @@
       document.getElementById('btn-track-bio').classList.remove('active');
       document.getElementById('btn-track-org').classList.remove('active');
       document.getElementById(`btn-track-${trackId}`).classList.add('active');
+    }
+
+    // 5. Agentes Filter Logic
+    function filterAgents(category) {
+      const cards = document.querySelectorAll('.agente-card');
+      const buttons = document.querySelectorAll('.filter-btn');
+
+      buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick').includes(`'${category}'`)) {
+          btn.classList.add('active');
+        }
+      });
+
+      cards.forEach(card => {
+        const cardCategory = card.getAttribute('data-category');
+        if (category === 'all' || cardCategory === category) {
+          card.classList.remove('hidden');
+          card.style.opacity = '0';
+          setTimeout(() => {
+            card.style.opacity = '1';
+          }, 50);
+        } else {
+          card.classList.add('hidden');
+        }
+      });
     }
   </script>
 </body>
