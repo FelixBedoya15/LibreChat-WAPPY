@@ -346,6 +346,7 @@ const registerUser = async (user, additionalData = {}) => {
           });
 
           logger.info(`[Referral] Referral recorded for new user ${email}. Referrer: ${referredByPartner ? 'Partner ' + ref : 'User ' + ref}. 15-day PRO trial activated.`);
+        }
       } catch (refErr) {
         logger.error('[registerUser] Error recording referral / PRO trial:', refErr);
       }
