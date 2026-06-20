@@ -620,34 +620,39 @@ const PerfilesCargo = () => {
     };
 
     const handleExportExcel = () => {
-        if (!perfiles || perfiles.length === 0) {
-            showToast({ message: 'No hay perfiles de cargo para exportar', severity: NotificationSeverity.WARNING });
-            return;
+        try {
+            if (!perfiles || perfiles.length === 0) {
+                showToast({ message: 'No hay perfiles de cargo para exportar', severity: NotificationSeverity.WARNING });
+                return;
+            }
+            const dataToExport = perfiles.map(p => ({
+                'Nombre del Cargo': p.nombreCargo || '',
+                'Área': p.area || '',
+                'Nivel del Cargo': p.nivelCargo || '',
+                'Tipo de Contrato': p.tipoContrato || '',
+                'Jornada': p.jornada || '',
+                'Jefe Inmediato': p.jefeInmediato || '',
+                'Escala Salarial': p.escalasSalarial || '',
+                'Número de Vacantes': p.numVacantes || '',
+                'Exigencia Física': p.exigenciaFisica || '',
+                'Exigencia Mental': p.exigenciaMental || '',
+                'Opera Maquinaria': p.operaMaquinaria || '',
+                'Descripción Detallada': p.contextoAdicional || '',
+                'EPP Requeridos': safeJoin(p.eppSeleccionados),
+                'Entrenamientos Requeridos': safeJoin(p.entrenamientosSeleccionados),
+                'Controles en la Fuente': safeJoin(p.controlesFuenteSeleccionados),
+                'Controles en el Medio': safeJoin(p.controlesMedioSeleccionados),
+                'Reporte Generado': p.report || ''
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles de Cargo");
+            XLSX.writeFile(workbook, "Perfiles_de_Cargo.xlsx");
+            showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
+        } catch (error: any) {
+            console.error('Error al exportar Excel:', error);
+            showToast({ message: `Error al exportar Excel: ${error.message || error}`, severity: NotificationSeverity.ERROR });
         }
-        const dataToExport = perfiles.map(p => ({
-            'Nombre del Cargo': p.nombreCargo || '',
-            'Área': p.area || '',
-            'Nivel del Cargo': p.nivelCargo || '',
-            'Tipo de Contrato': p.tipoContrato || '',
-            'Jornada': p.jornada || '',
-            'Jefe Inmediato': p.jefeInmediato || '',
-            'Escala Salarial': p.escalasSalarial || '',
-            'Número de Vacantes': p.numVacantes || '',
-            'Exigencia Física': p.exigenciaFisica || '',
-            'Exigencia Mental': p.exigenciaMental || '',
-            'Opera Maquinaria': p.operaMaquinaria || '',
-            'Descripción Detallada': p.contextoAdicional || '',
-            'EPP Requeridos': safeJoin(p.eppSeleccionados),
-            'Entrenamientos Requeridos': safeJoin(p.entrenamientosSeleccionados),
-            'Controles en la Fuente': safeJoin(p.controlesFuenteSeleccionados),
-            'Controles en el Medio': safeJoin(p.controlesMedioSeleccionados),
-            'Reporte Generado': p.report || ''
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles de Cargo");
-        XLSX.writeFile(workbook, "Perfiles_de_Cargo.xlsx");
-        showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
     };
 
     const saveImportedPerfiles = async (list: PerfilCargoData[]) => {
