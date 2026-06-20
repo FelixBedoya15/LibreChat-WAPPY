@@ -756,74 +756,113 @@ export default function MatrizPESVTable({
           }
 
           if (headerRowIdx !== -1) {
+            // Build a dynamic column index map from the header row
+            // This makes the importer work with ANY column order (Wappy exports or external files like ANSV 2022)
+            const headerRow = gridRows[headerRowIdx];
+            const colMap: Record<string, number> = {};
+            headerRow.forEach((cell: any, idx: number) => {
+              const key = String(cell || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+              if (key) colMap[key] = idx;
+            });
+
+            // Also check the sub-header row (row after header) for additional keywords
             let startDataRow = headerRowIdx + 1;
-            if (gridRows[startDataRow] && gridRows[startDataRow].some(cell => {
+            const nextRow = gridRows[startDataRow] || [];
+            const hasSubHeader = nextRow.some((cell: any) => {
               const str = String(cell || '').toLowerCase();
-              return str.includes('peligros') || str.includes('probabilidad') || str.includes('exposición') || str.includes('exposicion') || str.includes('consecuencia') || str.includes('calificación') || str.includes('calificacion') || str.includes('medio') || str.includes('individuo');
-            })) {
+              return str.includes('peligros') || str.includes('probabilidad') || str.includes('exposicion') || str.includes('consecuencia') || str.includes('calificacion') || str.includes('medio') || str.includes('individuo');
+            });
+            if (hasSubHeader) {
+              // Merge sub-header into colMap (sub-header takes priority for its own cells)
+              nextRow.forEach((cell: any, idx: number) => {
+                const key = String(cell || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                if (key && !colMap[key]) colMap[key] = idx;
+              });
               startDataRow++;
             }
+
+            // Helper: get cell value by trying multiple header name variants
+            const getCol = (row: any[], ...keys: string[]): string => {
+              for (const key of keys) {
+                const k = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                if (colMap[k] !== undefined) return String(row[colMap[k]] || '').trim();
+              }
+              return '';
+            };
+            // Helper: get cell by index fallback if colMap doesn't find it
+            const getColOrIdx = (row: any[], fallbackIdx: number, ...keys: string[]): string => {
+              const byKey = getCol(row, ...keys);
+              if (byKey) return byKey;
+              return String(row[fallbackIdx] || '').trim();
+            };
 
             const mapped: MatrixRow[] = [];
             for (let r = startDataRow; r < gridRows.length; r++) {
               const row = gridRows[r];
-              if (!row || row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) {
+              if (!row || row.every((cell: any) => cell === null || cell === undefined || String(cell).trim() === '')) {
                 continue;
               }
 
               // Check if description or cargo is present to avoid importing fully empty placeholder rows
-              const peligro_desc = String(row[5] || '').trim();
-              const cargo = String(row[1] || '').trim();
-              if (!peligro_desc && !cargo) {
-                continue;
-              }
+              const peligro_desc = getColOrIdx(row, 5, 'peligros', 'descripcion del peligro', 'peligro_descripcion', 'peligro');
+              const cargo = getColOrIdx(row, 1, 'cargos individuales', 'cargo', 'cargos');
+              if (!peligro_desc && !cargo) continue;
 
-              // Map variables
-              const np_cual = String(row[8] || '').trim();
-              let np_cuant = Number(row[9]) || 0;
+              // NP: try header names first, then fallbacks by index
+              const np_cual = getColOrIdx(row, 6, 'nivel de probabilidad', 'np cualitativo', 'np_cualitativo', 'probabilidad');
+              let np_cuant = Number(getColOrIdx(row, 7, 'np cuantitativo', 'np_cuantitativo')) || 0;
               let final_np_cual = 'PROBABLE';
               let final_np_cuant = 3;
-              if (np_cual) {
+              if (np_cual && isNaN(Number(np_cual))) {
                 final_np_cuant = mapNPCualitativoToNum(np_cual);
                 final_np_cual = getNPCualitativoLabel(final_np_cuant);
               } else if (np_cuant) {
                 final_np_cuant = np_cuant;
                 final_np_cual = getNPCualitativoLabel(np_cuant);
+              } else if (np_cual && !isNaN(Number(np_cual))) {
+                final_np_cuant = Number(np_cual);
+                final_np_cual = getNPCualitativoLabel(final_np_cuant);
               }
 
-              const ne_cual = String(row[10] || '').trim();
-              let ne_cuant = Number(row[11]) || 0;
+              const ne_cual = getColOrIdx(row, 8, 'nivel de exposicion', 'ne cualitativo', 'ne_cualitativo', 'exposicion');
+              let ne_cuant = Number(getColOrIdx(row, 9, 'ne cuantitativo', 'ne_cuantitativo')) || 0;
               let final_ne_cual = 'OCASIONAL';
               let final_ne_cuant = 3;
-              if (ne_cual) {
+              if (ne_cual && isNaN(Number(ne_cual))) {
                 final_ne_cuant = mapNECualitativoToNum(ne_cual);
                 final_ne_cual = getNECualitativoLabel(final_ne_cuant);
               } else if (ne_cuant) {
                 final_ne_cuant = ne_cuant;
                 final_ne_cual = getNECualitativoLabel(ne_cuant);
+              } else if (ne_cual && !isNaN(Number(ne_cual))) {
+                final_ne_cuant = Number(ne_cual);
+                final_ne_cual = getNECualitativoLabel(final_ne_cuant);
               }
 
-              const nc_cual = String(row[12] || '').trim();
-              let nc_cuant = Number(row[13]) || 0;
+              const nc_cual = getColOrIdx(row, 10, 'nivel de consecuencia', 'nc cualitativo', 'nc_cualitativo', 'consecuencia');
+              let nc_cuant = Number(getColOrIdx(row, 11, 'nc cuantitativo', 'nc_cuantitativo')) || 0;
               let final_nc_cual = 'MODERADO';
               let final_nc_cuant = 3;
-              if (nc_cual) {
+              if (nc_cual && isNaN(Number(nc_cual))) {
                 final_nc_cuant = mapNCCualitativoToNum(nc_cual);
                 final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
               } else if (nc_cuant) {
                 final_nc_cuant = nc_cuant;
                 final_nc_cual = getNCCualitativoLabel(nc_cuant);
+              } else if (nc_cual && !isNaN(Number(nc_cual))) {
+                final_nc_cuant = Number(nc_cual);
+                final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
               }
 
               const calif = final_np_cuant + final_ne_cuant + final_nc_cuant;
               const interp = getInterpretacionPESV(calif);
 
               // Normalize tipo_desplazamiento
-              const rawDesp = String(row[2] || '').trim().toLowerCase();
+              const rawDesp = getColOrIdx(row, 2, 'tipo de desplazamiento', 'tipo_desplazamiento', 'desplazamiento').toLowerCase();
               const tipo_desp: 'Misional' | 'In itinere' = rawDesp.includes('itinere') ? 'In itinere' : 'Misional';
 
               // Normalize rol_via
-              const rawRol = String(row[3] || '').trim().toLowerCase();
+              const rawRol = getColOrIdx(row, 3, 'rol en la via', 'rol_via', 'rol en la vía', 'rol').toLowerCase();
               let rol: any = 'Peatón';
               if (rawRol.includes('motocicleta') || rawRol.includes('moto')) rol = 'Conductor de motocicleta';
               else if (rawRol.includes('pesado')) rol = 'Conductor de vehículo pesado';
@@ -838,27 +877,53 @@ export default function MatrizPESVTable({
               }
 
               // Normalize factor_riesgo
-              const rawFactor = String(row[4] || '').trim().toLowerCase();
+              const rawFactor = getColOrIdx(row, 4, 'factor de riesgo', 'factor_riesgo', 'identificacion', 'factor').toLowerCase();
               let factor: any = 'Factor Humano';
               if (rawFactor.includes('humano')) factor = 'Factor Humano';
               else if (rawFactor.includes('vehicular') || rawFactor.includes('vehiculo')) factor = 'Factor Vehicular';
               else if (rawFactor.includes('infraestructura')) factor = 'Factor Infraestructura';
               else if (rawFactor.includes('entorno') || rawFactor.includes('otros') || rawFactor.includes('otro')) factor = 'Entorno/Otros';
 
-              // Normalize estado
-              const rawEstado = String(row[24] || '').trim().toUpperCase();
-              const est: any = rawEstado.includes('CERRADA') ? 'CERRADA' : 'PLANEADA';
+              // Controles existentes — may be before or after NP/NE/NC depending on file source
+              const ctrl_desc = getColOrIdx(row, 15,
+                'controles existentes', 'controles_existentes_descripcion', 'interpretacion',
+                'diagnostico', 'diagnostico de controles', 'controles existentes / diagnostico');
+              const ctrl_tipo = getColOrIdx(row, 16,
+                'tipo de controles', 'controles_existentes_tipo', 'tipo controles',
+                'tipo de control', 'controles');
+
+              // Tratamiento / Acciones
+              const tratamiento = getColOrIdx(row, 17,
+                'acciones', 'tratamiento / accion', 'tratamiento_accion', 'accion de tratamiento',
+                'tratamiento accion', 'tratamiento');
+
+              // Planes de acción — try by name, then by common external indices
+              const plan_medio = getColOrIdx(row, 18,
+                'controles - medio', 'plan accion (medio)', 'plan_accion_medio', 'plan de accion medio', 'medio');
+              const plan_vehiculo = getColOrIdx(row, 19,
+                'controles - vehiculo', 'plan accion (vehiculo)', 'plan_accion_vehiculo', 'plan de accion vehiculo', 'vehiculo');
+              const plan_individuo = getColOrIdx(row, 20,
+                'cotroles - individuo', 'controles - individuo', 'plan accion (individuo)', 'plan_accion_individuo', 'plan de accion individuo', 'individuo');
+              const plan_infra = getColOrIdx(row, 21,
+                'controles - infraestructura', 'plan accion (infraestructura)', 'plan_accion_infraestructura', 'plan de accion infraestructura', 'infraestructura');
+
+              // Responsable, fecha, estado, observaciones
+              const responsable = getColOrIdx(row, 20, 'responsable');
+              const fecha = getColOrIdx(row, 21, 'fecha programacion', 'fecha_programacion', 'fecha / periodicidad', 'fecha');
+              const rawEstadoStr = getColOrIdx(row, 22, 'estado').toUpperCase();
+              const est: any = rawEstadoStr.includes('CERRADA') ? 'CERRADA' : 'PLANEADA';
+              const obs = getColOrIdx(row, 23, 'observaciones', 'observacion');
 
               mapped.push({
                 id: Date.now().toString() + Math.random().toString(36).substring(7),
-                grupo_trabajo: toSentenceCase(String(row[0] || '').trim() || 'General'),
-                cargo: toSentenceCase(String(row[1] || '').trim() || 'General'),
+                grupo_trabajo: toSentenceCase(getColOrIdx(row, 0, 'clasificacion grupos de trabajo', 'clasificación grupos de trabajo', 'grupo de trabajo', 'grupo_trabajo') || 'General'),
+                cargo: toSentenceCase(cargo || 'General'),
                 tipo_desplazamiento: tipo_desp,
                 rol_via: rol,
                 factor_riesgo: factor,
                 peligro_descripcion: peligro_desc,
-                controles_existentes_descripcion: String(row[6] || '').trim() || 'Ninguno',
-                controles_existentes_tipo: normalizeControlTipo(String(row[7] || '')),
+                controles_existentes_descripcion: ctrl_desc || 'Ninguno',
+                controles_existentes_tipo: normalizeControlTipo(ctrl_tipo),
                 np_cualitativo: final_np_cual as any,
                 np_cuantitativo: final_np_cuant,
                 ne_cualitativo: final_ne_cual as any,
@@ -868,16 +933,29 @@ export default function MatrizPESVTable({
                 calificacion: calif,
                 nivel_riesgo: interp.nivel,
                 aceptabilidad: interp.aceptabilidad,
-                tratamiento_accion: String(row[17] || '').trim() || 'Ninguno',
-                plan_accion_medio: String(row[18] || '').trim() || 'Ninguno',
-                plan_accion_vehiculo: String(row[19] || '').trim() || 'Ninguno',
-                plan_accion_individuo: String(row[20] || '').trim() || 'Ninguno',
-                plan_accion_infraestructura: String(row[21] || '').trim() || 'Ninguno',
-                responsable: String(row[22] || '').trim() || 'Responsable PESV',
-                fecha_programacion: String(row[23] || '').trim() || 'Permanente',
+                tratamiento_accion: tratamiento || 'Ninguno',
+                plan_accion_medio: plan_medio || 'Ninguno',
+                plan_accion_vehiculo: plan_vehiculo || 'Ninguno',
+                plan_accion_individuo: plan_individuo || 'Ninguno',
+                plan_accion_infraestructura: plan_infra || 'Ninguno',
+                responsable: responsable || 'Responsable PESV',
+                fecha_programacion: fecha || 'Permanente',
                 estado: est,
-                observaciones: String(row[25] || '').trim(),
+                observaciones: obs,
               });
+            }
+
+            if (mapped.length === 0) {
+              // No rows mapped — send all raw rows to AI for reconstruction
+              const rawRowsForAI: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+              if (rawRowsForAI.length === 0) {
+                alert('El archivo Excel está vacío o no contiene datos.');
+                return;
+              }
+              setPendingRawRows(rawRowsForAI);
+              setIsConfirmModalOpen(true);
+              e.target.value = '';
+              return;
             }
 
             const combined = [...matrixRows, ...mapped];
@@ -888,103 +966,16 @@ export default function MatrizPESVTable({
             return;
           }
 
-          // 2. Fallback to standard key-based JSON parsing if no headers match in first 25 rows
-          const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-          if (rawRows.length === 0) {
-            alert('El archivo Excel está vacío.');
+          // 2. Header row not found — use all rows of the sheet as raw input for AI
+          const rawRowsForAI: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          if (rawRowsForAI.length === 0) {
+            alert('El archivo Excel está vacío o no contiene datos reconocibles.');
             return;
           }
-
-          const first = rawRows[0];
-          const keys = Object.keys(first);
-          const isStandard = (
-            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'grupotrabajo' || k.toLowerCase().replace(/\s+/g, '') === 'clasificaciongruposdetrabajo') &&
-            keys.some(k => k.toLowerCase().replace(/\s+/g, '') === 'factorriesgo' || k.toLowerCase().replace(/\s+/g, '') === 'factorderiesgo')
-          );
-
-          if (isStandard) {
-            const mapped: MatrixRow[] = rawRows.map((r) => {
-              const np_cual = getValueByKeys(r, ['npcualitativo', 'np cualitativo', 'probabilidad cualitativo']);
-              let np_cuant = Number(getValueByKeys(r, ['npcuantitativo', 'np cuantitativo', 'np'])) || 0;
-              
-              let final_np_cual = 'PROBABLE';
-              let final_np_cuant = 3;
-              if (np_cual) {
-                final_np_cuant = mapNPCualitativoToNum(np_cual);
-                final_np_cual = getNPCualitativoLabel(final_np_cuant);
-              } else if (np_cuant) {
-                final_np_cuant = np_cuant;
-                final_np_cual = getNPCualitativoLabel(np_cuant);
-              }
-
-              const ne_cual = getValueByKeys(r, ['necualitativo', 'ne cualitativo', 'exposicion cualitativo']);
-              let ne_cuant = Number(getValueByKeys(r, ['necuantitativo', 'ne cuantitativo', 'ne'])) || 0;
-              
-              let final_ne_cual = 'OCASIONAL';
-              let final_ne_cuant = 3;
-              if (ne_cual) {
-                final_ne_cuant = mapNECualitativoToNum(ne_cual);
-                final_ne_cual = getNECualitativoLabel(final_ne_cuant);
-              } else if (ne_cuant) {
-                final_ne_cuant = ne_cuant;
-                final_ne_cual = getNECualitativoLabel(ne_cuant);
-              }
-
-              const nc_cual = getValueByKeys(r, ['nccualitativo', 'nc cualitativo', 'consecuencia cualitativo']);
-              let nc_cuant = Number(getValueByKeys(r, ['nccuantitativo', 'nc cuantitativo', 'nc'])) || 0;
-              
-              let final_nc_cual = 'MODERADO';
-              let final_nc_cuant = 3;
-              if (nc_cual) {
-                final_nc_cuant = mapNCCualitativoToNum(nc_cual);
-                final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
-              } else if (nc_cuant) {
-                final_nc_cuant = nc_cuant;
-                final_nc_cual = getNCCualitativoLabel(nc_cuant);
-              }
-
-              const calif = final_np_cuant + final_ne_cuant + final_nc_cuant;
-              const interp = getInterpretacionPESV(calif);
-
-              return {
-                id: Date.now().toString() + Math.random().toString(36).substring(7),
-                grupo_trabajo: getValueByKeys(r, ['grupo_trabajo', 'grupotrabajo', 'grupo de trabajo', 'clasificacion grupos de trabajo', 'clasificaciongruposdetrabajo']) || 'General',
-                cargo: getValueByKeys(r, ['cargo', 'cargos', 'cargos individuales', 'cargo individual', 'cargosindividuales']) || 'General',
-                tipo_desplazamiento: (getValueByKeys(r, ['tipodesplazamiento', 'desplazamiento']) === 'In itinere' ? 'In itinere' : 'Misional') as any,
-                rol_via: getValueByKeys(r, ['rol_via', 'rolvia', 'rol en la via', 'rolenlavia', 'actor_vial', 'actorvial']) || 'Peatón',
-                factor_riesgo: (getValueByKeys(r, ['factorriesgo', 'factor de riesgo', 'factorderiesgo']) || 'Factor Humano') as any,
-                peligro_descripcion: getValueByKeys(r, ['peligro_descripcion', 'peligrodescripcion', 'peligro', 'peligros', 'descripcion de peligro', 'descripciondelpeligro', 'peligros descripcion', 'peligrosdescripcion']),
-                np_cualitativo: final_np_cual as any,
-                np_cuantitativo: final_np_cuant,
-                ne_cualitativo: final_ne_cual as any,
-                ne_cuantitativo: final_ne_cuant,
-                nc_cualitativo: final_nc_cual as any,
-                nc_cuantitativo: final_nc_cuant,
-                calificacion: calif,
-                nivel_riesgo: interp.nivel,
-                aceptabilidad: interp.aceptabilidad,
-                controles_existentes_descripcion: getValueByKeys(r, ['controles_existentes_descripcion', 'controlesexistentesdescripcion', 'controles existentes', 'controlesexistentes', 'interpretacion de controles', 'interpretacioncontroles']),
-                controles_existentes_tipo: normalizeControlTipo(getValueByKeys(r, ['controles_existentes_tipo', 'controlesexistentestipo', 'tipo de controles', 'tipodecontroles'])),
-                tratamiento_accion: getValueByKeys(r, ['tratamiento_accion', 'tratamientoaccion', 'tratamiento', 'acciones / tratamiento', 'accionestratamiento']),
-                plan_accion_medio: getValueByKeys(r, ['plan_accion_medio', 'planaccionmedio', 'medio', 'controles medio', 'controlesmedio']),
-                plan_accion_vehiculo: getValueByKeys(r, ['plan_accion_vehiculo', 'planaccionvehiculo', 'vehiculo', 'controles vehiculo', 'controlesvehiculo']),
-                plan_accion_individuo: getValueByKeys(r, ['plan_accion_individuo', 'planaccionindividuo', 'individuo', 'controles individuo', 'controlesindividuo']),
-                plan_accion_infraestructura: getValueByKeys(r, ['plan_accion_infraestructura', 'planaccioninfraestructura', 'infraestructura', 'controles infraestructura', 'controlesinfraestructura', 'via', 'vía', 'controles via', 'controles vía']),
-                responsable: getValueByKeys(r, ['responsable', 'responsables']) || 'Responsable PESV',
-                fecha_programacion: getValueByKeys(r, ['fecha_programacion', 'fechaprogramacion', 'fecha', 'fecha de programacion', 'fecha programacion']),
-                estado: (getValueByKeys(r, ['estado', 'estados']) || 'PLANEADA') as any,
-                observaciones: getValueByKeys(r, ['observaciones', 'observacion']),
-              };
-            });
-
-            const combined = [...matrixRows, ...mapped];
-            setMatrixRows(combined);
-            saveMatrixData(combined);
-            alert(`¡Se importaron exitosamente ${mapped.length} riesgos viales!`);
-          } else {
-            setPendingRawRows(rawRows);
-            setIsConfirmModalOpen(true);
-          }
+          setPendingRawRows(rawRowsForAI);
+          setIsConfirmModalOpen(true);
+          e.target.value = '';
+          return;
         }
       } catch (err) {
         console.error('[PESV] Import parsing error:', err);

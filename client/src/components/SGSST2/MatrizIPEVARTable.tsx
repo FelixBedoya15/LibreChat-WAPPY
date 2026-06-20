@@ -797,7 +797,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         }
 
         if (newRows.length > 0) {
-          const combined = [...matrixRows, ...newRows];
+          const combined = [...matrixRows, ...newRows] as MatrixRow[];
           setMatrixRows(combined);
           if (actualConvoId && actualConvoId !== 'new') {
             saveMatrixData(combined);

@@ -730,7 +730,11 @@ export default function MatrizIPEVARTable({
               nameLower.includes('indice') || 
               nameLower.includes('índice') || 
               nameLower.includes('hoja') || 
-              nameLower.includes('psicosocial')
+              nameLower.includes('psicosocial') ||
+              nameLower.includes('dashboard') ||
+              nameLower.includes('pesv') ||
+              nameLower.includes('compatibilidad') ||
+              nameLower.includes('inventario')
             ) {
               continue;
             }
@@ -760,16 +764,18 @@ export default function MatrizIPEVARTable({
             // If no matrix keywords found in the first 20 rows, skip this sheet (it's a reference sheet)
             if (headerRowIdx === -1) continue;
             
-            // 4. Extract and combine headers, and trim trailing blank/far-right headers
+            // 4. Extract and combine headers, trim only truly empty trailing columns
+            // (Do NOT trim based on index position to avoid cutting valid columns)
             const rawHeaders = rawRows[headerRowIdx];
             let lastHeaderIdx = rawHeaders.length - 1;
-            while (lastHeaderIdx >= 0 && (!rawHeaders[lastHeaderIdx] || lastHeaderIdx > 80)) {
+            // Only trim trailing cells that are null/undefined/empty string (not valid content)
+            while (lastHeaderIdx >= 0 && (rawHeaders[lastHeaderIdx] === null || rawHeaders[lastHeaderIdx] === undefined || String(rawHeaders[lastHeaderIdx] || '').trim() === '')) {
               lastHeaderIdx--;
             }
             const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
             
-            // GTC-45 should have at least 15 columns of headers
-            if (sliceLen < 15) continue;
+            // Matrix should have at least 8 columns (flexible for external matrices)
+            if (sliceLen < 8) continue;
 
             hasMatrixSheet = true;
             
@@ -924,7 +930,7 @@ export default function MatrizIPEVARTable({
               };
             });
 
-            const combined = [...matrixRows, ...newRows];
+            const combined = [...matrixRows, ...newRows] as MatrixRow[];
             setMatrixRows(combined);
             isDirtyRef.current = true;
             saveMatrixData(combined);
@@ -1014,7 +1020,7 @@ export default function MatrizIPEVARTable({
   }, []);
 
   const { token, user } = useAuthContext();
-  const userId = user?.id || user?._id;
+  const userId = user?.id;
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId =
     conversation?.conversationId && conversation.conversationId !== 'new'

@@ -450,7 +450,45 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     if (rawRows.length === 0) return res.json({ matrixRows: [] });
 
-    const prompt = `Eres un experto certificado en el Plan Estratégico de Seguridad Vial (PESV) en Colombia y la normatividad de la Resolución 40595 de 2022.
+    const CHUNK_SIZE = 15;
+    const chunks = [];
+    for (let i = 0; i < rawRows.length; i += CHUNK_SIZE) {
+      chunks.push(rawRows.slice(i, i + CHUNK_SIZE));
+    }
+
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
+    logger.info(`[PESV/ai-parse-matrix] Processing ${rawRows.length} rows for user ${userId} in ${chunks.length} chunks`);
+
+    const mapNP = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('MUY PROBABLE')) return 5;
+      if (norm.includes('MEDIANAMENTE') || norm.includes('MEDIA')) return 4;
+      if (norm.includes('POCO PROBABLE')) return 2;
+      if (norm.includes('NO ES PROBABLE') || norm.includes('NO PROBABLE')) return 1;
+      if (norm.includes('PROBABLE')) return 3;
+      return 3;
+    };
+    const mapNE = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CONSTANTE')) return 5;
+      if (norm.includes('FRECUENTE')) return 4;
+      if (norm.includes('OCASIONAL')) return 3;
+      if (norm.includes('ESPORADICO') || norm.includes('ESPORÁDICO')) return 2;
+      if (norm.includes('MINIMA') || norm.includes('MÍNIMA')) return 1;
+      return 3;
+    };
+    const mapNC = (lbl) => {
+      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm.includes('CRITICO') || norm.includes('CRÍTICO')) return 5;
+      if (norm.includes('PELIGROSO')) return 4;
+      if (norm.includes('MODERADO')) return 3;
+      if (norm.includes('MARGINAL')) return 2;
+      if (norm.includes('INSIGNIFICANTE')) return 1;
+      return 3;
+    };
+
+    const promises = chunks.map(async (chunk, chunkIdx) => {
+      const prompt = `Eres un experto certificado en el Plan Estratégico de Seguridad Vial (PESV) en Colombia y la normatividad de la Resolución 40595 de 2022.
 Te proporciono una lista de filas importadas desde un archivo con columnas arbitrarias.
 Analiza los datos y transfórmalos a nuestro formato estándar de matriz PESV:
 
@@ -483,77 +521,66 @@ Reglas:
 2. El resultado debe ser EXCLUSIVAMENTE una lista JSON válida sin explicaciones ni markdown ni envolverse en \`\`\`json.
 
 FILAS ORIGINALES:
-${JSON.stringify(rawRows, null, 2)}`;
+${JSON.stringify(chunk, null, 2)}`;
 
-    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
-    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
-    let text = result.response.text().trim();
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
+      let text = result.response.text().trim();
+      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
-    let parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) parsed = [parsed];
-
-    const mapNP = (lbl) => {
-      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (norm.includes('MUY PROBABLE')) return 5;
-      if (norm.includes('MEDIANAMENTE') || norm.includes('MEDIA')) return 4;
-      if (norm.includes('POCO PROBABLE')) return 2;
-      if (norm.includes('NO ES PROBABLE') || norm.includes('NO PROBABLE')) return 1;
-      if (norm.includes('PROBABLE')) return 3;
-      return 3;
-    };
-    const mapNE = (lbl) => {
-      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (norm.includes('CONSTANTE')) return 5;
-      if (norm.includes('FRECUENTE')) return 4;
-      if (norm.includes('OCASIONAL')) return 3;
-      if (norm.includes('ESPORADICO') || norm.includes('ESPORÁDICO')) return 2;
-      if (norm.includes('MINIMA') || norm.includes('MÍNIMA')) return 1;
-      return 3;
-    };
-    const mapNC = (lbl) => {
-      const norm = String(lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (norm.includes('CRITICO') || norm.includes('CRÍTICO')) return 5;
-      if (norm.includes('PELIGROSO')) return 4;
-      if (norm.includes('MODERADO')) return 3;
-      if (norm.includes('MARGINAL')) return 2;
-      if (norm.includes('INSIGNIFICANTE')) return 1;
-      return 3;
-    };
-
-    const mappedRows = parsed.map(row => {
-      const np_cuantitativo = Number(row.np_cuantitativo) || mapNP(row.np_cualitativo);
-      const ne_cuantitativo = Number(row.ne_cuantitativo) || mapNE(row.ne_cualitativo);
-      const nc_cuantitativo = Number(row.nc_cuantitativo) || mapNC(row.nc_cualitativo);
-      const calificacion = np_cuantitativo + ne_cuantitativo + nc_cuantitativo;
-      
-      let nivel_riesgo = 'NIVEL DE RIESGO BAJO';
-      let aceptabilidad = 'ACEPTABLE';
-      if (calificacion >= 12) {
-        nivel_riesgo = 'NIVEL DE RIESGO ALTO o CRITICO';
-        aceptabilidad = 'NO ACEPTABLE';
-      } else if (calificacion >= 8) {
-        nivel_riesgo = 'NIVEL DE RIESGO MEDIO o MODERADO';
-        aceptabilidad = 'ACEPTABLE CON CONTROL ESPECIFICO';
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        logger.error(`[PESV/ai-parse-matrix] JSON parse error in chunk ${chunkIdx}:`, err.message, 'Raw:', text.slice(0, 500));
+        throw new Error('La IA devolvió un formato JSON inválido para uno de los lotes. Por favor, intenta de nuevo.');
       }
 
-      return {
-        ...row,
-        plan_accion_medio: row.plan_accion_medio || 'Ninguno',
-        plan_accion_vehiculo: row.plan_accion_vehiculo || 'Ninguno',
-        plan_accion_individuo: row.plan_accion_individuo || 'Ninguno',
-        plan_accion_infraestructura: row.plan_accion_infraestructura || 'Ninguno',
-        np_cuantitativo,
-        ne_cuantitativo,
-        nc_cuantitativo,
-        calificacion,
-        nivel_riesgo,
-        aceptabilidad,
-        id: Date.now().toString() + Math.random().toString(36).substring(7)
-      };
+      if (!Array.isArray(parsed)) {
+        if (typeof parsed === 'object' && parsed !== null) parsed = [parsed];
+        else throw new Error('La IA no devolvió un listado de filas en el formato esperado.');
+      }
+
+      return parsed.map(row => {
+        const np_cuantitativo = Number(row.np_cuantitativo) || mapNP(row.np_cualitativo);
+        const ne_cuantitativo = Number(row.ne_cuantitativo) || mapNE(row.ne_cualitativo);
+        const nc_cuantitativo = Number(row.nc_cuantitativo) || mapNC(row.nc_cualitativo);
+        const calificacion = np_cuantitativo + ne_cuantitativo + nc_cuantitativo;
+
+        let nivel_riesgo = 'NIVEL DE RIESGO BAJO';
+        let aceptabilidad = 'ACEPTABLE';
+        if (calificacion >= 12) {
+          nivel_riesgo = 'NIVEL DE RIESGO ALTO o CRITICO';
+          aceptabilidad = 'NO ACEPTABLE';
+        } else if (calificacion >= 8) {
+          nivel_riesgo = 'NIVEL DE RIESGO MEDIO o MODERADO';
+          aceptabilidad = 'ACEPTABLE CON CONTROL ESPECIFICO';
+        }
+
+        return {
+          ...row,
+          plan_accion_medio: row.plan_accion_medio || 'Ninguno',
+          plan_accion_vehiculo: row.plan_accion_vehiculo || 'Ninguno',
+          plan_accion_individuo: row.plan_accion_individuo || 'Ninguno',
+          plan_accion_infraestructura: row.plan_accion_infraestructura || 'Ninguno',
+          controles_existentes_descripcion: row.controles_existentes_descripcion || 'Ninguno',
+          tratamiento_accion: row.tratamiento_accion || 'Ninguno',
+          np_cuantitativo,
+          ne_cuantitativo,
+          nc_cuantitativo,
+          calificacion,
+          nivel_riesgo,
+          aceptabilidad,
+          id: Date.now().toString() + Math.random().toString(36).substring(7)
+        };
+      });
     });
 
-    return res.json({ matrixRows: mappedRows });
+    const results = await Promise.all(promises);
+    const combinedRows = results.flat();
+
+    logger.info(`[PESV/ai-parse-matrix] Successfully mapped ${combinedRows.length} rows for user ${userId}`);
+    return res.json({ matrixRows: combinedRows });
+
   } catch (error) {
     logger.error('[PESV/ai-parse-matrix] Error:', error.message);
     return res.status(500).json({ error: error.message });
