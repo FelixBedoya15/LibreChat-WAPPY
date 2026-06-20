@@ -489,6 +489,35 @@ const PerfilesCargo = () => {
             .catch(err => console.error('[PerfilesCargo] Error loading data:', err));
     }, [token]);
 
+    // Keep the perfiles list synchronized with form changes in real-time
+    useEffect(() => {
+        if (!formData || !formData.id) return;
+        setPerfiles(prev => {
+            const index = prev.findIndex(p => p.id === formData.id);
+            if (index === -1) return prev;
+            const current = prev[index];
+            
+            // Compare key properties to avoid infinite loops or unnecessary updates
+            const keys = Object.keys(formData) as Array<keyof PerfilCargoData>;
+            let changed = false;
+            for (const key of keys) {
+                if (Array.isArray(formData[key])) {
+                    if (JSON.stringify(formData[key]) !== JSON.stringify(current[key])) {
+                        changed = true;
+                        break;
+                    }
+                } else if (formData[key] !== current[key]) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) return prev;
+            const updated = [...prev];
+            updated[index] = { ...formData };
+            return updated;
+        });
+    }, [formData]);
+
     const handleInput = (key: keyof PerfilCargoData, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
     };
@@ -697,25 +726,36 @@ const PerfilesCargo = () => {
                 }
 
                 const newPerfiles: PerfilCargoData[] = importedData.map((row: any) => {
-                    const eppStr = row['EPP Requeridos'] || row.eppSeleccionados || '';
-                    const entrenamientosStr = row['Entrenamientos Requeridos'] || row.entrenamientosSeleccionados || '';
-                    const controlesFuenteStr = row['Controles en la Fuente'] || row.controlesFuenteSeleccionados || '';
-                    const controlesMedioStr = row['Controles en el Medio'] || row.controlesMedioSeleccionados || '';
+                    const eppStr = row['EPP Requeridos'] || row['EPP'] || row.eppSeleccionados || '';
+                    const entrenamientosStr = row['Entrenamientos Requeridos'] || row['Entrenamientos'] || row.entrenamientosSeleccionados || '';
+                    const controlesFuenteStr = row['Controles en la Fuente'] || row['Controles Fuente'] || row.controlesFuenteSeleccionados || '';
+                    const controlesMedioStr = row['Controles en el Medio'] || row['Controles Medio'] || row.controlesMedioSeleccionados || '';
+
+                    const descValue = 
+                        row['Descripción Detallada'] || 
+                        row['Descripcion Detallada'] || 
+                        row['Descripción detallada'] || 
+                        row['Descripcion detallada'] || 
+                        row['Descripción'] || 
+                        row['Descripcion'] || 
+                        row['contextoAdicional'] || 
+                        row.contextoAdicional || 
+                        '';
 
                     return {
                         id: crypto.randomUUID(),
-                        nombreCargo: row['Nombre del Cargo'] || row.nombreCargo || '',
-                        area: row['Área'] || row.area || '',
-                        nivelCargo: row['Nivel del Cargo'] || row.nivelCargo || 'Operativo',
-                        tipoContrato: row['Tipo de Contrato'] || row.tipoContrato || 'Término indefinido',
+                        nombreCargo: row['Nombre del Cargo'] || row['Nombre de Cargo'] || row['Cargo'] || row.nombreCargo || '',
+                        area: row['Área'] || row['Area'] || row.area || '',
+                        nivelCargo: row['Nivel del Cargo'] || row['Nivel de Cargo'] || row.nivelCargo || 'Operativo',
+                        tipoContrato: row['Tipo de Contrato'] || row['Tipo de contrato'] || row.tipoContrato || 'Término indefinido',
                         jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
-                        jefeInmediato: row['Jefe Inmediato'] || row.jefeInmediato || '',
-                        escalasSalarial: row['Escala Salarial'] || row.escalasSalarial || '',
-                        numVacantes: row['Número de Vacantes'] || row.numVacantes || '',
-                        contextoAdicional: row['Descripción Detallada'] || row.contextoAdicional || '',
-                        exigenciaFisica: row['Exigencia Física'] || row.exigenciaFisica || '',
+                        jefeInmediato: row['Jefe Inmediato'] || row['Jefe inmediato'] || row.jefeInmediato || '',
+                        escalasSalarial: row['Escala Salarial'] || row['Escala salarial'] || row.escalasSalarial || '',
+                        numVacantes: row['Número de Vacantes'] || row['Numero de Vacantes'] || row['Nº de Vacantes'] || row['Nº Vacantes'] || row.numVacantes || '',
+                        contextoAdicional: descValue,
+                        exigenciaFisica: row['Exigencia Física'] || row['Exigencia Fisica'] || row.exigenciaFisica || '',
                         exigenciaMental: row['Exigencia Mental'] || row.exigenciaMental || '',
-                        operaMaquinaria: row['Opera Maquinaria'] || row.operaMaquinaria || '',
+                        operaMaquinaria: row['Opera Maquinaria'] || row['Opera maquinaria'] || row.operaMaquinaria || '',
                         eppSeleccionados: eppStr ? eppStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
                         entrenamientosSeleccionados: entrenamientosStr ? entrenamientosStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
                         controlesFuenteSeleccionados: controlesFuenteStr ? controlesFuenteStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
