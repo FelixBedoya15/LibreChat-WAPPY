@@ -660,6 +660,11 @@ const startServer = async () => {
     const { startWompiPoller } = require('./services/wompiPendingPoller');
     startWompiPoller();
 
+    // Start background job that automatically downgrades expired plans
+    // Rules: annual/semiannual → Wappy Vital (USER_IPEVAR) | monthly/quarterly/referral → Invitado (USER)
+    const { startPlanExpirationJob } = require('./services/planExpirationJob');
+    startPlanExpirationJob();
+
     // Boot WhatsApp Sessions OpenClaw Architecture
     const whatsappManager = require('./whatsapp/WhatsAppManager');
     await whatsappManager.bootSavedSessions();

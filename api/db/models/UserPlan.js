@@ -24,6 +24,13 @@ const UserPlanSchema = new mongoose.Schema(
         stripePriceId: { type: String, default: null },
         planExpiresAt: { type: Date, default: null },
         cancelAtPeriodEnd: { type: Boolean, default: false },
+        // Interval of the last purchased plan (used for downgrade rules on expiry)
+        // 'referral' is a special value for free trials given via referral links
+        planInterval: {
+            type: String,
+            enum: ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual', 'lifetime', 'referral', null],
+            default: null,
+        },
         // Custom plan fields
         customTools: {
             type: [String], // e.g. ['blog', 'somos_sst', 'editor_archivos', 'analisis_vivo']

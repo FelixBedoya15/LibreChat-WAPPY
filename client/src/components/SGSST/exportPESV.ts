@@ -94,7 +94,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz PESV'!A2:A${totalRows}), COUNTIF('Matriz PESV'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' };
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz PESV'!O2:O${totalRows}, "NO ACEPTABLE"), COUNTIFS('Matriz PESV'!O2:O${totalRows}, "NO ACEPTABLE", 'Matriz PESV'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz PESV'!Q2:Q${totalRows}, "NO ACEPTABLE"), COUNTIFS('Matriz PESV'!Q2:Q${totalRows}, "NO ACEPTABLE", 'Matriz PESV'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' };
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -157,7 +157,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
   const startCard1 = dashRow;
 
   aceptabilidades.forEach((ac, idx) => {
-    addCardRow(dashRow, ac.name, getInteractiveFormula('O', ac.name), idx === aceptabilidades.length - 1, ac.color);
+    addCardRow(dashRow, ac.name, getInteractiveFormula('Q', ac.name), idx === aceptabilidades.length - 1, ac.color);
     dashRow++;
   });
 
@@ -200,6 +200,8 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
     { header: 'Rol en la Vía', key: 'rol_via', width: 25 },
     { header: 'Factor de Riesgo', key: 'factor_riesgo', width: 22 },
     { header: 'Descripción del Peligro', key: 'peligro_descripcion', width: 50 },
+    { header: 'Controles Existentes', key: 'controles_existentes_descripcion', width: 35 },
+    { header: 'Tipo de Controles', key: 'controles_existentes_tipo', width: 20 },
     { header: 'NP Cualitativo', key: 'np_cualitativo', width: 20 },
     { header: 'NP Cuantitativo', key: 'np_cuantitativo', width: 15 },
     { header: 'NE Cualitativo', key: 'ne_cualitativo', width: 20 },
@@ -209,11 +211,11 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
     { header: 'Calificación', key: 'calificacion', width: 15 },
     { header: 'Nivel de Riesgo', key: 'nivel_riesgo', width: 30 },
     { header: 'Aceptabilidad del Riesgo', key: 'aceptabilidad', width: 35 },
-    { header: 'Controles Existentes', key: 'controles_existentes_descripcion', width: 35 },
-    { header: 'Tipo de Controles', key: 'controles_existentes_tipo', width: 20 },
     { header: 'Tratamiento / Acción', key: 'tratamiento_accion', width: 25 },
     { header: 'Plan Acción (Medio)', key: 'plan_accion_medio', width: 30 },
+    { header: 'Plan Acción (Vehículo)', key: 'plan_accion_vehiculo', width: 30 },
     { header: 'Plan Acción (Individuo)', key: 'plan_accion_individuo', width: 30 },
+    { header: 'Plan Acción (Infraestructura)', key: 'plan_accion_infraestructura', width: 30 },
     { header: 'Responsable', key: 'responsable', width: 25 },
     { header: 'Fecha / Periodicidad', key: 'fecha_programacion', width: 20 },
     { header: 'Estado', key: 'estado', width: 15 },
@@ -237,20 +239,22 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
       rol_via: row.rol_via,
       factor_riesgo: row.factor_riesgo,
       peligro_descripcion: row.peligro_descripcion,
+      controles_existentes_descripcion: row.controles_existentes_descripcion,
+      controles_existentes_tipo: row.controles_existentes_tipo,
       np_cualitativo: row.np_cualitativo,
       np_cuantitativo: Number(row.np_cuantitativo) || 3,
       ne_cualitativo: row.ne_cualitativo,
       ne_cuantitativo: Number(row.ne_cuantitativo) || 3,
       nc_cualitativo: row.nc_cualitativo,
       nc_cuantitativo: Number(row.nc_cuantitativo) || 3,
-      calificacion: { formula: `H${rowNumber}+J${rowNumber}+L${rowNumber}`, result: row.calificacion },
+      calificacion: { formula: `J${rowNumber}+L${rowNumber}+N${rowNumber}`, result: row.calificacion },
       nivel_riesgo: row.nivel_riesgo,
       aceptabilidad: row.aceptabilidad,
-      controles_existentes_descripcion: row.controles_existentes_descripcion,
-      controles_existentes_tipo: row.controles_existentes_tipo,
       tratamiento_accion: row.tratamiento_accion,
       plan_accion_medio: row.plan_accion_medio,
+      plan_accion_vehiculo: row.plan_accion_vehiculo,
       plan_accion_individuo: row.plan_accion_individuo,
+      plan_accion_infraestructura: row.plan_accion_infraestructura,
       responsable: row.responsable,
       fecha_programacion: row.fecha_programacion,
       estado: row.estado,
@@ -266,7 +270,7 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
       cell.alignment = { vertical: 'top', wrapText: true, indent: 1 };
       
-      if (colNumber === 3 || colNumber === 4 || colNumber === 5 || colNumber === 8 || colNumber === 10 || colNumber === 12 || colNumber === 13 || colNumber === 14 || colNumber === 15 || colNumber === 17 || colNumber === 18 || colNumber === 23) {
+      if (colNumber === 3 || colNumber === 4 || colNumber === 5 || colNumber === 8 || colNumber === 10 || colNumber === 12 || colNumber === 14 || colNumber === 15 || colNumber === 16 || colNumber === 17 || colNumber === 25) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
       cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
@@ -275,9 +279,9 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
 
   const finalTotalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
-  // Calificación (Columna M)
+  // Calificación (Columna O)
   wsMatriz.addConditionalFormatting({
-    ref: `M2:M${finalTotalRows}`,
+    ref: `O2:O${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'greaterThanOrEqual', formulae: ['12'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'between', formulae: ['8', '11'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Amarillo
@@ -285,9 +289,9 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Nivel de Riesgo (Columna N)
+  // Nivel de Riesgo (Columna P)
   wsMatriz.addConditionalFormatting({
-    ref: `N2:N${finalTotalRows}`,
+    ref: `P2:P${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"NIVEL DE RIESGO ALTO o CRITICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
       { type: 'cellIs', operator: 'equal', formulae: ['"NIVEL DE RIESGO MEDIO o MODERADO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
@@ -295,9 +299,9 @@ export const exportMatrizPESVToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Aceptabilidad (Columna O)
+  // Aceptabilidad (Columna Q)
   wsMatriz.addConditionalFormatting({
-    ref: `O2:O${finalTotalRows}`,
+    ref: `Q2:Q${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
       { type: 'cellIs', operator: 'equal', formulae: ['"ACEPTABLE CON CONTROL ESPECIFICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },

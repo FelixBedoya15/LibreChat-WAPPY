@@ -481,12 +481,11 @@ const handleWebhook = async (req, res) => {
                             user = await createUser(newUserData, appConfig?.balance, true, true);
                             console.log(`[Wompi Webhook] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
                         } else {
-                            // Update User
-                            user.role = 'USER_IPEVAR';
-                            user.accountStatus = 'active';
-                            user.activeAt = new Date();
-                            user.inactiveAt = null; // Lifetime/no expiry
-                            await user.save();
+                            // Use updateOne to avoid Mongoose validation issues with partial documents
+                            await User.updateOne(
+                                { _id: user._id },
+                                { $set: { role: 'USER_IPEVAR', accountStatus: 'active', activeAt: new Date(), inactiveAt: null } }
+                            );
                         }
 
                         // Update/Create UserPlan
@@ -494,12 +493,13 @@ const handleWebhook = async (req, res) => {
                             { userId: user._id },
                             {
                                 plan: 'ipevar',
-                                planExpiresAt: null, // Lifetime/no expiry
+                                planExpiresAt: null,   // Lifetime — no expiry
+                                planInterval: null,    // Lifetime has no interval
                                 cancelAtPeriodEnd: false
                             },
                             { upsert: true, new: true }
                         );
-                        console.log(`[Wompi Webhook] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
+                        console.log(`[Wompi Webhook] ✅ Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
                     } catch (provErr) {
                         console.error('[Wompi Webhook] Error provisioning Wappy Vital for WAP-VIT purchase:', provErr);
                     }
@@ -584,6 +584,7 @@ const handleWebhook = async (req, res) => {
 
             userPlan.plan = wompiTx.planId;
             userPlan.planExpiresAt = expiryDate;
+            userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
             await userPlan.save();
 
             // Also update User role for full platform compatibility
@@ -702,6 +703,7 @@ const verifyTransaction = async (req, res) => {
                 }
                 userPlan.plan = wompiTx.planId;
                 userPlan.planExpiresAt = expiryDate;
+                userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
                 await userPlan.save();
 
                 const User = mongoose.model('User');

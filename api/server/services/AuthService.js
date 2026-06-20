@@ -321,16 +321,18 @@ const registerUser = async (user, additionalData = {}) => {
             status: 'registered'
           });
 
-          // Give 3 days of Plan PRO free as welcome incentive!
-          const PRO_TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
+          // Give 15 days of Plan PRO free as welcome incentive for referrals
+          const PRO_TRIAL_MS = 15 * 24 * 60 * 60 * 1000;
           const expiryDate = new Date(Date.now() + PRO_TRIAL_MS);
 
-          // Update/Create UserPlan
+          // Update/Create UserPlan — mark planInterval as 'referral' so expiration job
+          // knows to downgrade to Invitado (free) when the trial ends
           await UserPlan.findOneAndUpdate(
             { userId: newUserId },
             {
               plan: 'pro',
               planExpiresAt: expiryDate,
+              planInterval: 'referral',
               cancelAtPeriodEnd: false
             },
             { upsert: true, new: true }
@@ -343,8 +345,7 @@ const registerUser = async (user, additionalData = {}) => {
             inactiveAt: expiryDate
           });
 
-          logger.info(`[Referral] Referral recorded for new user ${email}. Referrer: ${referredByPartner ? 'Partner ' + ref : 'User ' + ref}. 3-day PRO trial activated.`);
-        }
+          logger.info(`[Referral] Referral recorded for new user ${email}. Referrer: ${referredByPartner ? 'Partner ' + ref : 'User ' + ref}. 15-day PRO trial activated.`);
       } catch (refErr) {
         logger.error('[registerUser] Error recording referral / PRO trial:', refErr);
       }

@@ -155,7 +155,7 @@ Basándote EXCLUSIVAMENTE en los datos fijos de arriba:
      * "INSIGNIFICANTE" (Lesiones muy leves sin incapacidad o daños menores - valor 1)
 
 2. Propón la Acción de Tratamiento ("tratamiento_accion"), que debe ser una de: "ACEPTARLO", "EVITARLO", "ELIMINAR LA FUENTE QUE OCACIONA", "MODIFICAR LOS FACTORES DE EXPOSICION".
-3. Propón los planes de acción para el medio ("plan_accion_medio") y para el individuo ("plan_accion_individuo").
+3. Propón los planes de acción para el medio ("plan_accion_medio"), para el vehículo ("plan_accion_vehiculo"), para el individuo ("plan_accion_individuo") y para la infraestructura/vía ("plan_accion_infraestructura"). Si no aplica alguno de ellos, pon "Ninguno".
 4. Asigna un responsable de los controles ("responsable", ej: Coordinador PESV, Gestor de Flotas, Conductor) y las observaciones pertinentes.
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown y sin envolver en \`\`\`json) con estos campos exactos:
@@ -164,8 +164,10 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown y sin envolver en 
   "ne_cualitativo": "<CONSTANTE|FRECUENTE|OCASIONAL|ESPORADICO|MINIMA>",
   "nc_cualitativo": "<CRITICO|PELIGROSO|MODERADO|MARGINAL|INSIGNIFICANTE>",
   "tratamiento_accion": "<ACEPTARLO|EVITARLO|ELIMINAR LA FUENTE QUE OCACIONA|MODIFICAR LOS FACTORES DE EXPOSICION>",
-  "plan_accion_medio": "<plan propuesto para el medio>",
-  "plan_accion_individuo": "<plan propuesto para el individuo>",
+  "plan_accion_medio": "<plan propuesto para el medio o 'Ninguno'>",
+  "plan_accion_vehiculo": "<plan propuesto para el vehículo o 'Ninguno'>",
+  "plan_accion_individuo": "<plan propuesto para el individuo o 'Ninguno'>",
+  "plan_accion_infraestructura": "<plan propuesto para la infraestructura o 'Ninguno'>",
   "responsable": "<Coordinador PESV o Conductor o Gestor de Flota>",
   "fecha_programacion": "<fecha o periodicidad, ej: Permanente o Mensual>",
   "observaciones": "<observaciones opcionales o vacías>"
@@ -233,6 +235,11 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown y sin envolver en 
     updatedFields.calificacion = calificacion;
     updatedFields.nivel_riesgo = nivel_riesgo;
     updatedFields.aceptabilidad = aceptabilidad;
+    
+    updatedFields.plan_accion_medio = updatedFields.plan_accion_medio || 'Ninguno';
+    updatedFields.plan_accion_vehiculo = updatedFields.plan_accion_vehiculo || 'Ninguno';
+    updatedFields.plan_accion_individuo = updatedFields.plan_accion_individuo || 'Ninguno';
+    updatedFields.plan_accion_infraestructura = updatedFields.plan_accion_infraestructura || 'Ninguno';
 
     return res.json({ updatedFields });
   } catch (error) {
@@ -462,7 +469,9 @@ Estructura requerida para cada objeto de la lista JSON:
   "controles_existentes_tipo": "<INDIVIDUO|MEDIO|MEDIO-INDIVIDUO|VEHICULO|INFRAESTRUCTURA|Ninguno>",
   "tratamiento_accion": "<ACEPTARLO|EVITARLO|ELIMINAR LA FUENTE QUE OCACIONA|MODIFICAR LOS FACTORES DE EXPOSICION|Ninguno>",
   "plan_accion_medio": "<plan propuesto para el medio o 'Ninguno'>",
+  "plan_accion_vehiculo": "<plan propuesto para el vehículo o 'Ninguno'>",
   "plan_accion_individuo": "<plan propuesto para el individuo o 'Ninguno'>",
+  "plan_accion_infraestructura": "<plan propuesto para la infraestructura/vía o 'Ninguno'>",
   "responsable": "<Coordinador PESV o Conductor o Gestor de Flota>",
   "fecha_programacion": "<fecha o periodicidad, ej: Permanente o Mensual>",
   "estado": "<PLANEADA|CERRADA>",
@@ -530,6 +539,10 @@ ${JSON.stringify(rawRows, null, 2)}`;
 
       return {
         ...row,
+        plan_accion_medio: row.plan_accion_medio || 'Ninguno',
+        plan_accion_vehiculo: row.plan_accion_vehiculo || 'Ninguno',
+        plan_accion_individuo: row.plan_accion_individuo || 'Ninguno',
+        plan_accion_infraestructura: row.plan_accion_infraestructura || 'Ninguno',
         np_cuantitativo,
         ne_cuantitativo,
         nc_cuantitativo,

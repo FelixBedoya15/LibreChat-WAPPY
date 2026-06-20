@@ -369,11 +369,11 @@ const verifyComunidadTransaction = async (req, res) => {
                     user = await createUser(newUserData, appConfig?.balance, true, true);
                     console.log(`[Comunidad Verify] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
                 } else {
-                    user.role = 'USER_IPEVAR';
-                    user.accountStatus = 'active';
-                    user.activeAt = new Date();
-                    user.inactiveAt = null;
-                    await user.save();
+                    // Use updateOne to avoid Mongoose validation issues with partial documents
+                    await User.updateOne(
+                        { _id: user._id },
+                        { $set: { role: 'USER_IPEVAR', accountStatus: 'active', activeAt: new Date(), inactiveAt: null } }
+                    );
                 }
 
                 const UserPlan = require('../../db/models/UserPlan');
@@ -381,12 +381,13 @@ const verifyComunidadTransaction = async (req, res) => {
                     { userId: user._id },
                     {
                         plan: 'ipevar',
-                        planExpiresAt: null,
+                        planExpiresAt: null,   // Lifetime — no expiry
+                        planInterval: null,    // Lifetime has no interval
                         cancelAtPeriodEnd: false
                     },
                     { upsert: true, new: true }
                 );
-                console.log(`[Comunidad Verify] Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
+                console.log(`[Comunidad Verify] ✅ Auto-provisioned Wappy Vital plan (USER_IPEVAR) for user ${user._id} (${normEmail})`);
             } catch (provErr) {
                 console.error('[Comunidad Verify] Error auto-provisioning Wappy Vital:', provErr);
             }

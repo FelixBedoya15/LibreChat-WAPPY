@@ -40,6 +40,7 @@ import {
   getNECualitativoLabel,
   getNCCualitativoLabel,
   getInterpretacionPESV,
+  normalizeControlTipo,
 } from './MatrizPESVConstants';
 import MatrizPESVDashboard from './MatrizPESVDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
@@ -393,7 +394,11 @@ export default function MatrizPESVTable({
       if (res.ok) {
         const data = await res.json();
         if (data.matrixRows) {
-          setMatrixRows(data.matrixRows);
+          const normalized = data.matrixRows.map((r: any) => ({
+            ...r,
+            controles_existentes_tipo: normalizeControlTipo(r.controles_existentes_tipo),
+          }));
+          setMatrixRows(normalized);
         }
         if (data.chartConclusions) {
           setChartConclusions(data.chartConclusions);
@@ -439,7 +444,11 @@ export default function MatrizPESVTable({
       if (res.ok) {
         const data = await res.json();
         if (data.matrixRows) {
-          setMatrixRows(data.matrixRows);
+          const normalized = data.matrixRows.map((r: any) => ({
+            ...r,
+            controles_existentes_tipo: normalizeControlTipo(r.controles_existentes_tipo),
+          }));
+          setMatrixRows(normalized);
         }
         isDirtyRef.current = false;
       }
@@ -516,7 +525,9 @@ export default function MatrizPESVTable({
       controles_existentes_tipo: 'INDIVIDUO',
       tratamiento_accion: 'MODIFICAR LOS FACTORES DE EXPOSICION',
       plan_accion_medio: 'Definir pausas activas obligatorias cada 2 horas de trayecto',
+      plan_accion_vehiculo: 'Ninguno',
       plan_accion_individuo: 'Implementar checklist preoperacional de fatiga y sueño',
+      plan_accion_infraestructura: 'Ninguno',
       responsable: 'Responsable PESV',
       fecha_programacion: 'Permanente',
       estado: 'PLANEADA',
@@ -768,8 +779,8 @@ export default function MatrizPESVTable({
               }
 
               // Map variables
-              const np_cual = String(row[6] || '').trim();
-              let np_cuant = Number(row[7]) || 0;
+              const np_cual = String(row[8] || '').trim();
+              let np_cuant = Number(row[9]) || 0;
               let final_np_cual = 'PROBABLE';
               let final_np_cuant = 3;
               if (np_cual) {
@@ -780,8 +791,8 @@ export default function MatrizPESVTable({
                 final_np_cual = getNPCualitativoLabel(np_cuant);
               }
 
-              const ne_cual = String(row[8] || '').trim();
-              let ne_cuant = Number(row[9]) || 0;
+              const ne_cual = String(row[10] || '').trim();
+              let ne_cuant = Number(row[11]) || 0;
               let final_ne_cual = 'OCASIONAL';
               let final_ne_cuant = 3;
               if (ne_cual) {
@@ -792,8 +803,8 @@ export default function MatrizPESVTable({
                 final_ne_cual = getNECualitativoLabel(ne_cuant);
               }
 
-              const nc_cual = String(row[10] || '').trim();
-              let nc_cuant = Number(row[11]) || 0;
+              const nc_cual = String(row[12] || '').trim();
+              let nc_cuant = Number(row[13]) || 0;
               let final_nc_cual = 'MODERADO';
               let final_nc_cuant = 3;
               if (nc_cual) {
@@ -835,7 +846,7 @@ export default function MatrizPESVTable({
               else if (rawFactor.includes('entorno') || rawFactor.includes('otros') || rawFactor.includes('otro')) factor = 'Entorno/Otros';
 
               // Normalize estado
-              const rawEstado = String(row[22] || '').trim().toUpperCase();
+              const rawEstado = String(row[24] || '').trim().toUpperCase();
               const est: any = rawEstado.includes('CERRADA') ? 'CERRADA' : 'PLANEADA';
 
               mapped.push({
@@ -846,6 +857,8 @@ export default function MatrizPESVTable({
                 rol_via: rol,
                 factor_riesgo: factor,
                 peligro_descripcion: peligro_desc,
+                controles_existentes_descripcion: String(row[6] || '').trim() || 'Ninguno',
+                controles_existentes_tipo: normalizeControlTipo(String(row[7] || '')),
                 np_cualitativo: final_np_cual as any,
                 np_cuantitativo: final_np_cuant,
                 ne_cualitativo: final_ne_cual as any,
@@ -855,15 +868,15 @@ export default function MatrizPESVTable({
                 calificacion: calif,
                 nivel_riesgo: interp.nivel,
                 aceptabilidad: interp.aceptabilidad,
-                controles_existentes_descripcion: String(row[15] || '').trim() || 'Ninguno',
-                controles_existentes_tipo: String(row[16] || '').trim() || 'Ninguno',
                 tratamiento_accion: String(row[17] || '').trim() || 'Ninguno',
                 plan_accion_medio: String(row[18] || '').trim() || 'Ninguno',
-                plan_accion_individuo: String(row[19] || '').trim() || 'Ninguno',
-                responsable: String(row[20] || '').trim() || 'Responsable PESV',
-                fecha_programacion: String(row[21] || '').trim() || 'Permanente',
+                plan_accion_vehiculo: String(row[19] || '').trim() || 'Ninguno',
+                plan_accion_individuo: String(row[20] || '').trim() || 'Ninguno',
+                plan_accion_infraestructura: String(row[21] || '').trim() || 'Ninguno',
+                responsable: String(row[22] || '').trim() || 'Responsable PESV',
+                fecha_programacion: String(row[23] || '').trim() || 'Permanente',
                 estado: est,
-                observaciones: String(row[23] || '').trim(),
+                observaciones: String(row[25] || '').trim(),
               });
             }
 
@@ -951,10 +964,12 @@ export default function MatrizPESVTable({
                 nivel_riesgo: interp.nivel,
                 aceptabilidad: interp.aceptabilidad,
                 controles_existentes_descripcion: getValueByKeys(r, ['controles_existentes_descripcion', 'controlesexistentesdescripcion', 'controles existentes', 'controlesexistentes', 'interpretacion de controles', 'interpretacioncontroles']),
-                controles_existentes_tipo: getValueByKeys(r, ['controles_existentes_tipo', 'controlesexistentestipo', 'tipo de controles', 'tipodecontroles']),
+                controles_existentes_tipo: normalizeControlTipo(getValueByKeys(r, ['controles_existentes_tipo', 'controlesexistentestipo', 'tipo de controles', 'tipodecontroles'])),
                 tratamiento_accion: getValueByKeys(r, ['tratamiento_accion', 'tratamientoaccion', 'tratamiento', 'acciones / tratamiento', 'accionestratamiento']),
                 plan_accion_medio: getValueByKeys(r, ['plan_accion_medio', 'planaccionmedio', 'medio', 'controles medio', 'controlesmedio']),
+                plan_accion_vehiculo: getValueByKeys(r, ['plan_accion_vehiculo', 'planaccionvehiculo', 'vehiculo', 'controles vehiculo', 'controlesvehiculo']),
                 plan_accion_individuo: getValueByKeys(r, ['plan_accion_individuo', 'planaccionindividuo', 'individuo', 'controles individuo', 'controlesindividuo']),
+                plan_accion_infraestructura: getValueByKeys(r, ['plan_accion_infraestructura', 'planaccioninfraestructura', 'infraestructura', 'controles infraestructura', 'controlesinfraestructura', 'via', 'vía', 'controles via', 'controles vía']),
                 responsable: getValueByKeys(r, ['responsable', 'responsables']) || 'Responsable PESV',
                 fecha_programacion: getValueByKeys(r, ['fecha_programacion', 'fechaprogramacion', 'fecha', 'fecha de programacion', 'fecha programacion']),
                 estado: (getValueByKeys(r, ['estado', 'estados']) || 'PLANEADA') as any,
@@ -992,6 +1007,8 @@ export default function MatrizPESVTable({
       'Rol en la Vía': r.rol_via,
       'Factor de Riesgo': r.factor_riesgo,
       'Descripción del Peligro': r.peligro_descripcion,
+      'Controles Existentes': r.controles_existentes_descripcion,
+      'Tipo de Controles': r.controles_existentes_tipo,
       'NP Cualitativo': r.np_cualitativo,
       'NP Cuantitativo': r.np_cuantitativo,
       'NE Cualitativo': r.ne_cualitativo,
@@ -1001,11 +1018,11 @@ export default function MatrizPESVTable({
       'Calificación': r.calificacion,
       'Nivel de Riesgo': r.nivel_riesgo,
       'Aceptabilidad': r.aceptabilidad,
-      'Controles Existentes': r.controles_existentes_descripcion,
-      'Tipo de Controles': r.controles_existentes_tipo,
       'Tratamiento / Acción': r.tratamiento_accion,
       'Plan Acción (Medio)': r.plan_accion_medio,
+      'Plan Acción (Vehículo)': r.plan_accion_vehiculo,
       'Plan Acción (Individuo)': r.plan_accion_individuo,
+      'Plan Acción (Infraestructura)': r.plan_accion_infraestructura,
       'Responsable': r.responsable,
       'Fecha / Periodicidad': r.fecha_programacion,
       'Estado': r.estado,
@@ -1027,6 +1044,8 @@ export default function MatrizPESVTable({
         'Rol en la Vía': 'Conductor de vehículo liviano',
         'Factor de Riesgo': 'Factor Humano',
         'Descripción del Peligro': 'Fatiga extrema y microsueños durante conducción nocturna',
+        'Controles Existentes': 'Capacitación básica en conducción defensiva',
+        'Tipo de Controles': 'INDIVIDUO',
         'NP Cualitativo': 'PROBABLE',
         'NP Cuantitativo': 3,
         'NE Cualitativo': 'OCASIONAL',
@@ -1036,11 +1055,11 @@ export default function MatrizPESVTable({
         'Calificación': 9,
         'Nivel de Riesgo': 'NIVEL DE RIESGO MEDIO o MODERADO',
         'Aceptabilidad': 'ACEPTABLE CON CONTROL ESPECIFICO',
-        'Controles Existentes': 'Capacitación básica en conducción defensiva',
-        'Tipo de Controles': 'INDIVIDUO',
         'Tratamiento / Acción': 'MODIFICAR LOS FACTORES DE EXPOSICION',
         'Plan Acción (Medio)': 'Definir pausas activas obligatorias cada 2 horas de trayecto',
+        'Plan Acción (Vehículo)': 'Ninguno',
         'Plan Acción (Individuo)': 'Implementar checklist preoperacional de fatiga y sueño',
+        'Plan Acción (Infraestructura)': 'Ninguno',
         'Responsable': 'Responsable PESV',
         'Fecha / Periodicidad': 'Permanente',
         'Estado': 'PLANEADA',
@@ -1067,7 +1086,9 @@ export default function MatrizPESVTable({
           row.peligro_descripcion,
           row.controles_existentes_descripcion,
           row.plan_accion_medio,
+          row.plan_accion_vehiculo,
           row.plan_accion_individuo,
+          row.plan_accion_infraestructura,
           row.responsable,
           row.observaciones
         ].some((f) => f?.toLowerCase().includes(q)),
@@ -1493,6 +1514,10 @@ export default function MatrizPESVTable({
                   <th className="min-w-[160px] px-4 py-3 text-left">FACTOR RIESGO</th>
                   <th className="min-w-[220px] border-l-2 border-sky-500/20 px-4 py-3 text-left">DESCRIPCIÓN PELIGRO</th>
                   
+                  {/* Controles Existentes */}
+                  <th className="min-w-[200px] border-l-2 border-blue-500/20 px-4 py-3 text-left text-blue-700 dark:text-blue-400">CONTROLES EXISTENTES</th>
+                  <th className="min-w-[160px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">TIPO CONTROLES</th>
+                  
                   {/* Evaluación cualitativa / cuantitativa */}
                   <th className="min-w-[160px] border-l-2 border-purple-500/20 px-4 py-3 text-center text-purple-700 dark:text-purple-400">NP CUALITATIVO</th>
                   <th className="min-w-[80px] px-4 py-3 text-center text-purple-700 dark:text-purple-400">NP CUANT</th>
@@ -1505,14 +1530,13 @@ export default function MatrizPESVTable({
                   <th className="min-w-[140px] border-l border-border-light px-4 py-3 text-center text-slate-700 dark:text-slate-400">NIVEL RIESGO</th>
                   <th className="min-w-[160px] border-l border-border-light px-4 py-3 text-center text-slate-700 dark:text-slate-400">ACEPTABILIDAD</th>
                   
-                  {/* Controles Existentes */}
-                  <th className="min-w-[200px] border-l-2 border-blue-500/20 px-4 py-3 text-left text-blue-700 dark:text-blue-400">CONTROLES EXISTENTES</th>
-                  <th className="min-w-[160px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">TIPO CONTROLES</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left text-blue-700 dark:text-blue-400">TRATAMIENTO ACCIÓN</th>
+                  <th className="min-w-[180px] border-l border-border-light px-4 py-3 text-left text-blue-700 dark:text-blue-400">TRATAMIENTO ACCIÓN</th>
                   
                   {/* Plan de Acción */}
                   <th className="min-w-[200px] border-l-2 border-emerald-500/20 px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (MEDIO)</th>
+                  <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (VEHÍCULO)</th>
                   <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (INDIVIDUO)</th>
+                  <th className="min-w-[200px] px-4 py-3 text-left text-emerald-700 dark:text-emerald-400">PLAN ACCIÓN (INFRAESTRUCTURA)</th>
                   
                   <th className="min-w-[160px] border-l border-border-light px-4 py-3 text-left">RESPONSABLE</th>
                   <th className="min-w-[140px] px-4 py-3 text-left">FECHA / PERIODICIDAD</th>
@@ -1599,6 +1623,32 @@ export default function MatrizPESVTable({
                           token={token}
                           selectedModel={selectedModel}
                         />
+                      </td>
+
+                      {/* Controles Existentes */}
+                      <td className="border-l border-border-light bg-blue-500/5 px-4 py-3">
+                        <AITextarea
+                          value={row.controles_existentes_descripcion || ''}
+                          onChange={(v) => handleCellChange(idx, 'controles_existentes_descripcion', v)}
+                          minW="180px"
+                          fieldLabel="Controles Existentes / Diagnóstico"
+                          row={row}
+                          token={token}
+                          selectedModel={selectedModel}
+                        />
+                      </td>
+
+                      {/* Tipo Controles */}
+                      <td className="bg-blue-500/5 px-4 py-3">
+                        <select
+                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
+                          value={row.controles_existentes_tipo || 'Ninguno'}
+                          onChange={(e) => handleCellChange(idx, 'controles_existentes_tipo', e.target.value)}
+                        >
+                          {CONTROLES_TIPO_OPCIONES.map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
                       </td>
 
                       {/* NP Cualitativo */}
@@ -1694,34 +1744,8 @@ export default function MatrizPESVTable({
                         })()}
                       </td>
 
-                      {/* Controles Existentes */}
-                      <td className="border-l border-border-light bg-blue-500/5 px-4 py-3">
-                        <AITextarea
-                          value={row.controles_existentes_descripcion || ''}
-                          onChange={(v) => handleCellChange(idx, 'controles_existentes_descripcion', v)}
-                          minW="180px"
-                          fieldLabel="Controles Existentes / Diagnóstico"
-                          row={row}
-                          token={token}
-                          selectedModel={selectedModel}
-                        />
-                      </td>
-
-                      {/* Tipo Controles */}
-                      <td className="bg-blue-500/5 px-4 py-3">
-                        <select
-                          className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
-                          value={row.controles_existentes_tipo || 'Ninguno'}
-                          onChange={(e) => handleCellChange(idx, 'controles_existentes_tipo', e.target.value)}
-                        >
-                          {CONTROLES_TIPO_OPCIONES.map((o) => (
-                            <option key={o} value={o}>{o}</option>
-                          ))}
-                        </select>
-                      </td>
-
                       {/* Tratamiento Acción */}
-                      <td className="bg-blue-500/5 px-4 py-3">
+                      <td className="border-l border-border-light bg-blue-500/5 px-4 py-3">
                         <select
                           className="w-full min-w-[160px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                           value={row.tratamiento_accion || 'Ninguno'}
@@ -1746,6 +1770,19 @@ export default function MatrizPESVTable({
                         />
                       </td>
 
+                      {/* Plan Acción Vehículo */}
+                      <td className="bg-emerald-500/5 px-4 py-3">
+                        <AITextarea
+                          value={row.plan_accion_vehiculo || ''}
+                          onChange={(v) => handleCellChange(idx, 'plan_accion_vehiculo', v)}
+                          minW="190px"
+                          fieldLabel="Plan de Acción - Vehículo"
+                          row={row}
+                          token={token}
+                          selectedModel={selectedModel}
+                        />
+                      </td>
+
                       {/* Plan Acción Individuo */}
                       <td className="bg-emerald-500/5 px-4 py-3">
                         <AITextarea
@@ -1753,6 +1790,19 @@ export default function MatrizPESVTable({
                           onChange={(v) => handleCellChange(idx, 'plan_accion_individuo', v)}
                           minW="190px"
                           fieldLabel="Plan de Acción - Individuo"
+                          row={row}
+                          token={token}
+                          selectedModel={selectedModel}
+                        />
+                      </td>
+
+                      {/* Plan Acción Infraestructura */}
+                      <td className="bg-emerald-500/5 px-4 py-3">
+                        <AITextarea
+                          value={row.plan_accion_infraestructura || ''}
+                          onChange={(v) => handleCellChange(idx, 'plan_accion_infraestructura', v)}
+                          minW="190px"
+                          fieldLabel="Plan de Acción - Infraestructura"
                           row={row}
                           token={token}
                           selectedModel={selectedModel}

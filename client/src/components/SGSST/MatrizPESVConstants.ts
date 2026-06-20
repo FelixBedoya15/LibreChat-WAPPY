@@ -36,7 +36,9 @@ export interface MatrixRow {
 
   // Plan de Acción
   plan_accion_medio?: string; // Controles - MEDIO
+  plan_accion_vehiculo?: string; // Controles - VEHICULO
   plan_accion_individuo?: string; // Controles - INDIVIDUO
+  plan_accion_infraestructura?: string; // Controles - INFRAESTRUCTURA
   responsable: string;
   fecha_programacion?: string; // Fecha programación
   estado?: 'PLANEADA' | 'CERRADA' | 'EN PROCESO' | 'VENCIDA' | '';
@@ -100,11 +102,20 @@ export const CONTROLES_TIPO_OPCIONES = [
   'MEDIO-INDIVIDUO',
   'VEHICULO',
   'INFRAESTRUCTURA',
-  'Persona',
-  'Vehículo',
-  'Vía / Entorno',
   'Ninguno'
 ];
+
+export const normalizeControlTipo = (val: string): string => {
+  const s = String(val || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (!s || s === 'NINGUNO' || s === 'NINGUNA' || s === 'NO APLICA') return 'Ninguno';
+  if (s.includes('MEDIO-INDIVIDUO')) return 'MEDIO-INDIVIDUO';
+  if (s.includes('INDIVIDUO') || s.includes('PERSONA')) return 'INDIVIDUO';
+  if (s.includes('VEHICULO') || s.includes('VEHÍCULO')) return 'VEHICULO';
+  if (s.includes('INFRAESTRUCTURA') || s.includes('VIA') || s.includes('VÍA') || s.includes('ENTORNO')) return 'INFRAESTRUCTURA';
+  if (s.includes('MEDIO')) return 'MEDIO';
+  return 'Ninguno';
+};
+
 
 // Helper functions for conversions
 export const mapNPCualitativoToNum = (lbl: string): number => {

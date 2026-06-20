@@ -164,6 +164,7 @@ const runPollCycle = async () => {
                     }
                     userPlan.plan = tx.planId;
                     userPlan.planExpiresAt = expiryDate;
+                    userPlan.planInterval = tx.interval; // Track interval for downgrade-on-expiry rules
                     await userPlan.save();
 
                     let newRole = 'USER';

@@ -907,15 +907,33 @@ export default function PlansPage() {
               interval: billingInterval,
               amountInCents: data.amountInCents,
             });
-            // Immediate approval (card, Nequi, PSE resolved, etc.)
-            axios
-              .post('/api/wompi/verify-transaction', { transactionId: transaction.id })
-              .then(() => {
-                window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
-              })
-              .catch(() => {
-                window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}&fallback=1`;
-              });
+
+            // Retry helper: attempt verify-transaction up to 3 times before giving up
+            const tryVerify = (attemptsLeft: number) => {
+              axios
+                .post('/api/wompi/verify-transaction', { transactionId: transaction.id })
+                .then(() => {
+                  window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
+                })
+                .catch(() => {
+                  if (attemptsLeft > 1) {
+                    // Wait 2s and retry
+                    setTimeout(() => tryVerify(attemptsLeft - 1), 2000);
+                  } else {
+                    // All retries exhausted: the webhook should still activate it,
+                    // but show an honest message instead of a fake success.
+                    showToast({
+                      message:
+                        '¡Pago recibido por Wompi! La activación de tu plan puede tomar unos minutos. Recarga la página en 2 minutos.',
+                      status: 'warning',
+                    });
+                    setCheckoutLoading(null);
+                    setCheckoutPlan(null);
+                  }
+                });
+            };
+            tryVerify(3);
+
           } else if (transaction.status === 'PENDING') {
             // Async method (e.g. Compra y Paga Después / Bancolombia BNPL)
             // Register the transactionId so the background poller can follow it up
@@ -1012,14 +1030,28 @@ export default function PlansPage() {
                 email: guestData.email,
               });
               // Use guest-verify (no auth required) with the guestToken from backend
-              axios
-                .post('/api/wompi/guest-verify', { transactionId: transaction.id, guestToken })
-                .then(() => {
-                  window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
-                })
-                .catch(() => {
-                  window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}&fallback=1`;
-                });
+              // Retry up to 3 times before giving up
+              const tryGuestVerify = (attemptsLeft: number) => {
+                axios
+                  .post('/api/wompi/guest-verify', { transactionId: transaction.id, guestToken })
+                  .then(() => {
+                    window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
+                  })
+                  .catch(() => {
+                    if (attemptsLeft > 1) {
+                      setTimeout(() => tryGuestVerify(attemptsLeft - 1), 2000);
+                    } else {
+                      showToast({
+                        message:
+                          '¡Pago recibido por Wompi! La activación de tu plan puede tomar unos minutos. Recarga la página en 2 minutos.',
+                        status: 'warning',
+                      });
+                      setCheckoutLoading(null);
+                      setCheckoutPlan(null);
+                    }
+                  });
+              };
+              tryGuestVerify(3);
             } else if (transaction.status === 'PENDING') {
               // For async methods, webhook will handle activation
               setPendingPaymentInfo({
@@ -2789,16 +2821,28 @@ export default function PlansPage() {
                           checkout.open((result: any) => {
                             const transaction = result?.transaction || {};
                             if (transaction.status === 'APPROVED') {
-                              axios
-                                .post('/api/wompi/verify-transaction', {
-                                  transactionId: transaction.id,
-                                })
-                                .then(() => {
-                                  window.location.href = '/planes?success=1&plan=custom';
-                                })
-                                .catch(() => {
-                                  window.location.href = '/planes?success=1&plan=custom&fallback=1';
-                                });
+                              const tryCustomVerify = (attemptsLeft: number) => {
+                                axios
+                                  .post('/api/wompi/verify-transaction', {
+                                    transactionId: transaction.id,
+                                  })
+                                  .then(() => {
+                                    window.location.href = '/planes?success=1&plan=custom';
+                                  })
+                                  .catch(() => {
+                                    if (attemptsLeft > 1) {
+                                      setTimeout(() => tryCustomVerify(attemptsLeft - 1), 2000);
+                                    } else {
+                                      showToast({
+                                        message:
+                                          '¡Pago recibido por Wompi! La activación de tu plan puede tomar unos minutos. Recarga la página en 2 minutos.',
+                                        status: 'warning',
+                                      });
+                                      setCustomCheckoutLoading(false);
+                                    }
+                                  });
+                              };
+                              tryCustomVerify(3);
                             } else if (transaction.status === 'PENDING') {
                               setPendingPaymentInfo({
                                 planName: 'Plan a la Medida',

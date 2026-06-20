@@ -429,87 +429,121 @@ export default function MatrizCompatibilidadTable({
   }, [matrixRows, currentPage, pageSize]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary">
+    <div className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl' : 'w-full h-full bg-surface-primary text-text-primary'}`}>
       {/* ── BARRA SUPERIOR DE ACCIONES ── */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-border-medium bg-surface-primary px-4 py-3 shadow-sm max-md:flex-wrap max-md:gap-2">
-        <div className="flex items-center gap-2">
-          <Beaker className="h-5 w-5 text-teal-600 animate-pulse" />
-          <h2 className="text-sm font-bold text-text-primary">Matriz de Compatibilidad Química</h2>
+      <div
+        className="relative z-[300] flex min-w-0 shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-4"
+        style={{ minHeight: '4rem' }}
+      >
+        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-3 overflow-hidden text-ellipsis">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
+            <Beaker className="h-5 w-5 animate-pulse" />
+          </div>
+          <div className="min-w-0 overflow-hidden">
+            <h2 className="truncate text-sm font-semibold text-text-primary">Matriz de Compatibilidad Química</h2>
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
+              <span className="truncate text-xs text-text-secondary">Sincronización Activa</span>
+            </div>
+          </div>
         </div>
 
         {/* Controles de Acción */}
-        <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
-          <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
-          
-          <div className="flex items-center gap-1.5">
-            {/* Importar */}
-            <button
-              onClick={triggerExcelImport}
-              disabled={isAiImportLoading}
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-border-medium px-3 text-xs font-semibold hover:bg-surface-secondary"
-              title="Importar inventario desde Excel"
-            >
-              {isAiImportLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
-              ) : (
-                <Upload className="h-4 w-4 text-text-secondary" />
-              )}
-              <span className="max-md:hidden">Importar</span>
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleExcelFileChange}
-              accept=".xlsx,.xls"
-              className="hidden"
-            />
+        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            hideTooltip={true}
+          />
 
-            {/* Exportar */}
-            <button
-              onClick={handleExportExcel}
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-border-medium px-3 text-xs font-semibold hover:bg-surface-secondary"
-              title="Exportar inventario a Excel"
-            >
-              <Download className="h-4 w-4 text-text-secondary" />
-              <span className="max-md:hidden">Exportar</span>
-            </button>
+          {/* Añadir Producto */}
+          <button
+            onClick={addRow}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20"
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              Añadir Producto
+            </span>
+          </button>
 
-            {/* Auditar con IA */}
-            <button
-              onClick={handleAnalyzeMatrix}
-              disabled={isAnalyzing || matrixRows.length === 0}
-              className="flex h-9 items-center gap-1.5 rounded-xl bg-purple-600 px-3 text-xs font-bold text-white shadow-md hover:bg-purple-700 disabled:opacity-50"
-            >
-              {isAnalyzing ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <Sparkles className="h-4 w-4 text-purple-200" />
-              )}
-              <span>Auditar con IA</span>
-            </button>
+          {/* Auditar con IA */}
+          <button
+            onClick={handleAnalyzeMatrix}
+            disabled={isAnalyzing || matrixRows.length === 0}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+          >
+            {isAnalyzing ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
+            )}
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              {isAnalyzing ? 'Generando…' : 'Auditar con IA'}
+            </span>
+          </button>
 
-            {/* Guardar */}
-            <button
-              onClick={() => saveMatrix()}
-              disabled={isSaving}
-              className="flex h-9 items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 text-xs font-bold text-white shadow-md hover:bg-teal-700 disabled:opacity-50"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span>Guardar</span>
-            </button>
+          {/* Importar */}
+          <button
+            onClick={triggerExcelImport}
+            disabled={isAiImportLoading}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+          >
+            {isAiImportLoading ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 shrink-0" />
+            )}
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              Importar
+            </span>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleExcelFileChange}
+            accept=".xlsx,.xls"
+            className="hidden"
+          />
 
-            {/* Maximizar */}
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              className="inline-flex size-9 items-center justify-center rounded-xl border border-border-medium hover:bg-surface-secondary"
-            >
-              {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
-          </div>
+          {/* Exportar */}
+          <ExportDropdown
+            content={reportContent || ''}
+            fileName={`Informe_Compatibilidad_Quimica_${new Date().toISOString().slice(0, 10)}`}
+            reportType="general"
+            onExportExcel={handleExportExcel}
+          />
+
+          {/* Guardar */}
+          <button
+            onClick={() => saveMatrix()}
+            disabled={isSaving}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20"
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 shrink-0" />
+            )}
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              {isSaving ? 'Guardando…' : 'Guardar'}
+            </span>
+          </button>
+
+          {/* Maximizar */}
+          <button
+            onClick={() => setIsMaximized(!isMaximized)}
+            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+          >
+            {isMaximized ? (
+              <Minimize2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <Maximize2 className="h-4 w-4 shrink-0" />
+            )}
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              {isMaximized ? 'Restaurar' : 'Expandir'}
+            </span>
+          </button>
         </div>
       </div>
 
