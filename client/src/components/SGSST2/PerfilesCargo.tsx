@@ -510,6 +510,27 @@ const PerfilesCargo = () => {
                 'Controles en el Medio': safeText(safeJoin(p.controlesMedioSeleccionados))
             }));
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            
+            // Adjust column widths to avoid Excel clipping headers (e.g. clipping "Descripción Detallada" to "Descripción")
+            worksheet['!cols'] = [
+                { wch: 25 }, // Nombre del Cargo
+                { wch: 20 }, // Área
+                { wch: 20 }, // Nivel del Cargo
+                { wch: 20 }, // Tipo de Contrato
+                { wch: 25 }, // Jornada
+                { wch: 20 }, // Jefe Inmediato
+                { wch: 18 }, // Escala Salarial
+                { wch: 18 }, // Número de Vacantes
+                { wch: 18 }, // Exigencia Física
+                { wch: 18 }, // Exigencia Mental
+                { wch: 18 }, // Opera Maquinaria
+                { wch: 50 }, // Descripción Detallada
+                { wch: 30 }, // EPP Requeridos
+                { wch: 30 }, // Entrenamientos Requeridos
+                { wch: 30 }, // Controles en la Fuente
+                { wch: 30 }  // Controles en el Medio
+            ];
+
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles de Cargo");
             XLSX.writeFile(workbook, "Perfiles_de_Cargo.xlsx");
