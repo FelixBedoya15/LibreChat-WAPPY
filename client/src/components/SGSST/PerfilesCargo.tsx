@@ -619,6 +619,18 @@ const PerfilesCargo = () => {
         return '';
     };
 
+    const safeText = (val: any, isHTML = false): string => {
+        if (val === null || val === undefined) return '';
+        let str = String(val);
+        if (isHTML) {
+            str = str.replace(/<[^>]*>/g, '');
+        }
+        if (str.length > 32760) {
+            return str.substring(0, 32750) + '... [TRUNCADO]';
+        }
+        return str;
+    };
+
     const handleExportExcel = () => {
         try {
             if (!perfiles || perfiles.length === 0) {
@@ -626,23 +638,23 @@ const PerfilesCargo = () => {
                 return;
             }
             const dataToExport = perfiles.map(p => ({
-                'Nombre del Cargo': p.nombreCargo || '',
-                'Área': p.area || '',
-                'Nivel del Cargo': p.nivelCargo || '',
-                'Tipo de Contrato': p.tipoContrato || '',
-                'Jornada': p.jornada || '',
-                'Jefe Inmediato': p.jefeInmediato || '',
-                'Escala Salarial': p.escalasSalarial || '',
-                'Número de Vacantes': p.numVacantes || '',
-                'Exigencia Física': p.exigenciaFisica || '',
-                'Exigencia Mental': p.exigenciaMental || '',
-                'Opera Maquinaria': p.operaMaquinaria || '',
-                'Descripción Detallada': p.contextoAdicional || '',
-                'EPP Requeridos': safeJoin(p.eppSeleccionados),
-                'Entrenamientos Requeridos': safeJoin(p.entrenamientosSeleccionados),
-                'Controles en la Fuente': safeJoin(p.controlesFuenteSeleccionados),
-                'Controles en el Medio': safeJoin(p.controlesMedioSeleccionados),
-                'Reporte Generado': p.report || ''
+                'Nombre del Cargo': safeText(p.nombreCargo),
+                'Área': safeText(p.area),
+                'Nivel del Cargo': safeText(p.nivelCargo),
+                'Tipo de Contrato': safeText(p.tipoContrato),
+                'Jornada': safeText(p.jornada),
+                'Jefe Inmediato': safeText(p.jefeInmediato),
+                'Escala Salarial': safeText(p.escalasSalarial),
+                'Número de Vacantes': safeText(p.numVacantes),
+                'Exigencia Física': safeText(p.exigenciaFisica),
+                'Exigencia Mental': safeText(p.exigenciaMental),
+                'Opera Maquinaria': safeText(p.operaMaquinaria),
+                'Descripción Detallada': safeText(p.contextoAdicional),
+                'EPP Requeridos': safeText(safeJoin(p.eppSeleccionados)),
+                'Entrenamientos Requeridos': safeText(safeJoin(p.entrenamientosSeleccionados)),
+                'Controles en la Fuente': safeText(safeJoin(p.controlesFuenteSeleccionados)),
+                'Controles en el Medio': safeText(safeJoin(p.controlesMedioSeleccionados)),
+                'Reporte Generado': safeText(p.report, true)
             }));
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
