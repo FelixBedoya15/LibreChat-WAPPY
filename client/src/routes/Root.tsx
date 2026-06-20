@@ -137,7 +137,7 @@ export default function Root() {
   };
 
   const isPublicRoute = (pathname: string) => {
-    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login'];
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/portafolio', '/portafolio.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }

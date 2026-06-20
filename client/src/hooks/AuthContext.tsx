@@ -148,7 +148,7 @@ const AuthContextProvider = ({
   };
 
   const isPublicRoute = useCallback((pathname: string) => {
-    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/wappyvital'];
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/wappyvital', '/portafolio', '/portafolio.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }

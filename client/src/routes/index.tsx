@@ -60,6 +60,11 @@ import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 
+const PortafolioRedirect = () => {
+  window.location.replace('/portafolio.html');
+  return null;
+};
+
 const AuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
@@ -237,6 +242,11 @@ export const router = createBrowserRouter(
           <RoadmapNotifier />
         </AuthContextProvider>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'portafolio',
+      element: <PortafolioRedirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {

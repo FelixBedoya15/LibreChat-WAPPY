@@ -35,6 +35,116 @@
       --transition-base: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
+    /* LIGHT THEME OVERRIDES */
+    body.light-theme {
+      --color-bg: #f8fafc;
+      --color-card-bg: rgba(255, 255, 255, 0.7);
+      --color-border: rgba(34, 197, 94, 0.18);
+      --color-border-hover: rgba(34, 197, 94, 0.45);
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+    }
+    
+    body.light-theme .glow-bg {
+      opacity: 0.05;
+    }
+    
+    body.light-theme .mouse-glow {
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.04) 0%, rgba(6, 182, 212, 0.01) 65%, transparent 100%);
+    }
+    
+    body.light-theme header {
+      background: rgba(248, 250, 252, 0.85);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    
+    body.light-theme header.scrolled {
+      background: rgba(248, 250, 252, 0.95);
+      border-bottom: 1px solid rgba(34, 197, 94, 0.25);
+    }
+    
+    body.light-theme .hero-image-frame {
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
+    }
+    
+    body.light-theme .bio-philosophy {
+      background: rgba(255, 255, 255, 0.7);
+    }
+    
+    body.light-theme .hito-number {
+      background: #ffffff;
+    }
+    
+    body.light-theme .creador-avatar-ring {
+      background: #ffffff;
+      box-shadow: 0 0 35px rgba(34, 197, 94, 0.15);
+    }
+    
+    body.light-theme .plan-card.popular {
+      box-shadow: 0 25px 50px rgba(34, 197, 94, 0.06);
+    }
+    
+    body.light-theme .plan-tier-type {
+      color: var(--text-primary);
+    }
+    
+    body.light-theme footer {
+      background: #f1f5f9;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    body.light-theme .footer-bottom {
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    body.light-theme .theme-toggle-btn {
+      background: rgba(15, 23, 42, 0.05);
+      border-color: rgba(15, 23, 42, 0.1);
+      color: #334155;
+    }
+    body.light-theme .theme-toggle-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background: rgba(34, 197, 94, 0.05);
+    }
+    
+    body.light-theme .filter-btn {
+      background: rgba(15, 23, 42, 0.02);
+      border-color: rgba(15, 23, 42, 0.1);
+    }
+    body.light-theme .filter-btn:hover {
+      background: rgba(34, 197, 94, 0.05);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    body.light-theme .filter-btn.active {
+      color: #ffffff;
+    }
+    body.light-theme .tab-btn {
+      background: rgba(15, 23, 42, 0.02);
+      border-color: rgba(15, 23, 42, 0.1);
+    }
+    body.light-theme .tab-btn:hover {
+      background: rgba(34, 197, 94, 0.05);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    body.light-theme .tab-btn.active {
+      color: #060913;
+    }
+    body.light-theme .agente-prompt-snippet {
+      background: rgba(15, 23, 42, 0.05);
+      color: #047857;
+      border-left-color: var(--color-primary);
+    }
+    body.light-theme .camera-preview {
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.1);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -177,6 +287,56 @@
       border-color: var(--color-primary);
       color: var(--color-primary);
       transform: translateY(-3px);
+    }
+
+    /* Theme Toggle Button Style */
+    .theme-toggle-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--color-border);
+      color: var(--text-secondary);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition-base);
+      backdrop-filter: blur(8px);
+      margin-left: 1rem;
+      outline: none;
+    }
+    
+    .theme-toggle-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: scale(1.08);
+      background: rgba(34, 197, 94, 0.05);
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.25);
+    }
+    
+    .theme-toggle-btn svg {
+      transition: transform 0.4s ease;
+    }
+    .theme-toggle-btn:hover svg {
+      transform: rotate(20deg);
+    }
+
+    /* Brand Logo & Adapt Filter */
+    .brand-logo {
+      height: 42px;
+      width: auto;
+      display: block;
+      transition: var(--transition-base);
+    }
+    
+    .adapt-logo {
+      transition: var(--transition-base);
+    }
+    
+    /* In dark mode (when body does not have .light-theme), invert white to black and keep green hue */
+    body:not(.light-theme) .adapt-logo {
+      filter: invert(1) hue-rotate(180deg);
     }
 
     /* Glassmorphism Cards */
@@ -1329,6 +1489,12 @@
         <a href="#herramientas" class="nav-link">Herramientas</a>
         <a href="#planes" class="nav-link">Planes</a>
         <a href="https://wappy.club/register" class="btn btn-secondary nav-cta" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Registrarse</a>
+        <button class="theme-toggle-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">
+          <!-- Sun icon (for dark mode) -->
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <!-- Moon icon (for light mode) -->
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
       </nav>
     </div>
   </header>
@@ -1943,7 +2109,7 @@
       <div class="creador-avatar-container reveal">
         <!-- Render avatar3 as requested by the user -->
         <div class="creador-avatar-ring">
-          <img src="Agentes/Miniaturas/Avatar%20/avatar3.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix3'">
+          <img src="Agentes/Miniaturas/Avatar%20/Avatar1.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix1'">
         </div>
       </div>
 
@@ -2093,8 +2259,40 @@
         } else {
           card.classList.add('hidden');
         }
-      });
     }
+
+    // 6. Theme Toggle Logic (Light / Dark Mode)
+    function toggleTheme() {
+      const body = document.body;
+      const sunIcon = document.querySelector('.sun-icon');
+      const moonIcon = document.querySelector('.moon-icon');
+      
+      body.classList.toggle('light-theme');
+      const isLight = body.classList.contains('light-theme');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      
+      if (isLight) {
+        sunIcon.style.display = 'block';
+        moonIcon.style.display = 'none';
+      } else {
+        sunIcon.style.display = 'none';
+        moonIcon.style.display = 'block';
+      }
+    }
+    
+    // Load saved theme on startup
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        const sunIcon = document.querySelector('.sun-icon');
+        const moonIcon = document.querySelector('.moon-icon');
+        if (sunIcon && moonIcon) {
+          sunIcon.style.display = 'block';
+          moonIcon.style.display = 'none';
+        }
+      }
+    });
   </script>
 </body>
 </html>
