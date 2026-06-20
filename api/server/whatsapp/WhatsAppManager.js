@@ -12,6 +12,7 @@ class WhatsAppManager {
     this.messageBuffer = new Map(); // userId => array of text parts
     this.bufferTimers = new Map(); // userId => NodeJS timeout
     this.processing = new Map(); // userId => boolean
+    this.qrAttempts = new Map(); // userId => number of QR codes generated (to limit retries)
     this.ensureSessionDir();
   }
 
@@ -234,10 +235,21 @@ class WhatsAppManager {
     this.clients.set(userId, client);
 
     client.on('qr', (qr) => {
-      // whatsapp-web.js generates QR string, wait for library to convert it visually?
-      // No, we use a basic base64 conversion trick or pass raw string if we use react-qrcode
-      // Actually `qr` is a raw string, we will return this raw string and let Frontend 'qrcode.react' handle it.
-      console.log(`[WhatsApp Manager] QR Generado para el usuario: ${userId}`);
+      const MAX_QR_ATTEMPTS = 5; // ~2.5 minutos antes de rendirse
+      const attempts = (this.qrAttempts.get(userId) || 0) + 1;
+      this.qrAttempts.set(userId, attempts);
+
+      if (attempts > MAX_QR_ATTEMPTS) {
+        console.warn(`[WhatsApp Manager] Usuario ${userId} superó ${MAX_QR_ATTEMPTS} intentos de QR sin escanear. Deteniendo cliente.`);
+        this.statuses.set(userId, 'OFFLINE');
+        this.qrCodes.delete(userId);
+        client.destroy().catch(() => {});
+        this.clients.delete(userId);
+        this.qrAttempts.delete(userId);
+        return;
+      }
+
+      console.log(`[WhatsApp Manager] QR Generado para el usuario: ${userId} (intento ${attempts}/${MAX_QR_ATTEMPTS})`);
       this.qrCodes.set(userId, qr);
       this.statuses.set(userId, 'QR_READY');
     });
@@ -250,6 +262,7 @@ class WhatsAppManager {
     client.on('authenticated', () => {
       console.log(`[WhatsApp Manager] Autenticado: ${userId}`);
       this.statuses.set(userId, 'AUTHENTICATED');
+      this.qrAttempts.delete(userId); // Resetear contador al autenticarse exitosamente
     });
 
     client.on('auth_failure', (msg) => {
@@ -269,16 +282,6 @@ class WhatsAppManager {
       try {
         const myJID = client.info?.wid?._serialized;
         const msgBody = message.body?.trim();
-        
-        // Log de diagnóstico para entender qué llega en el evento
-        console.log(`[WhatsApp Manager] message_create event:`, {
-          fromMe: message.fromMe,
-          from: message.from,
-          to: message.to,
-          remote: message.id?.remote,
-          myJID: myJID,
-          bodySnippet: msgBody ? msgBody.substring(0, 30) : ''
-        });
 
         // Validación robusta para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
         // El mensaje debe ser enviado POR MI hacia MI MISMO
@@ -288,9 +291,20 @@ class WhatsAppManager {
         );
 
         if (!isSelfChat) {
-          console.log(`[WhatsApp Manager] Ignorando mensaje porque no cumple la condición de auto-mensaje.`);
+          // Solo loguear si es un mensaje propio enviado a otro (útil para debug puntual)
+          // Los mensajes de grupos y estados se ignoran silenciosamente
           return;
         }
+
+        // Log de diagnóstico: solo para mensajes que sí procesaremos
+        console.log(`[WhatsApp Manager] Auto-mensaje recibido:`, {
+          fromMe: message.fromMe,
+          from: message.from,
+          to: message.to,
+          remote: message.id?.remote,
+          myJID: myJID,
+          bodySnippet: msgBody ? msgBody.substring(0, 30) : ''
+        });
 
         if (!msgBody) return;
 

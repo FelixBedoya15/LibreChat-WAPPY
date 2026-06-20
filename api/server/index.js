@@ -665,9 +665,10 @@ const startServer = async () => {
     const { startPlanExpirationJob } = require('./services/planExpirationJob');
     startPlanExpirationJob();
 
-    // Boot WhatsApp Sessions OpenClaw Architecture
-    const whatsappManager = require('./whatsapp/WhatsAppManager');
-    await whatsappManager.bootSavedSessions();
+    // Boot WhatsApp Sessions OpenClaw Architecture — DESACTIVADO TEMPORALMENTE
+    // Para reactivar: descomenta las dos líneas de abajo
+    // const whatsappManager = require('./whatsapp/WhatsAppManager');
+    // await whatsappManager.bootSavedSessions();
   });
 
   // Setup WebSocket server for voice conversations
