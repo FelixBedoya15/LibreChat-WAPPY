@@ -653,8 +653,7 @@ const PerfilesCargo = () => {
                 'EPP Requeridos': safeText(safeJoin(p.eppSeleccionados)),
                 'Entrenamientos Requeridos': safeText(safeJoin(p.entrenamientosSeleccionados)),
                 'Controles en la Fuente': safeText(safeJoin(p.controlesFuenteSeleccionados)),
-                'Controles en el Medio': safeText(safeJoin(p.controlesMedioSeleccionados)),
-                'Reporte Generado': safeText(p.report, true)
+                'Controles en el Medio': safeText(safeJoin(p.controlesMedioSeleccionados))
             }));
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
