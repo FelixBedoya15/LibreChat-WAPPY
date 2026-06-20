@@ -662,6 +662,12 @@
       margin-bottom: 1.5rem;
     }
 
+    .philosophy-tags {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
     /* Tab Switcher for SST Tracks */
     .tabs-container {
       display: flex;
@@ -1151,7 +1157,6 @@
       gap: 1rem;
     }
 
-    }
 
     /* MERCADO DE AGENTES SECTION STYLES */
     .filter-container {
@@ -1397,7 +1402,7 @@
       }
 
       .hero-visual {
-        order: -1;
+        order: 1;
       }
 
       .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
@@ -1407,29 +1412,90 @@
       .creador-avatar-container {
         order: -1;
       }
+
+      .creador-tag-grid {
+        justify-content: center;
+      }
+
+      .philosophy-tags {
+        justify-content: center;
+      }
     }
 
     @media (max-width: 768px) {
+      section {
+        padding: 4.5rem 0;
+      }
+
+      #hero {
+        padding-top: 8rem;
+        padding-bottom: 4rem;
+      }
+
+      .container {
+        padding: 0 1.25rem;
+      }
+
       header {
         padding: 0.8rem 0;
       }
 
+      .brand-logo {
+        height: 32px;
+      }
+
+      .nav-link {
+        display: none;
+      }
+
       nav {
-        display: none; /* Mobile menu fallback simplified for direct launch */
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .theme-toggle-btn {
+        margin-left: 0.5rem;
+        width: 36px;
+        height: 36px;
       }
 
       .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
         grid-template-columns: 1fr;
       }
 
+      .glass-card {
+        padding: 1.8rem;
+      }
+
+      .plan-card {
+        padding: 2.2rem 1.8rem;
+      }
+
+      .hito-item {
+        grid-template-columns: 48px 1fr;
+        gap: 1rem;
+      }
+
+      .hito-number {
+        width: 48px;
+        height: 48px;
+        font-size: 1.1rem;
+      }
+
+      .hito-content {
+        padding: 1.2rem 1.5rem;
+      }
+
       .cta-card {
-        padding: 2rem;
+        padding: 3rem 1.5rem;
       }
 
       .warning-banner {
         flex-direction: column;
         text-align: center;
         padding: 1.5rem;
+        gap: 1rem;
       }
 
       .footer-top {
@@ -1451,6 +1517,49 @@
         gap: 0.8rem;
       }
     }
+
+    @media (max-width: 600px) {
+      .tabs-container {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.75rem;
+      }
+
+      .tab-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem 1.2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title {
+        font-size: 2.1rem;
+      }
+
+      .section-title {
+        font-size: 1.8rem;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.8rem;
+      }
+
+      .hero-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .telemetry-panel {
+        width: 135px;
+        padding: 0.6rem;
+        font-size: 0.7rem;
+        bottom: 0.6rem;
+        right: 0.6rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1464,21 +1573,7 @@
   <header id="mainHeader">
     <div class="container header-container">
       <a href="#hero" class="logo-link">
-        <div class="logo-svg-wrapper">
-          <!-- Inlined W logo with colorful gradient and animated dash -->
-          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#header-logo-gradient)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
-              <animate attributeName="stroke-dasharray" from="0 100" to="100 0" dur="2.5s" repeatCount="indefinite"/>
-            </path>
-            <defs>
-              <linearGradient id="header-logo-gradient" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#22c55e" />
-                <stop offset="1" stop-color="#06b6d4" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px;">WAPPY<span class="gradient-text">IA</span></span>
+        <img class="brand-logo adapt-logo" src="Agentes/Miniaturas/Logos%20/Captura_de_pantalla_2026-03-18_a_la_s__7.50.19_a.m.-removebg-preview.png" alt="WAPPY Logo">
       </a>
 
       <nav>
@@ -1518,7 +1613,7 @@
       <div class="hero-visual reveal" style="transition-delay: 0.2s;">
         <div class="hero-image-frame">
           <!-- Main presentation banner image from local assets -->
-          <img src="Agentes/Miniaturas/Logos%20/Gemini_Generated_Image_q0sydtq0sydtq0sy.png" alt="Wappy AI Dashboard Concept" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'">
+          <img class="adapt-logo" src="Agentes/Miniaturas/Logos%20/Captura_de_pantalla_2026-03-18_a_la_s__7.50.19_a.m.-removebg-preview.png" alt="Wappy AI Dashboard Concept" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'">
         </div>
       </div>
     </div>
@@ -1581,7 +1676,7 @@
         <div class="philosophy-left">
           <h3>La Variabilidad Individual como Eje</h3>
           <p>El SG-SST tradicional evalúa al personal de forma grupal e inerte. Somos SST rompe esa estructura y cruza los antecedente clínicos específicos de cada persona, sus stressores psicosociales y posturas para modelar una prevención a la medida.</p>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <div class="philosophy-tags">
             <span class="tag-badge active-green">Estándares Mínimos Resol. 0312</span>
             <span class="tag-badge active-cyan">Decreto 1072 de 2015</span>
           </div>
@@ -2164,11 +2259,7 @@
     <div class="container">
       <div class="footer-top">
         <div class="footer-logo">
-          <!-- W Logo mark inlined -->
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.25rem; letter-spacing: -0.5px;">WAPPY<span class="gradient-text">IA</span></span>
+          <img class="brand-logo adapt-logo" src="Agentes/Miniaturas/Logos%20/Captura_de_pantalla_2026-03-18_a_la_s__7.50.19_a.m.-removebg-preview.png" alt="WAPPY Logo" style="height: 36px;">
         </div>
         <div class="footer-links">
           <a href="#hero" class="footer-link">Inicio</a>
@@ -2259,6 +2350,7 @@
         } else {
           card.classList.add('hidden');
         }
+      });
     }
 
     // 6. Theme Toggle Logic (Light / Dark Mode)
