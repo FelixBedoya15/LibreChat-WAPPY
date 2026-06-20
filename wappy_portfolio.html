@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAPPY IA - Ecosistema Premium de SST</title>
+  
+  <!-- Favicon referencing local asset -->
+  <link rel="icon" type="image/png" href="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* DESIGN SYSTEM & GLOBAL STYLES */
+    :root {
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      
+      --color-bg: #060913;
+      --color-card-bg: rgba(15, 23, 42, 0.45);
+      --color-border: rgba(34, 197, 94, 0.12);
+      --color-border-hover: rgba(34, 197, 94, 0.35);
+      
+      --color-primary: #22c55e;
+      --color-secondary: #10b981;
+      --color-accent: #06b6d4;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+      
+      --transition-base: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--color-bg);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--color-bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(34, 197, 94, 0.2);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-primary);
+    }
+
+    /* Ambient Glow Backgrounds */
+    .glow-bg {
+      position: fixed;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(160px);
+      z-index: 0;
+      opacity: 0.1;
+      transition: var(--transition-base);
+    }
+
+    .glow-1 {
+      top: -10%;
+      right: -10%;
+      background: var(--color-primary);
+      animation: floatGlow 18s infinite alternate;
+    }
+
+    .glow-2 {
+      bottom: -15%;
+      left: -10%;
+      background: var(--color-accent);
+      animation: floatGlow 22s infinite alternate-reverse;
+    }
+
+    /* Interactive cursor glow light */
+    .mouse-glow {
+      position: fixed;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.07) 0%, rgba(6, 182, 212, 0.01) 65%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    /* Typography Utilities */
+    .gradient-text {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .text-center { text-align: center; }
+
+    /* Layout Containers */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    section {
+      padding: 7.5rem 0;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 2.2rem;
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition-base);
+      text-decoration: none;
+      z-index: 3;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: #060913;
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.25);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(34, 197, 94, 0.45);
+      background: linear-gradient(135deg, #2ae06c, #13d696);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--color-border);
+      color: var(--text-primary);
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: translateY(-3px);
+    }
+
+    /* Glassmorphism Cards */
+    .glass-card {
+      background: var(--color-card-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 24px;
+      padding: 2.5rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      transition: var(--transition-base);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card:hover {
+      border-color: var(--color-border-hover);
+      box-shadow: 0 25px 50px rgba(34, 197, 94, 0.08);
+      transform: translateY(-5px);
+    }
+
+    /* Decorative Inner Lights for Cards */
+    .card-glow {
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      top: -50px;
+      right: -50px;
+      transition: var(--transition-base);
+    }
+
+    .glass-card:hover .card-glow {
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+      transform: scale(1.5);
+    }
+
+    /* HEADER */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1.2rem 0;
+      background: rgba(6, 9, 19, 0.7);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      z-index: 100;
+      transition: var(--transition-base);
+    }
+
+    header.scrolled {
+      padding: 0.7rem 0;
+      background: rgba(6, 9, 19, 0.85);
+      border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-svg-wrapper {
+      display: flex;
+      align-items: center;
+    }
+
+    .logo-svg-wrapper svg {
+      height: 38px;
+      width: auto;
+    }
+
+    nav {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: var(--transition-base);
+      position: relative;
+    }
+
+    .nav-link:hover {
+      color: var(--color-primary);
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+      transition: var(--transition-base);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+    .nav-cta {
+      margin-left: 1rem;
+    }
+
+    /* HERO SECTION */
+    #hero {
+      padding-top: 11rem;
+      padding-bottom: 6rem;
+      position: relative;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: var(--color-primary);
+      padding: 0.45rem 1.1rem;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 0 15px rgba(34,197,94,0.05);
+    }
+
+    .hero-title {
+      font-size: clamp(2.6rem, 5.2vw, 4.2rem);
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      font-weight: 850;
+    }
+
+    .hero-description {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      margin-bottom: 2.5rem;
+      max-width: 620px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .hero-visual {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hero-image-frame {
+      border: 1px solid var(--color-border);
+      border-radius: 32px;
+      padding: 1.5rem;
+      background: rgba(15, 23, 42, 0.3);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+      position: relative;
+      animation: floatFrame 6s infinite ease-in-out;
+    }
+
+    .hero-image-frame img {
+      max-width: 100%;
+      border-radius: 20px;
+      display: block;
+      transition: var(--transition-base);
+    }
+
+    .hero-image-frame:hover img {
+      transform: scale(1.02);
+    }
+
+    /* EL DOLOR OCULTO (Problem Section) */
+    #dolor {
+      position: relative;
+      background: linear-gradient(180deg, transparent 0%, rgba(6, 9, 19, 0.6) 50%, transparent 100%);
+    }
+
+    .section-header {
+      max-width: 750px;
+      margin: 0 auto 5rem auto;
+    }
+
+    .section-label {
+      color: var(--color-primary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      margin-bottom: 0.8rem;
+      display: block;
+    }
+
+    .section-title {
+      font-size: clamp(2.2rem, 4vh, 3rem);
+      margin-bottom: 1.2rem;
+      line-height: 1.2;
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    .dolor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .dolor-card {
+      text-align: center;
+      padding: 3.5rem 2rem;
+    }
+
+    .dolor-number {
+      font-family: var(--font-heading);
+      font-size: 4.5rem;
+      font-weight: 800;
+      color: var(--color-primary);
+      line-height: 1;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .dolor-card h3 {
+      font-size: 1.35rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .dolor-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .warning-banner {
+      border: 1px dashed rgba(34, 197, 94, 0.4);
+      background: rgba(34, 197, 94, 0.05);
+      border-radius: 24px;
+      padding: 2rem 2.8rem;
+      display: flex;
+      align-items: center;
+      gap: 1.8rem;
+      margin-top: 3.5rem;
+    }
+
+    .warning-icon {
+      font-size: 2.5rem;
+      color: var(--color-primary);
+      animation: pulseGlow 2s infinite alternate;
+    }
+
+    .warning-text h4 {
+      font-size: 1.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .warning-text p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+
+    /* SOMOS SST & ESTRUCTURA DE HITOS */
+    #somossst {
+      position: relative;
+      background: linear-gradient(180deg, transparent 0%, rgba(34, 197, 94, 0.02) 50%, transparent 100%);
+    }
+
+    .bio-philosophy {
+      border: 1px solid var(--color-border);
+      border-radius: 28px;
+      padding: 3rem;
+      background: rgba(15, 23, 42, 0.3);
+      backdrop-filter: blur(12px);
+      margin-bottom: 4rem;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .philosophy-left h3 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .philosophy-left p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Tab Switcher for SST Tracks */
+    .tabs-container {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--color-border);
+      color: var(--text-secondary);
+      padding: 0.85rem 2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 700;
+      transition: var(--transition-base);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(34, 197, 94, 0.03);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: #060913;
+      border-color: transparent;
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+    }
+
+    .hitos-timeline {
+      display: none;
+      flex-direction: column;
+      gap: 2.5rem;
+      position: relative;
+    }
+
+    .hitos-timeline.active {
+      display: flex;
+    }
+
+    .hitos-timeline::before {
+      content: '';
+      position: absolute;
+      left: 28px;
+      top: 20px;
+      bottom: 20px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--color-primary), var(--color-accent));
+      z-index: 1;
+    }
+
+    .hito-item {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 1.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hito-number {
+      width: 58px;
+      height: 58px;
+      background: #090d16;
+      border: 2px solid var(--color-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--color-primary);
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+      transition: var(--transition-base);
+    }
+
+    .hito-item:hover .hito-number {
+      background: var(--color-primary);
+      color: #090d16;
+      box-shadow: 0 0 25px rgba(34, 197, 94, 0.5);
+      transform: scale(1.08);
+    }
+
+    .hito-item:nth-child(even) .hito-number {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+
+    .hito-item:nth-child(even):hover .hito-number {
+      background: var(--color-accent);
+      color: #090d16;
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
+    }
+
+    .hito-content {
+      padding: 1.2rem 2.2rem;
+    }
+
+    .hito-content h4 {
+      font-size: 1.45rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .hito-features {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .hito-feature-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-secondary);
+      padding: 0.3rem 0.8rem;
+      border-radius: 6px;
+    }
+
+    .hito-feature-tag.accented {
+      background: rgba(34, 197, 94, 0.06);
+      border-color: rgba(34, 197, 94, 0.2);
+      color: var(--color-primary);
+    }
+
+    /* HERRAMIENTAS DE AGENTES IA SECTION */
+    #herramientas {
+      background: linear-gradient(180deg, transparent 0%, rgba(6, 182, 212, 0.03) 50%, transparent 100%);
+    }
+
+    .herramientas-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+
+    .herramienta-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .herramienta-icon {
+      width: 54px;
+      height: 54px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-primary);
+      margin-bottom: 1.8rem;
+      transition: var(--transition-base);
+    }
+
+    .herramienta-card:hover .herramienta-icon {
+      background: var(--color-primary);
+      color: #060913;
+      transform: scale(1.1) rotate(5deg);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+    }
+
+    .herramienta-card.cyan-card .herramienta-icon {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.2);
+      color: var(--color-accent);
+    }
+
+    .herramienta-card.cyan-card:hover .herramienta-icon {
+      background: var(--color-accent);
+      color: #060913;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+    }
+
+    .herramienta-card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .herramienta-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      flex-grow: 1;
+    }
+
+    /* COMPARATIVA DE PLANES (NO PRICES) */
+    #planes {
+      position: relative;
+    }
+
+    .planes-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .plan-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-radius: 28px;
+      padding: 3rem 2.5rem;
+      position: relative;
+    }
+
+    .plan-card.popular {
+      border: 2px solid var(--color-primary);
+      box-shadow: 0 25px 50px rgba(34, 197, 94, 0.12);
+    }
+
+    .plan-badge {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      background: var(--color-primary);
+      color: #060913;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.3rem 0.8rem;
+      border-radius: 50px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .plan-name {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+
+    .plan-tier-type {
+      margin: 0.8rem 0 1.5rem 0;
+      font-family: var(--font-heading);
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: white;
+      line-height: 1.1;
+    }
+
+    .plan-tagline {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      min-height: 48px;
+    }
+
+    .plan-features-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-bottom: 3rem;
+      flex-grow: 1;
+    }
+
+    .plan-feature-item {
+      display: flex;
+      gap: 0.8rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .plan-feature-item svg {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      color: var(--color-primary);
+      margin-top: 2px;
+    }
+
+    .plan-card.popular .plan-feature-item svg {
+      color: var(--color-primary);
+    }
+
+    .plan-feature-item.highlighted {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* EL CREADOR (Felix Bedoya) */
+    .creador-grid {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .creador-avatar-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .creador-avatar-ring {
+      position: relative;
+      width: clamp(200px, 35vh, 280px);
+      height: clamp(200px, 35vh, 280px);
+      border-radius: 50%;
+      border: 4px solid var(--color-primary);
+      background: #070b14;
+      box-shadow: 0 0 35px rgba(34, 197, 94, 0.3);
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      animation: pulseGlow 4s infinite alternate;
+    }
+
+    .creador-avatar-ring img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      object-position: bottom center;
+      display: block;
+      z-index: 2;
+    }
+
+    .creador-avatar-ring::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 25%;
+      background: linear-gradient(to top, #070b14 10%, transparent);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .creador-tag-grid {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tag-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.8rem;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-secondary);
+    }
+
+    .tag-badge.active-green {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.25);
+      color: var(--color-primary);
+    }
+
+    .tag-badge.active-cyan {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.25);
+      color: var(--color-accent);
+    }
+
+    .creador-story h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .creador-quote {
+      font-style: italic;
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      border-left: 4px solid var(--color-primary);
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .creador-p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    /* CENTERED STREAMLINED CTA SECTION */
+    .cta-card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(6, 182, 212, 0.03) 100%);
+      border: 1px solid var(--color-border);
+      border-radius: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ANIMATIONS & KEYFRAMES */
+    @keyframes floatGlow {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-50px) scale(1.1); }
+    }
+
+    @keyframes floatFrame {
+      0% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-12px) rotate(1deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+
+    @keyframes pulseGlow {
+      from {
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+        border-color: var(--color-primary);
+      }
+      to {
+        box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
+        border-color: var(--color-accent);
+      }
+    }
+
+    /* Scroll reveal classes */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* RESPONSIVE LAYOUTS */
+    @media (max-width: 1024px) {
+      .hero-grid, .creador-grid, .cta-card, .bio-philosophy {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        text-align: center;
+      }
+
+      .hero-description, .hero-actions {
+        margin-left: auto;
+        margin-right: auto;
+        justify-content: center;
+      }
+
+      .hero-visual {
+        order: -1;
+      }
+
+      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .creador-avatar-container {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 0.8rem 0;
+      }
+
+      nav {
+        display: none; /* Mobile menu fallback simplified for direct launch */
+      }
+
+      .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-card {
+        padding: 2rem;
+      }
+
+      .warning-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Glow Background Elements -->
+  <div class="glow-bg glow-1"></div>
+  <div class="glow-bg glow-2"></div>
+  <div class="mouse-glow" id="mouseGlow"></div>
+
+  <!-- FIXED GLASSMORPHISM HEADER -->
+  <header id="mainHeader">
+    <div class="container header-container">
+      <a href="#hero" class="logo-link">
+        <div class="logo-svg-wrapper">
+          <!-- Inlined W logo with colorful gradient and animated dash -->
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#header-logo-gradient)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+              <animate attributeName="stroke-dasharray" from="0 100" to="100 0" dur="2.5s" repeatCount="indefinite"/>
+            </path>
+            <defs>
+              <linearGradient id="header-logo-gradient" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#22c55e" />
+                <stop offset="1" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px;">WAPPY<span class="gradient-text">IA</span></span>
+      </a>
+
+      <nav>
+        <a href="#hero" class="nav-link">Inicio</a>
+        <a href="#dolor" class="nav-link">El Dolor</a>
+        <a href="#somossst" class="nav-link">Somos SST</a>
+        <a href="#herramientas" class="nav-link">Herramientas</a>
+        <a href="#planes" class="nav-link">Planes</a>
+        <a href="#creador" class="nav-link">El Creador</a>
+        <a href="planes" class="btn btn-secondary nav-cta" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Registrarse</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section id="hero">
+    <div class="container hero-grid">
+      <div class="reveal">
+        <div class="hero-badge">
+          ⚡ Copiloto de Inteligencia Artificial para SST
+        </div>
+        <h1 class="hero-title">Automatiza tu Gestión de <span class="gradient-text">Seguridad y Salud</span></h1>
+        <p class="hero-description">
+          WAPPY IA es el ecosistema especializado en el SG-SST colombiano. Redacta matrices, evalúa vulnerabilidades y haz seguimiento a tus trabajadores con inteligencia artificial adaptada a las normas locales.
+        </p>
+        <div class="hero-actions">
+          <a href="planes" class="btn btn-primary">Registrarse gratis</a>
+          <a href="#somossst" class="btn btn-secondary">Explorar Módulos</a>
+        </div>
+      </div>
+      <div class="hero-visual reveal" style="transition-delay: 0.2s;">
+        <div class="hero-image-frame">
+          <!-- Main presentation banner image from local assets -->
+          <img src="Agentes/Miniaturas/Logos%20/Gemini_Generated_Image_q0sydtq0sydtq0sy.png" alt="Wappy AI Dashboard Concept" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EL DOLOR OCULTO (Problem Statement) -->
+  <section id="dolor">
+    <div class="container">
+      <div class="section-header text-center reveal">
+        <span class="section-label">El Panorama Actual</span>
+        <h2 class="section-title">El Dolor Oculto del <span class="gradient-text">Prevencionista de SST</span></h2>
+        <p class="section-desc">Pasamos más del 80% de nuestra jornada laboral redactando y estructurando documentos repetitivos en lugar de hacer prevención activa.</p>
+      </div>
+
+      <div class="dolor-grid">
+        <div class="glass-card dolor-card reveal">
+          <div class="card-glow"></div>
+          <div class="dolor-number">10h+</div>
+          <h3>Matriz de Riesgos</h3>
+          <p>Tiempo promedio invertido en estructurar e investigar una sola matriz GTC 45 para una mediana empresa de forma manual.</p>
+        </div>
+
+        <div class="glass-card dolor-card reveal" style="transition-delay: 0.15s; border-color: rgba(6, 182, 212, 0.25)">
+          <div class="card-glow" style="background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);"></div>
+          <div class="dolor-number" style="background: linear-gradient(135deg, var(--color-accent), var(--color-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">80%</div>
+          <h3>Carga Administrativa</h3>
+          <p>Del tiempo de los consultores de SST consumido en redactar reglamentos de trabajo, actas e informes legales.</p>
+        </div>
+
+        <div class="glass-card dolor-card reveal" style="transition-delay: 0.3s;">
+          <div class="card-glow"></div>
+          <div class="dolor-number">0%</div>
+          <h3>Prevención en Campo</h3>
+          <p>La cruda realidad cuando los prevencionistas se ven ahogados en carpetas y burocracia de oficina.</p>
+        </div>
+      </div>
+
+      <!-- Warning Callout -->
+      <div class="warning-banner reveal">
+        <div class="warning-icon">💡</div>
+        <div class="warning-text">
+          <h4>La IA no te reemplazará. El prevencionista que la use, sí.</h4>
+          <p>El mercado laboral recompensa a quienes optimizan procesos. Wappy te capacita y te da las herramientas para realizar el trabajo de una semana en solo unas horas.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOMOS SST: EL MOTOR BIOINDIVIDUAL & SALUD ORGANIZACIONAL -->
+  <section id="somossst">
+    <div class="container">
+      <div class="section-header text-center reveal">
+        <span class="section-label">Ecosistema Principal</span>
+        <h2 class="section-title">Somos SST y su <span class="gradient-text">Estructura Integral</span></h2>
+        <p class="section-desc">Un sistema completo dividido en dos pistas de prevención y cumplimiento. Explora los hitos y aplicativos de WAPPY.</p>
+      </div>
+
+      <!-- Philosophy banner -->
+      <div class="bio-philosophy reveal">
+        <div class="philosophy-left">
+          <h3>La Variabilidad Individual como Eje</h3>
+          <p>El SG-SST tradicional evalúa al personal de forma grupal e inerte. Somos SST rompe esa estructura y cruza los antecedente clínicos específicos de cada persona, sus stressores psicosociales y posturas para modelar una prevención a la medida.</p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <span class="tag-badge active-green">Estándares Mínimos Resol. 0312</span>
+            <span class="tag-badge active-cyan">Decreto 1072 de 2015</span>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: center;">
+          <!-- Custom Brain Bio-graphic -->
+          <svg width="200" height="200" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="42" stroke="url(#bio-grad)" stroke-width="1" stroke-dasharray="2 3"/>
+            <path d="M50 15c-19.33 0-35 15.67-35 35s15.67 35 35 35 35-15.67 35-35-15.67-35-35-35zm0 6c16 0 29 13 29 29s-13 29-29 29-29-13-29-29 13-29 29-29z" fill="url(#bio-grad)" opacity="0.15"/>
+            <circle cx="50" cy="50" r="14" fill="#090d16" stroke="url(#bio-grad)" stroke-width="1.5"/>
+            <!-- Heart icon inside -->
+            <path d="M50 54.5l-3.25-2.95C41.2 46.54 38 43.64 38 40.1c0-2.83 2.17-5 5-5 1.6 0 3.13.74 4.1 1.9l2.9 3.5 2.9-3.5c.97-1.16 2.5-1.9 4.1-1.9 2.83 0 5 2.17 5 5 0 3.54-3.2 6.44-8.75 11.45L50 54.5z" fill="var(--color-primary)">
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+            </path>
+            <defs>
+              <linearGradient id="bio-grad" x1="0" y1="0" x2="100" y2="100">
+                <stop stop-color="#22c55e" />
+                <stop offset="1" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Track Selector Tabs -->
+      <div class="tabs-container reveal">
+        <button class="tab-btn active" id="btn-track-bio" onclick="switchSSTTrack('bio')">🧬 Motor Bio-Individual (Trabajador)</button>
+        <button class="tab-btn" id="btn-track-org" onclick="switchSSTTrack('org')">🏢 Salud Organizacional (Empresa)</button>
+      </div>
+
+      <!-- Timeline 1: Motor Bio-Individual -->
+      <div class="hitos-timeline active" id="timeline-bio">
+        <!-- Hito 1 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">01</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 1: Huella Biocéntrica</h4>
+            <p>Identifica y consolida las exigencias y aptitudes fisiológicas, biomecánicas y clínicas específicas de cada trabajador.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Perfiles de Cargo (Roles)</span>
+              <span class="hito-feature-tag">Perfil Sociodemográfico</span>
+              <span class="hito-feature-tag">Informe Condiciones de Salud</span>
+              <span class="hito-feature-tag accented">Oráculo Predictivo H1 (Fit Score)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hito 2 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">02</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 2: Núcleo Bio-Evaluativo</h4>
+            <p>Evalúa el estado mental diario en tiempo real y la interacción directa de los peligros del puesto de trabajo con la salud única del cuerpo.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Termómetro Psicosocial (Anónimo)</span>
+              <span class="hito-feature-tag accented">Matriz Bio-IPEVAR (GTC-45)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hito 3 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">03</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 3: Dinámica de Exposición</h4>
+            <p>Módulos operativos diarios de prevención activa, entrenamientos técnicos y análisis de higiene postural en tareas de alto riesgo.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Participación IPEVAR</span>
+              <span class="hito-feature-tag">Reporte de Actos Inseguros</span>
+              <span class="hito-feature-tag">Programa de Capacitación SG-SST</span>
+              <span class="hito-feature-tag">Ruta de Aprendizaje</span>
+              <span class="hito-feature-tag">Análisis de Trabajo Seguro (ATS)</span>
+              <span class="hito-feature-tag">Permiso de Trabajo en Alturas</span>
+              <span class="hito-feature-tag accented">Método OWAS (Evaluación Física)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hito 4 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">04</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 4: Traumatismo y Curación</h4>
+            <p>Indagación forense de raíz e indicadores estadísticos consolidados para sanar fallas después del daño.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Estadísticas ATEL (TA, IF, IS, ILI)</span>
+              <span class="hito-feature-tag accented">Investigación ATEL (FURAT/FUREL)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hito 5 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">05</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 5: Oráculo Predictivo</h4>
+            <p>Mapeo inteligente con IA que cruza las esferas de vida del empleado para adelantarse y salvar vidas antes del accidente.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag accented">Centro de Inteligencia Predictiva</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline 2: Salud Organizacional -->
+      <div class="hitos-timeline" id="timeline-org">
+        <!-- Hito 1 / Fase 1 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">01</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 1: Cimiento del Cuidado</h4>
+            <p>Estructura las bases legales, diagnósticos iniciales, reglamentos y políticas corporativas del SG-SST.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Diagnóstico Inicial (Res. 0312)</span>
+              <span class="hito-feature-tag">Inspección de Trabajo (Mintrabajo)</span>
+              <span class="hito-feature-tag">Responsable SG-SST</span>
+              <span class="hito-feature-tag">Política SST</span>
+              <span class="hito-feature-tag">Objetivos SST</span>
+              <span class="hito-feature-tag">Matriz Legal</span>
+              <span class="hito-feature-tag">Análisis de Vulnerabilidad</span>
+              <span class="hito-feature-tag">Reglamento de Higiene</span>
+              <span class="hito-feature-tag">Reglamento Interno (RIT)</span>
+              <span class="hito-feature-tag">Matriz ACPM</span>
+              <span class="hito-feature-tag accented">Creador de Aplicativos (App Builder)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hito 2 / Fase 2 -->
+        <div class="hito-item reveal">
+          <div class="hito-number">02</div>
+          <div class="hito-content glass-card">
+            <div class="card-glow"></div>
+            <h4>Hito 2: Liderazgo Consciente</h4>
+            <p>Evaluaciones finales del diseño organizativo e informe de rendición de cuentas de la gerencia sobre la salud laboral.</p>
+            <div class="hito-features">
+              <span class="hito-feature-tag">Informe de Auditoría Interna</span>
+              <span class="hito-feature-tag accented">Revisión por la Alta Dirección</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- HERRAMIENTAS DE AGENTES IA -->
+  <section id="herramientas">
+    <div class="container">
+      <div class="section-header text-center reveal">
+        <span class="section-label">Superpoderes en el Chat</span>
+        <h2 class="section-title">Herramientas Avanzadas de <span class="gradient-text">Agentes IA</span></h2>
+        <p class="section-desc">Nuestros agentes no solo responden preguntas; ejecutan herramientas especializadas en tiempo real que modifican documentos, actualizan datos y estructuran tu sistema.</p>
+      </div>
+
+      <div class="herramientas-grid">
+        <!-- Tool 1 -->
+        <div class="glass-card herramienta-card reveal">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+          </div>
+          <h3>Matriz IPEVAR Automática</h3>
+          <p>Los agentes inyectan, evalúan y actualizan filas enteras de peligros en la matriz GTC-45 en tiempo real. Abre una tabla interactiva directamente al lado de tu chat.</p>
+        </div>
+
+        <!-- Tool 2 -->
+        <div class="glass-card herramienta-card reveal" style="transition-delay: 0.1s;">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Matriz PESV Vial</h3>
+          <p>Herramienta diseñada bajo los estándares de seguridad vial (PESV) de Colombia. El agente detecta factores de riesgo en rutas y vehículos para automatizar planes viales.</p>
+        </div>
+
+        <!-- Tool 3 -->
+        <div class="glass-card herramienta-card reveal" style="transition-delay: 0.2s;">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+          </div>
+          <h3>Matriz de Compatibilidad Química</h3>
+          <p>Estructura inventarios químicos bajo el Sistema Globalmente Armonizado (Decreto 1496/2018). Genera matrices con semáforos de almacenamiento (Verde/Amarillo/Rojo).</p>
+        </div>
+
+        <!-- Tool 4 -->
+        <div class="glass-card herramienta-card cyan-card reveal">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 12H3"/><path d="M12 3v18"/></svg>
+          </div>
+          <h3>Canvas de Documentación IA</h3>
+          <p>Abre un panel de edición en pantalla dividida donde la IA co-crea contigo documentos de texto (Word), hojas de cálculo (Excel) y diapositivas de capacitación.</p>
+        </div>
+
+        <!-- Tool 5 -->
+        <div class="glass-card herramienta-card cyan-card reveal" style="transition-delay: 0.1s;">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <h3>Editor RIT y Políticas</h3>
+          <p>Editor legal con una plantilla predefinida del Reglamento Interno de Trabajo estructurada según el Código de Trabajo y la reducción de jornada a 42 horas en Colombia.</p>
+        </div>
+
+        <!-- Tool 6 -->
+        <div class="glass-card herramienta-card cyan-card reveal" style="transition-delay: 0.2s;">
+          <div class="card-glow"></div>
+          <div class="herramienta-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <h3>Analítica Psicosocial y Condiciones</h3>
+          <p>Los agentes consultan de forma consolidada y anónima telemetrías de estado de ánimo de los empleados y reportes de condiciones inseguras para diagnosticar el clima laboral.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARATIVA DE PLANES (NO PRICES) -->
+  <section id="planes">
+    <div class="container">
+      <div class="section-header text-center reveal">
+        <span class="section-label">Planes y Precios</span>
+        <h2 class="section-title">Elige tu Nivel de <span class="gradient-text">Productividad</span></h2>
+        <p class="section-desc">Soluciones flexibles pensadas para consultores independientes y firmas de asesoramiento en Colombia.</p>
+      </div>
+
+      <div class="planes-container">
+        
+        <!-- Plan 1: Wappy Vital -->
+        <div class="glass-card plan-card reveal">
+          <div class="card-glow"></div>
+          <div class="plan-name">Wappy Vital</div>
+          <div class="plan-tier-type">Acceso de Por Vida</div>
+          <div class="plan-tagline">La opción ideal para consultores independientes que quieren arrancar a automatizar sin mensualidades recurrentes.</div>
+          
+          <ul class="plan-features-list">
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Hasta <strong>20 chats activos</strong> simultáneos</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Más de <strong>15 Agentes Expertos</strong> de IA (Abogado, Médico, etc.)</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Subida de archivos ilimitada para análisis</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Skill de Canvas Completo</strong> (Word, Hojas de cálculo y Slides)</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Skill Editor RIT & Skill Matriz IPEVAR GTC-45</span>
+            </li>
+            <li class="plan-feature-item highlighted">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Videollamada con Agente Biomecánico IA</strong> y visión con exoesqueleto luminoso</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Descargas ilimitadas de actas y reglamentos</span>
+            </li>
+          </ul>
+
+          <a href="planes" class="btn btn-secondary text-center" style="width: 100%; justify-content: center;">Adquirir Vital</a>
+        </div>
+
+        <!-- Plan 2: Wappy Pro -->
+        <div class="glass-card plan-card popular reveal" style="transition-delay: 0.15s;">
+          <span class="plan-badge">Poder Total</span>
+          <div class="card-glow"></div>
+          <div class="plan-name">Wappy Pro</div>
+          <div class="plan-tier-type">Suscripción Mensual</div>
+          <div class="plan-tagline">Para asesores avanzados y empresas que requieren la gestión integrada de Somos SST y modelos predictivos.</div>
+          
+          <ul class="plan-features-list">
+            <li class="plan-feature-item highlighted">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Todo lo del Plan Wappy Vital</strong></span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Conversaciones y chats <strong>100% ilimitados</strong></span>
+            </li>
+            <li class="plan-feature-item highlighted">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Somos SST completo (Todos los hitos activos)</strong></span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Skills de Termómetro Psicosocial</strong> y Clínico</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Chat Live y videollamada para detectar riesgos en vivo</span>
+            </li>
+            <li class="plan-feature-item">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Crea y personaliza tus propios Agentes IA</strong></span>
+            </li>
+            <li class="plan-feature-item highlighted">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span><strong>Análisis en Vivo Avanzado</strong> (Riesgo eléctrico, 5S, alturas)</span>
+            </li>
+          </ul>
+
+          <a href="planes" class="btn btn-primary text-center" style="width: 100%; justify-content: center;">Adquirir Pro</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- EL CREADOR (Founder Profile Section) -->
+  <section id="creador">
+    <div class="container creador-grid">
+      <div class="creador-avatar-container reveal">
+        <!-- Render avatar3 as requested by the user -->
+        <div class="creador-avatar-ring">
+          <img src="Agentes/Miniaturas/Avatar%20/avatar3.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix3'">
+        </div>
+      </div>
+
+      <div class="creador-story reveal" style="transition-delay: 0.15s;">
+        <span class="section-label">Detrás de WAPPY</span>
+        <h2>Mucho gusto, soy <span class="gradient-text">Felix Bedoya</span></h2>
+        
+        <div class="creador-tag-grid">
+          <span class="tag-badge active-green">Psicólogo Especialista SST</span>
+          <span class="tag-badge active-cyan">Desarrollador Senior</span>
+          <span class="tag-badge">+8 Años de Experiencia</span>
+          <span class="tag-badge">Fundador</span>
+        </div>
+        
+        <div class="creador-quote" style="margin-top: 1.5rem;">
+          "Al unir la tecnología y la inteligencia artificial con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió asegurar mayor calidad técnica y escalar drásticamente mis ingresos."
+        </div>
+
+        <p class="creador-p">
+          Como especialista en Seguridad y Salud en el Trabajo, conozco de primera mano la frustración de pasar fines de semana enteros armando matrices de riesgos y redactando reglamentos para cumplir con la ley y los estándares de las ARLs más grandes de Colombia.
+        </p>
+
+        <p class="creador-p">
+          Por eso decidí programar WAPPY. No es solo un software; es el copiloto tecnológico que yo mismo utilizo todos los días para resolver informes complejos en minutos con calidad certificada, ganando libertad y rentabilidad en mi consultoría.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CENTERED STREAMLINED CALL TO ACTION -->
+  <section id="cta" style="padding-bottom: 9rem;">
+    <div class="container">
+      <div class="cta-card glass-card reveal text-center" style="grid-template-columns: 1fr; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5.5rem 3rem;">
+        <div class="card-glow" style="width: 300px; height: 300px; top: -100px; right: -100px;"></div>
+        
+        <h2 style="font-size: clamp(2.2rem, 4.5vw, 3.2rem); margin-bottom: 1.5rem; line-height: 1.2;">Únete a la <span class="gradient-text">Revolución de la SST</span></h2>
+        
+        <p style="color: var(--text-secondary); font-size: 1.2rem; max-width: 700px; margin-bottom: 2.5rem; line-height: 1.6;">
+          Lleva tu consultoría al siguiente nivel, automatiza tus entregables de riesgos laborales y multiplica tu productividad de inmediato.
+        </p>
+        
+        <a href="#planes" class="btn btn-primary" style="padding: 1rem 3.5rem; font-size: 1.1rem; border-radius: 50px;">
+          Ver Planes de Acceso
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-logo">
+          <!-- W Logo mark inlined -->
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.25rem; letter-spacing: -0.5px;">WAPPY<span class="gradient-text">IA</span></span>
+        </div>
+        <div class="footer-links">
+          <a href="#hero" class="footer-link">Inicio</a>
+          <a href="#dolor" class="footer-link">El Dolor</a>
+          <a href="#somossst" class="footer-link">Somos SST</a>
+          <a href="#herramientas" class="footer-link">Herramientas</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 WAPPY LTDA. Todos los derechos reservados.</span>
+        <span>Hecho en 🇨🇴 para consultores de SST</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* INTERACTIVE BEHAVIOR & INTERACTION SCRIPTS */
+
+    // 1. Mouse Glow Tracking Light
+    const mouseGlow = document.getElementById('mouseGlow');
+    document.addEventListener('mousemove', (e) => {
+      mouseGlow.style.opacity = '1';
+      mouseGlow.style.left = e.clientX + 'px';
+      mouseGlow.style.top = e.clientY + 'px';
+    });
+    
+    document.addEventListener('mouseleave', () => {
+      mouseGlow.style.opacity = '0';
+    });
+
+    // 2. Fixed Header Scroll Class
+    const header = document.getElementById('mainHeader');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 50) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // 3. Scroll Reveal Logic (Intersection Observer)
+    const revealElements = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    revealElements.forEach(el => observer.observe(el));
+
+    // 4. Somos SST Switch Track Logic
+    function switchSSTTrack(trackId) {
+      // Toggle timelines
+      document.getElementById('timeline-bio').classList.remove('active');
+      document.getElementById('timeline-org').classList.remove('active');
+      document.getElementById(`timeline-${trackId}`).classList.add('active');
+
+      // Toggle tab buttons
+      document.getElementById('btn-track-bio').classList.remove('active');
+      document.getElementById('btn-track-org').classList.remove('active');
+      document.getElementById(`btn-track-${trackId}`).classList.add('active');
+    }
+  </script>
+</body>
+</html>

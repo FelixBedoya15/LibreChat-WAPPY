@@ -33,6 +33,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
+import * as XLSX from 'xlsx';
 import './sst-bit.css';
 
 // ─── 8-Bit Helpers ────────────────────────────────────────────────────────────
@@ -287,6 +288,7 @@ const PerfilesCargo = () => {
     const [isListening, setIsListening] = useState(false);
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ─── Load saved profiles ────────────────────────────────────────────────
     useEffect(() => {
@@ -430,6 +432,117 @@ const PerfilesCargo = () => {
             setIsListening(false);
             showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
         }
+    };
+
+    // ─── Excel Import/Export ──────────────────────────────────────────────────
+    const handleExportExcel = () => {
+        const dataToExport = perfiles.map(p => ({
+            'Nombre del Cargo': p.nombreCargo || '',
+            'Área': p.area || '',
+            'Nivel del Cargo': p.nivelCargo || '',
+            'Tipo de Contrato': p.tipoContrato || '',
+            'Jornada': p.jornada || '',
+            'Jefe Inmediato': p.jefeInmediato || '',
+            'Escala Salarial': p.escalasSalarial || '',
+            'Número de Vacantes': p.numVacantes || '',
+            'Exigencia Física': p.exigenciaFisica || '',
+            'Exigencia Mental': p.exigenciaMental || '',
+            'Opera Maquinaria': p.operaMaquinaria || '',
+            'Descripción Detallada': p.contextoAdicional || '',
+            'EPP Requeridos': (p.eppSeleccionados || []).join(', '),
+            'Entrenamientos Requeridos': (p.entrenamientosSeleccionados || []).join(', '),
+            'Controles en la Fuente': (p.controlesFuenteSeleccionados || []).join(', '),
+            'Controles en el Medio': (p.controlesMedioSeleccionados || []).join(', '),
+            'Reporte Generado': p.report || ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles de Cargo");
+        XLSX.writeFile(workbook, "Perfiles_de_Cargo.xlsx");
+        showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success' });
+    };
+
+    const saveImportedPerfiles = async (list: PerfilCargoData[]) => {
+        if (!token) return;
+        try {
+            await fetch('/api/sgsst/perfiles-cargo/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ perfilesList: list }),
+            });
+        } catch (e) {
+            console.error('Error saving imported profiles:', e);
+        }
+    };
+
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (eEvent) => {
+            try {
+                const data = eEvent.target?.result;
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const importedData = XLSX.utils.sheet_to_json<any>(sheet);
+
+                if (!importedData || importedData.length === 0) {
+                    throw new Error("El archivo no contiene datos.");
+                }
+
+                const newPerfiles: PerfilCargoData[] = importedData.map((row: any) => {
+                    const eppStr = row['EPP Requeridos'] || row.eppSeleccionados || '';
+                    const entrenamientosStr = row['Entrenamientos Requeridos'] || row.entrenamientosSeleccionados || '';
+                    const controlesFuenteStr = row['Controles en la Fuente'] || row.controlesFuenteSeleccionados || '';
+                    const controlesMedioStr = row['Controles en el Medio'] || row.controlesMedioSeleccionados || '';
+
+                    return {
+                        id: crypto.randomUUID(),
+                        nombreCargo: row['Nombre del Cargo'] || row.nombreCargo || '',
+                        area: row['Área'] || row.area || '',
+                        nivelCargo: row['Nivel del Cargo'] || row.nivelCargo || 'Operativo',
+                        tipoContrato: row['Tipo de Contrato'] || row.tipoContrato || 'Término indefinido',
+                        jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
+                        jefeInmediato: row['Jefe Inmediato'] || row.jefeInmediato || '',
+                        escalasSalarial: row['Escala Salarial'] || row.escalasSalarial || '',
+                        numVacantes: row['Número de Vacantes'] || row.numVacantes || '',
+                        contextoAdicional: row['Descripción Detallada'] || row.contextoAdicional || '',
+                        exigenciaFisica: row['Exigencia Física'] || row.exigenciaFisica || '',
+                        exigenciaMental: row['Exigencia Mental'] || row.exigenciaMental || '',
+                        operaMaquinaria: row['Opera Maquinaria'] || row.operaMaquinaria || '',
+                        eppSeleccionados: eppStr ? eppStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                        entrenamientosSeleccionados: entrenamientosStr ? entrenamientosStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                        controlesFuenteSeleccionados: controlesFuenteStr ? controlesFuenteStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                        controlesMedioSeleccionados: controlesMedioStr ? controlesMedioStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                        report: row['Reporte Generado'] || row.report || '',
+                        images: {},
+                        video: null
+                    };
+                });
+
+                setPerfiles(prev => {
+                    const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
+                    const combined = [...cleanPrev, ...newPerfiles];
+                    if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
+                        setActivePerfilId(combined[0].id);
+                        setFormData(combined[0]);
+                        setGeneratedReport(combined[0].report || null);
+                        setEditorContent(combined[0].report || null);
+                    }
+                    saveImportedPerfiles(combined);
+                    return combined;
+                });
+
+                showToast({ message: `${newPerfiles.length} perfiles de cargo importados correctamente`, status: 'success' });
+            } catch (err) {
+                console.error("Error importing Excel:", err);
+                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', status: 'error' });
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        if (e.target) e.target.value = '';
     };
 
     // ─── Save Data ────────────────────────────────────────────────────────────
@@ -594,6 +707,9 @@ const PerfilesCargo = () => {
                     setFormData(dummy);
                     showToast({ message: 'Ejemplo cargado', status: 'success' });
                 }}
+                onImportExcel={() => fileInputRef.current?.click()}
+                onExportExcel={handleExportExcel}
+                hasData={perfiles.length > 0}
             />
 
             {/* ── History (Filtered by Profile ID) ── */}
@@ -791,6 +907,15 @@ const PerfilesCargo = () => {
                     </div>
                 </div>
             )}
+
+            {/* ═══ Excel Import Hidden Input ═══ */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportExcel}
+                accept=".xlsx, .xls"
+                className="hidden"
+            />
         </div>
     );
 };
