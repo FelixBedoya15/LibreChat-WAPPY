@@ -68,11 +68,15 @@ const detectFileType = (content: any, defaultType = 'text') => {
         const parsed = JSON.parse(trimmed);
         if (parsed && typeof parsed === 'object') {
           if (parsed.estadoAnimo || parsed.totalMuestras) return 'animo';
-          if (parsed.preliminarClasificacion || parsed.totalReportesBuzon) return 'actos_condiciones';
+          if (parsed.preliminarClasificacion || parsed.totalReportesBuzon)
+            return 'actos_condiciones';
         }
       } catch (e) {}
     }
-    if (trimmed.toLowerCase().includes('<!doctype html>') || trimmed.toLowerCase().includes('<html')) {
+    if (
+      trimmed.toLowerCase().includes('<!doctype html>') ||
+      trimmed.toLowerCase().includes('<html')
+    ) {
       return 'html';
     }
   }
@@ -229,7 +233,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
   // Main Canvas session state
-  const [fileType, setFileType] = useState<'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'>('text');
+  const [fileType, setFileType] = useState<
+    'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
+  >('text');
   const [content, setContent] = useState<string>('');
   const [title, setTitle] = useState<string>('Archivo sin título');
   const [version, setVersion] = useState<number>(1);
@@ -239,17 +245,41 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
-  const hasActiveSession = !!content || (fileType !== 'text' && fileType !== 'actos_condiciones' && fileType !== 'animo') || (fileType === 'actos_condiciones' || fileType === 'animo');
+  const hasActiveSession =
+    !!content ||
+    (fileType !== 'text' && fileType !== 'actos_condiciones' && fileType !== 'animo') ||
+    fileType === 'actos_condiciones' ||
+    fileType === 'animo';
 
   // References to handle syncing correctly without stale closures
   const contentRef = useRef<string>('');
-  const fileTypeRef = useRef<'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'>('text');
+  const fileTypeRef = useRef<
+    'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
+  >('text');
   const titleRef = useRef<string>('Archivo sin título');
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMutingAutoSaveRef = useRef<boolean>(false);
   const muteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // References to store the original document's type and title, avoiding temporary tool state overrides
+  const dbFileTypeRef = useRef<
+    'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
+  >('text');
+  const dbTitleRef = useRef<string>('Archivo sin título');
+
+  useEffect(() => {
+    if (fileType !== 'animo' && fileType !== 'actos_condiciones') {
+      dbFileTypeRef.current = fileType;
+    }
+  }, [fileType]);
+
+  useEffect(() => {
+    if (fileType !== 'animo' && fileType !== 'actos_condiciones') {
+      dbTitleRef.current = title;
+    }
+  }, [title, fileType]);
 
   const muteAutoSave = (durationMs: number) => {
     if (muteTimeoutRef.current) clearTimeout(muteTimeoutRef.current);
@@ -292,6 +322,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     } else if (activeTools.includes('consultar_analitica_actos_condiciones')) {
       setFileType('actos_condiciones');
       setTitle('Analítica de Actos y Condiciones');
+    } else {
+      setFileType(dbFileTypeRef.current);
+      setTitle(dbTitleRef.current);
     }
   }, [ephemeralAgent]);
 
@@ -357,7 +390,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               fileType: fileTypeRef.current,
               isManual: true,
             }),
-          }).catch(err => console.error('[CanvasPanel] Save on exit error:', err));
+          }).catch((err) => console.error('[CanvasPanel] Save on exit error:', err));
         }
       }
     };
@@ -397,7 +430,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     // If it has markdown headers (#) or bold (**), we should parse it.
     // The regex below might break if we parse HTML, so let's protect HTML blocks.
     // A simple heuristic: if it contains # or **, it's probably markdown mixed with HTML.
-    if (md.trim().startsWith('<') && !md.includes('#') && !md.includes('**') && !md.includes('---')) {
+    if (
+      md.trim().startsWith('<') &&
+      !md.includes('#') &&
+      !md.includes('**') &&
+      !md.includes('---')
+    ) {
       return md;
     }
 
@@ -420,8 +458,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           index = actualIndex + commentEnd + 3;
           continue;
         }
-      } else if (actualRemaining.startsWith('<div') || actualRemaining.startsWith('<table') || actualRemaining.startsWith('<style')) {
-        const startTag = actualRemaining.startsWith('<div') ? 'div' : (actualRemaining.startsWith('<table') ? 'table' : 'style');
+      } else if (
+        actualRemaining.startsWith('<div') ||
+        actualRemaining.startsWith('<table') ||
+        actualRemaining.startsWith('<style')
+      ) {
+        const startTag = actualRemaining.startsWith('<div')
+          ? 'div'
+          : actualRemaining.startsWith('<table')
+            ? 'table'
+            : 'style';
         const endIndex = findMatchingClosingTag(md, actualIndex, startTag);
         if (endIndex !== -1) {
           index = endIndex;
@@ -584,8 +630,24 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           const activeTools = (ephemeralAgent as any)?.tools ?? [];
           const isPsychologistActive = activeTools.includes('consultar_analitica_psicosocial');
           const isACIActive = activeTools.includes('consultar_analitica_actos_condiciones');
-          setFileType(isPsychologistActive ? 'animo' : (isACIActive ? 'actos_condiciones' : (data.fileType || 'text')));
-          setTitle(isPsychologistActive ? 'Termómetro Psicosocial' : (isACIActive ? 'Analítica de Actos y Condiciones' : (data.title || 'Archivo sin título')));
+
+          dbFileTypeRef.current = data.fileType || 'text';
+          dbTitleRef.current = data.title || 'Archivo sin título';
+
+          setFileType(
+            isPsychologistActive
+              ? 'animo'
+              : isACIActive
+                ? 'actos_condiciones'
+                : data.fileType || 'text',
+          );
+          setTitle(
+            isPsychologistActive
+              ? 'Termómetro Psicosocial'
+              : isACIActive
+                ? 'Analítica de Actos y Condiciones'
+                : data.title || 'Archivo sin título',
+          );
           setVersion(data.version || 1);
           setHistory(data.history || []);
 
@@ -1065,12 +1127,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       case 'animo': {
         const isFree = user?.role === 'USER';
         return (
-          <div className="relative flex-1 flex flex-col min-h-0 bg-surface-secondary overflow-hidden">
-            <div className={`flex-1 overflow-y-auto p-6 ${isFree ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary">
+            <div
+              className={`flex-1 overflow-y-auto p-6 ${isFree ? 'pointer-events-none select-none blur-[8px] filter' : ''}`}
+            >
               <MoodAnalyticsDashboard isMaximized={isMaximized} />
             </div>
             {isFree && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 p-4 backdrop-blur-[2px] sm:p-6 md:p-8">
                 <UpgradeWall
                   isPopup={true}
                   title="Analítica Psicosocial Exclusiva"
@@ -1084,7 +1148,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       }
       case 'actos_condiciones': {
         return (
-          <div className="relative flex-1 flex flex-col min-h-0 bg-surface-secondary overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary">
             <div className="flex-1 overflow-y-auto p-6">
               <ActosCondicionesAnalyticsDashboard isMaximized={isMaximized} />
             </div>
@@ -1177,69 +1241,78 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             <ExportDropdown content={content} fileName={title} />
           )}
 
-          {hasActiveSession && fileType !== 'text' && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
-            <button
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!downloadRef.current) {
-                  console.warn(
-                    '[CanvasPanel] No download function registered for fileType:',
-                    fileType,
-                  );
-                  return;
-                }
+          {hasActiveSession &&
+            fileType !== 'text' &&
+            fileType !== 'animo' &&
+            fileType !== 'actos_condiciones' && (
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!downloadRef.current) {
+                    console.warn(
+                      '[CanvasPanel] No download function registered for fileType:',
+                      fileType,
+                    );
+                    return;
+                  }
 
-                if (user?.role === 'USER' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR') {
-                  try {
-                    const res = await fetch('/api/files/register-download', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                      },
-                    });
+                  if (
+                    user?.role === 'USER' ||
+                    user?.role === 'USER_IPEVAR' ||
+                    user?.role === 'IPEVAR'
+                  ) {
+                    try {
+                      const res = await fetch('/api/files/register-download', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
 
-                    if (res.status === 403) {
-                      const data = await res.json();
-                      const isVital = user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
+                      if (res.status === 403) {
+                        const data = await res.json();
+                        const isVital = user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
+                        showToast({
+                          status: 'error',
+                          message:
+                            data.message ||
+                            (isVital
+                              ? 'Límite de 6 descargas diarias alcanzado en el plan Wappy Vital. Adquiere Wappy Pro.'
+                              : 'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.'),
+                        });
+                        return;
+                      }
+
+                      if (!res.ok) {
+                        throw new Error('Limit check failed');
+                      }
+                    } catch (err) {
+                      console.error('Download check error:', err);
                       showToast({
                         status: 'error',
-                        message:
-                          data.message ||
-                          (isVital
-                            ? 'Límite de 6 descargas diarias alcanzado en el plan Wappy Vital. Adquiere Wappy Pro.'
-                            : 'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.'),
+                        message: 'Error al verificar tu límite de descargas.',
                       });
                       return;
                     }
-
-                    if (!res.ok) {
-                      throw new Error('Limit check failed');
-                    }
-                  } catch (err) {
-                    console.error('Download check error:', err);
-                    showToast({
-                      status: 'error',
-                      message: 'Error al verificar tu límite de descargas.',
-                    });
-                    return;
                   }
-                }
 
-                downloadRef.current();
-              }}
-              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Descargar archivo"
-            >
-              <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
-                <Download className="h-4 w-4 text-text-primary" />
-              </div>
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                <span className="text-sm font-bold tracking-wide text-text-primary">Descargar</span>
-              </div>
-            </button>
-          )}
+                  downloadRef.current();
+                }}
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Descargar archivo"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
+                  <Download className="h-4 w-4 text-text-primary" />
+                </div>
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  <span className="text-sm font-bold tracking-wide text-text-primary">
+                    Descargar
+                  </span>
+                </div>
+              </button>
+            )}
 
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
@@ -1564,7 +1637,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {history.map((hItem, idx) => {
                       const isCurrent = hItem.version === version;
-                      const itemFileType = hItem.fileType || detectFileType(hItem.content) || fileType || 'text';
+                      const itemFileType =
+                        hItem.fileType || detectFileType(hItem.content) || fileType || 'text';
 
                       const renderTypeBadge = () => {
                         switch (itemFileType) {
@@ -1733,14 +1807,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
             <button
               onClick={() => setIsUpgradeModalOpen(false)}
-              className="absolute -top-10 right-0 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300 z-50"
+              className="absolute -top-10 right-0 z-50 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
             >
               Cerrar ✕
             </button>
             <UpgradeWall
               title={upgradeModalTitle}
               description={upgradeModalDesc}
-              plan={user?.role || "USER"}
+              plan={user?.role || 'USER'}
               isPopup={true}
               hideFeatures={true}
             />

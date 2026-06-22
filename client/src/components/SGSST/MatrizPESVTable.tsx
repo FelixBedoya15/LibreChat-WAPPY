@@ -777,7 +777,7 @@ export default function MatrizPESVTable({
             const nextRow = gridRows[startDataRow] || [];
             const hasSubHeader = nextRow.some((cell: any) => {
               const str = String(cell || '').toLowerCase();
-              return str.includes('peligros') || str.includes('probabilidad') || str.includes('exposicion') || str.includes('consecuencia') || str.includes('calificacion') || str.includes('medio') || str.includes('individuo');
+              return str.includes('peligros') || str.includes('probabilidad') || str.includes('exposicion') || str.includes('consecuencia') || str.includes('calificacion') || str.includes('individuo');
             });
             if (hasSubHeader) {
               // Merge sub-header into colMap (sub-header takes priority for its own cells)

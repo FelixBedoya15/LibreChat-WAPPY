@@ -784,7 +784,7 @@ export default function MatrizIPEVARTable({
             
             if (rawRows[startDataRow] && rawRows[startDataRow].some(cell => {
               const str = String(cell || '').toLowerCase();
-              return str === 'descripcion' || str === 'descripción' || str === 'fuente' || str === 'clasificación' || str === 'clasificacion' || str === 'medio' || str === 'individuo';
+              return str === 'descripcion' || str === 'descripción' || str === 'fuente' || str === 'clasificación' || str === 'clasificacion' || str === 'individuo';
             })) {
               const subHeaders = rawRows[startDataRow];
               for (let col = 0; col < headers.length; col++) {
