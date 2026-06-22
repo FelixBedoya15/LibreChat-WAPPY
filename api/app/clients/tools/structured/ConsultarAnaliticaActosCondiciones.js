@@ -14,16 +14,22 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
       accion: z
         .enum(['obtener_analisis', 'marcar_procesado'])
         .default('obtener_analisis')
-        .describe('Acción a realizar: "obtener_analisis" para ver estadísticas o "marcar_procesado" para archivar un reporte.'),
+        .describe(
+          'Acción a realizar: "obtener_analisis" para ver estadísticas o "marcar_procesado" para archivar un reporte.',
+        ),
       reportId: z
         .string()
         .optional()
-        .describe('ID único del reporte del buzón público. Requerido únicamente para la acción "marcar_procesado".'),
+        .describe(
+          'ID único del reporte del buzón público. Requerido únicamente para la acción "marcar_procesado".',
+        ),
       dias: z
         .number()
         .optional()
         .default(30)
-        .describe('Número de días de historial hacia atrás que deseas analizar. Por defecto es 30 días.'),
+        .describe(
+          'Número de días de historial hacia atrás que deseas analizar. Por defecto es 30 días.',
+        ),
     });
   }
 
@@ -49,8 +55,9 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
       }
 
       // 1. Encontrar la empresa del usuario actual
-      const company = await CompanyInfo.findOne({ user: userId, isActive: true }).lean()
-        || await CompanyInfo.findOne({ user: userId }).lean();
+      const company =
+        (await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) ||
+        (await CompanyInfo.findOne({ user: userId }).lean());
 
       if (!company) {
         return '❌ Error: No se encontró ninguna empresa vinculada a tu cuenta de usuario.';
@@ -84,10 +91,14 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         doc.updatedAt = new Date();
         await doc.save();
 
-        return JSON.stringify({
-          success: true,
-          message: `El reporte con ID ${reportId} ha sido marcado como procesado exitosamente en la base de datos.`
-        }, null, 2);
+        return JSON.stringify(
+          {
+            success: true,
+            message: `El reporte con ID ${reportId} ha sido marcado como procesado exitosamente en la base de datos.`,
+          },
+          null,
+          2,
+        );
       }
 
       const doc = await ReporteActosData.findOne(
@@ -107,17 +118,41 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
                   hora: '$$item.data.hora',
                   ubicacion: '$$item.data.ubicacion',
                   descripcion: '$$item.data.descripcion',
-                  foto1Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] }, true, false] },
-                  foto2Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] }, true, false] },
-                  foto3Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] }, true, false] },
-                  videoExists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] }, true, false] }
-                }
-              }
-            }
-          }
-        }
+                  foto1Exists: {
+                    $cond: [
+                      { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] },
+                      true,
+                      false,
+                    ],
+                  },
+                  foto2Exists: {
+                    $cond: [
+                      { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] },
+                      true,
+                      false,
+                    ],
+                  },
+                  foto3Exists: {
+                    $cond: [
+                      { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] },
+                      true,
+                      false,
+                    ],
+                  },
+                  videoExists: {
+                    $cond: [
+                      { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] },
+                      true,
+                      false,
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
       ).lean();
-      
+
       // Establecer rango de tiempo
       const dateLimit = new Date();
       dateLimit.setDate(dateLimit.getDate() - (dias || 30));
@@ -142,8 +177,10 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
       let condicionesCount = 0;
       let mixtoCount = 0;
 
-      const actRegex = /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
-      const condRegex = /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
+      const actRegex =
+        /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
+      const condRegex =
+        /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
 
       filteredRecords.forEach((rec) => {
         // Ubicación
@@ -173,7 +210,7 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         totalFinalized = await Conversation.countDocuments({
           user: userId,
           tags: { $all: ['sgsst-reporte-actos', `company-${company._id}`] },
-          $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
+          $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
         });
       }
 
@@ -187,7 +224,7 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         .slice(0, 8)
         .map((r) => ({
           id: r.id,
-          fecha: r.data?.fecha || r.createdAt,
+          fecha: r.createdAt || r.data?.fecha,
           trabajador: r.trabajador?.nombre || 'Anónimo',
           cargo: r.trabajador?.cargo || 'No especificado',
           descripcion: r.data?.descripcion || '',
@@ -198,7 +235,7 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
           foto1: r.data?.foto1Exists ? 'present' : null,
           foto2: r.data?.foto2Exists ? 'present' : null,
           foto3: r.data?.foto3Exists ? 'present' : null,
-          video: r.data?.videoExists ? 'present' : null
+          video: r.data?.videoExists ? 'present' : null,
         }));
 
       const resultObj = {
@@ -211,10 +248,10 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         preliminarClasificacion: {
           actos: actosCount,
           condiciones: condicionesCount,
-          mixto_no_clasificado: mixtoCount
+          mixto_no_clasificado: mixtoCount,
         },
         areasFrecuentes: sortedLocations,
-        reportesRecientes: sortedRecents
+        reportesRecientes: sortedRecents,
       };
 
       // 7. Upsert Canvas Session of type 'actos_condiciones'
@@ -227,7 +264,10 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
           const maxHistory = isPro ? 20 : 5;
 
           if (canvasSession) {
-            const maxHistoryVersion = (canvasSession.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+            const maxHistoryVersion = (canvasSession.history || []).reduce(
+              (max, item) => Math.max(max, item.version || 0),
+              0,
+            );
             const nextVersion = Math.max(maxHistoryVersion, canvasSession.version || 0) + 1;
             canvasSession.content = JSON.stringify(resultObj);
             canvasSession.title = 'Analítica de Actos y Condiciones';
@@ -240,9 +280,11 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
               content: JSON.stringify(resultObj),
               title: 'Analítica de Actos y Condiciones',
               fileType: 'actos_condiciones',
-              updatedAt: new Date()
+              updatedAt: new Date(),
             };
-            canvasSession.history = [...(canvasSession.history || []), newHistoryItem].slice(-maxHistory);
+            canvasSession.history = [...(canvasSession.history || []), newHistoryItem].slice(
+              -maxHistory,
+            );
 
             await canvasSession.save();
           } else {
@@ -254,17 +296,21 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
               fileType: 'actos_condiciones',
               version: 1,
               companyId: company._id,
-              history: [{
-                version: 1,
-                content: JSON.stringify(resultObj),
-                title: 'Analítica de Actos y Condiciones',
-                fileType: 'actos_condiciones',
-                updatedAt: new Date()
-              }]
+              history: [
+                {
+                  version: 1,
+                  content: JSON.stringify(resultObj),
+                  title: 'Analítica de Actos y Condiciones',
+                  fileType: 'actos_condiciones',
+                  updatedAt: new Date(),
+                },
+              ],
             });
             await canvasSession.save();
           }
-          console.log(`[ConsultarAnaliticaActosCondiciones] Upserted CanvasSession for convoId: ${conversationId}`);
+          console.log(
+            `[ConsultarAnaliticaActosCondiciones] Upserted CanvasSession for convoId: ${conversationId}`,
+          );
         }
       }
 

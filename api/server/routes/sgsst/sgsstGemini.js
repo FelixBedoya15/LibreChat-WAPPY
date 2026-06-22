@@ -231,4 +231,43 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
   throw lastError;
 }
 
-module.exports = { resolveApiKeys, generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS };
+/**
+ * Cleans raw rows parsed from Excel to minimize prompt token count:
+ *  - Strips any keys starting with "__" (e.g. __normalizedMap, __sheetName)
+ *  - Strips any keys with empty string, null, or undefined values
+ *  - Strips common placeholder values like 'na', 'n/a', 'n/a.', 'ninguno', 'no aplica', 'ninguna'
+ *
+ * @param {Array<object>} rawRows
+ * @returns {Array<object>}
+ */
+function cleanRawRows(rawRows) {
+  if (!Array.isArray(rawRows)) {
+    return [];
+  }
+  return rawRows.map(row => {
+    if (!row || typeof row !== 'object') {
+      return row;
+    }
+    const cleaned = {};
+    for (const [key, val] of Object.entries(row)) {
+      if (key.startsWith('__')) {
+        continue;
+      }
+      const strVal = String(val !== null && val !== undefined ? val : '').trim();
+      const lowerVal = strVal.toLowerCase();
+      if (!strVal || 
+          lowerVal === 'na' || 
+          lowerVal === 'n/a' || 
+          lowerVal === 'n/a.' || 
+          lowerVal === 'ninguno' || 
+          lowerVal === 'no aplica' || 
+          lowerVal === 'ninguna') {
+        continue;
+      }
+      cleaned[key] = val;
+    }
+    return cleaned;
+  });
+}
+
+module.exports = { resolveApiKeys, generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS, cleanRawRows };

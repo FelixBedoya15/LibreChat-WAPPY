@@ -4,198 +4,231 @@ const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
-const { buildStandardHeader, buildSignatureSection, buildCompanyContextString } = require('./reportHeader');
+const {
+  buildStandardHeader,
+  buildSignatureSection,
+  buildCompanyContextString,
+} = require('./reportHeader');
 const { logger } = require('~/config');
 
 const router = express.Router();
 const mongoose = require('mongoose');
 const feedWorkerEvent = require('./feedWorkerHelper');
 
-
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
 async function getActiveCompanyId(userId) {
-    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-    if (!active) active = await CompanyInfo.findOne({ user: userId });
-    return active ? active._id : null;
+  let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+  if (!active) active = await CompanyInfo.findOne({ user: userId });
+  return active ? active._id : null;
 }
 
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const ReporteActosDataSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
-    formData: { type: Object, default: {} },
-    trabajadoresList: { type: Array, default: [] },
-    responsablesList: { type: Array, default: [] },
-    images: { type: Object, default: {} },
-    video: { type: String, default: null },
-    inboxPublico: { type: Array, default: [] },
-    updatedAt: { type: Date, default: Date.now },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
+  formData: { type: Object, default: {} },
+  trabajadoresList: { type: Array, default: [] },
+  responsablesList: { type: Array, default: [] },
+  images: { type: Object, default: {} },
+  video: { type: String, default: null },
+  inboxPublico: { type: Array, default: [] },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 ReporteActosDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
-const ReporteActosData = mongoose.models.ReporteActosData || mongoose.model('ReporteActosData', ReporteActosDataSchema);
+const ReporteActosData =
+  mongoose.models.ReporteActosData || mongoose.model('ReporteActosData', ReporteActosDataSchema);
 
 // ─── GET /data — Load saved reporte data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
-    try {
-        const companyId = await getActiveCompanyId(req.user.id);
-        const data = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
-        if (data) {
-            return res.json({
-                formData: data.formData || {},
-                trabajadoresList: data.trabajadoresList || [],
-                responsablesList: data.responsablesList || [],
-                images: data.images || { foto1: null, foto2: null, foto3: null },
-                video: data.video || null,
-                inboxPublico: data.inboxPublico || [],
-            });
-        }
-        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], inboxPublico: [], images: { foto1: null, foto2: null, foto3: null } });
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Load error:', error);
-        res.status(500).json({ error: 'Error al cargar datos' });
+  try {
+    const companyId = await getActiveCompanyId(req.user.id);
+    const data = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
+    if (data) {
+      return res.json({
+        formData: data.formData || {},
+        trabajadoresList: data.trabajadoresList || [],
+        responsablesList: data.responsablesList || [],
+        images: data.images || { foto1: null, foto2: null, foto3: null },
+        video: data.video || null,
+        inboxPublico: data.inboxPublico || [],
+      });
     }
+    res.json({
+      formData: {},
+      trabajadoresList: [],
+      responsablesList: [],
+      inboxPublico: [],
+      images: { foto1: null, foto2: null, foto3: null },
+    });
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Load error:', error);
+    res.status(500).json({ error: 'Error al cargar datos' });
+  }
 });
 
 // ─── POST /save — Save reporte data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
-    try {
-        const { formData, trabajadoresList, responsablesList, images, video } = req.body;
-        const companyId = await getActiveCompanyId(req.user.id);
-        await ReporteActosData.findOneAndUpdate(
-            { user: req.user.id, companyId: companyId },
-            { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
-        res.json({ success: true });
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Save error:', error);
-        res.status(500).json({ error: 'Error al guardar datos' });
-    }
+  try {
+    const { formData, trabajadoresList, responsablesList, images, video } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+    await ReporteActosData.findOneAndUpdate(
+      { user: req.user.id, companyId: companyId },
+      {
+        $set: {
+          formData,
+          trabajadoresList,
+          responsablesList,
+          images,
+          video,
+          companyId,
+          updatedAt: Date.now(),
+        },
+      },
+      { upsert: true, new: true },
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Save error:', error);
+    res.status(500).json({ error: 'Error al guardar datos' });
+  }
 });
 
 // ─── POST /inbox/dismiss — Remove an item from the public inbox ───
 router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
-    try {
-        const { reportId } = req.body; // Using a timestamp or specific ID
-        const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
-        if (doc && doc.inboxPublico) {
-            doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
-            await doc.save();
-        }
-        res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Inbox dismiss error:', error);
-        res.status(500).json({ error: 'Error al descartar reporte' });
+  try {
+    const { reportId } = req.body; // Using a timestamp or specific ID
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
+    if (doc && doc.inboxPublico) {
+      doc.inboxPublico = doc.inboxPublico.filter((item) => String(item.id) !== String(reportId));
+      await doc.save();
     }
+    res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Inbox dismiss error:', error);
+    res.status(500).json({ error: 'Error al descartar reporte' });
+  }
 });
 
 // ─── POST /inbox/mark-processed — Mark an item as processed  ───
 router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
-    try {
-        const { reportId } = req.body;
-        const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
-        if (doc && doc.inboxPublico) {
-            doc.inboxPublico = doc.inboxPublico.map(item => {
-                if (String(item.id) === String(reportId)) {
-                    item.status = 'processed';
-                }
-                return item;
-            });
-            doc.markModified('inboxPublico');
-            await doc.save();
+  try {
+    const { reportId } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
+    if (doc && doc.inboxPublico) {
+      doc.inboxPublico = doc.inboxPublico.map((item) => {
+        if (String(item.id) === String(reportId)) {
+          item.status = 'processed';
         }
-        res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Inbox mark-processed error:', error);
-        res.status(500).json({ error: 'Error al marcar reporte como procesado' });
+        return item;
+      });
+      doc.markModified('inboxPublico');
+      await doc.save();
     }
+    res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Inbox mark-processed error:', error);
+    res.status(500).json({ error: 'Error al marcar reporte como procesado' });
+  }
 });
 
 // ─── GET /inbox/:reportId — Get details of a single report ───
 router.get('/inbox/:reportId', requireJwtAuth, async (req, res) => {
-    try {
-        const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId }).lean();
-        if (!doc || !doc.inboxPublico) {
-            return res.status(404).json({ error: 'Reporte no encontrado' });
-        }
-        const report = doc.inboxPublico.find(r => String(r.id) === String(req.params.reportId));
-        if (!report) {
-            return res.status(404).json({ error: 'Reporte no encontrado' });
-        }
-        res.json({ report });
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Get single report error:', error);
-        res.status(500).json({ error: 'Error al obtener detalles del reporte' });
+  try {
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId }).lean();
+    if (!doc || !doc.inboxPublico) {
+      return res.status(404).json({ error: 'Reporte no encontrado' });
     }
+    const report = doc.inboxPublico.find((r) => String(r.id) === String(req.params.reportId));
+    if (!report) {
+      return res.status(404).json({ error: 'Reporte no encontrado' });
+    }
+    res.json({ report });
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Get single report error:', error);
+    res.status(500).json({ error: 'Error al obtener detalles del reporte' });
+  }
 });
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
+  try {
+    const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
+
+    const trabajadoresStr =
+      trabajadoresList
+        ?.map((t) => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`)
+        .join(', ') || '[PENDIENTE]';
+    const responsablesStr =
+      responsablesList
+        ?.map(
+          (r) => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`,
+        )
+        .join(', ') || '[PENDIENTE]';
+
+    let resolvedApiKey = null;
     try {
-        const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
+      const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+      try {
+        const parsed = JSON.parse(storedKey);
+        resolvedApiKey = parsed['google'] || parsed.apiKey || parsed.GOOGLE_API_KEY;
+      } catch (pErr) {
+        resolvedApiKey = storedKey;
+      }
+    } catch (err) {
+      logger.debug('[SGSST Reporte Actos] No user Google key found, trying env vars:', err.message);
+    }
 
-        const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
-        const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
+    if (!resolvedApiKey) {
+      resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+    }
 
-        let resolvedApiKey = null;
-        try {
-            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-            try {
-                const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed['google'] || parsed.apiKey || parsed.GOOGLE_API_KEY;
-            } catch (pErr) {
-                resolvedApiKey = storedKey;
-            }
-        } catch (err) {
-            logger.debug('[SGSST Reporte Actos] No user Google key found, trying env vars:', err.message);
-        }
+    if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+      resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+    }
 
-        if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-        }
+    if (!resolvedApiKey || resolvedApiKey === 'user_provided') {
+      return res.status(400).json({
+        error:
+          'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del menú principal e intenta nuevamente.',
+      });
+    }
 
-        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-        }
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+    const genAI = new GoogleGenerativeAI(resolvedApiKey);
+    const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        if (!resolvedApiKey || resolvedApiKey === 'user_provided') {
-            return res.status(400).json({
-                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del menú principal e intenta nuevamente.',
-            });
-        }
+    const currentDate = new Date().toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
-        const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
-        const finalModelName = modelName || preferredModel;
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: finalModelName });
+    let loadedCompanyInfo = null;
+    try {
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    } catch (e) {
+      logger.warn('Failed to load company info for reporte de actos');
+    }
 
-        const currentDate = new Date().toLocaleDateString('es-CO', {
-            year: 'numeric', month: 'long', day: 'numeric',
-        });
+    const headerHTML = buildStandardHeader({
+      title: 'REPORTE DE ACTOS Y CONDICIONES INSEGURAS',
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm: 'Directrices SG-SST (Resolución 0312 de 2019 / Decreto 1072 de 2015)',
+      responsibleName: req.user?.name,
+    });
 
-        let loadedCompanyInfo = null;
-        try {
-            loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
-        } catch (e) {
-            logger.warn('Failed to load company info for reporte de actos');
-        }
+    const companyContext = buildCompanyContextString(loadedCompanyInfo);
 
-        const headerHTML = buildStandardHeader({
-            title: 'REPORTE DE ACTOS Y CONDICIONES INSEGURAS',
-            companyInfo: loadedCompanyInfo,
-            date: currentDate,
-            norm: 'Directrices SG-SST (Resolución 0312 de 2019 / Decreto 1072 de 2015)',
-            responsibleName: req.user?.name,
-        });
-
-        const companyContext = buildCompanyContextString(loadedCompanyInfo);
-
-        const promptText = `
+    const promptText = `
 Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SST), especializado en el diseño de Inspecciones de Seguridad e Investigación y Reporte de Actos o Condiciones Inseguras.
 Tu objetivo es redactar un **REPORTE DE ACTO O CONDICIÓN INSEGURA EXHAUSTIVO Y TÉCNICO**.
 
@@ -259,81 +292,90 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
 - NO agregues tablas de firmas ni botones; la plataforma los incluye automáticamente al final.
 `;
 
-        const parts = [
-            { text: promptText },
-        ];
+    const parts = [{ text: promptText }];
 
-        if (images) {
-            Object.keys(images).forEach((key, index) => {
-                const b64 = images[key];
-                if (b64) {
-                    const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-                    if (match && match.length === 3) {
-                        parts.push({
-                            inlineData: {
-                                data: match[2],
-                                mimeType: match[1]
-                            }
-                        });
-                        // Adding context to the model to know what image it is observing
-                        parts.push({ text: `(Fotografía Adjunta ${index + 1}: ${key})` });
-                    }
-                }
+    if (images) {
+      Object.keys(images).forEach((key, index) => {
+        const b64 = images[key];
+        if (b64) {
+          const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+          if (match && match.length === 3) {
+            parts.push({
+              inlineData: {
+                data: match[2],
+                mimeType: match[1],
+              },
             });
+            // Adding context to the model to know what image it is observing
+            parts.push({ text: `(Fotografía Adjunta ${index + 1}: ${key})` });
+          }
         }
+      });
+    }
 
-        if (video) {
-            const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
-            if (match && match.length === 3) {
-                parts.push({
-                    inlineData: {
-                        data: match[2],
-                        mimeType: match[1]
-                    }
-                });
-                parts.push({ text: `(Video corto de evidencia adjunto al reporte - Analizar comportamiento dinámico y entorno)` });
-            }
-        }
+    if (video) {
+      const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+      if (match && match.length === 3) {
+        parts.push({
+          inlineData: {
+            data: match[2],
+            mimeType: match[1],
+          },
+        });
+        parts.push({
+          text: `(Video corto de evidencia adjunto al reporte - Analizar comportamiento dinámico y entorno)`,
+        });
+      }
+    }
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
-        const response = await result.response;
-        const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
+    const response = await result.response;
+    const htmlBody = response
+      .text()
+      .replace(/```html\n ? /g, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
-        // Incorporate the images in the final report HTML
-        let imagesHtml = '';
-        if (images.foto1 || images.foto2 || images.foto3) {
-            imagesHtml = `
+    // Incorporate the images in the final report HTML
+    let imagesHtml = '';
+    if (images.foto1 || images.foto2 || images.foto3) {
+      imagesHtml = `
                 <div style="margin-top: 30px; margin-bottom: 30px;">
                     <h3 style="color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 5px;">ANEXO: ARCHIVO FOTOGRÁFICO DEL HALLAZGO</h3>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
             `;
 
-            const labels = ['Evidencia Panorámica', 'Detalle del Acto/Condición', 'Perspectiva Adicional'];
-            ['foto1', 'foto2', 'foto3'].forEach((k, i) => {
-                if (images[k]) {
-                    imagesHtml += `
+      const labels = [
+        'Evidencia Panorámica',
+        'Detalle del Acto/Condición',
+        'Perspectiva Adicional',
+      ];
+      ['foto1', 'foto2', 'foto3'].forEach((k, i) => {
+        if (images[k]) {
+          imagesHtml += `
                         <div style="flex: 1; min-width: 250px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             <img src="${images[k]}" style="width: 100%; height: auto; max-width: 300px; border-radius: 4px; object-fit: contain; margin-bottom: 10px;" alt="Evidencia ${i + 1}" />
                             <strong style="color: #0f172a; font-size: 14px; display: block;">${labels[i]}</strong>
                             <span style="font-size: 12px; color: #555;">Capturada en sitio para inspección</span>
                         </div>
                     `;
-                }
-            });
-
-            imagesHtml += `</div></div>`;
         }
+      });
 
-        let extraSignatures = '';
-        if (trabajadoresList?.length || responsablesList?.length) {
-            extraSignatures += '<div style="margin-top: 50px; page-break-inside: avoid;">';
-            extraSignatures += '<h4 style="text-align: center; color: #1e293b; margin-bottom: 20px;">FIRMAS - REPORTE DE ACTOS Y CONDICIONES INSEGURAS</h4>';
-            extraSignatures += '<table style="width: 100%; border-collapse: collapse;"><tr>';
+      imagesHtml += `</div></div>`;
+    }
 
-            let count = 0;
-            const addSig = (name, role, idType, cedula) => {
-                if (count > 0 && count % 3 === 0) extraSignatures += '</tr><tr>';
-                extraSignatures += `
+    let extraSignatures = '';
+    if (trabajadoresList?.length || responsablesList?.length) {
+      extraSignatures += '<div style="margin-top: 50px; page-break-inside: avoid;">';
+      extraSignatures +=
+        '<h4 style="text-align: center; color: #1e293b; margin-bottom: 20px;">FIRMAS - REPORTE DE ACTOS Y CONDICIONES INSEGURAS</h4>';
+      extraSignatures += '<table style="width: 100%; border-collapse: collapse;"><tr>';
+
+      let count = 0;
+      const addSig = (name, role, idType, cedula) => {
+        if (count > 0 && count % 3 === 0) extraSignatures += '</tr><tr>';
+        extraSignatures += `
                     <td style="width: 33.33%; padding: 20px; text-align: center; vertical-align: bottom;">
                         <div class="signature-placeholder" data-signature-id="dyn_${idType}_${count}" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                             <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
@@ -342,223 +384,261 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
                         <div style="font-size: 12px; color: #64748b; font-weight: 600;">${role}</div>
                         <div style="font-size: 11px; color: #94a3b8;">CC: ${cedula}</div>
                     </td>`;
-                count++;
-            };
+        count++;
+      };
 
-            trabajadoresList?.forEach(t => {
-                if (t.nombre) addSig(t.nombre, 'Personal Reportante / Observado', 'reportante', t.cedula || 'N/A');
-            });
-            responsablesList?.forEach(r => {
-                if (r.nombre) addSig(r.nombre, r.rol || 'Responsable Inmediato', 'responsable', r.cedula || 'N/A');
-            });
+      trabajadoresList?.forEach((t) => {
+        if (t.nombre)
+          addSig(t.nombre, 'Personal Reportante / Observado', 'reportante', t.cedula || 'N/A');
+      });
+      responsablesList?.forEach((r) => {
+        if (r.nombre)
+          addSig(r.nombre, r.rol || 'Responsable Inmediato', 'responsable', r.cedula || 'N/A');
+      });
 
-            const remainder = count % 3;
-            if (remainder > 0) {
-                extraSignatures += Array(3 - remainder).fill('<td style="width: 33.33%;"></td>').join('');
-            }
-            extraSignatures += '</tr></table></div>';
-        }
-
-        let fullReport = headerHTML + '<div style="margin-top: 20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
-
-        if (loadedCompanyInfo) {
-            fullReport += buildSignatureSection(loadedCompanyInfo);
-        }
-
-        // ── Auto-Feed Bio-Individual Enriquecido (Hoja de Vida & SST 360) ──
-        if (trabajadoresList && trabajadoresList.length > 0) {
-            const shortDesc = formData.actividadGlobal ? formData.actividadGlobal.substring(0, 80) + '...' : 'Reporte de Acto/Condición';
-            const esActoCritico = formData.certificacionAlturas === 'Sí';
-            
-            for (const t of trabajadoresList) {
-                if (t.cedula) {
-                    await feedWorkerEvent(
-                        req.user.id || req.user,
-                        t.cedula,
-                        'actos',
-                        `[Acto Inseguro Observado] ${shortDesc}`,
-                        -100, // Penalización en el historial de percepción
-                        result.conversationId || 'generate',
-                        {
-                            esObservado: true,
-                            esCritico: esActoCritico
-                        }
-                    );
-                }
-            }
-        }
-
-        res.json({ report: fullReport });
-    } catch (error) {
-        logger.error('[SGSST Reporte Actos] Generation error:', error);
-        res.status(500).json({ error: 'Error al generar Reporte de Actos y Condiciones' });
+      const remainder = count % 3;
+      if (remainder > 0) {
+        extraSignatures += Array(3 - remainder)
+          .fill('<td style="width: 33.33%;"></td>')
+          .join('');
+      }
+      extraSignatures += '</tr></table></div>';
     }
+
+    let fullReport =
+      headerHTML +
+      '<div style="margin-top: 20px;">' +
+      htmlBody +
+      '</div>' +
+      imagesHtml +
+      extraSignatures;
+
+    if (loadedCompanyInfo) {
+      fullReport += buildSignatureSection(loadedCompanyInfo);
+    }
+
+    // ── Auto-Feed Bio-Individual Enriquecido (Hoja de Vida & SST 360) ──
+    if (trabajadoresList && trabajadoresList.length > 0) {
+      const shortDesc = formData.actividadGlobal
+        ? formData.actividadGlobal.substring(0, 80) + '...'
+        : 'Reporte de Acto/Condición';
+      const esActoCritico = formData.certificacionAlturas === 'Sí';
+
+      for (const t of trabajadoresList) {
+        if (t.cedula) {
+          await feedWorkerEvent(
+            req.user.id || req.user,
+            t.cedula,
+            'actos',
+            `[Acto Inseguro Observado] ${shortDesc}`,
+            -100, // Penalización en el historial de percepción
+            result.conversationId || 'generate',
+            {
+              esObservado: true,
+              esCritico: esActoCritico,
+            },
+          );
+        }
+      }
+    }
+
+    res.json({ report: fullReport });
+  } catch (error) {
+    logger.error('[SGSST Reporte Actos] Generation error:', error);
+    res.status(500).json({ error: 'Error al generar Reporte de Actos y Condiciones' });
+  }
 });
 
 // ─── GET /estadisticas — Get aggregated report stats ──────────────────
 router.get('/estadisticas', requireJwtAuth, async (req, res) => {
-    try {
-        const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne(
-            { user: req.user.id, companyId: companyId },
-            {
-                inboxPublico: {
-                    $map: {
-                        input: '$inboxPublico',
-                        as: 'item',
-                        in: {
-                            id: '$$item.id',
-                            trabajador: '$$item.trabajador',
-                            createdAt: '$$item.createdAt',
-                            status: '$$item.status',
-                            data: {
-                                fecha: '$$item.data.fecha',
-                                hora: '$$item.data.hora',
-                                ubicacion: '$$item.data.ubicacion',
-                                descripcion: '$$item.data.descripcion',
-                                foto1Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] }, true, false] },
-                                foto2Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] }, true, false] },
-                                foto3Exists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] }, true, false] },
-                                videoExists: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] }, true, false] }
-                            }
-                        }
-                    }
-                }
-            }
-        ).lean();
-        
-        const dias = req.query.dias ? Number(req.query.dias) : 30;
-        const dateLimit = new Date();
-        dateLimit.setDate(dateLimit.getDate() - dias);
-
-        const inboxList = doc?.inboxPublico || [];
-
-        // Filter by date
-        const filteredRecords = inboxList.filter((rec) => {
-            const recordDate = rec.createdAt ? new Date(rec.createdAt) : new Date();
-            return recordDate >= dateLimit;
-        });
-
-        const total = filteredRecords.length;
-        const pendingCount = filteredRecords.filter((r) => r.status !== 'processed').length;
-        const processedCount = filteredRecords.filter((r) => r.status === 'processed').length;
-
-        // Desglose por ubicación
-        const locationMap = {};
-        let actosCount = 0;
-        let condicionesCount = 0;
-        let mixtoCount = 0;
-
-        const actRegex = /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
-        const condRegex = /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
-
-        filteredRecords.forEach((rec) => {
-            const loc = rec.data?.ubicacion?.trim() || 'General';
-            locationMap[loc] = (locationMap[loc] || 0) + 1;
-
-            const desc = rec.data?.descripcion || '';
-            const hasAct = actRegex.test(desc);
-            const hasCond = condRegex.test(desc);
-
-            if (hasAct && hasCond) mixtoCount++;
-            else if (hasAct) actosCount++;
-            else if (hasCond) condicionesCount++;
-            else mixtoCount++;
-        });
-
-        const sortedLocations = Object.entries(locationMap)
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, count]) => ({ name, count }));
-
-        // Consultar reportes PDF finalizados (Message/Conversation tag)
-        let totalFinalized = 0;
-        const Conversation = mongoose.models.Conversation;
-        if (Conversation && companyId) {
-            totalFinalized = await Conversation.countDocuments({
-                user: req.user.id,
-                tags: { $all: ['sgsst-reporte-actos', `company-${companyId}`] },
-                $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
-            });
-        }
-
-        // Recent reports
-        const sortedRecents = [...filteredRecords]
-            .sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
-            })
-            .slice(0, 15)
-            .map((r) => ({
-                id: r.id,
-                fecha: r.data?.fecha || r.createdAt,
-                trabajador: r.trabajador?.nombre || 'Anónimo',
-                cargo: r.trabajador?.cargo || 'No especificado',
-                descripcion: r.data?.descripcion || '',
-                ubicacion: r.data?.ubicacion || 'Sin ubicación',
-                status: r.status || 'pending',
-                hasFoto: !!(r.data?.foto1Exists || r.data?.foto2Exists || r.data?.foto3Exists),
-                hasVideo: !!r.data?.videoExists
-            }));
-
-        res.json({
-            totalReportesBuzon: total,
-            periodoDias: dias,
-            pendientes: pendingCount,
-            procesados: processedCount,
-            finalizadosPdf: totalFinalized,
-            preliminarClasificacion: {
-                actos: actosCount,
-                condiciones: condicionesCount,
-                mixto_no_clasificado: mixtoCount
+  try {
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await ReporteActosData.findOne(
+      { user: req.user.id, companyId: companyId },
+      {
+        inboxPublico: {
+          $map: {
+            input: '$inboxPublico',
+            as: 'item',
+            in: {
+              id: '$$item.id',
+              trabajador: '$$item.trabajador',
+              createdAt: '$$item.createdAt',
+              status: '$$item.status',
+              data: {
+                fecha: '$$item.data.fecha',
+                hora: '$$item.data.hora',
+                ubicacion: '$$item.data.ubicacion',
+                descripcion: '$$item.data.descripcion',
+                foto1Exists: {
+                  $cond: [
+                    { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto1', ''] } }, 0] },
+                    true,
+                    false,
+                  ],
+                },
+                foto2Exists: {
+                  $cond: [
+                    { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto2', ''] } }, 0] },
+                    true,
+                    false,
+                  ],
+                },
+                foto3Exists: {
+                  $cond: [
+                    { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.foto3', ''] } }, 0] },
+                    true,
+                    false,
+                  ],
+                },
+                videoExists: {
+                  $cond: [
+                    { $gt: [{ $strLenCP: { $ifNull: ['$$item.data.video', ''] } }, 0] },
+                    true,
+                    false,
+                  ],
+                },
+              },
             },
-            areasFrecuentes: sortedLocations,
-            reportesRecientes: sortedRecents
-        });
-    } catch (error) {
-        logger.error('[SGSST Reporte Actos] Stats error:', error);
-        res.status(500).json({ error: 'Error al obtener estadísticas de reportes' });
+          },
+        },
+      },
+    ).lean();
+
+    const dias = req.query.dias ? Number(req.query.dias) : 30;
+    const dateLimit = new Date();
+    dateLimit.setDate(dateLimit.getDate() - dias);
+
+    const inboxList = doc?.inboxPublico || [];
+
+    // Filter by date
+    const filteredRecords = inboxList.filter((rec) => {
+      const recordDate = rec.createdAt ? new Date(rec.createdAt) : new Date();
+      return recordDate >= dateLimit;
+    });
+
+    const total = filteredRecords.length;
+    const pendingCount = filteredRecords.filter((r) => r.status !== 'processed').length;
+    const processedCount = filteredRecords.filter((r) => r.status === 'processed').length;
+
+    // Desglose por ubicación
+    const locationMap = {};
+    let actosCount = 0;
+    let condicionesCount = 0;
+    let mixtoCount = 0;
+
+    const actRegex =
+      /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
+    const condRegex =
+      /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
+
+    filteredRecords.forEach((rec) => {
+      const loc = rec.data?.ubicacion?.trim() || 'General';
+      locationMap[loc] = (locationMap[loc] || 0) + 1;
+
+      const desc = rec.data?.descripcion || '';
+      const hasAct = actRegex.test(desc);
+      const hasCond = condRegex.test(desc);
+
+      if (hasAct && hasCond) mixtoCount++;
+      else if (hasAct) actosCount++;
+      else if (hasCond) condicionesCount++;
+      else mixtoCount++;
+    });
+
+    const sortedLocations = Object.entries(locationMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+
+    // Consultar reportes PDF finalizados (Message/Conversation tag)
+    let totalFinalized = 0;
+    const Conversation = mongoose.models.Conversation;
+    if (Conversation && companyId) {
+      totalFinalized = await Conversation.countDocuments({
+        user: req.user.id,
+        tags: { $all: ['sgsst-reporte-actos', `company-${companyId}`] },
+        $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+      });
     }
+
+    // Recent reports
+    const sortedRecents = [...filteredRecords]
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 15)
+      .map((r) => ({
+        id: r.id,
+        fecha: r.createdAt || r.data?.fecha,
+        trabajador: r.trabajador?.nombre || 'Anónimo',
+        cargo: r.trabajador?.cargo || 'No especificado',
+        descripcion: r.data?.descripcion || '',
+        ubicacion: r.data?.ubicacion || 'Sin ubicación',
+        status: r.status || 'pending',
+        hasFoto: !!(r.data?.foto1Exists || r.data?.foto2Exists || r.data?.foto3Exists),
+        hasVideo: !!r.data?.videoExists,
+      }));
+
+    res.json({
+      totalReportesBuzon: total,
+      periodoDias: dias,
+      pendientes: pendingCount,
+      procesados: processedCount,
+      finalizadosPdf: totalFinalized,
+      preliminarClasificacion: {
+        actos: actosCount,
+        condiciones: condicionesCount,
+        mixto_no_clasificado: mixtoCount,
+      },
+      areasFrecuentes: sortedLocations,
+      reportesRecientes: sortedRecents,
+    });
+  } catch (error) {
+    logger.error('[SGSST Reporte Actos] Stats error:', error);
+    res.status(500).json({ error: 'Error al obtener estadísticas de reportes' });
+  }
 });
 
 // ─── GET /public/media/:reportId/:mediaKey — Serve report images/videos as binary stream ───
 router.get('/public/media/:reportId/:mediaKey', async (req, res) => {
-    try {
-        const { reportId, mediaKey } = req.params;
-        if (!['foto1', 'foto2', 'foto3', 'video'].includes(mediaKey)) {
-            return res.status(400).send('Invalid media key');
-        }
-
-        const doc = await ReporteActosData.findOne({ "inboxPublico.id": reportId });
-        if (!doc || !doc.inboxPublico) {
-            return res.status(404).send('Report not found');
-        }
-
-        const report = doc.inboxPublico.find(r => String(r.id) === String(reportId));
-        if (!report || !report.data) {
-            return res.status(404).send('Report data not found');
-        }
-
-        const b64Data = report.data[mediaKey];
-        if (!b64Data) {
-            return res.status(404).send('Media not found');
-        }
-
-        const match = b64Data.match(/^data:([^;]+);base64,(.+)$/);
-        if (!match || match.length !== 3) {
-            return res.status(400).send('Invalid media data format');
-        }
-
-        const mimeType = match[1];
-        const rawBuffer = Buffer.from(match[2], 'base64');
-
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-        res.send(rawBuffer);
-    } catch (error) {
-        logger.error('[SGSST ReporteActos] Public media error:', error);
-        res.status(500).send('Error serving media');
+  try {
+    const { reportId, mediaKey } = req.params;
+    if (!['foto1', 'foto2', 'foto3', 'video'].includes(mediaKey)) {
+      return res.status(400).send('Invalid media key');
     }
+
+    const doc = await ReporteActosData.findOne({ 'inboxPublico.id': reportId });
+    if (!doc || !doc.inboxPublico) {
+      return res.status(404).send('Report not found');
+    }
+
+    const report = doc.inboxPublico.find((r) => String(r.id) === String(reportId));
+    if (!report || !report.data) {
+      return res.status(404).send('Report data not found');
+    }
+
+    const b64Data = report.data[mediaKey];
+    if (!b64Data) {
+      return res.status(404).send('Media not found');
+    }
+
+    const match = b64Data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match || match.length !== 3) {
+      return res.status(400).send('Invalid media data format');
+    }
+
+    const mimeType = match[1];
+    const rawBuffer = Buffer.from(match[2], 'base64');
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.send(rawBuffer);
+  } catch (error) {
+    logger.error('[SGSST ReporteActos] Public media error:', error);
+    res.status(500).send('Error serving media');
+  }
 });
 
 module.exports = router;

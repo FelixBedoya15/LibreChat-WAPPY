@@ -7,7 +7,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
 
 function toSentenceCase(str) {
   if (!str) return '';
@@ -486,16 +486,26 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       return res.json({ matrixRows: [] });
     }
 
-    const CHUNK_SIZE = 15;
+    const cleanedRows = cleanRawRows(rawRows);
+
+    const CHUNK_SIZE = 20;
     const chunks = [];
-    for (let i = 0; i < rawRows.length; i += CHUNK_SIZE) {
-      chunks.push(rawRows.slice(i, i + CHUNK_SIZE));
+    for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
+      chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
     }
 
     const parsedRows = [];
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
 
-    for (const chunk of chunks) {
+    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+      const chunk = chunks[chunkIdx];
+      if (chunkIdx > 0) {
+        // Pausa de 1500ms para evitar saturación de tasa (rate limits) en el API de Gemini
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      logger.info(`[ChemicalCompatibility/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
+
       const prompt = `Eres un procesador de datos experto en Higiene y Seguridad Química.
 Mapea estas filas crudas (extraídas de un Excel) a un formato estándar de inventario químico SGA de acuerdo a la normatividad en Colombia.
 

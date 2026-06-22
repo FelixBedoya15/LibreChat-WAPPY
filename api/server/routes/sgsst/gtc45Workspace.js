@@ -8,7 +8,7 @@ const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
 
 function toSentenceCase(str) {
   if (!str) return '';
@@ -600,22 +600,24 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       return res.json({ matrixRows: [] });
     }
 
-    const CHUNK_SIZE = 35;
+    const cleanedRows = cleanRawRows(rawRows);
+
+    const CHUNK_SIZE = 20;
     const chunks = [];
-    for (let i = 0; i < rawRows.length; i += CHUNK_SIZE) {
-      chunks.push(rawRows.slice(i, i + CHUNK_SIZE));
+    for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
+      chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
     }
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
-    logger.info(`[GTC45/ai-parse-matrix] Processing ${rawRows.length} rows for user ${userId} in ${chunks.length} chunks`);
+    logger.info(`[GTC45/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks`);
 
     const combinedRows = [];
 
     for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
       const chunk = chunks[chunkIdx];
       if (chunkIdx > 0) {
-        // Pausa de 800ms para evitar saturación de tasa (rate limits) en el API de Gemini
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        // Pausa de 1500ms para evitar saturación de tasa (rate limits) en el API de Gemini
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
 
       logger.info(`[GTC45/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
