@@ -489,7 +489,15 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       return 3;
     };
 
-    const promises = chunks.map(async (chunk, chunkIdx) => {
+    const combinedRows = [];
+
+    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+      const chunk = chunks[chunkIdx];
+      if (chunkIdx > 0) {
+        // Pausa de 500ms para evitar saturación de tasa (concurrencia) en el API de Gemini
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
       logger.info(`[PESV/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
 
       const prompt = `Eres un experto certificado en el Plan Estratégico de Seguridad Vial (PESV) en Colombia y la normatividad de la Resolución 40595 de 2022.
@@ -544,7 +552,7 @@ ${JSON.stringify(chunk, null, 2)}`;
         else throw new Error('La IA no devolvió un listado de filas en el formato esperado.');
       }
 
-      return parsed.map(row => {
+      const mappedChunk = parsed.map(row => {
         const np_cuantitativo = Number(row.np_cuantitativo) || mapNP(row.np_cualitativo);
         const ne_cuantitativo = Number(row.ne_cuantitativo) || mapNE(row.ne_cualitativo);
         const nc_cuantitativo = Number(row.nc_cuantitativo) || mapNC(row.nc_cualitativo);
@@ -577,10 +585,9 @@ ${JSON.stringify(chunk, null, 2)}`;
           id: Date.now().toString() + Math.random().toString(36).substring(7)
         };
       });
-    });
 
-    const results = await Promise.all(promises);
-    const combinedRows = results.flat();
+      combinedRows.push(...mappedChunk);
+    }
 
     logger.info(`[PESV/ai-parse-matrix] Successfully mapped ${combinedRows.length} rows for user ${userId}`);
     return res.json({ matrixRows: combinedRows });
