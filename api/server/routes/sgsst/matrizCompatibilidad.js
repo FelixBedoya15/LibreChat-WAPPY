@@ -488,7 +488,7 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     const cleanedRows = cleanRawRows(rawRows);
 
-    const CHUNK_SIZE = 35;
+    const CHUNK_SIZE = 200;
     const chunks = [];
     for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
       chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));

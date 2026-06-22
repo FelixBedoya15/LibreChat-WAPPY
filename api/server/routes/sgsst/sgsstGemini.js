@@ -153,7 +153,16 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelParams = { model: currentModel, generationConfig: genConfig };
+        const isLegacyModel = currentModel.includes('1.5') || currentModel.includes('1.0');
+        const maxOut = isLegacyModel ? 8192 : 65536;
+
+        const mergedGenConfig = {
+          maxOutputTokens: maxOut,
+          temperature: 0.1,
+          ...genConfig
+        };
+
+        const modelParams = { model: currentModel, generationConfig: mergedGenConfig };
         
         if (options.useWebSearch) {
           modelParams.tools = [{ googleSearch: {} }];
