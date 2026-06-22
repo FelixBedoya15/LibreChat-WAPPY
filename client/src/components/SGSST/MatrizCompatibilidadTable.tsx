@@ -198,7 +198,11 @@ export default function MatrizCompatibilidadTable({
   } | null>(null);
 
   const fetchMatrix = useCallback(async () => {
-    if (!conversationId) return;
+    if (!conversationId || conversationId === 'new') {
+      setMatrixRows([]);
+      setChartConclusions({});
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await fetch(`/api/sgsst/chemical-compatibility/matrix/${conversationId}`, {

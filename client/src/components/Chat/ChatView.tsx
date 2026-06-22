@@ -162,7 +162,7 @@ function ChatView({ index = 0 }: { index?: number }) {
         }).catch(err => console.error('[ChatView] Clear temp sessions error:', err));
       }
     }
-  }, [conversationId, token]);
+  }, [conversationId, token, conversation?.conversationId]);
 
   // ── Mobile/Maximize: track whether panels are expanded via global state ──
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);

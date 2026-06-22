@@ -600,7 +600,7 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       return res.json({ matrixRows: [] });
     }
 
-    const CHUNK_SIZE = 15;
+    const CHUNK_SIZE = 35;
     const chunks = [];
     for (let i = 0; i < rawRows.length; i += CHUNK_SIZE) {
       chunks.push(rawRows.slice(i, i + CHUNK_SIZE));
@@ -609,7 +609,17 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     logger.info(`[GTC45/ai-parse-matrix] Processing ${rawRows.length} rows for user ${userId} in ${chunks.length} chunks`);
 
-    const promises = chunks.map(async (chunk, chunkIdx) => {
+    const combinedRows = [];
+
+    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+      const chunk = chunks[chunkIdx];
+      if (chunkIdx > 0) {
+        // Pausa de 800ms para evitar saturación de tasa (rate limits) en el API de Gemini
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+
+      logger.info(`[GTC45/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
+
       const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 Te hemos proporcionado una lista de filas importadas desde un archivo con una estructura y nombres de columnas arbitrarios.
 Tu tarea es analizar detalladamente el contenido de cada fila y reconstruir/mapear sus datos para que se adapten a nuestro formato estándar de matriz GTC-45 (IPEVAR).
@@ -671,7 +681,7 @@ ${JSON.stringify(chunk, null, 2)}
         }
       }
 
-      return parsed.map(row => {
+      const mappedChunk = parsed.map(row => {
         const ndVal = Number(row.nd) || 0;
         const neVal = Number(row.ne) || 0;
         const npVal = ndVal * neVal;
@@ -732,10 +742,9 @@ ${JSON.stringify(chunk, null, 2)}
           id: Date.now().toString() + Math.random().toString(36).substring(7)
         };
       });
-    });
 
-    const results = await Promise.all(promises);
-    const combinedRows = results.flat();
+      combinedRows.push(...mappedChunk);
+    }
 
     logger.info(`[GTC45/ai-parse-matrix] Successfully mapped ${combinedRows.length} rows for user ${userId}`);
     return res.json({ matrixRows: combinedRows });

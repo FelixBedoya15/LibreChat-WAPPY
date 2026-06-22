@@ -419,6 +419,13 @@ export default function MatrizPESVTable({
   }, [conversationId, token]);
 
   useEffect(() => {
+    if (!conversationId || conversationId === 'new') {
+      setMatrixRows([]);
+      setChartConclusions({});
+      setReportContent('');
+      prevConvoIdRef.current = conversationId;
+      return;
+    }
     if (prevConvoIdRef.current !== conversationId) {
       prevConvoIdRef.current = conversationId;
       fetchMatrixData();

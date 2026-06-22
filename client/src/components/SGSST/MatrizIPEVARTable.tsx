@@ -1069,8 +1069,17 @@ export default function MatrizIPEVARTable({
       fetchMatrix();
       return;
     }
+
+    if (!actualConvoId || actualConvoId === 'new') {
+      setMatrixRows([]);
+      setChartConclusions({});
+      isDirtyRef.current = false;
+      prevConvoIdRef.current = actualConvoId;
+      return;
+    }
+
     if (prevConvoIdRef.current !== actualConvoId) {
-      const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (actualConvoId && actualConvoId !== 'new');
+      const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (actualConvoId !== 'new');
       
       if (isTransitionFromNewToReal) {
         if (isDirtyRef.current && matrixRowsRef.current.length > 0) {
@@ -1087,9 +1096,7 @@ export default function MatrizIPEVARTable({
       }
       prevConvoIdRef.current = actualConvoId;
     } else {
-      if (actualConvoId) {
-        fetchMatrix(actualConvoId);
-      }
+      fetchMatrix(actualConvoId);
     }
   }, [actualConvoId, workerId]);
 
