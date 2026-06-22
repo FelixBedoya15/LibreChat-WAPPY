@@ -16,6 +16,65 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+const resizeImage = (
+  file: File,
+  maxWidth = 1000,
+  maxHeight = 1000,
+  quality = 0.7,
+): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = () => {
+        resolve(event.target?.result as string);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.readAsDataURL(file);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function PublicReporteActos() {
   const { companyId } = useParams();
   const [company, setCompany] = useState<any>(null);
@@ -62,18 +121,26 @@ export default function PublicReporteActos() {
     };
     fetchCompany();
   }, [companyId]);
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      if (activePhotoField === 'foto1') setFoto1(result);
-      if (activePhotoField === 'foto2') setFoto2(result);
-      if (activePhotoField === 'foto3') setFoto3(result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const resizedBase64 = await resizeImage(file);
+      if (activePhotoField === 'foto1') setFoto1(resizedBase64);
+      if (activePhotoField === 'foto2') setFoto2(resizedBase64);
+      if (activePhotoField === 'foto3') setFoto3(resizedBase64);
+    } catch (err) {
+      console.error('Error resizing image, falling back to original:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        if (activePhotoField === 'foto1') setFoto1(result);
+        if (activePhotoField === 'foto2') setFoto2(result);
+        if (activePhotoField === 'foto3') setFoto3(result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
