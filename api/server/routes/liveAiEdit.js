@@ -47,7 +47,7 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
   // 1. WEB SEARCH (SearXNG) Integration
   let webContext = '';
   try {
-      const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy-ia.com/search';
+      const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
       
       // Perform a search based on the instruction provided by the user
       const searchResponse = await axios.get(searxngUrl, {

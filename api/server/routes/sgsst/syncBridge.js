@@ -48,7 +48,8 @@ async function syncLiveEditorToCanvas(conversationId, content, fileName, userId)
         const titleChanged = fileName && canvasSession.title !== fileName;
         
         if (contentChanged || titleChanged) {
-          const nextVersion = canvasSession.version + 1;
+          const maxHistoryVersion = (canvasSession.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+          const nextVersion = Math.max(maxHistoryVersion, canvasSession.version || 0) + 1;
           const newHistoryItem = {
             version: nextVersion,
             content: content ?? canvasSession.content,

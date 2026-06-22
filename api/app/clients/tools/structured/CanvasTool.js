@@ -415,7 +415,8 @@ class CanvasTool extends Tool {
             );
           }
 
-          const nextVersion = session.version + 1;
+          const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+          const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
           const newHistoryItem = {
             version: nextVersion,
             content: parsedContent ?? session.content,
@@ -579,7 +580,8 @@ class CanvasTool extends Tool {
             );
           }
 
-          const nextVersion = session.version + 1;
+          const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+          const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
           const newHistoryItem = {
             version: nextVersion,
             content: parsedContent ?? session.content,
@@ -669,7 +671,8 @@ class CanvasTool extends Tool {
           session.content,
         );
 
-        const nextVersion = session.version + 1;
+        const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+        const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,
@@ -741,7 +744,8 @@ class CanvasTool extends Tool {
           session.content,
         );
 
-        const nextVersion = session.version + 1;
+        const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+        const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,
@@ -865,7 +869,8 @@ class CanvasTool extends Tool {
           session.content,
         );
 
-        const nextVersion = session.version + 1;
+        const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+        const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
         const newHistoryItem = {
           version: nextVersion,
           content: updatedContent,

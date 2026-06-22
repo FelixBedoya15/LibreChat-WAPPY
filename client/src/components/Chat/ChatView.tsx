@@ -8,7 +8,7 @@ import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
-import { useChatHelpers, useAddedResponse, useSSE } from '~/hooks';
+import { useChatHelpers, useAddedResponse, useSSE, useAuthContext } from '~/hooks';
 import ConversationStarters from './Input/ConversationStarters';
 import { useGetMessagesByConvoId, useGetAgentByIdQuery } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
@@ -37,6 +37,7 @@ function LoadingSpinner() {
 }
 
 function ChatView({ index = 0 }: { index?: number }) {
+  const { token } = useAuthContext();
   const { conversationId: urlConversationId } = useParams();
   // Use URL param as alias so legacy code still works
   const conversationId = urlConversationId;
@@ -151,6 +152,17 @@ function ChatView({ index = 0 }: { index?: number }) {
       setIsCanvasActive(false);
     };
   }, [isIPEVARActive, isPESVActive, isChemicalCompatibilityActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsPESVActive, setIsChemicalCompatibilityActive, setIsEditorLiveActive, setIsCanvasActive]);
+
+  useEffect(() => {
+    if (!conversationId || conversationId === 'new') {
+      if (token) {
+        fetch('/api/sgsst/gtc45-workspace/clear-temp-sessions', {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(err => console.error('[ChatView] Clear temp sessions error:', err));
+      }
+    }
+  }, [conversationId, token]);
 
   // ── Mobile/Maximize: track whether panels are expanded via global state ──
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);

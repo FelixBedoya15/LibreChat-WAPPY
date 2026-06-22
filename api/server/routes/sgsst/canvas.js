@@ -29,6 +29,41 @@ function hasHeader(html) {
   );
 }
 
+function detectFileType(content, defaultType = 'text') {
+  if (!content) return defaultType;
+  if (Array.isArray(content)) {
+    if (content.length === 0) return defaultType;
+    if (Array.isArray(content[0])) return 'excel';
+    if (typeof content[0] === 'object') return 'presentation';
+    return defaultType;
+  }
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 0) return defaultType;
+          if (Array.isArray(parsed[0])) return 'excel';
+          if (typeof parsed[0] === 'object') return 'presentation';
+        }
+      } catch (e) {}
+    } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.estadoAnimo || parsed.totalMuestras) return 'animo';
+          if (parsed.preliminarClasificacion || parsed.totalReportesBuzon) return 'actos_condiciones';
+        }
+      } catch (e) {}
+    }
+    if (trimmed.toLowerCase().includes('<!doctype html>') || trimmed.toLowerCase().includes('<html')) {
+      return 'html';
+    }
+  }
+  return defaultType;
+}
+
 function hasSignature(html) {
   if (!html) return false;
   const lower = html.toLowerCase();
@@ -332,7 +367,8 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 
       if (isManual || contentChanged || titleChanged) {
         if (isManual) {
-          const nextVersion = session.version + 1;
+          const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+          const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
 
           // Agregar al historial limitando a los últimos 20 cambios
           const newHistoryItem = {
@@ -532,9 +568,7 @@ router.post('/:conversationId/versions/:version/restore', requireJwtAuth, async 
     session.content = versionItem.content;
     session.title = versionItem.title;
     session.version = versionNum;
-    if (versionItem.fileType) {
-      session.fileType = versionItem.fileType;
-    }
+    session.fileType = versionItem.fileType || detectFileType(versionItem.content, session.fileType || 'text');
 
     // Sincronizar hacia LiveEditor si aplica
     if (session.fileType === 'text') {

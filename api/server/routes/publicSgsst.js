@@ -8,675 +8,776 @@ const router = express.Router();
 
 // ─── Helper: Resolver Empresa Activa ─────────────────────────────────────────
 async function resolveActiveCompany(companyId) {
-    if (!mongoose.Types.ObjectId.isValid(companyId)) return null;
+  if (!mongoose.Types.ObjectId.isValid(companyId)) return null;
 
-    // 1. Intentar buscar por el _id directo de la empresa (si ya viene resuelto)
-    let company = await CompanyInfo.findById(companyId).lean();
-    if (company) return company;
+  // 1. Intentar buscar por el _id directo de la empresa (si ya viene resuelto)
+  let company = await CompanyInfo.findById(companyId).lean();
+  if (company) return company;
 
-    // 2. Si no se encuentra, asumir que es el ID del usuario (propietario) y buscar la empresa activa
-    company = await CompanyInfo.findOne({ user: companyId, isActive: true }).lean();
+  // 2. Si no se encuentra, asumir que es el ID del usuario (propietario) y buscar la empresa activa
+  company = await CompanyInfo.findOne({ user: companyId, isActive: true }).lean();
 
-    // 3. Fallback: Si no hay empresa activa explícita, devolver la primera empresa de ese usuario
-    if (!company) {
-        company = await CompanyInfo.findOne({ user: companyId }).lean();
-    }
+  // 3. Fallback: Si no hay empresa activa explícita, devolver la primera empresa de ese usuario
+  if (!company) {
+    company = await CompanyInfo.findOne({ user: companyId }).lean();
+  }
 
-    return company;
+  return company;
 }
 
 // ─── GET /api/public-sgsst/company/:companyId ─────────────────────────────
 // Get public details of the company (Name, Logo, Cargos) to show in the portal
 router.get('/company/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        // Also fetch unique cargos from the workers list
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        let cargos = [];
-        if (PerfilSociodemograficoData) {
-            const perfil = await PerfilSociodemograficoData.findOne({
-                user: new mongoose.Types.ObjectId(company.user),
-                companyId: company._id
-            }).lean();
-            if (perfil?.trabajadores?.length) {
-                const set = new Set();
-                perfil.trabajadores.forEach(t => {
-                    if (t.cargo && t.cargo.trim()) set.add(t.cargo.trim());
-                });
-                cargos = [...set].sort();
-            }
-        }
-
-        return res.json({
-            companyName: company.companyName || 'Empresa Registrada',
-            nit: company.nit || '',
-            logo: company.logoBase64 || null,
-            cargos,
-        });
-    } catch (error) {
-        logger.error('[Public SGSST] Company fetch error:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
     }
-});
 
+    // Also fetch unique cargos from the workers list
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    let cargos = [];
+    if (PerfilSociodemograficoData) {
+      const perfil = await PerfilSociodemograficoData.findOne({
+        user: new mongoose.Types.ObjectId(company.user),
+        companyId: company._id,
+      }).lean();
+      if (perfil?.trabajadores?.length) {
+        const set = new Set();
+        perfil.trabajadores.forEach((t) => {
+          if (t.cargo && t.cargo.trim()) set.add(t.cargo.trim());
+        });
+        cargos = [...set].sort();
+      }
+    }
+
+    return res.json({
+      companyName: company.companyName || 'Empresa Registrada',
+      nit: company.nit || '',
+      logo: company.logoBase64 || null,
+      cargos,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] Company fetch error:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
 
 // ─── POST /api/public-sgsst/validate-worker/:companyId ─────────────────────
 // Validar tempranamente que el trabajador sí existe en el Perfil Sociodemográfico
 router.post('/validate-worker/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, nombre } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre } = req.body;
 
-        if (!cedula || !nombre) {
-            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
-        }
-
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        if (!PerfilSociodemograficoData) {
-            return res.status(500).json({ error: 'Modelo PerfilSociodemografico no encontrado' });
-        }
-
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
-            return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
-        }
-
-        const formatStr = (s) => String(s).trim().toLowerCase();
-        
-        const workerFound = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
-        if (!workerFound) {
-            return res.status(403).json({ error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.' });
-        }
-
-        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
-        const inputNameFormat = formatStr(nombre);
-        
-        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
-        if (!nameMatches && workerFound.nombre) {
-            return res.status(403).json({ error: 'El nombre ingresado no coincide con el registrado para esta cédula.' });
-        }
-
-        return res.json({ success: true, message: 'Validación exitosa' });
-    } catch (error) {
-        logger.error('[Public SGSST] Worker validation error:', error);
-        res.status(500).json({ error: 'Error al procesar la validación' });
+    if (!cedula || !nombre) {
+      return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
     }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    if (!PerfilSociodemograficoData) {
+      return res.status(500).json({ error: 'Modelo PerfilSociodemografico no encontrado' });
+    }
+
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    }).lean();
+    if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+      return res
+        .status(404)
+        .json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
+    }
+
+    const formatStr = (s) => String(s).trim().toLowerCase();
+
+    const workerFound = perfil.trabajadores.find(
+      (t) => formatStr(t.identificacion) === formatStr(cedula),
+    );
+    if (!workerFound) {
+      return res.status(403).json({
+        error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.',
+      });
+    }
+
+    const workerNameParts = formatStr(workerFound.nombre)
+      .split(' ')
+      .filter((p) => p.length > 2);
+    const inputNameFormat = formatStr(nombre);
+
+    const nameMatches = workerNameParts.some((part) => inputNameFormat.includes(part));
+    if (!nameMatches && workerFound.nombre) {
+      return res
+        .status(403)
+        .json({ error: 'El nombre ingresado no coincide con el registrado para esta cédula.' });
+    }
+
+    return res.json({ success: true, message: 'Validación exitosa' });
+  } catch (error) {
+    logger.error('[Public SGSST] Worker validation error:', error);
+    res.status(500).json({ error: 'Error al procesar la validación' });
+  }
 });
 
 // ─── POST /api/public-sgsst/reporte-acto/:companyId ───────────────────────
 // Submit a new Incident/Act report from a worker
 router.post('/reporte-acto/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, nombre, data } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre, data, esTercero } = req.body;
 
-        if (!cedula || !nombre) {
-            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para el reporte' });
-        }
-
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        const ReporteActosData = mongoose.models.ReporteActosData;
-
-        if (!PerfilSociodemograficoData || !ReporteActosData) {
-            return res.status(500).json({ error: 'Los modelos de datos no están listos' });
-        }
-
-        // 1. Validar identidad cruzada con el Perfil Sociodemográfico
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
-            return res.status(404).json({ 
-                error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' 
-            });
-        }
-
-        // Clean strings for comparison
-        const formatStr = (s) => String(s).trim().toLowerCase();
-        
-        const workerFound = perfil.trabajadores.find(t => 
-            formatStr(t.identificacion) === formatStr(cedula)
-        );
-
-        if (!workerFound) {
-            return res.status(403).json({ 
-                error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización para reportar.' 
-            });
-        }
-
-        // Match the name loosely (must contain parts of the name to verify they know it)
-        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
-        const inputNameFormat = formatStr(nombre);
-        
-        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
-        if (!nameMatches && workerFound.nombre) {
-            return res.status(403).json({ 
-                error: 'El nombre ingresado no coincide en absoluto con el registrado para esta cédula.' 
-            });
-        }
-
-        // 2. Crear el objeto para el Inbox
-        const newInboxItem = {
-            id: new mongoose.Types.ObjectId().toString(),
-            trabajador: {
-                nombre: workerFound.nombre,
-                cedula: workerFound.identificacion,
-                cargo: workerFound.cargo || 'No especificado'
-            },
-            data: data || {}, // contains descripcion, fecha, hora, fotos
-            createdAt: new Date()
-        };
-
-        // 3. Guardar en el Inbox Público de ReporteActosData
-        await ReporteActosData.findOneAndUpdate(
-            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-            { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
-
-        // ─── Crear notificación de sistema ───
-        try {
-            await Notification.create({
-                user: new mongoose.Types.ObjectId(company.user),
-                type: 'sgsst_reporte_acto',
-                title: 'Nuevo Reporte de Acto Inseguro',
-                body: `${workerFound.nombre} ha reportado un acto o condición insegura desde el portal público.`,
-                metadata: { module: 'reporte_actos', reportId: newInboxItem.id }
-            });
-        } catch (notifErr) {
-            logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
-        }
-
-        res.json({ success: true, message: 'Reporte radicado de forma exitosa y segura.' });
-
-    } catch (error) {
-        logger.error('[Public SGSST] Report submission error:', error);
-        res.status(500).json({ error: 'Error al procesar el reporte' });
+    if (!cedula || !nombre) {
+      return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para el reporte' });
     }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    const ReporteActosData = mongoose.models.ReporteActosData;
+
+    if (!PerfilSociodemograficoData || !ReporteActosData) {
+      return res.status(500).json({ error: 'Los modelos de datos no están listos' });
+    }
+
+    let workerFound = null;
+
+    if (!esTercero) {
+      // 1. Validar identidad cruzada con el Perfil Sociodemográfico
+      const perfil = await PerfilSociodemograficoData.findOne({
+        user: new mongoose.Types.ObjectId(company.user),
+        companyId: company._id,
+      }).lean();
+      if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+        return res.status(404).json({
+          error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado',
+        });
+      }
+
+      // Clean strings for comparison
+      const formatStr = (s) => String(s).trim().toLowerCase();
+
+      workerFound = perfil.trabajadores.find(
+        (t) => formatStr(t.identificacion) === formatStr(cedula),
+      );
+
+      if (!workerFound) {
+        return res.status(403).json({
+          error:
+            'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización para reportar.',
+        });
+      }
+
+      // Match the name loosely (must contain parts of the name to verify they know it)
+      const workerNameParts = formatStr(workerFound.nombre)
+        .split(' ')
+        .filter((p) => p.length > 2);
+      const inputNameFormat = formatStr(nombre);
+
+      const nameMatches = workerNameParts.some((part) => inputNameFormat.includes(part));
+      if (!nameMatches && workerFound.nombre) {
+        return res.status(403).json({
+          error: 'El nombre ingresado no coincide en absoluto con el registrado para esta cédula.',
+        });
+      }
+    }
+
+    // 2. Crear el objeto para el Inbox
+    const newInboxItem = {
+      id: new mongoose.Types.ObjectId().toString(),
+      trabajador: {
+        nombre: esTercero ? nombre : workerFound.nombre,
+        cedula: esTercero ? cedula : workerFound.identificacion,
+        cargo: esTercero ? 'Tercero / Externo' : workerFound.cargo || 'No especificado',
+      },
+      data: data || {}, // contains descripcion, fecha, hora, fotos
+      esTercero: !!esTercero,
+      createdAt: new Date(),
+    };
+
+    // 3. Guardar en el Inbox Público de ReporteActosData
+    await ReporteActosData.findOneAndUpdate(
+      { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+      { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
+      { upsert: true, new: true },
+    );
+
+    // ─── Crear notificación de sistema ───
+    try {
+      await Notification.create({
+        user: new mongoose.Types.ObjectId(company.user),
+        type: 'sgsst_reporte_acto',
+        title: 'Nuevo Reporte de Acto Inseguro',
+        body: `${esTercero ? nombre : workerFound.nombre} (${esTercero ? 'Tercero' : 'Trabajador'}) ha reportado un acto o condición insegura desde el portal público.`,
+        metadata: { module: 'reporte_actos', reportId: newInboxItem.id },
+      });
+    } catch (notifErr) {
+      logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
+    }
+
+    res.json({ success: true, message: 'Reporte radicado de forma exitosa y segura.' });
+  } catch (error) {
+    logger.error('[Public SGSST] Report submission error:', error);
+    res.status(500).json({ error: 'Error al procesar el reporte' });
+  }
 });
 
 // ─── GET /api/public-sgsst/debug-ipevar/:companyId (TEMPORAL) ───────────────────────
 router.get('/debug-ipevar/:companyId', async (req, res) => {
-    try {
-        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
-        const docs = await ParticipacionIpevarData.collection.find({}).toArray();
-        return res.json({
-            count: docs.length,
-            docs: docs.map(d => ({
-                id: d._id,
-                user: d.user,
-                userType: typeof d.user,
-                userConstructor: d.user?.constructor?.name,
-                inboxCount: d.inboxPublico?.length || 0
-            }))
-        });
-    } catch (e) {
-        return res.json({ error: e.message });
-    }
+  try {
+    const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+    const docs = await ParticipacionIpevarData.collection.find({}).toArray();
+    return res.json({
+      count: docs.length,
+      docs: docs.map((d) => ({
+        id: d._id,
+        user: d.user,
+        userType: typeof d.user,
+        userConstructor: d.user?.constructor?.name,
+        inboxCount: d.inboxPublico?.length || 0,
+      })),
+    });
+  } catch (e) {
+    return res.json({ error: e.message });
+  }
 });
 
 // ─── POST /api/public-sgsst/participacion-ipevar/:companyId ───────────────────────
 // Submit a new Participacion IPEVAR Trabajadores report from a worker
 router.post('/participacion-ipevar/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, nombre, data } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre, data } = req.body;
 
-        if (!cedula || !nombre) {
-            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para la participación' });
-        }
-
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
-
-        if (!PerfilSociodemograficoData || !ParticipacionIpevarData) {
-            return res.status(500).json({ error: 'Los modelos de datos no están listos' });
-        }
-
-        // 1. Validar identidad cruzada con el Perfil Sociodemográfico
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
-            return res.status(404).json({ 
-                error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' 
-            });
-        }
-
-        const formatStr = (s) => String(s).trim().toLowerCase();
-        
-        const workerFound = perfil.trabajadores.find(t => 
-            formatStr(t.identificacion) === formatStr(cedula)
-        );
-
-        if (!workerFound) {
-            return res.status(403).json({ 
-                error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.' 
-            });
-        }
-
-        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
-        const inputNameFormat = formatStr(nombre);
-        
-        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
-        if (!nameMatches && workerFound.nombre) {
-            return res.status(403).json({ 
-                error: 'El nombre ingresado no coincide con el registrado para esta cédula.' 
-            });
-        }
-
-        // 2. Crear el objeto para el Inbox
-        const newInboxItem = {
-            id: new mongoose.Types.ObjectId().toString(),
-            trabajador: {
-                nombre: workerFound.nombre,
-                cedula: workerFound.identificacion,
-                cargo: workerFound.cargo || 'No especificado'
-            },
-            data: data || {}, // contains foto, tarea, peligros, controlesExistentes, etc
-            createdAt: new Date()
-        };
-
-        // 3. Guardar en el Inbox Público de ParticipacionIpevarData
-        await ParticipacionIpevarData.findOneAndUpdate(
-            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-            { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
-
-        // ─── Crear notificación de sistema ───
-        try {
-            await Notification.create({
-                user: new mongoose.Types.ObjectId(company.user),
-                type: 'sgsst_participacion_ipevar',
-                title: 'Nueva Participación IPEVAR Recibida',
-                body: `${workerFound.nombre} ha enviado su identificación de peligros y participación IPEVAR.`,
-                metadata: { module: 'participacion_ipevar', reportId: newInboxItem.id }
-            });
-        } catch (notifErr) {
-            logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
-        }
-
-        res.json({ success: true, message: 'Su participación ha sido enviada exitosamente al equipo SGSST.' });
-
-    } catch (error) {
-        logger.error('[Public SGSST] Participacion IPEVAR submission error:', error);
-        res.status(500).json({ error: 'Error al procesar la participación' });
+    if (!cedula || !nombre) {
+      return res
+        .status(400)
+        .json({ error: 'Nombre y Cédula son obligatorios para la participación' });
     }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+
+    if (!PerfilSociodemograficoData || !ParticipacionIpevarData) {
+      return res.status(500).json({ error: 'Los modelos de datos no están listos' });
+    }
+
+    // 1. Validar identidad cruzada con el Perfil Sociodemográfico
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    }).lean();
+    if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+      return res.status(404).json({
+        error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado',
+      });
+    }
+
+    const formatStr = (s) => String(s).trim().toLowerCase();
+
+    const workerFound = perfil.trabajadores.find(
+      (t) => formatStr(t.identificacion) === formatStr(cedula),
+    );
+
+    if (!workerFound) {
+      return res.status(403).json({
+        error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.',
+      });
+    }
+
+    const workerNameParts = formatStr(workerFound.nombre)
+      .split(' ')
+      .filter((p) => p.length > 2);
+    const inputNameFormat = formatStr(nombre);
+
+    const nameMatches = workerNameParts.some((part) => inputNameFormat.includes(part));
+    if (!nameMatches && workerFound.nombre) {
+      return res.status(403).json({
+        error: 'El nombre ingresado no coincide con el registrado para esta cédula.',
+      });
+    }
+
+    // 2. Crear el objeto para el Inbox
+    const newInboxItem = {
+      id: new mongoose.Types.ObjectId().toString(),
+      trabajador: {
+        nombre: workerFound.nombre,
+        cedula: workerFound.identificacion,
+        cargo: workerFound.cargo || 'No especificado',
+      },
+      data: data || {}, // contains foto, tarea, peligros, controlesExistentes, etc
+      createdAt: new Date(),
+    };
+
+    // 3. Guardar en el Inbox Público de ParticipacionIpevarData
+    await ParticipacionIpevarData.findOneAndUpdate(
+      { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+      { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
+      { upsert: true, new: true },
+    );
+
+    // ─── Crear notificación de sistema ───
+    try {
+      await Notification.create({
+        user: new mongoose.Types.ObjectId(company.user),
+        type: 'sgsst_participacion_ipevar',
+        title: 'Nueva Participación IPEVAR Recibida',
+        body: `${workerFound.nombre} ha enviado su identificación de peligros y participación IPEVAR.`,
+        metadata: { module: 'participacion_ipevar', reportId: newInboxItem.id },
+      });
+    } catch (notifErr) {
+      logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Su participación ha sido enviada exitosamente al equipo SGSST.',
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] Participacion IPEVAR submission error:', error);
+    res.status(500).json({ error: 'Error al procesar la participación' });
+  }
 });
 
 // ─── POST /api/public-sgsst/investigacion-atel/testimonio/:companyId ─────────
 // Submit a new testimony from a witness for an ATEL investigation
 router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, nombre, data } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre, data } = req.body;
 
-        if (!cedula || !nombre) {
-            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
-        }
-
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
-        if (!InvestigacionAtelData) {
-            return res.status(500).json({ error: 'Modelo InvestigacionAtelData no encontrado' });
-        }
-
-        // Create the testimony object for the inbox
-        const newInboxItem = {
-            id: new mongoose.Types.ObjectId().toString(),
-            testigo: {
-                nombre,
-                cedula,
-                cargo: data.cargo || 'Testigo Externo / No especificado'
-            },
-            testimonio: data.testimonio || '',
-            media: {
-                foto1: data.foto1 || null,
-                foto2: data.foto2 || null,
-                video: data.video || null
-            },
-            createdAt: new Date(),
-            status: 'pending'
-        };
-
-        // Push to inboxTestimonios
-        await InvestigacionAtelData.findOneAndUpdate(
-            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-            { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
-
-        res.json({ success: true, message: 'Su testimonio ha sido radicado exitosamente en el sistema de investigación.' });
-
-        // ─── Crear notificación de sistema ───
-        try {
-            await Notification.create({
-                user: new mongoose.Types.ObjectId(company.user),
-                type: 'sgsst_testimonio_atel',
-                title: 'Nuevo Testimonio de Testigo',
-                body: `${nombre} ha radicado su testimonio en la investigación ATEL desde el portal público.`,
-                metadata: { module: 'investigacion_atel', reportId: newInboxItem.id }
-            });
-        } catch (notifErr) {
-            logger.warn('[Public SGSST] Could not create ATEL testimony notification:', notifErr.message);
-        }
-    } catch (error) {
-        logger.error('[Public SGSST] ATEL Testimony submission error:', error);
-        res.status(500).json({ error: 'Error al procesar el testimonio' });
+    if (!cedula || !nombre) {
+      return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
     }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
+    if (!InvestigacionAtelData) {
+      return res.status(500).json({ error: 'Modelo InvestigacionAtelData no encontrado' });
+    }
+
+    // Create the testimony object for the inbox
+    const newInboxItem = {
+      id: new mongoose.Types.ObjectId().toString(),
+      testigo: {
+        nombre,
+        cedula,
+        cargo: data.cargo || 'Testigo Externo / No especificado',
+      },
+      testimonio: data.testimonio || '',
+      media: {
+        foto1: data.foto1 || null,
+        foto2: data.foto2 || null,
+        video: data.video || null,
+      },
+      createdAt: new Date(),
+      status: 'pending',
+    };
+
+    // Push to inboxTestimonios
+    await InvestigacionAtelData.findOneAndUpdate(
+      { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+      { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
+      { upsert: true, new: true },
+    );
+
+    res.json({
+      success: true,
+      message: 'Su testimonio ha sido radicado exitosamente en el sistema de investigación.',
+    });
+
+    // ─── Crear notificación de sistema ───
+    try {
+      await Notification.create({
+        user: new mongoose.Types.ObjectId(company.user),
+        type: 'sgsst_testimonio_atel',
+        title: 'Nuevo Testimonio de Testigo',
+        body: `${nombre} ha radicado su testimonio en la investigación ATEL desde el portal público.`,
+        metadata: { module: 'investigacion_atel', reportId: newInboxItem.id },
+      });
+    } catch (notifErr) {
+      logger.warn('[Public SGSST] Could not create ATEL testimony notification:', notifErr.message);
+    }
+  } catch (error) {
+    logger.error('[Public SGSST] ATEL Testimony submission error:', error);
+    res.status(500).json({ error: 'Error al procesar el testimonio' });
+  }
 });
 
 // ─── ALTA DIRECCIÓN: HELPERS & ROUTES ───────────────────────────────────────
 
 const GERENCIA_KEYWORDS = [
-    'gerente', 'representante legal', 'director', 'presidente', 'ceo',
-    'vicepresidente', 'subgerente', 'directora', 'gerencia', 'junta directiva',
-    'copropietario', 'administrador', 'socios'
+  'gerente',
+  'representante legal',
+  'director',
+  'presidente',
+  'ceo',
+  'vicepresidente',
+  'subgerente',
+  'directora',
+  'gerencia',
+  'junta directiva',
+  'copropietario',
+  'administrador',
+  'socios',
 ];
 
 function isGerenciaRole(cargo) {
-    if (!cargo) return false;
-    const lc = cargo.toLowerCase().trim();
-    return GERENCIA_KEYWORDS.some(kw => lc.includes(kw));
+  if (!cargo) return false;
+  const lc = cargo.toLowerCase().trim();
+  return GERENCIA_KEYWORDS.some((kw) => lc.includes(kw));
 }
 
 // POST /api/public-sgsst/validate-alta-direccion/:companyId
 router.post('/validate-alta-direccion/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, nombre } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre } = req.body;
 
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        if (!PerfilSociodemograficoData) return res.status(500).json({ error: 'Modelo no encontrado' });
-
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        if (!perfil || !perfil.trabajadores) return res.status(404).json({ error: 'Empresa sin trabajadores registrados. Asegúrese de haber guardado el Perfil Sociodemográfico.' });
-
-        const worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
-        if (!worker) return res.status(403).json({ error: 'Cédula no encontrada en el sistema.' });
-
-        if (!isGerenciaRole(worker.cargo)) {
-            return res.status(403).json({ error: `Acceso denegado. Cargo: "${worker.cargo}". Solo personal de Gerencia/Dirección puede acceder a este portal.` });
-        }
-        res.json({ success: true, trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion } });
-    } catch (error) {
-        logger.error('[Public AltaDireccion] Validation error:', error);
-        res.status(500).json({ error: 'Error al validar' });
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
     }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    if (!PerfilSociodemograficoData) return res.status(500).json({ error: 'Modelo no encontrado' });
+
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    }).lean();
+    if (!perfil || !perfil.trabajadores)
+      return res.status(404).json({
+        error:
+          'Empresa sin trabajadores registrados. Asegúrese de haber guardado el Perfil Sociodemográfico.',
+      });
+
+    const worker = perfil.trabajadores.find(
+      (t) => String(t.identificacion).trim() === String(cedula).trim(),
+    );
+    if (!worker) return res.status(403).json({ error: 'Cédula no encontrada en el sistema.' });
+
+    if (!isGerenciaRole(worker.cargo)) {
+      return res.status(403).json({
+        error: `Acceso denegado. Cargo: "${worker.cargo}". Solo personal de Gerencia/Dirección puede acceder a este portal.`,
+      });
+    }
+    res.json({
+      success: true,
+      trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
+    });
+  } catch (error) {
+    logger.error('[Public AltaDireccion] Validation error:', error);
+    res.status(500).json({ error: 'Error al validar' });
+  }
 });
 
 // POST /api/public-sgsst/alta-direccion/:companyId
 router.post('/alta-direccion/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { cedula, data } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { cedula, data } = req.body;
 
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const AltaDireccionData = mongoose.models.AltaDireccionData;
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-
-        if (!AltaDireccionData || !PerfilSociodemograficoData) {
-            return res.status(500).json({ error: 'Modelos no encontrados. Asegúrese de que el sistema esté completamente cargado.' });
-        }
-
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        const worker = perfil?.trabajadores?.find(t => String(t.identificacion).trim() === String(cedula).trim());
-        if (!worker || !isGerenciaRole(worker.cargo)) return res.status(403).json({ error: 'No autorizado.' });
-
-        const newReport = {
-            id: new mongoose.Types.ObjectId().toString(),
-            trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
-            data: data,
-            status: 'pending',
-            createdAt: new Date()
-        };
-
-        await AltaDireccionData.findOneAndUpdate(
-            { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-            { $push: { inboxPublico: newReport }, $set: { updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
-
-        // ─── Crear notificación de sistema ───
-        try {
-            await Notification.create({
-                user: new mongoose.Types.ObjectId(company.user),
-                type: 'sgsst_alta_direccion',
-                title: 'Nueva Evaluación de Alta Dirección',
-                body: `${worker.nombre} (${worker.cargo}) ha enviado su revisión por la Alta Dirección desde el portal público.`,
-                metadata: { module: 'alta_direccion', reportId: newReport.id }
-            });
-        } catch (notifErr) {
-            logger.warn('[Public AltaDireccion] Could not create notification:', notifErr.message);
-        }
-
-        res.json({ success: true, message: 'Evaluación enviada correctamente. El administrador SST recibirá una notificación.' });
-    } catch (error) {
-        logger.error('[Public AltaDireccion] Submission error:', error);
-        res.status(500).json({ error: 'Error al enviar' });
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
     }
+
+    const AltaDireccionData = mongoose.models.AltaDireccionData;
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+
+    if (!AltaDireccionData || !PerfilSociodemograficoData) {
+      return res.status(500).json({
+        error: 'Modelos no encontrados. Asegúrese de que el sistema esté completamente cargado.',
+      });
+    }
+
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    }).lean();
+    const worker = perfil?.trabajadores?.find(
+      (t) => String(t.identificacion).trim() === String(cedula).trim(),
+    );
+    if (!worker || !isGerenciaRole(worker.cargo))
+      return res.status(403).json({ error: 'No autorizado.' });
+
+    const newReport = {
+      id: new mongoose.Types.ObjectId().toString(),
+      trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
+      data: data,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+
+    await AltaDireccionData.findOneAndUpdate(
+      { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+      { $push: { inboxPublico: newReport }, $set: { updatedAt: Date.now() } },
+      { upsert: true, new: true },
+    );
+
+    // ─── Crear notificación de sistema ───
+    try {
+      await Notification.create({
+        user: new mongoose.Types.ObjectId(company.user),
+        type: 'sgsst_alta_direccion',
+        title: 'Nueva Evaluación de Alta Dirección',
+        body: `${worker.nombre} (${worker.cargo}) ha enviado su revisión por la Alta Dirección desde el portal público.`,
+        metadata: { module: 'alta_direccion', reportId: newReport.id },
+      });
+    } catch (notifErr) {
+      logger.warn('[Public AltaDireccion] Could not create notification:', notifErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Evaluación enviada correctamente. El administrador SST recibirá una notificación.',
+    });
+  } catch (error) {
+    logger.error('[Public AltaDireccion] Submission error:', error);
+    res.status(500).json({ error: 'Error al enviar' });
+  }
 });
 
 // ─── GET /api/public-sgsst/perfil-update/:companyId/:workerId ──────────────
 // Fetch current worker profile data to pre-fill the self-update form
 router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
-    try {
-        const { companyId, workerId } = req.params;
-        const { cedula } = req.query;
+  try {
+    const { companyId, workerId } = req.params;
+    const { cedula } = req.query;
 
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        if (!PerfilSociodemograficoData) {
-            return res.status(500).json({ error: 'Modelo no encontrado' });
-        }
-
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
-        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
-            return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
-        }
-
-        let worker;
-        if (workerId && workerId !== 'undefined') {
-            worker = perfil.trabajadores.find(t => String(t.id) === String(workerId));
-        } else if (cedula) {
-            worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
-        }
-
-        if (!worker) {
-            return res.status(404).json({ error: 'Trabajador no encontrado o identificación incorrecta.' });
-        }
-
-        return res.json({
-            companyName: company.companyName || 'Empresa',
-            logo: company.logoBase64 || null,
-            worker: {
-                id: worker.id,
-                nombre: worker.nombre,
-                cargo: worker.cargo,
-                identificacion: worker.identificacion,
-                edad: worker.edad || '',
-                genero: worker.genero || '',
-                estadoCivil: worker.estadoCivil || '',
-                nivelEscolaridad: worker.nivelEscolaridad || '',
-                direccion: worker.direccion || '',
-                telefono: worker.telefono || '',
-                emergenciaContacto: worker.emergenciaContacto || '',
-                tipoSangre: worker.tipoSangre || '',
-                enfermedades: worker.enfermedades || '',
-                medicamentos: worker.medicamentos || '',
-                fuma: worker.fuma || '',
-                alcohol: worker.alcohol || '',
-                terapiaPsicologica: worker.terapiaPsicologica || '',
-                personasCargo: worker.personasCargo ?? '',
-                estrato: worker.estrato || '',
-                vivienda: worker.vivienda || '',
-                soatVencimiento: worker.soatVencimiento || '',
-                tecnicomecanicaVencimiento: worker.tecnicomecanicaVencimiento || '',
-                licenciaSST: worker.licenciaSST || '',
-                licenciaVencimiento: worker.licenciaVencimiento || '',
-                curso50h: worker.curso50h || '',
-                curso20h: worker.curso20h || '',
-            }
-        });
-    } catch (err) {
-        logger.error('[Public Perfil Update GET]', err);
-        res.status(500).json({ error: 'Error interno del servidor' });
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
     }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    if (!PerfilSociodemograficoData) {
+      return res.status(500).json({ error: 'Modelo no encontrado' });
+    }
+
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    }).lean();
+    if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+      return res
+        .status(404)
+        .json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
+    }
+
+    let worker;
+    if (workerId && workerId !== 'undefined') {
+      worker = perfil.trabajadores.find((t) => String(t.id) === String(workerId));
+    } else if (cedula) {
+      worker = perfil.trabajadores.find(
+        (t) => String(t.identificacion).trim() === String(cedula).trim(),
+      );
+    }
+
+    if (!worker) {
+      return res
+        .status(404)
+        .json({ error: 'Trabajador no encontrado o identificación incorrecta.' });
+    }
+
+    return res.json({
+      companyName: company.companyName || 'Empresa',
+      logo: company.logoBase64 || null,
+      worker: {
+        id: worker.id,
+        nombre: worker.nombre,
+        cargo: worker.cargo,
+        identificacion: worker.identificacion,
+        edad: worker.edad || '',
+        genero: worker.genero || '',
+        estadoCivil: worker.estadoCivil || '',
+        nivelEscolaridad: worker.nivelEscolaridad || '',
+        direccion: worker.direccion || '',
+        telefono: worker.telefono || '',
+        emergenciaContacto: worker.emergenciaContacto || '',
+        tipoSangre: worker.tipoSangre || '',
+        enfermedades: worker.enfermedades || '',
+        medicamentos: worker.medicamentos || '',
+        fuma: worker.fuma || '',
+        alcohol: worker.alcohol || '',
+        terapiaPsicologica: worker.terapiaPsicologica || '',
+        personasCargo: worker.personasCargo ?? '',
+        estrato: worker.estrato || '',
+        vivienda: worker.vivienda || '',
+        soatVencimiento: worker.soatVencimiento || '',
+        tecnicomecanicaVencimiento: worker.tecnicomecanicaVencimiento || '',
+        licenciaSST: worker.licenciaSST || '',
+        licenciaVencimiento: worker.licenciaVencimiento || '',
+        curso50h: worker.curso50h || '',
+        curso20h: worker.curso20h || '',
+      },
+    });
+  } catch (err) {
+    logger.error('[Public Perfil Update GET]', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ─── POST /api/public-sgsst/perfil-update/:companyId/:workerId ─────────────
 // Worker self-submits profile data update; stored in pending inbox for admin approval
 router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
-    try {
-        const { companyId, workerId: paramWorkerId } = req.params;
-        const { updates, cedula } = req.body;
+  try {
+    const { companyId, workerId: paramWorkerId } = req.params;
+    const { updates, cedula } = req.body;
 
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada' });
-        }
-
-        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        });
-        if (!perfil) return res.status(404).json({ error: 'Perfil sociodemográfico no encontrado para esta empresa' });
-
-        let worker;
-        if (paramWorkerId && paramWorkerId !== 'undefined') {
-            worker = (perfil.trabajadores || []).find(t => String(t.id) === String(paramWorkerId));
-        } else if (cedula) {
-            worker = (perfil.trabajadores || []).find(t => String(t.identificacion).trim() === String(cedula).trim());
-        }
-
-        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
-
-        const workerId = worker.id; // Use the real ID found
-
-        // Separate fields into Social and Health categories
-        const socialKeys = [
-            'edad', 'genero', 'estadoCivil', 'nivelEscolaridad', 'direccion', 'telefono', 
-            'emergenciaContacto', 'personasCargo', 'estrato', 'vivienda', 'soatVencimiento', 
-            'tecnicomecanicaVencimiento', 'licenciaSST', 'licenciaVencimiento', 'curso50h', 'curso20h',
-            'licenciaConduccion', 'licenciaConduccionVencimiento', 'esCopasst', 'esComiteConvivencia', 
-            'esBrigadista', 'esComiteSeguridadVial', 'fechaNacimiento', 'lugarNacimiento', 
-            'barrio', 'municipioDomicilio', 'correoElectronico'
-        ];
-        const healthKeys = [
-            'tipoSangre', 'rh', 'enfermedades', 'medicamentos', 'fuma', 'alcohol', 'terapiaPsicologica',
-            'deporte', 'alimentacion', 'peso', 'talla', 'imc', 'presionArterial', 'frecuenciaCardiaca', 
-            'diagnosticoMedico', 'limitacionesBiomecanicas', 'alergiasQuimicas', 'riesgoCardiovascular'
-        ];
-
-        const socialUpdates = {};
-        const healthUpdates = {};
-
-        for (const [key, value] of Object.entries(updates)) {
-            if (socialKeys.includes(key)) socialUpdates[key] = value;
-            if (healthKeys.includes(key)) healthUpdates[key] = value;
-        }
-
-        // Store in the corresponding pending inboxes
-        if (Object.keys(socialUpdates).length > 0) {
-            if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
-            perfil.actualizacionesPendientes.push({
-                id: new mongoose.Types.ObjectId().toString(),
-                workerId,
-                workerName: worker.nombre, // Standardized key
-                workerCargo: worker.cargo,
-                changes: socialUpdates,    // Social changes only
-                status: 'pending',
-                createdAt: new Date()
-            });
-        }
-        
-        if (Object.keys(healthUpdates).length > 0) {
-            if (!perfil.actualizacionesPendientesSalud) perfil.actualizacionesPendientesSalud = [];
-            perfil.actualizacionesPendientesSalud.push({
-                id: new mongoose.Types.ObjectId().toString(),
-                workerId,
-                workerName: worker.nombre, // Standardized key
-                workerCargo: worker.cargo,
-                changes: healthUpdates,    // Health changes only
-                status: 'pending',
-                createdAt: new Date()
-            });
-        }
-
-        await perfil.save();
-
-        // Notify admin
-        try {
-            const Notif = require('~/models/Notification');
-            await Notif.create({
-                user: new mongoose.Types.ObjectId(company.user),
-                type: 'sgsst_perfil_update',
-                title: 'Actualización de Perfil Recibida',
-                body: `${worker.nombre} ha solicitado actualizar su perfil sociodemográfico.`,
-                metadata: { module: 'perfil_sociodemografico', workerId }
-            });
-        } catch (notifErr) {
-            logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
-        }
-
-        res.json({ success: true });
-    } catch (err) {
-        logger.error('[Public Perfil Update POST]', err);
-        res.status(500).json({ error: 'Error al enviar actualización' });
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
     }
+
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+    const perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      companyId: company._id,
+    });
+    if (!perfil)
+      return res
+        .status(404)
+        .json({ error: 'Perfil sociodemográfico no encontrado para esta empresa' });
+
+    let worker;
+    if (paramWorkerId && paramWorkerId !== 'undefined') {
+      worker = (perfil.trabajadores || []).find((t) => String(t.id) === String(paramWorkerId));
+    } else if (cedula) {
+      worker = (perfil.trabajadores || []).find(
+        (t) => String(t.identificacion).trim() === String(cedula).trim(),
+      );
+    }
+
+    if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+    const workerId = worker.id; // Use the real ID found
+
+    // Separate fields into Social and Health categories
+    const socialKeys = [
+      'edad',
+      'genero',
+      'estadoCivil',
+      'nivelEscolaridad',
+      'direccion',
+      'telefono',
+      'emergenciaContacto',
+      'personasCargo',
+      'estrato',
+      'vivienda',
+      'soatVencimiento',
+      'tecnicomecanicaVencimiento',
+      'licenciaSST',
+      'licenciaVencimiento',
+      'curso50h',
+      'curso20h',
+      'licenciaConduccion',
+      'licenciaConduccionVencimiento',
+      'esCopasst',
+      'esComiteConvivencia',
+      'esBrigadista',
+      'esComiteSeguridadVial',
+      'fechaNacimiento',
+      'lugarNacimiento',
+      'barrio',
+      'municipioDomicilio',
+      'correoElectronico',
+    ];
+    const healthKeys = [
+      'tipoSangre',
+      'rh',
+      'enfermedades',
+      'medicamentos',
+      'fuma',
+      'alcohol',
+      'terapiaPsicologica',
+      'deporte',
+      'alimentacion',
+      'peso',
+      'talla',
+      'imc',
+      'presionArterial',
+      'frecuenciaCardiaca',
+      'diagnosticoMedico',
+      'limitacionesBiomecanicas',
+      'alergiasQuimicas',
+      'riesgoCardiovascular',
+    ];
+
+    const socialUpdates = {};
+    const healthUpdates = {};
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (socialKeys.includes(key)) socialUpdates[key] = value;
+      if (healthKeys.includes(key)) healthUpdates[key] = value;
+    }
+
+    // Store in the corresponding pending inboxes
+    if (Object.keys(socialUpdates).length > 0) {
+      if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
+      perfil.actualizacionesPendientes.push({
+        id: new mongoose.Types.ObjectId().toString(),
+        workerId,
+        workerName: worker.nombre, // Standardized key
+        workerCargo: worker.cargo,
+        changes: socialUpdates, // Social changes only
+        status: 'pending',
+        createdAt: new Date(),
+      });
+    }
+
+    if (Object.keys(healthUpdates).length > 0) {
+      if (!perfil.actualizacionesPendientesSalud) perfil.actualizacionesPendientesSalud = [];
+      perfil.actualizacionesPendientesSalud.push({
+        id: new mongoose.Types.ObjectId().toString(),
+        workerId,
+        workerName: worker.nombre, // Standardized key
+        workerCargo: worker.cargo,
+        changes: healthUpdates, // Health changes only
+        status: 'pending',
+        createdAt: new Date(),
+      });
+    }
+
+    await perfil.save();
+
+    // Notify admin
+    try {
+      const Notif = require('~/models/Notification');
+      await Notif.create({
+        user: new mongoose.Types.ObjectId(company.user),
+        type: 'sgsst_perfil_update',
+        title: 'Actualización de Perfil Recibida',
+        body: `${worker.nombre} ha solicitado actualizar su perfil sociodemográfico.`,
+        metadata: { module: 'perfil_sociodemografico', workerId },
+      });
+    } catch (notifErr) {
+      logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('[Public Perfil Update POST]', err);
+    res.status(500).json({ error: 'Error al enviar actualización' });
+  }
 });
 
 // ─── TERMÓMETRO PSICOSOCIAL (MOOD TELEMETRY) ──────────────────────────────────
@@ -684,97 +785,95 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
 // POST /api/public-sgsst/mood/:companyId
 // Registra de forma anónima la respuesta inicial del estado de ánimo del trabajador
 router.post('/mood/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { mood, department } = req.body;
+  try {
+    const { companyId } = req.params;
+    const { mood, department } = req.body;
 
-        if (!mood || !['happy', 'neutral', 'sad'].includes(mood)) {
-            return res.status(400).json({ error: 'Estado de ánimo inválido o ausente.' });
-        }
-
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada.' });
-        }
-
-        const MoodTelemetry = require('~/models/MoodTelemetry');
-        const telemetry = new MoodTelemetry({
-            companyId: company._id,
-            mood,
-            department: department || '',
-        });
-
-        await telemetry.save();
-        return res.json({ success: true, telemetryId: telemetry._id });
-    } catch (error) {
-        logger.error('[Public SGSST] Mood telemetry error:', error);
-        res.status(500).json({ error: 'Error al registrar estado de ánimo.' });
+    if (!mood || !['happy', 'neutral', 'sad'].includes(mood)) {
+      return res.status(400).json({ error: 'Estado de ánimo inválido o ausente.' });
     }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    const MoodTelemetry = require('~/models/MoodTelemetry');
+    const telemetry = new MoodTelemetry({
+      companyId: company._id,
+      mood,
+      department: department || '',
+    });
+
+    await telemetry.save();
+    return res.json({ success: true, telemetryId: telemetry._id });
+  } catch (error) {
+    logger.error('[Public SGSST] Mood telemetry error:', error);
+    res.status(500).json({ error: 'Error al registrar estado de ánimo.' });
+  }
 });
 
 // POST /api/public-sgsst/mood/update/:telemetryId
 // Actualiza la telemetría agregando los estresores detectados y resumen de la conversación
 router.post('/mood/update/:telemetryId', async (req, res) => {
-    try {
-        const { telemetryId } = req.params;
-        const { stressors, details } = req.body;
+  try {
+    const { telemetryId } = req.params;
+    const { stressors, details } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(telemetryId)) {
-            return res.status(400).json({ error: 'ID de telemetría inválido.' });
-        }
-
-        const MoodTelemetry = require('~/models/MoodTelemetry');
-        await MoodTelemetry.findByIdAndUpdate(
-            telemetryId,
-            { $set: { stressors: stressors || [], details: details || '' } }
-        );
-
-        return res.json({ success: true });
-    } catch (error) {
-        logger.error('[Public SGSST] Mood update error:', error);
-        res.status(500).json({ error: 'Error al actualizar telemetría.' });
+    if (!mongoose.Types.ObjectId.isValid(telemetryId)) {
+      return res.status(400).json({ error: 'ID de telemetría inválido.' });
     }
+
+    const MoodTelemetry = require('~/models/MoodTelemetry');
+    await MoodTelemetry.findByIdAndUpdate(telemetryId, {
+      $set: { stressors: stressors || [], details: details || '' },
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('[Public SGSST] Mood update error:', error);
+    res.status(500).json({ error: 'Error al actualizar telemetría.' });
+  }
 });
 
 // POST /api/public-sgsst/mood/chat/:companyId
 // Genera un token JWT temporal y anónimo para hablar con el Agente Psicólogo
 router.post('/mood/chat/:companyId', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const company = await resolveActiveCompany(companyId);
-        if (!company) {
-            return res.status(404).json({ error: 'Empresa no encontrada.' });
-        }
-
-        const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
-        // Buscar al especialista en riesgo psicosocial
-        const agent = await Agent.findOne({ name: /Psicosocial/i });
-        if (!agent) {
-            return res.status(404).json({ error: 'El Agente "Especialista en Riesgo Psicosocial" no está configurado.' });
-        }
-
-        // Firmar un token temporal con los privilegios del administrador de la empresa (pero restringido a 1 hora)
-        const jwt = require('jsonwebtoken');
-        const token = jwt.sign(
-            { id: company.user.toString() },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        const crypto = require('crypto');
-        const conversationId = crypto.randomUUID();
-
-        return res.json({
-            success: true,
-            token,
-            agentId: agent.id || agent._id.toString(),
-            conversationId
-        });
-    } catch (error) {
-        logger.error('[Public SGSST] Mood chat generation error:', error);
-        res.status(500).json({ error: 'Error al generar sesión de chat.' });
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
     }
+
+    const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
+    // Buscar al especialista en riesgo psicosocial
+    const agent = await Agent.findOne({ name: /Psicosocial/i });
+    if (!agent) {
+      return res
+        .status(404)
+        .json({ error: 'El Agente "Especialista en Riesgo Psicosocial" no está configurado.' });
+    }
+
+    // Firmar un token temporal con los privilegios del administrador de la empresa (pero restringido a 1 hora)
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: company.user.toString() }, process.env.JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    const crypto = require('crypto');
+    const conversationId = crypto.randomUUID();
+
+    return res.json({
+      success: true,
+      token,
+      agentId: agent.id || agent._id.toString(),
+      conversationId,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] Mood chat generation error:', error);
+    res.status(500).json({ error: 'Error al generar sesión de chat.' });
+  }
 });
 
 module.exports = router;
-

@@ -204,7 +204,7 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
         // 2. WEB SEARCH - SearXNG Integration
         let webContext = '';
         try {
-            const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy-ia.com/search';
+            const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
             const searchQuery = `"${ticket.type}" ${ticket.description.substring(0, 80)} normatividad SST Colombia`;
 
             const searchResponse = await axios.get(searxngUrl, {

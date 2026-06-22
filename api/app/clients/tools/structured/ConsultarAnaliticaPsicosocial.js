@@ -147,7 +147,8 @@ class ConsultarAnaliticaPsicosocial extends Tool {
           const maxHistory = isPro ? 20 : 5;
 
           if (canvasSession) {
-            const nextVersion = canvasSession.version + 1;
+            const maxHistoryVersion = (canvasSession.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+            const nextVersion = Math.max(maxHistoryVersion, canvasSession.version || 0) + 1;
             canvasSession.content = JSON.stringify(resultObj);
             canvasSession.title = 'Termómetro Psicosocial';
             canvasSession.fileType = 'animo';

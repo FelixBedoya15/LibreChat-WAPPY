@@ -124,6 +124,61 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 });
 
 
+// DELETE clear all temporary sessions for a user
+router.delete('/clear-temp-sessions', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const tempId = `temp-${userId}`;
+
+    logger.info(`[GTC45Workspace DELETE] Clearing temporary sessions for user ${userId}`);
+
+    // Delete GTC45 Workspace Session
+    await GTC45WorkspaceSession.deleteOne({ conversationId: tempId, user: userId, companyId });
+
+    // Delete PESV Workspace Session
+    try {
+      const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
+      await PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId, companyId });
+    } catch (e) {
+      logger.error('[GTC45Workspace DELETE clear-temp-sessions] PESV error:', e);
+    }
+
+    // Delete Chemical Compatibility Session
+    try {
+      const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
+      await ChemicalCompatibilitySession.deleteOne({ conversationId: tempId, user: userId, companyId });
+    } catch (e) {
+      logger.error('[GTC45Workspace DELETE clear-temp-sessions] Chemical error:', e);
+    }
+
+    // Delete Live Editor Session
+    try {
+      const LiveEditorSession = require('~/models/LiveEditorSession');
+      await LiveEditorSession.deleteOne({ conversationId: tempId, user: userId, companyId });
+    } catch (e) {
+      logger.error('[GTC45Workspace DELETE clear-temp-sessions] LiveEditor error:', e);
+    }
+
+    // Delete Canvas Session
+    try {
+      const CanvasSession = require('~/models/CanvasSession');
+      await CanvasSession.deleteMany({ conversationId: tempId });
+    } catch (e) {
+      logger.error('[GTC45Workspace DELETE clear-temp-sessions] Canvas error:', e);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[GTC45Workspace DELETE clear-temp-sessions] General error:', error);
+    res.status(500).json({ error: 'Failed to clear temporary sessions' });
+  }
+});
+
+
+
+
+
 // ─── IA: Actualizar una fila con IA (contexto = solo esa fila) ─────────────────
 router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
   try {

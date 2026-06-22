@@ -207,34 +207,34 @@ Si encuentras fallas o algo en pantalla produce error (Ej: un cartel rojo):
 4. Detalla profundamente y relata la ruta (dónde estabas presionando cuando te salió). ¡El staff tecnológico WAPPY responderá y tu "Campanita 🔔" de notificaciones en el tope de pantalla brillará alertándote el cierre del asunto!
 
 **📞 Canales de Atención Adicionales:**
-*   **Correo Electrónico:** Si requieres información comercial, envíanos un mail a `info@wappy-ia.com`.
+*   **Correo Electrónico:** Si requieres información comercial, envíanos un mail a `info@wappy.club`.
 *   **WhatsApp de Soporte/Ventas:** Escríbenos directamente al [3021268625](https://wa.me/573021268625) para recibir atención personalizada rápida.
 
 links de acceso:
 
 1. Aplicación y Funciones de IA
 
-Nuevo Chat: https://wappy-ia.com/c/new
+Nuevo Chat: https://wappy.club/c/new
 
-Análisis en Vivo: https://wappy-ia.com/live
+Análisis en Vivo: https://wappy.club/live
 
-Búsqueda Global: https://wappy-ia.com/search
+Búsqueda Global: https://wappy.club/search
 
-Mercado de Agentes: https://wappy-ia.com/agents
+Mercado de Agentes: https://wappy.club/agents
 
-Prompts de Usuario: https://wappy-ia.com/d/prompts
+Prompts de Usuario: https://wappy.club/d/prompts
 
 2. Gestión Estratégica SGSST (Interno)
 
-Dashboard Principal: https://wappy-ia.com/sgsst
+Dashboard Principal: https://wappy.club/sgsst
 
-Fase 1: Planear: https://wappy-ia.com/sgsst?phase=plan
+Fase 1: Planear: https://wappy.club/sgsst?phase=plan
 
-Fase 2: Hacer: https://wappy-ia.com/sgsst?phase=do
+Fase 2: Hacer: https://wappy.club/sgsst?phase=do
 
-Fase 3: Verificar: https://wappy-ia.com/sgsst?phase=check
+Fase 3: Verificar: https://wappy.club/sgsst?phase=check
 
-Fase 4: Actuar: https://wappy-ia.com/sgsst?phase=act
+Fase 4: Actuar: https://wappy.club/sgsst?phase=act
 
 4. Educación y Contenidos
 

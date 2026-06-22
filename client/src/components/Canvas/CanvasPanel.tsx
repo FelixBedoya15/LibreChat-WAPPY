@@ -44,6 +44,41 @@ import { useChatContext } from '~/Providers';
 import { useQueryClient } from '@tanstack/react-query';
 import { QueryKeys } from 'librechat-data-provider';
 
+const detectFileType = (content: any, defaultType = 'text') => {
+  if (!content) return defaultType;
+  if (Array.isArray(content)) {
+    if (content.length === 0) return defaultType;
+    if (Array.isArray(content[0])) return 'excel';
+    if (typeof content[0] === 'object') return 'presentation';
+    return defaultType;
+  }
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 0) return defaultType;
+          if (Array.isArray(parsed[0])) return 'excel';
+          if (typeof parsed[0] === 'object') return 'presentation';
+        }
+      } catch (e) {}
+    } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.estadoAnimo || parsed.totalMuestras) return 'animo';
+          if (parsed.preliminarClasificacion || parsed.totalReportesBuzon) return 'actos_condiciones';
+        }
+      } catch (e) {}
+    }
+    if (trimmed.toLowerCase().includes('<!doctype html>') || trimmed.toLowerCase().includes('<html')) {
+      return 'html';
+    }
+  }
+  return defaultType;
+};
+
 const DEFAULT_SIGNATURE_BLOCK = `
 <div style="margin-top:60px; page-break-inside:avoid;">
   <table style="width:100%; border-collapse:collapse;">
@@ -1529,7 +1564,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {history.map((hItem, idx) => {
                       const isCurrent = hItem.version === version;
-                      const itemFileType = hItem.fileType || fileType || 'text';
+                      const itemFileType = hItem.fileType || detectFileType(hItem.content) || fileType || 'text';
 
                       const renderTypeBadge = () => {
                         switch (itemFileType) {

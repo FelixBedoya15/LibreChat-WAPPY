@@ -127,7 +127,7 @@ const createCheckoutSession = async (req, res) => {
             customerId = customer.id;
         }
 
-        const origin = process.env.DOMAIN_CLIENT || `https://wappy-ia.com`;
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.club`;
 
         const sessionConfig = {
             mode: 'subscription',
@@ -175,7 +175,7 @@ const createPortalSession = async (req, res) => {
             return res.status(400).json({ error: 'No tienes una suscripción activa' });
         }
 
-        const origin = process.env.DOMAIN_CLIENT || `https://wappy-ia.com`;
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.club`;
 
         const session = await getStripe().billingPortal.sessions.create({
             customer: userPlan.stripeCustomerId,

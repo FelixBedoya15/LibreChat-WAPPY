@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { KeyRound, AlertTriangle, ExternalLink, X, GraduationCap } from 'lucide-react';
 
-const TRAINING_URL = 'https://wappy-ia.com/training/69a5efb4780d73647a1961fe';
+const TRAINING_URL = 'https://wappy.club/training/69a5efb4780d73647a1961fe';
 
 interface ApiKeyErrorModalProps {
   isOpen: boolean;
