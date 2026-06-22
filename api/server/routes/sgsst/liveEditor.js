@@ -186,8 +186,7 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
 router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const companyId = await getActiveCompanyId(req.user.id);
-    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id, companyId: companyId });
+    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id });
 
     // También eliminamos la sesión de Canvas de tipo 'text' si corresponde
     const CanvasSession = require('~/models/CanvasSession');

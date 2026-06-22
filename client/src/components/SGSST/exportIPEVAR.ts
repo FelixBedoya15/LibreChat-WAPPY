@@ -95,7 +95,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Slate 900
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -162,7 +162,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const startCard1 = dashRow;
 
   aceptabilidades.forEach((ac, idx) => {
-    addCardRow(dashRow, ac.name, getInteractiveFormula('R', ac.name), idx === aceptabilidades.length - 1, ac.color);
+    addCardRow(dashRow, ac.name, getInteractiveFormula('S', ac.name), idx === aceptabilidades.length - 1, ac.color);
     dashRow++;
   });
 
