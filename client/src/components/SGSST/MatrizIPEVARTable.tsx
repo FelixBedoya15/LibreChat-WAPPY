@@ -768,8 +768,8 @@ export default function MatrizIPEVARTable({
             // (Do NOT trim based on index position to avoid cutting valid columns)
             const rawHeaders = rawRows[headerRowIdx];
             let lastHeaderIdx = rawHeaders.length - 1;
-            // Only trim trailing cells that are null/undefined/empty string (not valid content)
-            while (lastHeaderIdx >= 0 && (rawHeaders[lastHeaderIdx] === null || rawHeaders[lastHeaderIdx] === undefined || String(rawHeaders[lastHeaderIdx] || '').trim() === '')) {
+            // Only trim trailing cells that are null/undefined/empty string (not valid content) or beyond column 60
+            while (lastHeaderIdx >= 0 && (rawHeaders[lastHeaderIdx] === null || rawHeaders[lastHeaderIdx] === undefined || String(rawHeaders[lastHeaderIdx] || '').trim() === '' || lastHeaderIdx > 60)) {
               lastHeaderIdx--;
             }
             const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
