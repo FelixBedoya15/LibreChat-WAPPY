@@ -602,7 +602,7 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     const cleanedRows = cleanRawRows(rawRows);
 
-    const CHUNK_SIZE = 20;
+    const CHUNK_SIZE = 35;
     const chunks = [];
     for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
       chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
@@ -611,15 +611,7 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     logger.info(`[GTC45/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks`);
 
-    const combinedRows = [];
-
-    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
-      const chunk = chunks[chunkIdx];
-      if (chunkIdx > 0) {
-        // Pausa de 1500ms para evitar saturación de tasa (rate limits) en el API de Gemini
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-
+    const promises = chunks.map(async (chunk, chunkIdx) => {
       logger.info(`[GTC45/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
 
       const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
@@ -683,7 +675,7 @@ ${JSON.stringify(chunk, null, 2)}
         }
       }
 
-      const mappedChunk = parsed.map(row => {
+      return parsed.map(row => {
         const ndVal = Number(row.nd) || 0;
         const neVal = Number(row.ne) || 0;
         const npVal = ndVal * neVal;
@@ -744,9 +736,10 @@ ${JSON.stringify(chunk, null, 2)}
           id: Date.now().toString() + Math.random().toString(36).substring(7)
         };
       });
+    });
 
-      combinedRows.push(...mappedChunk);
-    }
+    const results = await Promise.all(promises);
+    const combinedRows = results.flat();
 
     logger.info(`[GTC45/ai-parse-matrix] Successfully mapped ${combinedRows.length} rows for user ${userId}`);
     return res.json({ matrixRows: combinedRows });

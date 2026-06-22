@@ -488,22 +488,16 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     const cleanedRows = cleanRawRows(rawRows);
 
-    const CHUNK_SIZE = 20;
+    const CHUNK_SIZE = 35;
     const chunks = [];
     for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
       chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
     }
 
-    const parsedRows = [];
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
+    logger.info(`[ChemicalCompatibility/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks`);
 
-    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
-      const chunk = chunks[chunkIdx];
-      if (chunkIdx > 0) {
-        // Pausa de 1500ms para evitar saturación de tasa (rate limits) en el API de Gemini
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-
+    const promises = chunks.map(async (chunk, chunkIdx) => {
       logger.info(`[ChemicalCompatibility/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
 
       const prompt = `Eres un procesador de datos experto en Higiene y Seguridad Química.
@@ -538,12 +532,17 @@ REGLAS EXTREMAS:
       try {
         const rows = JSON.parse(text);
         if (Array.isArray(rows)) {
-          parsedRows.push(...rows);
+          return rows;
         }
+        return [];
       } catch (err) {
         logger.error('[ChemicalCompatibility/ai-parse-matrix] Chunk parse error:', err.message);
+        return [];
       }
-    }
+    });
+
+    const results = await Promise.all(promises);
+    const parsedRows = results.flat();
 
     // Agregar IDs únicos a los productos importados
     const finalizedRows = parsedRows.map(row => ({

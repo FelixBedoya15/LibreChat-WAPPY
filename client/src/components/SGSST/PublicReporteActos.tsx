@@ -95,8 +95,6 @@ export default function PublicReporteActos() {
   const [foto1Desc, setFoto1Desc] = useState('');
   const [foto2Desc, setFoto2Desc] = useState('');
   const [foto3Desc, setFoto3Desc] = useState('');
-  const [video, setVideo] = useState<string | null>(null);
-  const [isVideoUploading, setIsVideoUploading] = useState(false);
 
   // To handle which image is currently being uploaded
   const [activePhotoField, setActivePhotoField] = useState<'foto1' | 'foto2' | 'foto3'>('foto1');
@@ -143,45 +141,7 @@ export default function PublicReporteActos() {
     }
   };
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    if (file.size > 20 * 1024 * 1024) {
-      alert('El video es demasiado pesado. Máximo 20MB.');
-      return;
-    }
-
-    setIsVideoUploading(true);
-    const videoElement = document.createElement('video');
-    videoElement.preload = 'metadata';
-
-    videoElement.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(videoElement.src);
-      if (videoElement.duration > 10.5) {
-        alert('El video excede los 10 segundos permitidos.');
-        setIsVideoUploading(false);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (readerEvent) => {
-        setVideo(readerEvent.target?.result as string);
-        setIsVideoUploading(false);
-      };
-      reader.onerror = () => setIsVideoUploading(false);
-      reader.readAsDataURL(file);
-    };
-
-    videoElement.onerror = () => {
-      alert('Error al procesar el video.');
-      setIsVideoUploading(false);
-    };
-
-    videoElement.src = URL.createObjectURL(file);
-  };
-
-  const removeVideo = () => setVideo(null);
 
   const validateIdentity = async () => {
     if (!nombre.trim() || !cedula.trim()) {
@@ -220,9 +180,9 @@ export default function PublicReporteActos() {
   };
 
   const handleSubmit = async () => {
-    if (!foto1 && !foto2 && !foto3 && !video) {
+    if (!foto1 && !foto2 && !foto3) {
       const confirmNoMedia = window.confirm(
-        '¿Está seguro de enviar el reporte sin evidencia (fotos o video)? (Es altamente recomendable adjuntar evidencia visual).',
+        '¿Está seguro de enviar el reporte sin evidencia (fotos)? (Es altamente recomendable adjuntar evidencia visual).',
       );
       if (!confirmNoMedia) return;
     }
@@ -243,7 +203,6 @@ export default function PublicReporteActos() {
           foto1,
           foto2,
           foto3,
-          video,
           foto1Desc,
           foto2Desc,
           foto3Desc,
@@ -590,65 +549,8 @@ export default function PublicReporteActos() {
                   onChange={handleImageUpload}
                 />
 
-                {/* Video Upload */}
-                <div className="mt-4 w-full">
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      Evidencia en Video (Opcional)
-                    </label>
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700">
-                      Máximo 10s
-                    </span>
-                  </div>
-
-                  <div className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/10 p-4 transition-all">
-                    {!video ? (
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-500">
-                          {isVideoUploading ? (
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                          ) : (
-                            <Video className="h-6 w-6" />
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-semibold text-gray-700">
-                            Muestra el peligro en movimiento
-                          </p>
-                        </div>
-                        <label className="cursor-pointer rounded-xl bg-orange-600 px-5 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-orange-700 active:scale-95">
-                          {isVideoUploading ? 'Procesando...' : 'Grabar / Subir Video'}
-                          <input
-                            type="file"
-                            accept="video/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={handleVideoUpload}
-                            disabled={isVideoUploading}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="relative aspect-video w-full overflow-hidden rounded-xl border-2 border-orange-400 bg-black shadow-lg">
-                          <video src={video} controls className="h-full w-full" />
-                          <button
-                            onClick={removeVideo}
-                            className="absolute right-2 top-2 z-10 rounded-full bg-red-600 p-1.5 text-white shadow-lg transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <p className="text-center text-[10px] font-medium italic text-orange-600">
-                          Evidencia de video lista para análisis
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <p className="mt-2 text-center text-[10px] leading-tight text-gray-400">
-                  Podrás subir fotos y video para brindar un reporte completo del hallazgo.
+                  Podrás subir fotos para brindar un reporte completo del hallazgo.
                 </p>
               </div>
 
@@ -706,7 +608,6 @@ export default function PublicReporteActos() {
                   setFoto1('');
                   setFoto2('');
                   setFoto3('');
-                  setVideo(null);
                   setFoto1Desc('');
                   setFoto2Desc('');
                   setFoto3Desc('');
