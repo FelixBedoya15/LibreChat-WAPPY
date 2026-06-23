@@ -6,7 +6,8 @@ import { formatDateForInput } from '~/utils/dateHelpers';
 import axios from 'axios';
 import { 
     Award, Users, DollarSign, Landmark, Shield, 
-    Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare
+    Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare,
+    Building2
 } from 'lucide-react';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {
@@ -25,7 +26,10 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         inactiveAt: '',
         activeAt: '',
         phoneNumber: '',
+        companyLimit: '' as any,
     });
+
+    const [createdCompaniesCount, setCreatedCompaniesCount] = useState<number>(0);
 
     // Referral details from backend
     const [loadingReferrals, setLoadingReferrals] = useState(false);
@@ -56,7 +60,9 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 inactiveAt: formatDateForInput(user.inactiveAt),
                 activeAt: formatDateForInput(user.activeAt),
                 phoneNumber: user.phoneNumber || '',
+                companyLimit: '',
             });
+            setCreatedCompaniesCount(0);
 
             // Reset tab and adjustments
             setActiveTab('account');
@@ -69,6 +75,14 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                     const response = await axios.get(`/api/admin/users/${user._id}/referral-details`);
                     setReferralDetails(response.data);
                     
+                    setFormData(prev => ({
+                        ...prev,
+                        companyLimit: response.data.companyLimit !== null && response.data.companyLimit !== undefined 
+                            ? response.data.companyLimit 
+                            : '',
+                    }));
+                    setCreatedCompaniesCount(response.data.createdCompaniesCount || 0);
+
                     if (response.data.partner) {
                         setCommercialTier(response.data.partner.type || 'partner');
                         setPartnerSlug(response.data.partner.slug || '');
@@ -120,7 +134,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 partnerSlug: commercialTier !== 'none' ? partnerSlug : '',
                 partnerPaymentDetails: commercialTier !== 'none' ? partnerPaymentDetails : '',
                 partnerSupportContact: commercialTier === 'embajador' ? partnerSupportContact : '',
-                pointsAdjustment: pointsAdjustment
+                pointsAdjustment: pointsAdjustment,
+                companyLimit: formData.companyLimit === '' ? null : formData.companyLimit
             };
             if (!payload.password) delete payload.password; // TypeScript safe with typing as 'any'
 
@@ -313,6 +328,34 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     name="inactiveAt"
                                                     value={formData.inactiveAt}
                                                     onChange={handleChange}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Building2 className="w-3.5 h-3.5" /> Empresas Creadas
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={createdCompaniesCount}
+                                                    disabled={true}
+                                                    readOnly={true}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 px-4 py-2.5 text-xs text-text-primary outline-none opacity-80 cursor-not-allowed"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Building2 className="w-3.5 h-3.5" /> Límite de Empresas
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="companyLimit"
+                                                    value={formData.companyLimit}
+                                                    onChange={handleChange}
+                                                    placeholder="Por defecto del plan"
+                                                    min={0}
                                                     className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
                                                 />
                                             </div>

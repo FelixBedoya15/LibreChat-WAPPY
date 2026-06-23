@@ -72,11 +72,12 @@ const updateUser = async (req, res) => {
     try {
         const { 
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
-            commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment 
+            commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
+            companyLimit
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment 
+            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit
         });
 
         const updateData = {};
@@ -148,6 +149,17 @@ const updateUser = async (req, res) => {
                 type: 'admin_adjustment',
                 description: `Ajuste manual del administrador: ${pointsAdjustment > 0 ? '+' : ''}${pointsAdjustment} pts`
             });
+        }
+
+        // --- Handle Company Limit ---
+        if (companyLimit !== undefined) {
+            const UserPlan = require('~/db/models/UserPlan');
+            const parsedLimit = companyLimit === '' || companyLimit === null ? null : parseInt(companyLimit, 10);
+            await UserPlan.findOneAndUpdate(
+                { userId },
+                { companyLimit: parsedLimit },
+                { upsert: true, new: true }
+            );
         }
 
         res.status(200).json({ message: 'User updated successfully', user });
@@ -341,12 +353,22 @@ const getUserReferralDetails = async (req, res) => {
             // Fetch payout requests
             payoutRequests = await PayoutRequest.find({ partnerId }).sort({ createdAt: -1 }).lean();
         }
+        // 4. Fetch company limits and created companies count
+        const UserPlan = require('~/db/models/UserPlan');
+        const CompanyInfo = require('~/models/CompanyInfo');
+
+        const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+        const companyLimit = userPlanDoc ? userPlanDoc.companyLimit : null;
+
+        const createdCompaniesCount = await CompanyInfo.countDocuments({ user: userId });
 
         return res.json({
             pointsBalance,
             partner,
             commissionsStats,
-            payoutRequests
+            payoutRequests,
+            companyLimit,
+            createdCompaniesCount
         });
     } catch (err) {
         logger.error('[getUserReferralDetails] Error:', err);
