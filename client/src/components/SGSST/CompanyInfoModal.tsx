@@ -5,7 +5,7 @@ import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
     Award, Calendar, UserCheck, Image as ImageIcon,
-    Plus, Trash2, CheckCircle
+    Plus, Trash2, CheckCircle, Lock
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
@@ -114,13 +114,78 @@ interface CompanyInfoModalProps {
 
 const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) => {
     const { t } = useTranslation();
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
     const [companies, setCompanies] = useState<CompanyInfoData[]>([]);
     const [data, setData] = useState<CompanyInfoData>(INITIAL_DATA);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
+
+    const [companyLimit, setCompanyLimit] = useState<number>(1);
+    const [userPlanName, setUserPlanName] = useState<string>('free');
+    const [upgradeAlert, setUpgradeAlert] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        actionText: string;
+        actionUrl: string;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        actionText: '',
+        actionUrl: ''
+    });
+
+    const loadPlanLimit = useCallback(async () => {
+        if (!token) return;
+        try {
+            const res = await fetch('/api/wompi/plan', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const planData = await res.json();
+            if (planData) {
+                if (typeof planData.companyLimit === 'number') {
+                    setCompanyLimit(planData.companyLimit);
+                }
+                if (planData.plan) {
+                    setUserPlanName(planData.plan);
+                }
+            }
+        } catch (err) {
+            console.error('Error loading plan limit:', err);
+        }
+    }, [token]);
+
+    const isLegacyUser = React.useMemo(() => {
+        return user?.createdAt ? new Date(user.createdAt) < new Date('2026-06-23T13:00:00-05:00') : false;
+    }, [user?.createdAt]);
+
+    const effectiveLimit = React.useMemo(() => {
+        if (isLegacyUser) {
+            if (userPlanName === 'pro') {
+                return 3;
+            }
+            return Math.min(3, Math.max(1, companies.length));
+        }
+        return companyLimit;
+    }, [isLegacyUser, userPlanName, companyLimit, companies.length]);
+
+    const sortedCompanies = React.useMemo(() => {
+        return [...companies].sort((a, b) => {
+            if (a.isActive && !b.isActive) return -1;
+            if (!a.isActive && b.isActive) return 1;
+            return 0;
+        });
+    }, [companies]);
+
+    const companiesWithLockStatus = React.useMemo(() => {
+        return sortedCompanies.map((c, index) => {
+            const isLocked = index >= effectiveLimit;
+            return { ...c, isLocked };
+        });
+    }, [sortedCompanies, effectiveLimit]);
 
     const showToastRef = React.useRef(showToast);
     useEffect(() => {
@@ -177,8 +242,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     useEffect(() => {
         if (isOpen) {
             loadCompanies();
+            loadPlanLimit();
         }
-    }, [isOpen, loadCompanies]);
+    }, [isOpen, loadCompanies, loadPlanLimit]);
 
     useEffect(() => {
         if (loading) return;
@@ -289,6 +355,50 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             }
         } else {
             setData(INITIAL_DATA);
+        }
+    };
+
+    const handleNewCompanyClick = () => {
+        if (companies.length < effectiveLimit) {
+            handleNewCompany();
+        } else {
+            if (userPlanName === 'pro') {
+                setUpgradeAlert({
+                    isOpen: true,
+                    title: 'Límite de Empresas Alcanzado',
+                    message: `Has alcanzado el límite de ${effectiveLimit} empresa(s) de tu plan Wappy Pro. Para activar empresas adicionales en tu cuenta, comunícate con nuestro soporte técnico para habilitarlas en tu suscripción.`,
+                    actionText: 'Contactar Soporte',
+                    actionUrl: 'https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20adquirir%20empresas%20adicionales%20en%20mi%20cuenta.'
+                });
+            } else {
+                setUpgradeAlert({
+                    isOpen: true,
+                    title: 'Amplía tu Plan',
+                    message: `Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Para poder crear y gestionar nuevas empresas de forma aislada, te invitamos a adquirir el plan Wappy Pro con empresas adicionales.`,
+                    actionText: 'Ver Planes',
+                    actionUrl: '/planes'
+                });
+            }
+        }
+    };
+
+    const handleLockedCompanyClick = (c: CompanyInfoData) => {
+        if (userPlanName === 'pro') {
+            setUpgradeAlert({
+                isOpen: true,
+                title: 'Empresa Bloqueada',
+                message: `La empresa "${c.companyName}" está bloqueada. Tu plan Wappy Pro actual permite gestionar hasta ${effectiveLimit} empresa(s). Comunícate con soporte técnico para activar perfiles adicionales en tu suscripción y desbloquearla.`,
+                actionText: 'Contactar Soporte',
+                actionUrl: `https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20desbloquear%20la%20empresa%20${encodeURIComponent(c.companyName || '')}%20en%20mi%20cuenta.`
+            });
+        } else {
+            setUpgradeAlert({
+                isOpen: true,
+                title: 'Empresa Bloqueada',
+                message: `La empresa "${c.companyName}" está bloqueada. Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Adquiere el plan Wappy Pro para desbloquearla y gestionar múltiples perfiles.`,
+                actionText: 'Ver Planes',
+                actionUrl: '/planes'
+            });
         }
     };
 
@@ -415,7 +525,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             </div>
                             <div>
                                 <h2 className="text-lg font-bold text-text-primary">{t('com_ui_company_info_title', 'Perfiles de Empresa (Multi-Empresa)')}</h2>
-                                <p className="text-xs text-text-secondary">Gestiona hasta 3 empresas de forma aislada. La empresa Activa será utilizada por la IA.</p>
+                                <p className="text-xs text-text-secondary">Gestiona hasta {effectiveLimit} empresa(s) de forma aislada. La empresa Activa será utilizada por la IA.</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
@@ -424,42 +534,52 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        {companies.map(c => (
+                        {companiesWithLockStatus.map(c => (
                             <div 
                                 key={c._id}
-                                onClick={() => handleSelectCompany(c)}
+                                onClick={() => {
+                                    if (c.isLocked) {
+                                        handleLockedCompanyClick(c);
+                                        return;
+                                    }
+                                    handleSelectCompany(c);
+                                }}
                                 className={cn(
-                                    "flex flex-col px-4 py-2 rounded-xl border cursor-pointer transition-all min-w-[160px]",
-                                    data._id === c._id 
-                                        ? "border-teal-500 bg-teal-500/5 shadow-sm" 
-                                        : "border-border-medium bg-surface-primary hover:border-teal-400"
+                                    "flex flex-col px-4 py-2 rounded-xl border transition-all min-w-[160px] relative",
+                                    c.isLocked
+                                        ? "border-border-medium bg-surface-primary/50 opacity-60 cursor-not-allowed"
+                                        : data._id === c._id 
+                                            ? "border-teal-500 bg-teal-500/5 shadow-sm cursor-pointer" 
+                                            : "border-border-medium bg-surface-primary hover:border-teal-400 cursor-pointer"
                                 )}
                             >
-                                <span className="text-sm font-bold text-text-primary truncate" title={c.companyName}>{c.companyName || 'Sin Nombre'}</span>
+                                <span className="text-sm font-bold text-text-primary truncate pr-5" title={c.companyName}>{c.companyName || 'Sin Nombre'}</span>
                                 <div className="flex items-center justify-between mt-1">
                                     <span className="text-xs text-text-secondary">NIT: {c.nit || 'N/A'}</span>
-                                    {c.isActive && (
+                                    {c.isLocked ? (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded-full">
+                                            <Lock className="h-3 w-3" /> Bloqueada
+                                        </span>
+                                    ) : c.isActive ? (
                                         <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full">
                                             <CheckCircle className="h-3 w-3" /> Activa
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         ))}
-                        {companies.length < 3 && (
-                            <button 
-                                onClick={handleNewCompany}
-                                className={cn(
-                                    "flex items-center justify-center gap-2 px-4 py-4 rounded-xl border border-dashed cursor-pointer transition-all min-w-[160px]",
-                                    !data._id && companies.length > 0 
-                                        ? "border-teal-500 bg-teal-500/5 text-teal-600" 
-                                        : "border-border-medium text-text-secondary hover:border-teal-400 hover:text-teal-500"
-                                )}
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span className="text-sm font-semibold">Nueva Empresa</span>
-                            </button>
-                        )}
+                        <button 
+                            onClick={handleNewCompanyClick}
+                            className={cn(
+                                "flex items-center justify-center gap-2 px-4 py-4 rounded-xl border border-dashed cursor-pointer transition-all min-w-[160px]",
+                                !data._id && companies.length > 0 
+                                    ? "border-teal-500 bg-teal-500/5 text-teal-600" 
+                                    : "border-border-medium text-text-secondary hover:border-teal-400 hover:text-teal-500"
+                            )}
+                        >
+                            <Plus className="h-4 w-4" />
+                            <span className="text-sm font-semibold">Nueva Empresa</span>
+                        </button>
                     </div>
                 </div>
 
@@ -886,6 +1006,32 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     }
                 }}
             />
+
+            {upgradeAlert.isOpen && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs">
+                    <div className="mx-4 w-full max-w-md rounded-2xl border border-border-medium bg-surface-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <h3 className="text-base font-bold text-text-primary mb-2">{upgradeAlert.title}</h3>
+                        <p className="text-sm text-text-secondary mb-6 leading-relaxed">{upgradeAlert.message}</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))}
+                                className="px-4 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-hover rounded-xl border border-border-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <a
+                                href={upgradeAlert.actionUrl}
+                                target={upgradeAlert.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                                rel="noopener noreferrer"
+                                onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))}
+                                className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-colors text-center"
+                            >
+                                {upgradeAlert.actionText}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>,
         document.body
     );

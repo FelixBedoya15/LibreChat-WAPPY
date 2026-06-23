@@ -1327,7 +1327,7 @@ export default function PlansPage() {
                       ¿Deseas gestionar más de 1 empresa?
                     </h4>
                     <p className="mb-4 text-xs text-text-secondary leading-relaxed">
-                      Cada empresa adicional añade un perfil independiente para SGSST y +1 GB de almacenamiento.
+                      Cada empresa adicional te permite crear y gestionar una nueva empresa en tu cuenta y añade +1 GB de almacenamiento.
                     </p>
                     <div className="flex items-center justify-between rounded-xl bg-surface-secondary p-3 border border-border-light/50">
                       <div className="flex flex-col">

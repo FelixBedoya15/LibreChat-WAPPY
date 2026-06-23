@@ -37,12 +37,12 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   const { data: startupConfig } = useGetStartupConfig();
   const { user } = useAuthContext();
   const localize = useLocalize();
-  const [activeTab, setActiveTab] = useState<SettingsTabValues | string>(initialTab || SettingsTabValues.GENERAL);
+  const [activeTab, setActiveTab] = useState<SettingsTabValues | string>(initialTab || SettingsTabValues.ACCOUNT);
   const [targetTicketId, setTargetTicketId] = useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     if (open) {
-      setActiveTab(initialTab || SettingsTabValues.GENERAL);
+      setActiveTab(initialTab || SettingsTabValues.ACCOUNT);
     }
   }, [open, initialTab]);
 
@@ -74,16 +74,24 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   }, []);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    const tabs: SettingsTabValues[] = [
+    const isAdmin = user?.role === SystemRoles.ADMIN;
+    const tabs: (SettingsTabValues | string)[] = [
+      SettingsTabValues.ACCOUNT,
+      'notifications',
       SettingsTabValues.GENERAL,
-      SettingsTabValues.CHAT,
-      SettingsTabValues.COMMANDS,
-      SettingsTabValues.SPEECH,
-      ...(hasAnyPersonalizationFeature ? [SettingsTabValues.PERSONALIZATION] : []),
       SettingsTabValues.DATA,
       ...(startupConfig?.balance?.enabled ? [SettingsTabValues.BALANCE] : []),
-      SettingsTabValues.ACCOUNT,
-      ...(user?.role === SystemRoles.ADMIN ? [SettingsTabValues.ADMIN] : []),
+      ...(isAdmin
+        ? [
+          SettingsTabValues.CHAT,
+          SettingsTabValues.COMMANDS,
+          SettingsTabValues.SPEECH,
+          ...(hasAnyPersonalizationFeature ? [SettingsTabValues.PERSONALIZATION] : []),
+          'tickets',
+          SettingsTabValues.ADMIN,
+          'ads',
+        ]
+        : []),
     ];
     const currentIndex = tabs.indexOf(activeTab);
 
@@ -108,39 +116,25 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   };
 
   const settingsTabs: {
-    value: SettingsTabValues;
+    value: SettingsTabValues | string;
     icon: React.JSX.Element;
     label: TranslationKeys;
   }[] = [
+      {
+        value: SettingsTabValues.ACCOUNT,
+        icon: <UserIcon />,
+        label: 'com_nav_setting_account',
+      },
+      {
+        value: 'notifications',
+        icon: <Bell className="icon-sm" />,
+        label: 'Notificaciones' as TranslationKeys,
+      },
       {
         value: SettingsTabValues.GENERAL,
         icon: <GearIcon />,
         label: 'com_nav_setting_general',
       },
-      {
-        value: SettingsTabValues.CHAT,
-        icon: <MessageSquare className="icon-sm" />,
-        label: 'com_nav_setting_chat',
-      },
-      {
-        value: SettingsTabValues.COMMANDS,
-        icon: <Command className="icon-sm" />,
-        label: 'com_nav_commands',
-      },
-      {
-        value: SettingsTabValues.SPEECH,
-        icon: <SpeechIcon className="icon-sm" />,
-        label: 'com_nav_setting_speech',
-      },
-      ...(hasAnyPersonalizationFeature
-        ? [
-          {
-            value: SettingsTabValues.PERSONALIZATION,
-            icon: <PersonalizationIcon />,
-            label: 'com_nav_setting_personalization' as TranslationKeys,
-          },
-        ]
-        : []),
       {
         value: SettingsTabValues.DATA,
         icon: <DataIcon />,
@@ -154,34 +148,45 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
             label: 'com_nav_setting_balance' as TranslationKeys,
           },
         ]
-        : ([] as { value: SettingsTabValues; icon: React.JSX.Element; label: TranslationKeys }[])),
-      {
-        value: SettingsTabValues.ACCOUNT,
-        icon: <UserIcon />,
-        label: 'com_nav_setting_account',
-      },
-      {
-        value: 'notifications' as SettingsTabValues,
-        icon: <Bell className="icon-sm" />,
-        label: 'Notificaciones' as TranslationKeys,
-      },
+        : []),
       ...(user?.role === SystemRoles.ADMIN
         ? [
           {
-            value: 'tickets' as SettingsTabValues,
+            value: SettingsTabValues.CHAT,
+            icon: <MessageSquare className="icon-sm" />,
+            label: 'com_nav_setting_chat',
+          },
+          {
+            value: SettingsTabValues.COMMANDS,
+            icon: <Command className="icon-sm" />,
+            label: 'com_nav_commands',
+          },
+          {
+            value: SettingsTabValues.SPEECH,
+            icon: <SpeechIcon className="icon-sm" />,
+            label: 'com_nav_setting_speech',
+          },
+          ...(hasAnyPersonalizationFeature
+            ? [
+              {
+                value: SettingsTabValues.PERSONALIZATION,
+                icon: <PersonalizationIcon />,
+                label: 'com_nav_setting_personalization' as TranslationKeys,
+              },
+            ]
+            : []),
+          {
+            value: 'tickets',
             icon: <TicketCheck className="icon-sm" />,
             label: 'Tickets PQRS' as TranslationKeys,
           },
-        ] : []),
-      ...(user?.role === SystemRoles.ADMIN
-        ? [
           {
             value: SettingsTabValues.ADMIN,
-            icon: <GearIcon />, // Reusing GearIcon or finding another one
+            icon: <GearIcon />,
             label: 'Admin' as TranslationKeys,
           },
           {
-            value: 'ads' as SettingsTabValues,
+            value: 'ads',
             icon: <DollarSign className="icon-sm" />,
             label: 'Ads' as TranslationKeys,
           },
