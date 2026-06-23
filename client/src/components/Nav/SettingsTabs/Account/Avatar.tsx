@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 // @ts-ignore - no type definitions available
 import AvatarEditor from 'react-avatar-editor';
 import { FileImage, RotateCw, Upload, ZoomIn, ZoomOut, Move, X } from 'lucide-react';
@@ -41,6 +42,34 @@ function Avatar() {
 
   const [image, setImage] = useState<string | File | null>(null);
   const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
+
+  const [storageInfo, setStorageInfo] = useState<{
+    storageLimit: number;
+    storageUsed: number;
+    companyLimit: number;
+    plan: string;
+  } | null>(null);
+
+  useEffect(() => {
+    axios.get('/api/wompi/plan')
+      .then(({ data }) => {
+        setStorageInfo({
+          storageLimit: data.storageLimit || 0,
+          storageUsed: data.storageUsed || 0,
+          companyLimit: data.companyLimit || 1,
+          plan: data.plan || 'free',
+        });
+      })
+      .catch((err) => console.error('Error fetching storage info in Avatar:', err));
+  }, []);
+
+  const formatStorageSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   const { data: fileConfig = defaultFileConfig } = useGetFileConfig({
     select: (data) => mergeFileConfig(data),
@@ -222,6 +251,34 @@ function Avatar() {
             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
               Tel: {user.phoneNumber}
             </p>
+          )}
+
+          {/* Storage usage display */}
+          {storageInfo && (
+            <div className="mt-5 max-w-xs mx-auto text-left rounded-2xl border border-border-light bg-surface-secondary/40 p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-2 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                <span>Almacenamiento</span>
+                <span>
+                  {formatStorageSize(storageInfo.storageUsed)} / {formatStorageSize(storageInfo.storageLimit)}
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-border-light rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, (storageInfo.storageUsed / (storageInfo.storageLimit || 1)) * 100)}%`,
+                  }}
+                ></div>
+              </div>
+              <div className="flex justify-between items-center mt-3 text-[11px] font-semibold text-text-tertiary">
+                <span>
+                  Límite: {storageInfo.companyLimit} {storageInfo.companyLimit === 1 ? 'empresa' : 'empresas'}
+                </span>
+                <span>
+                  {((storageInfo.storageUsed / (storageInfo.storageLimit || 1)) * 100).toFixed(1)}% usado
+                </span>
+              </div>
+            </div>
           )}
         </div>
       </div>

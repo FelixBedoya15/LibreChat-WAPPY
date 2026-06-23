@@ -207,12 +207,48 @@ const getUserPlan = async (req, res) => {
             else plan = 'free';
         }
 
+        // Determine companyLimit
+        let companyLimit = userPlan?.companyLimit;
+        if (companyLimit === undefined || companyLimit === null) {
+            if (plan === 'pro') {
+                const User = mongoose.models.User || mongoose.model('User');
+                const userDoc = await User.findById(userId).select('createdAt').lean();
+                const userCreatedAt = userDoc?.createdAt ? new Date(userDoc.createdAt) : new Date();
+                const CUTOFF_DATE = new Date('2026-06-23T13:00:00-05:00');
+                companyLimit = userCreatedAt < CUTOFF_DATE ? 3 : 1;
+            } else if (['admin', 'custom'].includes(plan)) {
+                companyLimit = 999;
+            } else {
+                companyLimit = 1;
+            }
+        }
+
+        // Determine storageLimit
+        let storageLimit = userPlan?.storageLimit;
+        if (storageLimit === undefined || storageLimit === null) {
+            if (['pro', 'plus'].includes(plan)) {
+                storageLimit = 3 * 1024 * 1024 * 1024;
+            } else if (['admin', 'custom'].includes(plan)) {
+                storageLimit = 200 * 1024 * 1024 * 1024; // 200 GB
+            } else {
+                storageLimit = 1 * 1024 * 1024 * 1024; // 1 GB
+            }
+        }
+
+        // Calculate storageUsed
+        const FileModel = mongoose.models.File || mongoose.model('File');
+        const files = await FileModel.find({ user: userId }).select('bytes').lean();
+        const totalUsedBytes = files.reduce((acc, file) => acc + (file.bytes || 0), 0);
+
         return res.json({
             plan: plan,
             status: 'active', // Derived for UI
             currentPeriodEnd: userPlan?.planExpiresAt || null,
             customTools: userPlan?.customTools || [],
             customInterval: userPlan?.customInterval || null,
+            companyLimit,
+            storageLimit,
+            storageUsed: totalUsedBytes,
         });
     } catch (error) {
         console.error('[Wompi] getUserPlan error:', error);

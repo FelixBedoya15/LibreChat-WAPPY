@@ -98,8 +98,12 @@ function Account() {
               </div>
             )}
             
-            <div className="h-px bg-border-light w-full my-1"></div>
-            <div className="py-2"><WhatsAppConnect /></div>
+            {user?.role === 'ADMIN' && (
+              <>
+                <div className="h-px bg-border-light w-full my-1"></div>
+                <div className="py-2"><WhatsAppConnect /></div>
+              </>
+            )}
           </>
         )}
       </div>

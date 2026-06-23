@@ -172,6 +172,7 @@ async function testWompiAprovisioning() {
 async function testChatCleanupJob() {
   console.log('\n--- Test Case 3: Chat Files Cleanup Job ---');
   
+  const fs = require('fs');
   const uniqueId = Date.now();
   const testUser = new User({
     name: 'Cleanup Test User',
@@ -181,27 +182,59 @@ async function testChatCleanupJob() {
   });
   await testUser.save();
   
+  // Define physical test file paths
+  const uploadsDir = path.resolve(__dirname, '../uploads');
+  const userUploadsDir = path.join(uploadsDir, testUser._id.toString());
+  if (!fs.existsSync(userUploadsDir)) {
+    fs.mkdirSync(userUploadsDir, { recursive: true });
+  }
+  
+  const dummyFilepath1 = path.join(userUploadsDir, `expired_user_file_${uniqueId}.txt`);
+  fs.writeFileSync(dummyFilepath1, 'dummy user content');
+  
+  const dummyFilepath2 = path.join(userUploadsDir, `expired_nouser_file_${uniqueId}.txt`);
+  fs.writeFileSync(dummyFilepath2, 'dummy nouser content');
+
+  const dummyFilepath3 = path.join(userUploadsDir, `fresh_file_${uniqueId}.txt`);
+  fs.writeFileSync(dummyFilepath3, 'fresh content');
+
+  const dummyFilepath4 = path.join(userUploadsDir, `sgsst_file_${uniqueId}.txt`);
+  fs.writeFileSync(dummyFilepath4, 'sgsst content');
+
   // Cutoff is 60 days
   const now = Date.now();
   const fileExpired = new FileModel({
     file_id: `expired-file-${uniqueId}`,
     user: testUser._id,
-    filename: 'test_expired.png',
-    filepath: 'test_expired.png',
-    type: 'image/png',
-    bytes: 500000,
+    filename: `expired_user_file_${uniqueId}.txt`,
+    filepath: `/uploads/${testUser._id}/expired_user_file_${uniqueId}.txt`,
+    type: 'text/plain',
+    bytes: 18,
     context: 'message_attachment',
     createdAt: new Date(now - 61 * 24 * 60 * 60 * 1000) // 61 days ago
   });
   await fileExpired.save();
+
+  // Expired file without user
+  const fileExpiredNoUser = new FileModel({
+    file_id: `expired-nouser-${uniqueId}`,
+    user: new mongoose.Types.ObjectId(),
+    filename: `expired_nouser_file_${uniqueId}.txt`,
+    filepath: `/uploads/${testUser._id}/expired_nouser_file_${uniqueId}.txt`,
+    type: 'text/plain',
+    bytes: 20,
+    context: 'message_attachment',
+    createdAt: new Date(now - 61 * 24 * 60 * 60 * 1000) // 61 days ago
+  });
+  await fileExpiredNoUser.save();
   
   const fileFresh = new FileModel({
     file_id: `fresh-file-${uniqueId}`,
     user: testUser._id,
-    filename: 'test_fresh.png',
-    filepath: 'test_fresh.png',
-    type: 'image/png',
-    bytes: 200000,
+    filename: `fresh_file_${uniqueId}.txt`,
+    filepath: `/uploads/${testUser._id}/fresh_file_${uniqueId}.txt`,
+    type: 'text/plain',
+    bytes: 13,
     context: 'message_attachment',
     createdAt: new Date(now - 59 * 24 * 60 * 60 * 1000) // 59 days ago
   });
@@ -210,35 +243,55 @@ async function testChatCleanupJob() {
   const fileSgsst = new FileModel({
     file_id: `sgsst-file-${uniqueId}`,
     user: testUser._id,
-    filename: 'sgsst_doc.pdf',
-    filepath: 'sgsst_doc.pdf',
-    type: 'application/pdf',
-    bytes: 1000000,
+    filename: `sgsst_file_${uniqueId}.txt`,
+    filepath: `/uploads/${testUser._id}/sgsst_file_${uniqueId}.txt`,
+    type: 'text/plain',
+    bytes: 13,
     context: 'sgsst_gestor', // different context
     createdAt: new Date(now - 90 * 24 * 60 * 60 * 1000) // 90 days ago (expired, but protected context!)
   });
   await fileSgsst.save();
   
-  // Run simulated cleanup query
-  const MAX_AGE_DAYS = 60;
-  const cutoffDate = new Date(Date.now() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+  // Run simulated cleanup query & cycle
+  const { runCleanupCycle } = require('../api/server/services/chatFilesCleanupJob');
+  await runCleanupCycle();
   
-  const expiredFiles = await FileModel.find({
-    context: { $in: ['message_attachment', 'assistants_output'] },
-    createdAt: { $lte: cutoffDate }
-  }).lean();
-  
-  console.log(`Found expired files: ${expiredFiles.length}`);
-  const expiredIds = expiredFiles.map(f => f.file_id);
-  console.log(`Expired File IDs (Expected to contain expired-file-${uniqueId} but NOT fresh-file-${uniqueId} or sgsst-file-${uniqueId}):`);
-  
-  if (!expiredIds.includes(`expired-file-${uniqueId}`) || expiredIds.includes(`fresh-file-${uniqueId}`) || expiredIds.includes(`sgsst-file-${uniqueId}`)) {
-    throw new Error('Expired files query did not correctly filter the files');
+  // Assertions: database documents
+  const dbExpiredUser = await FileModel.findOne({ file_id: `expired-file-${uniqueId}` });
+  const dbExpiredNoUser = await FileModel.findOne({ file_id: `expired-nouser-${uniqueId}` });
+  const dbFresh = await FileModel.findOne({ file_id: `fresh-file-${uniqueId}` });
+  const dbSgsst = await FileModel.findOne({ file_id: `sgsst-file-${uniqueId}` });
+
+  if (dbExpiredUser || dbExpiredNoUser) {
+    throw new Error('Expired files were not deleted from MongoDB during cleanup cycle');
   }
-  
-  // Clean up
+  if (!dbFresh || !dbSgsst) {
+    throw new Error('Non-expired/SGSST files were incorrectly deleted from MongoDB');
+  }
+
+  // Assertions: physical files
+  const file1Exists = fs.existsSync(dummyFilepath1);
+  const file2Exists = fs.existsSync(dummyFilepath2);
+  const file3Exists = fs.existsSync(dummyFilepath3);
+  const file4Exists = fs.existsSync(dummyFilepath4);
+
+  // Clean up any remaining test files
+  if (fs.existsSync(dummyFilepath1)) fs.unlinkSync(dummyFilepath1);
+  if (fs.existsSync(dummyFilepath2)) fs.unlinkSync(dummyFilepath2);
+  if (fs.existsSync(dummyFilepath3)) fs.unlinkSync(dummyFilepath3);
+  if (fs.existsSync(dummyFilepath4)) fs.unlinkSync(dummyFilepath4);
+  if (fs.existsSync(userUploadsDir)) fs.rmdirSync(userUploadsDir);
+
   await User.deleteOne({ _id: testUser._id });
-  await FileModel.deleteMany({ file_id: { $in: [`expired-file-${uniqueId}`, `fresh-file-${uniqueId}`, `sgsst-file-${uniqueId}`] } });
+  await FileModel.deleteMany({ file_id: { $in: [`expired-file-${uniqueId}`, `expired-nouser-${uniqueId}`, `fresh-file-${uniqueId}`, `sgsst-file-${uniqueId}`] } });
+
+  if (file1Exists || file2Exists) {
+    throw new Error('Expired physical files were not deleted from disk');
+  }
+  if (!file3Exists || !file4Exists) {
+    throw new Error('Non-expired/SGSST physical files were incorrectly deleted from disk');
+  }
+
   console.log('Chat files cleanup job tests passed!');
 }
 

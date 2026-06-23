@@ -57,7 +57,8 @@ const runCleanupCycle = async () => {
                 // Construct a mock request object for the storage strategies
                 const mockReq = {
                     user: { id: file.user ? file.user.toString() : '' },
-                    config: appConfig
+                    config: appConfig,
+                    isSystem: true
                 };
 
                 // Delete physically

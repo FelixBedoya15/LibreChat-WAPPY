@@ -220,6 +220,27 @@ const deleteLocalFile = async (req, file) => {
     });
   }
 
+  if (req.isSystem) {
+    let filepath;
+    let normalizedBase;
+    if (cleanFilepath.startsWith('/uploads/') || cleanFilepath.startsWith('uploads/')) {
+      const cleanPath = cleanFilepath.startsWith('/uploads/') ? cleanFilepath.slice(9) : cleanFilepath.slice(8);
+      filepath = path.join(uploads, cleanPath);
+      normalizedBase = path.resolve(uploads);
+    } else {
+      filepath = path.join(publicPath, cleanFilepath);
+      normalizedBase = path.resolve(publicPath);
+    }
+
+    const normalizedFilepath = path.resolve(filepath);
+    if (!normalizedFilepath.startsWith(normalizedBase)) {
+      throw new Error(`Invalid file path: ${cleanFilepath}`);
+    }
+
+    await unlinkFile(filepath);
+    return;
+  }
+
   if (cleanFilepath.startsWith(`/uploads/${req.user.id}`)) {
     const userUploadDir = path.join(uploads, req.user.id);
     const basePath = cleanFilepath.split(`/uploads/${req.user.id}/`)[1];
