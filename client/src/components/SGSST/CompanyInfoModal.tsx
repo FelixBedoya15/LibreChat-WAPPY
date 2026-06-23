@@ -545,7 +545,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     handleSelectCompany(c);
                                 }}
                                 className={cn(
-                                    "flex flex-col px-4 py-2 rounded-xl border transition-all min-w-[160px] relative",
+                                    "flex flex-col px-4 py-2 rounded-xl border transition-all min-w-[160px] relative justify-between min-h-[64px]",
                                     c.isLocked
                                         ? "border-border-medium bg-surface-primary/50 opacity-60 cursor-not-allowed"
                                         : data._id === c._id 
@@ -553,18 +553,19 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             : "border-border-medium bg-surface-primary hover:border-teal-400 cursor-pointer"
                                 )}
                             >
-                                <span className="text-sm font-bold text-text-primary truncate pr-5" title={c.companyName}>{c.companyName || 'Sin Nombre'}</span>
-                                <div className="flex items-center justify-between mt-1">
+                                <div className="flex items-center justify-between gap-1.5 w-full">
+                                    <span className="text-sm font-bold text-text-primary truncate" title={c.companyName}>
+                                        {c.companyName || 'Sin Nombre'}
+                                    </span>
+                                    {c.isLocked && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                                </div>
+                                <div className="flex items-center justify-between mt-1 w-full">
                                     <span className="text-xs text-text-secondary">NIT: {c.nit || 'N/A'}</span>
-                                    {c.isLocked ? (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded-full">
-                                            <Lock className="h-3 w-3" /> Bloqueada
-                                        </span>
-                                    ) : c.isActive ? (
+                                    {!c.isLocked && c.isActive && (
                                         <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full">
                                             <CheckCircle className="h-3 w-3" /> Activa
                                         </span>
-                                    ) : null}
+                                    )}
                                 </div>
                             </div>
                         ))}
