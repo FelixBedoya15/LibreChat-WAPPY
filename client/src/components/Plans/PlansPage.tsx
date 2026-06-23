@@ -104,8 +104,6 @@ const PLANS = [
     iconBg: 'bg-amber-500/10',
     features: [
       '**Todo lo del Plan Wappy Vital**',
-      '**1 empresa base** (ampliable en el pago)',
-      '**3 GB de almacenamiento base** (+1 GB por empresa adicional)',
       'Conversaciones y chats ilimitados',
       'Somos SST completo',
       'Skills Termómetro Psicosocial',
@@ -114,6 +112,8 @@ const PLANS = [
       'Crea tus propios Agentes de IA',
       'Análisis en Vivo con (Inspección General, Trabajo en Alturas, Riesgo Eléctrico, Metodología 5S, Riesgo Biomecánico, Biomecánico con Visión IA)',
       'Acceso anticipado a nuevas funciones',
+      '1 empresa base (ampliable en el pago)',
+      '3 GB de almacenamiento base (+1 GB por empresa adicional)',
     ],
     notIncluded: [],
     popular: true,
@@ -203,17 +203,17 @@ const APP_PLANS = [
     iconBg: 'bg-emerald-500/10',
     features: [
       '**Pago Único (Acceso de Por Vida)**',
-      '**1 empresa** (no ampliable)',
-      '**1 GB de almacenamiento**',
-      '**Hasta 20 chats abiertos**',
-      '**Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)**',
-      '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
-      '**Skill Editor RIT**',
-      '**Skill IPEVAR**',
-      '**Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural**',
-      '**Descargas y exportaciones ilimitadas**',
-      '**Aula de estudio**',
-      '**Blog WAPPY**',
+      'Hasta 20 chats abiertos',
+      'Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)',
+      'Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)',
+      'Skill Editor RIT',
+      'Skill IPEVAR',
+      'Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural',
+      'Descargas y exportaciones ilimitadas',
+      'Aula de estudio',
+      'Blog WAPPY',
+      '1 empresa (no ampliable)',
+      '1 GB de almacenamiento',
     ],
     notIncluded: ['Somos SST', 'Crear Agentes de IA propios', 'Análisis en Vivo'],
     popular: true,
@@ -1319,52 +1319,9 @@ export default function PlansPage() {
                   </div>
                 </div>
 
-                {/* Promo code box */}
-                {checkoutPlan.planKey !== 'ipevar' && (
-                  <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
-                    <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
-                      <PricingSVG className="h-4 w-4" />
-                      ¿Tienes un código de descuento?
-                    </h4>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCodeInput}
-                        onChange={(e) => {
-                          setPromoCodeInput(e.target.value.toUpperCase());
-                          setPromoValidated(null);
-                          setPromoError('');
-                        }}
-                        placeholder="Ej. WAPPY50"
-                        className="flex-1 rounded-xl border border-border-light bg-surface-secondary px-4 py-2.5 font-mono text-sm uppercase transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
-                      <button
-                        onClick={handleValidatePromo}
-                        disabled={promoLoading || !promoCodeInput.trim() || !!promoValidated}
-                        className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
-                      </button>
-                    </div>
-                    {promoValidated && (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-500/10 px-3.5 py-2.5 text-sm font-semibold text-green-600">
-                        <Check className="h-4 w-4" />
-                        Código <strong>{promoValidated.code}</strong> aplicado —{' '}
-                        {promoValidated.discountPercentage}% de descuento adicional
-                      </div>
-                    )}
-                    {promoError && (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3.5 py-2.5 text-sm font-semibold text-red-500">
-                        <AlertCircle className="h-4 w-4" />
-                        {promoError}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Additional companies selector */}
                 {['pro', 'plus', 'go'].includes(checkoutPlan.planKey) && (
-                  <div className="mt-6 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                  <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
                     <h4 className="mb-1 text-sm font-bold text-text-primary flex items-center gap-2">
                       <Building2 className="h-4.5 w-4.5 text-indigo-500" />
                       ¿Deseas gestionar más de 1 empresa?
@@ -1407,6 +1364,49 @@ export default function PlansPage() {
                         </button>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Promo code box */}
+                {checkoutPlan.planKey !== 'ipevar' && (
+                  <div className="mt-6 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                    <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
+                      <PricingSVG className="h-4 w-4" />
+                      ¿Tienes un código de descuento?
+                    </h4>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCodeInput}
+                        onChange={(e) => {
+                          setPromoCodeInput(e.target.value.toUpperCase());
+                          setPromoValidated(null);
+                          setPromoError('');
+                        }}
+                        placeholder="Ej. WAPPY50"
+                        className="flex-1 rounded-xl border border-border-light bg-surface-secondary px-4 py-2.5 font-mono text-sm uppercase transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <button
+                        onClick={handleValidatePromo}
+                        disabled={promoLoading || !promoCodeInput.trim() || !!promoValidated}
+                        className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+                      </button>
+                    </div>
+                    {promoValidated && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-500/10 px-3.5 py-2.5 text-sm font-semibold text-green-600">
+                        <Check className="h-4 w-4" />
+                        Código <strong>{promoValidated.code}</strong> aplicado —{' '}
+                        {promoValidated.discountPercentage}% de descuento adicional
+                      </div>
+                    )}
+                    {promoError && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3.5 py-2.5 text-sm font-semibold text-red-500">
+                        <AlertCircle className="h-4 w-4" />
+                        {promoError}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2144,7 +2144,7 @@ export default function PlansPage() {
                           </div>
                         </div>
 
-                        <div className="mb-6 flex flex-col items-start gap-1">
+                        <div className="mb-6 flex flex-col items-start gap-1 min-h-[105px]">
                           {promotion && promotion.discountPercentage > 0 && (
                             <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
                               {displayPrice}
@@ -2287,7 +2287,7 @@ export default function PlansPage() {
                           </div>
                         </div>
 
-                        <div className="mb-6 flex flex-col items-start gap-1">
+                        <div className="mb-6 flex flex-col items-start gap-1 min-h-[105px]">
                           {promotion && promotion.discountPercentage > 0 && (
                             <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
                               {displayPrice}
