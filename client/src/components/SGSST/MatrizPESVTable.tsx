@@ -302,6 +302,7 @@ export default function MatrizPESVTable({
   conversationId: string | null;
 }) {
   const { token } = useAuthContext();
+  const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isMaximized, setIsMaximized] = useRecoilState(store.pesvMaximized);
@@ -431,6 +432,21 @@ export default function MatrizPESVTable({
       fetchMatrixData();
     }
   }, [conversationId, fetchMatrixData]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isSubmitting) {
+      if (conversationId && conversationId !== 'new') {
+        interval = setInterval(() => fetchMatrixData(), 3000);
+      }
+    }
+    if (!isSubmitting) {
+      if (conversationId && conversationId !== 'new') {
+        fetchMatrixData();
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isSubmitting, conversationId, fetchMatrixData]);
 
   const saveMatrixData = async (updatedRows = matrixRows) => {
     if (!conversationId || conversationId === 'new') return;

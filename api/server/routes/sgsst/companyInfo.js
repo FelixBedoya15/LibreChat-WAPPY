@@ -6,6 +6,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { getAllUserMemories, createMemory, setMemory, deleteMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 const mongoose = require('mongoose');
+const UserPlan = require('~/db/models/UserPlan');
 
 /**
  * Helper to migrate legacy data (companyId: null) to the user's oldest company.
@@ -172,22 +173,56 @@ router.get('/all', requireJwtAuth, async (req, res) => {
  */
 router.post('/', requireJwtAuth, async (req, res) => {
     try {
-        const count = await CompanyInfo.countDocuments({ user: req.user.id });
-        if (count >= 3) {
-            return res.status(400).json({ error: 'Límite máximo de 3 empresas alcanzado.' });
+        const userId = req.user.id;
+        
+        // Obtener la fecha de creación del usuario de manera segura
+        const User = mongoose.models.User || mongoose.model('User');
+        const userDoc = await User.findById(userId).select('createdAt').lean();
+        const userCreatedAt = userDoc?.createdAt ? new Date(userDoc.createdAt) : new Date();
+
+        // Consultar el plan del usuario
+        const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+        const planKey = userPlanDoc?.plan || 'free';
+
+        // Calcular el límite dinámico
+        let limit = 1;
+        
+        if (userPlanDoc && userPlanDoc.companyLimit !== undefined && userPlanDoc.companyLimit !== null) {
+            limit = userPlanDoc.companyLimit;
+        } else {
+            if (planKey === 'pro') {
+                // Regla del abuelo: usuarios pro registrados antes del cambio (23 de Junio de 2026 13:00 COT)
+                const CUTOFF_DATE = new Date('2026-06-23T13:00:00-05:00');
+                if (userCreatedAt < CUTOFF_DATE) {
+                    limit = 3;
+                } else {
+                    limit = 1;
+                }
+            } else if (['admin', 'custom'].includes(planKey)) {
+                limit = 999;
+            } else {
+                limit = 1; // free, go, plus, ipevar base
+            }
+        }
+
+        const count = await CompanyInfo.countDocuments({ user: userId });
+        if (count >= limit) {
+            return res.status(400).json({ 
+                error: `Límite máximo de ${limit} empresa(s) alcanzado para tu plan actual. Para gestionar más empresas, comunícate con soporte.` 
+            });
         }
 
         // Deactivate others
-        await CompanyInfo.updateMany({ user: req.user.id }, { isActive: false });
+        await CompanyInfo.updateMany({ user: userId }, { isActive: false });
 
         const newCompany = new CompanyInfo({
             ...req.body,
-            user: req.user.id,
+            user: userId,
             isActive: true,
         });
 
         await newCompany.save();
-        await syncCompanyMemory(req.user.id, newCompany);
+        await syncCompanyMemory(userId, newCompany);
 
         res.json(newCompany);
     } catch (error) {

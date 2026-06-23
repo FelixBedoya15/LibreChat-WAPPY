@@ -41,6 +41,14 @@ const UserPlanSchema = new mongoose.Schema(
             enum: ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual', null],
             default: null,
         },
+        companyLimit: {
+            type: Number,
+            default: null, // null hereda el comportamiento por defecto de su plan
+        },
+        storageLimit: {
+            type: Number,
+            default: null, // null hereda el almacenamiento por defecto de su plan (en Bytes)
+        },
     },
     { timestamps: true },
 );

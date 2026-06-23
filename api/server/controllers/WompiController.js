@@ -50,6 +50,16 @@ const getIntervalDays = (interval) => {
     return 30; // monthly default
 };
 
+const EXTRA_COMPANY_ANNUAL_PRICE = 350000;
+const getExtraCompanyPrice = (interval) => {
+    if (interval === 'monthly') return 33350;
+    if (interval === 'quarterly') return 96620;
+    if (interval === 'semiannual') return 187240;
+    if (interval === 'annual') return EXTRA_COMPANY_ANNUAL_PRICE;
+    return 0; // for free or lifetime if not applicable
+};
+
+
 /**
  * Calculates the expiry date using the "Time Compensation" algorithm (Option 2):
  * 
@@ -265,7 +275,7 @@ const notifyAdminsOfPayment = async (wompiTx, user, isManual) => {
  */
 const createTransaction = async (req, res) => {
     try {
-        const { plan: planString, promoCode } = req.body;
+        const { plan: planString, promoCode, extraCompanies } = req.body;
         if (!planString) return res.status(400).json({ error: 'Faltan parámetros' });
 
         const [planId, interval] = planString.split('|');
@@ -321,6 +331,15 @@ const createTransaction = async (req, res) => {
             finalPrice = rawPrice - (rawPrice * Math.min(appliedDiscount, 100) / 100);
         }
 
+        // Add additional companies cost
+        const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
+        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
+            ? extraCompaniesCount * getExtraCompanyPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost;
+
         // Generate a 15-char unique reference (needed by Wompi)
         const reference = `WAPPY-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
         const amountInCents = Math.round(finalPrice * 100);
@@ -332,7 +351,8 @@ const createTransaction = async (req, res) => {
             interval,
             reference,
             amountInCents,
-            status: 'PENDING'
+            status: 'PENDING',
+            extraCompanies: extraCompaniesCount
         });
 
         // Wompi keys
@@ -585,6 +605,16 @@ const handleWebhook = async (req, res) => {
             userPlan.plan = wompiTx.planId;
             userPlan.planExpiresAt = expiryDate;
             userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
+
+            // Set limits based on transaction extraCompanies
+            const extraCount = Math.min(9, wompiTx.extraCompanies || 0);
+            userPlan.companyLimit = 1 + extraCount;
+
+            // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
+            const baseStorageGB = ['pro', 'plus'].includes(wompiTx.planId) ? 3 : 1;
+            const totalStorageBytes = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
+            userPlan.storageLimit = totalStorageBytes;
+
             await userPlan.save();
 
             // Also update User role for full platform compatibility
@@ -704,6 +734,16 @@ const verifyTransaction = async (req, res) => {
                 userPlan.plan = wompiTx.planId;
                 userPlan.planExpiresAt = expiryDate;
                 userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
+
+                // Set limits based on transaction extraCompanies
+                const extraCount = Math.min(9, wompiTx.extraCompanies || 0);
+                userPlan.companyLimit = 1 + extraCount;
+
+                // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
+                const baseStorageGB = ['pro', 'plus'].includes(wompiTx.planId) ? 3 : 1;
+                const totalStorageBytes = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
+                userPlan.storageLimit = totalStorageBytes;
+
                 await userPlan.save();
 
                 const User = mongoose.model('User');
@@ -795,7 +835,7 @@ const registerPendingTransaction = async (req, res) => {
  */
 const createManualTransaction = async (req, res) => {
     try {
-        const { plan: planString, promoCode } = req.body;
+        const { plan: planString, promoCode, extraCompanies } = req.body;
         if (!planString || !req.file) {
             return res.status(400).json({ error: 'Faltan parámetros o el comprobante de pago' });
         }
@@ -849,6 +889,15 @@ const createManualTransaction = async (req, res) => {
             finalPrice = rawPrice - (rawPrice * Math.min(appliedDiscount, 100) / 100);
         }
 
+        // Add additional companies cost before the Nequi discount
+        const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
+        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
+            ? extraCompaniesCount * getExtraCompanyPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost;
+
         // Apply 5% discount for Nequi QR
         finalPrice = finalPrice * 0.95;
 
@@ -893,7 +942,8 @@ const createManualTransaction = async (req, res) => {
             amountInCents,
             status: 'PENDING_MANUAL_REVIEW',
             paymentMethod: 'NEQUI_QR',
-            receiptUrl
+            receiptUrl,
+            extraCompanies: extraCompaniesCount
         });
 
         // Notify admins about the manual payment so they can review
@@ -917,7 +967,7 @@ const guestCheckout = async (req, res) => {
     try {
         const jwt = require('jsonwebtoken');
         const bcrypt = require('bcryptjs');
-        const { name, email, password, plan: planString, promoCode, phone } = req.body;
+        const { name, email, password, plan: planString, promoCode, phone, extraCompanies } = req.body;
 
         if (!name || !email || !password || !planString) {
             return res.status(400).json({ error: 'Faltan campos: name, email, password, plan' });
@@ -994,6 +1044,15 @@ const guestCheckout = async (req, res) => {
             finalPrice = rawPrice - (rawPrice * Math.min(appliedDiscount, 100) / 100);
         }
 
+        // Add additional companies cost
+        const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
+        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
+            ? extraCompaniesCount * getExtraCompanyPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost;
+
         // ── 3. Create transaction record ──────────────────────────────────
         const reference = `WAPPY-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
         const amountInCents = Math.round(finalPrice * 100);
@@ -1008,7 +1067,8 @@ const guestCheckout = async (req, res) => {
             guestName,
             guestEmail,
             guestPassword,
-            guestPhone
+            guestPhone,
+            extraCompanies: extraCompaniesCount
         });
 
         // ── 4. Wompi integrity signature ──────────────────────────────────

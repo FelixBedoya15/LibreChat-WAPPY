@@ -11,6 +11,7 @@ const wompiTransactionSchema = new mongoose.Schema({
     paymentMethod: { type: String, enum: ['WOMPI', 'NEQUI_QR'], default: 'WOMPI' },
     receiptUrl: { type: String }, // URL array or string for manual payment receipts
     customTools: { type: [String], default: [] }, // Tools selected for custom plan
+    extraCompanies: { type: Number, default: 0 }, // Cantidad de empresas adicionales compradas
     guestName: { type: String },
     guestEmail: { type: String },
     guestPassword: { type: String },

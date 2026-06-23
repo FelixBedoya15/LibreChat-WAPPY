@@ -165,6 +165,7 @@ export default function MatrizCompatibilidadTable({
   conversationId: string | null;
 }) {
   const { token } = useAuthContext();
+  const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
   const { showToast } = useToastContext();
 
   const [activeTab, setActiveTab] = useState<'inventario' | 'matriz_cruzada' | 'dashboard' | 'reporte'>('inventario');
@@ -223,6 +224,21 @@ export default function MatrizCompatibilidadTable({
   useEffect(() => {
     fetchMatrix();
   }, [fetchMatrix]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isSubmitting) {
+      if (conversationId && conversationId !== 'new') {
+        interval = setInterval(() => fetchMatrix(), 3000);
+      }
+    }
+    if (!isSubmitting) {
+      if (conversationId && conversationId !== 'new') {
+        fetchMatrix();
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isSubmitting, conversationId, fetchMatrix]);
 
   // Guardar Matriz en Backend
   const saveMatrix = async (rowsToSave = matrixRows, notify = true) => {

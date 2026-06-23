@@ -104,6 +104,8 @@ const PLANS = [
     iconBg: 'bg-amber-500/10',
     features: [
       '**Todo lo del Plan Wappy Vital**',
+      '**1 empresa base** (ampliable en el pago)',
+      '**3 GB de almacenamiento base** (+1 GB por empresa adicional)',
       'Conversaciones y chats ilimitados',
       'Somos SST completo',
       'Skills Termómetro Psicosocial',
@@ -201,9 +203,10 @@ const APP_PLANS = [
     iconBg: 'bg-emerald-500/10',
     features: [
       '**Pago Único (Acceso de Por Vida)**',
+      '**1 empresa** (no ampliable)',
+      '**1 GB de almacenamiento**',
       '**Hasta 20 chats abiertos**',
       '**Más de 15 Agentes Especialistas en SST (Consultor SG-SST, Especialista GTC-45, Especialista en Riesgo Psicosocial, Consultor Médico Ocupacional, Consultor Jurídico Laboral, Auditor Integral SG-SST)**',
-      '**Subida de archivos ilimitada**',
       '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
       '**Skill Editor RIT**',
       '**Skill IPEVAR**',
@@ -555,6 +558,14 @@ export default function PlansPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
+  const [extraCompanies, setExtraCompanies] = useState(0);
+
+  const extraCompanyPrice = useMemo(() => {
+    if (billingInterval === 'monthly') return 33350;
+    if (billingInterval === 'quarterly') return 96620;
+    if (billingInterval === 'semiannual') return 187240;
+    return 350000; // annual
+  }, [billingInterval]);
 
   // Derived: final price considering promo code on top of any existing promotion
   const finalCheckoutPrice = useMemo(() => {
@@ -565,11 +576,18 @@ export default function PlansPage() {
     if (promoValidated && promoValidated.discountPercentage > 0) {
       price = price - price * (promoValidated.discountPercentage / 100);
     }
+
+    // Solo sumamos empresas adicionales en planes de suscripción (pro, plus, go)
+    const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(checkoutPlan.planKey);
+    if (canAddExtraCompanies) {
+      price += extraCompanies * extraCompanyPrice;
+    }
+
     if (paymentMethod === 'nequi') {
       price = price * 0.95;
     }
     return Math.round(price);
-  }, [checkoutPlan, promoValidated, paymentMethod]);
+  }, [checkoutPlan, promoValidated, paymentMethod, extraCompanies, extraCompanyPrice]);
 
   const activeSubscriptionPlans = useMemo(() => {
     return PLANS.filter((plan) => {
@@ -746,6 +764,7 @@ export default function PlansPage() {
       setIsQRModalOpen(false);
       setTermsAccepted(false);
       setReceiptFile(null);
+      setExtraCompanies(0);
       setCheckoutPlan(subObj);
     },
     [],
@@ -838,6 +857,9 @@ export default function PlansPage() {
       if (promoValidated?.code) {
         formData.append('promoCode', promoValidated.code);
       }
+      if (extraCompanies > 0) {
+        formData.append('extraCompanies', String(extraCompanies));
+      }
       let finalFile = receiptFile;
       if (receiptFile.type.startsWith('image/') && receiptFile.type !== 'image/gif') {
         try {
@@ -880,6 +902,7 @@ export default function PlansPage() {
       const { data } = await axios.post('/api/wompi/create-transaction', {
         plan: checkoutPlan.planKey + '|' + billingInterval,
         promoCode: promoValidated?.code || undefined,
+        extraCompanies: extraCompanies || undefined,
       });
 
       const script = document.createElement('script');
@@ -996,6 +1019,7 @@ export default function PlansPage() {
           password: guestData.password,
           plan: checkoutPlan.planKey + '|' + billingInterval,
           promoCode: promoValidated?.code || undefined,
+          extraCompanies: extraCompanies || undefined,
         });
 
         const { guestToken, ...wompiData } = data;
@@ -1338,6 +1362,54 @@ export default function PlansPage() {
                   </div>
                 )}
 
+                {/* Additional companies selector */}
+                {['pro', 'plus', 'go'].includes(checkoutPlan.planKey) && (
+                  <div className="mt-6 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                    <h4 className="mb-1 text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Building2 className="h-4.5 w-4.5 text-indigo-500" />
+                      ¿Deseas gestionar más de 1 empresa?
+                    </h4>
+                    <p className="mb-4 text-xs text-text-secondary leading-relaxed">
+                      Cada empresa adicional añade un perfil independiente para SGSST y +1 GB de almacenamiento.
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl bg-surface-secondary p-3 border border-border-light/50">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-text-primary">Empresas adicionales</span>
+                        <span className="text-[11px] font-semibold text-text-tertiary">
+                          +${extraCompanyPrice.toLocaleString('es-CO')}{' '}
+                          {billingInterval === 'monthly'
+                            ? '/mes'
+                            : billingInterval === 'quarterly'
+                              ? '/trim.'
+                              : billingInterval === 'semiannual'
+                                ? '/sem.'
+                                : '/año'}{' '}
+                          por empresa
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExtraCompanies((prev) => Math.max(0, prev - 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraCompanies === 0}
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-black text-text-primary w-4 text-center">{extraCompanies}</span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraCompanies((prev) => Math.min(9, prev + 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraCompanies >= 9}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Compra y Paga Después Info Box */}
                 <div className="group relative mt-6 overflow-hidden rounded-2xl border border-blue-500/20 bg-blue-50/50 p-5 shadow-sm dark:bg-blue-900/10">
                   <div className="absolute right-0 top-0 -mr-10 -mt-10 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all group-hover:bg-blue-500/20" />
@@ -1410,6 +1482,14 @@ export default function PlansPage() {
                         {checkoutPlan.displayPrice}
                       </span>
                     </div>
+                    {['pro', 'plus', 'go'].includes(checkoutPlan.planKey) && extraCompanies > 0 && (
+                      <div className="flex justify-between text-text-primary">
+                        <span className="text-text-secondary">Empresas adicionales ({extraCompanies})</span>
+                        <span className="font-medium">
+                          +${(extraCompanies * extraCompanyPrice).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                    )}
                     {checkoutPlan.promotion && (
                       <div className="flex justify-between text-indigo-500">
                         <span>Promoción ({checkoutPlan.promotion.discountPercentage}%)</span>

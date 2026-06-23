@@ -665,6 +665,10 @@ const startServer = async () => {
     const { startPlanExpirationJob } = require('./services/planExpirationJob');
     startPlanExpirationJob();
 
+    // Start background job that automatically deletes temporary files in chats older than 60 days
+    const { startChatFilesCleanupJob } = require('./services/chatFilesCleanupJob');
+    startChatFilesCleanupJob();
+
     // Boot WhatsApp Sessions OpenClaw Architecture — DESACTIVADO TEMPORALMENTE
     // Para reactivar: descomenta las dos líneas de abajo
     // const whatsappManager = require('./whatsapp/WhatsAppManager');
