@@ -22,6 +22,11 @@ function createCloseHandler(abortController) {
       return;
     }
 
+    if (process.env.ABORT_ON_CLOSE === 'false') {
+      logger.debug('[AgentController] Request closed, but ABORT_ON_CLOSE is false. Continuing.');
+      return;
+    }
+
     abortController.abort();
     logger.debug('[AgentController] Request aborted on close');
   };

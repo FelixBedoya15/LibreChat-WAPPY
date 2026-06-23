@@ -111,6 +111,9 @@ const chatV2 = async (req, res) => {
   try {
     res.on('close', async () => {
       if (!completedRun) {
+        if (process.env.ABORT_ON_CLOSE === 'false') {
+          return;
+        }
         await handleError(new Error('Request closed'));
       }
     });

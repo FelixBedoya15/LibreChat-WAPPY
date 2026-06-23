@@ -12,7 +12,14 @@ export function sendEvent(res: ServerResponse, event: ServerSentEvent): void {
   if (typeof event.data === 'string' && event.data.length === 0) {
     return;
   }
-  res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
+  if (res.writableEnded || res.finished || (res.socket && res.socket.destroyed)) {
+    return;
+  }
+  try {
+    res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
+  } catch (error) {
+    // Ignore write errors to closed connection
+  }
 }
 
 /**
@@ -21,6 +28,13 @@ export function sendEvent(res: ServerResponse, event: ServerSentEvent): void {
  * @param message - The error message.
  */
 export function handleError(res: ServerResponse, message: string): void {
-  res.write(`event: error\ndata: ${JSON.stringify(message)}\n\n`);
-  res.end();
+  if (res.writableEnded || res.finished || (res.socket && res.socket.destroyed)) {
+    return;
+  }
+  try {
+    res.write(`event: error\ndata: ${JSON.stringify(message)}\n\n`);
+    res.end();
+  } catch (error) {
+    // Ignore errors
+  }
 }

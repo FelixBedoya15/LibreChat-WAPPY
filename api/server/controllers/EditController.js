@@ -152,9 +152,14 @@ const EditController = async (req, res, next, initializeClient) => {
       if (!abortController || abortController.signal.aborted || abortController.requestCompleted) {
         return;
       }
+      if (process.env.ABORT_ON_CLOSE === 'false') {
+        logger.debug('[EditController] Request closed, but ABORT_ON_CLOSE is false. Continuing generation.');
+        return;
+      }
       abortController.abort();
       logger.debug('[EditController] Request aborted on close');
     };
+
 
     res.on('close', closeHandler);
     cleanupHandlers.push(() => {
