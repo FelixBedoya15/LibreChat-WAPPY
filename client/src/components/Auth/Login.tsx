@@ -25,7 +25,15 @@ function Login() {
 
   useEffect(() => {
     const oauthError = searchParams?.get('error');
-    if (oauthError && oauthError === ErrorTypes.AUTH_FAILED) {
+    if (oauthError && oauthError === 'account_exists') {
+      showToast({
+        message: localize('com_auth_error_account_exists'),
+        status: 'error',
+      });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('error');
+      setSearchParams(newParams, { replace: true });
+    } else if (oauthError && oauthError === ErrorTypes.AUTH_FAILED) {
       showToast({
         message: localize('com_auth_error_oauth_failed'),
         status: 'error',

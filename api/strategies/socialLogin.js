@@ -48,7 +48,7 @@ const socialLogin =
         logger.info(
           `[${provider}Login] User ${email} already exists with provider ${existingUser.provider}`,
         );
-        const error = new Error(ErrorTypes.AUTH_FAILED);
+        const error = new Error('account_exists');
         error.code = ErrorTypes.AUTH_FAILED;
         error.provider = existingUser.provider;
         return cb(error);

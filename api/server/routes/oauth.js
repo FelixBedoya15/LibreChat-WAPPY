@@ -60,7 +60,12 @@ router.get('/error', (req, res) => {
     message: errorMessage,
   });
 
-  res.redirect(`${domains.client}/login?redirect=false&error=${ErrorTypes.AUTH_FAILED}`);
+  let errorType = ErrorTypes.AUTH_FAILED;
+  if (errorMessage === 'account_exists') {
+    errorType = 'account_exists';
+  }
+
+  res.redirect(`${domains.client}/login?redirect=false&error=${errorType}`);
 });
 
 /**

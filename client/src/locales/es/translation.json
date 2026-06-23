@@ -178,6 +178,7 @@
   "com_auth_error_login_unverified": "Su cuenta no ha sido verificada. Por favor, revise su correo electrónico para encontrar el enlace de verificación.",
   "com_auth_error_login_inactive": "Su cuenta está inactiva y no puede iniciar sesión.",
   "com_auth_error_login_not_active_yet": "Su cuenta aún no ha alcanzado la fecha de activación.",
+  "com_auth_error_account_exists": "Este correo ya está registrado con otro método de inicio de sesión. Por favor, ingresa con tu contraseña.",
   "com_auth_error_oauth_failed": "Error de autenticación OAuth. Por favor, inténtalo de nuevo.",
   "com_auth_facebook_login": "Continuar con Facebook",
   "com_auth_full_name": "Nombre completo",
