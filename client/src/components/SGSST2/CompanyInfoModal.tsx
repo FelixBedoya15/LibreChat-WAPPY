@@ -5,7 +5,7 @@ import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
     Award, Calendar, UserCheck, Image as ImageIcon,
-    Plus, Trash2, CheckCircle, Lock
+    Plus, Trash2, CheckCircle, Lock, Sparkles
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
@@ -130,12 +130,14 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         message: string;
         actionText: string;
         actionUrl: string;
+        badge: string;
     }>({
         isOpen: false,
         title: '',
         message: '',
         actionText: '',
-        actionUrl: ''
+        actionUrl: '',
+        badge: ''
     });
 
     const loadPlanLimit = useCallback(async () => {
@@ -368,15 +370,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     title: 'Límite de Empresas Alcanzado',
                     message: `Has alcanzado el límite de ${effectiveLimit} empresa(s) de tu plan Wappy Pro. Para activar empresas adicionales en tu cuenta, comunícate con nuestro soporte técnico para habilitarlas en tu suscripción.`,
                     actionText: 'Contactar Soporte',
-                    actionUrl: 'https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20adquirir%20empresas%20adicionales%20en%20mi%20cuenta.'
+                    actionUrl: 'https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20adquirir%20empresas%20adicionales%20en%20mi%20cuenta.',
+                    badge: 'Adquirir Empresas'
                 });
             } else {
                 setUpgradeAlert({
                     isOpen: true,
                     title: 'Amplía tu Plan',
                     message: `Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Para poder crear y gestionar nuevas empresas de forma aislada, te invitamos a adquirir el plan Wappy Pro con empresas adicionales.`,
-                    actionText: 'Ver Planes',
-                    actionUrl: '/planes'
+                    actionText: 'Ver Planes y Adquirir Wappy Pro',
+                    actionUrl: '/planes',
+                    badge: 'Adquirir Wappy Pro'
                 });
             }
         }
@@ -389,15 +393,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 title: 'Empresa Bloqueada',
                 message: `La empresa "${c.companyName}" está bloqueada. Tu plan Wappy Pro actual permite gestionar hasta ${effectiveLimit} empresa(s). Comunícate con soporte técnico para activar perfiles adicionales en tu suscripción y desbloquearla.`,
                 actionText: 'Contactar Soporte',
-                actionUrl: `https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20desbloquear%20la%20empresa%20${encodeURIComponent(c.companyName || '')}%20en%20mi%20cuenta.`
+                actionUrl: `https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20desbloquear%20la%20empresa%20${encodeURIComponent(c.companyName || '')}%20en%20mi%20cuenta.`,
+                badge: 'Desbloquear Empresa'
             });
         } else {
             setUpgradeAlert({
                 isOpen: true,
                 title: 'Empresa Bloqueada',
                 message: `La empresa "${c.companyName}" está bloqueada. Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Adquiere el plan Wappy Pro para desbloquearla y gestionar múltiples perfiles.`,
-                actionText: 'Ver Planes',
-                actionUrl: '/planes'
+                actionText: 'Ver Planes y Adquirir Wappy Pro',
+                actionUrl: '/planes',
+                badge: 'Adquirir Wappy Pro'
             });
         }
     };
@@ -1009,25 +1015,61 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             />
 
             {upgradeAlert.isOpen && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs">
-                    <div className="mx-4 w-full max-w-md rounded-2xl border border-border-medium bg-surface-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                        <h3 className="text-base font-bold text-text-primary mb-2">{upgradeAlert.title}</h3>
-                        <p className="text-sm text-text-secondary mb-6 leading-relaxed">{upgradeAlert.message}</p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))}
-                                className="px-4 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-hover rounded-xl border border-border-medium transition-colors"
-                            >
-                                Cancelar
-                            </button>
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        {/* Close button at the top-right outside the card */}
+                        <button 
+                            onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm z-50 transition-colors"
+                        >
+                            Cerrar ✕
+                        </button>
+                        
+                        {/* Card container styled exactly like UpgradeWall */}
+                        <div className="relative flex flex-col items-center justify-center text-center overflow-hidden bg-white dark:bg-gray-950 border border-border-medium rounded-3xl shadow-2xl p-8 w-full group">
+                            {/* Ambient Background Glows */}
+                            <div className="absolute top-0 right-0 -mr-16 -mt-16 bg-green-500/10 rounded-full blur-3xl pointer-events-none w-40 h-40" />
+                            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none w-40 h-40" />
+
+                            {/* Center Lock / Icon SVG Illustration */}
+                            <div className="relative z-10 mb-4">
+                                <div className="relative flex items-center justify-center rounded-full bg-gradient-to-tr from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 shadow-inner border border-green-500/20 w-16 h-16">
+                                    <svg className="w-7 h-7 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                        <circle cx="12" cy="16" r="1" />
+                                    </svg>
+
+                                    {/* Sparkles */}
+                                    <div className="absolute -top-1 -right-1 text-green-400 scale-75 animate-pulse">
+                                        <Sparkles className="w-6 h-6" />
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Badge */}
+                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-full shadow-lg border border-white/20 whitespace-nowrap text-[10px]">
+                                    {upgradeAlert.badge}
+                                </div>
+                            </div>
+
+                            {/* Content Copy */}
+                            <h3 className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 z-10 tracking-tight text-xl mb-2">
+                                {upgradeAlert.title}
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 mx-auto leading-relaxed z-10 text-xs mb-6 max-w-[320px]">
+                                {upgradeAlert.message}
+                            </p>
+
+                            {/* Action Button */}
                             <a
                                 href={upgradeAlert.actionUrl}
                                 target={upgradeAlert.actionUrl.startsWith('http') ? '_blank' : '_self'}
                                 rel="noopener noreferrer"
                                 onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))}
-                                className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-colors text-center"
+                                className="relative flex items-center justify-center gap-2 font-extrabold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg border border-white/20 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:shadow-xl mt-4 px-6 py-2.5 text-sm w-full text-center"
                             >
-                                {upgradeAlert.actionText}
+                                <Sparkles className="w-5 h-5 animate-pulse text-white" />
+                                <span className="tracking-wide">{upgradeAlert.actionText}</span>
                             </a>
                         </div>
                     </div>
