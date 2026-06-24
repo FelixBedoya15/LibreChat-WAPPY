@@ -219,6 +219,7 @@ const AttachFileMenu = ({
         .setDeveloperKey(developerKey)
         .setAppId(appId || '')
         .setOAuthToken(accessToken)
+        .setLocale('es')
         .addView(view)
         .setCallback(async (data: any) => {
           if (data.action === google.picker.Action.PICKED) {
