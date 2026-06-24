@@ -48,6 +48,7 @@ const {
   BlogEditor,
   ConsultarAnaliticaPsicosocial,
   ConsultarAnaliticaActosCondiciones,
+  GoogleDrive,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -271,6 +272,9 @@ const loadTools = async ({
     },
     consultar_analitica_actos_condiciones: async (_toolContextMap) => {
       return new ConsultarAnaliticaActosCondiciones({ req: options.req });
+    },
+    google_drive: async (_toolContextMap) => {
+      return new GoogleDrive({ req: options.req });
     },
   };
 

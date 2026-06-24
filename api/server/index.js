@@ -174,6 +174,7 @@ const startServer = async () => {
     ['whatsapp', routes.whatsapp],
     ['referrals', routes.referrals],
     ['rutaAprendizaje', routes.rutaAprendizaje],
+    ['googleDrive', routes.googleDrive],
   ];
 
 
@@ -190,6 +191,7 @@ const startServer = async () => {
   app.use('/api/actions', routes.actions);
   app.use('/api/keys', routes.keys);
   app.use('/api/user', routes.user);
+  app.use('/api/google-drive', routes.googleDrive);
   app.use('/api/search', routes.search);
   app.use('/api/edit', routes.edit);
   app.use('/api/messages', routes.messages);
@@ -252,6 +254,9 @@ const startServer = async () => {
   app.use('/api/sgsst/workers', routes.sgsst.workers);
   app.use('/api/sgsst/canvas', routes.sgsst.canvas);
   app.use('/api/sgsst/epp', routes.sgsst.epp);
+  app.use('/api/sgsst/vehicles', routes.sgsst.vehicles);
+  app.use('/api/sgsst/heights', routes.sgsst.heights);
+  app.use('/api/sgsst/chemicals', routes.sgsst.chemicals);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);

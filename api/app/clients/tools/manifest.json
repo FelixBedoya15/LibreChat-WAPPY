@@ -277,5 +277,18 @@
     "description": "Permite al Agente de Seguridad y Salud en el Trabajo consultar de forma consolidada las estadísticas de reportes de actos y condiciones inseguras acumulados en el sistema (inbox y reportes generados) para responder preguntas sobre tendencias de seguridad, hallazgos, estado y áreas críticas.",
     "icon": "https://cdn-icons-png.flaticon.com/512/3050/3050418.png",
     "authConfig": []
+  },
+  {
+    "name": "Google Drive",
+    "pluginKey": "google_drive",
+    "description": "Permite al agente conectarse con Google Drive para buscar archivos, carpetas, leer el contenido de documentos (Docs, Sheets, PDFs) y guardar o crear nuevos documentos directamente en la cuenta del usuario.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2965/2965327.png",
+    "authConfig": [
+      {
+        "authField": "GOOGLE_DRIVE_REFRESH_TOKEN",
+        "label": "Google Drive Refresh Token",
+        "description": "Se obtiene automáticamente al conectar tu cuenta de Google Drive desde la sección de Opciones de Cuenta."
+      }
+    ]
   }
 ]

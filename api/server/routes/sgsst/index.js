@@ -68,5 +68,8 @@ module.exports = {
     programaCapacitaciones,
     workers,
     epp,
+    vehicles: require('./vehicles'),
+    heights: require('./heights'),
+    chemicals: require('./chemicals'),
 };
 

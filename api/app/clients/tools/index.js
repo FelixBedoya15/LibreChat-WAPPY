@@ -25,6 +25,7 @@ const ConsultarAgenteEspecializado = require('./structured/ConsultarAgenteEspeci
 const BlogEditor = require('./structured/BlogEditor');
 const ConsultarAnaliticaPsicosocial = require('./structured/ConsultarAnaliticaPsicosocial');
 const ConsultarAnaliticaActosCondiciones = require('./structured/ConsultarAnaliticaActosCondiciones');
+const GoogleDrive = require('./structured/GoogleDrive');
 
 
 module.exports = {
@@ -54,4 +55,5 @@ module.exports = {
   BlogEditor,
   ConsultarAnaliticaPsicosocial,
   ConsultarAnaliticaActosCondiciones,
+  GoogleDrive,
 };

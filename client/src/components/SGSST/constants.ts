@@ -74,6 +74,21 @@ export const PHASE_CATEGORIES = {
             id: 'epp_delivery', title: 'Entrega y Seguimiento de EPP', icon: 'Shield',
             bioRationale: 'Asegura la entrega oportuna y el estado técnico óptimo de los elementos de protección personal y equipos de alturas, controlando su ciclo de vida y firmas de conformidad.', 
             normativity: 'Hito 3: Dinámica de Exposición' 
+        },
+        { 
+            id: 'vehicles_pesv', title: 'Hoja de Vida Automotores (PESV)', icon: 'Car',
+            bioRationale: 'Controla el ciclo de mantenimiento, SOAT, Técnico-Mecánica y las inspecciones diarias pre-operacionales firmadas por conductores.',
+            normativity: 'Hito 3: Dinámica de Exposición'
+        },
+        { 
+            id: 'heights_lifecycle', title: 'Hoja de Vida de Equipos de Alturas', icon: 'Wrench',
+            bioRationale: 'Administra y certifica la hoja de vida de arneses, eslingas e inspecciones anuales reglamentarias de protección contra caídas.',
+            normativity: 'Hito 3: Dinámica de Exposición'
+        },
+        { 
+            id: 'chemical_registry', title: 'Registro y Rótulo de Productos Químicos', icon: 'FlaskConical',
+            bioRationale: 'Inventario de sustancias químicas, compatibilidad de almacenamiento, control de Fichas de Seguridad (FDS) y pictogramas SGA.',
+            normativity: 'Hito 3: Dinámica de Exposición'
         }
     ],
     hito4: [

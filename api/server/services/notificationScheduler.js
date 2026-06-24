@@ -410,6 +410,116 @@ const runNotificationChecks = async () => {
               }
             }
           }
+
+          // E.3. Heights Safety Equipment (Dedicated Module)
+          const SgsstHeightsData = require('../../models/SgsstHeightsData');
+          const heightsData = await SgsstHeightsData.findOne({ user: userId, companyId, workerId: w.id }).lean();
+          if (heightsData && heightsData.equipos) {
+            for (const eq of heightsData.equipos) {
+              if (eq.fechaProximaInspeccion) {
+                const prox = parseDateString(eq.fechaProximaInspeccion);
+                if (prox) {
+                  const diffDays = Math.round((prox.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diffDays < 0 && diffDays >= -30) {
+                    docAlerts.push({
+                      workerName,
+                      docType: `Inspección de Alturas (Hoja de Vida): ${eq.nombre} (Serial: ${eq.serial})`,
+                      date: eq.fechaProximaInspeccion,
+                      statusClass: 'badge-danger',
+                      statusText: 'Vencido'
+                    });
+                  } else if (diffDays >= 0 && diffDays <= 30) {
+                    docAlerts.push({
+                      workerName,
+                      docType: `Inspección de Alturas (Hoja de Vida): ${eq.nombre} (Serial: ${eq.serial})`,
+                      date: eq.fechaProximaInspeccion,
+                      statusClass: 'badge-warning',
+                      statusText: 'Próximo'
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // E.4. Vehicles Lifecycle (PESV)
+        const SgsstVehicleData = require('../../models/SgsstVehicleData');
+        const vehicles = await SgsstVehicleData.find({ user: userId, companyId }).lean();
+        for (const veh of vehicles) {
+          const vehName = `Vehículo ${veh.placa} (${veh.marca} ${veh.modelo})`;
+          
+          if (veh.soatVencimiento) {
+            const soatDate = parseDateString(veh.soatVencimiento);
+            if (soatDate) {
+              const diffDays = Math.round((soatDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0 && diffDays >= -30) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'SOAT Vehicular',
+                  date: veh.soatVencimiento,
+                  statusClass: 'badge-danger',
+                  statusText: 'Vencido'
+                });
+              } else if (diffDays >= 0 && diffDays <= 30) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'SOAT Vehicular',
+                  date: veh.soatVencimiento,
+                  statusClass: 'badge-warning',
+                  statusText: 'Próximo'
+                });
+              }
+            }
+          }
+
+          if (veh.tecnomecanicaVencimiento) {
+            const tecDate = parseDateString(veh.tecnomecanicaVencimiento);
+            if (tecDate) {
+              const diffDays = Math.round((tecDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0 && diffDays >= -30) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'Revisión Técnico-Mecánica (PESV)',
+                  date: veh.tecnomecanicaVencimiento,
+                  statusClass: 'badge-danger',
+                  statusText: 'Vencido'
+                });
+              } else if (diffDays >= 0 && diffDays <= 30) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'Revisión Técnico-Mecánica (PESV)',
+                  date: veh.tecnomecanicaVencimiento,
+                  statusClass: 'badge-warning',
+                  statusText: 'Próximo'
+                });
+              }
+            }
+          }
+
+          if (veh.proximoMantenimiento) {
+            const maintDate = parseDateString(veh.proximoMantenimiento);
+            if (maintDate) {
+              const diffDays = Math.round((maintDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0 && diffDays >= -30) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'Mantenimiento Preventivo',
+                  date: veh.proximoMantenimiento,
+                  statusClass: 'badge-danger',
+                  statusText: 'Vencido'
+                });
+              } else if (diffDays >= 0 && diffDays <= 15) {
+                docAlerts.push({
+                  workerName: vehName,
+                  docType: 'Mantenimiento Preventivo',
+                  date: veh.proximoMantenimiento,
+                  statusClass: 'badge-warning',
+                  statusText: 'Próximo'
+                });
+              }
+            }
+          }
         }
 
         // F. Capacitaciones Programadas

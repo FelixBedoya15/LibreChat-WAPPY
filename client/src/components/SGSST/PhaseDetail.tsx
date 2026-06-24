@@ -5,7 +5,8 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye
+    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
+    Car, Wrench, FlaskConical
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -45,6 +46,9 @@ import HtmlSandboxApp from './HtmlSandboxApp';
 import { UpgradeWall } from './UpgradeWall';
 import MoodAnalyticsDashboard from './MoodAnalyticsDashboard';
 import EPPWorkspace from './EPPWorkspace';
+import VehiclesWorkspace from './VehiclesWorkspace';
+import HeightsWorkspace from './HeightsWorkspace';
+import ChemicalsWorkspace from './ChemicalsWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -52,7 +56,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
-    BrainCircuit, Blocks, Heart, Shield
+    BrainCircuit, Blocks, Heart, Shield,
+    Car, Wrench, FlaskConical
 };
 
 
@@ -195,7 +200,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const uploadMutation = useUploadFileMutation({
         onSuccess: (data) => {
             setIsUploading(null);
-            showToast({ message: 'Archivo subido correctamente', status: 'success', severity: 'success' });
+            showToast({ message: 'Archivo subido correctamente', status: 'success' });
 
             const newFile = {
                 file_id: data.file_id,
@@ -633,6 +638,27 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'epp_delivery' && (
                                                     <div className="mb-6">
                                                         <EPPWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show VehiclesWorkspace for vehicles_pesv category */}
+                                                {category.id === 'vehicles_pesv' && (
+                                                    <div className="mb-6">
+                                                        <VehiclesWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show HeightsWorkspace for heights_lifecycle category */}
+                                                {category.id === 'heights_lifecycle' && (
+                                                    <div className="mb-6">
+                                                        <HeightsWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ChemicalsWorkspace for chemical_registry category */}
+                                                {category.id === 'chemical_registry' && (
+                                                    <div className="mb-6">
+                                                        <ChemicalsWorkspace />
                                                     </div>
                                                 )}
 

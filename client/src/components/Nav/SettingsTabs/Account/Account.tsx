@@ -12,6 +12,7 @@ import Avatar from './Avatar';
 import EnableTwoFactorItem from './TwoFactorAuthentication';
 import BackupCodesItem from './BackupCodesItem';
 import WhatsAppConnect from './WhatsAppConnect';
+import GoogleDriveConnect from './GoogleDriveConnect';
 import TicketForm from '~/components/Tickets/TicketForm';
 import ReferralPanel from './ReferralPanel';
 
@@ -90,6 +91,8 @@ function Account() {
         <div className="py-2"><DisplayUsernameMessages /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><EmailNotificationsToggle /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><GoogleDriveConnect /></div>
 
         {user?.provider === 'local' && (
           <>
