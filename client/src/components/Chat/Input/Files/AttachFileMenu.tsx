@@ -128,6 +128,10 @@ const AttachFileMenu = ({
     toolResource,
   });
 
+  const { agentsConfig } = useGetAgentsConfig();
+  const { data: startupConfig } = useGetStartupConfig();
+  const sharePointEnabled = startupConfig?.sharePointFilePickerEnabled;
+
   const { showToast } = useToastContext();
   const { setFiles, setFilesLoading } = useChatContext();
   const { addFile, updateFileById, deleteFileById } = useUpdateFiles(setFiles);
@@ -236,9 +240,7 @@ const AttachFileMenu = ({
     }
   }, [showToast, startupConfig, handleGoogleDriveFilesSelected]);
 
-  const { agentsConfig } = useGetAgentsConfig();
-  const { data: startupConfig } = useGetStartupConfig();
-  const sharePointEnabled = startupConfig?.sharePointFilePickerEnabled;
+
 
   const [isSharePointDialogOpen, setIsSharePointDialogOpen] = useState(false);
 
