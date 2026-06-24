@@ -212,9 +212,9 @@ const AttachFileMenu = ({
         });
         return;
       }
-      const view = new google.picker.View(google.picker.ViewId.DOCS);
+      const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setIncludeFolders(true);
       const picker = new google.picker.PickerBuilder()
-        .enableFeature(google.picker.Feature.NAV_HIDDEN)
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .setDeveloperKey(developerKey)
         .setAppId(appId || '')
