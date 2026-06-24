@@ -17,10 +17,11 @@ const SCOPES = [
 ];
 
 const getOAuth2Client = (redirectUri) => {
+  const domain = (process.env.DOMAIN_SERVER || '').replace(/\/$/, '');
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri || `${process.env.DOMAIN_SERVER}/api/google-drive/callback`
+    redirectUri || `${domain}/api/google-drive/callback`
   );
 };
 

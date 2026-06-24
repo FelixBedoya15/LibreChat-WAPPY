@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { 
@@ -17,11 +18,14 @@ import {
   ArrowRight,
   ClipboardList,
   FileSpreadsheet,
-  Download
+  Download,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel } from './exportEpp';
 import { saveAs } from 'file-saver';
+import { SGSSTToolbar } from './SGSSTToolbar';
 
 interface EppItem {
   id: string;
@@ -80,6 +84,11 @@ export default function EPPWorkspace() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Collapsible states
+  const [isCargoExpanded, setIsCargoExpanded] = useState(true);
+  const [isAlturasExpanded, setIsAlturasExpanded] = useState(true);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   // New EPP Form state
   const [formEppName, setFormEppName] = useState('');
@@ -571,32 +580,36 @@ export default function EPPWorkspace() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {selectedDoc && selectedDoc.entregas.length > 0 && (
-                  <>
-                    <button
-                      onClick={handlePrintReceipt}
-                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                      title="Imprimir acta o guardar como archivo PDF"
-                    >
-                      <Printer className="w-4 h-4" /> Acta (PDF)
-                    </button>
-                    <button
-                      onClick={handleDownloadHtml}
-                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                      title="Descargar acta en formato HTML de escritorio"
-                    >
-                      <Download className="w-4 h-4" /> Acta (HTML)
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  <Plus className="w-4 h-4" /> Registrar Entrega
-                </button>
+              <div className="-my-2">
+                <SGSSTToolbar
+                  exportButtons={selectedDoc && selectedDoc.entregas.length > 0 ? [
+                    {
+                      id: 'pdf-receipt',
+                      onClick: handlePrintReceipt,
+                      label: 'Acta (PDF)',
+                      title: 'Imprimir acta o guardar como archivo PDF',
+                      icon: Printer
+                    },
+                    {
+                      id: 'html-receipt',
+                      onClick: handleDownloadHtml,
+                      label: 'Acta (HTML)',
+                      title: 'Descargar acta en formato HTML de escritorio',
+                      icon: Download
+                    }
+                  ] : []}
+                  persistenceButtons={[
+                    {
+                      id: 'add-delivery',
+                      onClick: () => setIsModalOpen(true),
+                      label: 'Registrar Entrega',
+                      title: 'Registrar nueva entrega de EPP',
+                      icon: Plus,
+                      variant: 'ai'
+                    }
+                  ]}
+                  onExportExcel={handleExportExcel}
+                />
               </div>
             </div>
 
