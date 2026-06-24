@@ -431,24 +431,9 @@ export default function HeightsWorkspace() {
                 </div>
               </div>
 
-              <div className="-my-2">
                 <SGSSTToolbar
-                  exportButtons={selectedDoc && selectedDoc.equipos.length > 0 ? [
-                    {
-                      id: 'pdf-receipt',
-                      onClick: handlePrintFicha,
-                      label: 'Ficha (PDF)',
-                      title: 'Imprimir ficha o guardar como PDF',
-                      icon: Printer
-                    },
-                    {
-                      id: 'html-receipt',
-                      onClick: handleDownloadFichaHtml,
-                      label: 'Ficha (HTML)',
-                      title: 'Descargar ficha en HTML',
-                      icon: Download
-                    }
-                  ] : []}
+                  exportContent={selectedWorker && selectedDoc && selectedDoc.equipos && selectedDoc.equipos.length > 0 ? buildHtmlFicha(selectedWorker, selectedDoc) : ''}
+                  exportFileName={`Ficha_Vida_Alturas_${selectedWorker.nombre.replace(/\s+/g, '_')}`}
                   persistenceButtons={[
                     {
                       id: 'add-equipment',
@@ -461,7 +446,6 @@ export default function HeightsWorkspace() {
                   ]}
                   onExportExcel={handleExportExcel}
                 />
-              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

@@ -583,22 +583,14 @@ export default function EPPWorkspace() {
 
               <div className="-my-2">
                 <SGSSTToolbar
-                  exportButtons={selectedDoc && selectedDoc.entregas.length > 0 ? [
-                    {
-                      id: 'pdf-receipt',
-                      onClick: handlePrintReceipt,
-                      label: 'Acta (PDF)',
-                      title: 'Imprimir acta o guardar como archivo PDF',
-                      icon: Printer
-                    },
-                    {
-                      id: 'html-receipt',
-                      onClick: handleDownloadHtml,
-                      label: 'Acta (HTML)',
-                      title: 'Descargar acta en formato HTML de escritorio',
-                      icon: Download
-                    }
-                  ] : []}
+                  exportContent={selectedDoc && selectedDoc.entregas && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
+                    selectedWorker,
+                    selectedDoc,
+                    selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital,
+                    localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png',
+                    new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+                  ) : ''}
+                  exportFileName={`Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}`}
                   persistenceButtons={[
                     {
                       id: 'add-delivery',

@@ -483,8 +483,9 @@ export default function VehiclesWorkspace() {
                 </div>
               </div>
 
-              <div className="-my-2">
                 <SGSSTToolbar
+                  exportContent={selectedVehicle && selectedVehicle.inspecciones && selectedVehicle.inspecciones.length > 0 ? buildHtmlActa(selectedVehicle, selectedVehicle.inspecciones[selectedVehicle.inspecciones.length - 1]) : ''}
+                  exportFileName={`Inspeccion_PESV_${selectedVehicle.placa}`}
                   persistenceButtons={[
                     {
                       id: 'add-inspection',
@@ -497,7 +498,6 @@ export default function VehiclesWorkspace() {
                   ]}
                   onExportExcel={handleExportExcel}
                 />
-              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

@@ -449,24 +449,9 @@ export default function ChemicalsWorkspace() {
                 </div>
               </div>
 
-              <div className="-my-2">
                 <SGSSTToolbar
-                  exportButtons={[
-                    {
-                      id: 'pdf-receipt',
-                      onClick: handlePrintFicha,
-                      label: 'Ficha (PDF)',
-                      title: 'Imprimir ficha o guardar como PDF',
-                      icon: Printer
-                    },
-                    {
-                      id: 'html-receipt',
-                      onClick: handleDownloadFichaHtml,
-                      label: 'Ficha (HTML)',
-                      title: 'Descargar ficha en HTML',
-                      icon: Download
-                    }
-                  ]}
+                  exportContent={selectedProduct ? buildHtmlFicha(selectedProduct) : ''}
+                  exportFileName={`Ficha_Seguridad_SGA_${selectedProduct.nombre.replace(/\s+/g, '_')}`}
                   persistenceButtons={[
                     {
                       id: 'edit-product',
@@ -479,7 +464,6 @@ export default function ChemicalsWorkspace() {
                   ]}
                   onExportExcel={handleExportExcel}
                 />
-              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

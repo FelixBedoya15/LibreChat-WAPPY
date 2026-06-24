@@ -154,6 +154,10 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
    * Build a full HTML document with inline styles for browser/HTML export.
    */
   const buildFullHtml = (): string => {
+    const isFullHtml = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
+    if (isFullHtml) {
+      return content;
+    }
     return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -363,8 +367,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     ): Record<string, string> => ({ ...base, ...override });
 
     const parser = new DOMParser();
-    const doc = parser.parseFromString(`<div>${content}</div>`, 'text/html');
-    const root = doc.body.firstElementChild!;
+    const isFullHtml = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
+    const doc = parser.parseFromString(isFullHtml ? content : `<div>${content}</div>`, 'text/html');
+    const root = isFullHtml ? (doc.body || doc.documentElement) : doc.body.firstElementChild!;
 
     /**
      * Recursively parses all CSS classes on elements and converts them into inline styles,
