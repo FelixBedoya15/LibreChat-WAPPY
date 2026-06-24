@@ -61,7 +61,7 @@ const connect = require('./connect');
   try {
     await sendEmail({
       email: email,
-      subject: `Invite to join ${appName}!`,
+      subject: `¡Te han invitado a unirte a ${appName}!`,
       payload: {
         appName: appName,
         inviteLink: inviteLink,
