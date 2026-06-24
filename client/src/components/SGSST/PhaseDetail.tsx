@@ -44,6 +44,7 @@ import InspeccionTrabajoH1 from './InspeccionTrabajoH1';
 import HtmlSandboxApp from './HtmlSandboxApp';
 import { UpgradeWall } from './UpgradeWall';
 import MoodAnalyticsDashboard from './MoodAnalyticsDashboard';
+import EPPWorkspace from './EPPWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -51,7 +52,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
-    BrainCircuit, Blocks, Heart
+    BrainCircuit, Blocks, Heart, Shield
 };
 
 
@@ -614,19 +615,26 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  )}
 
 
-                                                 {/* Show AppBuilder for app_builder category */}
-                                                 {category.id === 'app_builder' && (
-                                                     <div className="mb-6">
-                                                         <AppBuilder />
-                                                     </div>
-                                                 )}
+                                                {/* Show AppBuilder for app_builder category */}
+                                                {category.id === 'app_builder' && (
+                                                    <div className="mb-6">
+                                                        <AppBuilder />
+                                                    </div>
+                                                )}
 
-                                                 {/* Show InspeccionTrabajoH1 for inspeccion_trabajo category */}
-                                                 {category.id === 'inspeccion_trabajo' && (
-                                                     <div className="mb-6">
-                                                         <InspeccionTrabajoH1 />
-                                                     </div>
-                                                 )}
+                                                {/* Show InspeccionTrabajoH1 for inspeccion_trabajo category */}
+                                                {category.id === 'inspeccion_trabajo' && (
+                                                    <div className="mb-6">
+                                                        <InspeccionTrabajoH1 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show EPPWorkspace for epp_delivery category */}
+                                                {category.id === 'epp_delivery' && (
+                                                    <div className="mb-6">
+                                                        <EPPWorkspace />
+                                                    </div>
+                                                )}
 
 
                                             </>

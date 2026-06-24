@@ -11,6 +11,10 @@ const SgsstConfigSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    lastNotificationRun: {
+        type: Date,
+        default: null
+    },
 });
 
 module.exports = mongoose.models.SgsstConfig || mongoose.model('SgsstConfig', SgsstConfigSchema);

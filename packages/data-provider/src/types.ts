@@ -219,6 +219,7 @@ export type TUser = {
   updatedAt: string;
   phoneNumber?: string;
   inactiveAt?: string;
+  emailNotifications?: boolean;
 };
 
 export type TGetConversationsResponse = {

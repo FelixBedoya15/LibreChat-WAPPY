@@ -231,13 +231,14 @@ const updateUserPluginsController = async (req, res) => {
 
 const updateUserProfileController = async (req, res) => {
   try {
-    const { name, username, password, inactiveAt, phoneNumber } = req.body;
+    const { name, username, password, inactiveAt, phoneNumber, emailNotifications } = req.body;
     const userId = req.user.id || req.user._id;
 
     const updateData = {};
     if (name) updateData.name = name;
     if (username) updateData.username = username;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
     // inactiveAt is now restricted to Admin updates only
     if (password) {
       const salt = bcrypt.genSaltSync(10);

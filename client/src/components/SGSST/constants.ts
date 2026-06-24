@@ -69,6 +69,11 @@ export const PHASE_CATEGORIES = {
             id: 'metodo_owas', title: 'Método OWAS (Evaluación Física)', icon: 'Activity',
             bioRationale: 'Garantiza la armonía postural, protegiendo al esqueleto y musculatura humana de sobreesfuerzos crónicos.', 
             normativity: 'Hito 3: Dinámica de Exposición' 
+        },
+        { 
+            id: 'epp_delivery', title: 'Entrega y Seguimiento de EPP', icon: 'Shield',
+            bioRationale: 'Asegura la entrega oportuna y el estado técnico óptimo de los elementos de protección personal y equipos de alturas, controlando su ciclo de vida y firmas de conformidad.', 
+            normativity: 'Hito 3: Dinámica de Exposición' 
         }
     ],
     hito4: [

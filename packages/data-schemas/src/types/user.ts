@@ -42,6 +42,7 @@ export interface IUser extends Document {
   downloadsToday?: number;
   lastDownloadDate?: Date;
   pushSubscriptions?: any[];
+  emailNotifications?: boolean;
 }
 
 export interface BalanceConfig {
@@ -71,6 +72,7 @@ export interface UpdateUserRequest {
     memories?: boolean;
   };
   phoneNumber?: string;
+  emailNotifications?: boolean;
 }
 
 export interface UserDeleteResult {

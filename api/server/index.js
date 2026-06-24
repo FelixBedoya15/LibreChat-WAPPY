@@ -251,6 +251,7 @@ const startServer = async () => {
   app.use('/api/sgsst/chemical-compatibility', routes.sgsst.chemicalCompatibilityWorkspace);
   app.use('/api/sgsst/workers', routes.sgsst.workers);
   app.use('/api/sgsst/canvas', routes.sgsst.canvas);
+  app.use('/api/sgsst/epp', routes.sgsst.epp);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);
@@ -668,6 +669,10 @@ const startServer = async () => {
     // Start background job that automatically deletes temporary files in chats older than 60 days
     const { startChatFilesCleanupJob } = require('./services/chatFilesCleanupJob');
     startChatFilesCleanupJob();
+
+    // Start background job for daily plan & SST expiration notifications
+    const { startNotificationScheduler } = require('./services/notificationScheduler');
+    startNotificationScheduler();
 
     // Boot WhatsApp Sessions OpenClaw Architecture — DESACTIVADO TEMPORALMENTE
     // Para reactivar: descomenta las dos líneas de abajo

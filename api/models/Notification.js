@@ -42,8 +42,13 @@ const notificationSchema = new mongoose.Schema({
 notificationSchema.post('save', async function (doc) {
   try {
     const User = mongoose.model('User');
-    const user = await User.findById(doc.user).select('email name username');
+    const user = await User.findById(doc.user).select('email name username emailNotifications');
     if (!user || !user.email) {
+      return;
+    }
+
+    // Si el usuario desactivó recibir notificaciones por correo, cancelamos el envío
+    if (user.emailNotifications === false) {
       return;
     }
 

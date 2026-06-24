@@ -6,6 +6,7 @@ import axios from 'axios';
 import { formatDateForInput } from '~/utils/dateHelpers';
 
 import DisplayUsernameMessages from './DisplayUsernameMessages';
+import EmailNotificationsToggle from './EmailNotificationsToggle';
 import DeleteAccount from './DeleteAccount';
 import Avatar from './Avatar';
 import EnableTwoFactorItem from './TwoFactorAuthentication';
@@ -87,6 +88,8 @@ function Account() {
         <div className="py-2"><Avatar /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><DisplayUsernameMessages /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><EmailNotificationsToggle /></div>
 
         {user?.provider === 'local' && (
           <>

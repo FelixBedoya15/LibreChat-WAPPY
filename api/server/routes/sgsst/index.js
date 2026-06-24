@@ -29,6 +29,7 @@ const patchAgentPrompt = require('./patchAgentPrompt');
 const syncAgents = require('./syncAgents');
 const programaCapacitaciones = require('./programaCapacitaciones');
 const workers = require('./workers');
+const epp = require('./epp');
 
 
 
@@ -66,5 +67,6 @@ module.exports = {
     syncAgents,
     programaCapacitaciones,
     workers,
+    epp,
 };
 

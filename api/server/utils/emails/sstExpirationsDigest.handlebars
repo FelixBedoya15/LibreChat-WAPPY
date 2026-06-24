@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resumen de Vencimientos SST - {{companyName}}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #e2e8f0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #0f172a;
+      padding: 40px 0;
+    }
+    .main-table {
+      max-width: 600px;
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+    .header-logo {
+      padding: 20px 0 30px 0;
+      text-align: center;
+    }
+    .logo-img {
+      max-height: 48px;
+      width: auto;
+      display: inline-block;
+    }
+    .card {
+      background-color: #1e293b;
+      border-radius: 20px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      padding: 40px 30px;
+      margin: 0 15px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 0;
+      margin-bottom: 12px;
+      line-height: 1.3;
+      text-align: left;
+    }
+    .subtitle {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0d9488;
+      margin-top: 0;
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .content-text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #94a3b8;
+      margin-bottom: 25px;
+    }
+    .highlight-name {
+      color: #0d9488;
+      font-weight: 600;
+    }
+    
+    /* Section Styles */
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 30px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #0d9488;
+    }
+    
+    /* Table Styles */
+    .table-container {
+      width: 100%;
+      margin-bottom: 25px;
+      overflow-x: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .data-table th {
+      background-color: #0f172a;
+      color: #94a3b8;
+      font-weight: 600;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      vertical-align: middle;
+    }
+    .data-table tr:nth-child(even) {
+      background-color: rgba(15, 23, 42, 0.2);
+    }
+    
+    /* Badge Styles */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .badge-danger {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .badge-warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-container {
+      text-align: center;
+      margin: 35px 0 15px 0;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 12px 26px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3);
+    }
+    .footer-signature {
+      border-top: 1px solid #334155;
+      margin-top: 40px;
+      padding-top: 25px;
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .signature-team {
+      color: #0d9488;
+      font-weight: 600;
+    }
+    .footer-info {
+      text-align: center;
+      padding: 30px 0;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    .footer-info a {
+      color: #0d9488;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table class="main-table" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td class="header-logo">
+          <a href="https://wappy-ia.com" target="_blank">
+            <img class="logo-img" src="https://wappy-ia.com/assets/logo.png" alt="WAPPY IA">
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card">
+            <h1 class="title">Hola, <span class="highlight-name">{{name}}</span></h1>
+            <div class="subtitle">Somos SST — Reporte de Vencimientos</div>
+            <p class="content-text">Hemos realizado el monitoreo diario para la empresa <strong>{{companyName}}</strong>. A continuación, te presentamos el resumen de los vencimientos y actividades críticas de seguridad y salud en el trabajo detectadas:</p>
+            
+            {{#if hasMedicalAlerts}}
+            <div class="section-title">🏥 Exámenes Médicos y Seguimientos</div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Trabajador</th>
+                    <th>Cargo</th>
+                    <th>Alerta</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each medicalAlerts}}
+                  <tr>
+                    <td><strong>{{workerName}}</strong></td>
+                    <td>{{cargo}}</td>
+                    <td>{{alertType}}</td>
+                    <td>{{date}}</td>
+                    <td><span class="badge {{statusClass}}">{{statusText}}</span></td>
+                  </tr>
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+            {{/if}}
+
+            {{#if hasHeightsAlerts}}
+            <div class="section-title">🪜 Cursos de Alturas</div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Trabajador</th>
+                    <th>Cargo</th>
+                    <th>Certificación</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each heightsAlerts}}
+                  <tr>
+                    <td><strong>{{workerName}}</strong></td>
+                    <td>{{cargo}}</td>
+                    <td>{{courseType}}</td>
+                    <td>{{date}}</td>
+                    <td><span class="badge {{statusClass}}">{{statusText}}</span></td>
+                  </tr>
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+            {{/if}}
+
+            {{#if hasDocAlerts}}
+            <div class="section-title">🚗 Vehículos y Licencias</div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Trabajador</th>
+                    <th>Documento / Licencia</th>
+                    <th>Fecha Vto.</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each docAlerts}}
+                  <tr>
+                    <td><strong>{{workerName}}</strong></td>
+                    <td>{{docType}}</td>
+                    <td>{{date}}</td>
+                    <td><span class="badge {{statusClass}}">{{statusText}}</span></td>
+                  </tr>
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+            {{/if}}
+
+            {{#if hasTrainingAlerts}}
+            <div class="section-title">📅 Capacitaciones Programadas</div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tema / Actividad</th>
+                    <th>Responsable</th>
+                    <th>Fecha Programada</th>
+                    <th>Alerta</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each trainingAlerts}}
+                  <tr>
+                    <td><strong>{{topic}}</strong></td>
+                    <td>{{responsible}}</td>
+                    <td>{{date}}</td>
+                    <td>{{alertType}}</td>
+                    <td><span class="badge {{statusClass}}">{{statusText}}</span></td>
+                  </tr>
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+            {{/if}}
+
+            <p class="content-text" style="margin-top: 30px;">Te sugerimos ingresar al portal de Somos SST para programar las actualizaciones de datos, renovaciones de exámenes, o registrar la ejecución de las capacitaciones pendientes.</p>
+
+            <div class="btn-container">
+              <a href="https://wappy-ia.com" target="_blank" class="btn">Ir al portal Somos SST</a>
+            </div>
+            
+            <div class="footer-signature">
+              Un abrazo,<br>
+              <span class="signature-team">El equipo de WAPPY IA</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer-info">
+          <p>© {{year}} WAPPY IA. Todos los derechos reservados.</p>
+          <p>
+            <a href="https://wappy-ia.com" target="_blank">Sitio Web</a> • 
+            <a href="mailto:soporte@wappy.club">Soporte técnico</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

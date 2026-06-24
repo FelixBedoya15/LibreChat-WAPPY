@@ -177,6 +177,10 @@ const userSchema = new Schema<IUser>(
       type: Array,
       default: [],
     },
+    emailNotifications: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true },
 );
