@@ -90,15 +90,21 @@ const sendEmailViaSMTP = async ({ transporterOptions, mailOptions }) => {
  *
  * @throws Will throw an error if the email sending process fails and throwError is `true`.
  */
-const sendEmail = async ({ email, subject, payload, template, throwError = true }) => {
+const sendEmail = async ({ email, subject, payload, template, from, throwError = true }) => {
   try {
     const { content: source } = await readFileAsString(path.join(__dirname, 'emails', template));
     const compiledTemplate = handlebars.compile(source);
     const html = compiledTemplate(payload);
 
     // Prepare common email data
-    const fromName = process.env.EMAIL_FROM_NAME || process.env.APP_TITLE;
-    const fromEmail = process.env.EMAIL_FROM;
+    const notificationsEmail = process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club';
+    let fromName = process.env.EMAIL_FROM_NAME || process.env.APP_TITLE;
+    const fromEmail = from || process.env.EMAIL_FROM;
+
+    if (fromEmail === notificationsEmail) {
+      fromName = process.env.EMAIL_NOTIFICATIONS_FROM_NAME || 'Notificaciones Wappy';
+    }
+
     const fromAddress = `"${fromName}" <${fromEmail}>`;
     const toAddress = `"${payload.name}" <${email}>`;
 
@@ -115,6 +121,15 @@ const sendEmail = async ({ email, subject, payload, template, throwError = true 
 
     // Default to SMTP
     logger.debug('[sendEmail] Using SMTP provider');
+
+    let smtpUser = process.env.EMAIL_USERNAME;
+    let smtpPass = process.env.EMAIL_PASSWORD;
+    
+    if (fromEmail === notificationsEmail && process.env.EMAIL_NOTIFICATIONS_PASSWORD) {
+      smtpUser = process.env.EMAIL_NOTIFICATIONS_USERNAME || process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club';
+      smtpPass = process.env.EMAIL_NOTIFICATIONS_PASSWORD;
+    }
+
     const transporterOptions = {
       // Use STARTTLS by default instead of obligatory TLS
       secure: process.env.EMAIL_ENCRYPTION === 'tls',
@@ -125,8 +140,8 @@ const sendEmail = async ({ email, subject, payload, template, throwError = true 
         rejectUnauthorized: !isEnabled(process.env.EMAIL_ALLOW_SELFSIGNED),
       },
       auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
+        user: smtpUser,
+        pass: smtpPass,
       },
     };
 
