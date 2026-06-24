@@ -15,9 +15,13 @@ import {
   Printer, 
   Wrench, 
   ArrowRight,
-  ClipboardList
+  ClipboardList,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
+import { exportEppToExcel } from './exportEpp';
+import { saveAs } from 'file-saver';
 
 interface EppItem {
   id: string;
@@ -312,19 +316,16 @@ export default function EPPWorkspace() {
     setFormObservaciones('');
   };
 
-  // Print Delivery Receipt PDF window
-  const handlePrintReceipt = () => {
-    if (!selectedWorker || !selectedDoc) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png';
-    const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-    const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
-
+  // Helper to generate the HTML for print/download
+  const buildReceiptHtml = (
+    worker: SocioWorker,
+    doc: WorkerEppDoc,
+    signature: string | undefined,
+    logo: string,
+    todayStr: string
+  ) => {
     let tableRows = '';
-    selectedDoc.entregas.forEach(ent => {
+    doc.entregas.forEach(ent => {
       tableRows += `
         <tr>
           <td>${ent.nombre}</td>
@@ -340,12 +341,12 @@ export default function EPPWorkspace() {
       `;
     });
 
-    const receiptHtml = `
+    return `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Acta de Entrega de EPP — ${selectedWorker.nombre}</title>
+        <title>Acta de Entrega de EPP — ${worker.nombre}</title>
         <style>
           body { font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; margin: 40px; font-size: 13px; line-height: 1.5; }
           .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0d9488; padding-bottom: 20px; margin-bottom: 30px; }
@@ -365,14 +366,14 @@ export default function EPPWorkspace() {
       </head>
       <body>
         <div class="header">
-          <img class="logo" src="${companyLogo}" />
+          <img class="logo" src="${logo}" />
           <div class="title">Acta de Entrega de EPP y Alturas<br><span style="font-size:11px; font-weight:normal; color:#64748b;">SG-SST Resolución 0312</span></div>
         </div>
 
         <div class="meta-grid">
-          <div class="meta-item"><div class="meta-label">Trabajador</div><strong>${selectedWorker.nombre}</strong></div>
-          <div class="meta-item"><div class="meta-label">Documento</div><strong>${selectedWorker.identificacion}</strong></div>
-          <div class="meta-item"><div class="meta-label">Cargo</div><strong>${selectedWorker.cargo || 'Sin cargo'}</strong></div>
+          <div class="meta-item"><div class="meta-label">Trabajador</div><strong>${worker.nombre}</strong></div>
+          <div class="meta-item"><div class="meta-label">Documento</div><strong>${worker.identificacion}</strong></div>
+          <div class="meta-item"><div class="meta-label">Cargo</div><strong>${worker.cargo || 'Sin cargo'}</strong></div>
           <div class="meta-item"><div class="meta-label">Fecha de Impresión</div><strong>${todayStr}</strong></div>
         </div>
 
@@ -400,28 +401,72 @@ export default function EPPWorkspace() {
 
         <div class="signatures">
           <div class="signature-box">
-            ${lastSignature ? `<img class="signature-img" src="${lastSignature}" />` : '<div style="height:60px;"></div>'}
-            <strong>${selectedWorker.nombre}</strong><br>Trabajador / Recibí Conforme
+            ${signature ? `<img class="signature-img" src="${signature}" />` : '<div style="height:60px;"></div>'}
+            <strong>${worker.nombre}</strong><br>Trabajador / Recibí Conforme
           </div>
           <div class="signature-box">
             <div style="height:60px;"></div>
             <strong>Responsable SG-SST</strong><br>Entrega Autorizada
           </div>
         </div>
-
-        <script>
-          window.onload = function() {
-            window.focus();
-            window.print();
-          }
-        </script>
       </body>
       </html>
     `;
+  };
+
+  // Print Delivery Receipt PDF window
+  const handlePrintReceipt = () => {
+    if (!selectedWorker || !selectedDoc) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png';
+    const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
+
+    let receiptHtml = buildReceiptHtml(selectedWorker, selectedDoc, lastSignature, companyLogo, todayStr);
+    
+    // Add print trigger script before body closing tag
+    receiptHtml = receiptHtml.replace('</body>', `
+      <script>
+        window.onload = function() {
+          window.focus();
+          window.print();
+        }
+      </script>
+      </body>
+    `);
 
     printWindow.document.open();
     printWindow.document.write(receiptHtml);
     printWindow.document.close();
+  };
+
+  // Download delivery receipt in HTML format
+  const handleDownloadHtml = () => {
+    if (!selectedWorker || !selectedDoc) return;
+
+    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png';
+    const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
+
+    const receiptHtml = buildReceiptHtml(selectedWorker, selectedDoc, lastSignature, companyLogo, todayStr);
+
+    const blob = new Blob([receiptHtml], { type: 'text/html;charset=utf-8' });
+    saveAs(blob, `Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}.html`);
+  };
+
+  // Export general EPP records for all workers to Excel
+  const handleExportExcel = async () => {
+    try {
+      showToast({ message: 'Generando reporte de Excel...', status: 'info' });
+      await exportEppToExcel(eppDocs, workers);
+      showToast({ message: 'Reporte Excel generado correctamente', status: 'success' });
+    } catch (err) {
+      console.error('[EPP Workspace] Excel export error:', err);
+      showToast({ message: 'Error al exportar a Excel', status: 'error' });
+    }
   };
 
   // Filters workers list based on search
@@ -440,9 +485,18 @@ export default function EPPWorkspace() {
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Trabajadores
             </h2>
-            <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
-              {workers.length}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
+                title="Descargar base de datos general de entregas de EPP en Excel"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+              </button>
+              <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
+                {workers.length}
+              </span>
+            </div>
           </div>
 
           <div className="relative">
@@ -519,12 +573,22 @@ export default function EPPWorkspace() {
 
               <div className="flex items-center gap-2">
                 {selectedDoc && selectedDoc.entregas.length > 0 && (
-                  <button
-                    onClick={handlePrintReceipt}
-                    className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                  >
-                    <Printer className="w-4 h-4" /> Acta de Entrega (PDF)
-                  </button>
+                  <>
+                    <button
+                      onClick={handlePrintReceipt}
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
+                      title="Imprimir acta o guardar como archivo PDF"
+                    >
+                      <Printer className="w-4 h-4" /> Acta (PDF)
+                    </button>
+                    <button
+                      onClick={handleDownloadHtml}
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
+                      title="Descargar acta en formato HTML de escritorio"
+                    >
+                      <Download className="w-4 h-4" /> Acta (HTML)
+                    </button>
+                  </>
                 )}
 
                 <button
