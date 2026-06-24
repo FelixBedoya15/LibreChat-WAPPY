@@ -22,6 +22,7 @@ import {
   DropdownPopup,
   AttachmentIcon,
   SharePointIcon,
+  useToastContext,
 } from '@librechat/client';
 import type { EndpointFileConfig } from 'librechat-data-provider';
 import {
@@ -39,6 +40,56 @@ import { ephemeralAgentByConvoId } from '~/store';
 import { MenuItemProps } from '~/common';
 import { cn } from '~/utils';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import { useChatContext } from '~/Providers/ChatContext';
+import useUpdateFiles from '~/hooks/Files/useUpdateFiles';
+import { v4 } from 'uuid';
+import axios from 'axios';
+
+const GoogleDriveIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 87.3 78" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="m6.6 66.85 10.1-17.5h54l-10.1 17.5z" fill="#0f9d58"/>
+    <path d="m28.65 28.5 10.1-17.5h42l-10.1 17.5z" fill="#4285f4"/>
+    <path d="m16.7 49.35 22.05-38.35h20.2l-22.05 38.35z" fill="#f4b400"/>
+  </svg>
+);
+
+const loadScript = (src: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.head.appendChild(script);
+  });
+};
+
+const loadGooglePickerAPI = (): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await Promise.all([
+        loadScript('https://apis.google.com/js/api.js'),
+        loadScript('https://accounts.google.com/gsi/client'),
+      ]);
+      const gapi = (window as any).gapi;
+      if (typeof gapi === 'undefined') {
+        reject(new Error('Google API global script not loaded'));
+        return;
+      }
+      gapi.load('picker', {
+        callback: () => resolve(),
+        onerror: (err: any) => reject(new Error('Failed to load Google Picker library')),
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 interface AttachFileMenuProps {
   agentId?: string | null;
@@ -76,6 +127,114 @@ const AttachFileMenu = ({
     overrideEndpointFileConfig: endpointFileConfig,
     toolResource,
   });
+
+  const { showToast } = useToastContext();
+  const { setFiles, setFilesLoading } = useChatContext();
+  const { addFile, updateFileById, deleteFileById } = useUpdateFiles(setFiles);
+
+  const handleGoogleDriveFilesSelected = React.useCallback(async (documents: any[]) => {
+    setFilesLoading(true);
+    for (const doc of documents) {
+      const tempId = v4();
+      const initialFile = {
+        file_id: tempId,
+        temp_file_id: tempId,
+        filename: doc.name,
+        size: doc.sizeBytes || 0,
+        type: doc.mimeType || 'application/octet-stream',
+        progress: 0.1,
+        attached: true,
+      };
+      addFile(initialFile);
+      try {
+        const response = await axios.post('/api/google-drive/import-file', {
+          fileId: doc.id,
+          endpoint: endpoint || EModelEndpoint.agents,
+          toolResource: toolResource,
+        });
+        const data = response.data;
+        updateFileById(tempId, {
+          progress: 1,
+          file_id: data.file_id,
+          temp_file_id: tempId,
+          filepath: data.filepath,
+          type: data.type,
+          height: data.height,
+          width: data.width,
+          filename: data.filename,
+          source: data.source,
+          embedded: data.embedded,
+        });
+      } catch (err: any) {
+        console.error('Failed to import Google Drive file:', err);
+        deleteFileById(tempId);
+        const errMsg = err.response?.data?.message || 'Error al descargar el archivo de Google Drive.';
+        showToast({
+          message: errMsg,
+          status: 'error',
+          duration: 5000,
+        });
+      }
+    }
+    setFilesLoading(false);
+  }, [setFilesLoading, addFile, endpoint, toolResource, updateFileById, deleteFileById, showToast]);
+
+  const handleGooglePickerOpen = React.useCallback(async () => {
+    try {
+      const tokenRes = await axios.get('/api/google-drive/token');
+      if (!tokenRes.data.connected || !tokenRes.data.accessToken) {
+        showToast({
+          message: 'Google Drive no está conectado. Por favor, conéctalo en Configuración de Cuenta.',
+          status: 'warning',
+          duration: 5000,
+        });
+        return;
+      }
+      const accessToken = tokenRes.data.accessToken;
+      showToast({
+        message: 'Abriendo selector de Google Drive...',
+        status: 'info',
+        duration: 2000,
+      });
+      await loadGooglePickerAPI();
+      const google = (window as any).google;
+      const developerKey = startupConfig?.googlePickerApiKey;
+      const appId = startupConfig?.googleAppId;
+      if (!developerKey) {
+        showToast({
+          message: 'Error: Clave de API de Google Picker no configurada en el servidor.',
+          status: 'error',
+          duration: 5000,
+        });
+        return;
+      }
+      const view = new google.picker.View(google.picker.ViewId.DOCS);
+      const picker = new google.picker.PickerBuilder()
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setDeveloperKey(developerKey)
+        .setAppId(appId || '')
+        .setOAuthToken(accessToken)
+        .addView(view)
+        .setCallback(async (data: any) => {
+          if (data.action === google.picker.Action.PICKED) {
+            const documents = data[google.picker.Response.DOCUMENTS];
+            if (documents && documents.length > 0) {
+              await handleGoogleDriveFilesSelected(documents);
+            }
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch (error: any) {
+      console.error('Google Picker error:', error);
+      showToast({
+        message: `Error al abrir Google Drive: ${error.message || 'Desconocido'}`,
+        status: 'error',
+        duration: 5000,
+      });
+    }
+  }, [showToast, startupConfig, handleGoogleDriveFilesSelected]);
 
   const { agentsConfig } = useGetAgentsConfig();
   const { data: startupConfig } = useGetStartupConfig();
@@ -243,6 +402,16 @@ const AttachFileMenu = ({
 
     const localItems = createMenuItems(handleUploadClick);
 
+    const googleDriveItems = createMenuItems(() => {
+      handleGooglePickerOpen();
+    });
+    localItems.push({
+      label: 'Google Drive',
+      onClick: wrapClick(() => {}),
+      icon: <GoogleDriveIcon className="icon-md" />,
+      subItems: googleDriveItems,
+    });
+
     if (sharePointEnabled) {
       const sharePointItems = createMenuItems(() => {
         setIsSharePointDialogOpen(true);
@@ -271,6 +440,7 @@ const AttachFileMenu = ({
     fileSearchAllowedByAgent,
     setIsSharePointDialogOpen,
     user?.role,
+    handleGooglePickerOpen,
   ]);
 
   const menuTrigger = (

@@ -123,6 +123,8 @@ router.get('/', async function (req, res) {
       sharePointBaseUrl: process.env.SHAREPOINT_BASE_URL,
       sharePointPickerGraphScope: process.env.SHAREPOINT_PICKER_GRAPH_SCOPE,
       sharePointPickerSharePointScope: process.env.SHAREPOINT_PICKER_SHAREPOINT_SCOPE,
+      googlePickerApiKey: process.env.GOOGLE_PICKER_API_KEY,
+      googleAppId: process.env.GOOGLE_APP_ID || (process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.split('-')[0] : undefined),
       openidReuseTokens,
       conversationImportMaxFileSize: process.env.CONVERSATION_IMPORT_MAX_FILE_SIZE_BYTES
         ? parseInt(process.env.CONVERSATION_IMPORT_MAX_FILE_SIZE_BYTES, 10)

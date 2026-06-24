@@ -655,6 +655,8 @@ export type TStartupConfig = {
   sharePointBaseUrl?: string;
   sharePointPickerGraphScope?: string;
   sharePointPickerSharePointScope?: string;
+  googlePickerApiKey?: string;
+  googleAppId?: string;
   openidReuseTokens?: boolean;
   minPasswordLength?: number;
   webSearch?: {

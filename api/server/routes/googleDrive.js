@@ -2,7 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const jwt = require('jsonwebtoken');
 const { logger } = require('@librechat/data-schemas');
-const { requireJwtAuth } = require('~/server/middleware');
+const { requireJwtAuth, configMiddleware } = require('~/server/middleware');
 const {
   getUserPluginAuthValue,
   updateUserPluginAuth,
@@ -184,6 +184,175 @@ router.delete('/disconnect', requireJwtAuth, async (req, res) => {
   } catch (err) {
     logger.error('[GoogleDriveDisconnect] Error disconnecting Google Drive:', err);
     res.status(500).json({ error: 'Fallo al desconectar Google Drive' });
+  }
+});
+
+/**
+ * Retrieves the decrypted active user Google Drive access token,
+ * automatically refreshing it if it is expired.
+ */
+router.get('/token', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false, 'google_drive');
+    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
+    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', false, 'google_drive');
+    const expiry = Number(expiryStr);
+
+    if (!accessToken || !refreshToken) {
+      return res.json({ connected: false });
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expiry_date: expiry,
+    });
+
+    // Check if access token is expired or close to expiry (within 1 minute)
+    const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
+    if (isExpired) {
+      logger.info(`[GoogleDriveRoute] Access token expired for user: ${userId}. Refreshing...`);
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(credentials);
+
+      // Update database with new tokens
+      if (credentials.access_token) {
+        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+      }
+      if (credentials.expiry_date) {
+        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+      }
+      logger.info(`[GoogleDriveRoute] Successfully refreshed Google Drive token for user: ${userId}`);
+    }
+
+    const activeToken = oauth2Client.credentials.access_token;
+    res.json({ connected: true, accessToken: activeToken });
+  } catch (err) {
+    logger.error('[GoogleDriveToken] Error retrieving or refreshing token:', err);
+    res.status(500).json({ error: 'Fallo al obtener el token de Google Drive. Asegúrate de tener la cuenta conectada.' });
+  }
+});
+
+/**
+ * Downloads a file from Google Drive and uploads it to Wappy's standard file storage and DB.
+ */
+router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) => {
+  const { fileId, endpoint, toolResource } = req.body;
+  if (!fileId) {
+    return res.status(400).json({ error: 'Se requiere "fileId" para importar el archivo.' });
+  }
+
+  const userId = req.user.id;
+  let tempFilePath = '';
+
+  try {
+    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false, 'google_drive');
+    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
+    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', false, 'google_drive');
+    const expiry = Number(expiryStr);
+
+    if (!accessToken || !refreshToken) {
+      return res.status(400).json({ error: 'Google Drive no está conectado. Por favor, conéctalo en Configuración.' });
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expiry_date: expiry,
+    });
+
+    const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
+    if (isExpired) {
+      logger.info(`[GoogleDriveImport] Access token expired for user: ${userId}. Refreshing...`);
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(credentials);
+      if (credentials.access_token) {
+        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+      }
+      if (credentials.expiry_date) {
+        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+      }
+    }
+
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+    // Fetch file metadata
+    const metadataRes = await drive.files.get({
+      fileId,
+      fields: 'name, mimeType, size',
+    });
+    const { name, mimeType, size } = metadataRes.data;
+
+    // Download file stream
+    const response = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'stream' }
+    );
+
+    const appConfig = req.config;
+    const crypto = require('crypto');
+    const path = require('path');
+    const fsPromises = require('fs').promises;
+    const fs = require('fs');
+
+    const tempDir = path.join(appConfig.paths.uploads, 'temp', userId);
+    if (!fs.existsSync(tempDir)) {
+      await fsPromises.mkdir(tempDir, { recursive: true });
+    }
+
+    const fileUUID = crypto.randomUUID();
+    tempFilePath = path.join(tempDir, `${fileUUID}-${name}`);
+
+    const writeStream = fs.createWriteStream(tempFilePath);
+    await new Promise((resolve, reject) => {
+      response.data
+        .pipe(writeStream)
+        .on('finish', () => resolve())
+        .on('error', (err) => reject(err));
+    });
+
+    // Populate standard file properties
+    req.file = {
+      path: tempFilePath,
+      originalname: name,
+      mimetype: mimeType,
+      size: Number(size || 0),
+      filename: `${fileUUID}-${name}`,
+    };
+    req.file_id = fileUUID;
+
+    const { processFileUpload } = require('~/server/services/Files/process');
+    const metadata = {
+      file_id: fileUUID,
+      endpoint,
+      tool_resource: toolResource,
+      message_file: !toolResource,
+    };
+
+    await processFileUpload({
+      req,
+      res,
+      metadata,
+    });
+
+  } catch (err) {
+    logger.error('[GoogleDriveImport] Import file failed:', err);
+    res.status(500).json({ message: `Fallo al importar archivo desde Google Drive: ${err.message}` });
+  } finally {
+    if (tempFilePath) {
+      const fs = require('fs');
+      if (fs.existsSync(tempFilePath)) {
+        try {
+          await require('fs').promises.unlink(tempFilePath);
+        } catch (unlinkErr) {
+          logger.error('[GoogleDriveImport] Failed to clean up temp file:', unlinkErr);
+        }
+      }
+    }
   }
 });
 
