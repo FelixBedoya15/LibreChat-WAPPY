@@ -281,14 +281,8 @@
   {
     "name": "Google Drive",
     "pluginKey": "google_drive",
-    "description": "Permite al agente conectarse con Google Drive para buscar archivos, carpetas, leer el contenido de documentos (Docs, Sheets, PDFs) y guardar o crear nuevos documentos directamente en la cuenta del usuario.",
+    "description": "Permite al agente conectarse con Google Drive para buscar archivos, carpetas, leer el contenido de documentos (Google Docs, Google Sheets, Word .docx, Excel .xlsx/.xls, PDFs, txt) y guardar o crear nuevos documentos directamente en la cuenta del usuario.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2965/2965327.png",
-    "authConfig": [
-      {
-        "authField": "GOOGLE_DRIVE_REFRESH_TOKEN",
-        "label": "Google Drive Refresh Token",
-        "description": "Se obtiene automáticamente al conectar tu cuenta de Google Drive desde la sección de Opciones de Cuenta."
-      }
-    ]
+    "authConfig": []
   }
 ]

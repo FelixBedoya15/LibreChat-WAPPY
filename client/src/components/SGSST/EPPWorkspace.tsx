@@ -20,7 +20,8 @@ import {
   FileSpreadsheet,
   Download,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel } from './exportEpp';
@@ -617,139 +618,171 @@ export default function EPPWorkspace() {
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               
               {/* EPP Sugeridos del Cargo */}
-              <div className="p-5 border border-[#0d9488]/20 bg-[#0d9488]/5 rounded-2xl space-y-3.5">
-                <h3 className="font-bold text-sm text-[#0d9488] flex items-center gap-2">
-                  <Shield className="w-4.5 h-4.5" /> EPP Requeridos por el Cargo
-                </h3>
-                {recommendedEpps.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {recommendedEpps.map((epp, idx) => (
-                      <span key={idx} className="bg-surface-secondary border border-border-light dark:border-white/5 text-text-primary text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5 text-teal-500" /> {epp}
-                      </span>
-                    ))}
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsCargoExpanded(!isCargoExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isCargoExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <Shield className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">EPP Requeridos por el Cargo</span>
                   </div>
-                ) : (
-                  <p className="text-xs text-[#0d9488]/80 font-medium">Este cargo no tiene EPPs específicos asignados en el Perfil de Cargo. Se aplica la protección estándar básica.</p>
+                </button>
+                {isCargoExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    {recommendedEpps.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {recommendedEpps.map((epp, idx) => (
+                          <span key={idx} className="bg-surface-secondary border border-border-light dark:border-white/5 text-text-primary text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5">
+                            <CheckCircle className="w-3.5 h-3.5 text-teal-500" /> {epp}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-secondary font-medium">Este cargo no tiene EPPs específicos asignados en el Perfil de Cargo. Se aplica la protección estándar básica.</p>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Trazabilidad de Alturas (Pestaña integrada) */}
               {selectedDoc?.entregas.some(ent => ent.tipo === 'Alturas') && (
-                <div className="space-y-3.5">
-                  <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-                    <Wrench className="w-4.5 h-4.5 text-blue-500" /> Control Anual de Equipos de Alturas
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedDoc.entregas.filter(ent => ent.tipo === 'Alturas').map(ent => {
-                      const today = new Date();
-                      today.setHours(0,0,0,0);
-                      const proxDate = ent.fechaProximaInspeccion ? new Date(ent.fechaProximaInspeccion + 'T12:00:00') : null;
-                      const isVencido = proxDate && proxDate < today;
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                  <button 
+                    onClick={() => setIsAlturasExpanded(!isAlturasExpanded)} 
+                    className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isAlturasExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                      <Wrench className="w-5 h-5 text-blue-500" />
+                      <span className="font-semibold text-text-primary">Control Anual de Equipos de Alturas</span>
+                    </div>
+                  </button>
+                  {isAlturasExpanded && (
+                    <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedDoc.entregas.filter(ent => ent.tipo === 'Alturas').map(ent => {
+                          const today = new Date();
+                          today.setHours(0,0,0,0);
+                          const proxDate = ent.fechaProximaInspeccion ? new Date(ent.fechaProximaInspeccion + 'T12:00:00') : null;
+                          const isVencido = proxDate && proxDate < today;
 
-                      return (
-                        <div key={ent.id} className="p-4 border border-border-light dark:border-white/5 bg-surface-secondary/20 rounded-xl space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-extrabold text-sm text-text-primary">{ent.nombre}</p>
-                              <p className="text-xs text-text-secondary mt-0.5">Serial: <strong>{ent.serial || 'S/N'}</strong></p>
+                          return (
+                            <div key={ent.id} className="p-4 border border-border-light dark:border-white/5 bg-surface-secondary/20 rounded-xl space-y-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-extrabold text-sm text-text-primary">{ent.nombre}</p>
+                                  <p className="text-xs text-text-secondary mt-0.5">Serial: <strong>{ent.serial || 'S/N'}</strong></p>
+                                </div>
+                                <span className={`badge ${isVencido ? 'badge-danger' : 'badge-warning'}`}>
+                                  {isVencido ? 'Inspección Vencida' : 'Inspección Vigente'}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border-light dark:border-white/5 text-text-secondary">
+                                <div>Marca: <strong>{ent.marca || 'N/A'}</strong></div>
+                                <div>Referencia: <strong>{ent.referencia || 'N/A'}</strong></div>
+                                <div>Última insp: <strong>{ent.fechaUltimaInspeccion || 'S/N'}</strong></div>
+                                <div>Próxima insp: <strong className={isVencido ? 'text-red-400' : 'text-text-primary'}>{ent.fechaProximaInspeccion || 'S/N'}</strong></div>
+                              </div>
                             </div>
-                            <span className={`badge ${isVencido ? 'badge-danger' : 'badge-warning'}`}>
-                              {isVencido ? 'Inspección Vencida' : 'Inspección Vigente'}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border-light dark:border-white/5 text-text-secondary">
-                            <div>Marca: <strong>{ent.marca || 'N/A'}</strong></div>
-                            <div>Referencia: <strong>{ent.referencia || 'N/A'}</strong></div>
-                            <div>Última insp: <strong>{ent.fechaUltimaInspeccion || 'S/N'}</strong></div>
-                            <div>Próxima insp: <strong className={isVencido ? 'text-red-400' : 'text-text-primary'}>{ent.fechaProximaInspeccion || 'S/N'}</strong></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Tabla de Historial de Entregas */}
-              <div className="space-y-3.5">
-                <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-                  <FileText className="w-4.5 h-4.5 text-teal-500" /> Registro Completo de Entregas
-                </h3>
-                
-                {selectedDoc && selectedDoc.entregas.length > 0 ? (
-                  <div className="border border-border-light dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-surface-secondary text-text-secondary font-bold text-2xs uppercase tracking-wider">
-                          <th className="p-3.5">Elemento / EPP</th>
-                          <th className="p-3.5">Tipo</th>
-                          <th className="p-3.5">Cant.</th>
-                          <th className="p-3.5">Fecha Entrega</th>
-                          <th className="p-3.5">Vencimiento</th>
-                          <th className="p-3.5 text-center">Firma Recibido</th>
-                          <th className="p-3.5 text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-light dark:divide-white/5">
-                        {selectedDoc.entregas.map(ent => {
-                          const today = new Date();
-                          today.setHours(0,0,0,0);
-                          const vto = ent.fechaVencimiento ? new Date(ent.fechaVencimiento + 'T12:00:00') : null;
-                          const isVencido = vto && vto < today;
-
-                          return (
-                            <tr key={ent.id} className="hover:bg-surface-secondary/30 transition-colors text-text-primary">
-                              <td className="p-3.5 font-bold">{ent.nombre}</td>
-                              <td className="p-3.5">
-                                <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${ent.tipo === 'Alturas' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-500/10 text-text-secondary'}`}>
-                                  {ent.tipo}
-                                </span>
-                              </td>
-                              <td className="p-3.5 font-bold">{ent.cantidad}</td>
-                              <td className="p-3.5">{ent.fechaEntrega}</td>
-                              <td className="p-3.5">
-                                {ent.fechaVencimiento ? (
-                                  <span className={isVencido ? 'text-red-400 font-bold' : ''}>
-                                    {ent.fechaVencimiento} {isVencido && '⚠️'}
-                                  </span>
-                                ) : 'Vitalicio'}
-                              </td>
-                              <td className="p-3.5 align-middle text-center">
-                                {ent.firmaTrabajador ? (
-                                  <div className="inline-flex items-center gap-1 text-teal-500 font-bold">
-                                    <CheckCircle className="w-3.5 h-3.5" /> Registrada
-                                  </div>
-                                ) : (
-                                  <span className="text-red-400 font-bold">Faltante</span>
-                                )}
-                              </td>
-                              <td className="p-3.5 text-right">
-                                <button
-                                  onClick={() => handleDeleteEpp(ent.id)}
-                                  className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                                  title="Eliminar registro"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isHistoryExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <FileText className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Registro Completo de Entregas</span>
                   </div>
-                ) : (
-                  <div className="text-center py-16 border border-dashed border-border-medium rounded-2xl text-text-tertiary">
-                    <Shield className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-semibold">No se han registrado entregas para este trabajador</p>
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="mt-3.5 text-xs font-bold text-teal-500 hover:underline flex items-center gap-1 mx-auto"
-                    >
-                      Registrar primera entrega <ArrowRight className="w-3 h-3" />
-                    </button>
+                </button>
+                {isHistoryExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    {selectedDoc && selectedDoc.entregas.length > 0 ? (
+                      <div className="border border-border-light dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-surface-secondary text-text-secondary font-bold text-2xs uppercase tracking-wider">
+                              <th className="p-3.5">Elemento / EPP</th>
+                              <th className="p-3.5">Tipo</th>
+                              <th className="p-3.5">Cant.</th>
+                              <th className="p-3.5">Fecha Entrega</th>
+                              <th className="p-3.5">Vencimiento</th>
+                              <th className="p-3.5 text-center">Firma Recibido</th>
+                              <th className="p-3.5 text-right">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border-light dark:divide-white/5">
+                            {selectedDoc.entregas.map(ent => {
+                              const today = new Date();
+                              today.setHours(0,0,0,0);
+                              const vto = ent.fechaVencimiento ? new Date(ent.fechaVencimiento + 'T12:00:00') : null;
+                              const isVencido = vto && vto < today;
+
+                              return (
+                                <tr key={ent.id} className="hover:bg-surface-secondary/30 transition-colors text-text-primary">
+                                  <td className="p-3.5 font-bold">{ent.nombre}</td>
+                                  <td className="p-3.5">
+                                    <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${ent.tipo === 'Alturas' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-500/10 text-text-secondary'}`}>
+                                      {ent.tipo}
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5 font-bold">{ent.cantidad}</td>
+                                  <td className="p-3.5">{ent.fechaEntrega}</td>
+                                  <td className="p-3.5">
+                                    {ent.fechaVencimiento ? (
+                                      <span className={isVencido ? 'text-red-400 font-bold' : ''}>
+                                        {ent.fechaVencimiento} {isVencido && '⚠️'}
+                                      </span>
+                                    ) : 'Vitalicio'}
+                                  </td>
+                                  <td className="p-3.5 align-middle text-center">
+                                    {ent.firmaTrabajador ? (
+                                      <div className="inline-flex items-center gap-1 text-teal-500 font-bold">
+                                        <CheckCircle className="w-3.5 h-3.5" /> Registrada
+                                      </div>
+                                    ) : (
+                                      <span className="text-red-400 font-bold">Faltante</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3.5 text-right">
+                                    <button
+                                      onClick={() => handleDeleteEpp(ent.id)}
+                                      className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                      title="Eliminar registro"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-16 border border-dashed border-border-medium rounded-2xl text-text-tertiary">
+                        <Shield className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-semibold">No se han registrado entregas para este trabajador</p>
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="mt-3.5 text-xs font-bold text-teal-500 hover:underline flex items-center gap-1 mx-auto"
+                        >
+                          Registrar primera entrega <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -766,7 +799,7 @@ export default function EPPWorkspace() {
       </div>
 
       {/* ── MODAL: REGISTRAR NUEVA ENTREGA ── */}
-      {isModalOpen && selectedWorker && (
+      {isModalOpen && selectedWorker && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-surface-primary border border-border-light dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border-light dark:border-white/10 flex justify-between items-center bg-surface-secondary/40">
@@ -775,9 +808,9 @@ export default function EPPWorkspace() {
               </h3>
               <button 
                 onClick={() => { setIsModalOpen(false); resetForm(); }}
-                className="text-text-secondary hover:text-text-primary font-bold text-sm"
+                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
               >
-                Cerrar
+                <X className="h-6 w-6" />
               </button>
             </div>
 
@@ -1056,7 +1089,8 @@ export default function EPPWorkspace() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Signature Pad Portal */}

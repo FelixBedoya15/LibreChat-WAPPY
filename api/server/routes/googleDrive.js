@@ -32,8 +32,18 @@ const getOAuth2Client = (redirectUri) => {
 router.get('/auth', requireJwtAuth, (req, res) => {
   try {
     const userId = req.user.id;
-    // Sign user ID in the state to verify it in the public callback (prevents CSRF)
-    const state = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    // Get the referer to redirect back to the correct domain
+    const referer = req.headers.referer || req.headers.origin || process.env.DOMAIN_CLIENT;
+    let clientDomain = process.env.DOMAIN_CLIENT;
+    try {
+      const parsedUrl = new URL(referer);
+      clientDomain = `${parsedUrl.protocol}//${parsedUrl.host}`;
+    } catch (e) {
+      // Fallback to DOMAIN_CLIENT
+    }
+
+    // Sign user ID and domain in the state to verify it in the public callback (prevents CSRF)
+    const state = jwt.sign({ userId, clientDomain }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
     const oauth2Client = getOAuth2Client();
     const authorizationUrl = oauth2Client.generateAuthUrl({
@@ -57,14 +67,27 @@ router.get('/auth', requireJwtAuth, (req, res) => {
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
+  // We need to parse clientDomain even if there is an error to redirect the user to the correct site.
+  let clientDomain = process.env.DOMAIN_CLIENT;
+  try {
+    if (state) {
+      const decoded = jwt.verify(state, process.env.JWT_SECRET);
+      if (decoded.clientDomain) {
+        clientDomain = decoded.clientDomain;
+      }
+    }
+  } catch (e) {
+    // If state decoding fails, we fallback to DOMAIN_CLIENT
+  }
+
   if (error) {
     logger.error('[GoogleDriveCallback] Google OAuth error:', error);
-    return res.redirect(`${process.env.DOMAIN_CLIENT}/c/settings?tab=account&google_drive=error`);
+    return res.redirect(`${clientDomain}/c/settings?tab=account&google_drive=error`);
   }
 
   if (!code || !state) {
     logger.error('[GoogleDriveCallback] Missing code or state');
-    return res.redirect(`${process.env.DOMAIN_CLIENT}/c/settings?tab=account&google_drive=error`);
+    return res.redirect(`${clientDomain}/c/settings?tab=account&google_drive=error`);
   }
 
   try {
@@ -101,11 +124,11 @@ router.get('/callback', async (req, res) => {
 
     logger.info(`[GoogleDriveCallback] Successfully connected Google Drive for user: ${userId} (${googleEmail})`);
     
-    // Redirect user back to account settings
-    res.redirect(`${process.env.DOMAIN_CLIENT}/c/settings?tab=account&google_drive=success`);
+    // Redirect user back to account settings on the correct domain
+    res.redirect(`${clientDomain}/c/settings?tab=account&google_drive=success`);
   } catch (err) {
     logger.error('[GoogleDriveCallback] OAuth callback handling failed:', err);
-    res.redirect(`${process.env.DOMAIN_CLIENT}/c/settings?tab=account&google_drive=error`);
+    res.redirect(`${clientDomain}/c/settings?tab=account&google_drive=error`);
   }
 });
 

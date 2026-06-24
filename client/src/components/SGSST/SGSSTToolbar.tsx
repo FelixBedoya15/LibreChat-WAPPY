@@ -11,7 +11,7 @@ export interface ToolbarButtonConfig {
     onClick: () => void;
     title?: string;
     label: string;
-    icon: IconName | string;
+    icon: IconName | string | React.ComponentType<any>;
     variant?: 'ai' | 'history' | 'database' | 'save' | 'dummy' | 'excel' | 'default';
     disabled?: boolean;
     active?: boolean;

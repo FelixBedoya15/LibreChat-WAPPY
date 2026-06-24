@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { 
@@ -15,11 +16,15 @@ import {
   Wrench, 
   ClipboardList,
   FileSpreadsheet,
-  Download
+  Download,
+  ChevronDown,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
 import { exportHeightsToExcel } from './exportHeights';
 import { saveAs } from 'file-saver';
+import { SGSSTToolbar } from './SGSSTToolbar';
 
 interface EquipoAlturas {
   id: string;
@@ -65,6 +70,9 @@ export default function HeightsWorkspace() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Collapsible states
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   // Form states
   const [formNombre, setFormNombre] = useState('Arnés de cuerpo entero (4 argollas)');
@@ -423,82 +431,99 @@ export default function HeightsWorkspace() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {selectedDoc && selectedDoc.equipos.length > 0 && (
-                  <>
-                    <button
-                      onClick={handlePrintFicha}
-                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                    >
-                      <Printer className="w-4 h-4" /> Ficha (PDF)
-                    </button>
-                    <button
-                      onClick={handleDownloadFichaHtml}
-                      className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                    >
-                      <Download className="w-4 h-4" /> Ficha (HTML)
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  <Plus className="w-4 h-4" /> Registrar Equipo
-                </button>
+              <div className="-my-2">
+                <SGSSTToolbar
+                  exportButtons={selectedDoc && selectedDoc.equipos.length > 0 ? [
+                    {
+                      id: 'pdf-receipt',
+                      onClick: handlePrintFicha,
+                      label: 'Ficha (PDF)',
+                      title: 'Imprimir ficha o guardar como PDF',
+                      icon: Printer
+                    },
+                    {
+                      id: 'html-receipt',
+                      onClick: handleDownloadFichaHtml,
+                      label: 'Ficha (HTML)',
+                      title: 'Descargar ficha en HTML',
+                      icon: Download
+                    }
+                  ] : []}
+                  persistenceButtons={[
+                    {
+                      id: 'add-equipment',
+                      onClick: () => setIsModalOpen(true),
+                      label: 'Registrar Equipo',
+                      title: 'Registrar nuevo equipo de alturas para el trabajador',
+                      icon: Plus,
+                      variant: 'ai'
+                    }
+                  ]}
+                  onExportExcel={handleExportExcel}
+                />
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Inventario de Equipos */}
-              <div className="space-y-4">
-                <h3 className="font-extrabold text-base text-text-primary flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-teal-500" /> Equipos Contra Caídas Asignados
-                </h3>
-
-                <div className="border border-border-light dark:border-white/5 rounded-2xl overflow-hidden shadow-sm bg-surface-primary">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-surface-secondary text-text-secondary font-bold border-b border-border-light dark:border-white/5">
-                        <th className="p-3">Equipo</th>
-                        <th className="p-3">Marca</th>
-                        <th className="p-3">Referencia</th>
-                        <th className="p-3">Serial</th>
-                        <th className="p-3 text-center">Última Inspección</th>
-                        <th className="p-3 text-center">Próxima Inspección</th>
-                        <th className="p-3 text-center">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedDoc?.equipos.map((eq, idx) => (
-                        <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">
-                          <td className="p-3 font-semibold text-text-primary">{eq.nombre}</td>
-                          <td className="p-3 text-text-secondary">{eq.marca}</td>
-                          <td className="p-3 text-text-secondary">{eq.referencia || 'N/A'}</td>
-                          <td className="p-3 text-text-secondary font-mono">{eq.serial}</td>
-                          <td className="p-3 text-center text-text-secondary">{eq.fechaUltimaInspeccion || 'N/A'}</td>
-                          <td className="p-3 text-center text-text-secondary">{eq.fechaProximaInspeccion || 'N/A'}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                              eq.estado === 'Vigente' ? 'bg-green-500/10 text-green-400' :
-                              eq.estado === 'Requiere Inspección' ? 'bg-amber-500/10 text-amber-400' :
-                              'bg-red-500/10 text-red-400'
-                            }`}>
-                              {eq.estado}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                      {(!selectedDoc || selectedDoc.equipos.length === 0) && (
-                        <tr>
-                          <td colSpan={7} className="p-6 text-center text-text-tertiary italic">
-                            No se han registrado equipos de alturas para este trabajador.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isHistoryExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <Wrench className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Equipos Contra Caídas Asignados</span>
+                  </div>
+                </button>
+                {isHistoryExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    <div className="border border-border-light dark:border-white/5 rounded-2xl overflow-hidden shadow-sm bg-surface-primary">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-surface-secondary text-text-secondary font-bold border-b border-border-light dark:border-white/5">
+                            <th className="p-3">Equipo</th>
+                            <th className="p-3">Marca</th>
+                            <th className="p-3">Referencia</th>
+                            <th className="p-3">Serial</th>
+                            <th className="p-3 text-center">Última Inspección</th>
+                            <th className="p-3 text-center">Próxima Inspección</th>
+                            <th className="p-3 text-center">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedDoc?.equipos.map((eq, idx) => (
+                            <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">
+                              <td className="p-3 font-semibold text-text-primary">{eq.nombre}</td>
+                              <td className="p-3 text-text-secondary">{eq.marca}</td>
+                              <td className="p-3 text-text-secondary">{eq.referencia || 'N/A'}</td>
+                              <td className="p-3 text-text-secondary font-mono">{eq.serial}</td>
+                              <td className="p-3 text-center text-text-secondary">{eq.fechaUltimaInspeccion || 'N/A'}</td>
+                              <td className="p-3 text-center text-text-secondary">{eq.fechaProximaInspeccion || 'N/A'}</td>
+                              <td className="p-3 text-center">
+                                <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                                  eq.estado === 'Vigente' ? 'bg-green-500/10 text-green-400' :
+                                  eq.estado === 'Requiere Inspección' ? 'bg-amber-500/10 text-amber-400' :
+                                  'bg-red-500/10 text-red-400'
+                                }`}>
+                                  {eq.estado}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {(!selectedDoc || selectedDoc.equipos.length === 0) && (
+                            <tr>
+                              <td colSpan={7} className="p-6 text-center text-text-tertiary italic">
+                                No se han registrado equipos de alturas para este trabajador.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -511,14 +536,19 @@ export default function HeightsWorkspace() {
       </div>
 
       {/* Modal: Registrar Equipo */}
-      {isModalOpen && selectedWorker && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-primary border border-border-light dark:border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {isModalOpen && selectedWorker && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-light dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border-light dark:border-white/10 flex justify-between items-center bg-surface-secondary/40">
               <h3 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                 <Plus className="w-5 h-5 text-teal-500" /> Registrar Equipo de Alturas
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-tertiary hover:text-text-primary text-sm font-bold">Cerrar</button>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
@@ -625,7 +655,8 @@ export default function HeightsWorkspace() {
               <button onClick={handleSaveEquipment} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs">Registrar Equipo</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <SignaturePad

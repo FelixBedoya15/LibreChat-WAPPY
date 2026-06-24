@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { 
@@ -15,11 +16,15 @@ import {
   Wrench, 
   ClipboardList,
   FileSpreadsheet,
-  Download
+  Download,
+  ChevronDown,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
 import { exportVehiclesToExcel } from './exportVehicles';
 import { saveAs } from 'file-saver';
+import { SGSSTToolbar } from './SGSSTToolbar';
 
 interface InspeccionVehicular {
   fecha: string;
@@ -71,6 +76,10 @@ export default function VehiclesWorkspace() {
   const [isNewVehModalOpen, setIsNewVehModalOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Collapsible states
+  const [isDatesExpanded, setIsDatesExpanded] = useState(true);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   // Form states (Pre-operacional)
   const [formFecha, setFormFecha] = useState(new Date().toISOString().substring(0, 10));
@@ -474,89 +483,122 @@ export default function VehiclesWorkspace() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm"
-              >
-                <Plus className="w-4 h-4" /> Inspección Pre-operacional
-              </button>
+              <div className="-my-2">
+                <SGSSTToolbar
+                  persistenceButtons={[
+                    {
+                      id: 'add-inspection',
+                      onClick: () => setIsModalOpen(true),
+                      label: 'Inspección Pre-operacional',
+                      title: 'Registrar nueva inspección pre-operacional del vehículo',
+                      icon: Plus,
+                      variant: 'ai'
+                    }
+                  ]}
+                  onExportExcel={handleExportExcel}
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Fechas Importantes */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 border border-border-light dark:border-white/5 rounded-2xl bg-surface-secondary/20 space-y-1">
-                  <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento SOAT</span>
-                  <p className="text-sm font-bold text-text-primary">{selectedVehicle.soatVencimiento}</p>
-                </div>
-                <div className="p-4 border border-border-light dark:border-white/5 rounded-2xl bg-surface-secondary/20 space-y-1">
-                  <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento Técnico-Mecánica</span>
-                  <p className="text-sm font-bold text-text-primary">{selectedVehicle.tecnomecanicaVencimiento || 'No registrado'}</p>
-                </div>
-                <div className="p-4 border border-border-light dark:border-white/5 rounded-2xl bg-surface-secondary/20 space-y-1">
-                  <span className="text-3xs uppercase font-bold text-text-secondary">Próximo Mantenimiento</span>
-                  <p className="text-sm font-bold text-text-primary">{selectedVehicle.proximoMantenimiento || 'No registrado'}</p>
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsDatesExpanded(!isDatesExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isDatesExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <Calendar className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Fechas Importantes</span>
+                  </div>
+                </button>
+                {isDatesExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
+                      <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento SOAT</span>
+                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.soatVencimiento}</p>
+                    </div>
+                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
+                      <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento Técnico-Mecánica</span>
+                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.tecnomecanicaVencimiento || 'No registrado'}</p>
+                    </div>
+                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
+                      <span className="text-3xs uppercase font-bold text-text-secondary">Próximo Mantenimiento</span>
+                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.proximoMantenimiento || 'No registrado'}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Historial de Inspecciones */}
-              <div className="space-y-4">
-                <h3 className="font-extrabold text-base text-text-primary flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-teal-500" /> Historial de Inspecciones Pre-operacionales
-                </h3>
-
-                <div className="border border-border-light dark:border-white/5 rounded-2xl overflow-hidden shadow-sm bg-surface-primary">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-surface-secondary text-text-secondary font-bold border-b border-border-light dark:border-white/5">
-                        <th className="p-3">Fecha</th>
-                        <th className="p-3">Kilometraje</th>
-                        <th className="p-3 text-center">Luces</th>
-                        <th className="p-3 text-center">Frenos</th>
-                        <th className="p-3 text-center">Llantas</th>
-                        <th className="p-3 text-center">Resultado</th>
-                        <th className="p-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedVehicle.inspecciones.map((insp, idx) => (
-                        <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">
-                          <td className="p-3 font-semibold text-text-primary">{insp.fecha}</td>
-                          <td className="p-3 text-text-secondary">{insp.kilometraje} Km</td>
-                          <td className="p-3 text-center">{insp.luces === 'Bueno' ? '✅' : '❌'}</td>
-                          <td className="p-3 text-center">{insp.frenos === 'Bueno' ? '✅' : '❌'}</td>
-                          <td className="p-3 text-center">{insp.llantas === 'Bueno' ? '✅' : '❌'}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${insp.resultado === 'Aprobado' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                              {insp.resultado}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right space-x-2">
-                            <button
-                              onClick={() => handlePrintInspection(insp)}
-                              className="text-teal-500 hover:text-teal-400 font-bold hover:underline"
-                            >
-                              PDF
-                            </button>
-                            <button
-                              onClick={() => handleDownloadInspectionHtml(insp)}
-                              className="text-blue-500 hover:text-blue-400 font-bold hover:underline"
-                            >
-                              HTML
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {selectedVehicle.inspecciones.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="p-6 text-center text-text-tertiary italic">
-                            No se han registrado inspecciones pre-operacionales para este vehículo.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isHistoryExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <ClipboardList className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Historial de Inspecciones Pre-operacionales</span>
+                  </div>
+                </button>
+                {isHistoryExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    <div className="border border-border-light dark:border-white/5 rounded-2xl overflow-hidden shadow-sm bg-surface-primary">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-surface-secondary text-text-secondary font-bold border-b border-border-light dark:border-white/5">
+                            <th className="p-3">Fecha</th>
+                            <th className="p-3">Kilometraje</th>
+                            <th className="p-3 text-center">Luces</th>
+                            <th className="p-3 text-center">Frenos</th>
+                            <th className="p-3 text-center">Llantas</th>
+                            <th className="p-3 text-center">Resultado</th>
+                            <th className="p-3 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedVehicle.inspecciones.map((insp, idx) => (
+                            <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">
+                              <td className="p-3 font-semibold text-text-primary">{insp.fecha}</td>
+                              <td className="p-3 text-text-secondary">{insp.kilometraje} Km</td>
+                              <td className="p-3 text-center">{insp.luces === 'Bueno' ? '✅' : '❌'}</td>
+                              <td className="p-3 text-center">{insp.frenos === 'Bueno' ? '✅' : '❌'}</td>
+                              <td className="p-3 text-center">{insp.llantas === 'Bueno' ? '✅' : '❌'}</td>
+                              <td className="p-3 text-center">
+                                <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${insp.resultado === 'Aprobado' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                  {insp.resultado}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right space-x-2">
+                                <button
+                                  onClick={() => handlePrintInspection(insp)}
+                                  className="text-teal-500 hover:text-teal-400 font-bold hover:underline"
+                                >
+                                  PDF
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadInspectionHtml(insp)}
+                                  className="text-blue-500 hover:text-blue-400 font-bold hover:underline"
+                                >
+                                  HTML
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {selectedVehicle.inspecciones.length === 0 && (
+                            <tr>
+                              <td colSpan={7} className="p-6 text-center text-text-tertiary italic">
+                                No se han registrado inspecciones pre-operacionales para este vehículo.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -569,18 +611,18 @@ export default function VehiclesWorkspace() {
       </div>
 
       {/* Modal: Registrar Inspección Pre-operacional */}
-      {isModalOpen && selectedVehicle && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-primary border border-border-light dark:border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {isModalOpen && selectedVehicle && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-light dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border-light dark:border-white/10 flex justify-between items-center bg-surface-secondary/40">
               <h3 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                 <FileSignature className="w-5 h-5 text-teal-500" /> Inspección: {selectedVehicle.placa}
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-text-tertiary hover:text-text-primary text-sm font-bold"
+                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
               >
-                Cerrar
+                <X className="h-6 w-6" />
               </button>
             </div>
 
@@ -694,18 +736,24 @@ export default function VehiclesWorkspace() {
               <button onClick={handleSaveInspection} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs">Guardar Inspección</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: Nuevo Vehículo */}
-      {isNewVehModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-primary border border-border-light dark:border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {isNewVehModalOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-light dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border-light dark:border-white/10 flex justify-between items-center bg-surface-secondary/40">
               <h3 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                 <Plus className="w-5 h-5 text-teal-500" /> Registrar Vehículo PESV
               </h3>
-              <button onClick={() => setIsNewVehModalOpen(false)} className="text-text-tertiary hover:text-text-primary text-sm font-bold">Cerrar</button>
+              <button 
+                onClick={() => setIsNewVehModalOpen(false)}
+                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
@@ -767,7 +815,8 @@ export default function VehiclesWorkspace() {
               <button onClick={handleCreateVehicle} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs">Registrar Vehículo</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <SignaturePad

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { 
@@ -11,10 +12,14 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { exportChemicalsToExcel } from './exportChemicals';
 import { saveAs } from 'file-saver';
+import { SGSSTToolbar } from './SGSSTToolbar';
 
 interface ChemicalProduct {
   id: string;
@@ -51,6 +56,12 @@ export default function ChemicalsWorkspace() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Collapsible states
+  const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
+  const [isPictogramsExpanded, setIsPictogramsExpanded] = useState(true);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
+  const [isRequirementsExpanded, setIsRequirementsExpanded] = useState(true);
 
   // Form states
   const [formNombre, setFormNombre] = useState('');
@@ -438,97 +449,162 @@ export default function ChemicalsWorkspace() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handlePrintFicha}
-                  className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  <Printer className="w-4 h-4" /> Ficha (PDF)
-                </button>
-                <button
-                  onClick={handleDownloadFichaHtml}
-                  className="flex items-center justify-center gap-2 px-4 py-2 border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary font-bold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  <Download className="w-4 h-4" /> Ficha (HTML)
-                </button>
-                <button
-                  onClick={handleEditClick}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  Editar Producto
-                </button>
+              <div className="-my-2">
+                <SGSSTToolbar
+                  exportButtons={[
+                    {
+                      id: 'pdf-receipt',
+                      onClick: handlePrintFicha,
+                      label: 'Ficha (PDF)',
+                      title: 'Imprimir ficha o guardar como PDF',
+                      icon: Printer
+                    },
+                    {
+                      id: 'html-receipt',
+                      onClick: handleDownloadFichaHtml,
+                      label: 'Ficha (HTML)',
+                      title: 'Descargar ficha en HTML',
+                      icon: Download
+                    }
+                  ]}
+                  persistenceButtons={[
+                    {
+                      id: 'edit-product',
+                      onClick: handleEditClick,
+                      label: 'Editar Producto',
+                      title: 'Editar datos de este producto químico',
+                      icon: Plus,
+                      variant: 'ai'
+                    }
+                  ]}
+                  onExportExcel={handleExportExcel}
+                />
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Checklist FDS & Rotulación */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`p-4 border rounded-2xl flex items-center justify-between ${selectedProduct.tieneFds === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                  <div>
-                    <span className="text-3xs uppercase font-bold text-text-secondary">Ficha de Seguridad (FDS)</span>
-                    <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneFds === 'Sí' ? 'Disponible' : 'Faltante ❌'}</p>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsChecklistExpanded(!isChecklistExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isChecklistExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <Shield className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Ficha de Seguridad y Rotulado SGA</span>
                   </div>
-                </div>
-                <div className={`p-4 border rounded-2xl flex items-center justify-between ${selectedProduct.tieneRotuloSga === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                  <div>
-                    <span className="text-3xs uppercase font-bold text-text-secondary">Etiquetado Rótulo SGA</span>
-                    <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneRotuloSga === 'Sí' ? 'Conforme SGA' : 'Inconforme / Faltante ❌'}</p>
+                </button>
+                {isChecklistExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`p-4 border rounded-xl flex items-center justify-between ${selectedProduct.tieneFds === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                      <div>
+                        <span className="text-3xs uppercase font-bold text-text-secondary">Ficha de Seguridad (FDS)</span>
+                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneFds === 'Sí' ? 'Disponible' : 'Faltante ❌'}</p>
+                      </div>
+                    </div>
+                    <div className={`p-4 border rounded-xl flex items-center justify-between ${selectedProduct.tieneRotuloSga === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                      <div>
+                        <span className="text-3xs uppercase font-bold text-text-secondary">Etiquetado Rótulo SGA</span>
+                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneRotuloSga === 'Sí' ? 'Conforme SGA' : 'Inconforme / Faltante ❌'}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Pictogramas SGA Activos */}
-              <div className="space-y-3.5">
-                <h3 className="font-extrabold text-sm text-text-primary">Pictogramas GHS de Peligro</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedProduct.pictogramasSga && selectedProduct.pictogramasSga.length > 0 ? (
-                    selectedProduct.pictogramasSga.map((pic, idx) => (
-                      <span key={idx} className="bg-surface-secondary border border-border-medium text-text-primary px-3 py-1.5 rounded-xl font-bold text-xs">
-                        {pic}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-text-tertiary italic">Sin pictogramas de peligro seleccionados (Sustancia de bajo riesgo).</span>
-                  )}
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsPictogramsExpanded(!isPictogramsExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isPictogramsExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    <span className="font-semibold text-text-primary">Pictogramas GHS de Peligro</span>
+                  </div>
+                </button>
+                {isPictogramsExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProduct.pictogramasSga && selectedProduct.pictogramasSga.length > 0 ? (
+                        selectedProduct.pictogramasSga.map((pic, idx) => (
+                          <span key={idx} className="bg-surface-secondary border border-border-medium text-text-primary px-3 py-1.5 rounded-xl font-bold text-xs">
+                            {pic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-text-tertiary italic">Sin pictogramas de peligro seleccionados (Sustancia de bajo riesgo).</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Incompatibilidades & Expuestos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Incompatibilidades */}
-                <div className="p-5 border border-border-light dark:border-white/5 rounded-2xl space-y-3">
-                  <h3 className="font-extrabold text-sm text-text-primary">Incompatibilidades de Almacenamiento</h3>
-                  <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
-                    {selectedProduct.incompatibilidades && selectedProduct.incompatibilidades.length > 0 ? (
-                      selectedProduct.incompatibilidades.map((inc, idx) => <li key={idx}>{inc}</li>)
-                    ) : (
-                      <li className="italic text-text-tertiary">Ninguna incompatibilidad de mezcla registrada.</li>
-                    )}
-                  </ul>
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsDetailsExpanded(!isDetailsExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isDetailsExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <ClipboardList className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Incompatibilidades y Trabajadores Expuestos</span>
+                  </div>
+                </button>
+                {isDetailsExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Incompatibilidades */}
+                    <div className="p-5 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-3">
+                      <h3 className="font-extrabold text-sm text-text-primary">Incompatibilidades de Almacenamiento</h3>
+                      <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
+                        {selectedProduct.incompatibilidades && selectedProduct.incompatibilidades.length > 0 ? (
+                          selectedProduct.incompatibilidades.map((inc, idx) => <li key={idx}>{inc}</li>)
+                        ) : (
+                          <li className="italic text-text-tertiary">Ninguna incompatibilidad de mezcla registrada.</li>
+                        )}
+                      </ul>
+                    </div>
 
-                {/* Expuestos */}
-                <div className="p-5 border border-border-light dark:border-white/5 rounded-2xl space-y-3">
-                  <h3 className="font-extrabold text-sm text-text-primary">Trabajadores Expuestos</h3>
-                  <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
-                    {selectedProduct.trabajadoresExpuestos && selectedProduct.trabajadoresExpuestos.length > 0 ? (
-                      selectedProduct.trabajadoresExpuestos.map(id => {
-                        const w = workers.find(work => work.id === id);
-                        return w ? <li key={id}>{w.nombre} ({w.cargo || 'Sin cargo'})</li> : null;
-                      })
-                    ) : (
-                      <li className="italic text-text-tertiary">Ningún trabajador registrado con exposición a esta sustancia.</li>
-                    )}
-                  </ul>
-                </div>
+                    {/* Expuestos */}
+                    <div className="p-5 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-3">
+                      <h3 className="font-extrabold text-sm text-text-primary">Trabajadores Expuestos</h3>
+                      <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
+                        {selectedProduct.trabajadoresExpuestos && selectedProduct.trabajadoresExpuestos.length > 0 ? (
+                          selectedProduct.trabajadoresExpuestos.map(id => {
+                            const w = workers.find(work => work.id === id);
+                            return w ? <li key={id}>{w.nombre} ({w.cargo || 'Sin cargo'})</li> : null;
+                          })
+                        ) : (
+                          <li className="italic text-text-tertiary">Ningún trabajador registrado con exposición a esta sustancia.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Requisitos */}
-              <div className="space-y-2">
-                <h3 className="font-extrabold text-sm text-text-primary">Requisitos Especiales de Almacenamiento</h3>
-                <div className="p-4 border border-border-light dark:border-white/5 bg-surface-secondary/20 rounded-2xl text-xs text-text-secondary leading-relaxed">
-                  {selectedProduct.requisitosAlmacenamiento || 'Ninguno especificado en el inventario.'}
-                </div>
+              <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+                <button 
+                  onClick={() => setIsRequirementsExpanded(!isRequirementsExpanded)} 
+                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
+                >
+                  <div className="flex items-center gap-2">
+                    {isRequirementsExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    <FileText className="w-5 h-5 text-teal-500" />
+                    <span className="font-semibold text-text-primary">Requisitos Especiales de Almacenamiento</span>
+                  </div>
+                </button>
+                {isRequirementsExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
+                    <div className="p-4 border border-border-light dark:border-white/5 bg-surface-secondary/20 rounded-xl text-xs text-text-secondary leading-relaxed">
+                      {selectedProduct.requisitosAlmacenamiento || 'Ninguno especificado en el inventario.'}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -541,14 +617,19 @@ export default function ChemicalsWorkspace() {
       </div>
 
       {/* Modal: Registrar/Editar Producto */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-primary border border-border-light dark:border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {isModalOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-light dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border-light dark:border-white/10 flex justify-between items-center bg-surface-secondary/40">
               <h3 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                 <Plus className="w-5 h-5 text-teal-500" /> Registrar Sustancia Química (SGA)
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-tertiary hover:text-text-primary text-sm font-bold">Cerrar</button>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
@@ -672,7 +753,8 @@ export default function ChemicalsWorkspace() {
               <button onClick={handleSaveProduct} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs">Guardar Producto</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
