@@ -405,14 +405,13 @@ const AttachFileMenu = ({
 
     const localItems = createMenuItems(handleUploadClick);
 
-    const googleDriveItems = createMenuItems(() => {
-      handleGooglePickerOpen();
-    });
     localItems.push({
       label: 'Google Drive',
-      onClick: wrapClick(() => {}),
+      onClick: wrapClick(() => {
+        setToolResource(undefined);
+        handleGooglePickerOpen();
+      }),
       icon: <GoogleDriveIcon className="icon-md" />,
-      subItems: googleDriveItems,
     });
 
     if (sharePointEnabled) {
