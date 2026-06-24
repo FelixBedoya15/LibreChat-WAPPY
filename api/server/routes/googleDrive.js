@@ -42,7 +42,7 @@ router.get('/auth', requireJwtAuth, (req, res) => {
       state: state,
     });
 
-    res.redirect(authorizationUrl);
+    res.json({ url: authorizationUrl });
   } catch (err) {
     logger.error('[GoogleDriveAuth] Error generating auth URL:', err);
     res.status(500).json({ error: 'Fallo al iniciar la autenticación con Google Drive' });

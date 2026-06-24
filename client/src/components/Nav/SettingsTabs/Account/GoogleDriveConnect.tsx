@@ -54,10 +54,23 @@ export default function GoogleDriveConnect() {
     checkStatus();
   }, []);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsActionLoading(true);
-    // Redirect browser to Google Drive OAuth flow initiated by the backend
-    window.location.href = '/api/google-drive/auth';
+    try {
+      const res = await axios.get('/api/google-drive/auth');
+      if (res.data && res.data.url) {
+        window.location.href = res.data.url;
+      } else {
+        throw new Error('No URL returned from server');
+      }
+    } catch (err) {
+      console.error('Error initiating Google Drive auth:', err);
+      showToast({
+        message: 'No se pudo iniciar la autenticación con Google Drive.',
+        status: 'error',
+      });
+      setIsActionLoading(false);
+    }
   };
 
   const handleDisconnect = async () => {
