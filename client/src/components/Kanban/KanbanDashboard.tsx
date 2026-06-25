@@ -58,7 +58,7 @@ export default function KanbanDashboard() {
         helper: 'Al registrar la realización, se cambiará el estado de la capacitación a "Completada" en tu cronograma.',
       };
     }
-    if (task.referenceId && task.referenceId.includes('-bio-')) {
+    if (task.referenceId && (task.referenceId.includes('-bio-') || task.referenceId.includes('-biocentric'))) {
       return {
         title: 'Gestión y Cierre de Alerta de Salud (Auditoría Biocéntrica)',
         label: 'Fecha de intervención o seguimiento médico *',
@@ -318,7 +318,7 @@ export default function KanbanDashboard() {
     let color = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     let redirectPath = '';
 
-    if (task.referenceId && task.referenceId.includes('-bio-')) {
+    if (task.referenceId && (task.referenceId.includes('-bio-') || task.referenceId.includes('-biocentric'))) {
       icon = <AlertTriangle className="w-3.5 h-3.5" />;
       text = 'Alerta Médica';
       color = 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/40';
@@ -681,17 +681,17 @@ export default function KanbanDashboard() {
                     <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                     <div>
                       <h3 className="text-xs font-extrabold text-teal-800 dark:text-teal-300">
-                        {getRenewalDetails(editingTask.type).title}
+                        {getRenewalDetails(editingTask).title}
                       </h3>
                       <p className="text-[10px] text-teal-700/80 dark:text-teal-400/80 leading-snug mt-0.5">
-                        {getRenewalDetails(editingTask.type).helper}
+                        {getRenewalDetails(editingTask).helper}
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text-secondary flex items-center gap-1">
-                      {getRenewalDetails(editingTask.type).label}
+                      {getRenewalDetails(editingTask).label}
                     </label>
                     <input 
                       type="date" 
