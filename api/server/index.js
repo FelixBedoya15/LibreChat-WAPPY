@@ -609,6 +609,10 @@ const startServer = async () => {
 </html>`);
   });
 
+  app.get(['/embajadores', '/embajadores.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../convocatoria_embajadores.html'));
+  });
+
   app.get(['/portafolio', '/portafolio.html'], (req, res) => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });

@@ -61,6 +61,11 @@ import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 
+const EmbajadoresRedirect = () => {
+  window.location.replace('/embajadores.html');
+  return null;
+};
+
 const PortafolioRedirect = () => {
   window.location.replace('/portafolio.html');
   return null;
@@ -243,6 +248,11 @@ export const router = createBrowserRouter(
           <RoadmapNotifier />
         </AuthContextProvider>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'embajadores',
+      element: <EmbajadoresRedirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {
