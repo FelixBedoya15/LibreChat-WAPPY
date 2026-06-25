@@ -3,7 +3,7 @@ const { ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, isEmailDomainAllowed } = require('@librechat/api');
 const { createSocialUser, handleExistingUser } = require('./process');
 const { getAppConfig } = require('~/server/services/Config');
-const { findUser } = require('~/models');
+const { findUser, updateUser } = require('~/models');
 
 const socialLogin =
   (provider, getProfileDetails) => async (accessToken, refreshToken, idToken, profile, cb) => {
@@ -45,6 +45,23 @@ const socialLogin =
         await handleExistingUser(existingUser, avatarUrl, appConfig, email);
         return cb(null, existingUser);
       } else if (existingUser) {
+        if (existingUser.provider === 'local') {
+          logger.info(
+            `[${provider}Login] User ${email} exists with local provider. Auto-linking to ${provider}.`,
+          );
+          const updates = {
+            provider,
+            [providerKey]: id,
+          };
+          if (emailVerified) {
+            updates.emailVerified = true;
+          }
+          await updateUser(existingUser._id, updates);
+          Object.assign(existingUser, updates);
+          await handleExistingUser(existingUser, avatarUrl, appConfig, email);
+          return cb(null, existingUser);
+        }
+
         logger.info(
           `[${provider}Login] User ${email} already exists with provider ${existingUser.provider}`,
         );

@@ -137,7 +137,7 @@ export default function ContactPage() {
                             <h4 className="mb-2 text-sm font-bold text-text-primary">¿Tienes dudas directas?</h4>
                             <p className="text-sm text-text-secondary mb-4">Escríbenos directamente o visítanos.</p>
                             <div className="space-y-2 text-sm text-text-primary font-medium">
-                                <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-violet-500" /> info@grupowappy.com</p>
+                                <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-violet-500" /> info@wappy.club</p>
                                 <a 
                                     href="https://wa.me/573126417890" 
                                     target="_blank" 

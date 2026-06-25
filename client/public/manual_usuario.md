@@ -208,7 +208,7 @@ Si encuentras fallas o algo en pantalla produce error (Ej: un cartel rojo):
 
 **📞 Canales de Atención Adicionales:**
 *   **Correo Electrónico:** Si requieres información comercial, envíanos un mail a `info@wappy.club`.
-*   **WhatsApp de Soporte/Ventas:** Escríbenos directamente al [3021268625](https://wa.me/573021268625) para recibir atención personalizada rápida.
+*   **WhatsApp de Soporte/Ventas:** Escríbenos directamente al [310 291 3651](https://wa.me/573102913651) para recibir atención personalizada rápida.
 
 links de acceso:
 

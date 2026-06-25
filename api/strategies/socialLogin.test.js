@@ -29,6 +29,7 @@ jest.mock('@librechat/api', () => ({
 
 jest.mock('~/models', () => ({
   findUser: jest.fn(),
+  updateUser: jest.fn(),
 }));
 
 jest.mock('~/server/services/Config', () => ({
@@ -232,8 +233,8 @@ describe('socialLogin', () => {
     });
   });
 
-  describe('Error handling', () => {
-    it('should return error if user exists with different provider', async () => {
+  describe('Auto-linking local users and error handling', () => {
+    it('should auto-link if user exists with local provider', async () => {
       const provider = 'google';
       const googleId = 'google-user-123';
       const email = 'user@example.com';
@@ -241,7 +242,55 @@ describe('socialLogin', () => {
       const existingUser = {
         _id: 'user123',
         email: email,
-        provider: 'local', // Different provider
+        provider: 'local',
+      };
+
+      const { updateUser } = require('~/models');
+
+      findUser
+        .mockResolvedValueOnce(null) // By googleId
+        .mockResolvedValueOnce(existingUser); // By email
+
+      const mockProfile = {
+        id: googleId,
+        emails: [{ value: email, verified: true }],
+        photos: [{ value: 'https://example.com/avatar.png' }],
+        name: { givenName: 'John', familyName: 'Doe' },
+      };
+
+      const loginFn = socialLogin(provider, mockGetProfileDetails);
+      const callback = jest.fn();
+
+      await loginFn(null, null, null, mockProfile, callback);
+
+      /** Verify updateUser was called to link the account */
+      expect(updateUser).toHaveBeenCalledWith('user123', {
+        provider: 'google',
+        googleId: googleId,
+        emailVerified: true,
+      });
+
+      expect(logger.info).toHaveBeenCalledWith(
+        `[${provider}Login] User ${email} exists with local provider. Auto-linking to ${provider}.`,
+      );
+
+      expect(handleExistingUser).toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledWith(null, expect.objectContaining({
+        _id: 'user123',
+        provider: 'google',
+        googleId: googleId,
+      }));
+    });
+
+    it('should return error if user exists with different non-local provider', async () => {
+      const provider = 'google';
+      const googleId = 'google-user-123';
+      const email = 'user@example.com';
+
+      const existingUser = {
+        _id: 'user123',
+        email: email,
+        provider: 'facebook', // Non-local provider
       };
 
       findUser
@@ -264,12 +313,12 @@ describe('socialLogin', () => {
       expect(callback).toHaveBeenCalledWith(
         expect.objectContaining({
           code: ErrorTypes.AUTH_FAILED,
-          provider: 'local',
+          provider: 'facebook',
         }),
       );
 
       expect(logger.info).toHaveBeenCalledWith(
-        `[${provider}Login] User ${email} already exists with provider local`,
+        `[${provider}Login] User ${email} already exists with provider facebook`,
       );
     });
   });

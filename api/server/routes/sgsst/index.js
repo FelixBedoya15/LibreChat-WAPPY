@@ -71,5 +71,6 @@ module.exports = {
     vehicles: require('./vehicles'),
     heights: require('./heights'),
     chemicals: require('./chemicals'),
+    kanban: require('./kanban'),
 };
 

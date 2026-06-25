@@ -55,6 +55,7 @@ import InspeccionDashboard from '~/components/InspeccionMinTrabajo/InspeccionDas
 import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
+import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
 import RoadmapPage from '~/components/Roadmap/RoadmapPage';
 import Search from './Search';
 import Root from './Root';
@@ -384,6 +385,10 @@ export const router = createBrowserRouter(
             {
               path: 'inspeccion',
               element: <InspeccionDashboard />,
+            },
+            {
+              path: 'kanban',
+              element: <KanbanDashboard />,
             },
             {
               path: 'editor-archivos/:id',

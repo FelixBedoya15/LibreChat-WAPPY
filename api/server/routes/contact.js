@@ -68,7 +68,7 @@ router.post('/request', async (req, res) => {
         };
 
         // Support email for the footer/system
-        const supportEmail = 'info@grupowappy.com';
+        const supportEmail = 'info@wappy.club';
 
         // Send to each admin or to a general admin email if configured
         const adminEmailRecipient = process.env.ADMIN_EMAIL || (admins.length > 0 ? admins[0].email : process.env.EMAIL_FROM);

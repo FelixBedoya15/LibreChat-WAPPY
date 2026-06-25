@@ -99,7 +99,7 @@ const SingleSelect = ({
                             key={idx}
                             type="button"
                             className={cn(
-                                "w-full text-left outline-none flex items-center justify-between",
+                                "w-full text-left outline-none flex items-center justify-between text-text-primary",
                                 compact ? "px-2 py-1 text-[10px]" : "px-3 py-2 text-[11px]",
                                 "hover:bg-surface-secondary focus:bg-surface-secondary",
                                 "border-t border-border-light first:border-t-0 uppercase",

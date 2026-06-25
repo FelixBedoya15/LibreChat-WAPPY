@@ -257,6 +257,7 @@ const startServer = async () => {
   app.use('/api/sgsst/vehicles', routes.sgsst.vehicles);
   app.use('/api/sgsst/heights', routes.sgsst.heights);
   app.use('/api/sgsst/chemicals', routes.sgsst.chemicals);
+  app.use('/api/sgsst/kanban', routes.sgsst.kanban);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);

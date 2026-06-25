@@ -34,6 +34,7 @@ const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
 const InspeccionButton = lazy(() => import('./InspeccionButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
+const KanbanButton = lazy(() => import('./KanbanButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -280,6 +281,12 @@ const Nav = memo(
                             <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* Kanban Button */}
+                        {user?.role === 'ADMIN' && (
+                          <Suspense fallback={null}>
+                            <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
@@ -350,6 +357,11 @@ const Nav = memo(
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {user?.role === 'ADMIN' && (
+                                  <Suspense fallback={null}>
+                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
                                 {hasAccessToSGSST && (
