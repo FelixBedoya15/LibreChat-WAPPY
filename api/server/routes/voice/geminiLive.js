@@ -85,6 +85,27 @@ class GeminiLiveClient extends EventEmitter {
      */
     async connect() {
         return new Promise((resolve, reject) => {
+            let connectionTimeout = setTimeout(() => {
+                logger.error('[GeminiLive] Connection timeout (4s) before setupComplete');
+                cleanup();
+                if (this.ws) {
+                    try {
+                        this.ws.terminate();
+                    } catch (e) {
+                        logger.error('[GeminiLive] Error terminating ws on timeout:', e);
+                    }
+                    this.ws = null;
+                }
+                reject(new Error('Connection timeout to Gemini Live API'));
+            }, 4000);
+
+            const cleanup = () => {
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                    connectionTimeout = null;
+                }
+            };
+
             try {
                 const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
                 logger.info(`[GeminiLive] Connecting to endpoint with key ending in: ...${this.apiKey ? this.apiKey.slice(-4) : 'NONE'}`);
@@ -105,6 +126,7 @@ class GeminiLiveClient extends EventEmitter {
                     logger.error('[GeminiLive] WebSocket error:', error);
                     this.connected = false;
                     if (!this.setupCompleted) {
+                        cleanup();
                         reject(error);
                     }
                 });
@@ -115,6 +137,7 @@ class GeminiLiveClient extends EventEmitter {
                     
                     if (!this.setupCompleted) {
                         // Socket closed BEFORE setup was completed (e.g. Quota Exceeded, Leaked Key, Invalid Model)
+                        cleanup();
                         reject(new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reason}`));
                     } else {
                         // Socket closed normally after being active
@@ -179,6 +202,7 @@ class GeminiLiveClient extends EventEmitter {
                         if (response.setupComplete) {
                             logger.info('[GeminiLive] Setup complete');
                             this.setupCompleted = true;
+                            cleanup();
                             resolve(); // Now the connection is TRULY established and approved by Google!
                         }
                     } catch (error) {
@@ -188,6 +212,7 @@ class GeminiLiveClient extends EventEmitter {
 
             } catch (error) {
                 logger.error('[GeminiLive] Connection error:', error);
+                cleanup();
                 reject(error);
             }
         });

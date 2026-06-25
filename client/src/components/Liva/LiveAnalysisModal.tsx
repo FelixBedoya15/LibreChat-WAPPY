@@ -1185,32 +1185,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [status, getInputVolume]);
 
-    // Connection Delay Logic with 10-second Countdown
+    // Connection Delay Logic: Set isReady to true immediately when connected (no countdown delay)
     useEffect(() => {
         if (isOpen && isConnected) {
-            setIsReady(false);
-            setCountdown(10);
+            setIsReady(true);
+            setCountdown(0);
             snapshotsRef.current = [];
-
-            const interval = setInterval(() => {
-                setCountdown((prev) => {
-                    if (prev <= 1) return 1;
-                    return prev - 1;
-                });
-            }, 1000);
-
-            const timer = setTimeout(() => {
-                setIsReady(true);
-                clearInterval(interval);
-            }, 10000);
-
-            return () => {
-                clearTimeout(timer);
-                clearInterval(interval);
-            };
         } else {
             setIsReady(false);
-            setCountdown(10);
+            setCountdown(0);
         }
     }, [isOpen, isConnected]);
 

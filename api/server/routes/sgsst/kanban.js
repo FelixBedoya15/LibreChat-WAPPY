@@ -190,8 +190,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       user: userId,
       companyId,
       status: { $ne: 'done' },
-      referenceId: { $regex: /^worker-.*-bio-/ },
-      referenceId: { $nin: activeBioTaskIds }
+      referenceId: {
+        $regex: /^worker-.*-bio-/,
+        $nin: activeBioTaskIds
+      }
     });
 
     // 2. Sync vehicle expirations
@@ -310,8 +312,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       user: userId,
       companyId,
       status: { $ne: 'done' },
-      referenceId: { $regex: /^training_session-/ },
-      referenceId: { $nin: activeTrainingIds }
+      referenceId: {
+        $regex: /^training_session-/,
+        $nin: activeTrainingIds
+      }
     });
 
     // 4. Fetch and return all tasks for user and company

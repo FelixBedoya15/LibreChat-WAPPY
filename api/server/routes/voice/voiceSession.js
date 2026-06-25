@@ -326,6 +326,24 @@ class VoiceSession {
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
+        // Handle Gemini connection close/error to avoid zombie state
+        this.geminiClient.on('close', (code, reason) => {
+            logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reason}`);
+            if (this.isActive) {
+                this.sendToClient({ type: 'status', data: { status: 'idle' } });
+                this.sendToClient({ type: 'error', data: { message: `Conexión con el motor de voz de Gemini finalizada.` } });
+                this.stop().catch(err => logger.error('[VoiceSession] Error in stop on Gemini close:', err));
+            }
+        });
+
+        this.geminiClient.on('error', (error) => {
+            logger.error('[VoiceSession] Gemini connection error:', error);
+            if (this.isActive) {
+                this.sendToClient({ type: 'error', data: { message: `Error en la conexión con el motor de voz de Gemini.` } });
+                this.stop().catch(err => logger.error('[VoiceSession] Error in stop on Gemini error:', err));
+            }
+        });
+
         // Handle client disconnect
         this.clientWs.on('close', () => {
             logger.info(`[VoiceSession] Client disconnected: ${this.userId}`);
@@ -1421,6 +1439,15 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
         const currentAudioCount = this.aiAudioChunkCount;
 
         if (!currentUserText.trim() && !currentAiText.trim() && currentAudioCount === 0) {
+            return;
+        }
+
+        // On Disconnect, do not save if the AI never started responding (to avoid saving partial/unanswered fragments)
+        if (source === 'Disconnect' && !currentAiText.trim() && currentAudioCount === 0) {
+            logger.info(`[VoiceSession] [${source}] Discarding unanswered user transcription fragment to prevent chat clutter: "${currentUserText}"`);
+            this.userTranscriptionText = '';
+            this.aiResponseText = '';
+            this.aiAudioChunkCount = 0;
             return;
         }
 

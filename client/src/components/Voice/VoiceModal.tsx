@@ -433,26 +433,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     }, [isOpen]);
 
-    // Countdown logic - 10 seconds
+    // Connection Delay Logic: Set isReady to true immediately when connected (no countdown delay)
     useEffect(() => {
         if (isOpen && isConnected) {
-            setIsReady(false);
-            setCountdownValue(10);
-
-            const countdownInterval = setInterval(() => {
-                setCountdownValue(prev => {
-                    if (prev <= 1) {
-                        clearInterval(countdownInterval);
-                        setIsReady(true);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-
-            return () => clearInterval(countdownInterval);
+            setIsReady(true);
+            setCountdownValue(0);
         } else {
             setIsReady(false);
+            setCountdownValue(0);
         }
     }, [isOpen, isConnected]);
 
