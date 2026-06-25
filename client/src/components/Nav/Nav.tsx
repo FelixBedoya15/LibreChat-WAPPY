@@ -281,16 +281,16 @@ const Nav = memo(
                             <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Kanban Button */}
-                        {user?.role === 'ADMIN' && (
-                          <Suspense fallback={null}>
-                            <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        {/* Kanban Button */}
+                        {user?.role === 'ADMIN' && (
+                          <Suspense fallback={null}>
+                            <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
                         {/* Camera icon (Analisis en Vivo) */}
@@ -359,14 +359,14 @@ const Nav = memo(
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                {user?.role === 'ADMIN' && (
-                                  <Suspense fallback={null}>
-                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {user?.role === 'ADMIN' && (
+                                  <Suspense fallback={null}>
+                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
                                 {hasAccessToLiveAnalysis && (
