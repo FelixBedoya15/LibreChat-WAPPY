@@ -88,6 +88,7 @@ COPY --from=api-package-build /app/packages/api/dist ./packages/api/dist
 COPY --from=client-build /app/client/dist ./client/dist
 COPY client/public ./client/public
 COPY librechat.yaml ./librechat.yaml
+COPY convocatoria_embajadores.html ./convocatoria_embajadores.html
 # Agentes Wappy: plantillas de instrucciones para los agentes de IA
 COPY Agentes ./Agentes
 WORKDIR /app/api
