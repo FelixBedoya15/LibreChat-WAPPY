@@ -617,6 +617,30 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });
 
+  app.get('/api/embajadores/notes', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const notesPath = path.resolve(__dirname, '../../uploads/convocatoria_embajadores_notes.json');
+    if (fs.existsSync(notesPath)) {
+      res.sendFile(notesPath);
+    } else {
+      res.json({});
+    }
+  });
+
+  app.post('/api/embajadores/notes', require('./middleware/requireJwtAuth'), (req, res) => {
+    const user = req.user;
+    if (user.role === 'ADMIN' || user.email === 'mauricioposadac@gmail.com') {
+      const fs = require('fs');
+      const path = require('path');
+      const notesPath = path.resolve(__dirname, '../../uploads/convocatoria_embajadores_notes.json');
+      fs.writeFileSync(notesPath, JSON.stringify(req.body, null, 2));
+      res.json({ message: 'Saved successfully' });
+    } else {
+      res.status(403).json({ message: 'Forbidden' });
+    }
+  });
+
   app.use(ErrorController);
 
   app.use((req, res) => {

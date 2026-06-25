@@ -869,6 +869,10 @@
             color: var(--text-muted);
         }
 
+        .notes-content:focus {
+            outline: none;
+        }
+
         .notes-content p {
             margin-bottom: 0.75rem;
         }
@@ -1481,7 +1485,7 @@
 
     <!-- Presentation Footer Controls -->
     <footer>
-        <button class="btn-notes" id="toggleNotesBtn">
+        <button class="btn-notes" id="toggleNotesBtn" style="display: none;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -1522,6 +1526,10 @@
         </div>
         <div class="notes-content" id="speakerNotes">
             <!-- Dynamically populated notes based on active slide -->
+        </div>
+        <div id="notesActions" style="display: none; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 1rem; text-align: right;">
+            <span id="saveStatus" style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.75rem;"></span>
+            <button id="saveNotesBtn" style="background: var(--primary); border: none; border-radius: 6px; color: #fff; padding: 0.4rem 1rem; font-family: 'Outfit', sans-serif; font-weight: 500; font-size: 0.8rem; cursor: pointer; transition: background 0.2s;">Guardar</button>
         </div>
     </aside>
 
@@ -1737,14 +1745,63 @@
             nextBtn.addEventListener('click', nextSlide);
 
             // --------------------------------------------------
-            // SPEAKER NOTES CONTROL
+            // SPEAKER NOTES CONTROL & EDITING
             // --------------------------------------------------
+            let userToken = '';
+            let isAuthorized = false;
+            let lastActiveIndex = 1;
+
+            async function checkAuthAndLoadNotes() {
+                try {
+                    const authRes = await fetch('/api/auth/refresh', { method: 'POST' });
+                    if (authRes.ok) {
+                        const authData = await authRes.json();
+                        const user = authData.user;
+                        userToken = authData.token;
+                        if (user && (user.role === 'ADMIN' || user.email === 'mauricioposadac@gmail.com')) {
+                            isAuthorized = true;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Auth check failed:', e);
+                }
+
+                if (isAuthorized) {
+                    toggleNotesBtn.style.display = 'inline-flex';
+                    speakerNotes.setAttribute('contenteditable', 'true');
+                    document.getElementById('notesActions').style.display = 'block';
+                } else {
+                    toggleNotesBtn.style.display = 'none';
+                    speakerNotes.setAttribute('contenteditable', 'false');
+                    document.getElementById('notesActions').style.display = 'none';
+                }
+
+                // Load custom notes if any
+                try {
+                    const notesRes = await fetch('/api/embajadores/notes');
+                    if (notesRes.ok) {
+                        const savedNotes = await notesRes.json();
+                        if (savedNotes && Object.keys(savedNotes).length > 0) {
+                            Object.assign(notesData, savedNotes);
+                            updateSpeakerNotes();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load notes:', e);
+                }
+            }
+
             function updateSpeakerNotes() {
+                if (isAuthorized && notesData[lastActiveIndex] !== undefined) {
+                    notesData[lastActiveIndex] = speakerNotes.innerHTML;
+                }
                 const activeIndex = currentSlideIndex + 1;
                 speakerNotes.innerHTML = notesData[activeIndex] || '<p>No hay notas para este slide.</p>';
+                lastActiveIndex = activeIndex;
             }
 
             function toggleNotes() {
+                if (!isAuthorized) return;
                 notesSidebar.classList.toggle('open');
                 toggleNotesBtn.classList.toggle('active');
             }
@@ -1752,7 +1809,37 @@
             toggleNotesBtn.addEventListener('click', toggleNotes);
             closeNotesBtn.addEventListener('click', toggleNotes);
 
-            updateSpeakerNotes(); // Initialize
+            const saveNotesBtn = document.getElementById('saveNotesBtn');
+            const saveStatus = document.getElementById('saveStatus');
+
+            saveNotesBtn.addEventListener('click', async () => {
+                const activeIndex = currentSlideIndex + 1;
+                notesData[activeIndex] = speakerNotes.innerHTML;
+
+                saveStatus.textContent = 'Guardando...';
+                try {
+                    const res = await fetch('/api/embajadores/notes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${userToken}`
+                        },
+                        body: JSON.stringify(notesData)
+                    });
+                    if (res.ok) {
+                        saveStatus.textContent = 'Guardado';
+                        setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+                    } else {
+                        saveStatus.textContent = 'Error al guardar';
+                    }
+                } catch (e) {
+                    console.error(e);
+                    saveStatus.textContent = 'Error de red';
+                }
+            });
+
+            checkAuthAndLoadNotes();
+            updateSpeakerNotes();
 
             // --------------------------------------------------
             // INTERACTIVE SIMULATOR MATHS
