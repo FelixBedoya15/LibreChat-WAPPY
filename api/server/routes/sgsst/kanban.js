@@ -12,6 +12,11 @@ if (!mongoose.models.PerfilSociodemograficoData) {
 }
 const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
 
+if (!mongoose.models.ProgramaCapacitacionesData) {
+  require('./programaCapacitaciones');
+}
+const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData;
+
 const router = express.Router();
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
@@ -54,12 +59,15 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 1. Sync worker expirations
+    const activeBioTaskIds = [];
+
+    // 1. Sync worker expirations & biocentric alerts
     const profile = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
     if (profile && profile.trabajadores) {
       for (const w of profile.trabajadores) {
         const workerName = w.nombre || 'Trabajador';
         const workerId = w._id || w.id;
+        const biocentricScore = w.biocentricScore !== undefined ? w.biocentricScore : 100;
 
         // A. Medical Exam (Expires 365 days after last exam)
         if (w.fechaExamenMedico) {
@@ -148,8 +156,43 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             });
           }
         }
+
+        // F. Biocentric Health Alerts (If biocentricScore < 75)
+        if (biocentricScore < 75 && w.biocentricAlerts && w.biocentricAlerts.length > 0) {
+          for (const alertName of w.biocentricAlerts) {
+            const alertSlug = alertName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const referenceId = `worker-${workerId}-bio-${alertSlug}`;
+            activeBioTaskIds.push(referenceId);
+
+            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!task) {
+              const dueDate = new Date();
+              dueDate.setDate(dueDate.getDate() + 7);
+              await KanbanTask.create({
+                user: userId,
+                companyId,
+                title: `Alerta de Salud: ${alertName} (${workerName})`,
+                description: `El trabajador presenta la alerta de salud "${alertName}". Requiere seguimiento médico. Score biocéntrico: ${biocentricScore}%.`,
+                dueDate,
+                status: 'todo',
+                type: 'other',
+                referenceId,
+                referenceName: workerName,
+              });
+            }
+          }
+        }
       }
     }
+
+    // Clean up active biocentric tasks that are resolved
+    await KanbanTask.deleteMany({
+      user: userId,
+      companyId,
+      status: { $ne: 'done' },
+      referenceId: { $regex: /^worker-.*-bio-/ },
+      referenceId: { $nin: activeBioTaskIds }
+    });
 
     // 2. Sync vehicle expirations
     const vehicles = await SgsstVehicleData.find({ user: userId, companyId }).lean();
@@ -191,7 +234,87 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 3. Fetch and return all tasks for user and company
+    // 3. Sync scheduled training sessions (ProgramaCapacitacionesData)
+    const trainingData = await ProgramaCapacitacionesData.findOne({ user: userId, companyId }).lean();
+    const activeTrainingIds = [];
+    if (trainingData && trainingData.sesiones) {
+      for (const ses of trainingData.sesiones) {
+        if (ses.estado === 'Cancelada') continue;
+
+        const sesDate = parseDateString(ses.fecha);
+        if (sesDate) {
+          const diffTime = sesDate.getTime() - today.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          let status = 'todo';
+          if (ses.estado === 'Completada') {
+            status = 'done';
+          } else {
+            if (diffDays < 0) {
+              status = 'overdue';
+            } else if (diffDays <= 7) {
+              status = 'due_soon';
+            }
+          }
+
+          const referenceId = `training_session-${ses.id}`;
+          activeTrainingIds.push(referenceId);
+
+          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title: `Capacitación: ${ses.tema}`,
+              description: `Tema: ${ses.tema}. Responsable: ${ses.responsable || 'No asignado'}. Descripción: ${ses.descripcion || ''}.`,
+              dueDate: sesDate,
+              status,
+              type: 'training',
+              referenceId,
+              referenceName: ses.responsable || 'Capacitación',
+              completedAt: ses.estado === 'Completada' ? new Date() : undefined
+            });
+          } else {
+            const taskDateStr = task.dueDate.toISOString().split('T')[0];
+            const newDateStr = ses.fecha;
+
+            let hasChanged = false;
+            if (taskDateStr !== newDateStr) {
+              task.dueDate = sesDate;
+              hasChanged = true;
+            }
+            if (task.title !== `Capacitación: ${ses.tema}`) {
+              task.title = `Capacitación: ${ses.tema}`;
+              hasChanged = true;
+            }
+            if (task.status !== 'done' && task.status !== status) {
+              task.status = status;
+              hasChanged = true;
+            }
+            if (ses.estado === 'Completada' && task.status !== 'done') {
+              task.status = 'done';
+              task.completedAt = new Date();
+              hasChanged = true;
+            }
+
+            if (hasChanged) {
+              await task.save();
+            }
+          }
+        }
+      }
+    }
+
+    // Clean up active training session tasks that are deleted or canceled
+    await KanbanTask.deleteMany({
+      user: userId,
+      companyId,
+      status: { $ne: 'done' },
+      referenceId: { $regex: /^training_session-/ },
+      referenceId: { $nin: activeTrainingIds }
+    });
+
+    // 4. Fetch and return all tasks for user and company
     const tasks = await KanbanTask.find({ user: userId, companyId }).sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
@@ -259,26 +382,119 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se encontró empresa activa' });
     }
 
-    const { _id, title, description, dueDate, status, type } = req.body;
+    const { _id, title, description, dueDate, status, type, renewalDate } = req.body;
 
     if (_id) {
-      // Update existing
-      const updateData = { title, description, status, type };
-      if (dueDate) {
-        updateData.dueDate = new Date(dueDate);
-      }
-      if (status === 'done') {
-        updateData.completedAt = new Date();
-      } else {
-        updateData.completedAt = null;
+      // Find task
+      let task = await KanbanTask.findOne({ _id, user: userId, companyId });
+      if (!task) {
+        return res.status(404).json({ error: 'Actividad no encontrada' });
       }
 
-      const task = await KanbanTask.findOneAndUpdate(
+      const updateData = { title, description, status, type };
+
+      // If a renewal date is provided and this is a synchronized task with a referenceId
+      if (renewalDate && task.referenceId) {
+        const parts = task.referenceId.split('-');
+        const refType = parts[0]; // 'worker' or 'vehicle'
+        const refId = parts[1];
+        const refField = parts[2]; // e.g. 'medical_exam', 'soat', etc.
+
+        if (refType === 'worker') {
+          const profile = await PerfilSociodemograficoData.findOne({ user: userId, companyId });
+          if (profile && profile.trabajadores) {
+            const worker = profile.trabajadores.find(t => String(t._id || t.id) === String(refId));
+            if (worker) {
+              // Map reference field to worker model fields
+              let fieldName = '';
+              if (refField === 'medical_exam') fieldName = 'fechaExamenMedico';
+              else if (refField === 'heights_auth') fieldName = 'fechaCursoAlturasAutorizado';
+              else if (refField === 'heights_coord') fieldName = 'fechaCursoAlturasCoordinador';
+              else if (refField === 'licencia_conduccion') fieldName = 'licenciaConduccionVencimiento';
+              else if (refField === 'licencia_sst') fieldName = 'licenciaVencimiento';
+
+              if (fieldName) {
+                worker[fieldName] = renewalDate;
+                profile.markModified('trabajadores');
+                await profile.save();
+
+                // Recalculate next due date
+                if (refField === 'medical_exam' || refField === 'heights_auth' || refField === 'heights_coord') {
+                  const examDate = parseDateString(renewalDate);
+                  if (examDate) {
+                    updateData.dueDate = addDays(examDate, 365);
+                  }
+                } else {
+                  updateData.dueDate = parseDateString(renewalDate);
+                }
+
+                // Complete the task card
+                updateData.status = 'done';
+                updateData.completedAt = new Date();
+              } else if (refField === 'bio') {
+                // Biocentric alert task closed
+                updateData.status = 'done';
+                updateData.completedAt = new Date();
+                updateData.dueDate = parseDateString(renewalDate) || new Date();
+              }
+            }
+          }
+        } else if (refType === 'vehicle') {
+          const vehicle = await SgsstVehicleData.findOne({ _id: refId, user: userId, companyId });
+          if (vehicle) {
+            if (refField === 'soat') {
+              vehicle.soatVencimiento = renewalDate;
+            } else if (refField === 'rtm') {
+              vehicle.tecnomecanicaVencimiento = renewalDate;
+            }
+            await vehicle.save();
+
+            // Set due date directly to the new vehicle doc expiration date
+            updateData.dueDate = parseDateString(renewalDate);
+
+            // Complete the task card
+            updateData.status = 'done';
+            updateData.completedAt = new Date();
+          }
+        } else if (parts[0] === 'training' && parts[1] === 'session') {
+          const sessionId = parts[2];
+          const trainingData = await ProgramaCapacitacionesData.findOne({ user: userId, companyId });
+          if (trainingData && trainingData.sesiones) {
+            const session = trainingData.sesiones.find(s => s.id === sessionId);
+            if (session) {
+              session.estado = 'Completada';
+              if (renewalDate) {
+                session.fecha = renewalDate;
+              }
+              trainingData.markModified('sesiones');
+              await trainingData.save();
+
+              // Complete task in Kanban
+              updateData.status = 'done';
+              updateData.completedAt = new Date();
+              if (renewalDate) {
+                updateData.dueDate = parseDateString(renewalDate);
+              }
+            }
+          }
+        }
+      } else {
+        if (dueDate) {
+          updateData.dueDate = new Date(dueDate);
+        }
+        if (status === 'done') {
+          updateData.completedAt = new Date();
+        } else if (status) {
+          updateData.completedAt = null;
+        }
+      }
+
+      const updatedTask = await KanbanTask.findOneAndUpdate(
         { _id, user: userId, companyId },
         { $set: updateData },
         { new: true }
       );
-      return res.json(task);
+      return res.json(updatedTask);
     } else {
       // Create new manual task
       if (!title || !dueDate) {

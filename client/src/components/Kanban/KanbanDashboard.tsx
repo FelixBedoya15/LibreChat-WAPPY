@@ -13,7 +13,8 @@ import {
   Car, 
   BookOpen, 
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Pencil
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -46,6 +47,63 @@ export default function KanbanDashboard() {
   const [newDueDate, setNewDueDate] = useState<string>('');
   const [newType, setNewType] = useState<string>('manual');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [editingTask, setEditingTask] = useState<KanbanTask | null>(null);
+  const [renewalDate, setRenewalDate] = useState<string>('');
+
+  const getRenewalDetails = (task: KanbanTask) => {
+    if (task.referenceId && task.referenceId.startsWith('training_session')) {
+      return {
+        title: 'Cierre de Sesión de Capacitación',
+        label: 'Fecha de realización de la capacitación *',
+        helper: 'Al registrar la realización, se cambiará el estado de la capacitación a "Completada" en tu cronograma.',
+      };
+    }
+    if (task.referenceId && task.referenceId.includes('-bio-')) {
+      return {
+        title: 'Gestión y Cierre de Alerta de Salud (Auditoría Biocéntrica)',
+        label: 'Fecha de intervención o seguimiento médico *',
+        helper: 'Ingresa la fecha en que se realizó el seguimiento o medida de control para el trabajador.',
+      };
+    }
+    switch (task.type) {
+      case 'medical_exam':
+        return {
+          title: 'Cierre y Registro de Examen Médico',
+          label: 'Fecha de realización del nuevo examen *',
+          helper: 'Al registrar la realización, Wappy actualizará la ficha del trabajador y programará automáticamente el próximo examen anual.',
+        };
+      case 'soat':
+        return {
+          title: 'Cierre y Registro de SOAT',
+          label: 'Nueva fecha de vencimiento del SOAT *',
+          helper: 'Al registrar, se actualizará el vencimiento del SOAT en el módulo de vehículos con la nueva fecha ingresada.',
+        };
+      case 'rtm':
+        return {
+          title: 'Cierre y Registro de Revisión Técnico-Mecánica',
+          label: 'Nueva fecha de vencimiento de la RTM *',
+          helper: 'Al registrar, se actualizará el vencimiento de la RTM en el módulo de vehículos con la nueva fecha ingresada.',
+        };
+      case 'driver_license':
+        return {
+          title: 'Cierre y Registro de Licencia de Conducción / SST',
+          label: 'Nueva fecha de vencimiento de la Licencia *',
+          helper: 'Al registrar, se actualizará el vencimiento de la licencia en la ficha del trabajador.',
+        };
+      case 'training':
+        return {
+          title: 'Cierre y Registro de Curso de Alturas / Capacitación',
+          label: 'Fecha de realización del nuevo curso *',
+          helper: 'Al registrar, se actualizará la fecha del curso en la ficha del trabajador y se reprogramará su vencimiento anual.',
+        };
+      default:
+        return {
+          title: 'Cierre y Registro de Actividad',
+          label: 'Nueva fecha de realización / vencimiento *',
+          helper: 'Al registrar, se actualizarán los datos vinculados al sistema.',
+        };
+    }
+  };
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -114,8 +172,29 @@ export default function KanbanDashboard() {
     }
   };
 
-  // Create manual task
-  const handleCreateTask = async (e: React.FormEvent) => {
+  const openCreateModal = () => {
+    setEditingTask(null);
+    setNewTitle('');
+    setNewDesc('');
+    setNewDueDate('');
+    setNewType('manual');
+    setRenewalDate('');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (task: KanbanTask) => {
+    setEditingTask(task);
+    setNewTitle(task.title);
+    setNewDesc(task.description || '');
+    const dateStr = task.dueDate.split('T')[0];
+    setNewDueDate(dateStr);
+    setNewType(task.type);
+    setRenewalDate('');
+    setIsModalOpen(true);
+  };
+
+  // Create or update task
+  const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newDueDate) {
       showToast({ message: 'Título y fecha límite son obligatorios.', status: 'warning' });
@@ -124,15 +203,33 @@ export default function KanbanDashboard() {
 
     setIsSaving(true);
     try {
-      const res = await axios.post('/api/sgsst/kanban/save', {
-        title: newTitle,
-        description: newDesc,
-        dueDate: newDueDate,
-        type: newType,
-        status: 'todo'
-      });
+      if (editingTask) {
+        // Edit mode
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          _id: editingTask._id,
+          title: newTitle,
+          description: newDesc,
+          dueDate: newDueDate,
+          type: newType,
+          status: editingTask.status,
+          renewalDate: renewalDate || undefined
+        });
 
-      setTasks(prev => [...prev, res.data]);
+        setTasks(prev => prev.map(t => t._id === editingTask._id ? res.data : t));
+        showToast({ message: 'Actividad actualizada correctamente.', status: 'success' });
+      } else {
+        // Create mode
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          title: newTitle,
+          description: newDesc,
+          dueDate: newDueDate,
+          type: newType,
+          status: 'todo'
+        });
+
+        setTasks(prev => [...prev, res.data]);
+        showToast({ message: 'Actividad programada correctamente.', status: 'success' });
+      }
       setIsModalOpen(false);
       
       // Reset form
@@ -140,11 +237,11 @@ export default function KanbanDashboard() {
       setNewDesc('');
       setNewDueDate('');
       setNewType('manual');
-
-      showToast({ message: 'Actividad programada correctamente.', status: 'success' });
+      setRenewalDate('');
+      setEditingTask(null);
     } catch (err) {
-      console.error('Error saving manual task:', err);
-      showToast({ message: 'No se pudo programar la actividad.', status: 'error' });
+      console.error('Error saving task:', err);
+      showToast({ message: 'No se pudo guardar la actividad.', status: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -221,7 +318,17 @@ export default function KanbanDashboard() {
     let color = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     let redirectPath = '';
 
-    if (task.type === 'medical_exam') {
+    if (task.referenceId && task.referenceId.includes('-bio-')) {
+      icon = <AlertTriangle className="w-3.5 h-3.5" />;
+      text = 'Alerta Médica';
+      color = 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/40';
+      redirectPath = '/sgsst?tab=workers';
+    } else if (task.referenceId && task.referenceId.startsWith('training_session')) {
+      icon = <BookOpen className="w-3.5 h-3.5" />;
+      text = 'Capacitación Programada';
+      color = 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800/40';
+      redirectPath = '/sgsst?tab=capacitaciones';
+    } else if (task.type === 'medical_exam') {
       icon = <User className="w-3.5 h-3.5" />;
       text = 'Examen Médico';
       color = 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/40';
@@ -310,7 +417,7 @@ export default function KanbanDashboard() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition-all text-xs font-bold"
         >
           <Plus className="w-4 h-4" />
@@ -414,13 +521,22 @@ export default function KanbanDashboard() {
                           <h4 className="font-bold text-[13px] text-text-primary leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                             {task.title}
                           </h4>
-                          <button
-                            onClick={() => handleDeleteTask(task._id)}
-                            className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all shrink-0"
-                            title="Eliminar actividad"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                            <button
+                              onClick={() => openEditModal(task)}
+                              className="p-1 text-text-tertiary hover:text-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 rounded transition-all"
+                              title="Editar actividad"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task._id)}
+                              className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded transition-all"
+                              title="Eliminar actividad"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Description */}
@@ -465,11 +581,17 @@ export default function KanbanDashboard() {
                         {/* Complete action quick button */}
                         {task.status !== 'done' && (
                           <button
-                            onClick={() => handleMarkComplete(task._id)}
+                            onClick={() => {
+                              if (task.type !== 'manual') {
+                                openEditModal(task);
+                              } else {
+                                handleMarkComplete(task._id);
+                              }
+                            }}
                             className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1 bg-surface-tertiary hover:bg-green-500/10 hover:text-green-600 dark:hover:bg-green-950/20 dark:hover:text-green-400 rounded-lg text-[11px] font-bold text-text-secondary transition-all"
                           >
                             <Check className="w-3.5 h-3.5" />
-                            Marcar completado
+                            {task.type !== 'manual' ? 'Registrar Cierre / Renovación' : 'Marcar completado'}
                           </button>
                         )}
                       </div>
@@ -488,13 +610,15 @@ export default function KanbanDashboard() {
           <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
             <div className="p-6 border-b border-border-medium/30">
               <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
-                <Plus className="w-5 h-5 text-teal-500" />
-                Programar Actividad Manual
+                {editingTask ? <Pencil className="w-5 h-5 text-teal-500" /> : <Plus className="w-5 h-5 text-teal-500" />}
+                {editingTask ? 'Editar Actividad' : 'Programar Actividad Manual'}
               </h2>
-              <p className="text-xs text-text-tertiary mt-0.5">Crea una nueva tarjeta en tu plan de trabajo de seguridad y salud.</p>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                {editingTask ? 'Modifica los detalles de la tarjeta seleccionada.' : 'Crea una nueva tarjeta en tu plan de trabajo de seguridad y salud.'}
+              </p>
             </div>
             
-            <form onSubmit={handleCreateTask} className="p-6 flex flex-col gap-4">
+            <form onSubmit={handleSaveTask} className="p-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-text-secondary">Título de la Actividad *</label>
                 <input 
@@ -502,8 +626,9 @@ export default function KanbanDashboard() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Ej: Inspección mensual de botiquines"
-                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full disabled:opacity-65"
                   required
+                  disabled={editingTask !== null && editingTask.type !== 'manual'}
                 />
               </div>
 
@@ -524,8 +649,9 @@ export default function KanbanDashboard() {
                     type="date" 
                     value={newDueDate}
                     onChange={(e) => setNewDueDate(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full disabled:opacity-65"
                     required
+                    disabled={editingTask !== null && editingTask.type !== 'manual'}
                   />
                 </div>
 
@@ -534,7 +660,8 @@ export default function KanbanDashboard() {
                   <select
                     value={newType}
                     onChange={(e) => setNewType(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer disabled:opacity-65"
+                    disabled={editingTask !== null && editingTask.type !== 'manual'}
                   >
                     <option value="manual">General / Manual</option>
                     <option value="training">Capacitación</option>
@@ -542,6 +669,37 @@ export default function KanbanDashboard() {
                   </select>
                 </div>
               </div>
+
+              {editingTask && editingTask.type !== 'manual' && (
+                <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-3.5 mt-2 transition-all">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-xs font-extrabold text-teal-800 dark:text-teal-300">
+                        {getRenewalDetails(editingTask.type).title}
+                      </h3>
+                      <p className="text-[10px] text-teal-700/80 dark:text-teal-400/80 leading-snug mt-0.5">
+                        {getRenewalDetails(editingTask.type).helper}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-text-secondary flex items-center gap-1">
+                      {getRenewalDetails(editingTask.type).label}
+                    </label>
+                    <input 
+                      type="date" 
+                      value={renewalDate}
+                      onChange={(e) => setRenewalDate(e.target.value)}
+                      className="px-3.5 py-2.5 bg-white dark:bg-gray-950 border border-teal-500/40 focus:border-teal-500 rounded-xl text-sm focus:outline-none text-text-primary w-full shadow-inner transition-colors"
+                    />
+                    <p className="text-[9px] text-text-tertiary italic">
+                      Nota: Al ingresar esta fecha y guardar, la actividad pasará a "Completadas" y se actualizará automáticamente en el módulo correspondiente.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3 mt-4">
@@ -557,7 +715,7 @@ export default function KanbanDashboard() {
                   disabled={isSaving}
                   className="flex-1 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition"
                 >
-                  {isSaving ? 'Guardando...' : 'Programar'}
+                  {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar'}
                 </button>
               </div>
             </form>
