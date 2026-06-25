@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, useToastContext } from '@librechat/client';
 import { Loader2, LogOut, CheckCircle2, Cloud } from 'lucide-react';
 import axios from 'axios';
+import { useAuthContext } from '~/hooks';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 export default function GoogleDriveConnect() {
   const { showToast } = useToastContext();
+  const { user } = useAuthContext();
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [connected, setConnected] = useState<boolean>(false);
   const [email, setEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
 
   // Check URL parameters for OAuth status redirect
   useEffect(() => {
@@ -55,6 +61,10 @@ export default function GoogleDriveConnect() {
   }, []);
 
   const handleConnect = async () => {
+    if (!isProOrAdmin) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     setIsActionLoading(true);
     try {
       const res = await axios.get('/api/google-drive/auth');
@@ -104,7 +114,8 @@ export default function GoogleDriveConnect() {
   }
 
   return (
-    <div className="flex flex-col gap-3 py-2 text-sm text-text-primary">
+    <>
+      <div className="flex flex-col gap-3 py-2 text-sm text-text-primary">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex gap-3">
           {/* Custom Google Drive SVG Icon */}
@@ -161,5 +172,26 @@ export default function GoogleDriveConnect() {
         </div>
       )}
     </div>
+      {isUpgradeModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
+            <button
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="absolute -top-10 right-0 z-[99999999] rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
+            >
+              Cerrar ✕
+            </button>
+            <UpgradeWall
+              title="Integración de Google Exclusiva"
+              description="La conexión y uso de herramientas de Google Drive y Google Calendar están reservados para usuarios del plan Wappy Pro."
+              plan={user?.role || 'USER'}
+              isPopup={true}
+              hideFeatures={true}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

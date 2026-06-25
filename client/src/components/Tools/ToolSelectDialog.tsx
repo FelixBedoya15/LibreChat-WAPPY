@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { useFormContext } from 'react-hook-form';
 import { isAgentsEndpoint } from 'librechat-data-provider';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
@@ -33,6 +35,8 @@ function ToolSelectDialog({
   const { regularTools } = useAgentPanelContext();
   const { user } = useAuthContext();
   const isAdmin = user?.role === SystemRoles.ADMIN;
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const {
     maxPage,
@@ -105,6 +109,10 @@ function ToolSelectDialog({
   };
 
   const onAddTool = (pluginKey: string) => {
+    if ((pluginKey === 'google_drive' || pluginKey === 'google_calendar') && !isProOrAdmin) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     setShowPluginAuthForm(false);
     // Find the tool in regularTools
     const availablePluginFromKey = regularTools?.find((p) => p.pluginKey === pluginKey);
@@ -148,7 +156,8 @@ function ToolSelectDialog({
   ]);
 
   return (
-    <Dialog
+    <>
+      <Dialog
       open={isOpen}
       onClose={() => {
         setIsOpen(false);
@@ -260,6 +269,27 @@ function ToolSelectDialog({
         </DialogPanel>
       </div>
     </Dialog>
+      {isUpgradeModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm duration-300 animate-in zoom-in-95">
+            <button
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="absolute -top-10 right-0 z-[99999999] rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-white backdrop-blur-md hover:text-gray-300"
+            >
+              Cerrar ✕
+            </button>
+            <UpgradeWall
+              title="Integración de Google Exclusiva"
+              description="La conexión y uso de herramientas de Google Drive y Google Calendar están reservados para usuarios del plan Wappy Pro."
+              plan={user?.role || 'USER'}
+              isPopup={true}
+              hideFeatures={true}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 

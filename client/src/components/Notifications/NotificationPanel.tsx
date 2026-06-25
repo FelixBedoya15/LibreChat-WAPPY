@@ -111,7 +111,14 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         }
 
         if (notification.type === 'system_update') {
-            navigate('/hoja-de-ruta');
+            const isSST = notification.title?.toLowerCase().includes('sst') || 
+                          notification.body?.toLowerCase().includes('sst') || 
+                          notification.title?.toLowerCase().includes('vencimiento');
+            if (isSST) {
+                navigate('/sgsst');
+            } else {
+                navigate('/hoja-de-ruta');
+            }
             onClose();
             return;
         }
