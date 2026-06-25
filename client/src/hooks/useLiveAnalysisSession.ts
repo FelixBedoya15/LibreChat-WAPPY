@@ -62,10 +62,15 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             let audioContext = audioContextRef.current;
             if (!audioContext || audioContext.state === 'closed') {
                 console.log('[LiveAnalysisSession] Creating new AudioContext (16kHz)');
-                audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioContext = (window as any).sharedAudioContext16k || new AudioContextClass({
                     sampleRate: 16000,
                 });
+                if (!audioContext) {
+                    throw new Error('AudioContext failed to initialize');
+                }
                 audioContextRef.current = audioContext;
+                (window as any).sharedAudioContext16k = audioContext;
 
                 // Load AudioWorklet Module ONLY when creating context
                 const workletCode = `
@@ -117,6 +122,8 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 console.log('[LiveAnalysisSession] Resuming AudioContext');
                 await audioContext.resume();
             }
+
+
 
             // 3. Create Audio Graph
             const source = audioContext.createMediaStreamSource(stream);
@@ -203,6 +210,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             }
             audioContextRef.current = null;
         }
+        (window as any).sharedAudioContext16k = null;
     };
 
     /**

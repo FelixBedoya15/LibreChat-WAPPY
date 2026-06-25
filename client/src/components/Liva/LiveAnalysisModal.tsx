@@ -369,8 +369,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const handleAudioReceived = useCallback((audioData: string) => {
         try {
-            if (!audioContextRef.current) return;
-            if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+            if (!audioContextRef.current) {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioContextRef.current = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
+                (window as any).sharedAudioContext24k = audioContextRef.current;
+            }
+            if (audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume().catch(console.error);
+            }
 
             const binaryString = atob(audioData);
             const len = binaryString.length;
@@ -1233,7 +1239,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         manualPhotosCountRef.current = 0;
 
         if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
+            (window as any).sharedAudioContext24k = audioContextRef.current;
         }
 
         connect();
@@ -1245,6 +1253,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 audioContextRef.current.close();
                 audioContextRef.current = null;
             }
+            (window as any).sharedAudioContext24k = null;
         };
     }, [isOpen, selectedTemplate]);
 
@@ -1258,8 +1267,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             let ctx = audioContextRef.current;
             if (!ctx) {
-                ctx = new AudioContextClass({ sampleRate: 24000 });
+                ctx = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
                 audioContextRef.current = ctx;
+                (window as any).sharedAudioContext24k = ctx;
                 console.log('[LiveAnalysisModal] AudioContext created eagerly on user gesture:', ctx.state);
             } else if (ctx.state === 'suspended') {
                 ctx.resume().then(() => {
@@ -1495,68 +1505,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             {/* Main content - Fullscreen */}
             <div className="relative w-full h-full flex flex-col overflow-hidden">
 
-                {/* Technical Loading Overlay - Hud Style */}
-                {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95">
-                        <div className="relative">
-                            {/* Circular progress background */}
-                            <svg className="w-64 h-64 -rotate-90 transform">
-                                <circle
-                                    cx="128"
-                                    cy="128"
-                                    r="120"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    fill="transparent"
-                                    className="text-white/5"
-                                />
-                                <circle
-                                    cx="128"
-                                    cy="128"
-                                    r="120"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    fill="transparent"
-                                    strokeDasharray={754}
-                                    strokeDashoffset={754 - (754 * (10 - countdown) / 10)}
-                                    className="text-teal-500 transition-all duration-1000 ease-linear"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-7xl font-mono font-bold text-white tracking-tighter">
-                                    00:{countdown.toString().padStart(2, '0')}
-                                </span>
-                                <span className="text-[10px] text-teal-400 font-mono mt-2 tracking-[0.3em] uppercase opacity-80 animate-pulse">
-                                    Initializing Stream
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="mt-12 w-64 space-y-4">
-                            <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
-                                <span>Securing Channel</span>
-                                <span>{Math.round((10 - countdown) * 10)}%</span>
-                            </div>
-                            <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-teal-500 transition-all duration-1000 ease-linear"
-                                    style={{ width: `${(10 - countdown) * 10}%` }}
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 gap-1">
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-[pulse_2s_infinite]">
-                                    {'>'} ACCESS_KEY: ENABLED
-                                </p>
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-[pulse_2.5s_infinite]">
-                                    {'>'} ENCRYPTION_LAYER: 256-BIT_AES
-                                </p>
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-[pulse_3s_infinite]">
-                                    {'>'} AUDIT_PROCOCOL: SST_v3.4
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* Technical Loading Overlay - Hud Style Removed */}
 
 
 

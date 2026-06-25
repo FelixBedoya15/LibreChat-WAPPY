@@ -367,6 +367,25 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                 <VoiceModeButton
                   onClick={() => {
                     console.log('[ChatForm] Opening Live with conversationId:', conversationId);
+                    try {
+                      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                      if (AudioContextClass) {
+                        if (!(window as any).sharedAudioContext24k) {
+                          (window as any).sharedAudioContext24k = new AudioContextClass({ sampleRate: 24000 });
+                        }
+                        if ((window as any).sharedAudioContext24k.state === 'suspended') {
+                          (window as any).sharedAudioContext24k.resume().catch(console.error);
+                        }
+                        if (!(window as any).sharedAudioContext16k) {
+                          (window as any).sharedAudioContext16k = new AudioContextClass({ sampleRate: 16000 });
+                        }
+                        if ((window as any).sharedAudioContext16k.state === 'suspended') {
+                          (window as any).sharedAudioContext16k.resume().catch(console.error);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('[ChatForm] Error initializing global audio contexts:', err);
+                    }
                     setShowVoiceModal(true);
                   }}
                   disabled={disableInputs || isNotAppendable}

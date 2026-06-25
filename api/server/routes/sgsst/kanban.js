@@ -157,41 +157,49 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           }
         }
 
-        // F. Biocentric Health Alerts (If biocentricScore < 75)
+        // F. Biocentric Health Alerts (If biocentricScore < 75) - Consolidated into ONE card per worker
         if (biocentricScore < 75 && w.biocentricAlerts && w.biocentricAlerts.length > 0) {
-          for (const alertName of w.biocentricAlerts) {
-            const alertSlug = alertName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            const referenceId = `worker-${workerId}-bio-${alertSlug}`;
-            activeBioTaskIds.push(referenceId);
+          const referenceId = `worker-${workerId}-biocentric`;
+          activeBioTaskIds.push(referenceId);
 
-            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
-            if (!task) {
-              const dueDate = new Date();
-              dueDate.setDate(dueDate.getDate() + 7);
-              await KanbanTask.create({
-                user: userId,
-                companyId,
-                title: `Alerta de Salud: ${alertName} (${workerName})`,
-                description: `El trabajador presenta la alerta de salud "${alertName}". Requiere seguimiento médico. Score biocéntrico: ${biocentricScore}%.`,
-                dueDate,
-                status: 'todo',
-                type: 'other',
-                referenceId,
-                referenceName: workerName,
-              });
+          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          const alertsList = w.biocentricAlerts.join(', ');
+          const title = `Auditoría Biocéntrica Crítica: ${workerName}`;
+          const description = `El índice biocéntrico del trabajador es del ${biocentricScore}%, inferior al límite de 75%. Alertas activas: ${alertsList}. Requiere intervención y seguimiento médico.`;
+
+          if (!task) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: 'todo',
+              type: 'other',
+              referenceId,
+              referenceName: workerName,
+            });
+          } else {
+            // Update details if alerts changed
+            if (task.description !== description || task.title !== title) {
+              task.description = description;
+              task.title = title;
+              await task.save();
             }
           }
         }
       }
     }
 
-    // Clean up active biocentric tasks that are resolved
+    // Clean up active biocentric tasks that are resolved or in old format
     await KanbanTask.deleteMany({
       user: userId,
       companyId,
       status: { $ne: 'done' },
       referenceId: {
-        $regex: /^worker-.*-bio-/,
+        $regex: /^worker-.*-(bio-|biocentric$)/,
         $nin: activeBioTaskIds
       }
     });
@@ -435,7 +443,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
                 // Complete the task card
                 updateData.status = 'done';
                 updateData.completedAt = new Date();
-              } else if (refField === 'bio') {
+              } else if (refField === 'bio' || refField === 'biocentric') {
                 // Biocentric alert task closed
                 updateData.status = 'done';
                 updateData.completedAt = new Date();

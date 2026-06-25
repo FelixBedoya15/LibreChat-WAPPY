@@ -353,6 +353,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     audioContextRef.current.close().catch(console.error);
                     audioContextRef.current = null;
                 }
+                (window as any).sharedAudioContext24k = null;
             }
             return;
         }
@@ -400,8 +401,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
             let ctx = audioContextRef.current;
             if (!ctx) {
-                ctx = new AudioContextClass({ sampleRate: 24000 });
+                ctx = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
                 audioContextRef.current = ctx;
+                (window as any).sharedAudioContext24k = ctx;
                 console.log('[VoiceModal] AudioContext created eagerly on user gesture:', ctx.state);
             } else if (ctx.state === 'suspended') {
                 ctx.resume().then(() => {
@@ -1019,10 +1021,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         try {
             if (!audioContextRef.current) {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+                audioContextRef.current = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
+                (window as any).sharedAudioContext24k = audioContextRef.current;
             }
             if (audioContextRef.current.state === 'suspended') {
-                audioContextRef.current.resume();
+                audioContextRef.current.resume().catch(console.error);
             }
             const binaryString = atob(audioData);
             const len = binaryString.length;
@@ -1108,35 +1111,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     </div>
                 )}
 
-                {/* ── Technical Loading Overlay ── */}
-                {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95">
-                        <div className="relative">
-                            <svg className="w-64 h-64 -rotate-90 transform">
-                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
-                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={754} strokeDashoffset={754 - (754 * (10 - countdownValue) / 10)} className="text-teal-500 transition-all duration-1000 ease-linear" />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-7xl font-mono font-bold text-white tracking-tighter">00:{countdownValue.toString().padStart(2, '0')}</span>
-                                <span className="text-[10px] text-teal-400 font-mono mt-2 tracking-[0.3em] uppercase opacity-80 animate-pulse">Initializing Stream</span>
-                            </div>
-                        </div>
-                        <div className="mt-12 w-64 space-y-4">
-                            <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
-                                <span>Securing Channel</span>
-                                <span>{Math.round((10 - countdownValue) * 10)}%</span>
-                            </div>
-                            <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(10 - countdownValue) * 10}%` }} />
-                            </div>
-                            <div className="grid grid-cols-1 gap-1">
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} ACCESS_KEY: ENABLED</p>
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} VOICE_ENGINE: GEMINI_LIVE</p>
-                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} PROTOCOL: SST_v3.4</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* ── Technical Loading Overlay Removed ── */}
 
                 {/* Simplified Biomechanical Telemetry HUD (Glassmorphism) */}
                 {isBiomechanicsAgent && isReady && (
