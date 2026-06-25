@@ -418,10 +418,15 @@ export default function KanbanDashboard() {
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition-all text-xs font-bold"
+          className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+          title="Nueva Actividad"
         >
-          <Plus className="w-4 h-4" />
-          Nueva Actividad
+          <div className="relative flex-shrink-0 flex items-center justify-center">
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+            <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Actividad</span>
+          </div>
         </button>
       </div>
 
