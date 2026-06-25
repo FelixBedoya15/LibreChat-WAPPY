@@ -55,15 +55,108 @@ router.get('/data', requireJwtAuth, async (req, res) => {
   }
 });
 
+const getStartAndEndTimes = (fecha, hora, duracion) => {
+  let startHour = 8;
+  let startMin = 0;
+  if (hora && typeof hora === 'string') {
+    const match = hora.trim().match(/^(\d{1,2}):(\d{2})/);
+    if (match) {
+      startHour = parseInt(match[1], 10);
+      startMin = parseInt(match[2], 10);
+    }
+  }
+
+  let durationHours = 1;
+  if (duracion && typeof duracion === 'string') {
+    const numMatch = duracion.match(/(\d+)/);
+    if (numMatch) {
+      const num = parseInt(numMatch[1], 10);
+      if (duracion.toLowerCase().includes('min')) {
+        durationHours = num / 60;
+      } else if (duracion.toLowerCase().includes('hor')) {
+        durationHours = num;
+      }
+    }
+  }
+
+  const startStr = `${fecha}T${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`;
+  
+  const parts = fecha.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  
+  const startObj = new Date(year, month, day, startHour, startMin, 0);
+  const endObj = new Date(startObj.getTime() + durationHours * 60 * 60 * 1000);
+  
+  const endYear = endObj.getFullYear();
+  const endMonth = String(endObj.getMonth() + 1).padStart(2, '0');
+  const endDay = String(endObj.getDate()).padStart(2, '0');
+  const endHour = endObj.getHours();
+  const endMin = endObj.getMinutes();
+  const endStr = `${endYear}-${endMonth}-${endDay}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
+
+  return {
+    start: {
+      dateTime: startStr,
+      timeZone: 'America/Bogota',
+    },
+    end: {
+      dateTime: endStr,
+      timeZone: 'America/Bogota',
+    }
+  };
+};
+
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
     const { sesiones } = req.body;
-    const companyId = await getActiveCompanyId(req.user.id);
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+
+    // Obtener las sesiones anteriores para detectar eliminadas
+    const oldData = await ProgramaCapacitacionesData.findOne({ user: userId, companyId });
+    const oldSessions = oldData ? (oldData.sesiones || []) : [];
+
+    // Guardar cronograma en la base de datos
     await ProgramaCapacitacionesData.findOneAndUpdate(
-      { user: req.user.id, companyId: companyId },
+      { user: userId, companyId: companyId },
       { $set: { sesiones: sesiones || [], companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
+
+    // Sincronizar de forma silenciosa con Google Calendar
+    try {
+      const { upsertCalendarEvent, deleteCalendarEvent } = require('../../services/googleCalendar');
+
+      // 1. Eliminar eventos de sesiones borradas de la base de datos
+      const newSessionIds = (sesiones || []).map(s => s.id);
+      const deletedSessions = oldSessions.filter(s => !newSessionIds.includes(s.id));
+      for (const s of deletedSessions) {
+        await deleteCalendarEvent(userId, `session-${s.id}`);
+      }
+
+      // 2. Crear o actualizar las sesiones activas
+      for (const s of (sesiones || [])) {
+        const syncId = `session-${s.id}`;
+        if (s.estado === 'Cancelada') {
+          await deleteCalendarEvent(userId, syncId);
+        } else {
+          const timeData = getStartAndEndTimes(s.fecha, s.hora, s.duracion);
+          const isCompletada = s.estado === 'Completada';
+          await upsertCalendarEvent(userId, {
+            summary: `${isCompletada ? '✅' : '📅'} Wappy: Capacitación - ${s.tema}`,
+            description: `Sesión de capacitación en SST.\nTema: ${s.tema}\nResponsable: ${s.responsable || 'No asignado'}\nDescripción: ${s.descripcion || 'Sin descripción'}\nEstado: ${s.estado}`,
+            start: timeData.start,
+            end: timeData.end,
+            colorId: isCompletada ? '10' : '9' // 10 = Eucalyptus green, 9 = Basil blue/green
+          }, syncId);
+        }
+      }
+    } catch (calErr) {
+      logger.error('[SGSST Capacitaciones] Google Calendar sync failed:', calErr.message);
+    }
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST Capacitaciones] Save error:', error);

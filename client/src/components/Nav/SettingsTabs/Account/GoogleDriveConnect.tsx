@@ -17,7 +17,7 @@ export default function GoogleDriveConnect() {
     
     if (driveStatus === 'success') {
       showToast({
-        message: 'Google Drive conectado correctamente. Tus agentes ahora pueden interactuar con tus documentos.',
+        message: 'Google Workspace (Drive y Calendario) conectado correctamente. Tus agentes ahora pueden interactuar con tus documentos y programar alertas.',
         status: 'success',
       });
       // Clean up URL parameters
@@ -27,7 +27,7 @@ export default function GoogleDriveConnect() {
       window.history.replaceState({}, '', newPath);
     } else if (driveStatus === 'error') {
       showToast({
-        message: 'Hubo un error al conectar con Google Drive. Por favor, inténtalo de nuevo.',
+        message: 'Hubo un error al conectar con Google Workspace. Por favor, inténtalo de nuevo.',
         status: 'error',
       });
       // Clean up URL parameters
@@ -98,7 +98,7 @@ export default function GoogleDriveConnect() {
     return (
       <div className="flex items-center justify-center py-4 text-text-secondary">
         <Loader2 className="w-5 h-5 animate-spin mr-2 text-green-500" />
-        <span>Cargando estado de Google Drive...</span>
+        <span>Cargando estado de Google Workspace...</span>
       </div>
     );
   }
@@ -117,10 +117,10 @@ export default function GoogleDriveConnect() {
           </div>
           <div>
             <h4 className="font-bold flex items-center gap-2">
-              Google Drive
+              Google Workspace (Drive y Calendario)
             </h4>
             <p className="text-xs text-text-secondary mt-1 max-w-[400px]">
-              Permite que tus agentes de IA busquen carpetas, lean tus archivos (Docs, Sheets, PDFs) y guarden actas o informes creados en tu cuenta.
+              Permite que tus agentes lean tus archivos, guarden reportes en Drive y programen alertas automáticas o recordatorios en tu Google Calendar en segundo plano.
             </p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function GoogleDriveConnect() {
               disabled={isActionLoading}
               className="border-green-500/50 text-green-600 hover:bg-green-500/10 hover:text-green-700 transition-colors font-semibold"
             >
-              {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Conectar Google Drive'}
+              {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Conectar Google Workspace'}
             </Button>
           ) : (
             <Button 
@@ -155,7 +155,7 @@ export default function GoogleDriveConnect() {
           
           <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
           <div className="flex flex-col">
-            <span className="font-bold text-green-600 dark:text-green-500">Google Drive Conectado</span>
+            <span className="font-bold text-green-600 dark:text-green-500">Google Workspace Conectado</span>
             <span className="text-xs text-text-secondary">Cuenta vinculada: <strong className="text-text-primary">{email}</strong></span>
           </div>
         </div>

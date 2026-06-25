@@ -46,6 +46,19 @@ const parseDateString = (dateStr) => {
 };
 
 /**
+ * Get string "YYYY-MM-DD" for the day after the given date string.
+ */
+const getNextDayString = (dateStr) => {
+  const d = parseDateString(dateStr);
+  if (!d) return dateStr;
+  const next = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+  const y = next.getFullYear();
+  const m = String(next.getMonth() + 1).padStart(2, '0');
+  const day = String(next.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/**
  * Get current Bogota date as string "YYYY-MM-DD"
  */
 const getBogotaDateString = (dateObj = new Date()) => {
@@ -609,6 +622,66 @@ const runNotificationChecks = async () => {
                 read: false
               });
             }
+          }
+
+          // Sincronizar alertas con Google Calendar de forma silenciosa
+          try {
+            const { upsertCalendarEvent } = require('./googleCalendar');
+
+            for (const alert of medicalAlerts) {
+              let targetDateStr = alert.date;
+              if (alert.alertType.includes('Examen médico')) {
+                const lastExam = parseDateString(alert.date);
+                if (lastExam) {
+                  const expiryDate = new Date(lastExam.getTime() + 365 * 24 * 60 * 60 * 1000);
+                  targetDateStr = expiryDate.toISOString().split('T')[0];
+                }
+              }
+              if (targetDateStr) {
+                const syncId = `alert-med-${userId}-${alert.workerName.replace(/\s+/g, '_')}-${targetDateStr}`;
+                const isVencido = alert.statusText === 'Vencido' || alert.alertType.includes('vencido');
+                await upsertCalendarEvent(userId, {
+                  summary: `${isVencido ? '⚠️' : '🔔'} Wappy: Examen/Seguimiento Médico - ${alert.workerName}`,
+                  description: `${alert.alertType} para ${alert.workerName} (Cargo: ${alert.cargo}). Fecha referencia: ${alert.date}.`,
+                  start: { date: targetDateStr },
+                  end: { date: getNextDayString(targetDateStr) },
+                  colorId: isVencido ? '11' : '6' // 11 = Red, 6 = Orange
+                }, syncId);
+              }
+            }
+
+            for (const alert of heightsAlerts) {
+              const lastAuth = parseDateString(alert.date);
+              if (lastAuth) {
+                const expiryDate = new Date(lastAuth.getTime() + 365 * 24 * 60 * 60 * 1000);
+                const targetDateStr = expiryDate.toISOString().split('T')[0];
+                const syncId = `alert-heights-${userId}-${alert.workerName.replace(/\s+/g, '_')}-${alert.courseType.replace(/\s+/g, '_')}-${targetDateStr}`;
+                const isVencido = alert.statusText === 'Vencido';
+                await upsertCalendarEvent(userId, {
+                  summary: `⚠️ Wappy: Vencimiento de ${alert.courseType} - ${alert.workerName}`,
+                  description: `Vencimiento de curso de alturas (${alert.courseType}) para ${alert.workerName} (Cargo: ${alert.cargo}). Último curso: ${alert.date}.`,
+                  start: { date: targetDateStr },
+                  end: { date: getNextDayString(targetDateStr) },
+                  colorId: isVencido ? '11' : '6'
+                }, syncId);
+              }
+            }
+
+            for (const alert of docAlerts) {
+              if (alert.date) {
+                const syncId = `alert-doc-${userId}-${alert.workerName.replace(/\s+/g, '_')}-${alert.docType.replace(/\s+/g, '_')}-${alert.date}`;
+                const isVencido = alert.statusText === 'Vencido';
+                await upsertCalendarEvent(userId, {
+                  summary: `⚠️ Wappy: Vencimiento de ${alert.docType} - ${alert.workerName}`,
+                  description: `El documento o elemento ${alert.docType} de ${alert.workerName} vence el ${alert.date}.`,
+                  start: { date: alert.date },
+                  end: { date: getNextDayString(alert.date) },
+                  colorId: isVencido ? '11' : '6'
+                }, syncId);
+              }
+            }
+          } catch (calErr) {
+            console.error(`[NotificationScheduler] Google Calendar sync failed for user ${userId}:`, calErr.message);
           }
         }
       } catch (profileErr) {

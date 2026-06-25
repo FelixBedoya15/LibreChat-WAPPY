@@ -284,5 +284,12 @@
     "description": "Permite al agente conectarse con Google Drive para buscar archivos, carpetas, leer el contenido de documentos (Google Docs, Google Sheets, Word .docx, Excel .xlsx/.xls, PDFs, txt) y guardar o crear nuevos documentos directamente en la cuenta del usuario.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2965/2965327.png",
     "authConfig": []
+  },
+  {
+    "name": "Google Calendar",
+    "pluginKey": "google_calendar",
+    "description": "Permite al agente programar, consultar o eliminar eventos y recordatorios directamente en tu Google Calendar con alertas automáticas para celular.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2693/2693507.png",
+    "authConfig": []
   }
 ]

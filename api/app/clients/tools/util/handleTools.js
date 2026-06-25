@@ -49,6 +49,7 @@ const {
   ConsultarAnaliticaPsicosocial,
   ConsultarAnaliticaActosCondiciones,
   GoogleDrive,
+  GoogleCalendar,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -275,6 +276,9 @@ const loadTools = async ({
     },
     google_drive: async (_toolContextMap) => {
       return new GoogleDrive({ req: options.req });
+    },
+    google_calendar: async (_toolContextMap) => {
+      return new GoogleCalendar({ req: options.req });
     },
   };
 
