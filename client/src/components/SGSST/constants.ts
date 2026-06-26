@@ -93,11 +93,6 @@ export const PHASE_CATEGORIES = {
     ],
     hito4: [
         { 
-            id: 'control_acpm', title: 'Centro de Control ACPM', icon: 'Trello',
-            bioRationale: 'Control operativo, predictivo e integral de las Acciones Correctivas, Preventivas y de Mejora del sistema.',
-            normativity: 'Hito 4: Traumatismo y Curación'
-        },
-        { 
             id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart',
             bioRationale: 'Mapas cuantitativos y biométricos que muestran el sangrado o desequilibrio sistémico. Dónde perdimos salud.', 
             normativity: 'Hito 4: Traumatismo y Curación' 
@@ -113,6 +108,11 @@ export const PHASE_CATEGORIES = {
             id: 'predictivo', title: 'Centro de Inteligencia Predictiva', icon: 'BrainCircuit',
             bioRationale: 'Visión superior habilitada por Inteligencia Artificial que cruza las esferas de vida del individuo detectando tendencias y salvaguardando vidas antes de la entropía.', 
             normativity: 'Hito 5: Oráculo Predictivo' 
+        },
+        { 
+            id: 'control_acpm', title: 'Centro de Control ACPM', icon: 'Trello',
+            bioRationale: 'Control operativo, predictivo e integral de las Acciones Correctivas, Preventivas y de Mejora del sistema.',
+            normativity: 'Hito 5: Oráculo Predictivo'
         }
     ],
 
