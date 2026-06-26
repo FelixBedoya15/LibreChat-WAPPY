@@ -366,6 +366,11 @@ class VoiceSession {
             case 'audio':
                 // Forward audio to Gemini
                 if (data && data.audioData) {
+                    // DIAGNÓSTICO: confirmar que el audio del cliente llega al servidor
+                    this.audioChunkCount = (this.audioChunkCount || 0) + 1;
+                    if (this.audioChunkCount === 1 || this.audioChunkCount % 100 === 0) {
+                        logger.info(`[VoiceSession] AUDIO recibido del cliente (chunk #${this.audioChunkCount}, ${data.audioData.length} chars)`);
+                    }
                     if (this.geminiClient) {
                         this.geminiClient.sendAudio(data.audioData);
                     } else {
