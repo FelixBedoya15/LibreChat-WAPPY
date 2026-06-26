@@ -38,7 +38,7 @@ const KanbanButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Tablero Kanban"
+        description="Centro de Control ACPM"
         side="right"
         render={
           <motion.button
@@ -70,7 +70,7 @@ const KanbanButton = ({
       )}
     >
       <Trello className="h-4 w-4 shrink-0" />
-      <span className="font-semibold text-text-primary text-[13px] flex-1 text-left">Tablero Kanban</span>
+      <span className="font-semibold text-text-primary text-[13px] flex-1 text-left">Centro de Control ACPM</span>
     </motion.button>
   );
 };

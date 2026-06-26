@@ -292,7 +292,7 @@ export default function KanbanDashboard() {
       <div className="flex h-screen w-full items-center justify-center p-8 bg-surface-secondary">
         <UpgradeWall 
           title="Acceso Exclusivo de Administrador" 
-          description="El Tablero Kanban de programación y control predictivo de vencimientos está actualmente restringido para Administradores de Wappy." 
+          description="El Centro de Control ACPM de programación y control predictivo de vencimientos está actualmente restringido para Administradores de Wappy." 
           plan="USER_IPEVAR"
         />
       </div>
@@ -410,7 +410,7 @@ export default function KanbanDashboard() {
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
             <Trello className="w-7 h-7 text-teal-500" />
-            Tablero Kanban de Actividades
+            Centro de Control ACPM
           </h1>
           <p className="text-xs text-text-secondary mt-1">
             Programación de actividades de seguridad y salud en el trabajo con control predictivo de vencimientos.
