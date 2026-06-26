@@ -375,9 +375,28 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setLastUserTranscript('');
             setZoom(1);
 
-            if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-                audioContextRef.current.resume();
+            // FIX 1: Crear/reanudar el AudioContext 24kHz AQUÍ, dentro del gesto del usuario
+            // (la apertura del modal es consecuencia de un click → gesto válido para el browser)
+            // Esto garantiza que cuando llegue el primer audio de la IA el contexto ya esté 'running'
+            const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioCtxClass) {
+                let ctx = audioContextRef.current;
+                if (!ctx || ctx.state === 'closed') {
+                    ctx = (window as any).sharedAudioContext24k;
+                    if (!ctx || ctx.state === 'closed') {
+                        ctx = new AudioCtxClass({ sampleRate: 24000 });
+                        console.log('[VoiceModal] AudioContext 24kHz creado en gesto de usuario:', ctx.state);
+                    }
+                    audioContextRef.current = ctx;
+                    (window as any).sharedAudioContext24k = ctx;
+                }
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(() => {
+                        console.log('[VoiceModal] AudioContext 24kHz reanudado en gesto de usuario:', ctx?.state);
+                    }).catch(console.error);
+                }
             }
+
             setShowModalState(true);
             playStartupSound();
             connect();
@@ -404,7 +423,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 ctx = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
                 audioContextRef.current = ctx;
                 (window as any).sharedAudioContext24k = ctx;
-                console.log('[VoiceModal] AudioContext created eagerly on user gesture:', ctx.state);
+                console.log('[VoiceModal] AudioContext created eagerly on user gesture:', ctx?.state);
             } else if (ctx.state === 'suspended') {
                 ctx.resume().then(() => {
                     console.log('[VoiceModal] AudioContext resumed eagerly on user gesture:', ctx?.state);
@@ -1019,14 +1038,23 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     function handleAudioReceived(audioData: string) {
         try {
-            if (!audioContextRef.current) {
+            // Obtener o crear el AudioContext de reproducción (24kHz)
+            if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                audioContextRef.current = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
+                const existing = (window as any).sharedAudioContext24k;
+                audioContextRef.current = (existing && existing.state !== 'closed')
+                    ? existing
+                    : new AudioContextClass({ sampleRate: 24000 });
                 (window as any).sharedAudioContext24k = audioContextRef.current;
             }
-            if (audioContextRef.current.state === 'suspended') {
-                audioContextRef.current.resume().catch(console.error);
-            }
+
+            // Guardia de null explícita antes de usar ctx
+            const ctx = audioContextRef.current;
+            if (!ctx) return;
+
+            console.log('[VoiceModal] AudioContext 24kHz estado al recibir audio:', ctx.state);
+
+            // Decodificar audio (PCM 16-bit → Float32)
             const binaryString = atob(audioData);
             const len = binaryString.length;
             const bytes = new Uint8Array(len);
@@ -1037,7 +1065,23 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 const int16 = dataView.getInt16(i * 2, true);
                 float32Data[i] = int16 / 32768.0;
             }
-            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+
+            // FIX 2: Si el contexto está suspendido, esperar a que se reactive
+            // antes de reproducir — no perder el buffer de audio
+            if (ctx.state === 'suspended') {
+                console.warn('[VoiceModal] AudioContext suspendido al recibir audio — intentando reanudar...');
+                ctx.resume().then(() => {
+                    console.log('[VoiceModal] AudioContext reanudado, reproduciendo buffer diferido');
+                    const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
+                    audioBuffer.getChannelData(0).set(float32Data);
+                    scheduleAudio(audioBuffer);
+                }).catch((err) => {
+                    console.error('[VoiceModal] No se pudo reanudar AudioContext:', err);
+                });
+                return;
+            }
+
+            const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
             scheduleAudio(audioBuffer);
         } catch (error) {
@@ -1047,17 +1091,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     function scheduleAudio(buffer: AudioBuffer) {
         if (!audioContextRef.current) return;
-        const currentTime = audioContextRef.current.currentTime;
+        const ctx = audioContextRef.current;
+        const currentTime = ctx.currentTime;
         if (nextStartTimeRef.current < currentTime) {
             nextStartTimeRef.current = currentTime + 0.05;
         }
-        const source = audioContextRef.current.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = buffer;
-        if (!outputAnalyserRef.current) {
-            const analyser = audioContextRef.current.createAnalyser();
+        // Verificar que el analyser pertenece al contexto actual (no a uno antiguo)
+        // Si el contexto fue recreado, el analyser viejo es inválido y hay que descartarlo
+        if (!outputAnalyserRef.current || (outputAnalyserRef.current as any).context !== ctx) {
+            const analyser = ctx.createAnalyser();
             analyser.fftSize = 256;
             outputAnalyserRef.current = analyser;
-            analyser.connect(audioContextRef.current.destination);
+            analyser.connect(ctx.destination);
         }
         source.connect(outputAnalyserRef.current);
         source.onended = () => setIsPlaying(false);

@@ -62,68 +62,81 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             });
             streamRef.current = stream;
 
-            // 2. Initialize or Reuse AudioContext
+            // 2. Inicializar o Reutilizar AudioContext
             let audioContext = audioContextRef.current;
+            const sharedCtx = (window as any).sharedAudioContext16k;
+
             if (!audioContext || audioContext.state === 'closed') {
-                console.log('[VoiceSession] Creating new AudioContext (16kHz)');
-                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                audioContext = (window as any).sharedAudioContext16k || new AudioContextClass({
-                    sampleRate: 16000,
-                });
-                if (!audioContext) {
-                    throw new Error('AudioContext failed to initialize');
-                }
-                audioContextRef.current = audioContext;
-                (window as any).sharedAudioContext16k = audioContext;
-
-                // Load AudioWorklet Module ONLY when creating context
-                const workletCode = `
-                    class PCMProcessor extends AudioWorkletProcessor {
-                        constructor() {
-                            super();
-                            this.bufferSize = 2048; // Send ~128ms chunks at 16kHz
-                            this.buffer = new Float32Array(this.bufferSize);
-                            this.bufferIndex = 0;
-                        }
-
-                        process(inputs, outputs, parameters) {
-                            const input = inputs[0];
-                            if (!input || !input.length) return true;
-                            
-                            const inputChannel = input[0];
-                            
-                            for (let i = 0; i < inputChannel.length; i++) {
-                                this.buffer[this.bufferIndex++] = inputChannel[i];
-                                
-                                // When buffer is full, flush it
-                                if (this.bufferIndex >= this.bufferSize) {
-                                    const int16Data = new Int16Array(this.bufferSize);
-                                    for (let j = 0; j < this.bufferSize; j++) {
-                                        const s = Math.max(-1, Math.min(1, this.buffer[j]));
-                                        int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                                    }
-                                    
-                                    this.port.postMessage(int16Data.buffer);
-                                    this.bufferIndex = 0;
-                                }
-                            }
-                            return true;
-                        }
+                // Intentar reutilizar el contexto compartido si sigue válido
+                if (sharedCtx && sharedCtx.state !== 'closed') {
+                    console.log('[VoiceSession] Reutilizando AudioContext 16kHz existente, estado:', sharedCtx.state);
+                    audioContext = sharedCtx;
+                    audioContextRef.current = audioContext;
+                } else {
+                    console.log('[VoiceSession] Creando nuevo AudioContext (16kHz)');
+                    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                    audioContext = new AudioContextClass({ sampleRate: 16000 });
+                    if (!audioContext) {
+                        throw new Error('AudioContext failed to initialize');
                     }
-                    registerProcessor('pcm-processor', PCMProcessor);
-                `;
+                    audioContextRef.current = audioContext;
+                    (window as any).sharedAudioContext16k = audioContext;
 
-                const blob = new Blob([workletCode], { type: 'application/javascript' });
-                const workletUrl = URL.createObjectURL(blob);
+                    // Cargar AudioWorklet SOLO al crear un nuevo contexto
+                    const workletCode = `
+                        class PCMProcessor extends AudioWorkletProcessor {
+                            constructor() {
+                                super();
+                                this.bufferSize = 2048; // Send ~128ms chunks at 16kHz
+                                this.buffer = new Float32Array(this.bufferSize);
+                                this.bufferIndex = 0;
+                            }
 
-                try {
-                    await audioContext.audioWorklet.addModule(workletUrl);
-                    console.log('[VoiceSession] AudioWorklet module loaded');
-                } finally {
-                    URL.revokeObjectURL(workletUrl);
+                            process(inputs, outputs, parameters) {
+                                const input = inputs[0];
+                                if (!input || !input.length) return true;
+                                
+                                const inputChannel = input[0];
+                                
+                                for (let i = 0; i < inputChannel.length; i++) {
+                                    this.buffer[this.bufferIndex++] = inputChannel[i];
+                                    
+                                    // When buffer is full, flush it
+                                    if (this.bufferIndex >= this.bufferSize) {
+                                        const int16Data = new Int16Array(this.bufferSize);
+                                        for (let j = 0; j < this.bufferSize; j++) {
+                                            const s = Math.max(-1, Math.min(1, this.buffer[j]));
+                                            int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                                        }
+                                        
+                                        this.port.postMessage(int16Data.buffer);
+                                        this.bufferIndex = 0;
+                                    }
+                                }
+                                return true;
+                            }
+                        }
+                        registerProcessor('pcm-processor', PCMProcessor);
+                    `;
+
+                    const blob = new Blob([workletCode], { type: 'application/javascript' });
+                    const workletUrl = URL.createObjectURL(blob);
+
+                    try {
+                        await audioContext.audioWorklet.addModule(workletUrl);
+                        console.log('[VoiceSession] AudioWorklet module loaded');
+                    } finally {
+                        URL.revokeObjectURL(workletUrl);
+                    }
                 }
-            } else if (audioContext.state === 'suspended') {
-                console.log('[VoiceSession] Resuming AudioContext');
+            }
+
+            // Aserción de no-nulo: audioContext está garantizado aquí por el bloque anterior
+            if (!audioContext) throw new Error('AudioContext no disponible después de la inicialización');
+
+            // Reanudar si estaba suspendido (sea contexto nuevo o reutilizado)
+            if (audioContext.state === 'suspended') {
+                console.log('[VoiceSession] Reanudando AudioContext 16kHz suspendido');
                 await audioContext.resume();
             }
 
@@ -200,21 +213,24 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Stop Audio Capture
      */
     const stopAudioCapture = () => {
+        // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
+        // Desconectar el nodo worklet
         if (workletNodeRef.current) {
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
-        if (audioContextRef.current) {
-            if (audioContextRef.current.state !== 'closed') {
-                audioContextRef.current.close().catch(console.error);
-            }
-            audioContextRef.current = null;
+        // FIX 3: NO cerrar el AudioContext — solo suspenderlo
+        // Cerrarlo destruye el módulo AudioWorklet registrado y obliga a recargarlo
+        // en la siguiente llamada, lo que puede fallar o crear race conditions
+        if (audioContextRef.current && audioContextRef.current.state === 'running') {
+            audioContextRef.current.suspend().catch(console.error);
         }
-        (window as any).sharedAudioContext16k = null;
+        // NO borrar sharedAudioContext16k para permitir reutilización
+        inputAnalyserRef.current = null;
     };
 
     /**
