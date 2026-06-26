@@ -93,6 +93,11 @@ export const PHASE_CATEGORIES = {
     ],
     hito4: [
         { 
+            id: 'control_acpm', title: 'Centro de Control ACPM', icon: 'Trello',
+            bioRationale: 'Control operativo, predictivo e integral de las Acciones Correctivas, Preventivas y de Mejora del sistema.',
+            normativity: 'Hito 4: Traumatismo y Curación'
+        },
+        { 
             id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart',
             bioRationale: 'Mapas cuantitativos y biométricos que muestran el sangrado o desequilibrio sistémico. Dónde perdimos salud.', 
             normativity: 'Hito 4: Traumatismo y Curación' 

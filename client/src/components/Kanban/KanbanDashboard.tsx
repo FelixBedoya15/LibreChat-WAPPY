@@ -34,7 +34,11 @@ interface KanbanTask {
   createdAt: string;
 }
 
-export default function KanbanDashboard() {
+interface KanbanDashboardProps {
+  inline?: boolean;
+}
+
+export default function KanbanDashboard({ inline = false }: KanbanDashboardProps = {}) {
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
@@ -404,18 +408,32 @@ export default function KanbanDashboard() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface-secondary/30">
+    <div className={`flex-1 flex flex-col bg-surface-secondary/30 ${
+      inline ? "h-[650px] rounded-3xl border border-border-medium/30 overflow-hidden shadow-inner" : "h-screen overflow-hidden"
+    }`}>
       {/* Upper header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
-            <Trello className="w-7 h-7 text-teal-500" />
-            Centro de Control ACPM
-          </h1>
-          <p className="text-xs text-text-secondary mt-1">
-            Programación de actividades de seguridad y salud en el trabajo con control predictivo de vencimientos.
-          </p>
-        </div>
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${inline ? 'py-3.5 px-5' : ''}`}>
+        {!inline ? (
+          <div>
+            <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
+              <Trello className="w-7 h-7 text-teal-500" />
+              Centro de Control ACPM
+            </h1>
+            <p className="text-xs text-text-secondary mt-1">
+              Programación de actividades de seguridad y salud en el trabajo con control predictivo de vencimientos.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+              <Trello className="w-4.5 h-4.5 text-teal-500" />
+              Acciones de Control ACPM
+            </h2>
+            <p className="text-[10px] text-text-tertiary mt-0.5">
+              Programación de actividades y control predictivo de vencimientos.
+            </p>
+          </div>
+        )}
         <button
           onClick={openCreateModal}
           className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"

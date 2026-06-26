@@ -6,7 +6,7 @@ import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
-    Car, Wrench, FlaskConical
+    Car, Wrench, FlaskConical, Trello
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -34,6 +34,7 @@ import PerfilesCargo from './PerfilesCargo';
 import DashboardPredictivo from './DashboardPredictivo';
 import AltaDireccionChecklist from './AltaDireccionChecklist';
 import ProgramaCapacitaciones from './ProgramaCapacitaciones';
+import KanbanDashboard from '../Kanban/KanbanDashboard';
 
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -57,7 +58,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
     BrainCircuit, Blocks, Heart, Shield,
-    Car, Wrench, FlaskConical
+    Car, Wrench, FlaskConical, Trello
 };
 
 
@@ -464,6 +465,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'investigacion_atel' && (
                                                     <div className="mb-6">
                                                         <InvestigacionATEL />
+                                                    </div>
+                                                )}
+
+                                                {/* Show KanbanDashboard for control_acpm category */}
+                                                {category.id === 'control_acpm' && (
+                                                    <div className="mb-6">
+                                                        <KanbanDashboard inline={true} />
                                                     </div>
                                                 )}
 
