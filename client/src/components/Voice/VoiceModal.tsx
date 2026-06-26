@@ -317,6 +317,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 transcriptTimeoutRef.current = setTimeout(() => {
                     setLastUserTranscript('');
                 }, 3500);
+            } else if (newStatus === 'interrupted') {
+                console.log('[VoiceModal] Interrupted by user, clearing audio queue');
+                clearAudioQueue();
             }
         },
         onError: (error: string) => {
@@ -337,6 +340,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         getInputVolume,
         setMuted,
         sendTextMessage,
+        setIsPlayingAudio,
     } = useVoiceSession(sessionOptions);
 
     const hasInitiatedConnectionRef = useRef(false);
@@ -1015,6 +1019,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const nextStartTimeRef = useRef<number>(0);
+    const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
     useEffect(() => {
         const updateAmplitude = () => {
@@ -1066,23 +1071,16 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 float32Data[i] = int16 / 32768.0;
             }
 
-            // FIX 2: Si el contexto está suspendido, esperar a que se reactive
-            // antes de reproducir — no perder el buffer de audio
-            if (ctx.state === 'suspended') {
-                console.warn('[VoiceModal] AudioContext suspendido al recibir audio — intentando reanudar...');
-                ctx.resume().then(() => {
-                    console.log('[VoiceModal] AudioContext reanudado, reproduciendo buffer diferido');
-                    const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
-                    audioBuffer.getChannelData(0).set(float32Data);
-                    scheduleAudio(audioBuffer);
-                }).catch((err) => {
-                    console.error('[VoiceModal] No se pudo reanudar AudioContext:', err);
-                });
-                return;
-            }
-
             const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
+
+            if (ctx.state === 'suspended') {
+                console.warn('[VoiceModal] AudioContext suspendido al recibir audio — intentando reanudar y encolando buffer...');
+                ctx.resume().catch((err) => {
+                    console.error('[VoiceModal] No se pudo reanudar AudioContext:', err);
+                });
+            }
+
             scheduleAudio(audioBuffer);
         } catch (error) {
             console.error('[VoiceModal] Error processing audio:', error);
@@ -1107,19 +1105,38 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             analyser.connect(ctx.destination);
         }
         source.connect(outputAnalyserRef.current);
-        source.onended = () => setIsPlaying(false);
+        
+        activeSourcesRef.current.push(source);
+        
+        source.onended = () => {
+            activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== source);
+            if (activeSourcesRef.current.length === 0) {
+                setIsPlaying(false);
+                setIsPlayingAudio(false);
+            }
+        };
+
         setIsPlaying(true);
+        setIsPlayingAudio(true);
         source.start(nextStartTimeRef.current);
         nextStartTimeRef.current += buffer.duration;
     }
 
     const clearAudioQueue = () => {
-        if (audioContextRef.current) {
-            audioContextRef.current.suspend().then(() => {
-                nextStartTimeRef.current = 0;
-                audioContextRef.current?.resume();
-            });
-        }
+        activeSourcesRef.current.forEach(source => {
+            try {
+                source.stop();
+            } catch (e) {
+                // Ignorar si ya se detuvo
+            }
+            try {
+                source.disconnect();
+            } catch (e) {}
+        });
+        activeSourcesRef.current = [];
+        nextStartTimeRef.current = 0;
+        setIsPlaying(false);
+        setIsPlayingAudio(false);
     };
 
     const toggleMute = () => {

@@ -38,7 +38,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
-    const isMutedRef = useRef(false);
+    const isHardwareMutedRef = useRef(false);
+    const isAutoMutedRef = useRef(false);
+    const isPlayingAudioRef = useRef(false);
+    const serverFinishedRef = useRef(false);
     const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
 
@@ -99,7 +102,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             // 3. Helper: enviar PCM int16 al servidor via WebSocket
             let sendCount = 0;
             const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isMutedRef.current) return;
+                if (isHardwareMutedRef.current || isAutoMutedRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 const int16Data = new Int16Array(float32Array.length);
@@ -377,16 +380,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     setStatus('speaking');
 
                     console.log('[VoiceSession] AI speaking - auto-muting microphone');
-                    isMutedRef.current = true;
+                    isAutoMutedRef.current = true;
+                    serverFinishedRef.current = false;
 
                     if (autoMuteTimeoutRef.current) {
                         clearTimeout(autoMuteTimeoutRef.current);
                     }
                     autoMuteTimeoutRef.current = setTimeout(() => {
                         console.log('[VoiceSession] Safety auto-unmute timeout');
-                        isMutedRef.current = false;
+                        isAutoMutedRef.current = false;
                         autoMuteTimeoutRef.current = null;
-                    }, 10000);
+                    }, 15000);
                 }
                 break;
 
@@ -418,11 +422,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 optionsRef.current.onStatusChange?.(newStatus);
 
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
-                    console.log('[VoiceSession] AI finished speaking - auto-unmuting microphone');
-                    isMutedRef.current = false;
-                    if (autoMuteTimeoutRef.current) {
-                        clearTimeout(autoMuteTimeoutRef.current);
-                        autoMuteTimeoutRef.current = null;
+                    console.log('[VoiceSession] AI finished speaking - checking playback before unmuting');
+                    serverFinishedRef.current = true;
+                    if (!isPlayingAudioRef.current) {
+                        console.log('[VoiceSession] Audio is not playing - auto-unmuting microphone immediately');
+                        isAutoMutedRef.current = false;
+                        if (autoMuteTimeoutRef.current) {
+                            clearTimeout(autoMuteTimeoutRef.current);
+                            autoMuteTimeoutRef.current = null;
+                        }
+                    } else {
+                        console.log('[VoiceSession] Audio is still playing - microphone will unmute after playback finishes');
                     }
                 }
                 break;
@@ -430,6 +440,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'interrupted':
                 setStatus('listening');
                 optionsRef.current.onStatusChange?.('interrupted');
+                console.log('[VoiceSession] AI interrupted - unmuting microphone immediately');
+                serverFinishedRef.current = true;
+                isPlayingAudioRef.current = false;
+                isAutoMutedRef.current = false;
+                if (autoMuteTimeoutRef.current) {
+                    clearTimeout(autoMuteTimeoutRef.current);
+                    autoMuteTimeoutRef.current = null;
+                }
                 break;
 
             case 'error':
@@ -483,7 +501,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             autoMuteTimeoutRef.current = null;
         }
 
-        isMutedRef.current = false;
+        isHardwareMutedRef.current = false;
+        isAutoMutedRef.current = false;
+        isPlayingAudioRef.current = false;
+        serverFinishedRef.current = false;
         inputAnalyserRef.current = null;
         videoCanvasRef.current = null;
 
@@ -506,7 +527,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Mute/Unmute
      */
     const setMuted = useCallback((muted: boolean) => {
-        isMutedRef.current = muted;
+        isHardwareMutedRef.current = muted;
         if (muted) {
             console.log('[VoiceSession] Hardware Mute: Releasing microphone to system.');
             stopAudioCapture();
@@ -540,6 +561,19 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         }));
     }, []);
 
+    const setIsPlayingAudio = useCallback((isPlaying: boolean) => {
+        isPlayingAudioRef.current = isPlaying;
+        console.log('[VoiceSession] setIsPlayingAudio:', isPlaying, 'serverFinished:', serverFinishedRef.current);
+        if (!isPlaying && serverFinishedRef.current) {
+            console.log('[VoiceSession] Playback finished and server is done - auto-unmuting microphone');
+            isAutoMutedRef.current = false;
+            if (autoMuteTimeoutRef.current) {
+                clearTimeout(autoMuteTimeoutRef.current);
+                autoMuteTimeoutRef.current = null;
+            }
+        }
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -552,5 +586,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         changeVoice,
         getInputVolume,
         setMuted,
+        setIsPlayingAudio,
     };
 };
