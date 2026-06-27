@@ -107,10 +107,12 @@ export function MessagesViewProvider({ children }: { children: React.ReactNode }
   );
 }
 
+const defaultFallbackContext: Partial<MessagesViewContextValue> = {};
+
 export function useMessagesViewContext() {
   const context = useContext(MessagesViewContext);
   if (!context) {
-    throw new Error('useMessagesViewContext must be used within MessagesViewProvider');
+    return defaultFallbackContext as MessagesViewContextValue;
   }
   return context;
 }
