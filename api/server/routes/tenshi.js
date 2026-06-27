@@ -104,7 +104,7 @@ router.post('/config', requireJwtAuth, async (req, res) => {
 router.get('/history', requireJwtAuth, async (req, res) => {
     try {
         const history = await TenshiMessage.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
-        res.json(history.map(m => ({ role: m.role, content: m.content })));
+        res.json(history.map(m => ({ role: m.role, content: m.content, htmlReport: m.htmlReport })));
     } catch (error) {
         console.error('Error fetching Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -290,6 +290,7 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
             let succeeded = false;
+            let capturedHtmlReport = null;
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
                 for (let i = 0; i < apiKeys.length; i++) {
@@ -382,6 +383,16 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
                                 break;
                             }
 
+                            try {
+                                if (typeof toolOutput === 'string' && toolOutput.trim().startsWith('{')) {
+                                    const parsed = JSON.parse(toolOutput);
+                                    if (parsed.htmlCode) capturedHtmlReport = parsed.htmlCode;
+                                    else if (parsed.content && (parsed.content.includes('<html') || parsed.content.includes('<!DOCTYPE'))) capturedHtmlReport = parsed.content;
+                                } else if (typeof toolOutput === 'string' && (toolOutput.includes('<html') || toolOutput.includes('<!DOCTYPE'))) {
+                                    capturedHtmlReport = toolOutput;
+                                }
+                            } catch (e) { }
+
                             responseResult = await chat.sendMessage([
                                 {
                                     functionResponse: {
@@ -447,10 +458,15 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
         }
 
         if (responseText) {
-            await TenshiMessage.create({ user: req.user.id, role: 'assistant', content: responseText }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
+            await TenshiMessage.create({
+                user: req.user.id,
+                role: 'assistant',
+                content: responseText,
+                htmlReport: capturedHtmlReport || undefined
+            }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
-        res.json({ response: responseText });
+        res.json({ response: responseText, htmlReport: capturedHtmlReport });
     } catch (error) {
         console.error('CRITICAL Error in Tenshi chat route:', error);
         if (error.response) {

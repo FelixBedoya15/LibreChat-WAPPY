@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { X, MessageSquare, Send, Sparkles, RotateCcw } from 'lucide-react';
+import { X, MessageSquare, Send, Sparkles, RotateCcw, FileText } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
@@ -10,7 +10,7 @@ import Markdown from '~/components/Chat/Messages/Content/Markdown';
 export default function TenshiChat() {
     const { isAuthenticated, token } = useAuthContext();
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ role: string, content: string }[]>([
+    const [messages, setMessages] = useState<{ role: string, content: string, htmlReport?: string }[]>([
         { role: 'assistant', content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?' }
     ]);
     const [input, setInput] = useState('');
@@ -57,6 +57,12 @@ export default function TenshiChat() {
     };
 
     useEffect(() => {
+        const handleOpen = () => setIsOpen(true);
+        window.addEventListener('open-tenshi-chat', handleOpen);
+        return () => window.removeEventListener('open-tenshi-chat', handleOpen);
+    }, []);
+
+    useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
@@ -91,7 +97,7 @@ export default function TenshiChat() {
                 { messages: [...messages, userMsg].filter(m => m.role !== 'system') },
                 { headers: token ? { Authorization: `Bearer ${token}` } : {} }
             );
-            const assistantMsg = { role: 'assistant', content: response.data.response };
+            const assistantMsg = { role: 'assistant', content: response.data.response, htmlReport: response.data.htmlReport };
             setMessages(prev => [...prev, assistantMsg]);
         } catch (error: any) {
             console.error('Error with Tenshi:', error);
@@ -103,6 +109,37 @@ export default function TenshiChat() {
         } finally {
             setIsTyping(false);
         }
+    };
+
+    const openHtmlReport = (html: string) => {
+        const win = window.open('', '_blank');
+        if (win) {
+            let fullContent = html;
+            if (!html.includes('window.print()')) {
+                const printHeader = `
+                <div style="position: sticky; top: 0; background: #0f172a; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; z-index: 9999; font-family: sans-serif;">
+                    <span style="color: #38bdf8; font-weight: bold; font-size: 14px;">WAPPY IA - INFORME OFICIAL</span>
+                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; shadow: 0 2px 4px rgba(0,0,0,0.2);">🖨️ Imprimir / Guardar PDF</button>
+                </div>
+                `;
+                if (html.includes('<body')) {
+                    fullContent = html.replace(/<body([^>]*)>/i, `<body$1>${printHeader}`);
+                } else {
+                    fullContent = printHeader + html;
+                }
+            }
+            win.document.write(fullContent);
+            win.document.close();
+        }
+    };
+
+    const getHtmlFromMsg = (msg: { content: string, htmlReport?: string }) => {
+        if (msg.htmlReport) return msg.htmlReport;
+        if (msg.content.includes('<!DOCTYPE html>') || msg.content.includes('<html')) {
+            const match = msg.content.match(/<!DOCTYPE html[\s\S]*<\/html>|<html[\s\S]*<\/html>/i);
+            if (match) return match[0];
+        }
+        return null;
     };
 
     return (
@@ -142,6 +179,19 @@ export default function TenshiChat() {
                                     <div className="markdown-content">
                                         <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
                                     </div>
+                                    {(() => {
+                                        const reportHtml = getHtmlFromMsg(msg);
+                                        if (!reportHtml) return null;
+                                        return (
+                                            <button
+                                                onClick={() => openHtmlReport(reportHtml)}
+                                                className="mt-3 w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 border border-emerald-400/30"
+                                            >
+                                                <FileText className="w-4 h-4 animate-pulse" />
+                                                <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         ))}

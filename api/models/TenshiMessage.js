@@ -17,6 +17,9 @@ const tenshiMessageSchema = mongoose.Schema(
             type: String,
             required: true,
         },
+        htmlReport: {
+            type: String,
+        },
     },
     { timestamps: true }
 );
