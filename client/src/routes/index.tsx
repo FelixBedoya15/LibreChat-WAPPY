@@ -70,6 +70,11 @@ const PortafolioRedirect = () => {
   return null;
 };
 
+const MauricioPosadaRedirect = () => {
+  window.location.replace('/mauricioposada.html');
+  return null;
+};
+
 const AuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
@@ -257,6 +262,11 @@ export const router = createBrowserRouter(
     {
       path: 'portafolio',
       element: <PortafolioRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'mauricioposada',
+      element: <MauricioPosadaRedirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {

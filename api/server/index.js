@@ -617,6 +617,10 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });
 
+  app.get(['/mauricioposada', '/mauricioposada.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../Agentes/mauricioposada.html'));
+  });
+
   app.get('/api/embajadores/notes', (req, res) => {
     const fs = require('fs');
     const path = require('path');
