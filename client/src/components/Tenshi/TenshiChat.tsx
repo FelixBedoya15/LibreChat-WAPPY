@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { X, MessageSquare, Send, Sparkles } from 'lucide-react';
+import { X, MessageSquare, Send, Sparkles, RotateCcw } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
@@ -26,6 +26,35 @@ export default function TenshiChat() {
         enabled: isAuthenticated,
         staleTime: 5 * 60 * 1000
     });
+
+    const { data: historyData, refetch: refetchHistory } = useQuery(['tenshiHistory', token], async () => {
+        const res = await axios.get('/api/tenshi/history', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        return res.data;
+    }, {
+        enabled: isAuthenticated,
+        staleTime: Infinity
+    });
+
+    useEffect(() => {
+        if (historyData && historyData.length > 0) {
+            setMessages(historyData);
+        }
+    }, [historyData]);
+
+    const handleClearHistory = async () => {
+        if (!confirm('¿Deseas reiniciar la conversación con Tenshi?')) return;
+        try {
+            await axios.delete('/api/tenshi/history', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            setMessages([{ role: 'assistant', content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?' }]);
+            refetchHistory();
+        } catch (err) {
+            console.error('Error clearing Tenshi history:', err);
+        }
+    };
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -92,9 +121,14 @@ export default function TenshiChat() {
                                 <p className="text-xs text-green-100 mt-1">{config.description}</p>
                             </div>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={handleClearHistory} title="Reiniciar conversación" className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white">
+                                <RotateCcw className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Chat Area */}

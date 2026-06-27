@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
+const TenshiMessage = require('../../models/TenshiMessage');
 const { BlogPost } = require('../../models/BlogPost');
 const { Course } = require('../../models/Course');
 const Ticket = require('../../models/Ticket');
@@ -100,6 +101,26 @@ router.post('/config', requireJwtAuth, async (req, res) => {
     }
 });
 
+router.get('/history', requireJwtAuth, async (req, res) => {
+    try {
+        const history = await TenshiMessage.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        res.json(history.map(m => ({ role: m.role, content: m.content })));
+    } catch (error) {
+        console.error('Error fetching Tenshi history:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.delete('/history', requireJwtAuth, async (req, res) => {
+    try {
+        await TenshiMessage.deleteMany({ user: req.user.id });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error clearing Tenshi history:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // A simple chat endpoint for Tenshi
 router.post('/chat', requireJwtAuth, async (req, res) => {
     try {
@@ -130,6 +151,9 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         // Intelligent Retrieval (RAG) instead of static limit
         const userQuery = messages[messages.length - 1]?.content || '';
+        if (userQuery) {
+            await TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
+        }
         const ticketContext = await getRelevantTickets(req, userQuery);
 
         // Fetch the platform manual
@@ -420,6 +444,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
                 messages: formattedMessages
             }, options);
             responseText = oaiRes.data.choices[0].message.content;
+        }
+
+        if (responseText) {
+            await TenshiMessage.create({ user: req.user.id, role: 'assistant', content: responseText }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
         res.json({ response: responseText });
