@@ -89,7 +89,6 @@ const Nav = memo(
     // SG-SST button is always visible for all users so they can input company config.
     // Upgrade limits are handled inside the SGSST module itself.
     const hasAccessToSGSST = true;
-    const hasAccessToSGSST2 = user?.role === 'ADMIN';
 
     const search = useRecoilValue(store.search);
 
@@ -199,7 +198,7 @@ const Nav = memo(
           )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToSGSST2, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(

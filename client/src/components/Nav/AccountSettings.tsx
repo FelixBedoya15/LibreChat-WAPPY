@@ -195,16 +195,6 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
             <Shield className="icon-md" aria-hidden="true" />
             Somos SST
           </Select.SelectItem>
-          {user?.role === 'ADMIN' && (
-            <Select.SelectItem
-              value=""
-              onClick={() => navigate('/sgsst2')}
-              className="select-item text-sm"
-            >
-              <Shield className="icon-md" aria-hidden="true" />
-              Game SST
-            </Select.SelectItem>
-          )}
           <Select.SelectItem
             value=""
             onClick={() => navigate('/training')}

@@ -4,15 +4,17 @@ const mongoose = require('mongoose');
 
 /**
  * SomosSST Tool
- * Permite al agente interactuar de manera integral con los 5 Hitos del
- * MÓDULO PRINCIPAL MOTOR BIO-INDIVIDUAL de SomosSST.
+ * Permite al agente interactuar de manera integral con la plataforma SOMOS SST (anteriormente conocida como Gestor SG-SST en /sgsst),
+ * la cual está dividida en 2 MÓDULOS PRINCIPALES:
+ * 1. Módulo Motor Bio-Individual (Bio Motor): Gestión humana, huella biocéntrica y los 5 Hitos.
+ * 2. Módulo Ecosistema SG-SST General: Gestión normativa, políticas, diagnósticos, capacitaciones y matrices de riesgo.
  */
 class SomosSST extends Tool {
   constructor(fields = {}) {
     super();
     this.name = 'somos_sst';
     this.description =
-      'Consulta o edita cualquier información de cualquier aplicativo del SG-SST (exámenes médicos, accidentes ATEL, EPP, alturas, ATS, vehículos, capacitaciones, matriz GTC45, OWAS, actos inseguros, política, etc.) y genera informes estadísticas en tiempo real.';
+      'Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas y estadísticas en tiempo real).';
     this.req = fields.req;
 
     this.schema = z.object({
