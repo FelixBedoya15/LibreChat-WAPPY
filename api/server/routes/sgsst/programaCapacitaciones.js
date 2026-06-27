@@ -133,14 +133,14 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       const newSessionIds = (sesiones || []).map(s => s.id);
       const deletedSessions = oldSessions.filter(s => !newSessionIds.includes(s.id));
       for (const s of deletedSessions) {
-        await deleteCalendarEvent(userId, `session-${s.id}`);
+        await deleteCalendarEvent(userId, `session-${s.id}`, companyId);
       }
 
       // 2. Crear o actualizar las sesiones activas
       for (const s of (sesiones || [])) {
         const syncId = `session-${s.id}`;
         if (s.estado === 'Cancelada') {
-          await deleteCalendarEvent(userId, syncId);
+          await deleteCalendarEvent(userId, syncId, companyId);
         } else {
           const timeData = getStartAndEndTimes(s.fecha, s.hora, s.duracion);
           const isCompletada = s.estado === 'Completada';
@@ -150,7 +150,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
             start: timeData.start,
             end: timeData.end,
             colorId: isCompletada ? '10' : '9' // 10 = Eucalyptus green, 9 = Basil blue/green
-          }, syncId);
+          }, syncId, companyId);
         }
       }
     } catch (calErr) {

@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 const { logger } = require('@librechat/data-schemas');
 const { getUserPluginAuthValue, updateUserPluginAuth } = require('./PluginService');
+const { getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
 
 /**
  * Returns an authorized OAuth2 client for the given user.
@@ -18,11 +19,11 @@ const getOAuth2Client = (redirectUri) => {
 /**
  * Resolves the calendar client for a given user, auto-refreshing the access token if needed.
  */
-const getCalendarClient = async (userId) => {
+const getCalendarClient = async (userId, companyId = null) => {
   try {
-    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false, 'google_drive');
-    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
-    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', false, 'google_drive');
+    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
     
     if (!accessToken || !refreshToken) {
       return null; // Not connected
@@ -45,10 +46,10 @@ const getCalendarClient = async (userId) => {
         oauth2Client.setCredentials(credentials);
 
         if (credentials.access_token) {
-          await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
         }
         if (credentials.expiry_date) {
-          await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
         }
         logger.info(`[GoogleCalendarService] Token refreshed successfully for user: ${userId}`);
       } catch (refreshErr) {
@@ -71,10 +72,11 @@ const getCalendarClient = async (userId) => {
  * @param {string} userId - User ID
  * @param {Object} eventData - { summary, description, start: { date | dateTime, timeZone }, end: { date | dateTime, timeZone }, colorId }
  * @param {string} syncId - Unique sync ID to avoid duplicates
+ * @param {string} [companyId] - Optional company ID
  */
-const upsertCalendarEvent = async (userId, eventData, syncId) => {
+const upsertCalendarEvent = async (userId, eventData, syncId, companyId = null) => {
   try {
-    const calendar = await getCalendarClient(userId);
+    const calendar = await getCalendarClient(userId, companyId);
     if (!calendar) {
       return null;
     }
@@ -138,10 +140,13 @@ const upsertCalendarEvent = async (userId, eventData, syncId) => {
 
 /**
  * Deletes a Google Calendar event by its sync ID.
+ * @param {string} userId - User ID
+ * @param {string} syncId - Unique sync ID
+ * @param {string} [companyId] - Optional company ID
  */
-const deleteCalendarEvent = async (userId, syncId) => {
+const deleteCalendarEvent = async (userId, syncId, companyId = null) => {
   try {
-    const calendar = await getCalendarClient(userId);
+    const calendar = await getCalendarClient(userId, companyId);
     if (!calendar) {
       return;
     }

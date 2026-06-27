@@ -646,7 +646,7 @@ const runNotificationChecks = async () => {
                   start: { date: targetDateStr },
                   end: { date: getNextDayString(targetDateStr) },
                   colorId: isVencido ? '11' : '6' // 11 = Red, 6 = Orange
-                }, syncId);
+                }, syncId, companyId);
               }
             }
 
@@ -663,7 +663,7 @@ const runNotificationChecks = async () => {
                   start: { date: targetDateStr },
                   end: { date: getNextDayString(targetDateStr) },
                   colorId: isVencido ? '11' : '6'
-                }, syncId);
+                }, syncId, companyId);
               }
             }
 
@@ -677,7 +677,7 @@ const runNotificationChecks = async () => {
                   start: { date: alert.date },
                   end: { date: getNextDayString(alert.date) },
                   colorId: isVencido ? '11' : '6'
-                }, syncId);
+                }, syncId, companyId);
               }
             }
           } catch (calErr) {

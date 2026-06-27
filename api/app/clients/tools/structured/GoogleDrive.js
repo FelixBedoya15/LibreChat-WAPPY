@@ -9,6 +9,11 @@ const {
   getUserPluginAuthValue,
   updateUserPluginAuth,
 } = require('~/server/services/PluginService');
+const {
+  getActiveCompany,
+  getScopedAuthValue,
+  updateScopedAuthValue,
+} = require('~/server/services/googleAuthHelper');
 
 class GoogleDriveTool extends Tool {
   static lc_name() {
@@ -47,11 +52,13 @@ class GoogleDriveTool extends Tool {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
     }
     const userId = this.req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
 
     // Load credentials from database
-    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', true, 'google_drive');
-    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', true, 'google_drive');
-    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', true, 'google_drive');
+    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', true);
+    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', true);
+    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', true);
     const expiry = Number(expiryStr);
 
     const oauth2Client = new google.auth.OAuth2(
@@ -76,10 +83,10 @@ class GoogleDriveTool extends Tool {
 
         // Update database with new tokens
         if (credentials.access_token) {
-          await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
         }
         if (credentials.expiry_date) {
-          await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
         }
         logger.info(`[GoogleDriveTool] Successfully refreshed Google Drive token for user: ${userId}`);
       } catch (refreshErr) {

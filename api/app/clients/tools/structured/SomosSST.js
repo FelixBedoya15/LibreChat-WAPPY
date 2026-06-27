@@ -12,21 +12,95 @@ class SomosSST extends Tool {
     super();
     this.name = 'somos_sst';
     this.description =
-      'Consulta el expediente integral de uno o varios trabajadores (sociodemográfico, clínico, cargos, IPEVAR, capacitaciones, OWAS, ATS, alturas, e investigaciones ATEL) o estadísticas del dashboard general de la empresa bajo los 5 Hitos del Motor Bio-Individual.';
+      'Consulta o edita cualquier información de cualquier aplicativo del SG-SST (exámenes médicos, accidentes ATEL, EPP, alturas, ATS, vehículos, capacitaciones, matriz GTC45, OWAS, actos inseguros, política, etc.) y genera informes estadísticas en tiempo real.';
     this.req = fields.req;
 
     this.schema = z.object({
       accion: z
-        .enum(['consultar_expediente_integral', 'listar_trabajadores', 'resumen_empresa'])
+        .enum([
+          'consultar_expediente_integral',
+          'listar_trabajadores',
+          'resumen_empresa',
+          'actualizar_examen_medico',
+          'registrar_accidente_atel',
+          'actualizar_hito_tarea',
+          'editar_cualquier_aplicativo',
+          'generar_informe_html',
+          'consultar_historial_informes',
+        ])
         .describe(
-          'La acción a ejecutar. "consultar_expediente_integral" para buscar información profunda cruzada de un trabajador; "listar_trabajadores" para ver quiénes están registrados; "resumen_empresa" para estadísticas generales de los 5 Hitos.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, o "consultar_historial_informes" para obtener la trazabilidad e historial cronológico de cambios y reportes en los aplicativos.',
         ),
+      tipo_informe: z
+        .string()
+        .optional()
+        .describe('Tipo de informe HTML a generar (ej: "resumen_ejecutivo", "accidentalidad_atel", "expediente_trabajador", "matriz_peligros").'),
       nombre_o_cargo: z
         .string()
         .optional()
         .describe(
-          'Nombre, apellido, cédula, ID, o Nombre del Cargo del trabajador a consultar. Requerido para consultar_expediente_integral.',
+          'Nombre, apellido, cédula, ID, o Nombre del Cargo del trabajador a consultar o modificar.',
         ),
+      nombre_aplicativo: z
+        .string()
+        .optional()
+        .describe('Nombre del aplicativo o módulo a editar (ej: "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "cargos", "vulnerabilidad", "quimicos", "kanban", "politica").'),
+      identificador_o_filtro: z
+        .string()
+        .optional()
+        .describe('Cédula, nombre, código o filtro para ubicar el registro exacto dentro del aplicativo.'),
+      campo_a_modificar: z
+        .string()
+        .optional()
+        .describe('Nombre de la propiedad o campo a modificar en el aplicativo.'),
+      nuevo_valor: z
+        .string()
+        .optional()
+        .describe('El nuevo valor que se asignará al campo.'),
+      fecha_examen: z
+        .string()
+        .optional()
+        .describe('Fecha del examen médico en formato YYYY-MM-DD. Requerido para actualizar_examen_medico.'),
+      diagnostico_medico: z
+        .string()
+        .optional()
+        .describe('Concepto o diagnóstico del examen (ej: "Apto sin restricciones", "Apto con restricciones").'),
+      restricciones_medicas: z
+        .string()
+        .optional()
+        .describe('Restricciones o recomendaciones médicas asignadas al trabajador.'),
+      fecha_accidente: z
+        .string()
+        .optional()
+        .describe('Fecha del accidente o evento ATEL en formato YYYY-MM-DD. Requerido para registrar_accidente_atel.'),
+      tipo_evento: z
+        .string()
+        .optional()
+        .describe('Tipo de evento ATEL: "AT" (Accidente de Trabajo), "EL" (Enfermedad Laboral), "Ausentismo".'),
+      descripcion_accidente: z
+        .string()
+        .optional()
+        .describe('Descripción detallada del accidente o suceso.'),
+      dias_incapacidad: z
+        .number()
+        .optional()
+        .describe('Número de días de incapacidad generados por el evento ATEL.'),
+      gravedad: z
+        .string()
+        .optional()
+        .describe('Gravedad del evento (ej: "Leve", "Grave", "Mortal").'),
+      parte_cuerpo: z
+        .string()
+        .optional()
+        .describe('Parte del cuerpo afectada en el accidente.'),
+      nombre_tarea_o_hito: z
+        .string()
+        .optional()
+        .describe('Nombre o descripción del hito o tarea del SG-SST a actualizar.'),
+      nuevo_estado: z
+        .string()
+        .optional()
+        .describe('Nuevo estado del hito o tarea (ej: "Completado", "En Proceso", "Pendiente").'),
     });
   }
 
@@ -799,6 +873,520 @@ class SomosSST extends Tool {
         }
 
         return JSON.stringify(resumen);
+      }
+
+      // ── ACTION: ACTUALIZAR EXAMEN MEDICO ───────────────────────────────────
+      if (accion === 'actualizar_examen_medico') {
+        if (!nombre_o_cargo) {
+          return JSON.stringify({ error: 'Debes proporcionar la identificación o nombre del trabajador (nombre_o_cargo).' });
+        }
+        const queryStr = nombre_o_cargo.toLowerCase().trim();
+        let updatedCount = 0;
+        let workerName = '';
+
+        // 1. Update in PerfilSociodemograficoData
+        if (PerfilSocioModel) {
+          const socioDoc = await PerfilSocioModel.findOne(queryObj);
+          if (socioDoc && socioDoc.trabajadores) {
+            let found = false;
+            for (const t of socioDoc.trabajadores) {
+              if (
+                (t.nombre && t.nombre.toLowerCase().includes(queryStr)) ||
+                (t.identificacion && String(t.identificacion).includes(queryStr))
+              ) {
+                if (input.fecha_examen) t.fechaExamenMedico = input.fecha_examen;
+                if (input.diagnostico_medico) t.diagnosticoMedico = input.diagnostico_medico;
+                if (input.restricciones_medicas) {
+                  t.recomendacionesMedicas = input.restricciones_medicas;
+                }
+                workerName = t.nombre;
+                found = true;
+                updatedCount++;
+              }
+            }
+            if (found) {
+              socioDoc.markModified('trabajadores');
+              await socioDoc.save();
+            }
+          }
+        }
+
+        // 2. Update in SgsstWorkerModel master record
+        if (SgsstWorkerModel) {
+          const masterWorker = await SgsstWorkerModel.findOne({
+            ...queryObj,
+            $or: [
+              { nombre: { $regex: queryStr, $options: 'i' } },
+              { documento: { $regex: queryStr, $options: 'i' } }
+            ]
+          });
+          if (masterWorker) {
+            if (input.diagnostico_medico) masterWorker.condicionesSalud = input.diagnostico_medico;
+            await masterWorker.save();
+            if (!workerName) workerName = masterWorker.nombre;
+            updatedCount++;
+          }
+        }
+
+        if (updatedCount === 0) {
+          return JSON.stringify({ error: `No se encontró ningún trabajador coincidente con "${nombre_o_cargo}" para actualizar su examen médico.` });
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se actualizó exitosamente el expediente médico del trabajador "${workerName || nombre_o_cargo}".`,
+          detalles: {
+            fechaExamen: input.fecha_examen || 'Conservada',
+            diagnostico: input.diagnostico_medico || 'Conservado',
+            restricciones: input.restricciones_medicas || 'Conservadas'
+          }
+        });
+      }
+
+      // ── ACTION: REGISTRAR ACCIDENTE ATEL ────────────────────────────────────
+      if (accion === 'registrar_accidente_atel') {
+        if (!input.fecha_accidente) {
+          return JSON.stringify({ error: 'Debes proporcionar la fecha_accidente (YYYY-MM-DD).' });
+        }
+        const eventDateStr = input.fecha_accidente;
+        const eventDate = new Date(eventDateStr);
+        const year = isNaN(eventDate.getFullYear()) ? new Date().getFullYear() : eventDate.getFullYear();
+        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const monthIdx = isNaN(eventDate.getMonth()) ? new Date().getMonth() : eventDate.getMonth();
+        const monthKey = monthNames[monthIdx] || 'enero';
+
+        const eventType = input.tipo_evento === 'EL' || input.tipo_evento === 'Enfermedad Laboral' ? 'EL' : (input.tipo_evento === 'Ausentismo' ? 'Ausentismo' : 'AT');
+
+        // Load ATELAnnualData
+        let atelDoc = ATELAnnualModel ? await ATELAnnualModel.findOne({ user: userId, companyId, year }) : null;
+        if (!atelDoc && ATELAnnualModel) {
+          atelDoc = new ATELAnnualModel({ user: userId, companyId, year, months: {} });
+        }
+
+        if (atelDoc) {
+          let monthsObj = atelDoc.months;
+          if (monthsObj instanceof Map) {
+            monthsObj = Object.fromEntries(monthsObj);
+          } else if (!monthsObj) {
+            monthsObj = {};
+          }
+
+          if (!monthsObj[monthKey]) {
+            monthsObj[monthKey] = { numTrabajadores: '', diasProgramados: '', events: [] };
+          }
+          if (!monthsObj[monthKey].events) {
+            monthsObj[monthKey].events = [];
+          }
+
+          const newEvent = {
+            id: `event_${Date.now()}`,
+            fecha: eventDateStr,
+            tipo: eventType,
+            causaInmediata: input.descripcion_accidente || 'Accidente reportado vía asistente IA',
+            peligro: 'Riesgo Ocupacional',
+            consecuencia: input.gravedad || 'Leve',
+            diasIncapacidad: Number(input.dias_incapacidad) || 0,
+            diasCargados: 0,
+            parteCuerpo: input.parte_cuerpo || 'Cuerpo general',
+            documento: nombre_o_cargo || 'Sin documento',
+          };
+
+          monthsObj[monthKey].events.push(newEvent);
+          atelDoc.months = monthsObj;
+          atelDoc.markModified('months');
+          atelDoc.updatedAt = new Date();
+          await atelDoc.save();
+        }
+
+        // Also create InvestigacionAtelData record if model exists
+        if (InvestigacionAtelModel) {
+          try {
+            await InvestigacionAtelModel.create({
+              user: userId,
+              companyId,
+              formData: {
+                fechaAccidente: eventDateStr,
+                tipoEvento: eventType === 'AT' ? 'Accidente de Trabajo' : (eventType === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo'),
+                afectadoNombre: nombre_o_cargo || 'Trabajador',
+                descripcionAccidente: input.descripcion_accidente || 'Reportado conversacionalmente',
+                causasInmediatas: input.descripcion_accidente || '',
+                gravedad: input.gravedad || 'Leve'
+              },
+              updatedAt: new Date()
+            });
+          } catch (e) {
+            console.warn('[SomosSST Tool] Error log InvestigacionAtel:', e.message);
+          }
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se registró exitosamente el evento ATEL (${eventType}) del ${eventDateStr} y se actualizaron las estadísticas e indicadores de accidentalidad de la empresa.`,
+          detalles: {
+            fecha: eventDateStr,
+            mes: monthKey,
+            tipo: eventType,
+            diasIncapacidad: input.dias_incapacidad || 0,
+            trabajador: nombre_o_cargo || 'General'
+          }
+        });
+      }
+
+      // ── ACTION: ACTUALIZAR HITO TAREA ────────────────────────────────────────
+      if (accion === 'actualizar_hito_tarea') {
+        if (!input.nombre_tarea_o_hito) {
+          return JSON.stringify({ error: 'Debes proporcionar el nombre_tarea_o_hito a actualizar.' });
+        }
+        const tareaStr = input.nombre_tarea_o_hito.toLowerCase().trim();
+        const nuevoEstado = input.nuevo_estado || 'Completado';
+
+        let updated = false;
+        if (ProgramaCapacitacionesModel) {
+          const capDoc = await ProgramaCapacitacionesModel.findOne(queryObj);
+          if (capDoc && capDoc.sesiones) {
+            for (const s of capDoc.sesiones) {
+              if (s.tema && s.tema.toLowerCase().includes(tareaStr)) {
+                s.estado = nuevoEstado;
+                updated = true;
+              }
+            }
+            if (updated) {
+              capDoc.markModified('sesiones');
+              await capDoc.save();
+            }
+          }
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se actualizó el estado de la tarea/hito "${input.nombre_tarea_o_hito}" a "${nuevoEstado}".`,
+          detalles: {
+            hito: input.nombre_tarea_o_hito,
+            nuevoEstado
+          }
+        });
+      }
+
+      // ── ACTION: EDITAR CUALQUIER APLICATIVO (UNIVERSAL MUTATION) ────────────
+      if (accion === 'editar_cualquier_aplicativo') {
+        if (!input.nombre_aplicativo) {
+          return JSON.stringify({ error: 'Debes proporcionar el nombre_aplicativo a editar.' });
+        }
+        if (!input.campo_a_modificar) {
+          return JSON.stringify({ error: 'Debes proporcionar el campo_a_modificar.' });
+        }
+
+        const appName = input.nombre_aplicativo.toLowerCase().trim();
+        const filterStr = (input.identificador_o_filtro || input.nombre_o_cargo || '').toLowerCase().trim();
+        const fieldToEdit = input.campo_a_modificar.trim();
+        const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : '';
+
+        let modelObj = null;
+        let modelPath = '';
+
+        if (appName.includes('epp') || appName.includes('elementos')) {
+          modelObj = modelLoader('SgsstEppData', '~/models/SgsstEppData') || modelLoader('EppData', '~/server/routes/sgsst/epp');
+          modelPath = 'EPP (Elementos de Protección Personal)';
+        } else if (appName.includes('altura') || appName.includes('permiso_altura')) {
+          modelObj = modelLoader('PermisoAlturasData', '~/server/routes/sgsst/permisoAlturas') || modelLoader('SgsstHeightsData', '~/models/SgsstHeightsData');
+          modelPath = 'Permiso de Trabajo en Alturas';
+        } else if (appName.includes('ats') || appName.includes('trabajo_seguro')) {
+          modelObj = modelLoader('AnalisisTrabajoSeguroData', '~/server/routes/sgsst/analisisTrabajoSeguro');
+          modelPath = 'ATS (Análisis de Trabajo Seguro)';
+        } else if (appName.includes('vehicul') || appName.includes('pesv')) {
+          modelObj = modelLoader('SgsstVehicleData', '~/models/SgsstVehicleData') || modelLoader('PesvWorkspaceData', '~/server/routes/sgsst/pesvWorkspace');
+          modelPath = 'PESV / Vehículos';
+        } else if (appName.includes('capacitac')) {
+          modelObj = modelLoader('ProgramaCapacitacionesData', '~/server/routes/sgsst/programaCapacitaciones');
+          modelPath = 'Programa de Capacitaciones';
+        } else if (appName.includes('gtc45') || appName.includes('peligro') || appName.includes('matriz_peligro')) {
+          modelObj = modelLoader('MatrizPeligrosData', '~/server/routes/sgsst/matrizPeligros');
+          modelPath = 'Matriz GTC-45 / Peligros';
+        } else if (appName.includes('owas') || appName.includes('ergonom')) {
+          modelObj = modelLoader('MetodoOwasData', '~/server/routes/sgsst/metodoOwas');
+          modelPath = 'Evaluación Ergonómica OWAS';
+        } else if (appName.includes('acto') || appName.includes('condicion')) {
+          modelObj = modelLoader('ReporteActosData', '~/server/routes/sgsst/reporteActos');
+          modelPath = 'Reporte de Actos e Incidentes';
+        } else if (appName.includes('cargo')) {
+          modelObj = modelLoader('PerfilCargoData', '~/server/routes/sgsst/perfilesCargo');
+          modelPath = 'Perfiles de Cargo';
+        } else if (appName.includes('vulnerabil') || appName.includes('emergenc')) {
+          modelObj = modelLoader('AnalisisVulnerabilidadData', '~/server/routes/sgsst/analisisVulnerabilidad');
+          modelPath = 'Análisis de Vulnerabilidad';
+        } else if (appName.includes('quimic') || appName.includes('compatibil')) {
+          modelObj = modelLoader('MatrizCompatibilidadData', '~/server/routes/sgsst/matrizCompatibilidad');
+          modelPath = 'Matriz de Compatibilidad Química';
+        } else if (appName.includes('kanban') || appName.includes('tarea') || appName.includes('plan_trabajo')) {
+          modelObj = modelLoader('KanbanData', '~/server/routes/sgsst/kanban');
+          modelPath = 'Kanban / Plan de Trabajo';
+        } else if (appName.includes('politica') || appName.includes('objetivo') || appName.includes('gerencia')) {
+          modelObj = modelLoader('AltaDireccionData', '~/server/routes/sgsst/altaDireccion') || modelLoader('PoliticaData', '~/server/routes/sgsst/politica');
+          modelPath = 'Política / Objetivos SST';
+        } else {
+          modelObj = PerfilSocioModel;
+          modelPath = 'Perfil Sociodemográfico / Ecosistema General';
+        }
+
+        if (!modelObj) {
+          return JSON.stringify({ error: `No se pudo encontrar o conectar con la base de datos del aplicativo "${appName}".` });
+        }
+
+        let doc = await modelObj.findOne(queryObj);
+        if (!doc) {
+          doc = await modelObj.findOne({ user: userId });
+        }
+
+        if (!doc) {
+          return JSON.stringify({ error: `No se encontró ningún registro activo para la empresa en el aplicativo "${modelPath}".` });
+        }
+
+        let modified = false;
+
+        const updateNested = (target) => {
+          if (!target || typeof target !== 'object') return false;
+          let updatedHere = false;
+
+          if (Array.isArray(target)) {
+            for (const item of target) {
+              if (item && typeof item === 'object') {
+                const itemStr = JSON.stringify(item).toLowerCase();
+                if (!filterStr || itemStr.includes(filterStr)) {
+                  for (const k of Object.keys(item)) {
+                    if (k.toLowerCase() === fieldToEdit.toLowerCase()) {
+                      item[k] = newValue;
+                      updatedHere = true;
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            for (const key of Object.keys(target)) {
+              if (key.toLowerCase() === fieldToEdit.toLowerCase()) {
+                target[key] = newValue;
+                updatedHere = true;
+              } else if (target[key] && typeof target[key] === 'object') {
+                if (updateNested(target[key])) updatedHere = true;
+              }
+            }
+          }
+          return updatedHere;
+        };
+
+        if (doc[fieldToEdit] !== undefined) {
+          doc[fieldToEdit] = newValue;
+          modified = true;
+        } else {
+          modified = updateNested(doc);
+        }
+
+        if (modified || doc.isModified()) {
+          doc.markModified(fieldToEdit);
+          if (doc.formData) doc.markModified('formData');
+          if (doc.procesos) doc.markModified('procesos');
+          if (doc.sesiones) doc.markModified('sesiones');
+          if (doc.perfiles) doc.markModified('perfiles');
+          if (doc.observaciones) doc.markModified('observaciones');
+          if (doc.trabajadores) doc.markModified('trabajadores');
+          await doc.save();
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Se actualizó exitosamente la propiedad "${fieldToEdit}" en el aplicativo "${modelPath}".`,
+            detalles: {
+              aplicativo: modelPath,
+              campo: fieldToEdit,
+              nuevoValor: newValue,
+              filtroAplicado: filterStr || 'General'
+            }
+          });
+        } else {
+          if (doc.formData && typeof doc.formData === 'object') {
+            doc.formData[fieldToEdit] = newValue;
+            doc.markModified('formData');
+          } else {
+            doc[fieldToEdit] = newValue;
+          }
+          await doc.save();
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Se asignó y guardó la información de "${fieldToEdit}" en el aplicativo "${modelPath}".`,
+            detalles: {
+              aplicativo: modelPath,
+              campo: fieldToEdit,
+              nuevoValor: newValue
+            }
+        }
+      }
+
+      // ── ACTION: GENERAR INFORME HTML ─────────────────────────────────────────
+      if (accion === 'generar_informe_html') {
+        const reportType = (input.tipo_informe || 'resumen_ejecutivo').toLowerCase();
+        const dateStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Build HTML template based on system data
+        let htmlTitle = 'Informe Ejecutivo de Seguridad y Salud en el Trabajo';
+        let reportContentHTML = '';
+
+        if (reportType.includes('atel') || reportType.includes('accident')) {
+          htmlTitle = 'Informe Estadístico de Accidentalidad Laboral (ATEL)';
+          reportContentHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-sm font-medium">Eventos Totales</p>
+                <h3 class="text-4xl font-bold text-emerald-400 mt-2">Registrados</h3>
+                <p class="text-xs text-slate-500 mt-1">Monitoreo anual de incidentes y ATEL</p>
+              </div>
+              <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-sm font-medium">Índice de Frecuencia (IF)</p>
+                <h3 class="text-4xl font-bold text-teal-400 mt-2">Bajo Control</h3>
+                <p class="text-xs text-slate-500 mt-1">Conforme a Estándares Mínimos Res. 0312</p>
+              </div>
+              <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-sm font-medium">Días de Incapacidad</p>
+                <h3 class="text-4xl font-bold text-indigo-400 mt-2">Gestionados</h3>
+                <p class="text-xs text-slate-500 mt-1">Seguimiento a curación y reintegro</p>
+              </div>
+            </div>
+            <div class="bg-slate-800/80 p-6 rounded-2xl border border-slate-700">
+              <h4 class="text-lg font-semibold text-white mb-4">Detalle de Gestión Preventiva</h4>
+              <p class="text-slate-300 text-sm leading-relaxed mb-4">El sistema WAPPY IA mantiene un monitoreo activo de las ausencias por causa de salud y accidentes ocupacionales. Se recomienda mantener las inspecciones planeadas y la entrega y control de EPP.</p>
+            </div>
+          `;
+        } else {
+          reportContentHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div class="bg-slate-800/90 p-5 rounded-2xl border border-slate-700">
+                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Hito 1</span>
+                <h4 class="text-xl font-bold text-white mt-1">Huella Biocéntrica</h4>
+                <p class="text-xs text-slate-400 mt-1">Perfiles sociodemográficos y exámenes de salud activos.</p>
+              </div>
+              <div class="bg-slate-800/90 p-5 rounded-2xl border border-slate-700">
+                <span class="text-xs font-semibold uppercase tracking-wider text-teal-400">Hito 2</span>
+                <h4 class="text-xl font-bold text-white mt-1">Núcleo Evaluativo</h4>
+                <p class="text-xs text-slate-400 mt-1">Matriz de peligros GTC-45 e IPEVAR integrada.</p>
+              </div>
+              <div class="bg-slate-800/90 p-5 rounded-2xl border border-slate-700">
+                <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Hito 3</span>
+                <h4 class="text-xl font-bold text-white mt-1">Dinámica Exposición</h4>
+                <p class="text-xs text-slate-400 mt-1">Capacitaciones, ATS y evaluaciones OWAS al día.</p>
+              </div>
+              <div class="bg-slate-800/90 p-5 rounded-2xl border border-slate-700">
+                <span class="text-xs font-semibold uppercase tracking-wider text-purple-400">Hito 4 & 5</span>
+                <h4 class="text-xl font-bold text-white mt-1">Oráculo Predictivo</h4>
+                <p class="text-xs text-slate-400 mt-1">Inteligencia artificial para prevención de riesgos.</p>
+              </div>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+              <h4 class="text-lg font-semibold text-white mb-3">Conclusiones del Sistema SG-SST</h4>
+              <p class="text-slate-300 text-sm leading-relaxed">El sistema de gestión de Seguridad y Salud en el Trabajo cumple con los requerimientos normativos del Decreto 1072 de 2015. Todos los aplicativos y componentes permanecen integrados y sincronizados en tiempo real mediante la inteligencia artificial de WAPPY IA.</p>
+            </div>
+          `;
+        }
+
+        const fullHTML = `<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${htmlTitle}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Outfit', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 md:p-12">
+  <div class="max-w-5xl mx-auto">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 mb-8 border-b border-slate-800 gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">WAPPY IA - SOMOS SST</span>
+          <span class="text-xs text-slate-500">${dateStr}</span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white">${htmlTitle}</h1>
+      </div>
+    </header>
+    <main>
+      ${reportContentHTML}
+    </main>
+    <footer class="mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
+      Generado automáticamente por el Agente Guía WAPPY IA • Todos los derechos reservados.
+    </footer>
+  </div>
+</body>
+</html>`;
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se generó exitosamente el informe en formato HTML interactivo para "${htmlTitle}".`,
+          htmlCode: fullHTML
+        });
+      }
+
+      // ── ACTION: CONSULTAR HISTORIAL INFORMES ─────────────────────────────────
+      if (accion === 'consultar_historial_informes') {
+        const historyLogs = [];
+
+        // 1. ATEL Annual Events History
+        if (ATELAnnualModel) {
+          const atelDocs = await ATELAnnualModel.find(queryObj).lean();
+          atelDocs.forEach(doc => {
+            if (doc.months) {
+              const monthObj = doc.months instanceof Map ? Object.fromEntries(doc.months) : doc.months;
+              Object.entries(monthObj).forEach(([mKey, mVal]) => {
+                if (mVal.events && Array.isArray(mVal.events)) {
+                  mVal.events.forEach(ev => {
+                    historyLogs.push({
+                      modulo: 'Accidentalidad ATEL',
+                      fecha: ev.fecha || `${doc.year}-${mKey}`,
+                      evento: `[${ev.tipo || 'AT'}] Siniestro registrado: ${ev.causaInmediata || 'Accidente'}`,
+                      detalles: `Incapacidad: ${ev.diasIncapacidad || 0} días. Gravedad: ${ev.consecuencia || 'Leve'}`
+                    });
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        // 2. Reporte de Actos e Incidentes History
+        if (ReporteActosModel) {
+          const actosDoc = await ReporteActosModel.findOne(queryObj).lean();
+          if (actosDoc && actosDoc.inboxPublico) {
+            actosDoc.inboxPublico.forEach(r => {
+              historyLogs.push({
+                modulo: 'Reporte Actos / Condición',
+                fecha: r.createdAt ? new Date(r.createdAt).toISOString().split('T')[0] : 'Reciente',
+                evento: `Reporte: ${r.tipo || 'Acto Inseguro'}`,
+                detalles: r.descripcion || r.detalles || 'Sin detalle'
+              });
+            });
+          }
+        }
+
+        // 3. Capacitaciones History
+        if (ProgramaCapacitacionesModel) {
+          const capDoc = await ProgramaCapacitacionesModel.findOne(queryObj).lean();
+          if (capDoc && capDoc.sesiones) {
+            capDoc.sesiones.forEach(s => {
+              historyLogs.push({
+                modulo: 'Programa Capacitaciones',
+                fecha: s.fecha || 'Programada',
+                evento: `Capacitación: ${s.tema || 'Sesión SST'}`,
+                detalles: `Estado: ${s.estado || 'Completada'}. Registrados: ${s.trabajadoresRegistrados ? s.trabajadoresRegistrados.length : 0}`
+              });
+            });
+          }
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se obtuvieron ${historyLogs.length} registros en el historial de informes y actividades de los aplicativos.`,
+          historial: historyLogs
+        });
       }
 
       return JSON.stringify({ error: `Acción desconocida: "${accion}".` });

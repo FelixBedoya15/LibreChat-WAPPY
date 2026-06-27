@@ -12,6 +12,7 @@ export default function GoogleDriveConnect() {
   const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [connected, setConnected] = useState<boolean>(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
@@ -51,6 +52,7 @@ export default function GoogleDriveConnect() {
         const res = await axios.get('/api/google-drive/status');
         setConnected(res.data.connected);
         setEmail(res.data.email);
+        setCompanyName(res.data.companyName);
       } catch (err) {
         console.error('Error checking Google Drive status:', err);
       } finally {
@@ -128,10 +130,10 @@ export default function GoogleDriveConnect() {
           </div>
           <div>
             <h4 className="font-bold flex items-center gap-2">
-              Google Workspace (Drive y Calendario)
+              Google Workspace (Drive y Calendario) {companyName ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-tertiary text-text-secondary border border-border-light font-normal">Empresa: {companyName}</span> : null}
             </h4>
             <p className="text-xs text-text-secondary mt-1 max-w-[400px]">
-              Permite que tus agentes lean tus archivos, guarden reportes en Drive y programen alertas automáticas o recordatorios en tu Google Calendar en segundo plano.
+              Permite que tus agentes lean tus archivos, guarden reportes en Drive y programen alertas automáticas o recordatorios en tu Google Calendar para <strong>{companyName || 'la empresa activa'}</strong>.
             </p>
           </div>
         </div>
@@ -166,7 +168,7 @@ export default function GoogleDriveConnect() {
           
           <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
           <div className="flex flex-col">
-            <span className="font-bold text-green-600 dark:text-green-500">Google Workspace Conectado</span>
+            <span className="font-bold text-green-600 dark:text-green-500">Google Workspace Conectado ({companyName || 'Empresa Activa'})</span>
             <span className="text-xs text-text-secondary">Cuenta vinculada: <strong className="text-text-primary">{email}</strong></span>
           </div>
         </div>

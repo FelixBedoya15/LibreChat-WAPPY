@@ -8,6 +8,12 @@ const {
   updateUserPluginAuth,
   deleteUserPluginAuth,
 } = require('~/server/services/PluginService');
+const {
+  getActiveCompany,
+  getScopedAuthValue,
+  updateScopedAuthValue,
+  deleteScopedAuthValue,
+} = require('~/server/services/googleAuthHelper');
 
 const router = express.Router();
 
@@ -30,9 +36,12 @@ const getOAuth2Client = (redirectUri) => {
  * Initiates the Google Drive OAuth flow.
  * Generates an authorization URL and redirects the user to Google.
  */
-router.get('/auth', requireJwtAuth, (req, res) => {
+router.get('/auth', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
+
     // Get the referer to redirect back to the correct domain
     const referer = req.headers.referer || req.headers.origin || process.env.DOMAIN_CLIENT;
     let clientDomain = process.env.DOMAIN_CLIENT;
@@ -43,8 +52,8 @@ router.get('/auth', requireJwtAuth, (req, res) => {
       // Fallback to DOMAIN_CLIENT
     }
 
-    // Sign user ID and domain in the state to verify it in the public callback (prevents CSRF)
-    const state = jwt.sign({ userId, clientDomain }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    // Sign user ID, company ID and domain in the state to verify it in the public callback (prevents CSRF)
+    const state = jwt.sign({ userId, companyId, clientDomain }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
     const oauth2Client = getOAuth2Client();
     const authorizationUrl = oauth2Client.generateAuthUrl({
@@ -95,6 +104,7 @@ router.get('/callback', async (req, res) => {
     // Verify the state token
     const decoded = jwt.verify(state, process.env.JWT_SECRET);
     const userId = decoded.userId;
+    const companyId = decoded.companyId;
 
     if (!userId) {
       throw new Error('UserId not present in state token');
@@ -109,21 +119,21 @@ router.get('/callback', async (req, res) => {
     const userInfoRes = await oauth2.userinfo.get();
     const googleEmail = userInfoRes.data.email;
 
-    // Save tokens in MongoDB pluginAuth collection
+    // Save tokens in MongoDB pluginAuth collection scoped to company
     if (tokens.access_token) {
-      await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', tokens.access_token);
+      await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', tokens.access_token);
     }
     if (tokens.refresh_token) {
-      await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', 'google_drive', tokens.refresh_token);
+      await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', tokens.refresh_token);
     }
     if (tokens.expiry_date) {
-      await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(tokens.expiry_date));
+      await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(tokens.expiry_date));
     }
     if (googleEmail) {
-      await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EMAIL', 'google_drive', googleEmail);
+      await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', googleEmail);
     }
 
-    logger.info(`[GoogleDriveCallback] Successfully connected Google Drive for user: ${userId} (${googleEmail})`);
+    logger.info(`[GoogleDriveCallback] Successfully connected Google Drive for user: ${userId} (${googleEmail}) in company ${companyId}`);
     
     // Redirect user back to account settings on the correct domain
     res.redirect(`${clientDomain}/c/settings?tab=account&google_drive=success`);
@@ -139,20 +149,24 @@ router.get('/callback', async (req, res) => {
 router.get('/status', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyName = company ? (company.companyName || company.nombreComercial) : null;
+    const companyId = company ? String(company._id) : null;
+
     let connected = false;
     let email = null;
 
     try {
-      const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
+      const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
       if (refreshToken) {
         connected = true;
-        email = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EMAIL', false, 'google_drive');
+        email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
       }
     } catch (authErr) {
       // User doesn't have the token stored yet
     }
 
-    res.json({ connected, email });
+    res.json({ connected, email, companyName });
   } catch (err) {
     logger.error('[GoogleDriveStatus] Error checking connection status:', err);
     res.status(500).json({ error: 'Fallo al verificar el estado de Google Drive' });
@@ -165,10 +179,12 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 router.delete('/disconnect', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
 
     // Optional: Attempt to revoke token with Google
     try {
-      const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
+      const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
       if (refreshToken) {
         const oauth2Client = getOAuth2Client();
         await oauth2Client.revokeToken(refreshToken);
@@ -178,9 +194,9 @@ router.delete('/disconnect', requireJwtAuth, async (req, res) => {
     }
 
     // Delete credentials from pluginAuth
-    await deleteUserPluginAuth(userId, null, true, 'google_drive');
+    await deleteScopedAuthValue(userId, companyId);
 
-    logger.info(`[GoogleDriveDisconnect] Google Drive disconnected for user: ${userId}`);
+    logger.info(`[GoogleDriveDisconnect] Google Drive disconnected for user: ${userId} in company ${companyId}`);
     res.json({ success: true });
   } catch (err) {
     logger.error('[GoogleDriveDisconnect] Error disconnecting Google Drive:', err);
@@ -195,10 +211,12 @@ router.delete('/disconnect', requireJwtAuth, async (req, res) => {
 router.get('/token', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
 
-    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false, 'google_drive');
-    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
-    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', false, 'google_drive');
+    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
     const expiry = Number(expiryStr);
 
     if (!accessToken || !refreshToken) {
@@ -221,10 +239,10 @@ router.get('/token', requireJwtAuth, async (req, res) => {
 
       // Update database with new tokens
       if (credentials.access_token) {
-        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
       }
       if (credentials.expiry_date) {
-        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
       }
       logger.info(`[GoogleDriveRoute] Successfully refreshed Google Drive token for user: ${userId}`);
     }
@@ -247,12 +265,14 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
   }
 
   const userId = req.user.id;
+  const company = await getActiveCompany(userId);
+  const companyId = company ? String(company._id) : null;
   let tempFilePath = '';
 
   try {
-    const accessToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false, 'google_drive');
-    const refreshToken = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false, 'google_drive');
-    const expiryStr = await getUserPluginAuthValue(userId, 'GOOGLE_DRIVE_EXPIRY', false, 'google_drive');
+    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
     const expiry = Number(expiryStr);
 
     if (!accessToken || !refreshToken) {
@@ -272,10 +292,10 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
       const { credentials } = await oauth2Client.refreshAccessToken();
       oauth2Client.setCredentials(credentials);
       if (credentials.access_token) {
-        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_ACCESS_TOKEN', 'google_drive', credentials.access_token);
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
       }
       if (credentials.expiry_date) {
-        await updateUserPluginAuth(userId, 'GOOGLE_DRIVE_EXPIRY', 'google_drive', String(credentials.expiry_date));
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
       }
     }
 
