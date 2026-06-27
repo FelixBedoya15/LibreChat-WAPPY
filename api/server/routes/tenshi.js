@@ -12,6 +12,9 @@ const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
 const { generateShortLivedToken } = require('@librechat/api');
 const CompanyInfo = require('../../models/CompanyInfo');
+const SomosSST = require('../../app/clients/tools/structured/SomosSST');
+const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
+const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
@@ -192,18 +195,17 @@ ${ticketContext || 'No se encontró información específica en la base de conoc
 
 ${companyInfoStr}
 
-### 🛡️ REGLA DE ORO DE INFORMACIÓN REAL Y ANTI-ALUCINACIÓN
-1. NUNCA inventes, asumas ni repitas datos de ejemplo ficticios (como "30 trabajadores", "ARL Colmena" o "Riesgo III") a menos que provengan explícitamente de la INFORMACIÓN DE LA EMPRESA DEL USUARIO arriba detallada o sean consultados en tiempo real con tus herramientas.
-2. Si el usuario te pregunta por los datos de su empresa, trabajadores, exámenes médicos, accidentes o indicadores en la plataforma Somos SST (Motor Bio-Individual o Ecosistema SG-SST), prioriza la información real y actualizada.
+### 🎯 ROL Y ARQUETIPO DE GEMINI 3 (GEMINI ENTERPRISE AGENT)
+Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst, anteriormente Gestor SG-SST), compuesta por 2 Módulos Principales: el Motor Bio-Individual (Bio Motor) y el Ecosistema SG-SST General. Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
 
-Instrucciones de Personalidad y Estilo: 
-Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras y guías a los usuarios en la plataforma central Somos SST (ubicada en /sgsst, anteriormente Gestor SG-SST), la cual se compone de 2 Módulos Principales: el Motor Bio-Individual (Bio Motor) y el Ecosistema SG-SST General. Eres alegre, carismática, muy habladora, amigable y sumamente espontánea!! Siempre usas un lenguaje muy paisa (de Antioquia, Colombia) de forma natural y respetuosa (usa modismos como "parce", "listo", "qué más pues", "bacano", "de una", "hágale", "pa' las que sea"). Tu objetivo no es ser un robot aburrido, sino una compañera súper cercana.
+### 🧠 DIRECTIVA DE AUTONOMÍA Y GROUNDING (FUNDAMENTACIÓN EN HERRAMIENTAS)
+1. **RESPUESTAS DIRECTAS Y EFICIENTES**: Siguiendo la arquitectura de Gemini 3, sé directa y eficiente. Prioriza siempre entregar la solución o los datos concretos obtenidos mediante tus herramientas antes que introducciones o tutoriales pasivos de navegación.
+2. **AUTONOMÍA TOTAL DE HERRAMIENTAS**: Para CUALQUIER consulta sobre la empresa, trabajadores o la plataforma Somos SST, EJECUTA INMEDIATAMENTE tus herramientas (somos_sst, consultar_agente_especializado, canvas_tool) para consultar registros en MongoDB o realizar mutaciones ANTES de responder. NUNCA respondas con guías pasivas como "ve al menú X".
+3. **GROUNDING Y ANTI-ALUCINACIÓN ABSOLUTA**: Basante estrictamente en los resultados retornados por las herramientas. NUNCA asumas ni inventes datos de ejemplo. Si una herramienta no retorna registros, comunica con transparencia que no hay información registrada aún.
 
-Reglas de formato esenciales para tus respuestas:
-1. Saluda de manera eufórica y muy cordial llamando al usuario por su nombre.
-2. Usa bastantes exclamaciones y emojis chidos (🚀, ✨, 🔥, 🏢, 💪, ✍️) para darle vida al texto.
-3. Organiza **SIEMPRE** tus pasos, explicaciones o menús utilizando viñetas ordenadas o bullet points.
-4. Sé amable, concisa pero muy profesional a la vez con las normas de seguridad.`;
+### 📋 REGLAS DE FORMATO Y PRESENTACIÓN
+1. Saluda cordial y alegremente llamando al usuario por su nombre.
+2. Usa viñetas estructuradas y emojis (🚀, ✨, 🔥, 🏢, 💪) para presentar datos e informes de forma clara y profesional.`;
 
         // format messages for the LLM
         const formattedMessages = [
@@ -271,13 +273,103 @@ Reglas de formato esenciales para tus respuestas:
                     try {
                         logger.debug(`[Tenshi] Trying Key ${i + 1}/${apiKeys.length} with model "${currentModel}"`);
                         const genAI = new GoogleGenerativeAI(apiKey);
+                        const somosSSTDeclaration = {
+                            name: 'somos_sst',
+                            description: 'Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas y estadísticas en tiempo real).',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    accion: {
+                                        type: 'STRING',
+                                        description: 'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema.'
+                                    },
+                                    tipo_informe: { type: 'STRING' },
+                                    nombre_o_cargo: { type: 'STRING' },
+                                    identificacion: { type: 'STRING' },
+                                    fecha_examen: { type: 'STRING' },
+                                    concepto_diagnostico: { type: 'STRING' },
+                                    restricciones: { type: 'STRING' },
+                                    tipo_siniestro: { type: 'STRING' },
+                                    dias_incapacidad: { type: 'STRING' },
+                                    descripcion_hechos: { type: 'STRING' },
+                                    nombre_aplicativo: { type: 'STRING' },
+                                    propiedad_o_ruta: { type: 'STRING' },
+                                    nuevo_valor: { type: 'STRING' }
+                                },
+                                required: ['accion']
+                            }
+                        };
+
+                        const consultarAgenteDeclaration = {
+                            name: 'consultar_agente_especializado',
+                            description: 'Delegación y Orquestación Multi-Agente: Consulta a un Agente Especialista del sistema (Médico Laboral, Psicólogo SST, Abogado Laboral, Auditor, etc.) para resolver dudas técnicas complejas.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    nombre_especialista: { type: 'STRING', description: 'Nombre exacto del agente especialista a consultar.' },
+                                    consulta_completa: { type: 'STRING', description: 'Consulta técnica detallada.' }
+                                },
+                                required: ['nombre_especialista', 'consulta_completa']
+                            }
+                        };
+
+                        const canvasDeclaration = {
+                            name: 'canvas_tool',
+                            description: 'Lienzo interactivo Canvas: Crea o edita documentos ("text"), hojas de cálculo ("excel"), presentaciones ("presentation") o prototipos ("html") en pantalla dividida.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    accion: { type: 'STRING', description: 'crear, actualizar, leer, editar_seccion, buscar_reemplazar, insertar' },
+                                    fileType: { type: 'STRING', description: 'text, excel, presentation, html' },
+                                    title: { type: 'STRING', description: 'Título del documento' },
+                                    content: { type: 'STRING', description: 'Contenido principal o Markdown' }
+                                },
+                                required: ['accion', 'fileType']
+                            }
+                        };
+
                         const geminiModel = genAI.getGenerativeModel({
                             model: currentModel,
-                            systemInstruction: systemMessage
+                            systemInstruction: systemMessage,
+                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration] }],
+                            generationConfig: { temperature: 1.0 }
                         });
                         const chat = geminiModel.startChat({ history });
-                        const result = await chat.sendMessage(messages[messages.length - 1].content);
-                        responseText = result.response.text();
+                        let responseResult = await chat.sendMessage(messages[messages.length - 1].content);
+
+                        let calls = responseResult.response.functionCalls();
+                        let loops = 0;
+                        while (calls && calls.length > 0 && loops < 5) {
+                            loops++;
+                            const call = calls[0];
+                            logger.debug(`[Tenshi Tool Call] Executing ${call.name} with args:`, call.args);
+                            let toolOutput = '';
+
+                            if (call.name === 'somos_sst') {
+                                const toolInstance = new SomosSST({ req });
+                                toolOutput = await toolInstance._call(call.args);
+                            } else if (call.name === 'consultar_agente_especializado') {
+                                const toolInstance = new ConsultarAgenteEspecializado({ req });
+                                toolOutput = await toolInstance._call(call.args);
+                            } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
+                                const toolInstance = new CanvasTool({ req });
+                                toolOutput = await toolInstance._call(call.args);
+                            } else {
+                                break;
+                            }
+
+                            responseResult = await chat.sendMessage([
+                                {
+                                    functionResponse: {
+                                        name: call.name,
+                                        response: { result: toolOutput }
+                                    }
+                                }
+                            ]);
+                            calls = responseResult.response.functionCalls();
+                        }
+
+                        responseText = responseResult.response.text();
                         lastError = null;
                         succeeded = true;
                         break; // Key rotation done — success
