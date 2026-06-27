@@ -37,7 +37,15 @@ class SomosSST extends Tool {
       tipo_informe: z
         .string()
         .optional()
-        .describe('Tipo de informe HTML a generar (ej: "resumen_ejecutivo", "accidentalidad_atel", "expediente_trabajador", "matriz_peligros").'),
+        .describe('Tipo de informe HTML a generar (ej: "resumen_ejecutivo", "accidentalidad_atel", "expediente_trabajador", "matriz_peligros", "informe_clinico_preventivo").'),
+      titulo_informe: z
+        .string()
+        .optional()
+        .describe('Título del informe HTML.'),
+      contenido_html: z
+        .string()
+        .optional()
+        .describe('Contenido HTML personalizado o estructurado para el cuerpo del informe.'),
       nombre_o_cargo: z
         .string()
         .optional()
@@ -1231,10 +1239,12 @@ class SomosSST extends Tool {
         const dateStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
         // Build HTML template based on system data
-        let htmlTitle = 'Informe Ejecutivo de Seguridad y Salud en el Trabajo';
+        let htmlTitle = input.titulo_informe || 'Informe Ejecutivo de Seguridad y Salud en el Trabajo';
         let reportContentHTML = '';
 
-        if (reportType.includes('atel') || reportType.includes('accident')) {
+        if (input.contenido_html) {
+          reportContentHTML = `<div class="bg-slate-900/80 p-6 md:p-8 rounded-2xl border border-slate-800 space-y-6 text-slate-200 leading-relaxed">${input.contenido_html}</div>`;
+        } else if (reportType.includes('atel') || reportType.includes('accident')) {
           htmlTitle = 'Informe Estadístico de Accidentalidad Laboral (ATEL)';
           reportContentHTML = `
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

@@ -176,7 +176,23 @@ export default function TenshiChat() {
                                     ? 'bg-blue-600 text-white rounded-tr-none shadow-md'
                                     : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none shadow-sm'
                                     }`}>
-                                    <div className="markdown-content">
+                                    <div className="markdown-content overflow-hidden max-w-full">
+                                        <style>{`
+                                            .markdown-content table {
+                                                display: block;
+                                                width: 100%;
+                                                overflow-x: auto;
+                                                white-space: nowrap;
+                                                border-collapse: collapse;
+                                                margin-top: 0.5rem;
+                                                margin-bottom: 0.5rem;
+                                            }
+                                            .markdown-content th, .markdown-content td {
+                                                padding: 6px 10px;
+                                                border: 1px solid rgba(156, 163, 175, 0.3);
+                                                font-size: 0.75rem;
+                                            }
+                                        `}</style>
                                         <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
                                     </div>
                                     {(() => {

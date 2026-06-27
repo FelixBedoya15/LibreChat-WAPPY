@@ -287,11 +287,9 @@ const Nav = memo(
                           </Suspense>
                         )}
                         {/* Kanban Button */}
-                        {user?.role === 'ADMIN' && (
-                          <Suspense fallback={null}>
-                            <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
+                        <Suspense fallback={null}>
+                          <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* Camera icon (Analisis en Vivo) */}
                         {hasAccessToLiveAnalysis && (
                           <Suspense fallback={null}>
@@ -363,11 +361,9 @@ const Nav = memo(
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                {user?.role === 'ADMIN' && (
-                                  <Suspense fallback={null}>
-                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
+                                <Suspense fallback={null}>
+                                  <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
                                 {hasAccessToLiveAnalysis && (
                                   <Suspense fallback={null}>
                                     <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />

@@ -110,6 +110,8 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
   };
 
   const isAdmin = user?.role === 'ADMIN';
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isLocked = !isProOrAdmin;
 
   // Fetch tasks
   const fetchTasks = async () => {
@@ -118,22 +120,14 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
       setTasks(res.data);
     } catch (err) {
       console.error('Error fetching Kanban tasks:', err);
-      showToast({
-        message: 'No se pudieron cargar las actividades del tablero.',
-        status: 'error',
-      });
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchTasks();
-    } else {
-      setIsLoading(false);
-    }
-  }, [isAdmin]);
+    fetchTasks();
+  }, []);
 
   // Handle Drag and Drop
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -290,18 +284,7 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
     }
   };
 
-  // Restrict access for non-admins
-  if (!isAdmin) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center p-8 bg-surface-secondary">
-        <UpgradeWall 
-          title="Acceso Exclusivo de Administrador" 
-          description="El Centro de Control ACPM de programación y control predictivo de vencimientos está actualmente restringido para Administradores de Wappy." 
-          plan="USER_IPEVAR"
-        />
-      </div>
-    );
-  }
+
 
   // Calculate stats
   const totalCount = tasks.length;
@@ -408,10 +391,11 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
   };
 
   return (
-    <div className={`flex-1 flex flex-col bg-surface-secondary/30 ${
-      inline ? "h-[650px] rounded-3xl border border-border-medium/30 overflow-hidden shadow-inner" : "h-screen overflow-hidden"
+    <div className={`flex-1 flex flex-col bg-surface-secondary/30 relative overflow-hidden ${
+      inline ? "h-[650px] rounded-3xl border border-border-medium/30 shadow-inner" : "h-screen"
     }`}>
-      {/* Upper header */}
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${isLocked ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+        {/* Upper header */}
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${inline ? 'py-3.5 px-5' : ''}`}>
         {!inline ? (
           <div>
@@ -624,6 +608,18 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
               </div>
             </div>
           ))}
+        </div>
+      )}
+      </div>
+
+      {/* Premium Lock Overlay for Free / non-Pro Plan */}
+      {isLocked && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 sm:p-6 md:p-8">
+          <UpgradeWall
+            isPopup={true}
+            title="Centro de Control ACPM Exclusivo"
+            description="El acceso a la programación de actividades y control predictivo de vencimientos en el Centro de Control ACPM es exclusivo de los planes Wappy Pro. Evoluciona hoy tu plan para estar al día."
+          />
         </div>
       )}
 

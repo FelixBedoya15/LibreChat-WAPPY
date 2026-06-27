@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trello } from 'lucide-react';
+import { Trello, Lock } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks';
@@ -21,12 +21,8 @@ const KanbanButton = ({
   const location = useLocation();
   const { user } = useAuthContext();
   const isActive = location.pathname.startsWith('/kanban');
-  const isAdmin = user?.role === 'ADMIN';
-
-  // Only render for ADMIN
-  if (!isAdmin) {
-    return null;
-  }
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isLocked = !isProOrAdmin;
 
   const handleClick = () => {
     navigate('/kanban');
@@ -38,7 +34,7 @@ const KanbanButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Centro de Control ACPM"
+        description={isLocked ? "Centro de Control ACPM (Exclusivo Pro)" : "Centro de Control ACPM"}
         side="right"
         render={
           <motion.button
@@ -52,6 +48,11 @@ const KanbanButton = ({
             )}
           >
             <Trello className="h-5 w-5" />
+            {isLocked && (
+              <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 border border-surface-primary text-[10px] text-white">
+                <Lock className="h-2.5 w-2.5" />
+              </div>
+            )}
           </motion.button>
         }
       />
@@ -71,6 +72,7 @@ const KanbanButton = ({
     >
       <Trello className="h-4 w-4 shrink-0" />
       <span className="font-semibold text-text-primary text-[13px] flex-1 text-left">Centro de Control ACPM</span>
+      {isLocked && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
     </motion.button>
   );
 };
