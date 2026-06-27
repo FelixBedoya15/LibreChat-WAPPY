@@ -27,9 +27,10 @@ class SomosSST extends Tool {
           'editar_cualquier_aplicativo',
           'generar_informe_html',
           'consultar_historial_informes',
+          'consultar_planes_y_sistema',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, o "consultar_historial_informes" para obtener la trazabilidad e historial cronológico de cambios y reportes en los aplicativos.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, o "consultar_planes_y_sistema" para obtener la información oficial de planes activos, valores asignados, promociones y características desde la base de datos.',
         ),
       tipo_informe: z
         .string()
@@ -1218,6 +1219,7 @@ class SomosSST extends Tool {
               campo: fieldToEdit,
               nuevoValor: newValue
             }
+          });
         }
       }
 
@@ -1386,6 +1388,39 @@ class SomosSST extends Tool {
           exito: true,
           mensaje: `Se obtuvieron ${historyLogs.length} registros en el historial de informes y actividades de los aplicativos.`,
           historial: historyLogs
+        });
+      }
+
+      // ── ACTION: CONSULTAR PLANES Y SISTEMA ────────────────────────────────────
+      if (accion === 'consultar_planes_y_sistema') {
+        const PlanModel = modelLoader('Plan', '~/models/Plan');
+        let planesData = [];
+        if (PlanModel) {
+          planesData = await PlanModel.find({}).lean();
+        }
+
+        let activeCompany = null;
+        if (CompanyInfo) {
+          activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+          if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId }).lean();
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: 'Se consultaron exitosamente los planes y configuraciones activas del sistema desde la base de datos.',
+          empresaActiva: activeCompany ? {
+            nombre: activeCompany.companyName || activeCompany.nombreEmpresa || 'Empresa Registrada',
+            nit: activeCompany.nit || 'No registrado',
+            planSuscripcion: activeCompany.plan || activeCompany.subscriptionPlan || 'Estándar',
+            vigencia: activeCompany.planExpiration || 'Activa'
+          } : 'Información general',
+          planesOficialesSistema: planesData.map(p => ({
+            id: p.planId,
+            nombre: p.name,
+            precios: p.prices,
+            caracteristicas: p.featuresText,
+            preciosHerramientasCustom: p.toolPrices
+          }))
         });
       }
 
