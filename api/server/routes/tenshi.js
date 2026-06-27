@@ -131,6 +131,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             return res.status(403).json({ error: 'Tenshi is not active.' });
         }
 
+        let capturedHtmlReport = null;
+
         // Fetch dynamic knowledge (latest blogs)
         let latestBlogs = [];
         try {
@@ -290,7 +292,6 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
             let succeeded = false;
-            let capturedHtmlReport = null;
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
                 for (let i = 0; i < apiKeys.length; i++) {
