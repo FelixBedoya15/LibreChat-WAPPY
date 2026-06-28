@@ -252,8 +252,8 @@ export default function TenshiChat() {
                     {/* Header */}
                     <div className="bg-gradient-to-r from-green-600 to-emerald-500 p-4 flex items-center justify-between text-white shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="bg-white p-1 rounded-full flex items-center justify-center shadow-inner h-10 w-10">
-                                <img src="/assets/logo.svg" alt="Tenshi" className="h-8 w-8" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                            <div className="bg-white p-0.5 rounded-full flex items-center justify-center shadow-inner h-10 w-10 overflow-hidden border border-emerald-200">
+                                <img src="/assets/tenshi.png" alt="Tenshi" className="h-full w-full object-cover rounded-full" onError={(e) => { e.currentTarget.src = '/assets/logo.svg'; }} />
                                 {!isOpen && <Sparkles className="w-5 h-5 text-green-600 absolute" />}
                             </div>
                             <div>
@@ -358,11 +358,11 @@ export default function TenshiChat() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="bg-green-600 hover:bg-green-500 text-white rounded-full p-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center animate-bounce-short relative"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full p-1 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center animate-bounce-short relative w-14 h-14 border-2 border-white overflow-hidden"
                 >
                     {/* Ripple effect */}
-                    <span className="absolute w-full h-full rounded-full bg-green-500 animate-ping opacity-20"></span>
-                    <img src="/assets/logo.svg" alt="" className="w-8 h-8 filter brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    <span className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-20"></span>
+                    <img src="/assets/tenshi.png" alt="Tenshi" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.src = '/assets/logo.svg'; }} />
                 </button>
             )}
         </div>
