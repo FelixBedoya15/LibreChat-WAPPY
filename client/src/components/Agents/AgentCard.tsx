@@ -45,7 +45,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   return (
     <div
       className={cn(
-        'group relative flex h-[285px] w-full flex-col items-center justify-between p-6 rounded-2xl border border-border-light dark:border-gray-700/60',
+        'group relative flex h-[210px] w-full flex-col items-center justify-between p-5 rounded-2xl border border-border-light dark:border-gray-700/60',
         'cursor-pointer shadow-sm transition-all duration-300 hover:border-teal-500/50 hover:shadow-xl hover:-translate-y-1',
         'bg-white dark:bg-gray-900/90 hover:bg-surface-hover dark:hover:bg-gray-800/90',
         className,
@@ -73,7 +73,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           onToggleFavorite?.(e);
         }}
         className={cn(
-          'absolute top-4 left-4 z-10 p-1.5 rounded-full transition-all duration-200 hover:scale-110 focus:outline-none',
+          'absolute top-3 left-3 z-10 p-1.5 rounded-full transition-all duration-200 hover:scale-110 focus:outline-none',
           isFavorite
             ? 'text-amber-400 fill-amber-400 bg-amber-400/10'
             : 'text-text-secondary/40 hover:text-amber-400 hover:bg-surface-tertiary',
@@ -85,29 +85,22 @@ const AgentCard: React.FC<AgentCardProps> = ({
       </button>
 
       {/* Center column content */}
-      <div className="flex flex-col items-center text-center w-full mt-2">
+      <div className="flex flex-col items-center justify-center text-center w-full my-auto">
         {/* Prominent circular Avatar */}
         <div className="relative mb-3 flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
           <div className="rounded-full p-1 bg-gradient-to-tr from-teal-500/20 to-emerald-500/20 shadow-inner">
-            {renderAgentAvatar(agent, { size: 'lg', showBorder: true })}
+            {renderAgentAvatar(agent, { size: 'md', showBorder: true })}
           </div>
         </div>
 
-        {/* Agent Name */}
-        <h3 className="text-base sm:text-lg font-bold text-text-primary line-clamp-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors w-full px-2">
+        {/* Full Agent Name (Optimized font size for complete visibility) */}
+        <h3 className="text-xs sm:text-sm font-bold text-text-primary text-center w-full px-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors leading-snug line-clamp-2">
           {agent.name}
         </h3>
 
-        {/* Category / Subtitle */}
-        <p className="mt-1 text-xs sm:text-sm font-semibold text-teal-600 dark:text-teal-400 line-clamp-1 w-full px-2">
+        {/* Full Category / Subtitle */}
+        <p className="mt-1.5 text-[11px] sm:text-xs font-semibold text-teal-600 dark:text-teal-300 text-center w-full px-1 leading-snug line-clamp-2">
           {categoryLabel || displayName || 'Agente de IA'}
-        </p>
-      </div>
-
-      {/* Description container with fixed height for 100% uniform cards */}
-      <div className="h-10 w-full flex items-center justify-center">
-        <p className="text-xs text-text-secondary dark:text-gray-200 line-clamp-2 text-center w-full font-normal">
-          {agent.description ?? ''}
         </p>
       </div>
     </div>
