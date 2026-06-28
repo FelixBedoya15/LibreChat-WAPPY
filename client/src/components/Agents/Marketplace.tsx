@@ -315,20 +315,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     )}
                   </div>
                 </div>
-              )}
-              {/* Hero Section - scrolls away */}
-              {!isSmallScreen && (
-                <div className="container mx-auto max-w-4xl">
-                  <div className={cn('mb-8 text-center', 'mt-12')}>
-                    <h1 className="mb-3 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
-                      {localize('com_agents_marketplace')}
-                    </h1>
-                    <p className="mx-auto mb-6 max-w-2xl text-lg text-text-secondary">
-                      {localize('com_agents_marketplace_subtitle')}
-                    </p>
-                  </div>
-                </div>
-              )}
               {/* Sticky wrapper for search bar and categories */}
               <div
                 className={cn(

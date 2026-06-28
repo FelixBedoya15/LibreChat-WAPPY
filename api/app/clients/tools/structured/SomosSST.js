@@ -1400,7 +1400,7 @@ class SomosSST extends Tool {
         const ConversationModel = mongoose.models.Conversation;
         const MessageModel = mongoose.models.Message;
         if (ConversationModel) {
-          const convos = await ConversationModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(20).lean();
+          const convos = await ConversationModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(50).lean();
           for (const c of convos) {
             let lastText = '';
             if (MessageModel) {
@@ -1411,14 +1411,26 @@ class SomosSST extends Tool {
               modulo: 'Informes e Investigaciones Guardadas',
               fecha: c.updatedAt ? new Date(c.updatedAt).toISOString().split('T')[0] : 'Reciente',
               evento: `[Documento] ${c.title || 'Informe SST'}`,
-              detalles: lastText || `ID: ${c.conversationId}`
+              detalles: lastText || `ID Hilo: ${c.conversationId}`
             });
           }
         }
 
+        // 5. Historial de Sesiones de Trabajo (GTC45, PESV, Químicos, Canvas)
+        const gtc45Model = mongoose.models.Gtc45WorkspaceSession;
+        if (gtc45Model) {
+          const gtcDocs = await gtc45Model.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).lean();
+          gtcDocs.forEach(g => historyLogs.push({ modulo: 'Matriz GTC-45 / IPEVAR', fecha: g.updatedAt ? new Date(g.updatedAt).toISOString().split('T')[0] : 'Reciente', evento: `Matriz IPEVAR: ${g.title || 'Evaluación de Peligros'}`, detalles: `Estado: ${g.status || 'Activa'}` }));
+        }
+        const pesvModel = mongoose.models.PesvWorkspaceSession;
+        if (pesvModel) {
+          const pesvDocs = await pesvModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).lean();
+          pesvDocs.forEach(p => historyLogs.push({ modulo: 'Plan Estratégico Riesgo Vial (PESV)', fecha: p.updatedAt ? new Date(p.updatedAt).toISOString().split('T')[0] : 'Reciente', evento: `PESV: ${p.title || 'Plan Vial'}`, detalles: `Estado: ${p.status || 'Activo'}` }));
+        }
+
         return JSON.stringify({
           exito: true,
-          mensaje: `Se obtuvieron ${historyLogs.length} registros reales en el historial de informes y actividades de los aplicativos.`,
+          mensaje: `Se obtuvieron ${historyLogs.length} registros reales de TODO EL SISTEMA (Informes, ATEL, GTC45, PESV, Actos y Capacitaciones).`,
           historial: historyLogs
         });
       }

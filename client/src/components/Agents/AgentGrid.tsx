@@ -75,11 +75,45 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     isFetchingNextPage,
   } = useMarketplaceAgentsInfiniteQuery(queryParams);
 
-  // Flatten all pages into a single array of agents
+  // State for favorite agents stored in localStorage
+  const [favoriteAgentIds, setFavoriteAgentIds] = React.useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('wappy_favorite_agents');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  const toggleFavorite = (agentId: string) => {
+    setFavoriteAgentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(agentId)) {
+        next.delete(agentId);
+      } else {
+        next.add(agentId);
+      }
+      try {
+        localStorage.setItem('wappy_favorite_agents', JSON.stringify(Array.from(next)));
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  // Flatten all pages and sort favorited agents first
   const currentAgents = useMemo(() => {
     if (!data?.pages) return [];
-    return data.pages.flatMap((page) => page.data || []);
-  }, [data?.pages]);
+    const flattened = data.pages.flatMap((page) => page.data || []);
+    return [...flattened].sort((a, b) => {
+      const aFav = favoriteAgentIds.has(a.id);
+      const bFav = favoriteAgentIds.has(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
+    });
+  }, [data?.pages, favoriteAgentIds]);
 
   // Check if we have meaningful data to prevent unnecessary loading states
   const hasData = useHasData(data?.pages?.[0]);
@@ -193,7 +227,12 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             >
               {currentAgents.map((agent: t.Agent, index: number) => (
                 <div key={`${agent.id}-${index}`} role="gridcell">
-                  <AgentCard agent={agent} onClick={() => onSelectAgent(agent)} />
+                  <AgentCard
+                    agent={agent}
+                    onClick={() => onSelectAgent(agent)}
+                    isFavorite={favoriteAgentIds.has(agent.id)}
+                    onToggleFavorite={() => toggleFavorite(agent.id)}
+                  />
                 </div>
               ))}
             </div>
