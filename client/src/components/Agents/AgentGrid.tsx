@@ -54,7 +54,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       // Handle category-based queries
       if (category === 'promoted') {
         params.promoted = 1;
-      } else if (category !== 'all') {
+      } else if (category !== 'all' && category !== 'favorites') {
         params.category = category;
       }
       // For 'all' category, no additional filters needed
@@ -121,7 +121,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({
         uniqueMap.set(id, agent);
       }
     }
-    const unique = Array.from(uniqueMap.values());
+    let unique = Array.from(uniqueMap.values());
+
+    if (category === 'favorites') {
+      unique = unique.filter((agent) => favoriteAgentIds.has(getAgentUniqueId(agent)));
+    }
 
     return unique.sort((a, b) => {
       const aFav = favoriteAgentIds.has(getAgentUniqueId(a));
@@ -130,7 +134,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       if (!aFav && bFav) return 1;
       return 0;
     });
-  }, [data?.pages, favoriteAgentIds]);
+  }, [data?.pages, favoriteAgentIds, category]);
 
   // Check if we have meaningful data to prevent unnecessary loading states
   const hasData = useHasData(data?.pages?.[0]);
@@ -214,13 +218,17 @@ const AgentGrid: React.FC<AgentGridProps> = ({
           className="py-12 text-center text-text-secondary"
           role="status"
           aria-live="polite"
-          aria-label={
-            searchQuery
-              ? localize('com_agents_search_empty_heading')
-              : localize('com_agents_empty_state_heading')
-          }
         >
-          <h3 className="mb-2 text-lg font-medium">{localize('com_agents_empty_state_heading')}</h3>
+          <h3 className="mb-2 text-lg font-medium">
+            {category === 'favorites'
+              ? 'No tienes agentes marcados como favoritos ⭐'
+              : localize('com_agents_empty_state_heading')}
+          </h3>
+          {category === 'favorites' && (
+            <p className="text-sm text-text-secondary/80">
+              Haz clic en la estrella de cualquier agente para guardarlo en tu lista de favoritos.
+            </p>
+          )}
         </div>
       ) : (
         <>

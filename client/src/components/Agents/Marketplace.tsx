@@ -379,8 +379,14 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                             }
                             if (displayCategory === 'all') {
                               return {
-                                name: localize('com_agents_all'),
-                                description: localize('com_agents_all_description'),
+                                name: 'Todos los Agentes',
+                                description: 'Explora todos los agentes compartidos en todas las categorías',
+                              };
+                            }
+                            if (displayCategory === 'favorites') {
+                              return {
+                                name: 'Mis Agentes Favoritos ⭐',
+                                description: 'Tus agentes marcados con estrella para acceso rápido',
                               };
                             }
 
@@ -456,8 +462,14 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                               }
                               if (nextCategory === 'all') {
                                 return {
-                                  name: localize('com_agents_all'),
-                                  description: localize('com_agents_all_description'),
+                                  name: 'Todos los Agentes',
+                                  description: 'Explora todos los agentes compartidos en todas las categorías',
+                                };
+                              }
+                              if (nextCategory === 'favorites') {
+                                return {
+                                  name: 'Mis Agentes Favoritos ⭐',
+                                  description: 'Tus agentes marcados con estrella para acceso rápido',
                                 };
                               }
 

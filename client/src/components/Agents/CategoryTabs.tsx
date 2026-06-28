@@ -43,7 +43,10 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
       return localize('com_agents_top_picks');
     }
     if (category.value === 'all') {
-      return localize('com_agents_all_category');
+      return 'Todos';
+    }
+    if (category.value === 'favorites') {
+      return 'Favoritos ⭐';
     }
     if (category.label && category.label.startsWith('com_')) {
       return localize(category.label as TranslationKeys);
@@ -121,6 +124,15 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
     );
   }
 
+  const allCategories = React.useMemo(() => {
+    const list = (categories || []).filter((c) => c.value !== 'all' && c.value !== 'favorites');
+    return [
+      { value: 'all', label: 'Todos' },
+      { value: 'favorites', label: 'Favoritos' },
+      ...list,
+    ];
+  }, [categories]);
+
   // Main tabs content
   const tabsContent = (
     <div className="w-full pb-2">
@@ -144,7 +156,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             : undefined
         }
       >
-        {categories.map((category, index) => (
+        {allCategories.map((category, index) => (
           <button
             key={category.value}
             id={`category-tab-${category.value}`}
@@ -162,12 +174,12 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             aria-controls={`tabpanel-${category.value}`}
             tabIndex={activeTab === category.value ? 0 : -1}
             aria-label={localize('com_agents_category_tab_label', {
-              category: getCategoryDisplayName(category),
+              category: getCategoryDisplayName(category as any),
               position: index + 1,
-              total: categories.length,
+              total: allCategories.length,
             })}
           >
-            {getCategoryDisplayName(category)}
+            {getCategoryDisplayName(category as any)}
           </button>
         ))}
       </div>
