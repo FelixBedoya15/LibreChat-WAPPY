@@ -1396,9 +1396,29 @@ class SomosSST extends Tool {
           }
         }
 
+        // 4. Historial de Informes e Investigaciones Guardadas (Conversations)
+        const ConversationModel = mongoose.models.Conversation;
+        const MessageModel = mongoose.models.Message;
+        if (ConversationModel) {
+          const convos = await ConversationModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(20).lean();
+          for (const c of convos) {
+            let lastText = '';
+            if (MessageModel) {
+              const msg = await MessageModel.findOne({ conversationId: c.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
+              if (msg) lastText = msg.text ? msg.text.substring(0, 300) : '';
+            }
+            historyLogs.push({
+              modulo: 'Informes e Investigaciones Guardadas',
+              fecha: c.updatedAt ? new Date(c.updatedAt).toISOString().split('T')[0] : 'Reciente',
+              evento: `[Documento] ${c.title || 'Informe SST'}`,
+              detalles: lastText || `ID: ${c.conversationId}`
+            });
+          }
+        }
+
         return JSON.stringify({
           exito: true,
-          mensaje: `Se obtuvieron ${historyLogs.length} registros en el historial de informes y actividades de los aplicativos.`,
+          mensaje: `Se obtuvieron ${historyLogs.length} registros reales en el historial de informes y actividades de los aplicativos.`,
           historial: historyLogs
         });
       }

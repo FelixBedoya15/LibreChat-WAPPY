@@ -247,10 +247,16 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 
   const fullCollapse = useMemo(() => localStorage.getItem('fullPanelCollapse') === 'true', []);
 
-  const hasAccessToMarketplace = useHasAccess({
+  const hasMarketplacePerm = useHasAccess({
     permissionType: PermissionTypes.MARKETPLACE,
     permission: Permissions.USE,
   });
+  const hasAgentsPerm = useHasAccess({
+    permissionType: PermissionTypes.AGENTS,
+    permission: Permissions.USE,
+  });
+  const hasAccessToMarketplace = hasMarketplacePerm || hasAgentsPerm;
+
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     if (!hasAccessToMarketplace) {
