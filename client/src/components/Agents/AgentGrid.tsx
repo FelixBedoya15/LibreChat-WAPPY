@@ -85,7 +85,13 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     }
   });
 
-  const toggleFavorite = (agentId: string) => {
+  const getAgentUniqueId = (agent: t.Agent): string => {
+    return agent.id || (agent as any)._id || agent.name || '';
+  };
+
+  const toggleFavorite = (agent: t.Agent) => {
+    const agentId = getAgentUniqueId(agent);
+    if (!agentId) return;
     setFavoriteAgentIds((prev) => {
       const next = new Set(prev);
       if (next.has(agentId)) {
@@ -102,13 +108,24 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     });
   };
 
-  // Flatten all pages and sort favorited agents first
+  // Flatten all pages, deduplicate, and sort favorited agents first
   const currentAgents = useMemo(() => {
     if (!data?.pages) return [];
     const flattened = data.pages.flatMap((page) => page.data || []);
-    return [...flattened].sort((a, b) => {
-      const aFav = favoriteAgentIds.has(a.id);
-      const bFav = favoriteAgentIds.has(b.id);
+    
+    // Deduplicate agents by unique ID
+    const uniqueMap = new Map<string, t.Agent>();
+    for (const agent of flattened) {
+      const id = getAgentUniqueId(agent);
+      if (id && !uniqueMap.has(id)) {
+        uniqueMap.set(id, agent);
+      }
+    }
+    const unique = Array.from(uniqueMap.values());
+
+    return unique.sort((a, b) => {
+      const aFav = favoriteAgentIds.has(getAgentUniqueId(a));
+      const bFav = favoriteAgentIds.has(getAgentUniqueId(b));
       if (aFav && !bFav) return -1;
       if (!aFav && bFav) return 1;
       return 0;
@@ -225,16 +242,19 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                 category: getCategoryDisplayName(category),
               })}
             >
-              {currentAgents.map((agent: t.Agent, index: number) => (
-                <div key={`${agent.id}-${index}`} role="gridcell">
-                  <AgentCard
-                    agent={agent}
-                    onClick={() => onSelectAgent(agent)}
-                    isFavorite={favoriteAgentIds.has(agent.id)}
-                    onToggleFavorite={() => toggleFavorite(agent.id)}
-                  />
-                </div>
-              ))}
+              {currentAgents.map((agent: t.Agent, index: number) => {
+                const agentId = getAgentUniqueId(agent);
+                return (
+                  <div key={`${agentId}-${index}`} role="gridcell">
+                    <AgentCard
+                      agent={agent}
+                      onClick={() => onSelectAgent(agent)}
+                      isFavorite={favoriteAgentIds.has(agentId)}
+                      onToggleFavorite={() => toggleFavorite(agent)}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
 
