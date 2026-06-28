@@ -40,7 +40,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       promoted?: 0 | 1;
     } = {
       requiredPermission: PermissionBits.VIEW, // View permission for marketplace viewing
-      limit: 6,
+      limit: 12,
     };
 
     // Handle search
@@ -181,10 +181,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
             })}
           </div>
 
-          {/* Agent grid - 2 per row with proper semantic structure */}
+          {/* Agent grid - 4 per row on large screens */}
           {currentAgents && currentAgents.length > 0 && (
             <div
-              className="grid grid-cols-1 gap-6 md:grid-cols-2"
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
               role="grid"
               aria-label={localize('com_agents_grid_announcement', {
                 count: currentAgents.length,

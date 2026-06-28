@@ -112,84 +112,128 @@ export default function TenshiChat() {
     };
 
     const openHtmlReport = (html: string) => {
-        const win = window.open('', '_blank');
-        if (win) {
-            let fullContent = html;
-            
-            // Transform dark classes to high contrast light classes by default
-            fullContent = fullContent
-                .replace(/class="([^"]*)\bdark\b([^"]*)"/gi, 'class="$1light$2"')
-                .replace(/bg-slate-950/g, 'bg-slate-50')
-                .replace(/bg-slate-900\/80/g, 'bg-white shadow-md border-slate-200 text-slate-800')
-                .replace(/bg-slate-900/g, 'bg-white shadow-md border-slate-200 text-slate-800')
-                .replace(/bg-slate-800\/90/g, 'bg-slate-100 border-slate-200 text-slate-800')
-                .replace(/bg-slate-800\/80/g, 'bg-slate-100 border-slate-200 text-slate-800')
-                .replace(/bg-slate-800/g, 'bg-slate-100 border-slate-200 text-slate-800')
-                .replace(/text-slate-100/g, 'text-slate-900')
-                .replace(/text-slate-200/g, 'text-slate-800')
-                .replace(/text-slate-300/g, 'text-slate-700')
-                .replace(/text-slate-400/g, 'text-slate-600')
-                .replace(/border-slate-800/g, 'border-slate-200')
-                .replace(/border-slate-700/g, 'border-slate-200');
+        let fullContent = html;
 
-            const stickyHeader = `
-            <div id="report-sticky-header" style="position: sticky; top: 0; background: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; z-index: 99999; font-family: system-ui, -apple-system, sans-serif; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.05em;">WAPPY IA</span>
-                    <span style="color: #0f172a; font-weight: 700; font-size: 14px;">Informe Oficial de SST</span>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button onclick="toggleTheme()" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-                        <span id="theme-btn-text">🌓 Modo Oscuro</span>
-                    </button>
-                    <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s;">
-                        🖨️ Imprimir / Guardar PDF
-                    </button>
-                </div>
+        const stickyHeader = `
+        <div id="report-sticky-header" style="position: sticky; top: 0; background: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; z-index: 99999; font-family: system-ui, -apple-system, sans-serif; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #10b981; color: #ffffff !important; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.05em;">WAPPY IA</span>
+                <span id="report-header-title" style="color: #0f172a !important; font-weight: 700; font-size: 14px;">Informe Oficial de SST</span>
             </div>
-            <script>
-                function toggleTheme() {
-                    const isDark = document.body.classList.toggle('report-dark');
-                    const btn = document.getElementById('theme-btn-text');
-                    if (isDark) {
-                        document.body.style.backgroundColor = '#0f172a';
-                        document.body.style.color = '#f8fafc';
-                        document.getElementById('report-sticky-header').style.backgroundColor = '#1e293b';
-                        document.getElementById('report-sticky-header').style.borderColor = '#334155';
-                        if(btn) btn.innerText = '☀️ Modo Claro';
-                    } else {
-                        document.body.style.backgroundColor = '#f8fafc';
-                        document.body.style.color = '#0f172a';
-                        document.getElementById('report-sticky-header').style.backgroundColor = '#ffffff';
-                        document.getElementById('report-sticky-header').style.borderColor = '#e2e8f0';
-                        if(btn) btn.innerText = '🌓 Modo Oscuro';
-                    }
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="theme-toggle-btn" onclick="toggleTheme()" style="background: #f1f5f9; color: #334155 !important; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    <span id="theme-btn-text">🌓 Modo Oscuro</span>
+                </button>
+                <button onclick="window.print()" style="background: #10b981; color: #ffffff !important; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s;">
+                    🖨️ Imprimir / Guardar PDF
+                </button>
+            </div>
+        </div>
+        <script>
+            function toggleTheme() {
+                const isDark = document.documentElement.classList.toggle('report-dark');
+                document.body.classList.toggle('report-dark', isDark);
+                const btnText = document.getElementById('theme-btn-text');
+                const btn = document.getElementById('theme-toggle-btn');
+                const title = document.getElementById('report-header-title');
+                const header = document.getElementById('report-sticky-header');
+                if (isDark) {
+                    if(btnText) btnText.innerText = '☀️ Modo Claro';
+                    if(btn) { btn.style.backgroundColor = '#334155'; btn.style.borderColor = '#475569'; btn.style.setProperty('color', '#ffffff', 'important'); }
+                    if(header) { header.style.backgroundColor = '#1e293b'; header.style.borderColor = '#334155'; }
+                    if(title) title.style.setProperty('color', '#ffffff', 'important');
+                } else {
+                    if(btnText) btnText.innerText = '🌓 Modo Oscuro';
+                    if(btn) { btn.style.backgroundColor = '#f1f5f9'; btn.style.borderColor = '#cbd5e1'; btn.style.setProperty('color', '#334155', 'important'); }
+                    if(header) { header.style.backgroundColor = '#ffffff'; header.style.borderColor = '#e2e8f0'; }
+                    if(title) title.style.setProperty('color', '#0f172a', 'important');
                 }
-            </script>
-            <style>
-                @media print {
-                    #report-sticky-header { display: none !important; }
-                }
-                body { background-color: #f8fafc !important; color: #0f172a !important; font-family: system-ui, -apple-system, sans-serif; }
-                table { background-color: #ffffff !important; border: 1px solid #cbd5e1 !important; width: 100% !important; border-collapse: collapse !important; margin: 16px 0 !important; }
-                th, td { border: 1px solid #e2e8f0 !important; color: #1e293b !important; padding: 10px 14px !important; text-align: left !alignment; }
-                th { background-color: #f1f5f9 !important; font-weight: bold !important; color: #0f172a !important; }
-                .report-dark { background-color: #0f172a !important; color: #f8fafc !important; }
-                .report-dark table { background-color: #1e293b !important; border-color: #334155 !important; }
-                .report-dark th, .report-dark td { border-color: #334155 !important; color: #f1f5f9 !important; }
-                .report-dark th { background-color: #334155 !important; }
-            </style>
-            `;
-
-            if (fullContent.includes('<body')) {
-                fullContent = fullContent.replace(/<body([^>]*)>/i, `<body$1>${stickyHeader}`);
-            } else {
-                fullContent = stickyHeader + fullContent;
             }
+        </script>
+        <style>
+            @media print {
+                #report-sticky-header { display: none !important; }
+            }
+            /* Global Light Theme Override (High Contrast) */
+            html, body {
+                background-color: #f8fafc !important;
+                color: #0f172a !important;
+                font-family: system-ui, -apple-system, sans-serif !important;
+                margin: 0; padding: 0;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                color: #0f172a !important;
+            }
+            p, span, li, td, th, label, div {
+                color: inherit;
+            }
+            /* Fix invisible text on cards/containers in Light Mode */
+            .text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+                color: #0f172a !important;
+            }
+            /* Table Styling High Contrast */
+            table {
+                background-color: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin: 16px 0 !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            th, td {
+                border: 1px solid #cbd5e1 !important;
+                color: #0f172a !important;
+                padding: 12px 16px !important;
+                text-align: left;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                font-weight: 700 !important;
+                color: #0f172a !important;
+            }
+            tr:nth-child(even) td {
+                background-color: #f8fafc !important;
+            }
+            
+            /* Dark Theme Overrides */
+            html.report-dark, body.report-dark {
+                background-color: #0f172a !important;
+                color: #f8fafc !important;
+            }
+            .report-dark h1, .report-dark h2, .report-dark h3, .report-dark h4, .report-dark h5, .report-dark h6 {
+                color: #ffffff !important;
+            }
+            .report-dark .text-white, .report-dark .text-slate-100, .report-dark .text-slate-200, .report-dark .text-slate-300, .report-dark .text-slate-400 {
+                color: #f8fafc !important;
+            }
+            .report-dark table {
+                background-color: #1e293b !important;
+                border-color: #334155 !important;
+            }
+            .report-dark th, .report-dark td {
+                border-color: #334155 !important;
+                color: #f8fafc !important;
+            }
+            .report-dark th {
+                background-color: #334155 !important;
+                color: #ffffff !important;
+            }
+            .report-dark tr:nth-child(even) td {
+                background-color: #0f172a !important;
+            }
+        </style>
+        `;
 
-            win.document.write(fullContent);
-            win.document.close();
+        if (fullContent.includes('<body')) {
+            fullContent = fullContent.replace(/<body([^>]*)>/i, `<body$1>${stickyHeader}`);
+        } else {
+            fullContent = stickyHeader + fullContent;
         }
+
+        // Use Blob URL so printing or closing print modal in Safari/Chrome doesn't destroy the tab
+        const blob = new Blob([fullContent], { type: 'text/html;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
     };
 
     const getHtmlFromMsg = (msg: { content: string, htmlReport?: string }) => {
