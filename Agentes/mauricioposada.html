@@ -1212,6 +1212,24 @@
       display: none;
     }
 
+    .agente-avatar {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 1.2rem;
+      border: 2px solid var(--color-border);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      transition: var(--transition-base);
+      background: #090d16;
+    }
+
+    .agente-card:hover .agente-avatar {
+      border-color: var(--color-primary);
+      transform: scale(1.06);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+    }
+
     .agente-category-badge {
       font-size: 0.7rem;
       text-transform: uppercase;
@@ -1893,17 +1911,19 @@
         <!-- Agente 0: Tenshi (Orquestador) -->
         <div class="glass-card agente-card" data-category="prevencion legal salud auditoria" style="border-color: var(--color-primary); background: rgba(34, 197, 94, 0.05);">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/Tenshi.png" alt="Tenshi IA" onerror="this.style.display='none'">
           <span class="agente-category-badge" style="color: var(--color-primary);">Orquestador Sistema</span>
           <h3>Tenshi (Asistente Virtual)</h3>
           <p>La IA estrella nativa que orquesta todo el sistema, consulta la base de datos de tu empresa y ejecuta acciones en Somos SST.</p>
           <div class="agente-prompt-snippet" style="border-left-color: var(--color-accent); color: #67e8f9;">
-            "Tenshi, actualiza el estado de la auditoría y genera el informe de vencimientos del Centro de Control ACPM..."
+            "Tenshi, actualiza el estado de las capacitaciones y genera el informe de vencimientos del Centro de Control ACPM..."
           </div>
         </div>
 
         <!-- Agente 1: Abogado Laboral RIT -->
         <div class="glass-card agente-card" data-category="legal">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ABOGADO%20LABORAL%20RIT.png" alt="Abogado Laboral RIT" onerror="this.style.display='none'">
           <span class="agente-category-badge">Legal</span>
           <h3>Abogado Laboral RIT</h3>
           <p>Asesora en Reglamentos Internos de Trabajo, contratos y la jornada reducida de 42 horas en Colombia.</p>
@@ -1912,80 +1932,303 @@
           </div>
         </div>
 
-        <!-- Agente 2: Psicólogo Especialista SST -->
-        <div class="glass-card agente-card" data-category="salud">
+        <!-- Agente 2: Prevención Acoso Laboral -->
+        <div class="glass-card agente-card" data-category="legal">
           <div class="card-glow"></div>
-          <span class="agente-category-badge">Salud</span>
-          <h3>Psicólogo Especialista</h3>
-          <p>Experto en riesgo psicosocial, clima laboral, acoso laboral y análisis de termómetro psicosocial.</p>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ESPECIALISTA%20EN%20PREVENCIO%CC%81N%20DE%20ACOSO%20LABORAL%20(Comite%CC%81%20de%20Convivencia).png" alt="Prevención Acoso Laboral" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Legal</span>
+          <h3>Prevención de Acoso Laboral</h3>
+          <p>Especialista en normatividad de acoso laboral (Ley 1010), gestión del Comité de Convivencia y protocolos de atención.</p>
           <div class="agente-prompt-snippet">
-            "Genera una recomendación de intervención psicosocial para una empresa con alta carga de estrés en atención al cliente..."
+            "Estructura el acta de instalación del Comité de Convivencia Laboral y el protocolo de atención de quejas..."
           </div>
         </div>
 
-        <!-- Agente 3: Médico Laboral -->
+        <!-- Agente 3: Prevención Acoso Sexual -->
+        <div class="glass-card agente-card" data-category="legal">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ESPECIALISTA%20EN%20PREVENCIO%CC%81N%20DE%20ACOSO%20SEXUAL%20Y%20VIOLENCIA%20DE%20GE%CC%81NERO.png" alt="Prevención Acoso Sexual" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Legal</span>
+          <h3>Prevención Acoso Sexual & Género</h3>
+          <p>Asesora en la implementación de políticas institucionales y rutas de atención ante violencia de género y acoso laboral.</p>
+          <div class="agente-prompt-snippet">
+            "Redacta la política institucional de cero tolerancia ante el acoso sexual y violencia de género en el trabajo..."
+          </div>
+        </div>
+
+        <!-- Agente 4: Psicólogo Especialista SST -->
         <div class="glass-card agente-card" data-category="salud">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/PSICO%CC%81LOGO%20ESPECIALISTA%20SST.png" alt="Psicólogo Especialista SST" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Salud</span>
+          <h3>Psicólogo Especialista SST</h3>
+          <p>Experto en riesgo psicosocial, clima laboral, evaluación de factores intralaborales y termómetro psicosocial.</p>
+          <div class="agente-prompt-snippet">
+            "Genera una recomendación de intervención psicosocial para una empresa con alta carga de estrés operacional..."
+          </div>
+        </div>
+
+        <!-- Agente 5: Asistente Salud Mental -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ASISTENTE%20DE%20SALUD%20MENTAL.png" alt="Asistente Salud Mental" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Salud</span>
+          <h3>Asistente de Salud Mental</h3>
+          <p>Brinda pautas de primeros auxilios psicológicos, manejo de ansiedad laboral y bienestar emocional en equipos de trabajo.</p>
+          <div class="agente-prompt-snippet">
+            "Diseña un taller interactivo de pausas mentales y manejo del burnout para personal administrativo..."
+          </div>
+        </div>
+
+        <!-- Agente 6: Médico Laboral -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ME%CC%81DICO%20LABORAL.png" alt="Médico Laboral" onerror="this.style.display='none'">
           <span class="agente-category-badge">Salud</span>
           <h3>Médico Laboral</h3>
-          <p>Gestiona profesiogramas, interpreta aptitudes clínicas y redacta recomendaciones para reintegros.</p>
+          <p>Gestiona profesiogramas, interpreta aptitudes clínicas, exámenes ocupacionales y recomendaciones para reintegros.</p>
           <div class="agente-prompt-snippet">
-            "Estructura las restricciones médicas recomendadas para un trabajador operario con diagnóstico de túnel carpiano..."
+            "Estructura las restricciones médicas recomendadas para un trabajador operario con diagnóstico biomecánico..."
           </div>
         </div>
 
-        <!-- Agente 4: Coordinador IPEVAR GTC-45 -->
+        <!-- Agente 7: Fisioterapeuta Laboral -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/FISIOTERAPEUTA%20LABORAL.png" alt="Fisioterapeuta Laboral" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Salud</span>
+          <h3>Fisioterapeuta Laboral</h3>
+          <p>Experto en higiene postural, prevención de desórdenes musculoesqueléticos y programas de pausas activas osteomusculares.</p>
+          <div class="agente-prompt-snippet">
+            "Diseña una rutina de pausas activas específicas para prevenir lumbalgias en personal de centro de distribución..."
+          </div>
+        </div>
+
+        <!-- Agente 8: Nutricionista Laboral -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/NUTRICIONISTA.png" alt="Nutricionista Laboral" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Salud</span>
+          <h3>Nutricionista Laboral</h3>
+          <p>Promueve estilos de vida saludables, planes de alimentación para turnos nocturnos y prevención de riesgo cardiovascular.</p>
+          <div class="agente-prompt-snippet">
+            "Crea una guía de alimentación saludable ajustada para trabajadores con turnos rotativos nocturnos..."
+          </div>
+        </div>
+
+        <!-- Agente 9: Primeros Auxilios -->
+        <div class="glass-card agente-card" data-category="salud">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/PRIMEROS%20AUXILIOS.png" alt="Primeros Auxilios" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Salud</span>
+          <h3>Asistente de Primeros Auxilios</h3>
+          <p>Asesora en dotación de botiquines obligatorios, atención inmediata ante emergencias médicas y procedimientos de soporte básico.</p>
+          <div class="agente-prompt-snippet">
+            "Genera la lista de chequeo para botiquines de primeros auxilios según la Resolución 0705 de Bogotá..."
+          </div>
+        </div>
+
+        <!-- Agente 10: Coordinador IPEVAR -->
         <div class="glass-card agente-card" data-category="prevencion">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/COORDINADOR%20IPEVAR.png" alt="Coordinador IPEVAR" onerror="this.style.display='none'">
           <span class="agente-category-badge">Prevención</span>
-          <h3>Coordinador IPEVAR</h3>
-          <p>Identifica y valora peligros bajo la GTC-45. Inyecta y evalúa filas en tu matriz en tiempo real.</p>
+          <h3>Coordinador IPEVAR GTC-45</h3>
+          <p>Identifica y valora peligros bajo la GTC-45. Inyecta y evalúa filas en tu matriz de riesgos en tiempo real.</p>
           <div class="agente-prompt-snippet">
-            "Evalúa el peligro biológico por exposición a virus en personal asistencial médico usando la metodología GTC-45..."
+            "Evalúa el peligro biológico por exposición a virus en personal asistencial usando la metodología GTC-45..."
           </div>
         </div>
 
-        <!-- Agente 5: Experto en Riesgo Químico -->
+        <!-- Agente 11: Riesgo Químico SGA -->
         <div class="glass-card agente-card" data-category="prevencion">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/RIESGO%20QUI%CC%81MICO%20(SGA).png" alt="Riesgo Químico SGA" onerror="this.style.display='none'">
           <span class="agente-category-badge">Prevención</span>
-          <h3>Experto en Riesgo Químico</h3>
-          <p>Crea matrices de compatibilidad química y fichas técnicas bajo el Sistema Globalmente Armonizado.</p>
+          <h3>Experto en Riesgo Químico (SGA)</h3>
+          <p>Crea matrices de compatibilidad química y fichas técnicas de seguridad bajo el Sistema Globalmente Armonizado.</p>
           <div class="agente-prompt-snippet">
-            "Determina la compatibilidad de almacenamiento entre Ácido Nítrico y Alcohol Isopropílico según el SGA..."
+            "Determina la compatibilidad de almacenamiento entre sustancias inflamables y corrosivas según el SGA..."
           </div>
         </div>
 
-        <!-- Agente 6: Experto en Riesgo Eléctrico -->
+        <!-- Agente 12: Riesgo Eléctrico RETIE -->
         <div class="glass-card agente-card" data-category="prevencion">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/RIESGO%20ELE%CC%81CTRICO%20(RETIE).png" alt="Riesgo Eléctrico RETIE" onerror="this.style.display='none'">
           <span class="agente-category-badge">Prevención</span>
           <h3>Riesgo Eléctrico (RETIE)</h3>
-          <p>Asesora en distancias de seguridad, arcos eléctricos y cumplimiento de la normativa RETIE.</p>
+          <p>Asesora en distancias de seguridad, arcos eléctricos, bloqueo/etiquetado (LOTO) y normatividad RETIE.</p>
           <div class="agente-prompt-snippet">
             "Genera el checklist de auditoría preliminar para tableros eléctricos de media tensión bajo RETIE..."
           </div>
         </div>
 
-        <!-- Agente 7: Investigador ATEL -->
-        <div class="glass-card agente-card" data-category="auditoria">
+        <!-- Agente 13: Riesgo Vial PESV -->
+        <div class="glass-card agente-card" data-category="prevencion">
           <div class="card-glow"></div>
-          <span class="agente-category-badge">Auditoría</span>
-          <h3>Investigador ATEL</h3>
-          <p>Indaga incidentes y accidentes de trabajo usando metodologías como los 5 Porqués y espina de pescado.</p>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/RIESGO%20VIAL%20(PESV).png" alt="Riesgo Vial PESV" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Experto en Riesgo Vial (PESV)</h3>
+          <p>Estructura planes estratégicos de seguridad vial (PESV) bajo la Resolución 40595, inspección de flota y rutas.</p>
           <div class="agente-prompt-snippet">
-            "Estructura la investigación causa-raíz utilizando el árbol de causas para una caída a nivel en pasillos..."
+            "Estructura la matriz de evaluación de riesgos viales para conductores operativos según el PESV..."
           </div>
         </div>
 
-        <!-- Agente 8: Auditor SG-SST -->
+        <!-- Agente 14: Riesgo Biológico -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/RIESGO%20BIOLO%CC%81GICO.png" alt="Riesgo Biológico" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Experto en Riesgo Biológico</h3>
+          <p>Gestiona protocolos de bioseguridad, clasificación de agentes patógenos, gestión de residuos RH1 y vacunación.</p>
+          <div class="agente-prompt-snippet">
+            "Diseña el protocolo de gestión de residuos biosanitarios y punzocortantes para un laboratorio..."
+          </div>
+        </div>
+
+        <!-- Agente 15: Asistente ATS -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ASISTENTE%20ATS.png" alt="Asistente ATS" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Asistente ATS (Análisis Seguro)</h3>
+          <p>Guía la elaboración paso a paso de Análisis de Trabajo Seguro (ATS) para tareas no rutinas y críticas.</p>
+          <div class="agente-prompt-snippet">
+            "Genera un formato de ATS para la instalación de estructuras metálicas a más de 5 metros de altura..."
+          </div>
+        </div>
+
+        <!-- Agente 16: Permisos TSA Alturas -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/PERMISOS%20TSA%20(TRABAJO%20EN%20ALTURAS).png" alt="Permisos TSA Alturas" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Permisos TSA (Trabajo en Alturas)</h3>
+          <p>Verifica listas de chequeo de equipos de protección contra caídas y permisos de trabajo bajo la Resolución 4272.</p>
+          <div class="agente-prompt-snippet">
+            "Genera la lista de verificación pre-uso de arneses y líneas de vida para trabajo en alturas..."
+          </div>
+        </div>
+
+        <!-- Agente 17: Tareas Alto Riesgo -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/TAREAS%20DE%20ALTO%20RIESGO.png" alt="Tareas Alto Riesgo" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Experto en Tareas de Alto Riesgo</h3>
+          <p>Asesora en controles para espacios confinados, trabajos en caliente, izaje de cargas pesadas y excavaciones.</p>
+          <div class="agente-prompt-snippet">
+            "Redacta los controles de atmósfera peligrosa requeridos para el ingreso a un espacio confinado..."
+          </div>
+        </div>
+
+        <!-- Agente 18: Asistente Método ROSA -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/ME%CC%81TODO%20ROSA.png" alt="Método ROSA" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Asistente Método ROSA (Ergonomía)</h3>
+          <p>Evalúa puestos de trabajo de oficina con pantallas de visualización mediante la metodología ergométrica ROSA.</p>
+          <div class="agente-prompt-snippet">
+            "Calcula la puntuación ROSA e identifica mejoras para la silla y pantalla de un puesto de oficina..."
+          </div>
+        </div>
+
+        <!-- Agente 19: Reporte Actos y Condiciones -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/REPORTE%20DE%20ACTOS%20Y%20CONDICIONES%20INSEGURAS.png" alt="Reporte Actos y Condiciones" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Reporte de Actos & Condiciones</h3>
+          <p>Facilita la captura, clasificación y plan de acción inmediato ante reportes de hallazgos y tarjetones en campo.</p>
+          <div class="agente-prompt-snippet">
+            "Clasifica un reporte de condición insegura por falta de guarda en pulidora y asigna la acción correctiva..."
+          </div>
+        </div>
+
+        <!-- Agente 20: Experto Emergencias -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/EMERGENCIAS.png" alt="Experto Emergencias" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Experto en Plan de Emergencias</h3>
+          <p>Elabora planes de prevención, preparación y respuesta ante emergencias, simulacros y procedimientos PON.</p>
+          <div class="agente-prompt-snippet">
+            "Estructura el plan de evacuación y guion de simulacro de sismo para una planta industrial..."
+          </div>
+        </div>
+
+        <!-- Agente 21: Capacitaciones Charlas Operativas -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/CAPACITACIONES%20(charlas%20operativas).png" alt="Capacitaciones Charlas Operativas" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Capacitaciones & Charlas Operativas</h3>
+          <p>Genera charlas de seguridad de 5 minutos, temas diarios de concientización y dinámicas breves para campo.</p>
+          <div class="agente-prompt-snippet">
+            "Crea una charla operativa de 5 minutos sobre el autocuidado en la manipulación manual de cargas..."
+          </div>
+        </div>
+
+        <!-- Agente 22: Formación Plan Anual -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/FORMACIO%CC%81N%20(plan%20anual%20%20inducciones).png" alt="Formación Plan Anual" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Formación & Plan Anual de Inducción</h3>
+          <p>Diseña cronogramas del plan anual de capacitación SG-SST, evaluaciones de conocimiento e inducciones.</p>
+          <div class="agente-prompt-snippet">
+            "Diseña el programa de inducción general en SST para nuevos trabajadores administrativos y operativos..."
+          </div>
+        </div>
+
+        <!-- Agente 23: Profesional SST Integral -->
+        <div class="glass-card agente-card" data-category="prevencion">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/PROFESIONAL%20SST.png" alt="Profesional SST Integral" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Prevención</span>
+          <h3>Profesional SST Integral</h3>
+          <p>Asesor general en la implementación diaria del SG-SST, estándares de ARL y normatividad colombiana vigente.</p>
+          <div class="agente-prompt-snippet">
+            "Redacta los objetivos anuales del SG-SST alineados con los estándares de la Resolución 0312..."
+          </div>
+        </div>
+
+        <!-- Agente 24: Investigador Accidentes Trabajo -->
         <div class="glass-card agente-card" data-category="auditoria">
           <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/INVESTIGADOR%20DE%20ACCIDENTES%20DE%20TRABAJO%20(AT)%20%E2%80%94%20ajustado.png" alt="Investigador Accidentes Trabajo" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Auditoría</span>
+          <h3>Investigador de Accidentes (AT)</h3>
+          <p>Indaga accidentes de trabajo mediante metodología Árbol de Causas, 5 Porqués y estructuración FURAT.</p>
+          <div class="agente-prompt-snippet">
+            "Estructura la investigación causa-raíz utilizando el árbol de causas para un atrapamiento mecánico..."
+          </div>
+        </div>
+
+        <!-- Agente 25: Investigador Enfermedad Laboral -->
+        <div class="glass-card agente-card" data-category="auditoria">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/INVESTIGADOR%20DE%20ENFERMEDAD%20LABORAL%20(EL)%20%E2%80%94%20nuevo,%20separado%20del%20AT.png" alt="Investigador Enfermedad Laboral" onerror="this.style.display='none'">
+          <span class="agente-category-badge">Auditoría</span>
+          <h3>Investigador de Enfermedad Laboral (EL)</h3>
+          <p>Analiza el origen patológico ocupacional, relación de causalidad y análisis FUREL ante la ARL.</p>
+          <div class="agente-prompt-snippet">
+            "Analiza la relación de causalidad para la calificación de origen de un síndrome de manguito rotador..."
+          </div>
+        </div>
+
+        <!-- Agente 26: Auditor SG-SST -->
+        <div class="glass-card agente-card" data-category="auditoria">
+          <div class="card-glow"></div>
+          <img class="agente-avatar" src="Agentes/Miniaturas/Avatar%20Agentes%20/AUDITOR%20SG-SST.png" alt="Auditor SG-SST" onerror="this.style.display='none'">
           <span class="agente-category-badge">Auditoría</span>
           <h3>Auditor SG-SST</h3>
-          <p>Audita los 60 estándares mínimos de la Resolución 0312 y redacta planes de acción correctiva.</p>
+          <p>Audita estándares mínimos de la Resolución 0312 y redacta planes de acción correctiva y de mejora continua.</p>
           <div class="agente-prompt-snippet">
-            "Evalúa la conformidad del estándar de capacitación (Resol. 0312) y genera el plan de mejora respectivo..."
+            "Genera el informe de hallazgos y plan de mejora de auditoría interna para el estándar de gestión de amenazas..."
           </div>
         </div>
       </div>
@@ -2437,8 +2680,8 @@
       });
 
       cards.forEach(card => {
-        const cardCategory = card.getAttribute('data-category');
-        if (category === 'all' || cardCategory === category) {
+        const cardCategory = card.getAttribute('data-category') || '';
+        if (category === 'all' || cardCategory.includes(category)) {
           card.classList.remove('hidden');
           card.style.opacity = '0';
           setTimeout(() => {
