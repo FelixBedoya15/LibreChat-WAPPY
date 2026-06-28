@@ -38,17 +38,39 @@ class ConsultarAgenteEspecializado extends Tool {
         return "❌ Error: No se pudo cargar el modelo de Agentes del sistema central.";
       }
 
-      // Buscar todos los especialistas activos
-      const agents = await Agent.find({ is_whatsapp_enabled: true });
+      // Buscar todos los especialistas activos en el sistema
+      const agents = await Agent.find({});
       if (!agents || agents.length === 0) {
-        return "❌ Error: No hay especialistas disponibles con el permiso de WhatsApp activado.";
+        return "❌ Error: No hay especialistas registrados en el sistema central.";
       }
 
-      // Funcion de limpieza para comparar (quita tildes, @ por a, minusculas, espacios extra)
+      // Tabla de alias comunes para facilitar el enrutamiento de Tenshi
+      const ALIAS_MAP = {
+        'medico': 'Consultor Médico Ocupacional',
+        'medico laboral': 'Consultor Médico Ocupacional',
+        'doctor': 'Consultor Médico Ocupacional',
+        'salud ocupacional': 'Consultor Médico Ocupacional',
+        'psicologo': 'Especialista en Riesgo Psicosocial',
+        'psicologo sst': 'Especialista en Riesgo Psicosocial',
+        'psicologa': 'Especialista en Riesgo Psicosocial',
+        'salud mental': 'Consultor de Bienestar y Salud Mental',
+        'abogado': 'Consultor Jurídico Laboral',
+        'abogado laboral': 'Consultor Jurídico Laboral',
+        'juridico': 'Consultor Jurídico Laboral',
+        'fisioterapeuta': 'Especialista en Biomecánica Laboral',
+        'ergonomo': 'Analista Ergonómico ROSA',
+        'auditor': 'Auditor Integral SG-SST',
+        'riesgo vial': 'Especialista en Riesgo Vial',
+        'vial': 'Especialista en Riesgo Vial',
+        'quimico': 'Especialista en Riesgo Químico',
+        'profesional sst': 'Consultor Senior SG-SST'
+      };
+
+      // Función de limpieza para comparar (quita tildes, @ por a, minúsculas, espacios extra)
       const cleanString = (str) => {
         return (str || '').toLowerCase()
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quita tildes
-          .replace(/@/g, 'a') // Cambia @ por a (medic@ -> medica)
+          .replace(/@/g, 'a') // Cambia @ por a
           .replace(/[^a-z0-9 ]/g, '') // Quita caracteres especiales
           .replace(/\s+/g, ' ').trim();
       };
@@ -56,10 +78,18 @@ class ConsultarAgenteEspecializado extends Tool {
       const queryStr = cleanString(nombre_especialista);
       let agent = null;
 
-      // 1. Intento de coincidencia exacta mejorada (limpia)
-      agent = agents.find((a) => cleanString(a.name) === queryStr);
+      // 0. Verificación por Alias común
+      if (ALIAS_MAP[queryStr]) {
+        const targetName = cleanString(ALIAS_MAP[queryStr]);
+        agent = agents.find((a) => cleanString(a.name) === targetName);
+      }
 
-      // 2. Búsqueda por similitud si el usuario cometió un gran error de tipeo
+      // 1. Intento de coincidencia exacta mejorada (limpia)
+      if (!agent) {
+        agent = agents.find((a) => cleanString(a.name) === queryStr);
+      }
+
+      // 2. Búsqueda por similitud si el usuario cometió un error de tipeo
       if (!agent) {
         const queryWords = queryStr.split(' ').filter((w) => w.length > 2);
         let maxScore = 0;
@@ -83,7 +113,7 @@ class ConsultarAgenteEspecializado extends Tool {
       if (!agent) {
         // Enviar al LLM la lista de los válidos para que en su segundo intento elija al correcto.
         const validos = agents.map((a) => a.name).join(', ');
-        return `❌ No se encontró ningún Agente Especialista que coincida con "${nombre_especialista}". Se sugiere utilizar un especialista de la siguiente lista de válidos: [${validos}]. Asegúrate de usar uno de estos nombres textualmente.`;
+        return `❌ No se encontró ningún Agente Especialista que coincida con "${nombre_especialista}". Se sugiere utilizar un especialista de la siguiente lista de válidos en el sistema: [${validos}]. Asegúrate de usar uno de estos nombres textualmente.`;
       }
 
       // Generar token JWT derivado del req actual para invocar el endpoint interno
