@@ -134,14 +134,24 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
   const navigate = useNavigate();
 
   if (isAgentsEndpoint(endpoint.value)) {
+    const handleNav = (e: React.SyntheticEvent) => {
+      e.stopPropagation();
+      navigate('/agents');
+    };
+
     return (
       <MenuItem
         id={`endpoint-${endpoint.value}-menu`}
         key={`endpoint-${endpoint.value}-item`}
-        onClick={() => navigate('/agents')}
+        onClick={handleNav}
+        onMouseDown={handleNav}
         className="flex h-8 w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm"
       >
-        <div className="group flex w-full min-w-0 items-center justify-between">
+        <div 
+          onClick={handleNav}
+          onMouseDown={handleNav}
+          className="group flex w-full min-w-0 items-center justify-between"
+        >
           {renderIconLabel()}
           <div className="flex items-center gap-2">
             {selectedEndpoint === endpoint.value && (
