@@ -313,6 +313,19 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                   </div>
                 </div>
               )}
+              {/* Hero Section - SST Header */}
+              {!isSmallScreen && (
+                <div className="container mx-auto max-w-4xl px-4">
+                  <div className={cn('mb-8 text-center', 'mt-12')}>
+                    <h1 className="mb-3 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+                      AGENTES SST
+                    </h1>
+                    <p className="mx-auto mb-6 max-w-2xl text-base sm:text-lg text-text-secondary">
+                      Potencia la gestión de Seguridad y Salud en el Trabajo con nuestros agentes de Inteligencia Artificial especializados.
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Sticky wrapper for search bar and categories */}
               <div
                 className={cn(

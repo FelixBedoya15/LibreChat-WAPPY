@@ -45,7 +45,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   return (
     <div
       className={cn(
-        'group relative flex h-[210px] w-full flex-col items-center justify-between p-5 rounded-2xl border border-border-light dark:border-gray-700/60',
+        'group relative flex h-[245px] w-full flex-col items-center justify-between p-5 pb-6 rounded-2xl border border-border-light dark:border-gray-700/60',
         'cursor-pointer shadow-sm transition-all duration-300 hover:border-teal-500/50 hover:shadow-xl hover:-translate-y-1',
         'bg-white dark:bg-gray-900/90 hover:bg-surface-hover dark:hover:bg-gray-800/90',
         className,
@@ -85,7 +85,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       </button>
 
       {/* Center column content */}
-      <div className="flex flex-col items-center justify-center text-center w-full my-auto">
+      <div className="flex flex-col items-center justify-center text-center w-full my-auto px-1">
         {/* Prominent circular Avatar */}
         <div className="relative mb-3 flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
           <div className="rounded-full p-1 bg-gradient-to-tr from-teal-500/20 to-emerald-500/20 shadow-inner">
@@ -99,7 +99,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </h3>
 
         {/* Full Category / Subtitle */}
-        <p className="mt-1.5 text-[11px] sm:text-xs font-semibold text-teal-600 dark:text-teal-300 text-center w-full px-1 leading-snug line-clamp-2">
+        <p className="mt-2 text-[11px] sm:text-xs font-semibold text-teal-600 dark:text-teal-400 text-center w-full px-1 leading-snug line-clamp-2">
           {categoryLabel || displayName || 'Agente de IA'}
         </p>
       </div>
