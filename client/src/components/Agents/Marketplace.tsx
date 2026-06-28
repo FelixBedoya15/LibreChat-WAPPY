@@ -290,7 +290,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
               {!isSmallScreen && (
                 <div className="sticky top-0 z-20 flex items-center justify-between bg-surface-secondary p-2 font-semibold text-text-primary md:h-14">
                   <div className="mx-1 flex items-center gap-2">
-                    {!navVisible ? (
+                    {!navVisible && (
                       <>
                         <OpenSidebar setNavVisible={setNavVisible} />
                         <TooltipAnchor
@@ -309,12 +309,10 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                           }
                         />
                       </>
-                    ) : (
-                      // Invisible placeholder to maintain height
-                      <div className="h-10 w-10" />
                     )}
                   </div>
                 </div>
+              )}
               {/* Sticky wrapper for search bar and categories */}
               <div
                 className={cn(
