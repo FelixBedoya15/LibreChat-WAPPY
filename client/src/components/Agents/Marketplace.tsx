@@ -365,76 +365,16 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                     )}
                     key={`pane-current-${displayCategory}`}
                   >
-                    {/* Category header - only show when not searching */}
-                    {!searchQuery && (
-                      <div className="mb-6 mt-6">
-                        {(() => {
-                          // Get category data for display
-                          const getCategoryData = () => {
-                            if (displayCategory === 'promoted') {
-                              return {
-                                name: localize('com_agents_top_picks'),
-                                description: localize('com_agents_recommended'),
-                              };
-                            }
-                            if (displayCategory === 'all') {
-                              return {
-                                name: 'Todos los Agentes',
-                                description: 'Explora todos los agentes compartidos en todas las categorías',
-                              };
-                            }
-                            if (displayCategory === 'favorites') {
-                              return {
-                                name: 'Mis Agentes Favoritos ⭐',
-                                description: 'Tus agentes marcados con estrella para acceso rápido',
-                              };
-                            }
-
-                            // Find the category in the API data
-                            const categoryData = categoriesQuery.data?.find(
-                              (cat) => cat.value === displayCategory,
-                            );
-                            if (categoryData) {
-                              return {
-                                name: categoryData.label?.startsWith('com_')
-                                  ? localize(categoryData.label as TranslationKeys)
-                                  : categoryData.label,
-                                description: categoryData.description?.startsWith('com_')
-                                  ? localize(categoryData.description as TranslationKeys)
-                                  : categoryData.description || '',
-                              };
-                            }
-
-                            // Fallback for unknown categories
-                            return {
-                              name:
-                                displayCategory.charAt(0).toUpperCase() + displayCategory.slice(1),
-                              description: '',
-                            };
-                          };
-
-                          const { name, description } = getCategoryData();
-
-                          return (
-                            <div className="text-left">
-                              <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
-                              {description && (
-                                <p className="mt-2 text-text-secondary">{description}</p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-
-                    {/* Agent grid */}
-                    <AgentGrid
-                      key={`grid-${displayCategory}`}
-                      category={displayCategory}
-                      searchQuery={searchQuery}
-                      onSelectAgent={handleAgentSelect}
-                      scrollElementRef={scrollContainerRef}
-                    />
+                    <div className="pt-4">
+                      {/* Agent grid */}
+                      <AgentGrid
+                        key={`grid-${displayCategory}`}
+                        category={displayCategory}
+                        searchQuery={searchQuery}
+                        onSelectAgent={handleAgentSelect}
+                        scrollElementRef={scrollContainerRef}
+                      />
+                    </div>
                   </div>
 
                   {/* Next content pane, only during transition */}
@@ -448,79 +388,16 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                       )}
                       key={`pane-next-${nextCategory}-${animationDirection}`}
                     >
-                      {/* Category header - only show when not searching */}
-                      {!searchQuery && (
-                        <div className="mb-6 mt-6">
-                          {(() => {
-                            // Get category data for display
-                            const getCategoryData = () => {
-                              if (nextCategory === 'promoted') {
-                                return {
-                                  name: localize('com_agents_top_picks'),
-                                  description: localize('com_agents_recommended'),
-                                };
-                              }
-                              if (nextCategory === 'all') {
-                                return {
-                                  name: 'Todos los Agentes',
-                                  description: 'Explora todos los agentes compartidos en todas las categorías',
-                                };
-                              }
-                              if (nextCategory === 'favorites') {
-                                return {
-                                  name: 'Mis Agentes Favoritos ⭐',
-                                  description: 'Tus agentes marcados con estrella para acceso rápido',
-                                };
-                              }
-
-                              // Find the category in the API data
-                              const categoryData = categoriesQuery.data?.find(
-                                (cat) => cat.value === nextCategory,
-                              );
-                              if (categoryData) {
-                                return {
-                                  name: categoryData.label?.startsWith('com_')
-                                    ? localize(categoryData.label as TranslationKeys)
-                                    : categoryData.label,
-                                  description: categoryData.description?.startsWith('com_')
-                                    ? localize(
-                                        categoryData.description as Parameters<typeof localize>[0],
-                                      )
-                                    : categoryData.description || '',
-                                };
-                              }
-
-                              // Fallback for unknown categories
-                              return {
-                                name:
-                                  (nextCategory || '').charAt(0).toUpperCase() +
-                                  (nextCategory || '').slice(1),
-                                description: '',
-                              };
-                            };
-
-                            const { name, description } = getCategoryData();
-
-                            return (
-                              <div className="text-left">
-                                <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
-                                {description && (
-                                  <p className="mt-2 text-text-secondary">{description}</p>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Agent grid */}
-                      <AgentGrid
-                        key={`grid-${nextCategory}`}
-                        category={nextCategory}
-                        searchQuery={searchQuery}
-                        onSelectAgent={handleAgentSelect}
-                        scrollElementRef={scrollContainerRef}
-                      />
+                      <div className="pt-4">
+                        {/* Agent grid */}
+                        <AgentGrid
+                          key={`grid-${nextCategory}`}
+                          category={nextCategory}
+                          searchQuery={searchQuery}
+                          onSelectAgent={handleAgentSelect}
+                          scrollElementRef={scrollContainerRef}
+                        />
+                      </div>
                     </div>
                   )}
 
