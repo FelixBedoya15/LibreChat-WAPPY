@@ -1193,6 +1193,18 @@
       box-shadow: 0 4px 15px rgba(34, 197, 94, 0.25);
     }
 
+    .tenshi-banner {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%);
+      border: 2px solid var(--color-primary);
+      margin-bottom: 3rem;
+      padding: 2.5rem 3rem;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+      align-items: center;
+      border-radius: 28px;
+    }
+
     .agentes-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -1423,8 +1435,15 @@
         order: 1;
       }
 
+      .tenshi-banner {
+        grid-template-columns: 1fr;
+        padding: 2rem 1.5rem;
+        gap: 1.5rem;
+        text-align: center;
+      }
+
       .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
       }
 
       .creador-avatar-container {
@@ -1480,6 +1499,11 @@
 
       .virtudes-grid, .dolor-grid, .herramientas-grid, .planes-container, .agentes-grid {
         grid-template-columns: 1fr;
+      }
+
+      .tenshi-banner {
+        padding: 1.5rem 1.2rem;
+        border-radius: 20px;
       }
 
       .glass-card {
@@ -1880,16 +1904,16 @@
       </div>
 
       <!-- Banner Destacado Tenshi -->
-      <div class="glass-card reveal" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%); border: 2px solid var(--color-primary); margin-bottom: 3rem; padding: 2.5rem 3rem; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem; align-items: center; border-radius: 28px;">
+      <div class="glass-card tenshi-banner reveal">
         <div>
           <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(34, 197, 94, 0.2); color: var(--color-primary); padding: 0.3rem 0.9rem; border-radius: 50px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
             ✨ IA Estrella & Orquestador Nativo
           </div>
-          <h3 style="font-size: 2.2rem; margin-bottom: 0.8rem;">Tenshi: Tu Asistente Virtual 24/7</h3>
+          <h3 style="font-size: clamp(1.6rem, 4vw, 2.2rem); margin-bottom: 0.8rem;">Tenshi: Tu Asistente Virtual 24/7</h3>
           <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1.2rem; line-height: 1.6;">
             Tenshi automatiza y orquesta todo el ecosistema WAPPY IA. Es la asistente inteligente nativa que consulta tu base de datos en tiempo real, administra la plataforma central <strong>Somos SST</strong>, navega por los módulos y ejecuta tareas complejas con una conversación alegre, carismática y espontánea.
           </p>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;" class="tenshi-banner-tags">
             <span class="tag-badge active-green">Motor Gemini 3.5 Flash</span>
             <span class="tag-badge active-cyan">Automatización Total del Sistema</span>
             <span class="tag-badge">Guía Interactiva & Soporte</span>
@@ -1905,7 +1929,7 @@
         </div>
       </div>
 
-      <div class="agentes-grid reveal">
+      <div class="agentes-grid">
         <!-- Agente 0: Tenshi (Orquestador) -->
         <div class="glass-card agente-card" data-category="prevencion legal salud auditoria" style="border-color: var(--color-primary); background: rgba(34, 197, 94, 0.05);">
           <div class="card-glow"></div>
