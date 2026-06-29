@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X } from 'lucide-react';
 import { request } from 'librechat-data-provider';
 import { useAuthContext } from '~/hooks';
 
 interface ChatMessage {
   _id?: string;
   id?: string;
+  user?: any;
   senderName: string;
   senderRole: 'user' | 'bot' | 'system' | 'admin';
   content: string;
@@ -22,6 +23,8 @@ export default function ChatSSTView() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,7 @@ export default function ChatSSTView() {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000); // Polling cada 3 segundos
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -76,7 +79,7 @@ export default function ChatSSTView() {
     if (!input.trim() || sending) return;
 
     const currentText = input.trim();
-    const userName = user?.name || user?.email?.split('@')[0] || 'Admin';
+    const userName = user?.name || user?.email?.split('@')[0] || 'Usuario';
     const userRole = user?.role === 'ADMIN' ? 'admin' : 'user';
 
     setInput('');
@@ -89,9 +92,9 @@ export default function ChatSSTView() {
       mentionsFound.push('@wappy');
     }
 
-    // Actualización optimista inmediata en la UI
     const tempUserMsg: ChatMessage = {
       id: 'temp-' + Date.now(),
+      user: user?._id || user?.id,
       senderName: userName,
       senderRole: userRole,
       content: currentText,
@@ -119,6 +122,37 @@ export default function ChatSSTView() {
     }
   };
 
+  const handleDelete = async (msgId: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este mensaje?')) return;
+    try {
+      await request.delete(`/api/chat-sst/messages/${msgId}`);
+      setMessages((prev) => prev.filter((m) => (m._id || m.id) !== msgId));
+    } catch (err) {
+      console.error('Error eliminando mensaje:', err);
+    }
+  };
+
+  const startEdit = (msg: ChatMessage) => {
+    setEditingId(msg._id || msg.id || null);
+    setEditText(msg.content);
+  };
+
+  const handleSaveEdit = async (msgId: string) => {
+    if (!editText.trim()) return;
+    try {
+      await request.put(`/api/chat-sst/messages/${msgId}`, { content: editText.trim() });
+      setMessages((prev) =>
+        prev.map((m) => ((m._id || m.id) === msgId ? { ...m, content: editText.trim() } : m))
+      );
+      setEditingId(null);
+    } catch (err) {
+      console.error('Error editando mensaje:', err);
+    }
+  };
+
+  const currentUserId = user?._id || user?.id;
+  const currentUserName = user?.name || user?.email?.split('@')[0];
+
   return (
     <div className="flex h-full w-full flex-col bg-[#f0f2f5] dark:bg-zinc-900 font-sans relative">
       {/* Header estilo WhatsApp / WAPPY */}
@@ -144,7 +178,6 @@ export default function ChatSSTView() {
           <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
             <ShieldCheck className="h-4 w-4 text-emerald-500" /> {user?.role === 'ADMIN' ? 'Modo Administrador' : 'Modo Pruebas'}
           </div>
-
         </div>
       </div>
 
@@ -173,16 +206,23 @@ export default function ChatSSTView() {
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isMe = msg.senderName === (user?.name || user?.email?.split('@')[0] || 'Admin') || msg.senderRole === 'admin';
+            const msgUserId = msg.user?._id || msg.user;
+            const isMe =
+              (msgUserId && msgUserId.toString() === currentUserId?.toString()) ||
+              (msg.senderName && msg.senderName === currentUserName);
+
             const isBot = msg.senderRole === 'bot';
+            const msgId = msg._id || msg.id || index.toString();
             const formattedTime = msg.createdAt
               ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : msg.time || '';
 
+            const canManage = isMe || user?.role === 'ADMIN';
+
             return (
               <div
-                key={msg._id || msg.id || index}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                key={msgId}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group relative`}
               >
                 <div
                   className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-4 shadow-xs relative ${
@@ -206,15 +246,63 @@ export default function ChatSSTView() {
                       {isBot && <Bot className="h-3.5 w-3.5" />}
                       {msg.senderName}
                     </span>
-                    <span
-                      className={`text-[10px] ${
-                        isMe ? 'text-emerald-200' : 'text-zinc-400'
-                      }`}
-                    >
-                      {formattedTime}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] ${
+                          isMe ? 'text-emerald-200' : 'text-zinc-400'
+                        }`}
+                      >
+                        {formattedTime}
+                      </span>
+                      {canManage && !isBot && editingId !== msgId && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2">
+                          {isMe && (
+                            <button
+                              onClick={() => startEdit(msg)}
+                              className="p-1 hover:bg-black/10 rounded text-xs transition-colors"
+                              title="Editar mensaje"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(msgId)}
+                            className="p-1 hover:bg-black/10 rounded text-xs transition-colors text-rose-300 hover:text-rose-100"
+                            title="Eliminar mensaje"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                  {editingId === msgId ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="flex-1 px-2 py-1 text-sm rounded border border-white/30 bg-black/20 text-white focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleSaveEdit(msgId)}
+                        className="p-1 bg-emerald-500 rounded text-white hover:bg-emerald-400"
+                        title="Guardar"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="p-1 bg-zinc-600 rounded text-white hover:bg-zinc-500"
+                        title="Cancelar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  )}
                 </div>
               </div>
             );

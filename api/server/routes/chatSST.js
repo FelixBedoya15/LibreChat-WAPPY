@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('../middleware');
-const { getMessages, sendMessage } = require('../controllers/ChatSSTController');
+const { getMessages, sendMessage, updateMessage, deleteMessage } = require('../controllers/ChatSSTController');
 
 const requireAdminOrTestUser = (req, res, next) => {
   try {
     const isAllowedUser = req.user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
-
     const isAdmin = req.user?.role === 'ADMIN';
 
     if (isAdmin || isAllowedUser) {
@@ -18,8 +17,9 @@ const requireAdminOrTestUser = (req, res, next) => {
   }
 };
 
-// Restringido a administradores y felix.bedoya15@gmail.com para pruebas
 router.get('/messages', requireJwtAuth, requireAdminOrTestUser, getMessages);
 router.post('/send', requireJwtAuth, requireAdminOrTestUser, sendMessage);
+router.put('/messages/:id', requireJwtAuth, requireAdminOrTestUser, updateMessage);
+router.delete('/messages/:id', requireJwtAuth, requireAdminOrTestUser, deleteMessage);
 
 module.exports = router;

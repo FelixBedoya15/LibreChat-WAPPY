@@ -30,7 +30,7 @@ const sendMessage = async (req, res) => {
 
     const newMessage = await ChatSSTMessage.create({
       user: user?._id || user?.id,
-      senderName: user?.name || user?.email?.split('@')[0] || 'Admin',
+      senderName: user?.name || user?.email?.split('@')[0] || 'Usuario',
       senderRole: user?.role === 'ADMIN' ? 'admin' : 'user',
       content: content.trim(),
       mentions: mentions || [],
@@ -40,13 +40,11 @@ const sendMessage = async (req, res) => {
 
     const populatedMessage = await ChatSSTMessage.findById(newMessage._id).populate('user', 'name email avatar role');
 
-    // Transmitir por WebSockets si el socket app está adjunto
     const io = req.app.get('socketio');
     if (io) {
       io.emit('chat_sst_message', populatedMessage);
     }
 
-    // Si menciona a @wappy, encolar para respuesta automatizada
     const isWappyMentioned = content.toLowerCase().includes('@wappy') || (mentions && mentions.includes('@wappy'));
     let queuePosition = 0;
     if (isWappyMentioned) {
@@ -64,7 +62,69 @@ const sendMessage = async (req, res) => {
   }
 };
 
+const updateMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const userId = req.user?._id || req.user?.id;
+
+    const msg = await ChatSSTMessage.findById(id);
+    if (!msg) {
+      return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
+    }
+
+    // Solo el autor o un admin puede editar
+    if (msg.user?.toString() !== userId?.toString() && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permiso para editar este mensaje.' });
+    }
+
+    msg.content = content;
+    await msg.save();
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('chat_sst_message_updated', msg);
+    }
+
+    res.status(200).json({ success: true, data: msg });
+  } catch (error) {
+    console.error('Error al actualizar mensaje:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar mensaje.' });
+  }
+};
+
+const deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id || req.user?.id;
+
+    const msg = await ChatSSTMessage.findById(id);
+    if (!msg) {
+      return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
+    }
+
+    // Solo el autor o un admin puede eliminar
+    if (msg.user?.toString() !== userId?.toString() && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permiso para eliminar este mensaje.' });
+    }
+
+    await ChatSSTMessage.findByIdAndDelete(id);
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('chat_sst_message_deleted', id);
+    }
+
+    res.status(200).json({ success: true, message: 'Mensaje eliminado.' });
+  } catch (error) {
+    console.error('Error al eliminar mensaje:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar mensaje.' });
+  }
+};
+
 module.exports = {
   getMessages,
   sendMessage,
+  updateMessage,
+  deleteMessage,
 };
