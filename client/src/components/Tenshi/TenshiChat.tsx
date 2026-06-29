@@ -100,11 +100,17 @@ export default function TenshiChat() {
             const assistantMsg = { role: 'assistant', content: response.data.response, htmlReport: response.data.htmlReport };
             setMessages(prev => [...prev, assistantMsg]);
         } catch (error: any) {
-            console.error('Error with Tenshi:', error);
-            const backendError = error.response?.data?.details || error.message;
+            console.error('Error con Tenshi:', error);
+            const status = error.response?.status;
+            let userFriendlyMsg = error.response?.data?.details || error.message;
+
+            if (status === 502 || userFriendlyMsg.includes('502')) {
+                userFriendlyMsg = 'Se interrumpió la conexión brevemente mientras el servidor terminaba de actualizarse (Error 502). Ya estamos totalmente en línea. ¡Por favor reenvíame tu solicitud!';
+            }
+
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `Lo siento, he tenido un problema conectando con el servidor. Error: ${backendError}. Por favor, verifica la configuración en el panel de admin.`
+                content: `Lo siento, he tenido un inconveniente de conexión. ${userFriendlyMsg}`
             }]);
         } finally {
             setIsTyping(false);

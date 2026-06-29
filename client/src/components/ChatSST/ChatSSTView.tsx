@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2 } from 'lucide-react';
+import { request } from 'librechat-data-provider';
 import { useAuthContext } from '~/hooks';
 
 interface ChatMessage {
@@ -15,7 +16,7 @@ interface ChatMessage {
 }
 
 export default function ChatSSTView() {
-  const { token, user } = useAuthContext();
+  const { user } = useAuthContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -30,19 +31,8 @@ export default function ChatSSTView() {
 
   const fetchMessages = async () => {
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const res = await fetch('/api/chat-sst/messages', {
-        headers,
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
+      const data = await request.get('/api/chat-sst/messages') as any;
+      if (data && data.success && Array.isArray(data.data)) {
         setMessages(data.data);
       }
     } catch (err) {
@@ -56,7 +46,7 @@ export default function ChatSSTView() {
     fetchMessages();
     const interval = setInterval(fetchMessages, 3000); // Polling cada 3 segundos
     return () => clearInterval(interval);
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -86,35 +76,38 @@ export default function ChatSSTView() {
     if (!input.trim() || sending) return;
 
     const currentText = input.trim();
+    const userName = user?.name || user?.email?.split('@')[0] || 'Admin';
+    const userRole = user?.role === 'ADMIN' ? 'admin' : 'user';
+
     setInput('');
     setSending(true);
     setShowMentions(false);
 
     const mentionsFound: string[] = [];
-    if (currentText.toLowerCase().includes('@wappy')) {
+    const isWappy = currentText.toLowerCase().includes('@wappy');
+    if (isWappy) {
       mentionsFound.push('@wappy');
     }
 
+    // Actualización optimista inmediata en la UI
+    const tempUserMsg: ChatMessage = {
+      id: 'temp-' + Date.now(),
+      senderName: userName,
+      senderRole: userRole,
+      content: currentText,
+      mentions: mentionsFound,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, tempUserMsg]);
+
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      const data = await request.post('/api/chat-sst/send', {
+        content: currentText,
+        mentions: mentionsFound,
+      }) as any;
 
-      const res = await fetch('/api/chat-sst/send', {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({
-          content: currentText,
-          mentions: mentionsFound,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         fetchMessages();
       } else {
         console.error('Error del servidor al enviar mensaje:', data);

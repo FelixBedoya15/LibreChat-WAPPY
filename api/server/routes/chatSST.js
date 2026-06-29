@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { requireJwtAuth } = require('~/server/middleware');
-const { requireAdmin } = require('~/server/middleware/roles/admin');
+const { requireJwtAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware/roles/admin');
 const { getMessages, sendMessage } = require('../controllers/ChatSSTController');
 
 // Por el momento, restringido a administradores para pruebas
