@@ -28,6 +28,9 @@ const ConsultarAnaliticaActosCondiciones = require('./structured/ConsultarAnalit
 const GoogleDrive = require('./structured/GoogleDrive');
 const GoogleCalendar = require('./structured/GoogleCalendar');
 const GoogleGmail = require('./structured/GoogleGmail');
+const GoogleSheets = require('./structured/GoogleSheets');
+const GoogleDocs = require('./structured/GoogleDocs');
+const GoogleSlides = require('./structured/GoogleSlides');
 
 
 module.exports = {
@@ -60,4 +63,7 @@ module.exports = {
   GoogleDrive,
   GoogleCalendar,
   GoogleGmail,
+  GoogleSheets,
+  GoogleDocs,
+  GoogleSlides,
 };

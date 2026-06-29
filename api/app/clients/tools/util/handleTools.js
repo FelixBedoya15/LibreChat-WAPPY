@@ -51,6 +51,9 @@ const {
   GoogleDrive,
   GoogleCalendar,
   GoogleGmail,
+  GoogleSheets,
+  GoogleDocs,
+  GoogleSlides,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -283,6 +286,15 @@ const loadTools = async ({
     },
     google_gmail: async (_toolContextMap) => {
       return new GoogleGmail({ req: options.req });
+    },
+    google_sheets: async (_toolContextMap) => {
+      return new GoogleSheets({ req: options.req });
+    },
+    google_docs: async (_toolContextMap) => {
+      return new GoogleDocs({ req: options.req });
+    },
+    google_slides: async (_toolContextMap) => {
+      return new GoogleSlides({ req: options.req });
     },
   };
 

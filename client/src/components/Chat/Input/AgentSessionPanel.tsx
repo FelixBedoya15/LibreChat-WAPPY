@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import * as Ariakit from '@ariakit/react';
 import {
     Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
-    FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail,
+    FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail, FileSpreadsheet, Presentation,
     HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
     Search, Youtube, Image, Binary, Compass, CloudSun, GitFork
 } from 'lucide-react';
@@ -126,6 +126,12 @@ const getToolIcon = (toolId: string) => {
             return <Calendar className="h-4 w-4 text-blue-500" />;
         case 'google_gmail':
             return <Mail className="h-4 w-4 text-red-500" />;
+        case 'google_sheets':
+            return <FileSpreadsheet className="h-4 w-4 text-green-500" />;
+        case 'google_docs':
+            return <FileText className="h-4 w-4 text-blue-500" />;
+        case 'google_slides':
+            return <Presentation className="h-4 w-4 text-orange-500" />;
 
         // --- Standard / External APIs / Plugins ---
         case 'google':
@@ -368,6 +374,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                     google_drive: 'Google Drive',
                                     google_calendar: 'Google Calendar',
                                     google_gmail: 'Google Gmail',
+                                    google_sheets: 'Google Sheets',
+                                    google_docs: 'Google Docs',
+                                    google_slides: 'Google Slides',
                                     google: 'Google Search',
                                     youtube: 'YouTube',
                                     dalle: 'DALL-E-3',
@@ -398,7 +407,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 label={displayName}
                                                 checked={isActive}
                                                 onChange={() => {
-                                                    if ((toolId === 'google_drive' || toolId === 'google_calendar' || toolId === 'google_gmail') && !isActive && !isProOrAdmin) {
+                                                    if ((toolId === 'google_drive' || toolId === 'google_calendar' || toolId === 'google_gmail' || toolId === 'google_sheets' || toolId === 'google_docs' || toolId === 'google_slides') && !isActive && !isProOrAdmin) {
                                                         setIsUpgradeModalOpen(true);
                                                     } else {
                                                         toggleExternalTool(toolId);
