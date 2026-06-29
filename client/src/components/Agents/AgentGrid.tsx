@@ -40,7 +40,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       promoted?: 0 | 1;
     } = {
       requiredPermission: PermissionBits.VIEW, // View permission for marketplace viewing
-      limit: 12,
+      limit: 100,
     };
 
     // Handle search
