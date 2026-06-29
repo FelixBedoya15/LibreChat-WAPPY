@@ -1,7 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import * as Ariakit from '@ariakit/react';
-import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown } from 'lucide-react';
+import {
+    Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
+    FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail,
+    HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
+    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork
+} from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { TooltipAnchor } from '@librechat/client';
@@ -80,6 +85,77 @@ function ToolRow({
         </div>
     );
 }
+
+/* ─── Tool Icon Resolver ──────────────────────────────────────────────── */
+const getToolIcon = (toolId: string) => {
+    switch (toolId) {
+        // --- Core / Wappy Custom Tools ---
+        case 'context':
+            return <FileText className="h-4 w-4 text-violet-500" />;
+        case 'calculator':
+            return <Calculator className="h-4 w-4 text-emerald-500" />;
+        case 'memory':
+            return <Brain className="h-4 w-4 text-pink-500" />;
+        case 'somos_sst':
+            return <HeartPulse className="h-4 w-4 text-rose-500" />;
+        case 'matriz_ipevar':
+            return <ShieldAlert className="h-4 w-4 text-amber-500" />;
+        case 'matriz_pesv':
+            return <Car className="h-4 w-4 text-orange-500" />;
+        case 'matriz_compatibilidad':
+            return <FlaskConical className="h-4 w-4 text-lime-500" />;
+        case 'editor_live':
+            return <FileEdit className="h-4 w-4 text-blue-500" />;
+        case 'editor_rit':
+            return <Scale className="h-4 w-4 text-indigo-500" />;
+        case 'canvas':
+            return <Palette className="h-4 w-4 text-fuchsia-500" />;
+        case 'blog_editor':
+            return <BookOpen className="h-4 w-4 text-teal-500" />;
+        case 'consultar_agente_especializado':
+            return <UserCheck className="h-4 w-4 text-violet-500" />;
+        case 'consultar_analitica_psicosocial':
+            return <Heart className="h-4 w-4 text-pink-500" />;
+        case 'consultar_analitica_actos_condiciones':
+            return <Activity className="h-4 w-4 text-cyan-500" />;
+
+        // --- Google Suite ---
+        case 'google_drive':
+            return <Cloud className="h-4 w-4 text-emerald-500" />;
+        case 'google_calendar':
+            return <Calendar className="h-4 w-4 text-blue-500" />;
+        case 'google_gmail':
+            return <Mail className="h-4 w-4 text-red-500" />;
+
+        // --- Standard / External APIs / Plugins ---
+        case 'google':
+        case 'google_search':
+        case 'google-search':
+            return <Search className="h-4 w-4 text-blue-500" />;
+        case 'youtube':
+            return <Youtube className="h-4 w-4 text-red-500" />;
+        case 'image_gen_oai':
+        case 'dalle':
+        case 'stable-diffusion':
+        case 'flux':
+        case 'google-image-gen':
+            return <Image className="h-4 w-4 text-sky-500" />;
+        case 'wolfram':
+            return <Binary className="h-4 w-4 text-red-600" />;
+        case 'web-browser':
+        case 'tavily_search_results_json':
+        case 'traversaal_search':
+        case 'azure-ai-search':
+            return <Compass className="h-4 w-4 text-teal-500" />;
+        case 'open_weather':
+            return <CloudSun className="h-4 w-4 text-yellow-500" />;
+        case 'n8n':
+            return <GitFork className="h-4 w-4 text-amber-500" />;
+
+        default:
+            return <Wrench className="h-4 w-4 text-text-secondary" />;
+    }
+};
 
 /* ─── Main Panel ──────────────────────────────────────────────────────── */
 export default function AgentSessionPanel({ agentId, conversationId }: AgentSessionPanelProps) {
@@ -229,7 +305,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
                     {/* ── Tools ── */}
                     {hasAnyTools && (
-                        <div className="py-1.5">
+                        <div className="py-1.5 max-h-[340px] overflow-y-auto pr-1">
                             {hasWebSearch && (
                                 <Ariakit.MenuItem
                                     hideOnClick={false}
@@ -281,14 +357,31 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                     somos_sst: 'Somos SST',
                                     matriz_ipevar: 'Matriz IPEVAR',
                                     matriz_pesv: 'Matriz PESV',
+                                    matriz_compatibilidad: 'Compatibilidad Química',
                                     editor_live: 'Editor Live',
                                     editor_rit: 'Editor RIT',
                                     canvas: 'Canvas',
+                                    blog_editor: 'Gestor de Blog',
+                                    consultar_agente_especializado: 'Consultar Especialista',
                                     consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
                                     consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
                                     google_drive: 'Google Drive',
                                     google_calendar: 'Google Calendar',
-                                    google_gmail: 'Google Gmail'
+                                    google_gmail: 'Google Gmail',
+                                    google: 'Google Search',
+                                    youtube: 'YouTube',
+                                    dalle: 'DALL-E-3',
+                                    tavily_search_results_json: 'Tavily Search',
+                                    'stable-diffusion': 'Stable Diffusion',
+                                    'azure-ai-search': 'Azure AI Search',
+                                    open_weather: 'OpenWeather',
+                                    flux: 'Flux Image Gen',
+                                    'google-image-gen': 'Google Image Gen',
+                                    n8n: 'n8n Webhook',
+                                    traversaal_search: 'Traversaal',
+                                    image_gen_oai: 'OpenAI Imagen',
+                                    wolfram: 'Wolfram|Alpha',
+                                    'web-browser': 'Navegador Web'
                                 };
                                 const displayName = toolTranslations[toolId] ?? toolId
                                     .split('_')
@@ -301,7 +394,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         render={
                                             <ToolRow
                                                 id={`agent-session-tool-${toolId}`}
-                                                icon={<Wrench className="h-4 w-4 text-text-secondary" />}
+                                                icon={getToolIcon(toolId)}
                                                 label={displayName}
                                                 checked={isActive}
                                                 onChange={() => {
