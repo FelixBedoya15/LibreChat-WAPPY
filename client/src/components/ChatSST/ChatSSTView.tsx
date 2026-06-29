@@ -150,8 +150,16 @@ export default function ChatSSTView() {
     }
   };
 
-  const currentUserId = user?._id || user?.id;
-  const currentUserName = user?.name || user?.email?.split('@')[0];
+  // ID estricto del usuario actual conectado en el navegador
+  const currentUserIdStr = (user?._id || user?.id)?.toString();
+
+  const extractUserIdString = (u: any): string => {
+    if (!u) return '';
+    if (typeof u === 'string') return u;
+    if (u._id) return u._id.toString();
+    if (u.id) return u.id.toString();
+    return '';
+  };
 
   return (
     <div className="flex h-full w-full flex-col bg-[#f0f2f5] dark:bg-zinc-900 font-sans relative">
@@ -206,12 +214,12 @@ export default function ChatSSTView() {
           </div>
         ) : (
           messages.map((msg, index) => {
-            const msgUserId = msg.user?._id || msg.user;
-            const isMe =
-              (msgUserId && msgUserId.toString() === currentUserId?.toString()) ||
-              (msg.senderName && msg.senderName === currentUserName);
-
+            const msgUserIdStr = extractUserIdString(msg.user);
             const isBot = msg.senderRole === 'bot';
+
+            // ESTRICTO: Solo es "isMe" (derecha) si el ID del autor coincide exactamente con el ID de mi usuario conectado
+            const isMe = Boolean(currentUserIdStr && msgUserIdStr && currentUserIdStr === msgUserIdStr);
+
             const msgId = msg._id || msg.id || index.toString();
             const formattedTime = msg.createdAt
               ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
