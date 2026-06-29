@@ -129,7 +129,6 @@ class WappyQueueService {
         throw new Error('No se encontraron claves API de Google/Gemini configuradas en el sistema.');
       }
 
-      // Obtener modelos exactamente de la variable de entorno o de la lista oficial del sistema
       const envModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
@@ -137,14 +136,20 @@ class WappyQueueService {
 
       const modelFallbacks = envModels.length > 0 ? envModels : SYSTEM_GOOGLE_MODELS;
 
-      const systemInstruction = `Eres @wappy, el agente estrella de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SST), normatividad laboral colombiana e internacional (Decreto 1072 de 2015, Resolución 0312 de 2019, Guía GTC 45, etc.). Responde de forma clara, profesional, precisa y estructurada a las consultas de los usuarios. Sé cordial y enfócate siempre en la prevención de riesgos y el cumplimiento normativo.`;
-      const prompt = `Un usuario llamado ${currentMessage.senderName} te ha hecho la siguiente consulta en el Chat SST:\n\n"${currentMessage.content}"\n\nPor favor bríndale una respuesta experta, clara y práctica.`;
+      const systemInstruction = `Eres @wappy, el agente de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SST) para la plataforma WAPPY IA.
+REGLAS DE FORMATO Y ESTILO:
+1. Sé natural, directo y conversacional (estilo chat tipo WhatsApp).
+2. ADAPTA LA LONGITUD DE TU RESPUESTA AL MENSAJE DEL USUARIO:
+   - Si el usuario solo saluda (ej: "hola", "buenos días", "hola @wappy"), responde ÚNICAMENTE con un saludo breve y cordial preguntando en qué puedes ayudarle (ej: "¡Hola ${currentMessage.senderName}! ¿En qué te puedo colaborar hoy con tu Sistema de Gestión SST?").
+   - NO generes discursos largos, presentaciones extensas, ni listas de viñetas cuando el usuario solo está saludando o haciendo una pregunta corta.
+   - Si el usuario hace una pregunta técnica específica de SST (Decreto 1072, Res 0312, GTC 45, etc.), responde de forma clara, precisa y profesional.`;
+
+      const prompt = `El usuario ${currentMessage.senderName} escribió en el chat: "${currentMessage.content}". Responde de acuerdo a las reglas de estilo.`;
 
       let botResponseText = '';
       let lastError = null;
       let succeeded = false;
 
-      // Bucle de rotación doble (modelos exterior, claves API interior)
       for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
         const currentModel = modelFallbacks[mi];
         for (let i = 0; i < apiKeys.length; i++) {
@@ -161,13 +166,12 @@ class WappyQueueService {
             botResponseText = result.response.text();
             lastError = null;
             succeeded = true;
-            break; // Éxito en rotación de clave
+            break;
           } catch (geminiError) {
             lastError = geminiError;
             const status = geminiError.status || geminiError.statusCode;
             const msg = geminiError.message || '';
 
-            // Rotación de clave en 400/403/429/leaked/invalid key
             if (
               status === 400 ||
               status === 429 ||
@@ -182,13 +186,11 @@ class WappyQueueService {
               continue;
             }
 
-            // Fallback de modelo en 503 / sobrecarga
             if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
               console.warn(`[Chat SST @wappy] Modelo "${currentModel}" no disponible (503). Cambiando a modelo fallback...`);
               break;
             }
 
-            // Error no recuperable
             throw geminiError;
           }
         }
@@ -198,7 +200,6 @@ class WappyQueueService {
         throw new Error(`Todas las claves y modelos de Google AI fallaron. Último error: ${lastError.message}`);
       }
 
-      // Guardar mensaje exitoso del bot en la base de datos
       const botMessage = await ChatSSTMessage.create({
         senderName: 'WAPPY SST',
         senderRole: 'bot',

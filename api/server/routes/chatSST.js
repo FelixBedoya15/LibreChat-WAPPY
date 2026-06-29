@@ -1,11 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('../middleware');
-const { requireAdmin } = require('../middleware/roles/admin');
 const { getMessages, sendMessage } = require('../controllers/ChatSSTController');
 
-// Por el momento, restringido a administradores para pruebas
-router.get('/messages', requireJwtAuth, requireAdmin, getMessages);
-router.post('/send', requireJwtAuth, requireAdmin, sendMessage);
+const requireAdminOrTestUser = (req, res, next) => {
+  try {
+    const isAllowedUser = req.user?.email === 'felix.bedoya15@gmail.com';
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    if (isAdmin || isAllowedUser) {
+      return next();
+    }
+    return res.status(403).json({ message: 'Forbidden: Acceso restringido para pruebas.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+// Restringido a administradores y felix.bedoya15@gmail.com para pruebas
+router.get('/messages', requireJwtAuth, requireAdminOrTestUser, getMessages);
+router.post('/send', requireJwtAuth, requireAdminOrTestUser, sendMessage);
 
 module.exports = router;

@@ -277,7 +277,7 @@ const Nav = memo(
                           }
                         />
                         {/* Chat SST icon */}
-                        {user?.role === 'ADMIN' && (
+                        {(user?.role === 'ADMIN' || user?.email === 'felix.bedoya15@gmail.com') && (
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
@@ -315,7 +315,7 @@ const Nav = memo(
                         </Suspense>
                         {/* Inspección MinTrabajo */}
                         <Suspense fallback={null}>
-                        {user?.role === 'ADMIN' && (
+                        {(user?.role === 'ADMIN' || user?.email === 'felix.bedoya15@gmail.com') && (
                           <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         )}
                         </Suspense>
@@ -325,7 +325,7 @@ const Nav = memo(
                         </Suspense>
                         {/* Ruta Aprendizaje */}
                         <Suspense fallback={null}>
-                          {user?.role === 'ADMIN' && (
+                          {(user?.role === 'ADMIN' || user?.email === 'felix.bedoya15@gmail.com') && (
                             <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           )}
                         </Suspense>
@@ -360,7 +360,7 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                {user?.role === 'ADMIN' && (
+                                {(user?.role === 'ADMIN' || user?.email === 'felix.bedoya15@gmail.com') && (
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>

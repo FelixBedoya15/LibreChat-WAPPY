@@ -142,8 +142,9 @@ export default function ChatSSTView() {
 
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" /> Modo Administrador
+            <ShieldCheck className="h-4 w-4 text-emerald-500" /> {user?.role === 'ADMIN' ? 'Modo Administrador' : 'Modo Pruebas'}
           </div>
+
         </div>
       </div>
 
