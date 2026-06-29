@@ -12,6 +12,11 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const XLSX = require('xlsx');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { syncCanvasToLiveEditor } = require('./syncBridge');
+const {
+  exportIPEVARToExcel,
+  exportMatrizPESVToExcel,
+  exportCompatibilidadToExcel
+} = require('./excelGenerator');
 
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });
@@ -966,9 +971,10 @@ router.get('/gtc45/:conversationId/excel', async (req, res) => {
       return res.status(404).send('Matriz no encontrada o vacía.');
     }
 
-    // Clean MongoDB fields from objects
-    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
-    return sendExcelResponse(res, `Matriz_GTC45_${conversationId}.xlsx`, cleanRows);
+    const buffer = await exportIPEVARToExcel(session.matrixRows);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Matriz_GTC45_${conversationId}.xlsx"`);
+    return res.send(buffer);
   } catch (error) {
     logger.error('[Canvas GTC45 Excel GET] Error:', error);
     res.status(500).send('Error al descargar el archivo Excel');
@@ -1010,8 +1016,10 @@ router.get('/pesv/:conversationId/excel', async (req, res) => {
       return res.status(404).send('Matriz no encontrada o vacía.');
     }
 
-    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
-    return sendExcelResponse(res, `Matriz_PESV_${conversationId}.xlsx`, cleanRows);
+    const buffer = await exportMatrizPESVToExcel(session.matrixRows);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Matriz_PESV_${conversationId}.xlsx"`);
+    return res.send(buffer);
   } catch (error) {
     logger.error('[Canvas PESV Excel GET] Error:', error);
     res.status(500).send('Error al descargar el archivo Excel');
@@ -1053,8 +1061,10 @@ router.get('/chemical/:conversationId/excel', async (req, res) => {
       return res.status(404).send('Matriz no encontrada o vacía.');
     }
 
-    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
-    return sendExcelResponse(res, `Matriz_Quimica_${conversationId}.xlsx`, cleanRows);
+    const buffer = await exportCompatibilidadToExcel(session.matrixRows);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Matriz_Quimica_${conversationId}.xlsx"`);
+    return res.send(buffer);
   } catch (error) {
     logger.error('[Canvas Chemical Excel GET] Error:', error);
     res.status(500).send('Error al descargar el archivo Excel');
