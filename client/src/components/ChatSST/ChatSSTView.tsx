@@ -15,13 +15,12 @@ interface ChatMessage {
 }
 
 export default function ChatSSTView() {
-  const { user } = useAuthContext();
+  const { token, user } = useAuthContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
-  const [queueInfo, setQueueInfo] = useState<{ position: number; total: number } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +30,15 @@ export default function ChatSSTView() {
 
   const fetchMessages = async () => {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('/api/chat-sst/messages', {
+        headers,
         credentials: 'include',
       });
       const data = await res.json();
@@ -47,9 +54,9 @@ export default function ChatSSTView() {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000); // Polling cada 3 segundos en tiempo real
+    const interval = setInterval(fetchMessages, 3000); // Polling cada 3 segundos
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     scrollToBottom();
@@ -58,7 +65,6 @@ export default function ChatSSTView() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
-    // Mostrar dropdown de mención si termina en @ o incluye @
     const lastChar = val.slice(-1);
     if (lastChar === '@' || (val.includes('@') && !val.includes(' '))) {
       setShowMentions(true);
@@ -84,16 +90,22 @@ export default function ChatSSTView() {
     setSending(true);
     setShowMentions(false);
 
-    // Detección previa de menciones
     const mentionsFound: string[] = [];
     if (currentText.toLowerCase().includes('@wappy')) {
       mentionsFound.push('@wappy');
     }
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('/api/chat-sst/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           content: currentText,
@@ -103,10 +115,9 @@ export default function ChatSSTView() {
 
       const data = await res.json();
       if (data.success) {
-        if (data.queuePosition && data.queuePosition > 0) {
-          setQueueInfo({ position: data.queuePosition, total: data.queuePosition });
-        }
         fetchMessages();
+      } else {
+        console.error('Error del servidor al enviar mensaje:', data);
       }
     } catch (err) {
       console.error('Error enviando mensaje:', err);

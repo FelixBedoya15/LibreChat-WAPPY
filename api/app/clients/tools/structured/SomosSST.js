@@ -1496,12 +1496,6 @@ class SomosSST extends Tool {
         const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
         if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
         
-        let companyId = null;
-        if (CompanyInfo) {
-          const activeCo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean() || await CompanyInfo.findOne({ user: userId }).lean();
-          if (activeCo) companyId = activeCo._id.toString();
-        }
-
         const query = { user: userId };
         if (companyId) query.companyId = companyId;
 
@@ -1525,12 +1519,6 @@ class SomosSST extends Tool {
         const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
         if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
 
-        let companyId = null;
-        if (CompanyInfo) {
-          const activeCo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean() || await CompanyInfo.findOne({ user: userId }).lean();
-          if (activeCo) companyId = activeCo._id.toString();
-        }
-
         const taskTitle = input.titulo_actividad || input.nombre_tarea_o_hito || 'Nueva Actividad ACPM';
         let due = new Date();
         if (input.fecha_vencimiento) {
@@ -1549,7 +1537,7 @@ class SomosSST extends Tool {
 
         const newTask = await KanbanTask.create({
           user: userId,
-          companyId: companyId || 'default',
+          companyId: companyId ? companyId.toString() : 'default',
           title: taskTitle,
           description: input.descripcion_actividad || input.descripcion || 'Actividad registrada por Tenshi',
           dueDate: due,

@@ -320,13 +320,13 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
                         const genAI = new GoogleGenerativeAI(apiKey);
                         const somosSSTDeclaration = {
                             name: 'somos_sst',
-                            description: 'Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas y estadísticas en tiempo real).',
+                            description: 'Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas, Centro de Control ACPM y estadísticas en tiempo real).',
                             parameters: {
                                 type: 'OBJECT',
                                 properties: {
                                     accion: {
                                         type: 'STRING',
-                                        description: 'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema.'
+                                        description: 'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, actualizar_actividad_acpm.'
                                     },
                                     tipo_informe: { type: 'STRING' },
                                     titulo_informe: { type: 'STRING' },
@@ -341,7 +341,12 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
                                     descripcion_hechos: { type: 'STRING' },
                                     nombre_aplicativo: { type: 'STRING' },
                                     propiedad_o_ruta: { type: 'STRING' },
-                                    nuevo_valor: { type: 'STRING' }
+                                    nuevo_valor: { type: 'STRING' },
+                                    titulo_actividad: { type: 'STRING', description: 'Título de la actividad para el Centro de Control ACPM' },
+                                    descripcion_actividad: { type: 'STRING', description: 'Detalles o descripción de la actividad ACPM' },
+                                    fecha_vencimiento: { type: 'STRING', description: 'Fecha de vencimiento (YYYY-MM-DD o "mañana")' },
+                                    estado_actividad: { type: 'STRING', description: 'todo, due_soon, overdue, done' },
+                                    tipo_actividad: { type: 'STRING', description: 'manual, medical_exam, training, other' }
                                 },
                                 required: ['accion']
                             }
