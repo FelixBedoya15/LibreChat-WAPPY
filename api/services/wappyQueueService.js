@@ -1,5 +1,14 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const mongoose = require('mongoose');
 const ChatSSTMessage = require('../models/ChatSSTMessage');
+const { getUserKey } = require('../server/services/UserService');
+
+// Modelos exactos configurados en el sistema WAPPY (coincidentes con sgsstGemini.js)
+const SYSTEM_GOOGLE_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+];
 
 class WappyQueueService {
   constructor() {
@@ -12,11 +21,79 @@ class WappyQueueService {
     this.io = io;
   }
 
+  async getAllRotatedApiKeys(userId) {
+    const keysSet = new Set();
+
+    const extractKeysFromStringOrObj = (stored) => {
+      if (!stored) return;
+      let rawStr = '';
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          rawStr = parsed.GOOGLE_API_KEY || parsed.GOOGLE_KEY || Object.values(parsed).join(',');
+        }
+      } catch {
+        rawStr = stored;
+      }
+
+      if (typeof rawStr === 'string' && rawStr.length > 5 && rawStr !== 'user_provided') {
+        rawStr.split(',').forEach((k) => {
+          const trimmed = k.trim();
+          if (trimmed && trimmed.length > 5 && trimmed !== 'user_provided') {
+            keysSet.add(trimmed);
+          }
+        });
+      }
+    };
+
+    // 1. Claves del usuario actual
+    if (userId) {
+      try {
+        const stored = await getUserKey({ userId, name: 'google' });
+        extractKeysFromStringOrObj(stored);
+      } catch (err) {
+        // Ignorar
+      }
+    }
+
+    // 2. Claves del Administrador
+    try {
+      const User = mongoose.model('User');
+      const adminUser = await User.findOne({ role: 'ADMIN' });
+      if (adminUser) {
+        const storedAdmin = await getUserKey({ userId: adminUser._id, name: 'google' });
+        extractKeysFromStringOrObj(storedAdmin);
+      }
+    } catch (err) {
+      // Ignorar
+    }
+
+    // 3. Claves en variables de entorno globales
+    const envKeys = [
+      process.env.GOOGLE_AI_API_KEY,
+      process.env.GOOGLE_KEY,
+      process.env.GEMINI_API_KEY,
+      process.env.GOOGLE_API_KEY,
+    ];
+
+    envKeys.forEach((envK) => {
+      if (envK && envK !== 'user_provided') {
+        envK.split(',').forEach((k) => {
+          const trimmed = k.trim();
+          if (trimmed && trimmed.length > 5 && trimmed !== 'user_provided') {
+            keysSet.add(trimmed);
+          }
+        });
+      }
+    });
+
+    return Array.from(keysSet);
+  }
+
   enqueue(userMessage) {
     this.queue.push(userMessage);
     const position = this.queue.length;
 
-    // Notificar posición en cola al cliente si hay socket
     if (this.io && position > 1) {
       this.io.emit('chat_sst_queue_update', {
         messageId: userMessage._id,
@@ -45,24 +122,83 @@ class WappyQueueService {
         });
       }
 
-      // Obtener API Key de Gemini
-      const apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('No se encontró clave API de Gemini configurada.');
+      const userId = currentMessage.user?._id || currentMessage.user;
+      const apiKeys = await this.getAllRotatedApiKeys(userId);
+
+      if (apiKeys.length === 0) {
+        throw new Error('No se encontraron claves API de Google/Gemini configuradas en el sistema.');
       }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        systemInstruction: `Eres @wappy, el agente de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SST), normatividad laboral colombiana e internacional (Decreto 1072 de 2015, Resolución 0312 de 2019, Guía GTC 45, etc.). Responde de forma clara, profesional, precisa y estructurada a las consultas de los usuarios. Sé cordial y enfócate siempre en la prevención de riesgos y el cumplimiento normativo.`,
-      });
+      // Obtener modelos exactamente de la variable de entorno o de la lista oficial del sistema
+      const envModels = (process.env.GOOGLE_MODELS || '')
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
 
+      const modelFallbacks = envModels.length > 0 ? envModels : SYSTEM_GOOGLE_MODELS;
+
+      const systemInstruction = `Eres @wappy, el agente estrella de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SST), normatividad laboral colombiana e internacional (Decreto 1072 de 2015, Resolución 0312 de 2019, Guía GTC 45, etc.). Responde de forma clara, profesional, precisa y estructurada a las consultas de los usuarios. Sé cordial y enfócate siempre en la prevención de riesgos y el cumplimiento normativo.`;
       const prompt = `Un usuario llamado ${currentMessage.senderName} te ha hecho la siguiente consulta en el Chat SST:\n\n"${currentMessage.content}"\n\nPor favor bríndale una respuesta experta, clara y práctica.`;
 
-      const result = await model.generateContent(prompt);
-      const botResponseText = result.response.text();
+      let botResponseText = '';
+      let lastError = null;
+      let succeeded = false;
 
-      // Guardar mensaje del bot en la base de datos
+      // Bucle de rotación doble (modelos exterior, claves API interior)
+      for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
+        const currentModel = modelFallbacks[mi];
+        for (let i = 0; i < apiKeys.length; i++) {
+          const apiKey = apiKeys[i];
+          try {
+            console.log(`[Chat SST @wappy] Intentando Clave #${i + 1}/${apiKeys.length} con modelo oficial "${currentModel}"`);
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+              model: currentModel,
+              systemInstruction,
+            });
+
+            const result = await model.generateContent(prompt);
+            botResponseText = result.response.text();
+            lastError = null;
+            succeeded = true;
+            break; // Éxito en rotación de clave
+          } catch (geminiError) {
+            lastError = geminiError;
+            const status = geminiError.status || geminiError.statusCode;
+            const msg = geminiError.message || '';
+
+            // Rotación de clave en 400/403/429/leaked/invalid key
+            if (
+              status === 400 ||
+              status === 429 ||
+              status === 403 ||
+              msg.includes('API_KEY_INVALID') ||
+              msg.includes('API key not valid') ||
+              msg.includes('leaked') ||
+              msg.includes('quota') ||
+              msg.includes('Forbidden')
+            ) {
+              console.warn(`[Chat SST @wappy] Clave #${i + 1} rechazada (${status || 'invalid'}). Rotando a la siguiente clave...`);
+              continue;
+            }
+
+            // Fallback de modelo en 503 / sobrecarga
+            if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
+              console.warn(`[Chat SST @wappy] Modelo "${currentModel}" no disponible (503). Cambiando a modelo fallback...`);
+              break;
+            }
+
+            // Error no recuperable
+            throw geminiError;
+          }
+        }
+      }
+
+      if (!succeeded && lastError) {
+        throw new Error(`Todas las claves y modelos de Google AI fallaron. Último error: ${lastError.message}`);
+      }
+
+      // Guardar mensaje exitoso del bot en la base de datos
       const botMessage = await ChatSSTMessage.create({
         senderName: 'WAPPY SST',
         senderRole: 'bot',
@@ -72,7 +208,6 @@ class WappyQueueService {
         status: 'completed',
       });
 
-      // Emitir mensaje en tiempo real a la sala
       if (this.io) {
         this.io.emit('chat_sst_message', botMessage);
         this.io.emit('chat_sst_bot_status', { status: 'idle' });
@@ -82,7 +217,7 @@ class WappyQueueService {
       const errorMessage = await ChatSSTMessage.create({
         senderName: 'WAPPY SST',
         senderRole: 'bot',
-        content: `Lo siento @${currentMessage.senderName}, ocurrió un inconveniente al procesar tu solicitud. Por favor intenta de nuevo en unos momentos.`,
+        content: `Lo siento @${currentMessage.senderName}, ocurrió un inconveniente al procesar tu solicitud: ${error.message}. Por favor intenta de nuevo en unos momentos.`,
         replyTo: currentMessage._id,
         status: 'error',
       });
@@ -91,10 +226,9 @@ class WappyQueueService {
         this.io.emit('chat_sst_bot_status', { status: 'idle' });
       }
     } finally {
-      this.queue.shift(); // Remover el procesado
+      this.queue.shift();
       this.isProcessing = false;
 
-      // Actualizar posiciones en cola para los restantes
       if (this.io && this.queue.length > 0) {
         this.queue.forEach((msg, idx) => {
           this.io.emit('chat_sst_queue_update', {
@@ -105,7 +239,6 @@ class WappyQueueService {
         });
       }
 
-      // Continuar con la siguiente petición en la cola
       this.processQueue();
     }
   }
