@@ -9,6 +9,7 @@ const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
 const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
 const CompanyInfo = require('~/models/CompanyInfo');
+const XLSX = require('xlsx');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { syncCanvasToLiveEditor } = require('./syncBridge');
 
@@ -870,6 +871,12 @@ function renderMatrixTable(title, rows) {
 </head>
 <body>
   <div class="no-print fixed top-4 right-4 flex space-x-2">
+    <a href="./excel" class="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg shadow hover:bg-emerald-700 font-medium text-sm transition-all duration-200 cursor-pointer text-decoration-none" style="text-decoration: none;">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      Descargar Excel (.xlsx)
+    </a>
     <button onclick="window.print()" class="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 font-medium text-sm transition-all duration-200 cursor-pointer">
       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-14.326 0C3.768 7.28 3 8.215 3 9.456v6.292a2.25 2.25 0 001.75 2.208h1.092"></path>
@@ -903,6 +910,28 @@ function renderMatrixTable(title, rows) {
 }
 
 /**
+ * Helper to build and download Excel spreadsheet workbook from matrixRows
+ */
+function sendExcelResponse(res, filename, rows) {
+  try {
+    // Convert array of objects to sheet
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Matriz');
+
+    // Write array buffer
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buffer);
+  } catch (error) {
+    logger.error('[Excel Generation] Error:', error);
+    res.status(500).send('Error al generar el archivo Excel');
+  }
+}
+
+/**
  * GET /api/sgsst/canvas/gtc45/:conversationId/view
  * Renderiza la matriz GTC-45 en formato HTML imprimible.
  */
@@ -921,6 +950,28 @@ router.get('/gtc45/:conversationId/view', async (req, res) => {
   } catch (error) {
     logger.error('[Canvas GTC45 View GET] Error:', error);
     res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista de la matriz GTC-45.</h1>');
+  }
+});
+
+/**
+ * GET /api/sgsst/canvas/gtc45/:conversationId/excel
+ * Descarga la matriz GTC-45 en formato Excel (.xlsx).
+ */
+router.get('/gtc45/:conversationId/excel', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await GTC45WorkspaceSession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('Matriz no encontrada o vacía.');
+    }
+
+    // Clean MongoDB fields from objects
+    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
+    return sendExcelResponse(res, `Matriz_GTC45_${conversationId}.xlsx`, cleanRows);
+  } catch (error) {
+    logger.error('[Canvas GTC45 Excel GET] Error:', error);
+    res.status(500).send('Error al descargar el archivo Excel');
   }
 });
 
@@ -947,6 +998,27 @@ router.get('/pesv/:conversationId/view', async (req, res) => {
 });
 
 /**
+ * GET /api/sgsst/canvas/pesv/:conversationId/excel
+ * Descarga la matriz PESV en formato Excel (.xlsx).
+ */
+router.get('/pesv/:conversationId/excel', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await PESVWorkspaceSession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('Matriz no encontrada o vacía.');
+    }
+
+    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
+    return sendExcelResponse(res, `Matriz_PESV_${conversationId}.xlsx`, cleanRows);
+  } catch (error) {
+    logger.error('[Canvas PESV Excel GET] Error:', error);
+    res.status(500).send('Error al descargar el archivo Excel');
+  }
+});
+
+/**
  * GET /api/sgsst/canvas/chemical/:conversationId/view
  * Renderiza la matriz de Compatibilidad Química en formato HTML imprimible.
  */
@@ -965,6 +1037,27 @@ router.get('/chemical/:conversationId/view', async (req, res) => {
   } catch (error) {
     logger.error('[Canvas Chemical View GET] Error:', error);
     res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista de la matriz química.</h1>');
+  }
+});
+
+/**
+ * GET /api/sgsst/canvas/chemical/:conversationId/excel
+ * Descarga la matriz de Compatibilidad Química en formato Excel (.xlsx).
+ */
+router.get('/chemical/:conversationId/excel', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await ChemicalCompatibilitySession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('Matriz no encontrada o vacía.');
+    }
+
+    const cleanRows = session.matrixRows.map(({ _id, id, __v, userId, companyId, conversationId, ...rest }) => rest);
+    return sendExcelResponse(res, `Matriz_Quimica_${conversationId}.xlsx`, cleanRows);
+  } catch (error) {
+    logger.error('[Canvas Chemical Excel GET] Error:', error);
+    res.status(500).send('Error al descargar el archivo Excel');
   }
 });
 

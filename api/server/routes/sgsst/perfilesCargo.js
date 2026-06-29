@@ -144,41 +144,12 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
       return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
     }
 
-    // 3. Resolver API Key de Google
-    let resolvedApiKey = null;
-    try {
-      const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-      try {
-        const parsed = JSON.parse(storedKey);
-        resolvedApiKey = parsed['google'] || parsed.apiKey || parsed.GOOGLE_API_KEY;
-      } catch {
-        resolvedApiKey = storedKey;
-      }
-    } catch (err) {
-      logger.debug('[SGSST PerfilesCargo Import] No user Google key found:', err.message);
-    }
-
-    if (!resolvedApiKey) {
-      resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-    }
-
-    if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-      resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-    }
-
-    if (!resolvedApiKey || resolvedApiKey === 'user_provided') {
-      return res.status(400).json({
-        error: 'No se ha configurado la clave API de Google. Por favor, configúrala e intenta nuevamente.',
-      });
-    }
-
-    // 4. Configurar e invocar a Gemini
+    // 3. Configurar e invocar a Gemini con rotación de claves y modelos (503/429/403/400)
     const personalization = req.user?.personalization?.geminiModels;
     const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
     const finalModelName = modelName || preferredModel;
 
-    const genAI = new GoogleGenerativeAI(resolvedApiKey);
-    const model = genAI.getGenerativeModel({
+    const modelInstance = {
       model: finalModelName,
       generationConfig: {
         responseMimeType: 'application/json',
@@ -208,7 +179,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
           },
         },
       },
-    });
+    };
 
     const promptText = `
     Eres un experto senior en diseño de perfiles de cargo y Seguridad y Salud en el Trabajo (SST) en Colombia.
@@ -224,14 +195,15 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     ${extractedText}
     `;
 
-    const result = await model.generateContent([{ text: promptText }]);
-    const responseText = await result.response.text();
+    const result = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, [{ text: promptText }]);
+    const response = await result.response;
+    const responseText = response.text();
     const cleanJson = JSON.parse(responseText.trim());
 
     res.json({ success: true, perfiles: cleanJson });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Import error:', error);
-    res.status(500).json({ error: 'Error al procesar el archivo con IA' });
+    res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });
   }
 });
 
