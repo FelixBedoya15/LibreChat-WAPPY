@@ -101,4 +101,6 @@ module.exports = {
   referrals,
   comunidad,
   rutaAprendizaje,
+  chatSST: require('./chatSST'),
 };
+

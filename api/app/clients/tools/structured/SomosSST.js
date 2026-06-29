@@ -30,9 +30,12 @@ class SomosSST extends Tool {
           'generar_informe_html',
           'consultar_historial_informes',
           'consultar_planes_y_sistema',
+          'consultar_centro_control_acpm',
+          'crear_actividad_acpm',
+          'actualizar_actividad_acpm',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, o "consultar_planes_y_sistema" para obtener la información oficial de planes activos, valores asignados, promociones y características desde la base de datos.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       tipo_informe: z
         .string()
@@ -111,7 +114,27 @@ class SomosSST extends Tool {
       nuevo_estado: z
         .string()
         .optional()
-        .describe('Nuevo estado del hito o tarea (ej: "Completado", "En Proceso", "Pendiente").'),
+        .describe('Nuevo estado del hito o tarea (ej: "Completado", "En Proceso", "Pendiente", "done", "todo").'),
+      titulo_actividad: z
+        .string()
+        .optional()
+        .describe('Título de la actividad para el Centro de Control ACPM.'),
+      descripcion_actividad: z
+        .string()
+        .optional()
+        .describe('Descripción o detalles de la actividad ACPM.'),
+      fecha_vencimiento: z
+        .string()
+        .optional()
+        .describe('Fecha de vencimiento para la actividad ACPM (ej: YYYY-MM-DD o "mañana").'),
+      estado_actividad: z
+        .string()
+        .optional()
+        .describe('Estado de la actividad ACPM: "todo", "due_soon", "overdue", "done".'),
+      tipo_actividad: z
+        .string()
+        .optional()
+        .describe('Tipo de actividad ACPM: "manual", "medical_exam", "training", "other".'),
     });
   }
 
@@ -1465,6 +1488,120 @@ class SomosSST extends Tool {
             caracteristicas: p.featuresText,
             preciosHerramientasCustom: p.toolPrices
           }))
+        });
+      }
+
+      // ── ACTION: CONSULTAR CENTRO CONTROL ACPM ──────────────────────────────────
+      if (accion === 'consultar_centro_control_acpm') {
+        const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
+        if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
+        
+        let companyId = null;
+        if (CompanyInfo) {
+          const activeCo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean() || await CompanyInfo.findOne({ user: userId }).lean();
+          if (activeCo) companyId = activeCo._id.toString();
+        }
+
+        const query = { user: userId };
+        if (companyId) query.companyId = companyId;
+
+        const tasks = await KanbanTask.find(query).sort({ dueDate: 1 }).lean();
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se obtuvieron ${tasks.length} actividades en el Centro de Control ACPM.`,
+          actividades: tasks.map(t => ({
+            id: t._id,
+            titulo: t.title,
+            descripcion: t.description,
+            estado: t.status,
+            fecha_vencimiento: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
+            tipo: t.type
+          }))
+        });
+      }
+
+      // ── ACTION: CREAR ACTIVIDAD ACPM ───────────────────────────────────────────
+      if (accion === 'crear_actividad_acpm') {
+        const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
+        if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
+
+        let companyId = null;
+        if (CompanyInfo) {
+          const activeCo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean() || await CompanyInfo.findOne({ user: userId }).lean();
+          if (activeCo) companyId = activeCo._id.toString();
+        }
+
+        const taskTitle = input.titulo_actividad || input.nombre_tarea_o_hito || 'Nueva Actividad ACPM';
+        let due = new Date();
+        if (input.fecha_vencimiento) {
+          const fvLower = input.fecha_vencimiento.toLowerCase();
+          if (fvLower.includes('manana') || fvLower.includes('mañana')) {
+            due.setDate(due.getDate() + 1);
+          } else {
+            const parsed = new Date(input.fecha_vencimiento);
+            if (!isNaN(parsed.getTime())) due = parsed;
+            else due.setDate(due.getDate() + 1);
+          }
+        } else {
+          due.setDate(due.getDate() + 1); // Default to tomorrow
+        }
+        due.setHours(23, 59, 59, 999);
+
+        const newTask = await KanbanTask.create({
+          user: userId,
+          companyId: companyId || 'default',
+          title: taskTitle,
+          description: input.descripcion_actividad || input.descripcion || 'Actividad registrada por Tenshi',
+          dueDate: due,
+          status: input.estado_actividad || 'todo',
+          type: input.tipo_actividad || 'manual'
+        });
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se creó exitosamente la actividad "${newTask.title}" en el Centro de Control ACPM con fecha de vencimiento ${due.toISOString().split('T')[0]}.`,
+          actividad: {
+            id: newTask._id,
+            titulo: newTask.title,
+            descripcion: newTask.description,
+            estado: newTask.status,
+            fecha_vencimiento: newTask.dueDate.toISOString().split('T')[0]
+          }
+        });
+      }
+
+      // ── ACTION: ACTUALIZAR ACTIVIDAD ACPM ──────────────────────────────────────
+      if (accion === 'actualizar_actividad_acpm') {
+        const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
+        if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
+
+        const taskTitle = input.titulo_actividad || input.identificador_o_filtro || input.nombre_o_cargo;
+        let task = null;
+        if (taskTitle) {
+          task = await KanbanTask.findOne({ user: userId, title: { $regex: taskTitle, $options: 'i' } });
+        }
+        if (!task) {
+          task = await KanbanTask.findOne({ user: userId }).sort({ updatedAt: -1 });
+        }
+
+        if (!task) return JSON.stringify({ error: 'No se encontró la actividad para actualizar en el Centro de Control ACPM.' });
+
+        if (input.nuevo_estado) {
+          const st = input.nuevo_estado.toLowerCase();
+          if (st.includes('completad') || st.includes('hecho') || st.includes('done')) {
+            task.status = 'done';
+            task.completedAt = new Date();
+          } else {
+            task.status = input.nuevo_estado;
+          }
+        }
+        if (input.descripcion_actividad) task.description = input.descripcion_actividad;
+        await task.save();
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Se actualizó exitosamente la actividad "${task.title}" en el Centro de Control ACPM a estado ${task.status}.`,
+          actividad: task
         });
       }
 

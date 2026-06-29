@@ -48,6 +48,8 @@ import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
 import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
+import ChatSSTView from '~/components/ChatSST/ChatSSTView';
+
 import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosDashboard';
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import InspeccionDashboard from '~/components/InspeccionMinTrabajo/InspeccionDashboard';
@@ -323,6 +325,11 @@ export const router = createBrowserRouter(
               path: 'search',
               element: <Search />,
             },
+            {
+              path: 'chat-sst',
+              element: <ChatSSTView />,
+            },
+
             {
               path: 'sgsst',
               element: <SGSSTDashboard />,

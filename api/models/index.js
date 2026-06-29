@@ -150,4 +150,6 @@ module.exports = {
   deletePresets,
 
   Files: File,
+  ChatSSTMessage: require('./ChatSSTMessage'),
 };
+

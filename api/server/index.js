@@ -276,6 +276,8 @@ const startServer = async () => {
   app.use('/api/referrals', routes.referrals);
   app.use('/api/comunidad', routes.comunidad);
   app.use('/api/ruta-aprendizaje', routes.rutaAprendizaje);
+  app.use('/api/chat-sst', routes.chatSST);
+
 
 
 

@@ -35,6 +35,8 @@ const InspeccionButton = lazy(() => import('./InspeccionButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const KanbanButton = lazy(() => import('./KanbanButton'));
+const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
+
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -274,7 +276,14 @@ const Nav = memo(
                             </button>
                           }
                         />
+                        {/* Chat SST icon */}
+                        {user?.role === 'ADMIN' && (
+                          <Suspense fallback={null}>
+                            <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Bookmarks icon */}
+
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
                             <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
@@ -351,6 +360,12 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                {user?.role === 'ADMIN' && (
+                                  <Suspense fallback={null}>
+                                    <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
