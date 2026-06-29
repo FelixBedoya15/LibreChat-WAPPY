@@ -4,13 +4,18 @@ import { CheckCircle2, Settings, Sparkles } from 'lucide-react';
 import { EModelEndpoint } from 'librechat-data-provider';
 import { SetKeyDialog } from '~/components/Input/SetKeyDialog';
 import { useGetEndpointsQuery } from '~/data-provider';
-import { useUserKey } from '~/hooks';
+import { useUserKey, useAuthContext } from '~/hooks';
 import { getEndpointField } from '~/utils/endpoints';
 
 export default function GoogleAIConnect() {
+  const { user } = useAuthContext();
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { getExpiry } = useUserKey(EModelEndpoint.google);
+
+  if (user?.role !== 'ADMIN') {
+    return null;
+  }
 
   const expiryTime = getExpiry();
   const hasKey = !!expiryTime;

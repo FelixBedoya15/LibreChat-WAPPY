@@ -41,6 +41,9 @@ export default function useRolePermissions() {
 
     const hasEndpointPermission = (endpointKey: string) => {
         if (!user) return false;
+        if (endpointKey && endpointKey.toLowerCase() === 'google') {
+            return user.role === SystemRoles.ADMIN || user.role === 'ADMIN';
+        }
         if (user.role === SystemRoles.ADMIN) return true;
         if (!roleDefinitions) return false;
 
