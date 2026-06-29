@@ -12,7 +12,7 @@ class GoogleGmailTool extends Tool {
     super(fields);
     this.name = 'google_gmail';
     this.description =
-      'Permite enviar correos electrónicos y crear borradores directamente desde la cuenta de Gmail (Google Workspace) conectada por el usuario. Puedes enviar notificaciones de SST, citaciones médicas, alertas de vencimiento o reportes a trabajadores y directivos con formato HTML estilizado o texto plano.';
+      'Permite enviar correos electrónicos y crear borradores directamente desde la cuenta de Gmail (Google Workspace) conectada por el usuario. REGLA OBLIGATORIA: Si el usuario te pide enviar un documento, política, informe o matriz que acabas de crear o editar en el panel de Canvas, DEBES pasar el código HTML completo y estructurado de dicho documento en el parámetro "body", garantizando que el destinatario reciba el diseño visual completo.';
     
     this.req = fields.req;
     
@@ -23,7 +23,7 @@ class GoogleGmailTool extends Tool {
       ]).describe('La acción a realizar en Gmail ("send_email" para enviar directamente o "create_draft" para guardar un borrador en Gmail).'),
       to: z.string().describe('La dirección de correo electrónico del destinatario (ej. "trabajador@empresa.com").'),
       subject: z.string().describe('El asunto del correo electrónico.'),
-      body: z.string().describe('El contenido del mensaje. Se recomienda redactar correos profesionales usando etiquetas HTML (ej. <h3>, <p>, <ul>, <b>, <table>, <hr>) para una excelente presentación.'),
+      body: z.string().describe('El contenido del mensaje. REGLA CRÍTICA: Si estás enviando un documento o política del panel de Canvas, este parámetro DEBE contener todo el código HTML completo y estilizado del documento de Canvas para que el destinatario reciba la versión final diseñada.'),
       cc: z.string().optional().describe('Direcciones de correo en copia (CC) separadas por coma. Opcional.'),
       bcc: z.string().optional().describe('Direcciones de correo en copia oculta (BCC) separadas por coma. Opcional.'),
     });
@@ -42,22 +42,56 @@ class GoogleGmailTool extends Tool {
     }
     const userId = this.req.user.id;
 
+    let finalBody = body;
+    const conversationId = this.req.body?.conversationId;
+
+    if (conversationId) {
+      try {
+        const CanvasSession = require('~/models/CanvasSession');
+        const session = await CanvasSession.findOne({ conversationId });
+        if (session) {
+          const domain = (process.env.DOMAIN_CLIENT || '').replace(/\/$/, '');
+          const viewUrl = `${domain}/api/sgsst/canvas/${conversationId}/view`;
+          
+          if (!finalBody.includes('/view')) {
+            const hasHtml = /<[a-z][\s\S]*>/i.test(finalBody);
+            if (hasHtml) {
+              finalBody += `
+<br/><br/>
+<hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
+<div style="text-align: center; margin: 20px 0;">
+  <p style="font-family: sans-serif; font-size: 16px; color: #4b5563; margin-bottom: 15px;">He generado y firmado este documento en la plataforma. Puedes abrir el enlace interactivo para visualizarlo completo o imprimirlo en PDF:</p>
+  <a href="${viewUrl}" target="_blank" style="display: inline-block; background-color: #0d9488; color: #ffffff; padding: 12px 28px; font-family: sans-serif; font-size: 15px; font-weight: bold; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+    Ver Documento Completo
+  </a>
+</div>
+              `;
+            } else {
+              finalBody += `\n\n----------------------------------------\nDocumento generado y firmado en la plataforma:\nPara visualizar el documento con su diseño, membrete y firmas en tu navegador, haz clic en el siguiente enlace:\n${viewUrl}\n----------------------------------------`;
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('[Google Gmail Tool] Error appending Canvas session link:', err);
+      }
+    }
+
     switch (action) {
       case 'send_email': {
         if (!to) throw new Error('Se requiere el campo "to" (destinatario) para enviar el correo.');
         if (!subject) throw new Error('Se requiere el campo "subject" (asunto) para enviar el correo.');
-        if (!body) throw new Error('Se requiere el campo "body" (contenido) para enviar el correo.');
+        if (!finalBody) throw new Error('Se requiere el campo "body" (contenido) para enviar el correo.');
 
-        const result = await sendEmail(userId, { to, subject, body, cc, bcc });
+        const result = await sendEmail(userId, { to, subject, body: finalBody, cc, bcc });
         return `Correo enviado exitosamente a través de tu cuenta de Gmail:\n- Destinatario: ${to}\n- Asunto: "${subject}"\n- ID de mensaje: ${result.id}`;
       }
 
       case 'create_draft': {
         if (!to) throw new Error('Se requiere el campo "to" (destinatario) para crear el borrador.');
         if (!subject) throw new Error('Se requiere el campo "subject" (asunto) para crear el borrador.');
-        if (!body) throw new Error('Se requiere el campo "body" (contenido) para crear el borrador.');
+        if (!finalBody) throw new Error('Se requiere el campo "body" (contenido) para crear el borrador.');
 
-        const result = await createDraft(userId, { to, subject, body, cc, bcc });
+        const result = await createDraft(userId, { to, subject, body: finalBody, cc, bcc });
         return `Borrador creado exitosamente en tu cuenta de Gmail:\n- Destinatario: ${to}\n- Asunto: "${subject}"\n- ID de borrador: ${result.id}\nPuedes revisarlo y enviarlo desde tu bandeja de salida en Gmail.`;
       }
 

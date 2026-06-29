@@ -722,6 +722,87 @@ Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de mar
     logger.error('[AppBuilder Generate API] Error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar la solicitud con IA' });
   }
+/**
+ * GET /api/sgsst/canvas/:conversationId/view
+ * Renderiza el documento Canvas de forma visual para previsualizarlo o imprimirlo (público).
+ */
+router.get('/:conversationId/view', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await CanvasSession.findOne({ conversationId });
+
+    if (!session) {
+      return res.status(404).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Documento no encontrado o sesión de Canvas vacía.</h1>');
+    }
+
+    if (session.fileType === 'html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(session.content);
+    }
+
+    // Para tipo "text" (Word) u otros, envolvemos en un contenedor premium de lectura y Tailwind
+    const title = session.title || 'Documento de Canvas';
+    const htmlPage = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #f3f4f6;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .canvas-container {
+      background-color: #ffffff;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 45px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+    }
+    @media print {
+      body {
+        background-color: #ffffff;
+      }
+      .canvas-container {
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border: none;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Botones flotantes no imprimibles -->
+  <div class="no-print fixed top-4 right-4 flex space-x-2">
+    <button onclick="window.print()" class="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 font-medium text-sm transition-all duration-200 cursor-pointer">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-14.326 0C3.768 7.28 3 8.215 3 9.456v6.292a2.25 2.25 0 001.75 2.208h1.092"></path>
+      </svg>
+      Imprimir / PDF
+    </button>
+  </div>
+
+  <div class="canvas-container">
+    ${session.content}
+  </div>
+</body>
+</html>
+    `;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlPage);
+  } catch (error) {
+    logger.error('[Canvas View GET] Error:', error);
+    res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista del documento.</h1>');
+  }
 });
 
 module.exports = router;
