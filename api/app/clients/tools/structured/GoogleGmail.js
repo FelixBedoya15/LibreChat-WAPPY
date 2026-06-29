@@ -48,27 +48,77 @@ class GoogleGmailTool extends Tool {
     if (conversationId) {
       try {
         const CanvasSession = require('~/models/CanvasSession');
+        const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
+        const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
+        const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
+
+        const domain = (process.env.DOMAIN_CLIENT || '').replace(/\/$/, '');
+        const links = [];
+
+        // 1. Check Canvas Session
         const session = await CanvasSession.findOne({ conversationId });
-        if (session) {
-          const domain = (process.env.DOMAIN_CLIENT || '').replace(/\/$/, '');
-          const viewUrl = `${domain}/api/sgsst/canvas/${conversationId}/view`;
-          
-          if (!finalBody.includes('/view')) {
-            const hasHtml = /<[a-z][\s\S]*>/i.test(finalBody);
-            if (hasHtml) {
-              finalBody += `
+        if (session && session.content) {
+          links.push({
+            title: session.title || 'Documento de Canvas',
+            url: `${domain}/api/sgsst/canvas/${conversationId}/view`
+          });
+        }
+
+        // 2. Check GTC45 Workspace
+        const gtc = await GTC45WorkspaceSession.findOne({ conversationId });
+        if (gtc && gtc.matrixRows && gtc.matrixRows.length > 0) {
+          links.push({
+            title: 'Matriz de Peligros GTC-45 / IPEVAR',
+            url: `${domain}/api/sgsst/canvas/gtc45/${conversationId}/view`
+          });
+        }
+
+        // 3. Check PESV Workspace
+        const pesv = await PESVWorkspaceSession.findOne({ conversationId });
+        if (pesv && pesv.matrixRows && pesv.matrixRows.length > 0) {
+          links.push({
+            title: 'Matriz de Riesgo Vial PESV',
+            url: `${domain}/api/sgsst/canvas/pesv/${conversationId}/view`
+          });
+        }
+
+        // 4. Check Chemical Compatibility
+        const chem = await ChemicalCompatibilitySession.findOne({ conversationId });
+        if (chem && chem.matrixRows && chem.matrixRows.length > 0) {
+          links.push({
+            title: 'Matriz de Compatibilidad Química',
+            url: `${domain}/api/sgsst/canvas/chemical/${conversationId}/view`
+          });
+        }
+
+        // If we found any active documents, append them nicely to the email body
+        if (links.length > 0 && !finalBody.includes('/view')) {
+          const hasHtml = /<[a-z][\s\S]*>/i.test(finalBody);
+          if (hasHtml) {
+            let buttonsHtml = `
 <br/><br/>
 <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
 <div style="text-align: center; margin: 20px 0;">
-  <p style="font-family: sans-serif; font-size: 16px; color: #4b5563; margin-bottom: 15px;">He generado y firmado este documento en la plataforma. Puedes abrir el enlace interactivo para visualizarlo completo o imprimirlo en PDF:</p>
-  <a href="${viewUrl}" target="_blank" style="display: inline-block; background-color: #0d9488; color: #ffffff; padding: 12px 28px; font-family: sans-serif; font-size: 15px; font-weight: bold; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-    Ver Documento Completo
-  </a>
-</div>
+  <p style="font-family: sans-serif; font-size: 16px; color: #4b5563; margin-bottom: 15px;">He generado los siguientes documentos y matrices en la plataforma. Puedes abrir los enlaces interactivos para visualizarlos o imprimirlos en PDF:</p>
+            `;
+            for (const link of links) {
+              buttonsHtml += `
+  <div style="margin: 15px 0;">
+    <a href="${link.url}" target="_blank" style="display: inline-block; background-color: #0d9488; color: #ffffff; padding: 12px 28px; font-family: sans-serif; font-size: 15px; font-weight: bold; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 320px;">
+      ${link.title}
+    </a>
+  </div>
               `;
-            } else {
-              finalBody += `\n\n----------------------------------------\nDocumento generado y firmado en la plataforma:\nPara visualizar el documento con su diseño, membrete y firmas en tu navegador, haz clic en el siguiente enlace:\n${viewUrl}\n----------------------------------------`;
             }
+            buttonsHtml += `</div>`;
+            finalBody += buttonsHtml;
+          } else {
+            let textLinks = `\n\n----------------------------------------\nDocumentos generados y firmados en la plataforma:\nPara visualizarlos en tu navegador, haz clic en los siguientes enlaces:\n`;
+            for (const link of links) {
+              textLinks += `- ${link.title}: ${link.url}\n`;
+            }
+            textLinks += `----------------------------------------`;
+            finalBody += textLinks;
           }
         }
       } catch (err) {

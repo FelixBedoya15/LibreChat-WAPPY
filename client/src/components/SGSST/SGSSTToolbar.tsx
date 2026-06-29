@@ -41,6 +41,8 @@ interface SGSSTToolbarProps {
 
     // Excel (Special items)
     onImportExcel?: () => void;
+    importExcelLabel?: string;
+    importExcelTitle?: string;
     onExportExcel?: () => void;
     hasData?: boolean;
 
@@ -76,6 +78,8 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
     onDummy,
 
     onImportExcel,
+    importExcelLabel,
+    importExcelTitle,
     onExportExcel,
     hasData,
 
@@ -137,8 +141,8 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         effectiveExcel.push({
             id: 'excel-import',
             onClick: onImportExcel,
-            title: "Importar desde Excel",
-            label: "Importar Excel",
+            title: importExcelTitle || "Importar desde Excel",
+            label: importExcelLabel || "Importar Excel",
             icon: "upload",
             variant: "excel"
         });

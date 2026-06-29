@@ -1356,9 +1356,63 @@ class SomosSST extends Tool {
 </body>
 </html>`;
 
+        const conversationId = this.req.body?.conversationId;
+        if (conversationId) {
+          try {
+            const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+            const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+            const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
+
+            let activeCompany = await CompanyInfo.findOne({ user: this.req.user.id, isActive: true });
+            if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: this.req.user.id });
+            const companyId = activeCompany ? activeCompany._id : null;
+
+            let canvasSession = await CanvasSession.findOne({ conversationId });
+            if (canvasSession) {
+              const maxHistoryVersion = (canvasSession.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
+              const nextVersion = Math.max(maxHistoryVersion, canvasSession.version || 0) + 1;
+              const newHistoryItem = {
+                version: nextVersion,
+                content: fullHTML,
+                title: htmlTitle,
+                fileType: 'html',
+                updatedAt: new Date()
+              };
+
+              canvasSession.content = fullHTML;
+              canvasSession.title = htmlTitle;
+              canvasSession.fileType = 'html';
+              canvasSession.version = nextVersion;
+              canvasSession.history = [...(canvasSession.history || []), newHistoryItem].slice(-20);
+              await canvasSession.save();
+            } else {
+              canvasSession = new CanvasSession({
+                user: this.req.user.id,
+                companyId,
+                conversationId,
+                title: htmlTitle,
+                fileType: 'html',
+                content: fullHTML,
+                version: 1,
+                history: [{
+                  version: 1,
+                  content: fullHTML,
+                  title: htmlTitle,
+                  fileType: 'html',
+                  updatedAt: new Date()
+                }]
+              });
+              await canvasSession.save();
+            }
+            await syncCanvasToLiveEditor(conversationId, fullHTML, htmlTitle, this.req.user.id);
+          } catch (err) {
+            console.error('[SomosSST] Error saving report to CanvasSession:', err);
+          }
+        }
+
         return JSON.stringify({
           exito: true,
-          mensaje: `Se generó exitosamente el informe en formato HTML interactivo para "${htmlTitle}".`,
+          mensaje: `Se generó exitosamente el informe en formato HTML interactivo para "${htmlTitle}". El informe está visible y disponible para descargar en tu visor de Canvas en la derecha.`,
           htmlCode: fullHTML
         });
       }

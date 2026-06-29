@@ -6,6 +6,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection, buildCompanyContextString } = require('./reportHeader');
 const { logger } = require('~/config');
+const mammoth = require('mammoth');
+const pdf = require('pdf-parse');
+const XLSX = require('xlsx');
 
 const router = express.Router();
 const mongoose = require('mongoose');
@@ -95,6 +98,140 @@ router.post('/upload', requireJwtAuth, express.json({ limit: '200mb' }), async (
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Upload error:', error);
     res.status(500).json({ error: 'Error al subir el archivo' });
+  }
+});
+
+// ─── POST /import-file ──────────────────────────────────────────────────────
+router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName, mimeType, modelName } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'No se recibieron datos del archivo.' });
+
+    // 1. Convertir Base64 a Buffer en memoria
+    const base64Data = fileData.split(';base64,').pop();
+    const buffer = Buffer.from(base64Data, 'base64');
+    let extractedText = '';
+
+    // 2. Extraer texto según tipo de archivo (Todo en memoria)
+    if (mimeType === 'application/pdf') {
+      const pdfData = await pdf(buffer);
+      extractedText = pdfData.text;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+      mimeType === 'application/msword'
+    ) {
+      const result = await mammoth.extractRawText({ buffer });
+      extractedText = result.value;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+      mimeType === 'application/vnd.ms-excel'
+    ) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+        if (csv.trim()) {
+          extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
+        }
+      });
+    } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
+      extractedText = buffer.toString('utf8');
+    } else {
+      extractedText = buffer.toString('utf8');
+    }
+
+    if (!extractedText || !extractedText.trim()) {
+      return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
+    }
+
+    // 3. Resolver API Key de Google
+    let resolvedApiKey = null;
+    try {
+      const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+      try {
+        const parsed = JSON.parse(storedKey);
+        resolvedApiKey = parsed['google'] || parsed.apiKey || parsed.GOOGLE_API_KEY;
+      } catch {
+        resolvedApiKey = storedKey;
+      }
+    } catch (err) {
+      logger.debug('[SGSST PerfilesCargo Import] No user Google key found:', err.message);
+    }
+
+    if (!resolvedApiKey) {
+      resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+    }
+
+    if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+      resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+    }
+
+    if (!resolvedApiKey || resolvedApiKey === 'user_provided') {
+      return res.status(400).json({
+        error: 'No se ha configurado la clave API de Google. Por favor, configúrala e intenta nuevamente.',
+      });
+    }
+
+    // 4. Configurar e invocar a Gemini
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    const genAI = new GoogleGenerativeAI(resolvedApiKey);
+    const model = genAI.getGenerativeModel({
+      model: finalModelName,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              nombreCargo: { type: 'string' },
+              area: { type: 'string' },
+              nivelCargo: { type: 'string', enum: ['Estratégico / Directivo', 'Táctico / Mando Medio', 'Profesional / Técnico', 'Operativo', 'Auxiliar / Asistencial'] },
+              tipoContrato: { type: 'string' },
+              jornada: { type: 'string' },
+              jefeInmediato: { type: 'string' },
+              escalasSalarial: { type: 'string' },
+              numVacantes: { type: 'string' },
+              contextoAdicional: { type: 'string' },
+              exigenciaFisica: { type: 'string' },
+              exigenciaMental: { type: 'string' },
+              operaMaquinaria: { type: 'string' },
+              eppSeleccionados: { type: 'array', items: { type: 'string' } },
+              entrenamientosSeleccionados: { type: 'array', items: { type: 'string' } },
+              controlesFuenteSeleccionados: { type: 'array', items: { type: 'string' } },
+              controlesMedioSeleccionados: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['nombreCargo', 'area', 'nivelCargo'],
+          },
+        },
+      },
+    });
+
+    const promptText = `
+    Eres un experto senior en diseño de perfiles de cargo y Seguridad y Salud en el Trabajo (SST) en Colombia.
+    Tu tarea es leer el siguiente documento adjunto y extraer todos los perfiles de cargo descritos en él.
+    Para cada cargo identificado, mapea la información a la estructura JSON solicitada.
+    Si no encuentras información exacta para un campo (como EPPs o Controles), infiérelos técnicamente según las responsabilidades y riesgos lógicos del cargo de acuerdo con la normatividad de SST (GTC 45).
+    
+    Asegúrate de:
+    - Retornar un array JSON conteniendo cada perfil de cargo como un objeto.
+    - El campo 'nivelCargo' debe ser estrictamente uno de los siguientes valores: 'Estratégico / Directivo', 'Táctico / Mando Medio', 'Profesional / Técnico', 'Operativo', 'Auxiliar / Asistencial'.
+    
+    DOCUMENTO A ANALIZAR:
+    ${extractedText}
+    `;
+
+    const result = await model.generateContent([{ text: promptText }]);
+    const responseText = await result.response.text();
+    const cleanJson = JSON.parse(responseText.trim());
+
+    res.json({ success: true, perfiles: cleanJson });
+  } catch (error) {
+    logger.error('[SGSST PerfilesCargo] Import error:', error);
+    res.status(500).json({ error: 'Error al procesar el archivo con IA' });
   }
 });
 

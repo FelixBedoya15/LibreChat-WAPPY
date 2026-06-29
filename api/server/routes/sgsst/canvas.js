@@ -5,6 +5,9 @@ const router = express.Router();
 const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CanvasSession = require('~/models/CanvasSession');
+const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
+const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
+const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { syncCanvasToLiveEditor } = require('./syncBridge');
@@ -722,6 +725,8 @@ Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de mar
     logger.error('[AppBuilder Generate API] Error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar la solicitud con IA' });
   }
+});
+
 /**
  * GET /api/sgsst/canvas/:conversationId/view
  * Renderiza el documento Canvas de forma visual para previsualizarlo o imprimirlo (público).
@@ -802,6 +807,164 @@ router.get('/:conversationId/view', async (req, res) => {
   } catch (error) {
     logger.error('[Canvas View GET] Error:', error);
     res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista del documento.</h1>');
+  }
+});
+
+function renderMatrixTable(title, rows) {
+  if (!rows || rows.length === 0) {
+    return `<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Matriz vacía o sin datos.</h1>`;
+  }
+
+  // Get keys to use as headers (excluding MongoDB fields or internal IDs)
+  const excludeKeys = ['_id', 'id', 'createdAt', 'updatedAt', '__v', 'userId', 'companyId', 'conversationId'];
+  const headers = Object.keys(rows[0]).filter(k => !excludeKeys.includes(k));
+
+  const tableHeader = headers.map(h => `<th class="px-4 py-3 bg-teal-600 text-white font-bold text-sm text-left uppercase tracking-wider">${h.replace(/_/g, ' ').toUpperCase()}</th>`).join('');
+  const tableRows = rows.map(row => {
+    return `<tr class="border-b border-gray-200 hover:bg-gray-50">` + 
+      headers.map(h => {
+        let val = row[h];
+        if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+        return `<td class="px-4 py-3 text-sm text-gray-700 leading-relaxed">${val ?? ''}</td>`;
+      }).join('') + `</tr>`;
+  }).join('');
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #f3f4f6;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .canvas-container {
+      background-color: #ffffff;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 45px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+    }
+    @media print {
+      body {
+        background-color: #ffffff;
+      }
+      .canvas-container {
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print fixed top-4 right-4 flex space-x-2">
+    <button onclick="window.print()" class="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 font-medium text-sm transition-all duration-200 cursor-pointer">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-14.326 0C3.768 7.28 3 8.215 3 9.456v6.292a2.25 2.25 0 001.75 2.208h1.092"></path>
+      </svg>
+      Imprimir / PDF
+    </button>
+  </div>
+
+  <div class="canvas-container">
+    <header class="pb-6 mb-8 border-b border-gray-200">
+      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/10 text-teal-600 border border-teal-500/20">WAPPY IA - SG-SST</span>
+      <h1 class="text-3xl font-extrabold tracking-tight text-gray-900 mt-2">${title}</h1>
+    </header>
+    
+    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr>
+            ${tableHeader}
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          ${tableRows}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * GET /api/sgsst/canvas/gtc45/:conversationId/view
+ * Renderiza la matriz GTC-45 en formato HTML imprimible.
+ */
+router.get('/gtc45/:conversationId/view', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await GTC45WorkspaceSession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Matriz GTC-45 no encontrada o vacía para esta conversación.</h1>');
+    }
+
+    const html = renderMatrixTable('Matriz de Identificación de Peligros y Valoración de Riesgos GTC-45', session.matrixRows);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('[Canvas GTC45 View GET] Error:', error);
+    res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista de la matriz GTC-45.</h1>');
+  }
+});
+
+/**
+ * GET /api/sgsst/canvas/pesv/:conversationId/view
+ * Renderiza la matriz de Seguridad Vial PESV en formato HTML imprimible.
+ */
+router.get('/pesv/:conversationId/view', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await PESVWorkspaceSession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Matriz PESV no encontrada o vacía para esta conversación.</h1>');
+    }
+
+    const html = renderMatrixTable('Plan Estratégico de Seguridad Vial (PESV) - Matriz de Riesgo Vial', session.matrixRows);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('[Canvas PESV View GET] Error:', error);
+    res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista de la matriz PESV.</h1>');
+  }
+});
+
+/**
+ * GET /api/sgsst/canvas/chemical/:conversationId/view
+ * Renderiza la matriz de Compatibilidad Química en formato HTML imprimible.
+ */
+router.get('/chemical/:conversationId/view', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const session = await ChemicalCompatibilitySession.findOne({ conversationId });
+
+    if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+      return res.status(404).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Matriz de Compatibilidad Química no encontrada o vacía para esta conversación.</h1>');
+    }
+
+    const html = renderMatrixTable('Matriz de Compatibilidad y Almacenamiento Químico', session.matrixRows);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('[Canvas Chemical View GET] Error:', error);
+    res.status(500).send('<h1 style="font-family: sans-serif; text-align: center; margin-top: 50px;">Error al generar la vista de la matriz química.</h1>');
   }
 });
 

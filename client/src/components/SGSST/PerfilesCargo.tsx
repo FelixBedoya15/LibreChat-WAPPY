@@ -31,6 +31,7 @@ import {
     HeartPulse,
     Info,
     MapPin,
+    Upload,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { NotificationSeverity } from '~/common';
@@ -368,6 +369,9 @@ const PerfilesCargo = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const [isVideoUploading, setIsVideoUploading] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+    const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
     const handleImageUpload = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -733,6 +737,72 @@ const PerfilesCargo = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        
+        // Helper to load file as base64 and open confirmation modal
+        const requestAiImport = () => {
+            const base64Reader = new FileReader();
+            base64Reader.onload = (base64Event) => {
+                setPendingFileData({
+                    dataUrl: base64Event.target?.result as string,
+                    name: file.name,
+                    type: file.type || 'application/octet-stream'
+                });
+                setIsConfirmModalOpen(true);
+            };
+            base64Reader.readAsDataURL(file);
+        };
+
+        // Si es PDF, Word (.docx, .doc) o texto, va directo a la ruta de IA
+        if (['pdf', 'docx', 'doc', 'txt'].includes(extension || '')) {
+            requestAiImport();
+            if (e.target) e.target.value = '';
+            return;
+        }
+
+        // Si es JSON, leemos e intentamos parsear
+        if (extension === 'json') {
+            const jsonReader = new FileReader();
+            jsonReader.onload = (jsonEvent) => {
+                try {
+                    const parsed = JSON.parse(jsonEvent.target?.result as string);
+                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].nombreCargo) {
+                        // Formato estándar
+                        const newPerfiles = parsed.map((p: any) => ({
+                            ...p,
+                            id: p.id || crypto.randomUUID(),
+                            images: p.images || {},
+                            video: p.video || null,
+                            report: p.report || ''
+                        }));
+                        setPerfiles(prev => {
+                            const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
+                            const combined = [...cleanPrev, ...newPerfiles];
+                            if (combined.length > 0 && (!activePerfilId || !prev.find(p2 => p2.id === activePerfilId)?.nombreCargo)) {
+                                setActivePerfilId(combined[0].id);
+                                setFormData(combined[0]);
+                                setGeneratedReport(combined[0].report || null);
+                                editorContentRef.current = combined[0].report || '';
+                                liveEditorRef.current?.setHTML(combined[0].report || '');
+                            }
+                            saveImportedPerfiles(combined);
+                            return combined;
+                        });
+                        showToast({ message: `${newPerfiles.length} perfiles importados desde backup`, severity: NotificationSeverity.SUCCESS });
+                    } else {
+                        // JSON no estándar, preguntar por IA
+                        requestAiImport();
+                    }
+                } catch (err) {
+                    showToast({ message: 'Error al parsear el archivo JSON', severity: NotificationSeverity.ERROR });
+                }
+            };
+            jsonReader.readAsText(file);
+            if (e.target) e.target.value = '';
+            return;
+        }
+
+        // Si es Excel (.xlsx, .xls), validamos si tiene cabeceras válidas para la ruta tradicional o si va a IA
         const reader = new FileReader();
         reader.onload = (eEvent) => {
             try {
@@ -746,51 +816,127 @@ const PerfilesCargo = () => {
                     throw new Error("El archivo no contiene datos.");
                 }
 
-                const newPerfiles: PerfilCargoData[] = importedData.map((row: any) => {
-                    const eppStr = row['EPP Requeridos'] || row['EPP'] || row.eppSeleccionados || '';
-                    const entrenamientosStr = row['Entrenamientos Requeridos'] || row['Entrenamientos'] || row.entrenamientosSeleccionados || '';
-                    const controlesFuenteStr = row['Controles en la Fuente'] || row['Controles Fuente'] || row.controlesFuenteSeleccionados || '';
-                    const controlesMedioStr = row['Controles en el Medio'] || row['Controles Medio'] || row.controlesMedioSeleccionados || '';
+                // Validamos si hay cabeceras estándar en el primer registro
+                const firstRow = importedData[0];
+                const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
+                const isStandard = keys.some(k => 
+                    k.includes('cargo') || 
+                    k.includes('epp') || 
+                    k.includes('entrenamiento') || 
+                    k.includes('area') ||
+                    k.includes('contrato')
+                );
 
-                    const descValue = 
-                        row['Descripción Detallada'] || 
-                        row['Descripcion Detallada'] || 
-                        row['Descripción detallada'] || 
-                        row['Descripcion detallada'] || 
-                        row['Descripción'] || 
-                        row['Descripcion'] || 
-                        row['contextoAdicional'] || 
-                        row.contextoAdicional || 
-                        '';
+                if (isStandard) {
+                    // Ruta A: Mapeo Tradicional Directo
+                    const newPerfiles: PerfilCargoData[] = importedData.map((row: any) => {
+                        const eppStr = row['EPP Requeridos'] || row['EPP'] || row.eppSeleccionados || '';
+                        const entrenamientosStr = row['Entrenamientos Requeridos'] || row['Entrenamientos'] || row.entrenamientosSeleccionados || '';
+                        const controlesFuenteStr = row['Controles en la Fuente'] || row['Controles Fuente'] || row.controlesFuenteSeleccionados || '';
+                        const controlesMedioStr = row['Controles en el Medio'] || row['Controles Medio'] || row.controlesMedioSeleccionados || '';
 
-                    return {
-                        id: crypto.randomUUID(),
-                        nombreCargo: row['Nombre del Cargo'] || row['Nombre de Cargo'] || row['Cargo'] || row.nombreCargo || '',
-                        area: row['Área'] || row['Area'] || row.area || '',
-                        nivelCargo: row['Nivel del Cargo'] || row['Nivel de Cargo'] || row.nivelCargo || 'Operativo',
-                        tipoContrato: row['Tipo de Contrato'] || row['Tipo de contrato'] || row.tipoContrato || 'Término indefinido',
-                        jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
-                        jefeInmediato: row['Jefe Inmediato'] || row['Jefe inmediato'] || row.jefeInmediato || '',
-                        escalasSalarial: row['Escala Salarial'] || row['Escala salarial'] || row.escalasSalarial || '',
-                        numVacantes: row['Número de Vacantes'] || row['Numero de Vacantes'] || row['Nº de Vacantes'] || row['Nº Vacantes'] || row.numVacantes || '',
-                        contextoAdicional: descValue,
-                        exigenciaFisica: row['Exigencia Física'] || row['Exigencia Fisica'] || row.exigenciaFisica || '',
-                        exigenciaMental: row['Exigencia Mental'] || row.exigenciaMental || '',
-                        operaMaquinaria: row['Opera Maquinaria'] || row['Opera maquinaria'] || row.operaMaquinaria || '',
-                        eppSeleccionados: eppStr ? eppStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                        entrenamientosSeleccionados: entrenamientosStr ? entrenamientosStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                        controlesFuenteSeleccionados: controlesFuenteStr ? controlesFuenteStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                        controlesMedioSeleccionados: controlesMedioStr ? controlesMedioStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                        report: row['Reporte Generado'] || row.report || '',
-                        images: {},
-                        video: null
-                    };
-                });
+                        const descValue = 
+                            row['Descripción Detallada'] || 
+                            row['Descripcion Detallada'] || 
+                            row['Descripción detallada'] || 
+                            row['Descripcion detallada'] || 
+                            row['Descripción'] || 
+                            row['Descripcion'] || 
+                            row['contextoAdicional'] || 
+                            row.contextoAdicional || 
+                            '';
+
+                        return {
+                            id: crypto.randomUUID(),
+                            nombreCargo: row['Nombre del Cargo'] || row['Nombre de Cargo'] || row['Cargo'] || row.nombreCargo || '',
+                            area: row['Área'] || row['Area'] || row.area || '',
+                            nivelCargo: row['Nivel del Cargo'] || row['Nivel de Cargo'] || row.nivelCargo || 'Operativo',
+                            tipoContrato: row['Tipo de Contrato'] || row['Tipo de contrato'] || row.tipoContrato || 'Término indefinido',
+                            jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
+                            jefeInmediato: row['Jefe Inmediato'] || row['Jefe inmediato'] || row.jefeInmediato || '',
+                            escalasSalarial: row['Escala Salarial'] || row['Escala salarial'] || row.escalasSalarial || '',
+                            numVacantes: row['Número de Vacantes'] || row['Numero de Vacantes'] || row['Nº de Vacantes'] || row['Nº Vacantes'] || row.numVacantes || '',
+                            contextoAdicional: descValue,
+                            exigenciaFisica: row['Exigencia Física'] || row['Exigencia Fisica'] || row.exigenciaFisica || '',
+                            exigenciaMental: row['Exigencia Mental'] || row.exigenciaMental || '',
+                            operaMaquinaria: row['Opera Maquinaria'] || row['Opera maquinaria'] || row.operaMaquinaria || '',
+                            eppSeleccionados: eppStr ? eppStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                            entrenamientosSeleccionados: entrenamientosStr ? entrenamientosStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                            controlesFuenteSeleccionados: controlesFuenteStr ? controlesFuenteStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                            controlesMedioSeleccionados: controlesMedioStr ? controlesMedioStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+                            report: row['Reporte Generado'] || row.report || '',
+                            images: {},
+                            video: null
+                        };
+                    });
+
+                    setPerfiles(prev => {
+                        const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
+                        const combined = [...cleanPrev, ...newPerfiles];
+                        if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
+                            setActivePerfilId(combined[0].id);
+                            setFormData(combined[0]);
+                            setGeneratedReport(combined[0].report || null);
+                            editorContentRef.current = combined[0].report || '';
+                            liveEditorRef.current?.setHTML(combined[0].report || '');
+                        }
+                        saveImportedPerfiles(combined);
+                        return combined;
+                    });
+
+                    showToast({ message: `${newPerfiles.length} perfiles de cargo importados correctamente`, severity: NotificationSeverity.SUCCESS });
+                } else {
+                    // Ruta B: Excel No Estándar -> Procesar con IA
+                    requestAiImport();
+                }
+            } catch (err) {
+                console.error("Error importing Excel:", err);
+                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', severity: NotificationSeverity.ERROR });
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        if (e.target) e.target.value = '';
+    };
+
+    // Nueva función para ejecutar la importación por IA
+    const handleConfirmAiImport = async () => {
+        if (!pendingFileData) return;
+        setIsConfirmModalOpen(false);
+        setIsAiImportLoading(true);
+        try {
+            const res = await fetch('/api/sgsst/perfiles-cargo/import-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    fileData: pendingFileData.dataUrl,
+                    fileName: pendingFileData.name,
+                    mimeType: pendingFileData.type,
+                    modelName: selectedModel
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Error en el servidor');
+            }
+
+            const data = await res.json();
+            if (data.success && data.perfiles) {
+                const nuevosPerfiles = data.perfiles.map((p: any) => ({
+                    ...p,
+                    id: crypto.randomUUID(),
+                    images: {},
+                    video: null,
+                    report: p.report || ''
+                }));
 
                 setPerfiles(prev => {
                     const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
-                    const combined = [...cleanPrev, ...newPerfiles];
-                    if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
+                    const combined = [...cleanPrev, ...nuevosPerfiles];
+                    if (combined.length > 0 && (!activePerfilId || !prev.find(p2 => p2.id === activePerfilId)?.nombreCargo)) {
                         setActivePerfilId(combined[0].id);
                         setFormData(combined[0]);
                         setGeneratedReport(combined[0].report || null);
@@ -801,14 +947,21 @@ const PerfilesCargo = () => {
                     return combined;
                 });
 
-                showToast({ message: `${newPerfiles.length} perfiles de cargo importados correctamente`, severity: NotificationSeverity.SUCCESS });
-            } catch (err) {
-                console.error("Error importing Excel:", err);
-                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', severity: NotificationSeverity.ERROR });
+                showToast({
+                    message: `Se han extraído ${nuevosPerfiles.length} perfiles con IA exitosamente.`,
+                    severity: NotificationSeverity.SUCCESS
+                });
             }
-        };
-        reader.readAsArrayBuffer(file);
-        if (e.target) e.target.value = '';
+        } catch (err: any) {
+            console.error('Error importing with AI:', err);
+            showToast({
+                message: `Error al procesar con IA: ${err.message}`,
+                severity: NotificationSeverity.ERROR
+            });
+        } finally {
+            setIsAiImportLoading(false);
+            setPendingFileData(null);
+        }
     };
 
     // ─── Save Data ────────────────────────────────────────────────────────────
@@ -1193,6 +1346,8 @@ const PerfilesCargo = () => {
                 exportFileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
                 onDummy={handleLoadDummyData}
                 onImportExcel={() => fileInputRef.current?.click()}
+                importExcelLabel="Importar Archivo"
+                importExcelTitle="Importar desde Excel, PDF o Word"
                 onExportExcel={handleExportExcel}
                 hasData={perfiles.length > 0}
             />
@@ -1883,14 +2038,61 @@ const PerfilesCargo = () => {
                 document.body
             )}
 
-            {/* ═══ Excel Import Hidden Input ═══ */}
+            {/* ═══ Excel/File Import Hidden Input ═══ */}
             <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImportExcel}
-                accept=".xlsx, .xls"
+                accept=".xlsx, .xls, .docx, .doc, .pdf, .txt, .json"
                 className="hidden"
             />
+
+            {/* ── MODAL IMPORT CONFIRMATION IA ── */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
+                        <div className="flex items-center gap-2 mb-3 text-text-primary">
+                            <Sparkles className="h-5 w-5 text-teal-500 animate-pulse" />
+                            <h3 className="text-sm font-bold">Confirmar Importación con IA</h3>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">
+                            Se detectó un documento no estándar o archivo de texto ({pendingFileData?.name}). 
+                            ¿Deseas usar la IA (Gemini) de Somos SST para analizar el contenido, extraer las responsabilidades y riesgos, y crear los perfiles de cargo de forma automática?
+                        </p>
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                onClick={() => {
+                                    setIsConfirmModalOpen(false);
+                                    setPendingFileData(null);
+                                }}
+                                className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmAiImport}
+                                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-4 py-2 text-xs font-bold shadow-md hover:scale-105 active:scale-95 transform transition-all cursor-pointer flex items-center gap-1"
+                            >
+                                <Sparkles className="h-3 w-3" />
+                                Mapear con IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── SPINNER CARGA IA ── */}
+            {isAiImportLoading && (
+                <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm text-white">
+                    <div className="bg-surface-primary border border-border-medium p-6 rounded-2xl flex flex-col items-center max-w-xs shadow-2xl">
+                        <Loader2 className="h-10 w-10 text-teal-500 animate-spin mb-3" />
+                        <h4 className="text-sm font-bold text-text-primary text-center">Procesando con IA...</h4>
+                        <p className="text-[11px] text-text-secondary text-center mt-1">
+                            Gemini está analizando la información de los cargos y riesgos del documento. Esto puede tardar unos segundos.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
