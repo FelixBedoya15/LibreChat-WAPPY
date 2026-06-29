@@ -5,7 +5,8 @@ const { getMessages, sendMessage } = require('../controllers/ChatSSTController')
 
 const requireAdminOrTestUser = (req, res, next) => {
   try {
-    const isAllowedUser = req.user?.email === 'felix.bedoya15@gmail.com';
+    const isAllowedUser = req.user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+
     const isAdmin = req.user?.role === 'ADMIN';
 
     if (isAdmin || isAllowedUser) {
