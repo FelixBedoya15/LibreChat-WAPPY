@@ -100,6 +100,7 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
 
   const searchValue = endpointSearchValues[endpoint.value] || '';
   const isUserProvided = useMemo(() => endpointRequiresUserKey(endpoint.value), [endpoint.value]);
+  const isGoogle = endpoint.value === EModelEndpoint.google || endpoint.value === 'google';
 
   const renderIconLabel = () => (
     <div className="flex items-center gap-2">
@@ -111,7 +112,7 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
       <span
         className={cn(
           'truncate text-left',
-          isUserProvided ? 'group-hover:w-24 group-focus:w-24' : '',
+          isUserProvided && !isGoogle ? 'group-hover:w-24 group-focus:w-24' : '',
         )}
       >
         {endpoint.label}
@@ -206,7 +207,7 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
             className="group flex w-full flex-shrink cursor-pointer items-center justify-between rounded-xl px-1 py-1 text-sm"
           >
             {renderIconLabel()}
-            {isUserProvided && (
+            {isUserProvided && !isGoogle && (
               <SettingsButton endpoint={endpoint} handleOpenKeyDialog={handleOpenKeyDialog} />
             )}
           </div>
@@ -253,7 +254,7 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
         <div className="group flex w-full min-w-0 items-center justify-between">
           {renderIconLabel()}
           <div className="flex items-center gap-2">
-            {endpointRequiresUserKey(endpoint.value) && (
+            {endpointRequiresUserKey(endpoint.value) && !isGoogle && (
               <SettingsButton endpoint={endpoint} handleOpenKeyDialog={handleOpenKeyDialog} />
             )}
             {selectedEndpoint === endpoint.value && (
