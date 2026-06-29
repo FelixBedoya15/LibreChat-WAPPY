@@ -50,6 +50,7 @@ const {
   ConsultarAnaliticaActosCondiciones,
   GoogleDrive,
   GoogleCalendar,
+  GoogleGmail,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -279,6 +280,9 @@ const loadTools = async ({
     },
     google_calendar: async (_toolContextMap) => {
       return new GoogleCalendar({ req: options.req });
+    },
+    google_gmail: async (_toolContextMap) => {
+      return new GoogleGmail({ req: options.req });
     },
   };
 

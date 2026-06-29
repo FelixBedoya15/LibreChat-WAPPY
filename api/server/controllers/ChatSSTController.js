@@ -73,8 +73,10 @@ const updateMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
     }
 
-    // Solo el autor o un admin puede editar
-    if (msg.user?.toString() !== userId?.toString() && req.user?.role !== 'ADMIN') {
+    const isOwner = msg.user && msg.user.toString() === userId?.toString();
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ success: false, message: 'No tienes permiso para editar este mensaje.' });
     }
 
@@ -103,8 +105,10 @@ const deleteMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
     }
 
-    // Solo el autor o un admin puede eliminar
-    if (msg.user?.toString() !== userId?.toString() && req.user?.role !== 'ADMIN') {
+    const isOwner = msg.user && msg.user.toString() === userId?.toString();
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ success: false, message: 'No tienes permiso para eliminar este mensaje.' });
     }
 
@@ -122,9 +126,40 @@ const deleteMessage = async (req, res) => {
   }
 };
 
+const regenerateMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const botMsg = await ChatSSTMessage.findById(id);
+    if (!botMsg) {
+      return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
+    }
+
+    let userMsg = null;
+    if (botMsg.senderRole === 'bot' && botMsg.replyTo) {
+      userMsg = await ChatSSTMessage.findById(botMsg.replyTo);
+      await ChatSSTMessage.findByIdAndDelete(botMsg._id);
+    } else if (botMsg.senderRole === 'user') {
+      userMsg = botMsg;
+    }
+
+    if (!userMsg) {
+      return res.status(400).json({ success: false, message: 'No se encontró la consulta de usuario original.' });
+    }
+
+    const populatedUserMsg = await ChatSSTMessage.findById(userMsg._id).populate('user', 'name email avatar role');
+    const queuePosition = wappyQueueService.enqueue(populatedUserMsg);
+
+    res.status(200).json({ success: true, queuePosition, message: 'Re-encolado para regeneración.' });
+  } catch (error) {
+    console.error('Error al regenerar mensaje:', error);
+    res.status(500).json({ success: false, message: 'Error al regenerar respuesta.' });
+  }
+};
+
 module.exports = {
   getMessages,
   sendMessage,
   updateMessage,
   deleteMessage,
+  regenerateMessage,
 };

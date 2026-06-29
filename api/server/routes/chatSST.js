@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('../middleware');
-const { getMessages, sendMessage, updateMessage, deleteMessage } = require('../controllers/ChatSSTController');
+const { getMessages, sendMessage, updateMessage, deleteMessage, regenerateMessage } = require('../controllers/ChatSSTController');
 
 const requireAdminOrTestUser = (req, res, next) => {
   try {
@@ -21,5 +21,6 @@ router.get('/messages', requireJwtAuth, requireAdminOrTestUser, getMessages);
 router.post('/send', requireJwtAuth, requireAdminOrTestUser, sendMessage);
 router.put('/messages/:id', requireJwtAuth, requireAdminOrTestUser, updateMessage);
 router.delete('/messages/:id', requireJwtAuth, requireAdminOrTestUser, deleteMessage);
+router.post('/messages/:id/regenerate', requireJwtAuth, requireAdminOrTestUser, regenerateMessage);
 
 module.exports = router;

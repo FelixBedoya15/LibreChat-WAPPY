@@ -291,5 +291,12 @@
     "description": "Permite al agente programar, consultar o eliminar eventos y recordatorios directamente en tu Google Calendar con alertas automáticas para celular.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2693/2693507.png",
     "authConfig": []
+  },
+  {
+    "name": "Google Gmail",
+    "pluginKey": "google_gmail",
+    "description": "Permite al agente enviar correos electrónicos y crear borradores directamente en la cuenta de Gmail del usuario (Google Workspace).",
+    "icon": "https://cdn-icons-png.flaticon.com/512/732/732200.png",
+    "authConfig": []
   }
 ]

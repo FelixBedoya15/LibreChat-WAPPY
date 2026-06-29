@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X } from 'lucide-react';
+import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X, RefreshCw } from 'lucide-react';
 import { request } from 'librechat-data-provider';
 import { useAuthContext } from '~/hooks';
 
@@ -25,18 +25,35 @@ export default function ChatSSTView() {
   const [showMentions, setShowMentions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isUserScrolledUp = useRef<boolean>(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Si el usuario está a más de 150px del final, consideramos que está leyendo mensajes antiguos
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+    isUserScrolledUp.current = !isAtBottom;
   };
 
-  const fetchMessages = async () => {
+  const scrollToBottom = (force = false) => {
+    if (force || !isUserScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const fetchMessages = async (isInitial = false) => {
     try {
       const data = await request.get('/api/chat-sst/messages') as any;
       if (data && data.success && Array.isArray(data.data)) {
         setMessages(data.data);
+        if (isInitial) {
+          setTimeout(() => scrollToBottom(true), 100);
+        }
       }
     } catch (err) {
       console.error('Error al cargar mensajes del Chat SST:', err);
@@ -46,13 +63,13 @@ export default function ChatSSTView() {
   };
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    fetchMessages(true);
+    const interval = setInterval(() => fetchMessages(false), 3000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(false);
   }, [messages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,6 +120,7 @@ export default function ChatSSTView() {
     };
 
     setMessages((prev) => [...prev, tempUserMsg]);
+    setTimeout(() => scrollToBottom(true), 50);
 
     try {
       const data = await request.post('/api/chat-sst/send', {
@@ -111,7 +129,7 @@ export default function ChatSSTView() {
       }) as any;
 
       if (data && data.success) {
-        fetchMessages();
+        fetchMessages(false);
       } else {
         console.error('Error del servidor al enviar mensaje:', data);
       }
@@ -129,6 +147,18 @@ export default function ChatSSTView() {
       setMessages((prev) => prev.filter((m) => (m._id || m.id) !== msgId));
     } catch (err) {
       console.error('Error eliminando mensaje:', err);
+    }
+  };
+
+  const handleRegenerate = async (msgId: string) => {
+    setRegeneratingId(msgId);
+    try {
+      await request.post(`/api/chat-sst/messages/${msgId}/regenerate`, {});
+      fetchMessages(false);
+    } catch (err) {
+      console.error('Error regenerando mensaje:', err);
+    } finally {
+      setRegeneratingId(null);
     }
   };
 
@@ -150,7 +180,6 @@ export default function ChatSSTView() {
     }
   };
 
-  // ID estricto del usuario actual conectado en el navegador
   const currentUserIdStr = (user?._id || user?.id)?.toString();
 
   const extractUserIdString = (u: any): string => {
@@ -160,6 +189,8 @@ export default function ChatSSTView() {
     if (u.id) return u.id.toString();
     return '';
   };
+
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <div className="flex h-full w-full flex-col bg-[#f0f2f5] dark:bg-zinc-900 font-sans relative">
@@ -184,7 +215,7 @@ export default function ChatSSTView() {
 
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" /> {user?.role === 'ADMIN' ? 'Modo Administrador' : 'Modo Pruebas'}
+            <ShieldCheck className="h-4 w-4 text-emerald-500" /> {isAdmin ? 'Modo Administrador' : 'Modo Pruebas'}
           </div>
         </div>
       </div>
@@ -201,7 +232,11 @@ export default function ChatSSTView() {
       </div>
 
       {/* Mensajes / Chat Feed */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]"
+      >
         {loading && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-zinc-400 gap-2">
             <Loader2 className="h-5 w-5 animate-spin text-emerald-500" /> Cargando historial de Chat SST...
@@ -216,8 +251,6 @@ export default function ChatSSTView() {
           messages.map((msg, index) => {
             const msgUserIdStr = extractUserIdString(msg.user);
             const isBot = msg.senderRole === 'bot';
-
-            // ESTRICTO: Solo es "isMe" (derecha) si el ID del autor coincide exactamente con el ID de mi usuario conectado
             const isMe = Boolean(currentUserIdStr && msgUserIdStr && currentUserIdStr === msgUserIdStr);
 
             const msgId = msg._id || msg.id || index.toString();
@@ -225,7 +258,8 @@ export default function ChatSSTView() {
               ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : msg.time || '';
 
-            const canManage = isMe || user?.role === 'ADMIN';
+            const canManageUserMsg = isMe || isAdmin;
+            const canManageBotMsg = isBot && isAdmin;
 
             return (
               <div
@@ -262,7 +296,9 @@ export default function ChatSSTView() {
                       >
                         {formattedTime}
                       </span>
-                      {canManage && !isBot && editingId !== msgId && (
+
+                      {/* Acciones para mensajes de Usuario */}
+                      {canManageUserMsg && !isBot && editingId !== msgId && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2">
                           {isMe && (
                             <button
@@ -277,6 +313,31 @@ export default function ChatSSTView() {
                             onClick={() => handleDelete(msgId)}
                             className="p-1 hover:bg-black/10 rounded text-xs transition-colors text-rose-300 hover:text-rose-100"
                             title="Eliminar mensaje"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Acciones especiales de Administrador para respuestas del Bot (@wappy) */}
+                      {canManageBotMsg && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2">
+                          <button
+                            onClick={() => handleRegenerate(msgId)}
+                            disabled={regeneratingId === msgId}
+                            className="p-1 hover:bg-white/10 rounded text-xs transition-colors text-emerald-400 hover:text-emerald-200"
+                            title="Regenerar respuesta del agente"
+                          >
+                            {regeneratingId === msgId ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(msgId)}
+                            className="p-1 hover:bg-white/10 rounded text-xs transition-colors text-rose-400 hover:text-rose-200"
+                            title="Eliminar respuesta del agente"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>

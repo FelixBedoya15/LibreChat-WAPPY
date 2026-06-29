@@ -109,7 +109,7 @@ function ToolSelectDialog({
   };
 
   const onAddTool = (pluginKey: string) => {
-    if ((pluginKey === 'google_drive' || pluginKey === 'google_calendar') && !isProOrAdmin) {
+    if ((pluginKey === 'google_drive' || pluginKey === 'google_calendar' || pluginKey === 'google_gmail') && !isProOrAdmin) {
       setIsUpgradeModalOpen(true);
       return;
     }

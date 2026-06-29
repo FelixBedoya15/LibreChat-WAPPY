@@ -287,7 +287,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                     consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
                                     consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
                                     google_drive: 'Google Drive',
-                                    google_calendar: 'Google Calendar'
+                                    google_calendar: 'Google Calendar',
+                                    google_gmail: 'Google Gmail'
                                 };
                                 const displayName = toolTranslations[toolId] ?? toolId
                                     .split('_')
@@ -304,7 +305,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 label={displayName}
                                                 checked={isActive}
                                                 onChange={() => {
-                                                    if ((toolId === 'google_drive' || toolId === 'google_calendar') && !isActive && !isProOrAdmin) {
+                                                    if ((toolId === 'google_drive' || toolId === 'google_calendar' || toolId === 'google_gmail') && !isActive && !isProOrAdmin) {
                                                         setIsUpgradeModalOpen(true);
                                                     } else {
                                                         toggleExternalTool(toolId);
