@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X, RefreshCw } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { request } from 'librechat-data-provider';
 import { useAuthContext } from '~/hooks';
+
 
 interface ChatMessage {
   _id?: string;
@@ -400,7 +403,11 @@ export default function ChatSSTView() {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </div>
               </div>
