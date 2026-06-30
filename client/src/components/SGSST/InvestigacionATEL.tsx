@@ -138,6 +138,11 @@ const InvestigacionATEL = () => {
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+    const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
+
     // ── Form State ──
     const [formData, setFormData] = useState({
         // Datos del Evento
@@ -300,6 +305,72 @@ const InvestigacionATEL = () => {
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
+        }
+    };
+
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const base64Reader = new FileReader();
+        base64Reader.onload = (base64Event) => {
+            setPendingFileData({
+                dataUrl: base64Event.target?.result as string,
+                name: file.name,
+                type: file.type || 'application/octet-stream'
+            });
+            setIsConfirmModalOpen(true);
+        };
+        base64Reader.readAsDataURL(file);
+        if (e.target) e.target.value = '';
+    };
+
+    const handleConfirmAiImport = async () => {
+        if (!pendingFileData) return;
+        setIsConfirmModalOpen(false);
+        setIsAiImportLoading(true);
+        try {
+            const res = await fetch('/api/sgsst/investigacion-atel/import-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    fileData: pendingFileData.dataUrl,
+                    fileName: pendingFileData.name,
+                    mimeType: pendingFileData.type,
+                    modelName: selectedModel
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Error en el servidor');
+            }
+
+            const data = await res.json();
+            if (data.success && data.formData) {
+                setFormData(prev => ({
+                    ...prev,
+                    ...data.formData
+                }));
+                showToast({
+                    message: `Datos del reporte/FURAT extraídos e importados exitosamente.`,
+                    status: 'success',
+                    severity: 'success'
+                });
+            }
+        } catch (err: any) {
+            console.error('Error importing with AI:', err);
+            showToast({
+                message: `Error al procesar con IA: ${err.message}`,
+                status: 'error',
+                severity: 'error'
+            });
+        } finally {
+            setIsAiImportLoading(false);
+            setPendingFileData(null);
         }
     };
 
@@ -673,6 +744,9 @@ const InvestigacionATEL = () => {
                     exportContent={editorContentRef.current || generatedObjectives || ''}
                     exportFileName="Investigacion_ATEL"
                     onDummy={handleDummyData}
+                    onImportExcel={() => fileInputRef.current?.click()}
+                    importExcelLabel="Importar Archivo"
+                    importExcelTitle="Importar desde FURAT (Excel, Word, PDF, Imagen o Texto)"
                 />
             </div>
 
@@ -1387,6 +1461,62 @@ const InvestigacionATEL = () => {
                                 hideFeatures={true}
                             />
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ File Import Hidden Input ═══ */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportExcel}
+                accept=".xlsx, .xls, .docx, .doc, .pdf, .txt, .json"
+                className="hidden"
+            />
+
+            {/* ── MODAL IMPORT CONFIRMATION IA ── */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
+                        <div className="flex items-center gap-2 mb-3 text-text-primary">
+                            <Sparkles className="h-5 w-5 text-teal-500 animate-pulse" />
+                            <h3 className="text-sm font-bold">Confirmar Importación con IA</h3>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">
+                            Se detectó un documento de reporte o FURAT ({pendingFileData?.name}). 
+                            ¿Deseas usar la IA (Gemini) de Somos SST para analizar el contenido, extraer los datos del accidente y del afectado, y llenar el formulario de investigación automáticamente?
+                        </p>
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                onClick={() => {
+                                    setIsConfirmModalOpen(false);
+                                    setPendingFileData(null);
+                                }}
+                                className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmAiImport}
+                                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-4 py-2 text-xs font-bold shadow-md hover:scale-105 active:scale-95 transform transition-all cursor-pointer flex items-center gap-1"
+                            >
+                                <Sparkles className="h-3 w-3" />
+                                Mapear con IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── SPINNER CARGA IA ── */}
+            {isAiImportLoading && (
+                <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm text-white">
+                    <div className="bg-surface-primary border border-border-medium p-6 rounded-2xl flex flex-col items-center max-w-xs shadow-2xl">
+                        <Loader2 className="h-10 w-10 text-teal-500 animate-spin mb-3" />
+                        <h4 className="text-sm font-bold text-text-primary text-center">Procesando con IA...</h4>
+                        <p className="text-[11px] text-text-secondary text-center mt-1">
+                            Gemini está extrayendo los hechos, afectado y causales del reporte. Esto puede tardar unos segundos.
+                        </p>
                     </div>
                 </div>
             )}

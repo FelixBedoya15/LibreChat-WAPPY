@@ -17,6 +17,11 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
 const feedWorkerEvent = require('./feedWorkerHelper');
 
+// ─── File Parser Imports ─────────────────────────────────────────────────────
+const pdf = require('pdf-parse');
+const mammoth = require('mammoth');
+const XLSX = require('xlsx');
+
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
@@ -59,6 +64,105 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[InvestigacionATEL] Data save error:', error);
         res.status(500).json({ error: 'Error al guardar los datos.' });
+    }
+});
+
+// ─── POST /api/sgsst/investigacion-atel/import-file ──────────────────────────
+router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+        const { fileData, fileName, mimeType, modelName } = req.body;
+        if (!fileData) return res.status(400).json({ error: 'No se recibieron datos del archivo.' });
+
+        // 1. Convertir Base64 a Buffer
+        const base64Data = fileData.split(';base64,').pop();
+        const buffer = Buffer.from(base64Data, 'base64');
+        let extractedText = '';
+
+        // 2. Extraer texto según tipo de archivo
+        if (mimeType === 'application/pdf') {
+            const pdfData = await pdf(buffer);
+            extractedText = pdfData.text;
+        } else if (
+            mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+            mimeType === 'application/msword'
+        ) {
+            const result = await mammoth.extractRawText({ buffer });
+            extractedText = result.value;
+        } else if (
+            mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+            mimeType === 'application/vnd.ms-excel'
+        ) {
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            workbook.SheetNames.forEach(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const csv = XLSX.utils.sheet_to_csv(worksheet);
+                if (csv.trim()) {
+                    extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
+                }
+            });
+        } else {
+            extractedText = buffer.toString('utf8');
+        }
+
+        if (!extractedText || !extractedText.trim()) {
+            return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
+        }
+
+        // 3. Configurar e invocar Gemini con rotación
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+        const finalModelName = modelName || preferredModel;
+
+        const modelInstance = {
+            model: finalModelName,
+            generationConfig: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: 'object',
+                    properties: {
+                        tipoEvento: { type: 'string', enum: ['Incidente', 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal'] },
+                        fechaEvento: { type: 'string' },
+                        horaEvento: { type: 'string' },
+                        lugarEvento: { type: 'string' },
+                        departamento: { type: 'string' },
+                        municipio: { type: 'string' },
+                        afectadoNombre: { type: 'string' },
+                        afectadoCedula: { type: 'string' },
+                        afectadoCargo: { type: 'string' },
+                        afectadoEps: { type: 'string' },
+                        afectadoArl: { type: 'string' },
+                        tipoContrato: { type: 'string', enum: ['Indefinido', 'Fijo', 'Obra o labor', 'Aprendizaje', 'Prestación de servicios', 'Temporal'] },
+                        jornadaLaboral: { type: 'string', enum: ['Diurna', 'Nocturna', 'Mixta', 'Por turnos'] },
+                        experienciaLaboral: { type: 'string' },
+                        tiempoEnCargo: { type: 'string' },
+                        actividadMomento: { type: 'string' },
+                        descripcionHechos: { type: 'string' },
+                        consecuencias: { type: 'string' },
+                        diasIncapacidad: { type: 'string' },
+                        naturalezaLesion: { type: 'string' },
+                        agenteCausal: { type: 'string' },
+                        parteCuerpo: { type: 'string' }
+                    }
+                }
+            }
+        };
+
+        const systemPrompt = `Eres un asistente de seguridad y salud en el trabajo especializado en transcripción y mapeo de datos de reportes de accidentes o formularios FURAT.
+Analiza el siguiente texto extraído de un reporte o FURAT y mapea la información a los campos correspondientes del esquema JSON.
+Para los campos de tipo enum, selecciona el valor que más se asemeje si no hay coincidencia exacta.
+Las fechas deben estar en formato YYYY-MM-DD y las horas en formato HH:MM (de 24 horas).`;
+
+        const contents = [
+            { role: 'user', parts: [{ text: `${systemPrompt}\n\nDocumento:\n${extractedText}` }] }
+        ];
+
+        const geminiResult = await generateWithKeyRotation(req.user.id, modelInstance, contents);
+        const parsedData = JSON.parse(geminiResult.text);
+
+        res.json({ success: true, formData: parsedData });
+    } catch (error) {
+        logger.error('[InvestigacionATEL] File import error:', error);
+        res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA.' });
     }
 });
 
