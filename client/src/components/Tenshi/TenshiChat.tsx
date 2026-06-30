@@ -48,13 +48,17 @@ export default function TenshiChat() {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a')) return;
+    const btn = target.closest('button');
+    if (btn && btn !== e.currentTarget) return;
+    if (target.closest('a')) return;
     startDrag(e.clientX, e.clientY);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a')) return;
+    const btn = target.closest('button');
+    if (btn && btn !== e.currentTarget) return;
+    if (target.closest('a')) return;
     const touch = e.touches[0];
     startDrag(touch.clientX, touch.clientY);
   };
@@ -83,6 +87,9 @@ export default function TenshiChat() {
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!dragStartRef.current) return;
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       const touch = e.touches[0];
       const dx = touch.clientX - dragStartRef.current.mouseX;
       const dy = touch.clientY - dragStartRef.current.mouseY;

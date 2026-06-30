@@ -144,7 +144,28 @@ REGLAS DE FORMATO Y ESTILO:
    - NO generes discursos largos, presentaciones extensas, ni listas de viñetas cuando el usuario solo está saludando o haciendo una pregunta corta.
    - Si el usuario hace una pregunta técnica específica de SST (Decreto 1072, Res 0312, GTC 45, etc.), responde de forma clara, precisa y profesional.`;
 
-      const prompt = `El usuario ${currentMessage.senderName} escribió en el chat: "${currentMessage.content}". Responde de acuerdo a las reglas de estilo.`;
+      // Obtener el historial de los últimos 10 mensajes anteriores a este para dar contexto al bot
+      const rawHistory = await ChatSSTMessage.find({
+        _id: { $ne: currentMessage._id },
+        createdAt: { $lt: currentMessage.createdAt || new Date() }
+      })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+      const history = rawHistory.reverse();
+
+      let contextString = '';
+      if (history.length > 0) {
+        contextString = "HISTORIAL RECIENTE DEL CHAT (para contexto y coherencia):\n" + 
+          history.map(h => `[${h.senderName} (${h.senderRole})]: ${h.content}`).join('\n') + 
+          '\n\n';
+      }
+
+      const prompt = `${contextString}Último mensaje recibido de ${currentMessage.senderName} (el cual debes responder ahora):
+"${currentMessage.content}"
+
+Responde conversacionalmente de acuerdo a las reglas de estilo y el contexto del historial previo.`;
+
 
       let botResponseText = '';
       let lastError = null;
