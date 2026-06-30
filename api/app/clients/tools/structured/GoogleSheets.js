@@ -188,12 +188,14 @@ class GoogleSheetsTool extends Tool {
         const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
         const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
 
-        // Apply a gorgeous header styling to row 1 (columns A-Z)
+        const targetSheetId = sheetId || 0;
+
         const requests = [
+          // 1. Header Row Formatting (Row 1)
           {
             repeatCell: {
               range: {
-                sheetId: sheetId || 0,
+                sheetId: targetSheetId,
                 startRowIndex: 0,
                 endRowIndex: 1,
                 startColumnIndex: 0,
@@ -219,15 +221,96 @@ class GoogleSheetsTool extends Tool {
               fields: 'userEnteredFormat(backgroundColor,textFormat,alignment,verticalAlignment)',
             },
           },
+          // 2. Body Rows Formatting (Rows 2-100)
+          {
+            repeatCell: {
+              range: {
+                sheetId: targetSheetId,
+                startRowIndex: 1,
+                endRowIndex: 100,
+                startColumnIndex: 0,
+                endColumnIndex: 26,
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    fontSize: 10,
+                    fontFamily: 'Arial',
+                    foregroundColor: {
+                      red: 0.2,
+                      green: 0.2,
+                      blue: 0.2, // Dark Grey #333
+                    },
+                  },
+                  verticalAlignment: 'MIDDLE',
+                },
+              },
+              fields: 'userEnteredFormat(textFormat,verticalAlignment)',
+            },
+          },
+          // 3. Grid Borders (Rows 1-100, Cols A-Z)
+          {
+            updateBorders: {
+              range: {
+                sheetId: targetSheetId,
+                startRowIndex: 0,
+                endRowIndex: 100,
+                startColumnIndex: 0,
+                endColumnIndex: 26,
+              },
+              top: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.82, green: 0.84, blue: 0.86 }, // Light grey #d1d5db
+              },
+              bottom: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.82, green: 0.84, blue: 0.86 },
+              },
+              left: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.82, green: 0.84, blue: 0.86 },
+              },
+              right: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.82, green: 0.84, blue: 0.86 },
+              },
+              innerHorizontal: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.88, green: 0.90, blue: 0.92 }, // Subtle inner grey
+              },
+              innerVertical: {
+                style: 'SOLID',
+                width: 1,
+                color: { red: 0.88, green: 0.90, blue: 0.92 },
+              },
+            },
+          },
+          // 4. Force Show Grid Lines
           {
             updateSheetProperties: {
               properties: {
-                sheetId: sheetId || 0,
+                sheetId: targetSheetId,
                 gridProperties: {
                   showGridLines: true,
                 },
               },
               fields: 'gridProperties.showGridLines',
+            },
+          },
+          // 5. Auto-Resize Column Widths (Cols A-Z)
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: targetSheetId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 26,
+              },
             },
           },
         ];
@@ -239,7 +322,7 @@ class GoogleSheetsTool extends Tool {
           },
         });
 
-        return `Formato de cabecera premium aplicado con éxito en la pestaña con ID: ${sheetId}. Cabecera coloreada y líneas de cuadrícula habilitadas.`;
+        return `Formato de reporte premium aplicado con éxito en la pestaña con ID: ${targetSheetId}. Columnas auto-ajustadas, cabecera coloreada, bordes estructurados y cuadrícula habilitada.`;
       }
 
       default:
