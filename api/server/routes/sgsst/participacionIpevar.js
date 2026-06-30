@@ -69,6 +69,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /inbox/dismiss — Remove an item from the public inbox ───
 router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
+        const { reportId } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
         const doc = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId });
         if (doc && doc.inboxPublico) {
@@ -85,6 +86,7 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
 // ─── POST /inbox/mark-processed — Mark an item as processed  ───
 router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
     try {
+        const { reportId } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
         const doc = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId });
         if (doc && doc.inboxPublico) {
