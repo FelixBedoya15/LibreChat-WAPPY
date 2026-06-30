@@ -77,6 +77,7 @@ class GoogleSlidesTool extends Tool {
       title: z.string().optional().describe('El título de la presentación o de la nueva diapositiva que deseas añadir.'),
       bodyText: z.string().optional().describe('El texto del cuerpo o contenido de la nueva diapositiva.'),
       slideLayout: z.enum(['TITLE_AND_BODY', 'TITLE', 'SECTION_HEADER', 'BLANK']).optional().default('BLANK').describe('El diseño de la diapositiva que deseas añadir.'),
+      slideType: z.enum(['TITLE_SLIDE', 'CONTENT_SLIDE']).optional().default('CONTENT_SLIDE').describe('El tipo de diapositiva: "TITLE_SLIDE" para portadas con fondo oscuro o "CONTENT_SLIDE" para diapositivas de contenido con fondo claro y línea de acento.'),
     });
   }
 
@@ -138,7 +139,7 @@ class GoogleSlidesTool extends Tool {
       throw new Error(`Validación fallida: ${JSON.stringify(validationResult.error.issues)}`);
     }
 
-    const { action, presentationId, title, bodyText, slideLayout } = validationResult.data;
+    const { action, presentationId, title, bodyText, slideLayout, slideType } = validationResult.data;
     const auth = await this.getAuthClient();
     const slides = google.slides({ version: 'v1', auth });
 
@@ -162,6 +163,7 @@ class GoogleSlidesTool extends Tool {
         const slideId = `slide_${Date.now()}`;
         const titleBoxId = `title_${Date.now()}`;
         const bodyBoxId = `body_${Date.now()}`;
+        const dividerId = `divider_${Date.now()}`;
 
         const requests = [
           {
@@ -174,151 +176,433 @@ class GoogleSlidesTool extends Tool {
           },
         ];
 
-        // If title is provided, insert it
-        if (title) {
-          const { cleanText, styles } = parseMarkdownForShape(title);
-          requests.push(
-            {
-              createShape: {
-                objectId: titleBoxId,
-                shapeType: 'TEXT_BOX',
-                elementProperties: {
-                  pageObjectId: slideId,
-                  size: {
-                    height: { magnitude: 60, unit: 'PT' },
-                    width: { magnitude: 620, unit: 'PT' },
-                  },
-                  transform: {
-                    scaleX: 1,
-                    scaleY: 1,
-                    translateX: 50,
-                    translateY: 40,
-                    unit: 'PT',
-                  },
-                },
-              },
-            },
-            {
-              insertText: {
-                objectId: titleBoxId,
-                text: cleanText,
-              },
-            },
-            {
-              updateTextStyle: {
-                objectId: titleBoxId,
-                style: {
-                  fontSize: { magnitude: 24, unit: 'PT' },
-                  bold: true,
-                  foregroundColor: {
-                    opaqueColor: {
+        // Apply background color based on slideType
+        if (slideType === 'TITLE_SLIDE') {
+          requests.push({
+            updatePageProperties: {
+              objectId: slideId,
+              pageProperties: {
+                pageBackgroundFill: {
+                  solidFill: {
+                    color: {
                       rgbColor: {
-                        red: 0.06,
-                        green: 0.46,
-                        blue: 0.43, // Teal #0f766e
+                        red: 0.12,  // #1e
+                        green: 0.16, // #29
+                        blue: 0.23,  // #3b (Dark slate slate-800)
                       },
                     },
                   },
                 },
-                textRange: {
-                  type: 'ALL',
-                },
-                fields: 'fontSize,bold,foregroundColor',
               },
-            }
-          );
+              fields: 'pageBackgroundFill',
+            },
+          });
+        } else {
+          // CONTENT_SLIDE background (clean off-white slate-50)
+          requests.push({
+            updatePageProperties: {
+              objectId: slideId,
+              pageProperties: {
+                pageBackgroundFill: {
+                  solidFill: {
+                    color: {
+                      rgbColor: {
+                        red: 0.97,
+                        green: 0.98,
+                        blue: 0.99,
+                      },
+                    },
+                  },
+                },
+              },
+              fields: 'pageBackgroundFill',
+            },
+          });
+        }
 
-          // Apply bold segments in title
-          for (const style of styles) {
-            if (style.type === 'bold') {
-              requests.push({
+        // TITLE_SLIDE Layout
+        if (slideType === 'TITLE_SLIDE') {
+          // 1. Centered Title
+          if (title) {
+            const { cleanText, styles } = parseMarkdownForShape(title);
+            requests.push(
+              {
+                createShape: {
+                  objectId: titleBoxId,
+                  shapeType: 'TEXT_BOX',
+                  elementProperties: {
+                    pageObjectId: slideId,
+                    size: {
+                      height: { magnitude: 100, unit: 'PT' },
+                      width: { magnitude: 620, unit: 'PT' },
+                    },
+                    transform: {
+                      scaleX: 1,
+                      scaleY: 1,
+                      translateX: 50,
+                      translateY: 140, // Centered vertically
+                      unit: 'PT',
+                    },
+                  },
+                },
+              },
+              {
+                insertText: {
+                  objectId: titleBoxId,
+                  text: cleanText,
+                },
+              },
+              {
                 updateTextStyle: {
                   objectId: titleBoxId,
                   style: {
+                    fontSize: { magnitude: 36, unit: 'PT' },
                     bold: true,
+                    fontFamily: 'Montserrat',
+                    foregroundColor: {
+                      opaqueColor: {
+                        rgbColor: {
+                          red: 1,
+                          green: 1,
+                          blue: 1, // White
+                        },
+                      },
+                    },
                   },
                   textRange: {
-                    type: 'FIXED_RANGE',
-                    startIndex: style.start,
-                    endIndex: style.end,
+                    type: 'ALL',
                   },
-                  fields: 'bold',
+                  fields: 'fontSize,bold,fontFamily,foregroundColor',
                 },
-              });
+              },
+              {
+                updateParagraphStyle: {
+                  objectId: titleBoxId,
+                  style: {
+                    alignment: 'CENTER',
+                  },
+                  textRange: {
+                    type: 'ALL',
+                  },
+                  fields: 'alignment',
+                },
+              }
+            );
+
+            // Apply bold segments in title
+            for (const style of styles) {
+              if (style.type === 'bold') {
+                requests.push({
+                  updateTextStyle: {
+                    objectId: titleBoxId,
+                    style: {
+                      bold: true,
+                    },
+                    textRange: {
+                      type: 'FIXED_RANGE',
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    fields: 'bold',
+                  },
+                });
+              }
+            }
+          }
+
+          // 2. Centered Subtitle
+          if (bodyText) {
+            const { cleanText, styles } = parseMarkdownForShape(bodyText);
+            requests.push(
+              {
+                createShape: {
+                  objectId: bodyBoxId,
+                  shapeType: 'TEXT_BOX',
+                  elementProperties: {
+                    pageObjectId: slideId,
+                    size: {
+                      height: { magnitude: 80, unit: 'PT' },
+                      width: { magnitude: 620, unit: 'PT' },
+                    },
+                    transform: {
+                      scaleX: 1,
+                      scaleY: 1,
+                      translateX: 50,
+                      translateY: 250, // Separated from title
+                      unit: 'PT',
+                    },
+                  },
+                },
+              },
+              {
+                insertText: {
+                  objectId: bodyBoxId,
+                  text: cleanText,
+                },
+              },
+              {
+                updateTextStyle: {
+                  objectId: bodyBoxId,
+                  style: {
+                    fontSize: { magnitude: 18, unit: 'PT' },
+                    fontFamily: 'Montserrat',
+                    foregroundColor: {
+                      opaqueColor: {
+                        rgbColor: {
+                          red: 0.49,
+                          green: 0.83,
+                          blue: 0.98, // Light Teal/Blue #7dd3fc
+                        },
+                      },
+                    },
+                  },
+                  textRange: {
+                    type: 'ALL',
+                  },
+                  fields: 'fontSize,fontFamily,foregroundColor',
+                },
+              },
+              {
+                updateParagraphStyle: {
+                  objectId: bodyBoxId,
+                  style: {
+                    alignment: 'CENTER',
+                  },
+                  textRange: {
+                    type: 'ALL',
+                  },
+                  fields: 'alignment',
+                },
+              }
+            );
+
+            // Apply bold segments in subtitle
+            for (const style of styles) {
+              if (style.type === 'bold') {
+                requests.push({
+                  updateTextStyle: {
+                    objectId: bodyBoxId,
+                    style: {
+                      bold: true,
+                    },
+                    textRange: {
+                      type: 'FIXED_RANGE',
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    fields: 'bold',
+                  },
+                });
+              }
             }
           }
         }
+        // CONTENT_SLIDE Layout
+        else {
+          // 1. Left-aligned Title (Teal Montserrat)
+          if (title) {
+            const { cleanText, styles } = parseMarkdownForShape(title);
+            requests.push(
+              {
+                createShape: {
+                  objectId: titleBoxId,
+                  shapeType: 'TEXT_BOX',
+                  elementProperties: {
+                    pageObjectId: slideId,
+                    size: {
+                      height: { magnitude: 50, unit: 'PT' },
+                      width: { magnitude: 620, unit: 'PT' },
+                    },
+                    transform: {
+                      scaleX: 1,
+                      scaleY: 1,
+                      translateX: 50,
+                      translateY: 40,
+                      unit: 'PT',
+                    },
+                  },
+                },
+              },
+              {
+                insertText: {
+                  objectId: titleBoxId,
+                  text: cleanText,
+                },
+              },
+              {
+                updateTextStyle: {
+                  objectId: titleBoxId,
+                  style: {
+                    fontSize: { magnitude: 24, unit: 'PT' },
+                    bold: true,
+                    fontFamily: 'Montserrat',
+                    foregroundColor: {
+                      opaqueColor: {
+                        rgbColor: {
+                          red: 0.06,
+                          green: 0.46,
+                          blue: 0.43, // Teal #0f766e
+                        },
+                      },
+                    },
+                  },
+                  textRange: {
+                    type: 'ALL',
+                  },
+                  fields: 'fontSize,bold,fontFamily,foregroundColor',
+                },
+              }
+            );
 
-        // If body text is provided, insert it
-        if (bodyText) {
-          const { cleanText, styles } = parseMarkdownForShape(bodyText);
+            // Apply bold segments in title
+            for (const style of styles) {
+              if (style.type === 'bold') {
+                requests.push({
+                  updateTextStyle: {
+                    objectId: titleBoxId,
+                    style: {
+                      bold: true,
+                    },
+                    textRange: {
+                      type: 'FIXED_RANGE',
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    fields: 'bold',
+                  },
+                });
+              }
+            }
+          }
+
+          // 2. Horizontal Accent Line (Teal)
           requests.push(
             {
               createShape: {
-                objectId: bodyBoxId,
-                shapeType: 'TEXT_BOX',
+                objectId: dividerId,
+                shapeType: 'RECTANGLE',
                 elementProperties: {
                   pageObjectId: slideId,
                   size: {
-                    height: { magnitude: 260, unit: 'PT' },
+                    height: { magnitude: 3, unit: 'PT' },
                     width: { magnitude: 620, unit: 'PT' },
                   },
                   transform: {
                     scaleX: 1,
                     scaleY: 1,
                     translateX: 50,
-                    translateY: 120, // Clearly separated from Title box
+                    translateY: 95,
                     unit: 'PT',
                   },
                 },
               },
             },
             {
-              insertText: {
-                objectId: bodyBoxId,
-                text: cleanText,
-              },
-            },
-            {
-              updateTextStyle: {
-                objectId: bodyBoxId,
-                style: {
-                  fontSize: { magnitude: 14, unit: 'PT' },
-                  foregroundColor: {
-                    opaqueColor: {
-                      rgbColor: {
-                        red: 0.2,
-                        green: 0.2,
-                        blue: 0.2, // Dark grey
+              updateShapeProperties: {
+                objectId: dividerId,
+                shapeProperties: {
+                  shapeBackgroundFill: {
+                    solidFill: {
+                      color: {
+                        rgbColor: {
+                          red: 0.06,
+                          green: 0.46,
+                          blue: 0.43, // Teal
+                        },
+                      },
+                    },
+                  },
+                  outline: {
+                    outlineFill: {
+                      solidFill: {
+                        color: {
+                          rgbColor: {
+                            red: 0.06,
+                            green: 0.46,
+                            blue: 0.43,
+                          },
+                        },
                       },
                     },
                   },
                 },
-                textRange: {
-                  type: 'ALL',
-                },
-                fields: 'fontSize,foregroundColor',
+                fields: 'shapeBackgroundFill,outline',
               },
             }
           );
 
-          // Apply bold segments in bodyText
-          for (const style of styles) {
-            if (style.type === 'bold') {
-              requests.push({
+          // 3. Body text box (Dark Grey Arial)
+          if (bodyText) {
+            const { cleanText, styles } = parseMarkdownForShape(bodyText);
+            requests.push(
+              {
+                createShape: {
+                  objectId: bodyBoxId,
+                  shapeType: 'TEXT_BOX',
+                  elementProperties: {
+                    pageObjectId: slideId,
+                    size: {
+                      height: { magnitude: 250, unit: 'PT' },
+                      width: { magnitude: 620, unit: 'PT' },
+                    },
+                    transform: {
+                      scaleX: 1,
+                      scaleY: 1,
+                      translateX: 50,
+                      translateY: 120, // Clean separation from header and divider
+                      unit: 'PT',
+                    },
+                  },
+                },
+              },
+              {
+                insertText: {
+                  objectId: bodyBoxId,
+                  text: cleanText,
+                },
+              },
+              {
                 updateTextStyle: {
                   objectId: bodyBoxId,
                   style: {
-                    bold: true,
+                    fontSize: { magnitude: 14, unit: 'PT' },
+                    fontFamily: 'Arial',
+                    foregroundColor: {
+                      opaqueColor: {
+                        rgbColor: {
+                          red: 0.2,
+                          green: 0.2,
+                          blue: 0.2, // Dark grey
+                        },
+                      },
+                    },
                   },
                   textRange: {
-                    type: 'FIXED_RANGE',
-                    startIndex: style.start,
-                    endIndex: style.end,
+                    type: 'ALL',
                   },
-                  fields: 'bold',
+                  fields: 'fontSize,fontFamily,foregroundColor',
                 },
-              });
+              }
+            );
+
+            // Apply bold segments in bodyText
+            for (const style of styles) {
+              if (style.type === 'bold') {
+                requests.push({
+                  updateTextStyle: {
+                    objectId: bodyBoxId,
+                    style: {
+                      bold: true,
+                    },
+                    textRange: {
+                      type: 'FIXED_RANGE',
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    fields: 'bold',
+                  },
+                });
+              }
             }
           }
         }
@@ -330,7 +614,7 @@ class GoogleSlidesTool extends Tool {
           },
         });
 
-        return `Diapositiva añadida exitosamente con diseño "${activeLayout}" a la presentación.`;
+        return `Diapositiva añadida exitosamente con diseño "${activeLayout}" y tipo "${slideType}" a la presentación.`;
       }
 
       case 'read_presentation': {
