@@ -300,6 +300,9 @@ const PerfilSociodemografico = () => {
 
     // ─── Excel Import/Export ───────────────────────────────────
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+    const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
     const handleExportExcel = () => {
         const dataToExport = trabajadores.map(w => ({
@@ -368,6 +371,59 @@ const PerfilSociodemografico = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        
+        // Helper to load file as base64 and open confirmation modal
+        const requestAiImport = () => {
+            const base64Reader = new FileReader();
+            base64Reader.onload = (base64Event) => {
+                setPendingFileData({
+                    dataUrl: base64Event.target?.result as string,
+                    name: file.name,
+                    type: file.type || 'application/octet-stream'
+                });
+                setIsConfirmModalOpen(true);
+            };
+            base64Reader.readAsDataURL(file);
+        };
+
+        // Si es PDF, Word (.docx, .doc) o texto, va directo a la ruta de IA
+        if (['pdf', 'docx', 'doc', 'txt'].includes(extension || '')) {
+            requestAiImport();
+            if (e.target) e.target.value = '';
+            return;
+        }
+
+        // Si es JSON, leemos e intentamos parsear
+        if (extension === 'json') {
+            const jsonReader = new FileReader();
+            jsonReader.onload = (jsonEvent) => {
+                try {
+                    const parsed = JSON.parse(jsonEvent.target?.result as string);
+                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].identificacion) {
+                        // Formato estándar
+                        const nuevosTrabajadores = parsed.map((t: any) => ({
+                            ...EMPTY_WORKER,
+                            ...t,
+                            id: t.id || crypto.randomUUID(),
+                            firmaDigital: t.firmaDigital || null,
+                            completedByAI: t.completedByAI || false
+                        }));
+                        setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+                        showToast({ message: `${nuevosTrabajadores.length} trabajadores importados desde backup`, status: 'success', severity: 'success' });
+                    } else {
+                        requestAiImport();
+                    }
+                } catch (err) {
+                    showToast({ message: 'Error al parsear el archivo JSON', status: 'error', severity: 'error' });
+                }
+            };
+            jsonReader.readAsText(file);
+            if (e.target) e.target.value = '';
+            return;
+        }
+
+        // Si es Excel (.xlsx, .xls), validamos si tiene cabeceras válidas para la ruta tradicional o si va a IA
         const reader = new FileReader();
         reader.onload = (eEvent) => {
             try {
@@ -381,78 +437,151 @@ const PerfilSociodemografico = () => {
                     throw new Error("El archivo no contiene datos.");
                 }
 
-                const newWorkers: WorkerEntry[] = importedData.map((row: any) => {
-                    return {
-                        ...EMPTY_WORKER,
-                        id: crypto.randomUUID(),
-                        nombre: row['Nombre'] || row.nombre || '',
-                        identificacion: row['Identificación'] || row.identificacion || '',
-                        edad: row['Edad'] || row.edad || '',
-                        genero: row['Género'] || row.genero || '',
-                        estadoCivil: row['Estado Civil'] || row.estadoCivil || '',
-                        nivelEscolaridad: row['Nivel Escolaridad'] || row.nivelEscolaridad || '',
-                        direccion: row['Dirección'] || row.direccion || '',
-                        telefono: row['Teléfono'] || row.telefono || '',
-                        cargo: row['Cargo'] || row.cargo || '',
-                        fechaExamenMedico: row['Fecha Examen Médico'] || row.fechaExamenMedico || '',
-                        fechaCursoAlturasAutorizado: row['Curso Alturas Autorizado'] || row.fechaCursoAlturasAutorizado || '',
-                        fechaCursoAlturasCoordinador: row['Curso Alturas Coordinador'] || row.fechaCursoAlturasCoordinador || '',
-                        diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
-                        recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
-                        fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
-                                                fechaNacimiento: row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
-                        lugarNacimiento: row['Lugar de Nacimiento'] || row.lugarNacimiento || '',
-                        barrio: row['Barrio'] || row.barrio || '',
-                        municipioDomicilio: row['Municipio'] || row.municipioDomicilio || '',
-                        correoElectronico: row['Correo Electrónico'] || row.correoElectronico || '',
-                        deporte: row['Deporte / Actividad Física'] || row.deporte || '',
-                        alimentacion: row['Calidad de Alimentación'] || row.alimentacion || '',
-                        riesgoCardiovascular: row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
-                        emergenciaContacto: row['Contacto de Emergencia'] || row.emergenciaContacto || '',
-                        tipoSangre: row['Tipo de Sangre'] || row.tipoSangre || '',
-                        enfermedades: row['Enfermedades Actuales'] || row.enfermedades || '',
-                        medicamentos: row['Medicamentos'] || row.medicamentos || '',
-                        fuma: row['Fuma'] || row.fuma || '',
-                        alcohol: row['Alcohol'] || row.alcohol || '',
-                        terapiaPsicologica: row['Terapia Psicológica'] || row.terapiaPsicologica || '',
-                        personasCargo: row['Personas a Cargo'] || row.personasCargo || '',
-                        estrato: row['Estrato'] || row.estrato || '',
-                        vivienda: row['Tipo de Vivienda'] || row.vivienda || '',
-                        soatVencimiento: row['Vencimiento SOAT'] || row.soatVencimiento || '',
-                        tecnicomecanicaVencimiento: row['Vencimiento Tecnicomecánica'] || row.tecnicomecanicaVencimiento || '',
-                        licenciaConduccion: row['Licencia Conducción'] || row.licenciaConduccion || '',
-                        licenciaConduccionVencimiento: row['Vencimiento Licencia Cond'] || row.licenciaConduccionVencimiento || '',
-                        licenciaSST: row['N° Licencia SGSST'] || row.licenciaSST || '',
-                        licenciaVencimiento: row['Venc. Licencia SGSST'] || row.licenciaVencimiento || '',
-                        curso50h: row['Curso 50h'] || row.curso50h || '',
-                        curso20h: row['Curso 20h'] || row.curso20h || '',
-                        esCopasst: row['COPASST'] || row.esCopasst || 'No',
-                        esComiteConvivencia: row['Comité Convivencia'] || row.esComiteConvivencia || 'No',
-                        esBrigadista: row['Brigadista'] || row.esBrigadista || 'No',
-                        esComiteSeguridadVial: row['Comité Seg. Vial'] || row.esComiteSeguridadVial || 'No',
-                        formacion: row.formacion || [],
-                        peso: row['Peso (kg)'] || row.peso || '',
-                        talla: row['Talla (m)'] || row.talla || '',
-                        imc: row['IMC'] || row.imc || '',
-                        presionArterial: row['Presión Arterial'] || row.presionArterial || '',
-                        frecuenciaCardiaca: row['Frecuencia Cardíaca'] || row.frecuenciaCardiaca || '',
-                        limitacionesBiomecanicas: row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
-                        alergiasQuimicas: row['Alergias / Sensibilidad Química'] || row.alergiasQuimicas || '',
-                        consentimientoFirmaDigital: row['Consentimiento Firma'] || row.consentimientoFirmaDigital || 'No',
-                        firmaDigital: null,
-                        completedByAI: false,
-                    };
-                });
+                // Validamos si hay cabeceras estándar en el primer registro
+                const firstRow = importedData[0];
+                const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
+                const isStandard = keys.some(k => 
+                    k.includes('identificacion') || 
+                    k.includes('cédula') || 
+                    k.includes('cedula') ||
+                    k.includes('nombre') || 
+                    k.includes('cargo')
+                );
 
-                setTrabajadores(prev => [...prev, ...newWorkers]);
-                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success', severity: 'success' });
+                if (isStandard) {
+                    // Ruta A: Mapeo Tradicional Directo
+                    const newWorkers: WorkerEntry[] = importedData.map((row: any) => {
+                        return {
+                            ...EMPTY_WORKER,
+                            id: crypto.randomUUID(),
+                            nombre: row['Nombre'] || row.nombre || '',
+                            identificacion: row['Identificación'] || row.identificacion || '',
+                            edad: row['Edad'] || row.edad || '',
+                            genero: row['Género'] || row.genero || '',
+                            estadoCivil: row['Estado Civil'] || row.estadoCivil || '',
+                            nivelEscolaridad: row['Nivel Escolaridad'] || row.nivelEscolaridad || '',
+                            direccion: row['Dirección'] || row.direccion || '',
+                            telefono: row['Teléfono'] || row.telefono || '',
+                            cargo: row['Cargo'] || row.cargo || '',
+                            fechaExamenMedico: row['Fecha Examen Médico'] || row.fechaExamenMedico || '',
+                            fechaCursoAlturasAutorizado: row['Curso Alturas Autorizado'] || row.fechaCursoAlturasAutorizado || '',
+                            fechaCursoAlturasCoordinador: row['Curso Alturas Coordinador'] || row.fechaCursoAlturasCoordinador || '',
+                            diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
+                            recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
+                            fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
+                            fechaNacimiento: row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
+                            lugarNacimiento: row['Lugar de Nacimiento'] || row.lugarNacimiento || '',
+                            barrio: row['Barrio'] || row.barrio || '',
+                            municipioDomicilio: row['Municipio'] || row.municipioDomicilio || '',
+                            correoElectronico: row['Correo Electrónico'] || row.correoElectronico || '',
+                            deporte: row['Deporte / Actividad Física'] || row.deporte || '',
+                            alimentacion: row['Calidad de Alimentación'] || row.alimentacion || '',
+                            riesgoCardiovascular: row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
+                            emergenciaContacto: row['Contacto de Emergencia'] || row.emergenciaContacto || '',
+                            tipoSangre: row['Tipo de Sangre'] || row.tipoSangre || '',
+                            enfermedades: row['Enfermedades Actuales'] || row.enfermedades || '',
+                            medicamentos: row['Medicamentos'] || row.medicamentos || '',
+                            fuma: row['Fuma'] || row.fuma || '',
+                            alcohol: row['Alcohol'] || row.alcohol || '',
+                            terapiaPsicologica: row['Terapia Psicológica'] || row.terapiaPsicologica || '',
+                            personasCargo: row['Personas a Cargo'] || row.personasCargo || '',
+                            estrato: row['Estrato'] || row.estrato || '',
+                            vivienda: row['Tipo de Vivienda'] || row.vivienda || '',
+                            soatVencimiento: row['Vencimiento SOAT'] || row.soatVencimiento || '',
+                            tecnicomecanicaVencimiento: row['Vencimiento Tecnicomecánica'] || row.tecnicomecanicaVencimiento || '',
+                            licenciaConduccion: row['Licencia Conducción'] || row.licenciaConduccion || '',
+                            licenciaConduccionVencimiento: row['Vencimiento Licencia Cond'] || row.licenciaConduccionVencimiento || '',
+                            licenciaSST: row['N° Licencia SGSST'] || row.licenciaSST || '',
+                            licenciaVencimiento: row['Venc. Licencia SGSST'] || row.licenciaVencimiento || '',
+                            curso50h: row['Curso 50h'] || row.curso50h || '',
+                            curso20h: row['Curso 20h'] || row.curso20h || '',
+                            esCopasst: row['COPASST'] || row.esCopasst || 'No',
+                            esComiteConvivencia: row['Comité Convivencia'] || row.esComiteConvivencia || 'No',
+                            esBrigadista: row['Brigadista'] || row.esBrigadista || 'No',
+                            esComiteSeguridadVial: row['Comité Seg. Vial'] || row.esComiteSeguridadVial || 'No',
+                            formacion: row.formacion || [],
+                            peso: row['Peso (kg)'] || row.peso || '',
+                            talla: row['Talla (m)'] || row.talla || '',
+                            imc: row['IMC'] || row.imc || '',
+                            presionArterial: row['Presión Arterial'] || row.presionArterial || '',
+                            frecuenciaCardiaca: row['Frecuencia Cardíaca'] || row.frecuenciaCardiaca || '',
+                            limitacionesBiomecanicas: row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
+                            alergiasQuimicas: row['Alergias / Sensibilidad Química'] || row.alergiasQuimicas || '',
+                            consentimientoFirmaDigital: row['Consentimiento Firma'] || row.consentimientoFirmaDigital || 'No',
+                            firmaDigital: null,
+                            completedByAI: false,
+                        };
+                    });
+
+                    setTrabajadores(prev => [...prev, ...newWorkers]);
+                    showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success', severity: 'success' });
+                } else {
+                    // Ruta B: Excel No Estándar -> Procesar con IA
+                    requestAiImport();
+                }
             } catch (err) {
                 console.error("Error importing Excel:", err);
-                showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', status: 'error' });
+                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', status: 'error', severity: 'error' });
             }
         };
         reader.readAsArrayBuffer(file);
         if (e.target) e.target.value = '';
+    };
+
+    // Nueva función para ejecutar la importación por IA
+    const handleConfirmAiImport = async () => {
+        if (!pendingFileData) return;
+        setIsConfirmModalOpen(false);
+        setIsAiImportLoading(true);
+        try {
+            const res = await fetch('/api/sgsst/perfil-sociodemografico/import-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    fileData: pendingFileData.dataUrl,
+                    fileName: pendingFileData.name,
+                    mimeType: pendingFileData.type,
+                    modelName: selectedModel
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Error en el servidor');
+            }
+
+            const data = await res.json();
+            if (data.success && data.trabajadores) {
+                const nuevosTrabajadores = data.trabajadores.map((t: any) => ({
+                    ...EMPTY_WORKER,
+                    ...t,
+                    id: crypto.randomUUID(),
+                    firmaDigital: null,
+                    completedByAI: true
+                }));
+
+                setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+
+                showToast({
+                    message: `Se han extraído ${nuevosTrabajadores.length} trabajadores con IA exitosamente.`,
+                    status: 'success',
+                    severity: 'success'
+                });
+            }
+        } catch (err: any) {
+            console.error('Error importing with AI:', err);
+            showToast({
+                message: `Error al procesar con IA: ${err.message}`,
+                status: 'error',
+                severity: 'error'
+            });
+        } finally {
+            setIsAiImportLoading(false);
+            setPendingFileData(null);
+        }
     };
 
     // ─── Save & Generate ────────────────────────────────────────
@@ -811,6 +940,8 @@ const PerfilSociodemografico = () => {
                 exportFileName="Perfil_Sociodemografico"
                 onDummy={handleDummyData}
                 onImportExcel={() => fileInputRef.current?.click()}
+                importExcelLabel="Importar Archivo"
+                importExcelTitle="Importar desde Excel, PDF, Word o Concepto Médico"
                 onExportExcel={handleExportExcel}
                 hasData={trabajadores.length > 0}
                 customSections={[
@@ -1623,14 +1754,61 @@ const PerfilSociodemografico = () => {
                 document.body
             )}
 
-            {/* ═══ Excel Import Hidden Input ═══ */}
+            {/* ═══ Excel/File Import Hidden Input ═══ */}
             <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImportExcel}
-                accept=".xlsx, .xls"
+                accept=".xlsx, .xls, .docx, .doc, .pdf, .txt, .json"
                 className="hidden"
             />
+
+            {/* ── MODAL IMPORT CONFIRMATION IA ── */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
+                        <div className="flex items-center gap-2 mb-3 text-text-primary">
+                            <Sparkles className="h-5 w-5 text-teal-500 animate-pulse" />
+                            <h3 className="text-sm font-bold">Confirmar Importación con IA</h3>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">
+                            Se detectó un documento no estándar, concepto médico o archivo de texto ({pendingFileData?.name}). 
+                            ¿Deseas usar la IA (Gemini) de Somos SST para analizar el contenido, extraer los datos demográficos y de aptitud médica, y crear el perfil del trabajador automáticamente?
+                        </p>
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                onClick={() => {
+                                    setIsConfirmModalOpen(false);
+                                    setPendingFileData(null);
+                                }}
+                                className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmAiImport}
+                                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-4 py-2 text-xs font-bold shadow-md hover:scale-105 active:scale-95 transform transition-all cursor-pointer flex items-center gap-1"
+                            >
+                                <Sparkles className="h-3 w-3" />
+                                Mapear con IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── SPINNER CARGA IA ── */}
+            {isAiImportLoading && (
+                <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm text-white">
+                    <div className="bg-surface-primary border border-border-medium p-6 rounded-2xl flex flex-col items-center max-w-xs shadow-2xl">
+                        <Loader2 className="h-10 w-10 text-teal-500 animate-spin mb-3" />
+                        <h4 className="text-sm font-bold text-text-primary text-center">Procesando con IA...</h4>
+                        <p className="text-[11px] text-text-secondary text-center mt-1">
+                            Gemini está analizando la información médica y sociodemográfica del documento. Esto puede tardar unos segundos.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <SignaturePad
                 isOpen={!!activeSignatureWorkerId}

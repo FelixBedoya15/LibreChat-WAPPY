@@ -9,6 +9,9 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
+const mammoth = require('mammoth');
+const pdf = require('pdf-parse');
+const XLSX = require('xlsx');
 
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
@@ -562,6 +565,149 @@ async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
     return null;
   }
 }
+
+// ─── POST /import-file ──────────────────────────────────────────────────────
+router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName, mimeType, modelName } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'No se recibieron datos del archivo.' });
+
+    // 1. Convertir Base64 a Buffer en memoria
+    const base64Data = fileData.split(';base64,').pop();
+    const buffer = Buffer.from(base64Data, 'base64');
+    let extractedText = '';
+
+    // 2. Extraer texto según tipo de archivo (Todo en memoria)
+    if (mimeType === 'application/pdf') {
+      const pdfData = await pdf(buffer);
+      extractedText = pdfData.text;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+      mimeType === 'application/msword'
+    ) {
+      const result = await mammoth.extractRawText({ buffer });
+      extractedText = result.value;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+      mimeType === 'application/vnd.ms-excel'
+    ) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+        if (csv.trim()) {
+          extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
+        }
+      });
+    } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
+      extractedText = buffer.toString('utf8');
+    } else {
+      extractedText = buffer.toString('utf8');
+    }
+
+    if (!extractedText || !extractedText.trim()) {
+      return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
+    }
+
+    // 3. Configurar e invocar a Gemini con rotación de claves y modelos (503/429/403/400)
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    const modelInstance = {
+      model: finalModelName,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'string' },
+              identificacion: { type: 'string' },
+              edad: { type: 'string' },
+              genero: { type: 'string' },
+              estadoCivil: { type: 'string' },
+              nivelEscolaridad: { type: 'string' },
+              direccion: { type: 'string' },
+              telefono: { type: 'string' },
+              cargo: { type: 'string' },
+              fechaExamenMedico: { type: 'string' },
+              diagnosticoMedico: { type: 'string' },
+              recomendacionesMedicas: { type: 'string' },
+              fechaSeguimiento: { type: 'string' },
+              fechaNacimiento: { type: 'string' },
+              lugarNacimiento: { type: 'string' },
+              barrio: { type: 'string' },
+              municipioDomicilio: { type: 'string' },
+              correoElectronico: { type: 'string' },
+              deporte: { type: 'string' },
+              alimentacion: { type: 'string' },
+              riesgoCardiovascular: { type: 'string' },
+              emergenciaContacto: { type: 'string' },
+              tipoSangre: { type: 'string' },
+              enfermedades: { type: 'string' },
+              medicamentos: { type: 'string' },
+              fuma: { type: 'string' },
+              alcohol: { type: 'string' },
+              terapiaPsicologica: { type: 'string' },
+              personasCargo: { type: 'string' },
+              estrato: { type: 'string' },
+              vivienda: { type: 'string' },
+              peso: { type: 'string' },
+              talla: { type: 'string' },
+              imc: { type: 'string' },
+              presionArterial: { type: 'string' },
+              frecuenciaCardiaca: { type: 'string' },
+              limitacionesBiomecanicas: { type: 'string' },
+              alergiasQuimicas: { type: 'string' },
+              esCopasst: { type: 'string' },
+              esComiteConvivencia: { type: 'string' },
+              esBrigadista: { type: 'string' },
+              esComiteSeguridadVial: { type: 'string' },
+              fechaCursoAlturasAutorizado: { type: 'string' },
+              fechaCursoAlturasCoordinador: { type: 'string' },
+              soatVencimiento: { type: 'string' },
+              tecnicomecanicaVencimiento: { type: 'string' },
+              licenciaConduccion: { type: 'string' },
+              licenciaConduccionVencimiento: { type: 'string' },
+              licenciaSST: { type: 'string' },
+              licenciaVencimiento: { type: 'string' },
+              curso50h: { type: 'string' },
+              curso20h: { type: 'string' },
+              consentimientoFirmaDigital: { type: 'string' }
+            },
+            required: ['nombre', 'identificacion'],
+          },
+        },
+      },
+    };
+
+    const promptText = `
+    Eres un experto senior en Salud Ocupacional, Medicina del Trabajo y Seguridad y Salud en el Trabajo (SST) en Colombia.
+    Tu tarea es leer el siguiente documento adjunto (que puede ser un concepto de aptitud médica, un certificado médico, un listado sociodemográfico o un reporte clínico) y extraer toda la información sociodemográfica y de condiciones de salud de los trabajadores.
+    Para cada trabajador identificado, mapea la información a la estructura JSON solicitada.
+    
+    Asegúrate de:
+    - Retornar un array JSON conteniendo cada trabajador como un objeto.
+    - Si encuentras peso y talla, calcula el IMC si no viene explícito.
+    - Campos como 'diagnosticoMedico', 'recomendacionesMedicas', 'enfermedades', 'limitacionesBiomecanicas' deben ser extraídos fielmente del concepto médico o reporte para estructurar el perfil epidemiológico del trabajador.
+    
+    DOCUMENTO A ANALIZAR:
+    ${extractedText}
+    `;
+
+    const result = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, [{ text: promptText }]);
+    const response = await result.response;
+    const responseText = response.text();
+    const cleanJson = JSON.parse(responseText.trim());
+
+    res.json({ success: true, trabajadores: cleanJson });
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Import error:', error);
+    res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });
+  }
+});
 
 // ─── POST /save — Save worker data + run IA tagging synchronously ──────────
 router.post('/save', requireJwtAuth, async (req, res) => {
