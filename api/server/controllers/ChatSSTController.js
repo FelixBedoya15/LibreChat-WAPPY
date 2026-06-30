@@ -15,7 +15,10 @@ const getMessages = async (req, res) => {
     if (groupId && groupId !== 'general') {
       query.groupId = groupId;
     } else {
-      query.groupId = { $exists: false };
+      query.$or = [
+        { groupId: { $exists: false } },
+        { groupId: null }
+      ];
     }
 
     const messages = await ChatSSTMessage.find(query)

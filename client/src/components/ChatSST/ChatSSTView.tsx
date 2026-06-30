@@ -552,7 +552,7 @@ export default function ChatSSTView() {
                         </button>
                       </div>
                     ) : (
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4 prose-a:text-emerald-600 dark:prose-a:text-emerald-400 font-semibold hover:underline">
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4 prose-a:text-emerald-600 dark:prose-a:text-emerald-400 font-semibold prose-a:hover:underline">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
