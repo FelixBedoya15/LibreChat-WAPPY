@@ -2,6 +2,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { createReadStream } from 'fs';
 import * as XLSX from 'xlsx';
+import * as mammoth from 'mammoth';
 import { logger } from '@librechat/data-schemas';
 import { FileSources } from 'librechat-data-provider';
 import type { Request as ServerRequest } from 'express';
@@ -110,6 +111,10 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
     originalName.endsWith('.xlsx') ||
     originalName.endsWith('.xls');
 
+  const isDocx =
+    file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    originalName.endsWith('.docx');
+
   let text: string;
   if (isExcel) {
     try {
@@ -128,6 +133,20 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
       }
     } catch (excelError) {
       logger.error(`[parseTextNative] Error parsing Excel file ${file.path}:`, excelError);
+      const { content } = await readFileAsString(file.path, {
+        fileSize: file.size,
+      });
+      text = content;
+    }
+  } else if (isDocx) {
+    try {
+      const result = await mammoth.extractRawText({ path: file.path });
+      text = result.value || '';
+      if (!text.trim()) {
+        text = 'Empty Document';
+      }
+    } catch (docxError) {
+      logger.error(`[parseTextNative] Error parsing DOCX file ${file.path}:`, docxError);
       const { content } = await readFileAsString(file.path, {
         fileSize: file.size,
       });

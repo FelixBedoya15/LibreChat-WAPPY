@@ -214,6 +214,7 @@ const AttachFileMenu = ({
         return;
       }
       const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setParent('root')
         .setIncludeFolders(true);
       const picker = new google.picker.PickerBuilder()
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)

@@ -1,126 +1,329 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { X, MessageSquare, Send, Sparkles, RotateCcw, FileText } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
 
 export default function TenshiChat() {
-    const { isAuthenticated, token } = useAuthContext();
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ role: string, content: string, htmlReport?: string }[]>([
-        { role: 'assistant', content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?' }
-    ]);
-    const [input, setInput] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated, token } = useAuthContext();
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<
+    { role: string; content: string; htmlReport?: string }[]
+  >([
+    {
+      role: 'assistant',
+      content:
+        '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+    },
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const { data: config } = useQuery(['tenshiConfig', token], async () => {
-        const res = await axios.get('/api/tenshi/config', {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        return res.data;
-    }, {
-        enabled: isAuthenticated,
-        staleTime: 5 * 60 * 1000
-    });
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{
+    mouseX: number;
+    mouseY: number;
+    elemX: number;
+    elemY: number;
+  } | null>(null);
+  const hasMovedRef = useRef<boolean>(false);
 
-    const { data: historyData, refetch: refetchHistory } = useQuery(['tenshiHistory', token], async () => {
-        const res = await axios.get('/api/tenshi/history', {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        return res.data;
-    }, {
-        enabled: isAuthenticated,
-        staleTime: Infinity
-    });
+  const startDrag = (clientX: number, clientY: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    dragStartRef.current = {
+      mouseX: clientX,
+      mouseY: clientY,
+      elemX: rect.left,
+      elemY: rect.top,
+    };
+    hasMovedRef.current = false;
+  };
 
-    useEffect(() => {
-        if (historyData && historyData.length > 0) {
-            setMessages(historyData);
-        }
-    }, [historyData]);
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) return;
+    startDrag(e.clientX, e.clientY);
+  };
 
-    const handleClearHistory = async () => {
-        if (!confirm('¿Deseas reiniciar la conversación con Tenshi?')) return;
-        try {
-            await axios.delete('/api/tenshi/history', {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
-            setMessages([{ role: 'assistant', content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?' }]);
-            refetchHistory();
-        } catch (err) {
-            console.error('Error clearing Tenshi history:', err);
-        }
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) return;
+    const touch = e.touches[0];
+    startDrag(touch.clientX, touch.clientY);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = e.clientX - dragStartRef.current.mouseX;
+      const dy = e.clientY - dragStartRef.current.mouseY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasMovedRef.current = true;
+      }
+      let newX = dragStartRef.current.elemX + dx;
+      let newY = dragStartRef.current.elemY + dy;
+
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
+        newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
+      }
+
+      setPosition({ x: newX, y: newY });
     };
 
-    useEffect(() => {
-        const handleOpen = () => setIsOpen(true);
-        window.addEventListener('open-tenshi-chat', handleOpen);
-        return () => window.removeEventListener('open-tenshi-chat', handleOpen);
-    }, []);
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!dragStartRef.current) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - dragStartRef.current.mouseX;
+      const dy = touch.clientY - dragStartRef.current.mouseY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasMovedRef.current = true;
+      }
+      let newX = dragStartRef.current.elemX + dx;
+      let newY = dragStartRef.current.elemY + dy;
 
-    useEffect(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [messages, isOpen]);
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
+        newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
+      }
 
-    const showVoiceModal = useRecoilValue(store.showVoiceModal);
-    const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
+      setPosition({ x: newX, y: newY });
+    };
 
-    if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
-        return null;
+    const handleMouseUp = () => {
+      dragStartRef.current = null;
+    };
+
+    const handleTouchEnd = () => {
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
+
+  // Ensure the chat window stays inside screen bounds when toggled open/closed
+  useEffect(() => {
+    if (!position || !containerRef.current) return;
+    const timer = setTimeout(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let adjustedX = rect.left;
+      let adjustedY = rect.top;
+
+      if (rect.right > viewportWidth) {
+        adjustedX = Math.max(0, viewportWidth - rect.width);
+      }
+      if (rect.left < 0) {
+        adjustedX = 0;
+      }
+      if (rect.bottom > viewportHeight) {
+        adjustedY = Math.max(0, viewportHeight - rect.height);
+      }
+      if (rect.top < 0) {
+        adjustedY = 0;
+      }
+
+      if (adjustedX !== rect.left || adjustedY !== rect.top) {
+        setPosition({ x: adjustedX, y: adjustedY });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Handle screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (!position || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let adjustedX = rect.left;
+      let adjustedY = rect.top;
+
+      if (rect.right > viewportWidth) {
+        adjustedX = Math.max(0, viewportWidth - rect.width);
+      }
+      if (rect.left < 0) {
+        adjustedX = 0;
+      }
+      if (rect.bottom > viewportHeight) {
+        adjustedY = Math.max(0, viewportHeight - rect.height);
+      }
+      if (rect.top < 0) {
+        adjustedY = 0;
+      }
+
+      setPosition({ x: adjustedX, y: adjustedY });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [position]);
+
+  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (hasMovedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
+    setIsOpen(true);
+  };
 
-    const positionClasses = {
-        'bottom-right': 'bottom-24 md:bottom-6 right-6',
-        'bottom-left': 'bottom-24 md:bottom-6 left-6',
-        'top-right': 'top-6 md:top-6 right-6',
-        'top-left': 'top-6 md:top-6 left-6',
-    };
+  const { data: config } = useQuery(
+    ['tenshiConfig', token],
+    async () => {
+      const res = await axios.get('/api/tenshi/config', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.data;
+    },
+    {
+      enabled: isAuthenticated,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
 
-    const floatPosition = positionClasses[config.location as keyof typeof positionClasses] || 'bottom-6 right-6';
+  const { data: historyData, refetch: refetchHistory } = useQuery(
+    ['tenshiHistory', token],
+    async () => {
+      const res = await axios.get('/api/tenshi/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.data;
+    },
+    {
+      enabled: isAuthenticated,
+      staleTime: Infinity,
+    },
+  );
 
-    const handleSend = async () => {
-        if (!input.trim() || isTyping) return;
+  useEffect(() => {
+    if (historyData && historyData.length > 0) {
+      setMessages(historyData);
+    }
+  }, [historyData]);
 
-        const userMsg = { role: 'user', content: input };
-        setMessages(prev => [...prev, userMsg]);
-        setInput('');
-        setIsTyping(true);
+  const handleClearHistory = async () => {
+    if (!confirm('¿Deseas reiniciar la conversación con Tenshi?')) return;
+    try {
+      await axios.delete('/api/tenshi/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+        },
+      ]);
+      refetchHistory();
+    } catch (err) {
+      console.error('Error clearing Tenshi history:', err);
+    }
+  };
 
-        try {
-            const response = await axios.post('/api/tenshi/chat',
-                { messages: [...messages, userMsg].filter(m => m.role !== 'system') },
-                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-            );
-            const assistantMsg = { role: 'assistant', content: response.data.response, htmlReport: response.data.htmlReport };
-            setMessages(prev => [...prev, assistantMsg]);
-        } catch (error: any) {
-            console.error('Error con Tenshi:', error);
-            const status = error.response?.status;
-            let userFriendlyMsg = error.response?.data?.details || error.message;
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open-tenshi-chat', handleOpen);
+    return () => window.removeEventListener('open-tenshi-chat', handleOpen);
+  }, []);
 
-            if (status === 502 || userFriendlyMsg.includes('502')) {
-                userFriendlyMsg = 'Se interrumpió la conexión brevemente mientras el servidor terminaba de actualizarse (Error 502). Ya estamos totalmente en línea. ¡Por favor reenvíame tu solicitud!';
-            }
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen]);
 
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `Lo siento, he tenido un inconveniente de conexión. ${userFriendlyMsg}`
-            }]);
-        } finally {
-            setIsTyping(false);
-        }
-    };
+  const showVoiceModal = useRecoilValue(store.showVoiceModal);
+  const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
 
-    const openHtmlReport = (html: string) => {
-        let fullContent = html;
+  if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
+    return null;
+  }
 
-        const stickyHeader = `
+  const positionClasses = {
+    'bottom-right': 'bottom-24 md:bottom-6 right-6',
+    'bottom-left': 'bottom-24 md:bottom-6 left-6',
+    'top-right': 'top-6 md:top-6 right-6',
+    'top-left': 'top-6 md:top-6 left-6',
+  };
+
+  const floatPosition =
+    positionClasses[config.location as keyof typeof positionClasses] || 'bottom-6 right-6';
+
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
+
+    const userMsg = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setIsTyping(true);
+
+    try {
+      const response = await axios.post(
+        '/api/tenshi/chat',
+        { messages: [...messages, userMsg].filter((m) => m.role !== 'system') },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      const assistantMsg = {
+        role: 'assistant',
+        content: response.data.response,
+        htmlReport: response.data.htmlReport,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (error: any) {
+      console.error('Error con Tenshi:', error);
+      const status = error.response?.status;
+      let userFriendlyMsg = error.response?.data?.details || error.message;
+
+      if (status === 502 || userFriendlyMsg.includes('502')) {
+        userFriendlyMsg =
+          'Se interrumpió la conexión brevemente mientras el servidor terminaba de actualizarse (Error 502). Ya estamos totalmente en línea. ¡Por favor reenvíame tu solicitud!';
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Lo siento, he tenido un inconveniente de conexión. ${userFriendlyMsg}`,
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const openHtmlReport = (html: string) => {
+    let fullContent = html;
+
+    const stickyHeader = `
         <div id="report-sticky-header" style="position: sticky; top: 0; background: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; z-index: 99999; font-family: system-ui, -apple-system, sans-serif; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="background: #10b981; color: #ffffff !important; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.05em;">WAPPY IA</span>
@@ -230,63 +433,101 @@ export default function TenshiChat() {
         </style>
         `;
 
-        if (fullContent.includes('<body')) {
-            fullContent = fullContent.replace(/<body([^>]*)>/i, `<body$1>${stickyHeader}`);
-        } else {
-            fullContent = stickyHeader + fullContent;
-        }
+    if (fullContent.includes('<body')) {
+      fullContent = fullContent.replace(/<body([^>]*)>/i, `<body$1>${stickyHeader}`);
+    } else {
+      fullContent = stickyHeader + fullContent;
+    }
 
-        // Use Blob URL so printing or closing print modal in Safari/Chrome doesn't destroy the tab
-        const blob = new Blob([fullContent], { type: 'text/html;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-    };
+    // Use Blob URL so printing or closing print modal in Safari/Chrome doesn't destroy the tab
+    const blob = new Blob([fullContent], { type: 'text/html;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  };
 
-    const getHtmlFromMsg = (msg: { content: string, htmlReport?: string }) => {
-        if (msg.htmlReport) return msg.htmlReport;
-        if (msg.content.includes('<!DOCTYPE html>') || msg.content.includes('<html')) {
-            const match = msg.content.match(/<!DOCTYPE html[\s\S]*<\/html>|<html[\s\S]*<\/html>/i);
-            if (match) return match[0];
-        }
-        return null;
-    };
+  const getHtmlFromMsg = (msg: { content: string; htmlReport?: string }) => {
+    if (msg.htmlReport) return msg.htmlReport;
+    if (msg.content.includes('<!DOCTYPE html>') || msg.content.includes('<html')) {
+      const match = msg.content.match(/<!DOCTYPE html[\s\S]*<\/html>|<html[\s\S]*<\/html>/i);
+      if (match) return match[0];
+    }
+    return null;
+  };
 
-    return (
-        <div className={`fixed z-[9999] ${floatPosition} flex flex-col items-end`}>
-            {isOpen && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-2xl w-[350px] sm:w-[400px] h-[500px] flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5">
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-green-600 to-emerald-500 p-4 flex items-center justify-between text-white shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-white p-0.5 rounded-full flex items-center justify-center shadow-inner h-10 w-10 overflow-hidden border border-emerald-200">
-                                <img src="/assets/tenshi.png" alt="Tenshi" className="h-full w-full object-cover rounded-full" onError={(e) => { e.currentTarget.src = '/assets/logo.svg'; }} />
-                                {!isOpen && <Sparkles className="w-5 h-5 text-green-600 absolute" />}
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg leading-none">{config.name}</h3>
-                                <p className="text-xs text-green-100 mt-1">{config.description}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <button onClick={handleClearHistory} title="Reiniciar conversación" className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white">
-                                <RotateCcw className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </div>
+  return (
+    <div
+      ref={containerRef}
+      style={
+        position
+          ? {
+              position: 'fixed',
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              bottom: 'auto',
+              right: 'auto',
+            }
+          : {}
+      }
+      className={`fixed z-[9999] ${position ? '' : floatPosition} flex flex-col items-end`}
+    >
+      {isOpen && (
+        <div className="mb-4 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in slide-in-from-bottom-5 dark:border-gray-700 dark:bg-gray-800 sm:w-[400px]">
+          {/* Header */}
+          <div
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            className="flex shrink-0 cursor-move select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+                <img
+                  src="/assets/tenshi.png"
+                  alt="Tenshi"
+                  className="h-full w-full rounded-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = '/assets/logo.svg';
+                  }}
+                />
+                {!isOpen && <Sparkles className="absolute h-5 w-5 text-green-600" />}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold leading-none">{config.name}</h3>
+                <p className="mt-1 text-xs text-green-100">{config.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleClearHistory}
+                title="Reiniciar conversación"
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
-                    {/* Chat Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
-                        {messages.map((msg, i) => (
-                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[85%] rounded-2xl p-3 text-sm ${msg.role === 'user'
-                                    ? 'bg-blue-600 text-white rounded-tr-none shadow-md'
-                                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none shadow-sm'
-                                    }`}>
-                                    <div className="markdown-content overflow-hidden max-w-full">
-                                        <style>{`
+          {/* Chat Area */}
+          <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl p-3 text-sm ${
+                    msg.role === 'user'
+                      ? 'rounded-tr-none bg-blue-600 text-white shadow-md'
+                      : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="markdown-content max-w-full overflow-hidden">
+                    <style>{`
                                             .markdown-content table {
                                                 display: block;
                                                 width: 100%;
@@ -302,75 +543,88 @@ export default function TenshiChat() {
                                                 font-size: 0.75rem;
                                             }
                                         `}</style>
-                                        <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
-                                    </div>
-                                    {(() => {
-                                        const reportHtml = getHtmlFromMsg(msg);
-                                        if (!reportHtml) return null;
-                                        return (
-                                            <button
-                                                onClick={() => openHtmlReport(reportHtml)}
-                                                className="mt-3 w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 border border-emerald-400/30"
-                                            >
-                                                <FileText className="w-4 h-4 animate-pulse" />
-                                                <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
-                                            </button>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-                        ))}
-                        {isTyping && (
-                            <div className="flex justify-start">
-                                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl rounded-tl-none p-4 shadow-sm">
-                                    <div className="flex gap-1.5">
-                                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                        <div className="flex items-center gap-2 px-4 py-3 bg-transparent border border-gray-200 dark:border-gray-700 rounded-2xl shadow-inner group focus-within:ring-2 focus-within:ring-green-500/30 transition-all">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Escribe tu consulta..."
-                                className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm dark:text-gray-100 placeholder-gray-400"
-                                disabled={isTyping}
-                            />
-                            <button
-                                onClick={handleSend}
-                                disabled={isTyping || !input.trim()}
-                                className="p-1.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-full transition-all shrink-0 shadow-sm active:scale-95"
-                            >
-                                <Send className="w-4 h-4 ml-0.5" />
-                            </button>
-                        </div>
-                        <div className="text-center mt-2">
-                            <span className="text-[10px] text-gray-400 font-medium tracking-tight">Tenshi por WAPPY IA</span>
-                        </div>
-                    </div>
+                    <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
+                  </div>
+                  {(() => {
+                    const reportHtml = getHtmlFromMsg(msg);
+                    if (!reportHtml) return null;
+                    return (
+                      <button
+                        onClick={() => openHtmlReport(reportHtml)}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500 hover:shadow-xl active:scale-95"
+                      >
+                        <FileText className="h-4 w-4 animate-pulse" />
+                        {/* eslint-disable-next-line i18next/no-literal-string */}
+                        <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
+                      </button>
+                    );
+                  })()}
                 </div>
+              </div>
+            ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                  <div className="flex gap-1.5">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]"></span>
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]"></span>
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></span>
+                  </div>
+                </div>
+              </div>
             )}
+            <div ref={messagesEndRef} />
+          </div>
 
-            {!isOpen && (
-                <button
-                    onClick={() => setIsOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full p-1 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center animate-bounce-short relative w-14 h-14 border-2 border-white overflow-hidden"
-                >
-                    {/* Ripple effect */}
-                    <span className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-20"></span>
-                    <img src="/assets/tenshi.png" alt="Tenshi" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.src = '/assets/logo.svg'; }} />
-                </button>
-            )}
+          {/* Input Area */}
+          <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-4 py-3 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500/30 dark:border-gray-700">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Escribe tu consulta..."
+                className="flex-1 border-none bg-transparent text-sm placeholder-gray-400 outline-none focus:outline-none focus:ring-0 dark:text-gray-100"
+                disabled={isTyping}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isTyping || !input.trim()}
+                className="shrink-0 rounded-full bg-green-500 p-1.5 text-white shadow-sm transition-all hover:bg-green-600 active:scale-95 disabled:bg-gray-300"
+              >
+                <Send className="ml-0.5 h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-2 text-center">
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <span className="text-[10px] font-medium tracking-tight text-gray-400">
+                Tenshi por WAPPY IA
+              </span>
+            </div>
+          </div>
         </div>
-    );
+      )}
+
+      {!isOpen && (
+        <button
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onClick={handleButtonClick}
+          className="animate-bounce-short relative flex h-14 w-14 cursor-grab items-center justify-center overflow-hidden rounded-full border-2 border-white bg-emerald-600 p-1 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-emerald-500 hover:shadow-2xl active:cursor-grabbing"
+        >
+          {/* Ripple effect */}
+          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-20"></span>
+          <img
+            src="/assets/tenshi.png"
+            alt="Tenshi"
+            className="h-full w-full rounded-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = '/assets/logo.svg';
+            }}
+          />
+        </button>
+      )}
+    </div>
+  );
 }
