@@ -1277,7 +1277,7 @@ export default function MatrizPESVTable({
           type="file"
           ref={fileInputRef}
           className="hidden"
-          accept=".xlsx,.json"
+          accept=".xlsx,.xls,.json"
           onChange={handleImportFile}
         />
         {renderModals()}
@@ -1359,7 +1359,7 @@ export default function MatrizPESVTable({
             type="file"
             ref={fileInputRef}
             className="hidden"
-            accept=".xlsx,.json"
+            accept=".xlsx,.xls,.json"
             onChange={handleImportFile}
           />
 

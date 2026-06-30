@@ -712,7 +712,7 @@ export default function MatrizIPEVARTable({
           } else {
             alert('El archivo JSON debe contener un arreglo de objetos.');
           }
-        } else if (file.name.endsWith('.xlsx')) {
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
           const wb = XLSX.read(data, { type: 'binary' });
           
           let allSheetRows: any[] = [];
@@ -955,7 +955,7 @@ export default function MatrizIPEVARTable({
       e.target.value = '';
     };
 
-    if (file.name.endsWith('.xlsx')) {
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
       reader.readAsBinaryString(file);
     } else {
       reader.readAsText(file);
@@ -1584,7 +1584,7 @@ export default function MatrizIPEVARTable({
           type="file"
           ref={fileInputRef}
           className="hidden"
-          accept=".xlsx,.json"
+          accept=".xlsx,.xls,.json"
           onChange={handleImportFile}
         />
         {renderModals()}
@@ -1674,7 +1674,7 @@ export default function MatrizIPEVARTable({
             type="file"
             ref={fileInputRef}
             className="hidden"
-            accept=".xlsx,.json"
+            accept=".xlsx,.xls,.json"
             onChange={handleImportFile}
           />
 
