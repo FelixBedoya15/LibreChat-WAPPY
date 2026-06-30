@@ -192,9 +192,11 @@ class GoogleDocsTool extends Tool {
                 },
                 textStyle: {
                   fontSize: { magnitude: 11, unit: 'PT' },
-                  fontFamily: 'Arial',
+                  weightedFontFamily: {
+                    fontFamily: 'Arial',
+                  },
                   foregroundColor: {
-                    opaqueColor: {
+                    color: {
                       rgbColor: {
                         red: 0.2,
                         green: 0.2,
@@ -203,7 +205,7 @@ class GoogleDocsTool extends Tool {
                     },
                   },
                 },
-                fields: 'fontSize,fontFamily,foregroundColor',
+                fields: 'fontSize,weightedFontFamily,foregroundColor',
               },
             }
           ];
@@ -256,14 +258,16 @@ class GoogleDocsTool extends Tool {
                     textStyle: {
                       fontSize: { magnitude: hFontSize, unit: 'PT' },
                       bold: true,
-                      fontFamily: 'Montserrat',
+                      weightedFontFamily: {
+                        fontFamily: 'Montserrat',
+                      },
                       foregroundColor: {
-                        opaqueColor: {
+                        color: {
                           rgbColor: hColor,
                         },
                       },
                     },
-                    fields: 'fontSize,bold,fontFamily,foregroundColor',
+                    fields: 'fontSize,bold,weightedFontFamily,foregroundColor',
                   },
                 }
               );
@@ -348,9 +352,11 @@ class GoogleDocsTool extends Tool {
             },
             textStyle: {
               fontSize: { magnitude: 11, unit: 'PT' },
-              fontFamily: 'Arial',
+              weightedFontFamily: {
+                fontFamily: 'Arial',
+              },
               foregroundColor: {
-                opaqueColor: {
+                color: {
                   rgbColor: {
                     red: 0.2,
                     green: 0.2,
@@ -359,7 +365,7 @@ class GoogleDocsTool extends Tool {
                 },
               },
             },
-            fields: 'fontSize,fontFamily,foregroundColor',
+            fields: 'fontSize,weightedFontFamily,foregroundColor',
           },
         });
 
@@ -411,14 +417,16 @@ class GoogleDocsTool extends Tool {
                   textStyle: {
                     fontSize: { magnitude: hFontSize, unit: 'PT' },
                     bold: true,
-                    fontFamily: 'Montserrat',
+                    weightedFontFamily: {
+                      fontFamily: 'Montserrat',
+                    },
                     foregroundColor: {
-                      opaqueColor: {
+                      color: {
                         rgbColor: hColor,
                       },
                     },
                   },
-                  fields: 'fontSize,bold,fontFamily,foregroundColor',
+                  fields: 'fontSize,bold,weightedFontFamily,foregroundColor',
                 },
               }
             );
@@ -468,9 +476,11 @@ class GoogleDocsTool extends Tool {
             },
             textStyle: {
               fontSize: { magnitude: 11, unit: 'PT' },
-              fontFamily: 'Arial',
+              weightedFontFamily: {
+                fontFamily: 'Arial',
+              },
               foregroundColor: {
-                opaqueColor: {
+                color: {
                   rgbColor: {
                     red: 0.2,
                     green: 0.2,
@@ -479,7 +489,7 @@ class GoogleDocsTool extends Tool {
                 },
               },
             },
-            fields: 'fontSize,fontFamily,foregroundColor',
+            fields: 'fontSize,weightedFontFamily,foregroundColor',
           },
         });
 
@@ -531,14 +541,16 @@ class GoogleDocsTool extends Tool {
                   textStyle: {
                     fontSize: { magnitude: hFontSize, unit: 'PT' },
                     bold: true,
-                    fontFamily: 'Montserrat',
+                    weightedFontFamily: {
+                      fontFamily: 'Montserrat',
+                    },
                     foregroundColor: {
-                      opaqueColor: {
+                      color: {
                         rgbColor: hColor,
                       },
                     },
                   },
-                  fields: 'fontSize,bold,fontFamily,foregroundColor',
+                  fields: 'fontSize,bold,weightedFontFamily,foregroundColor',
                 },
               }
             );
