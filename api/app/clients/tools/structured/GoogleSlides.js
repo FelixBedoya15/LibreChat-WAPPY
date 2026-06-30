@@ -157,8 +157,8 @@ class GoogleSlidesTool extends Tool {
       case 'add_slide': {
         if (!presentationId) throw new Error('Se requiere "presentationId" para añadir una diapositiva.');
         
-        // Default layout to BLANK to avoid ugly overlapping placeholders
-        const activeLayout = slideLayout || 'BLANK';
+        // Force layout to BLANK to avoid ugly overlapping placeholders
+        const activeLayout = 'BLANK';
 
         const slideId = `slide_${Date.now()}`;
         const titleBoxId = `title_${Date.now()}`;
