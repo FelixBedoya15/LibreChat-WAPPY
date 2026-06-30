@@ -31,6 +31,7 @@ const GoogleGmail = require('./structured/GoogleGmail');
 const GoogleSheets = require('./structured/GoogleSheets');
 const GoogleDocs = require('./structured/GoogleDocs');
 const GoogleSlides = require('./structured/GoogleSlides');
+const PuterImageGen = require('./structured/PuterImageGen');
 
 
 module.exports = {
@@ -66,4 +67,5 @@ module.exports = {
   GoogleSheets,
   GoogleDocs,
   GoogleSlides,
+  PuterImageGen,
 };

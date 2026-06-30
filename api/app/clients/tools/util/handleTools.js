@@ -54,6 +54,7 @@ const {
   GoogleSheets,
   GoogleDocs,
   GoogleSlides,
+  PuterImageGen,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -202,6 +203,7 @@ const loadTools = async ({
     tavily_search_results_json: TavilySearchResults,
     'google-image-gen': GoogleImageTools,
     n8n: n8nWebhook,
+    puter_image_gen: PuterImageGen,
   };
 
   const customConstructors = {
@@ -319,6 +321,7 @@ const loadTools = async ({
     dalle: imageGenOptions,
     'stable-diffusion': imageGenOptions,
     'google-image-gen': imageGenOptions,
+    puter_image_gen: imageGenOptions,
   };
 
   /** @type {Record<string, string>} */

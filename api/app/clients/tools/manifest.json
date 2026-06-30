@@ -319,5 +319,19 @@
     "description": "Permite al agente crear, leer y agregar diapositivas directamente en tus presentaciones de Google Slides.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2965/2965328.png",
     "authConfig": []
+  },
+  {
+    "name": "Puter Image Generator",
+    "pluginKey": "puter_image_gen",
+    "description": "Genera imágenes de alta calidad a partir de descripciones de texto de forma descentralizada y gratuita utilizando el ecosistema de Puter (User-Pays).",
+    "icon": "https://puter.com/favicon.ico",
+    "isAuthRequired": "true",
+    "authConfig": [
+      {
+        "authField": "PUTER_API_KEY",
+        "label": "Token de Autenticación de Puter",
+        "description": "Ingresa tu Auth Token de Puter obtenido desde tu <a href=\"https://puter.com/dashboard\" target=\"_blank\">Puter Dashboard</a>."
+      }
+    ]
   }
 ]
