@@ -1,26 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware/roles/admin');
 const { getMessages, sendMessage, updateMessage, deleteMessage, regenerateMessage } = require('../controllers/ChatSSTController');
 
-const requireAdminOrTestUser = (req, res, next) => {
-  try {
-    const isAllowedUser = req.user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
-    const isAdmin = req.user?.role === 'ADMIN';
+// Rutas accesibles para todos los usuarios autenticados (Comunidad Pro, Vital, etc.)
+router.get('/messages', requireJwtAuth, getMessages);
+router.post('/send', requireJwtAuth, sendMessage);
+router.put('/messages/:id', requireJwtAuth, updateMessage);
+router.delete('/messages/:id', requireJwtAuth, deleteMessage);
 
-    if (isAdmin || isAllowedUser) {
-      return next();
-    }
-    return res.status(403).json({ message: 'Forbidden: Acceso restringido para pruebas.' });
-  } catch (error) {
-    return res.status(500).json({ message: 'Internal Server Error' });
-  }
-};
-
-router.get('/messages', requireJwtAuth, requireAdminOrTestUser, getMessages);
-router.post('/send', requireJwtAuth, requireAdminOrTestUser, sendMessage);
-router.put('/messages/:id', requireJwtAuth, requireAdminOrTestUser, updateMessage);
-router.delete('/messages/:id', requireJwtAuth, requireAdminOrTestUser, deleteMessage);
-router.post('/messages/:id/regenerate', requireJwtAuth, requireAdminOrTestUser, regenerateMessage);
+// Regeneración de respuestas reservada para Administradores
+router.post('/messages/:id/regenerate', requireJwtAuth, requireAdmin, regenerateMessage);
 
 module.exports = router;

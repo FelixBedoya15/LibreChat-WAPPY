@@ -277,11 +277,10 @@ const Nav = memo(
                           }
                         />
                         {/* Chat SST icon */}
-                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
-                        )}
+
                         {/* Bookmarks icon */}
 
                         {hasAccessToBookmarks && (
@@ -360,11 +359,9 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
-                                )}
 
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>

@@ -1,7 +1,9 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const ChatSSTMessage = require('../models/ChatSSTMessage');
 const { getUserKey } = require('../server/services/UserService');
+
 
 // Modelos exactos configurados en el sistema WAPPY (coincidentes con sgsstGemini.js)
 const SYSTEM_GOOGLE_MODELS = [
@@ -161,10 +163,39 @@ REGLAS DE FORMATO Y ESTILO:
           '\n\n';
       }
 
-      const prompt = `${contextString}Último mensaje recibido de ${currentMessage.senderName} (el cual debes responder ahora):
+      // Integración de Búsqueda Web con SearXNG (igual que liveAiEdit.js / tickets.js)
+      let webContext = '';
+      const cleanQuery = currentMessage.content.replace(/@wappy/gi, '').trim();
+      const isGreeting = /^(hola|buenos dias|buenos días|buenas tardes|buenas noches|saludos|hey|alo|hello|hi)/i.test(cleanQuery);
+      
+      if (cleanQuery.length > 3 && !isGreeting) {
+        try {
+          const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
+          console.log(`[Chat SST @wappy] Ejecutando búsqueda web en SearXNG para: "${cleanQuery}"`);
+          const searchResponse = await axios.get(searxngUrl, {
+            params: { q: cleanQuery, format: 'json', language: 'es' },
+            timeout: 5000
+          });
+
+          if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
+            const topResults = searchResponse.data.results.slice(0, 4);
+            const formattedResults = topResults
+              .map((r, idx) => `[Resultado ${idx + 1}] Título: ${r.title}\nContenido: ${r.content}\nFuente: ${r.url || r.pretty_url || ''}`)
+              .join('\n\n');
+            
+            webContext = `CONTEXTO Y REFERENCIAS LEGALES SST DE INTERNET (Búsqueda Web via SearXNG):\n${formattedResults}\n\n`;
+            console.log(`[Chat SST @wappy] Búsqueda en SearXNG completada con éxito. Resultados obtenidos: ${topResults.length}`);
+          }
+        } catch (searchError) {
+          console.warn(`[Chat SST @wappy] SearXNG Web Search failed: ${searchError.message}`);
+        }
+      }
+
+      const prompt = `${contextString}${webContext}Último mensaje recibido de ${currentMessage.senderName} (el cual debes responder ahora):
 "${currentMessage.content}"
 
-Responde conversacionalmente de acuerdo a las reglas de estilo y el contexto del historial previo.`;
+Responde conversacionalmente de acuerdo a las reglas de estilo, el contexto del historial previo y la información web actualizada adjunta (si aplica).`;
+
 
 
       let botResponseText = '';
@@ -181,7 +212,9 @@ Responde conversacionalmente de acuerdo a las reglas de estilo y el contexto del
             const model = genAI.getGenerativeModel({
               model: currentModel,
               systemInstruction,
+              tools: [{ googleSearch: {} }],
             });
+
 
             const result = await model.generateContent(prompt);
             botResponseText = result.response.text();
