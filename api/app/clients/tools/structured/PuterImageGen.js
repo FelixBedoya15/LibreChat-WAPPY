@@ -48,7 +48,7 @@ class PuterImageGen extends Tool {
           'black-forest-labs/flux-1.1-pro',
         ])
         .optional()
-        .default('gemini-2.5-flash-image-preview')
+        .default('gpt-image-1.5')
         .describe('The AI model to use for image generation.'),
     });
   }
