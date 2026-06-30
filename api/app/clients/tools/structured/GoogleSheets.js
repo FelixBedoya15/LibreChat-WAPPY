@@ -260,32 +260,26 @@ class GoogleSheetsTool extends Tool {
               },
               top: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.82, green: 0.84, blue: 0.86 }, // Light grey #d1d5db
               },
               bottom: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.82, green: 0.84, blue: 0.86 },
               },
               left: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.82, green: 0.84, blue: 0.86 },
               },
               right: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.82, green: 0.84, blue: 0.86 },
               },
               innerHorizontal: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.88, green: 0.90, blue: 0.92 }, // Subtle inner grey
               },
               innerVertical: {
                 style: 'SOLID',
-                width: 1,
                 color: { red: 0.88, green: 0.90, blue: 0.92 },
               },
             },
