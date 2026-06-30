@@ -311,11 +311,44 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
     });
     const { name, mimeType, size } = metadataRes.data;
 
-    // Download file stream
-    const response = await drive.files.get(
-      { fileId, alt: 'media' },
-      { responseType: 'stream' }
-    );
+    let isGoogleWorkspace = false;
+    let exportMimeType = '';
+    let exportExtension = '';
+
+    if (mimeType === 'application/vnd.google-apps.document') {
+      isGoogleWorkspace = true;
+      exportMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      exportExtension = '.docx';
+    } else if (mimeType === 'application/vnd.google-apps.spreadsheet') {
+      isGoogleWorkspace = true;
+      exportMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      exportExtension = '.xlsx';
+    } else if (mimeType === 'application/vnd.google-apps.presentation') {
+      isGoogleWorkspace = true;
+      exportMimeType = 'application/pdf';
+      exportExtension = '.pdf';
+    }
+
+    // Download file stream (handling Google Workspace export)
+    let response;
+    let finalName = name;
+    let finalMimeType = mimeType;
+
+    if (isGoogleWorkspace) {
+      response = await drive.files.export(
+        { fileId, mimeType: exportMimeType },
+        { responseType: 'stream' }
+      );
+      if (!name.toLowerCase().endsWith(exportExtension)) {
+        finalName = `${name}${exportExtension}`;
+      }
+      finalMimeType = exportMimeType;
+    } else {
+      response = await drive.files.get(
+        { fileId, alt: 'media' },
+        { responseType: 'stream' }
+      );
+    }
 
     const appConfig = req.config;
     const crypto = require('crypto');
@@ -329,7 +362,7 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
     }
 
     const fileUUID = crypto.randomUUID();
-    tempFilePath = path.join(tempDir, `${fileUUID}-${name}`);
+    tempFilePath = path.join(tempDir, `${fileUUID}-${finalName}`);
 
     const writeStream = fs.createWriteStream(tempFilePath);
     await new Promise((resolve, reject) => {
@@ -339,13 +372,16 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
         .on('error', (err) => reject(err));
     });
 
+    const fileStats = fs.statSync(tempFilePath);
+    const finalSize = fileStats.size;
+
     // Populate standard file properties
     req.file = {
       path: tempFilePath,
-      originalname: name,
-      mimetype: mimeType,
-      size: Number(size || 0),
-      filename: `${fileUUID}-${name}`,
+      originalname: finalName,
+      mimetype: finalMimeType,
+      size: finalSize,
+      filename: `${fileUUID}-${finalName}`,
     };
     req.file_id = fileUUID;
 

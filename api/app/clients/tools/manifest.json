@@ -303,21 +303,21 @@
     "name": "Google Sheets",
     "pluginKey": "google_sheets",
     "description": "Permite al agente interactuar directamente con tus Google Sheets (crear hojas, leer/escribir rangos, añadir filas y formatearlas profesionalmente).",
-    "icon": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Google_Sheets_2020_logo.svg",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Google_Sheets_2020_Logo.svg",
     "authConfig": []
   },
   {
     "name": "Google Docs",
     "pluginKey": "google_docs",
     "description": "Permite al agente redactar, leer, editar y añadir texto directamente en tus Google Documents (Google Docs).",
-    "icon": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Google_Docs_2020_logo.svg",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Google_Docs_2020_Logo.svg",
     "authConfig": []
   },
   {
     "name": "Google Slides",
     "pluginKey": "google_slides",
     "description": "Permite al agente crear, leer y agregar diapositivas directamente en tus presentaciones de Google Slides.",
-    "icon": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Google_Slides_2020_logo.svg",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Google_Slides_2020_Logo.svg",
     "authConfig": []
   },
   {
