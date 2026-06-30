@@ -19,6 +19,10 @@ import {
   X,
   Sparkles,
   Loader2,
+  MoreVertical,
+  RotateCcw,
+  Trash,
+  Edit,
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
@@ -89,6 +93,107 @@ async function tagConversation(conversationId: string, tag: string, token: strin
     console.error('[LiveEditorPanel] Tag error:', e);
   }
 }
+
+const DROPDOWN_Z = 100_000_000;
+
+const VersionMenuDropdown = ({
+  version,
+  title,
+  onRename,
+  onDelete,
+}: {
+  version: number;
+  title: string;
+  onRename: (newName: string) => void;
+  onDelete: () => Promise<void>;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const calcMenuStyle = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+      zIndex: DROPDOWN_Z,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!buttonRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [isOpen]);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    if (
+      !window.confirm(
+        `¿Eliminar la versión ${version} del historial?\nEsta acción no se puede deshacer.`,
+      )
+    )
+      return;
+    setIsDeleting(true);
+    await onDelete();
+    setIsDeleting(false);
+  };
+
+  const menu = isOpen ? (
+    <div
+      ref={dropdownRef}
+      style={menuStyle}
+      className="w-36 rounded-lg border border-gray-200 bg-surface-primary py-1 shadow-xl dark:border-gray-700"
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          const n = prompt('Nuevo nombre para esta versión:', title);
+          if (n && n !== title) onRename(n);
+          setIsOpen(false);
+        }}
+        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-text-primary hover:bg-surface-hover"
+      >
+        <Edit className="h-3 w-3 text-teal-600" /> Renombrar
+      </button>
+      <button
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
+      >
+        <Trash className="h-3.5 w-3.5" /> Eliminar
+      </button>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          calcMenuStyle();
+          setIsOpen((o) => !o);
+        }}
+        className="shrink-0 rounded-full p-1 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+      >
+        <MoreVertical className="h-4 w-4 text-text-secondary" />
+      </button>
+      {ReactDOM.createPortal(menu, document.body)}
+    </>
+  );
+};
 
 /** Prominent document title header — matches SomosSST hito editor style */
 const DocumentTitleHeader: React.FC<{ fileName: string; onRename: (name: string) => void }> = ({ fileName, onRename }) => {
@@ -169,6 +274,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
+
+  const [history, setHistory] = useState<any[]>([]);
+  const [version, setVersion] = useState<number>(1);
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -276,6 +385,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         setFileName('Documento_Live');
         editorContentRef.current = '';
         lastUpdatedAtRef.current = null;
+        setHistory([]);
+        setVersion(1);
         if (liveEditorRef.current) {
           liveEditorRef.current.setHTML('');
         }
@@ -293,6 +404,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           liveEditorRef.current.setHTML(htmlWithSigs);
           editorContentRef.current = htmlWithSigs;
         }
+      }
+      if (data.history) {
+        setHistory(data.history || []);
+      }
+      if (data.version) {
+        setVersion(data.version || 1);
       }
     } catch (e) {
       console.error('[LiveEditorPanel] Fetch error:', e);
@@ -335,6 +452,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         lastUpdatedAtRef.current = data.contentUpdatedAt;
         setContent(finalContent);
         editorContentRef.current = finalContent;
+        if (data.history) {
+          setHistory(data.history);
+        }
+        if (data.version) {
+          setVersion(data.version);
+        }
         if (conversationId && conversationId !== 'new') {
           await tagConversation(conversationId, LIVE_EDITOR_TAG, token || '');
           await tagConversation(conversationId, liveEditorConvoTag(conversationId), token || '');
@@ -364,6 +487,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         setFileName('Documento_Live');
         editorContentRef.current = '';
         lastUpdatedAtRef.current = null;
+        setHistory([]);
+        setVersion(1);
         if (liveEditorRef.current) {
           liveEditorRef.current.setHTML('');
         }
@@ -455,6 +580,46 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     editorContentRef.current = '';
     lastUpdatedAtRef.current = null;
     liveEditorRef.current?.setHTML('');
+  };
+
+  // ── Restore Version ────────────────────────────────────────────────────────
+  const handleRestoreVersion = async (vItem: any) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(
+        `/api/sgsst/canvas/${conversationId}/versions/${vItem.version}/restore`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Synchronize local states
+        const withSigs = appendSignatureIfMissing(data.content || '');
+        setContent(withSigs);
+        setFileName(data.title || 'Documento sin título');
+        editorContentRef.current = withSigs;
+        setVersion(data.version);
+        setHistory(data.history || []);
+        
+        // Update DOM in the editor
+        if (liveEditorRef.current) {
+          liveEditorRef.current.setHTML(withSigs);
+        }
+        
+        lastUpdatedAtRef.current = data.updatedAt || new Date().toISOString();
+        setRefreshTrigger(prev => prev + 1);
+      }
+    } catch (e) {
+      console.error('[Restore Version] Error:', e);
+    } finally {
+      setIsLoading(false);
+      setIsHistoryOpen(false);
+    }
   };
 
   // ── Upload DOCX/PDF ──────────────────────────────────────────────────────
@@ -762,6 +927,188 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
               <p className="mt-2 text-sm text-text-secondary max-w-xs">
                 Nuestra IA está analizando y organizando el reglamento en capítulos y artículos estructurados según la legislación laboral colombiana. Esto puede tomar unos segundos...
               </p>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Version History Modal ─────────────────────────────────────────── */}
+      {isHistoryOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsHistoryOpen(false)}
+          />
+          <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-6 py-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
+                    <History className="h-5 w-5" />
+                  </div>
+                  <h2 className="text-lg font-bold text-text-primary">Versiones</h2>
+                </div>
+                <p className="mt-1 text-sm text-text-secondary">
+                  Historial de versiones de {fileName}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsHistoryOpen(false)}
+                className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto bg-surface-primary p-6">
+              {!isPro && (
+                <div
+                  onClick={() => (window.location.href = '/planes')}
+                  className="mb-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-800 transition-all duration-300 hover:scale-[1.01] hover:bg-amber-500/15 dark:text-amber-300"
+                >
+                  <Sparkles className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-amber-600 dark:text-amber-400" />
+                  <div className="flex-1 text-sm">
+                    <span className="font-bold">Límite del Plan Gratuito:</span> Solo conservamos
+                    las últimas 5 versiones en este chat. Pásate a Pro para mantener un registro
+                    de hasta 20 versiones.
+                    <span className="ml-2 font-bold underline transition-colors hover:text-amber-900 dark:hover:text-amber-100">
+                      ¡Subir de nivel ahora!
+                    </span>
+                  </div>
+                </div>
+              )}
+              {history.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-border-light bg-surface-secondary">
+                    <History className="h-8 w-8 text-text-tertiary" />
+                  </div>
+                  <p className="font-medium text-text-secondary">
+                    No hay versiones previas guardadas aún.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {history.map((hItem, idx) => {
+                    const isCurrent = hItem.version === version;
+                    const isBlockedVersion = !isPro && idx < history.length - 5;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex flex-col rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
+                          isCurrent
+                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/10'
+                            : isBlockedVersion
+                              ? 'border-dashed border-gray-300 bg-gray-50/50 opacity-60 hover:opacity-85 dark:border-gray-800 dark:bg-gray-900/5'
+                              : 'border-border-medium bg-surface-secondary hover:border-teal-500/50'
+                        }`}
+                      >
+                        <div className="mb-3 flex items-center justify-between border-b border-border-light pb-2">
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="shrink-0 font-bold text-text-primary">
+                                Versión {hItem.version}
+                              </span>
+                              {isCurrent && (
+                                <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                                  Actual
+                                </span>
+                              )}
+                            </div>
+                            <span className="truncate text-xs text-text-tertiary">
+                              {new Date(hItem.updatedAt).toLocaleString('es-ES')}
+                            </span>
+                            <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-sky-500/20 bg-sky-50 px-2 py-0.5 text-[9.5px] font-bold text-sky-600 dark:bg-sky-950/30 dark:text-sky-400">
+                              <FileText className="h-3 w-3 text-sky-500" />
+                              Documento de Texto
+                            </span>
+                          </div>
+
+                          {!isBlockedVersion ? (
+                            <VersionMenuDropdown
+                              version={hItem.version}
+                              title={hItem.title || fileName}
+                              onRename={async (newName) => {
+                                try {
+                                  const res = await fetch(
+                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}/rename`,
+                                    {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({ title: newName }),
+                                    },
+                                  );
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setHistory(data.history || []);
+                                    if (isCurrent) {
+                                      setFileName(newName);
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error('[Version History Rename] Error:', e);
+                                }
+                              }}
+                              onDelete={async () => {
+                                try {
+                                  const res = await fetch(
+                                    `/api/sgsst/canvas/${conversationId}/versions/${hItem.version}`,
+                                    {
+                                      method: 'DELETE',
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    },
+                                  );
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setHistory(data.history || []);
+                                  }
+                                } catch (e) {
+                                  console.error('[Version History Delete] Error:', e);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className="shrink-0 rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-500">
+                              🔒 PRO
+                            </span>
+                          )}
+                        </div>
+                        <div className="mb-4 line-clamp-3 flex-1 text-sm italic text-text-secondary opacity-80 font-normal">
+                          "{hItem.title || fileName}"
+                        </div>
+                        {isBlockedVersion ? (
+                          <button
+                            onClick={() => {
+                              window.location.href = '/planes';
+                            }}
+                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 py-2 text-sm font-semibold text-amber-600 transition-colors hover:bg-amber-500/10 dark:hover:bg-amber-900/20"
+                          >
+                            <RotateCcw className="h-4 w-4 text-amber-500" />
+                            Restaurar 🔒 PRO
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRestoreVersion(hItem)}
+                            disabled={isCurrent}
+                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-primary py-2 text-sm font-semibold text-text-secondary transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-teal-900/20"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            Restaurar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>,

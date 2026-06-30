@@ -171,7 +171,114 @@ class GoogleDocsTool extends Tool {
             title,
           },
         });
-        return `Documento de Google creado exitosamente:\n- Título: "${title}"\n- ID: ${response.data.documentId}\n- Enlace: https://docs.google.com/document/d/${response.data.documentId}/edit`;
+        const docId = response.data.documentId;
+
+        if (text) {
+          const { cleanText, styles } = parseMarkdown(text, 1);
+          const requests = [
+            {
+              insertText: {
+                location: {
+                  index: 1,
+                },
+                text: cleanText,
+              },
+            },
+            {
+              updateTextStyle: {
+                range: {
+                  startIndex: 1,
+                  endIndex: 1 + cleanText.length,
+                },
+                textStyle: {
+                  fontSize: { magnitude: 11, unit: 'PT' },
+                  fontFamily: 'Arial',
+                  foregroundColor: {
+                    opaqueColor: {
+                      rgbColor: {
+                        red: 0.2,
+                        green: 0.2,
+                        blue: 0.2, // Dark Grey
+                      },
+                    },
+                  },
+                },
+                fields: 'fontSize,fontFamily,foregroundColor',
+              },
+            }
+          ];
+
+          // Add styling requests
+          for (const style of styles) {
+            if (style.type === 'bold') {
+              requests.push({
+                updateTextStyle: {
+                  range: {
+                    startIndex: style.start,
+                    endIndex: style.end,
+                  },
+                  textStyle: {
+                    bold: true,
+                  },
+                  fields: 'bold',
+                },
+              });
+            } else if (style.type.startsWith('h')) {
+              const headingType = style.type === 'h1' ? 'HEADING_1' : style.type === 'h2' ? 'HEADING_2' : 'HEADING_3';
+              
+              // Apply visual typography
+              const hFontSize = style.type === 'h1' ? 20 : style.type === 'h2' ? 16 : 13;
+              const hColor = style.type === 'h1' 
+                ? { red: 0.06, green: 0.46, blue: 0.43 } // Teal #0f766e
+                : style.type === 'h2'
+                ? { red: 0.12, green: 0.16, blue: 0.23 } // Slate #1e293b
+                : { red: 0.2, green: 0.2, blue: 0.2 };   // Dark Grey
+
+              requests.push(
+                {
+                  updateParagraphStyle: {
+                    range: {
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    paragraphStyle: {
+                      namedStyleType: headingType,
+                    },
+                    fields: 'namedStyleType',
+                  },
+                },
+                {
+                  updateTextStyle: {
+                    range: {
+                      startIndex: style.start,
+                      endIndex: style.end,
+                    },
+                    textStyle: {
+                      fontSize: { magnitude: hFontSize, unit: 'PT' },
+                      bold: true,
+                      fontFamily: 'Montserrat',
+                      foregroundColor: {
+                        opaqueColor: {
+                          rgbColor: hColor,
+                        },
+                      },
+                    },
+                    fields: 'fontSize,bold,fontFamily,foregroundColor',
+                  },
+                }
+              );
+            }
+          }
+
+          await docs.documents.batchUpdate({
+            documentId: docId,
+            requestBody: {
+              requests,
+            },
+          });
+        }
+
+        return `Documento de Google creado exitosamente con contenido:\n- Título: "${title}"\n- ID: ${docId}\n- Enlace: https://docs.google.com/document/d/${docId}/edit`;
       }
 
       case 'read_document': {

@@ -115,13 +115,21 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     if (!session) {
-      return res.json({ content: '', fileName: 'Documento sin título', contentUpdatedAt: null });
+      return res.json({ content: '', fileName: 'Documento sin título', contentUpdatedAt: null, history: [], version: 1 });
     }
+
+    // Fetch corresponding CanvasSession of type 'text' to get history and version
+    const CanvasSession = require('~/models/CanvasSession');
+    const canvasSession = await CanvasSession.findOne({ conversationId, fileType: 'text' });
+    const history = canvasSession ? (canvasSession.history || []) : [];
+    const version = canvasSession ? (canvasSession.version || 1) : 1;
 
     res.json({
       content: session.content,
       fileName: session.fileName,
       contentUpdatedAt: session.contentUpdatedAt,
+      history,
+      version,
     });
   } catch (error) {
     logger.error('[LiveEditor GET] Error:', error);
@@ -172,7 +180,19 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
       logger.info(`[LiveEditor PUT] Deleted temporary session for user ${userId} since real session was created.`);
     }
 
-    res.json({ success: true, contentUpdatedAt: session.contentUpdatedAt, fileName: session.fileName });
+    // Fetch corresponding CanvasSession of type 'text' to get history and version
+    const CanvasSession = require('~/models/CanvasSession');
+    const canvasSession = await CanvasSession.findOne({ conversationId, fileType: 'text' });
+    const history = canvasSession ? (canvasSession.history || []) : [];
+    const version = canvasSession ? (canvasSession.version || 1) : 1;
+
+    res.json({
+      success: true,
+      contentUpdatedAt: session.contentUpdatedAt,
+      fileName: session.fileName,
+      history,
+      version,
+    });
   } catch (error) {
     logger.error('[LiveEditor PUT] Error:', error);
     res.status(500).json({ error: 'Error al actualizar el documento' });
