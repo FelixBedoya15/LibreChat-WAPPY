@@ -8,14 +8,9 @@ import { useUserKey, useAuthContext } from '~/hooks';
 import { getEndpointField } from '~/utils/endpoints';
 
 export default function GoogleAIConnect() {
-  const { user } = useAuthContext();
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { getExpiry } = useUserKey(EModelEndpoint.google);
-
-  if (user?.role !== 'ADMIN') {
-    return null;
-  }
 
   const expiryTime = getExpiry();
   const hasKey = !!expiryTime;

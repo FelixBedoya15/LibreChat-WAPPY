@@ -2,10 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import { PermissionTypes, Permissions, SystemRoles } from 'librechat-data-provider';
+import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import axios from 'axios';
 
 export default function useRolePermissions() {
     const user = useRecoilValue(store.user);
+    const { data: googleKeyExpiry } = useUserKeyQuery('google');
 
     const { data: roleDefinitions } = useQuery(['roleDefinitions'], async () => {
         const response = await axios.get('/api/roles');
@@ -42,7 +44,9 @@ export default function useRolePermissions() {
     const hasEndpointPermission = (endpointKey: string) => {
         if (!user) return false;
         if (endpointKey && endpointKey.toLowerCase() === 'google') {
-            return user.role === SystemRoles.ADMIN || user.role === 'ADMIN';
+            const hasGoogleKey = (googleKeyExpiry && googleKeyExpiry.expiresAt !== null && googleKeyExpiry.expiresAt !== undefined) || 
+                                 !!localStorage.getItem('librechat_user_key_google');
+            return user.role === SystemRoles.ADMIN || user.role === 'ADMIN' || hasGoogleKey;
         }
         if (user.role === SystemRoles.ADMIN) return true;
         if (!roleDefinitions) return false;

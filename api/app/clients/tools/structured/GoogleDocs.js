@@ -8,6 +8,73 @@ const {
   updateScopedAuthValue,
 } = require('~/server/services/googleAuthHelper');
 
+function parseMarkdown(mdText, baseIndex = 1) {
+  const lines = mdText.split('\n');
+  let cleanText = '';
+  const styles = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    const isLast = i === lines.length - 1;
+    let lineType = 'normal';
+
+    // Detect bullet points (* or -)
+    if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+      lineType = 'bullet';
+      const prefixIdx = line.indexOf('*') !== -1 ? line.indexOf('*') : line.indexOf('-');
+      line = line.substring(0, prefixIdx) + '• ' + line.substring(prefixIdx + 2);
+    }
+    // Detect headers (#)
+    else if (line.trim().startsWith('#')) {
+      const hashMatch = line.match(/^(\s*)(#+)\s(.*)/);
+      if (hashMatch) {
+        const hashes = hashMatch[2];
+        line = hashMatch[1] + hashMatch[3];
+        lineType = hashes.length === 1 ? 'h1' : hashes.length === 2 ? 'h2' : 'h3';
+      }
+    }
+
+    // Parse bold segments **bold**
+    let cleanLine = '';
+    let boldIndex = 0;
+    while (true) {
+      const startBold = line.indexOf('**', boldIndex);
+      if (startBold === -1) {
+        cleanLine += line.substring(boldIndex);
+        break;
+      }
+      const endBold = line.indexOf('**', startBold + 2);
+      if (endBold === -1) {
+        cleanLine += line.substring(boldIndex);
+        break;
+      }
+
+      cleanLine += line.substring(boldIndex, startBold);
+      const boldText = line.substring(startBold + 2, endBold);
+
+      const startInDoc = baseIndex + cleanText.length + cleanLine.length;
+      const endInDoc = startInDoc + boldText.length;
+      styles.push({ start: startInDoc, end: endInDoc, type: 'bold' });
+
+      cleanLine += boldText;
+      boldIndex = endBold + 2;
+    }
+
+    const lineStart = baseIndex + cleanText.length;
+    const lineEnd = lineStart + cleanLine.length;
+
+    if (lineType.startsWith('h')) {
+      styles.push({ start: lineStart, end: lineEnd, type: lineType });
+    } else if (lineType === 'bullet') {
+      styles.push({ start: lineStart, end: lineEnd, type: 'bullet' });
+    }
+
+    cleanText += cleanLine + (isLast ? '' : '\n');
+  }
+
+  return { cleanText, styles };
+}
+
 class GoogleDocsTool extends Tool {
   static lc_name() {
     return 'google_docs';
@@ -134,8 +201,6 @@ class GoogleDocsTool extends Tool {
         if (!documentId) throw new Error('Se requiere "documentId" para escribir.');
         if (!text) throw new Error('Se requiere el campo "text" con el contenido.');
 
-        // Overwriting a Google Doc requires clearing the body and inserting the new text.
-        // First get length of doc to replace it
         const doc = await docs.documents.get({ documentId });
         const bodyContent = doc.data.body.content;
         const lastElement = bodyContent[bodyContent.length - 1];
@@ -154,15 +219,50 @@ class GoogleDocsTool extends Tool {
           });
         }
         
-        // Insert new text at index 1
+        // Parse the markdown
+        const { cleanText, styles } = parseMarkdown(text, 1);
+
+        // Insert new clean text at index 1
         requests.push({
           insertText: {
             location: {
               index: 1,
             },
-            text,
+            text: cleanText,
           },
         });
+
+        // Add styling requests
+        for (const style of styles) {
+          if (style.type === 'bold') {
+            requests.push({
+              updateTextStyle: {
+                range: {
+                  startIndex: style.start,
+                  endIndex: style.end,
+                },
+                textStyle: {
+                  bold: true,
+                },
+                fields: 'bold',
+              },
+            });
+          } else if (style.type.startsWith('h')) {
+            const headingType = style.type === 'h1' ? 'HEADING_1' : style.type === 'h2' ? 'HEADING_2' : 'HEADING_3';
+            requests.push({
+              updateParagraphStyle: {
+                range: {
+                  startIndex: style.start,
+                  endIndex: style.end,
+                },
+                paragraphStyle: {
+                  namedStyleType: headingType,
+                },
+                fields: 'namedStyleType',
+              },
+            });
+          }
+        }
 
         await docs.documents.batchUpdate({
           documentId,
@@ -183,16 +283,52 @@ class GoogleDocsTool extends Tool {
         const lastElement = bodyContent[bodyContent.length - 1];
         const endIndex = lastElement.endIndex;
 
+        const baseIndex = endIndex - 1;
+        // Parse the markdown with baseIndex + 1 (since we prepend a newline \n)
+        const { cleanText, styles } = parseMarkdown(text, baseIndex + 1);
+
         const requests = [
           {
             insertText: {
               location: {
-                index: endIndex - 1,
+                index: baseIndex,
               },
-              text: `\n${text}`,
+              text: `\n${cleanText}`,
             },
           },
         ];
+
+        // Add styling requests
+        for (const style of styles) {
+          if (style.type === 'bold') {
+            requests.push({
+              updateTextStyle: {
+                range: {
+                  startIndex: style.start,
+                  endIndex: style.end,
+                },
+                textStyle: {
+                  bold: true,
+                },
+                fields: 'bold',
+              },
+            });
+          } else if (style.type.startsWith('h')) {
+            const headingType = style.type === 'h1' ? 'HEADING_1' : style.type === 'h2' ? 'HEADING_2' : 'HEADING_3';
+            requests.push({
+              updateParagraphStyle: {
+                range: {
+                  startIndex: style.start,
+                  endIndex: style.end,
+                },
+                paragraphStyle: {
+                  namedStyleType: headingType,
+                },
+                fields: 'namedStyleType',
+              },
+            });
+          }
+        }
 
         await docs.documents.batchUpdate({
           documentId,

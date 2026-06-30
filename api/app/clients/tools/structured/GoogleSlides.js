@@ -8,6 +8,52 @@ const {
   updateScopedAuthValue,
 } = require('~/server/services/googleAuthHelper');
 
+function parseMarkdownForShape(mdText) {
+  const lines = mdText.split('\n');
+  let cleanText = '';
+  const styles = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    const isLast = i === lines.length - 1;
+
+    // Detect bullet points (* or -)
+    if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+      const prefixIdx = line.indexOf('*') !== -1 ? line.indexOf('*') : line.indexOf('-');
+      line = line.substring(0, prefixIdx) + '• ' + line.substring(prefixIdx + 2);
+    }
+
+    let cleanLine = '';
+    let boldIndex = 0;
+    while (true) {
+      const startBold = line.indexOf('**', boldIndex);
+      if (startBold === -1) {
+        cleanLine += line.substring(boldIndex);
+        break;
+      }
+      const endBold = line.indexOf('**', startBold + 2);
+      if (endBold === -1) {
+        cleanLine += line.substring(boldIndex);
+        break;
+      }
+
+      cleanLine += line.substring(boldIndex, startBold);
+      const boldText = line.substring(startBold + 2, endBold);
+
+      const startInShape = cleanText.length + cleanLine.length;
+      const endInShape = startInShape + boldText.length;
+      styles.push({ start: startInShape, end: endInShape, type: 'bold' });
+
+      cleanLine += boldText;
+      boldIndex = endBold + 2;
+    }
+
+    cleanText += cleanLine + (isLast ? '' : '\n');
+  }
+
+  return { cleanText, styles };
+}
+
 class GoogleSlidesTool extends Tool {
   static lc_name() {
     return 'google_slides';
@@ -30,7 +76,7 @@ class GoogleSlidesTool extends Tool {
       presentationId: z.string().optional().describe('El ID de la presentación de Google Slides (requerido para añadir diapositivas o leer la estructura).'),
       title: z.string().optional().describe('El título de la presentación o de la nueva diapositiva que deseas añadir.'),
       bodyText: z.string().optional().describe('El texto del cuerpo o contenido de la nueva diapositiva.'),
-      slideLayout: z.enum(['TITLE_AND_BODY', 'TITLE', 'SECTION_HEADER', 'BLANK']).optional().default('TITLE_AND_BODY').describe('El diseño de la diapositiva que deseas añadir.'),
+      slideLayout: z.enum(['TITLE_AND_BODY', 'TITLE', 'SECTION_HEADER', 'BLANK']).optional().default('BLANK').describe('El diseño de la diapositiva que deseas añadir.'),
     });
   }
 
@@ -110,7 +156,9 @@ class GoogleSlidesTool extends Tool {
       case 'add_slide': {
         if (!presentationId) throw new Error('Se requiere "presentationId" para añadir una diapositiva.');
         
-        // Generate a random ID for the new slide and shapes
+        // Default layout to BLANK to avoid ugly overlapping placeholders
+        const activeLayout = slideLayout || 'BLANK';
+
         const slideId = `slide_${Date.now()}`;
         const titleBoxId = `title_${Date.now()}`;
         const bodyBoxId = `body_${Date.now()}`;
@@ -120,7 +168,7 @@ class GoogleSlidesTool extends Tool {
             createSlide: {
               objectId: slideId,
               slideLayoutReference: {
-                predefinedLayout: slideLayout || 'TITLE_AND_BODY',
+                predefinedLayout: activeLayout,
               },
             },
           },
@@ -128,6 +176,7 @@ class GoogleSlidesTool extends Tool {
 
         // If title is provided, insert it
         if (title) {
+          const { cleanText, styles } = parseMarkdownForShape(title);
           requests.push(
             {
               createShape: {
@@ -136,14 +185,14 @@ class GoogleSlidesTool extends Tool {
                 elementProperties: {
                   pageObjectId: slideId,
                   size: {
-                    height: { magnitude: 100, unit: 'PT' },
-                    width: { magnitude: 600, unit: 'PT' },
+                    height: { magnitude: 60, unit: 'PT' },
+                    width: { magnitude: 620, unit: 'PT' },
                   },
                   transform: {
                     scaleX: 1,
                     scaleY: 1,
                     translateX: 50,
-                    translateY: 50,
+                    translateY: 40,
                     unit: 'PT',
                   },
                 },
@@ -152,14 +201,57 @@ class GoogleSlidesTool extends Tool {
             {
               insertText: {
                 objectId: titleBoxId,
-                text: title,
+                text: cleanText,
+              },
+            },
+            {
+              updateTextStyle: {
+                objectId: titleBoxId,
+                style: {
+                  fontSize: { magnitude: 24, unit: 'PT' },
+                  bold: true,
+                  foregroundColor: {
+                    opaqueColor: {
+                      rgbColor: {
+                        red: 0.06,
+                        green: 0.46,
+                        blue: 0.43, // Teal #0f766e
+                      },
+                    },
+                  },
+                },
+                textRange: {
+                  type: 'ALL',
+                },
+                fields: 'fontSize,bold,foregroundColor',
               },
             }
           );
+
+          // Apply bold segments in title
+          for (const style of styles) {
+            if (style.type === 'bold') {
+              requests.push({
+                updateTextStyle: {
+                  objectId: titleBoxId,
+                  style: {
+                    bold: true,
+                  },
+                  textRange: {
+                    type: 'FIXED_RANGE',
+                    startIndex: style.start,
+                    endIndex: style.end,
+                  },
+                  fields: 'bold',
+                },
+              });
+            }
+          }
         }
 
         // If body text is provided, insert it
         if (bodyText) {
+          const { cleanText, styles } = parseMarkdownForShape(bodyText);
           requests.push(
             {
               createShape: {
@@ -168,14 +260,14 @@ class GoogleSlidesTool extends Tool {
                 elementProperties: {
                   pageObjectId: slideId,
                   size: {
-                    height: { magnitude: 200, unit: 'PT' },
-                    width: { magnitude: 600, unit: 'PT' },
+                    height: { magnitude: 260, unit: 'PT' },
+                    width: { magnitude: 620, unit: 'PT' },
                   },
                   transform: {
                     scaleX: 1,
                     scaleY: 1,
                     translateX: 50,
-                    translateY: 180,
+                    translateY: 120, // Clearly separated from Title box
                     unit: 'PT',
                   },
                 },
@@ -184,10 +276,51 @@ class GoogleSlidesTool extends Tool {
             {
               insertText: {
                 objectId: bodyBoxId,
-                text: bodyText,
+                text: cleanText,
+              },
+            },
+            {
+              updateTextStyle: {
+                objectId: bodyBoxId,
+                style: {
+                  fontSize: { magnitude: 14, unit: 'PT' },
+                  foregroundColor: {
+                    opaqueColor: {
+                      rgbColor: {
+                        red: 0.2,
+                        green: 0.2,
+                        blue: 0.2, // Dark grey
+                      },
+                    },
+                  },
+                },
+                textRange: {
+                  type: 'ALL',
+                },
+                fields: 'fontSize,foregroundColor',
               },
             }
           );
+
+          // Apply bold segments in bodyText
+          for (const style of styles) {
+            if (style.type === 'bold') {
+              requests.push({
+                updateTextStyle: {
+                  objectId: bodyBoxId,
+                  style: {
+                    bold: true,
+                  },
+                  textRange: {
+                    type: 'FIXED_RANGE',
+                    startIndex: style.start,
+                    endIndex: style.end,
+                  },
+                  fields: 'bold',
+                },
+              });
+            }
+          }
         }
 
         await slides.presentations.batchUpdate({
@@ -197,7 +330,7 @@ class GoogleSlidesTool extends Tool {
           },
         });
 
-        return `Diapositiva añadida exitosamente con diseño "${slideLayout}" a la presentación.`;
+        return `Diapositiva añadida exitosamente con diseño "${activeLayout}" a la presentación.`;
       }
 
       case 'read_presentation': {
