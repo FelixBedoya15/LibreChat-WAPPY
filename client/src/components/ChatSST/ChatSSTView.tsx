@@ -453,7 +453,7 @@ export default function ChatSSTView() {
                       isMe
                         ? 'bg-emerald-600 text-white rounded-tr-xs'
                         : isBot
-                        ? 'bg-zinc-900 text-zinc-100 border border-emerald-500/30 rounded-tl-xs dark:bg-zinc-950'
+                        ? 'bg-[#f4fbf7] text-zinc-800 border border-emerald-200/70 rounded-tl-xs dark:bg-zinc-950 dark:text-zinc-100 dark:border-emerald-500/20'
                         : 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tl-xs border border-zinc-200 dark:border-zinc-700'
                     }`}
                   >
@@ -552,7 +552,7 @@ export default function ChatSSTView() {
                         </button>
                       </div>
                     ) : (
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4">
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4 prose-a:text-emerald-600 dark:prose-a:text-emerald-400 font-semibold hover:underline">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
