@@ -146,11 +146,18 @@ REGLAS DE FORMATO Y ESTILO:
    - NO generes discursos largos, presentaciones extensas, ni listas de viñetas cuando el usuario solo está saludando o haciendo una pregunta corta.
    - Si el usuario hace una pregunta técnica específica de SST (Decreto 1072, Res 0312, GTC 45, etc.), responde de forma clara, precisa y profesional.`;
 
-      // Obtener el historial de los últimos 10 mensajes anteriores a este para dar contexto al bot
-      const rawHistory = await ChatSSTMessage.find({
+      // Obtener el historial de los últimos 10 mensajes anteriores a este en el mismo canal/grupo
+      const queryHistory = {
         _id: { $ne: currentMessage._id },
         createdAt: { $lt: currentMessage.createdAt || new Date() }
-      })
+      };
+      if (currentMessage.groupId) {
+        queryHistory.groupId = currentMessage.groupId;
+      } else {
+        queryHistory.groupId = { $exists: false };
+      }
+
+      const rawHistory = await ChatSSTMessage.find(queryHistory)
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -260,6 +267,7 @@ Responde conversacionalmente de acuerdo a las reglas de estilo, el contexto del 
         content: botResponseText,
         mentions: [`@${currentMessage.senderName}`],
         replyTo: currentMessage._id,
+        groupId: currentMessage.groupId || null,
         status: 'completed',
       });
 
@@ -274,6 +282,7 @@ Responde conversacionalmente de acuerdo a las reglas de estilo, el contexto del 
         senderRole: 'bot',
         content: `Lo siento @${currentMessage.senderName}, ocurrió un inconveniente al procesar tu solicitud: ${error.message}. Por favor intenta de nuevo en unos momentos.`,
         replyTo: currentMessage._id,
+        groupId: currentMessage.groupId || null,
         status: 'error',
       });
       if (this.io) {

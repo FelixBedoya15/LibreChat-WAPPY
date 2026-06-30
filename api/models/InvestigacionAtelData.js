@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const InvestigacionAtelDataSchema = new mongoose.Schema({
+    id: {
+        type: String,
+        default: () => require('crypto').randomUUID(),
+        required: true
+    },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -41,8 +46,19 @@ const InvestigacionAtelDataSchema = new mongoose.Schema({
     }
 });
 
-InvestigacionAtelDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
+// New index is unique on user, companyId and id combined
+InvestigacionAtelDataSchema.index({ user: 1, companyId: 1, id: 1 }, { unique: true });
 
 const InvestigacionAtelData = mongoose.models.InvestigacionAtelData || mongoose.model('InvestigacionAtelData', InvestigacionAtelDataSchema);
 
+// Drop the old unique index user_1_companyId_1 if it exists to allow multiple investigations
+if (mongoose.connection.readyState === 1) {
+    InvestigacionAtelData.collection.dropIndex('user_1_companyId_1').catch(() => {});
+} else {
+    mongoose.connection.once('open', () => {
+        InvestigacionAtelData.collection.dropIndex('user_1_companyId_1').catch(() => {});
+    });
+}
+
 module.exports = InvestigacionAtelData;
+

@@ -5,13 +5,13 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import {
     Bell, Search, Trash2, CheckCheck, EyeOff, Filter, RefreshCw,
-    MessageSquare, TicketCheck, ChevronRight, X, Inbox, Building2
+    MessageSquare, TicketCheck, ChevronRight, X, Inbox, Building2, Users
 } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'contact_request' | 'welcome_promo';
+    type: 'ticket_created' | 'ticket_responded' | 'contact_request' | 'welcome_promo' | 'group_invitation';
     title: string;
     body: string;
     read: boolean;
@@ -121,6 +121,13 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         if (notification.type === 'welcome_promo') {
             window.dispatchEvent(new CustomEvent('open-welcome-promo'));
             // Close settings if it's open (since NotificationsPage is inside settings)
+            const closeSettingsEvent = new CustomEvent('open-settings', { detail: false });
+            window.dispatchEvent(closeSettingsEvent);
+            return;
+        }
+
+        if (notification.type === 'group_invitation') {
+            navigate('/sgsst');
             const closeSettingsEvent = new CustomEvent('open-settings', { detail: false });
             window.dispatchEvent(closeSettingsEvent);
             return;
@@ -297,13 +304,17 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
                                     : n.type === 'contact_request'
                                         ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
-                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                                        : n.type === 'group_invitation'
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
+                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                             )}>
                                 {n.type === 'ticket_responded'
                                     ? <MessageSquare className="w-4 h-4" />
                                     : n.type === 'contact_request'
                                         ? <Building2 className="w-4 h-4" />
-                                        : <TicketCheck className="w-4 h-4" />
+                                        : n.type === 'group_invitation'
+                                            ? <Users className="w-4 h-4" />
+                                            : <TicketCheck className="w-4 h-4" />
                                 }
                             </div>
 

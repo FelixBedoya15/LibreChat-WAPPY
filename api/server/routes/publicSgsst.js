@@ -357,7 +357,7 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
 router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { cedula, nombre, data } = req.body;
+    const { cedula, nombre, data, investigacionId } = req.body;
 
     if (!cedula || !nombre) {
       return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
@@ -391,12 +391,53 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
       status: 'pending',
     };
 
-    // Push to inboxTestimonios
-    await InvestigacionAtelData.findOneAndUpdate(
-      { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-      { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
-      { upsert: true, new: true },
-    );
+    // Find the correct investigation to push the testimony into
+    let targetDoc = null;
+    if (investigacionId) {
+      targetDoc = await InvestigacionAtelData.findOne({
+        user: new mongoose.Types.ObjectId(company.user),
+        companyId: company._id,
+        id: investigacionId
+      });
+    }
+
+    if (!targetDoc) {
+      // Fallback: get the most recent investigation for this company
+      targetDoc = await InvestigacionAtelData.findOne({
+        user: new mongoose.Types.ObjectId(company.user),
+        companyId: company._id
+      }).sort({ updatedAt: -1 });
+    }
+
+    if (targetDoc) {
+      await InvestigacionAtelData.findByIdAndUpdate(
+        targetDoc._id,
+        { 
+          $push: { inboxTestimonios: newInboxItem }, 
+          $set: { updatedAt: Date.now() } 
+        }
+      );
+    } else {
+      // Fallback: create a new investigation if none exists at all
+      await InvestigacionAtelData.findOneAndUpdate(
+        { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+        { 
+          $push: { inboxTestimonios: newInboxItem }, 
+          $set: { 
+            id: new mongoose.Types.ObjectId().toString(), 
+            updatedAt: Date.now(),
+            formData: {
+              tipoEvento: 'Incidente',
+              fechaEvento: new Date().toISOString().split('T')[0],
+              horaEvento: '08:00',
+              descripcionHechos: 'Creado automáticamente al recibir primer testimonio.'
+            }
+          } 
+        },
+        { upsert: true, new: true }
+      );
+    }
+
 
     res.json({
       success: true,

@@ -475,7 +475,8 @@ router.post('/public/login', async (req, res) => {
             worker: {
                 nombre: workerFound.nombre,
                 cargo: workerFound.cargo || 'Trabajador',
-                cedula: workerFound.identificacion
+                cedula: workerFound.identificacion,
+                firmaDigital: workerFound.firmaDigital || null
             }
         });
     } catch (error) {
@@ -616,8 +617,9 @@ router.get('/public/courses/:companyId/:courseId', async (req, res) => {
             ...course,
             progress: progress ? {
                 completedLessons: progress.completedLessons || [],
-                isCompleted: progress.isCourseCompleted
-            } : { completedLessons: [], isCompleted: false }
+                isCompleted: progress.isCourseCompleted,
+                workerSignature: progress.workerSignature || null
+            } : { completedLessons: [], isCompleted: false, workerSignature: null }
         };
 
         res.status(200).json(responseData);
@@ -662,7 +664,7 @@ router.post('/public/progress', async (req, res) => {
             progress = new UserProgress({
                 workerCedula: String(workerCedula).trim(),
                 workerName,
-                companyId: queryCompanyId,
+                companyId: companyId,
                 course: courseId,
                 completedLessons: [lessonId]
             });
@@ -709,11 +711,45 @@ router.get('/public/progress/:companyId/:courseId/:cedula', async (req, res) => 
         res.json({
             completedCount: progress?.completedLessons?.length || 0,
             isCompleted: progress?.isCourseCompleted || false,
-            completedLessons: progress?.completedLessons || []
+            completedLessons: progress?.completedLessons || [],
+            workerSignature: progress?.workerSignature || null
         });
     } catch (error) {
         logger.error('[Ruta Aprendizaje Public] Fetch progress error:', error);
         res.status(500).json({ error: 'Error fetching progress' });
+    }
+});
+
+// Save worker signature for course completion
+router.post('/public/sign', async (req, res) => {
+    try {
+        const { companyId, courseId, workerCedula, signature } = req.body;
+        if (!companyId || !courseId || !workerCedula || !signature) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+
+        const allowedCompanyIds = await getSisterCompanyIds(companyId);
+
+        let progress = await UserProgress.findOne({
+            workerCedula: String(workerCedula).trim(),
+            course: courseId,
+            companyId: { $in: allowedCompanyIds }
+        });
+
+        if (!progress) {
+            return res.status(404).json({ error: 'Progress not found. Worker must complete lessons first.' });
+        }
+
+        progress.workerSignature = signature;
+        await progress.save();
+
+        res.status(200).json({
+            message: 'Signature saved successfully',
+            success: true
+        });
+    } catch (error) {
+        logger.error('[Ruta Aprendizaje Public] Save signature error:', error);
+        res.status(500).json({ error: 'Error saving worker signature' });
     }
 });
 

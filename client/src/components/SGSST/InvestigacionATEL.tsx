@@ -143,16 +143,14 @@ const InvestigacionATEL = () => {
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
-    // ── Form State ──
-    const [formData, setFormData] = useState({
-        // Datos del Evento
+    // ── Helpers to get initial blank states ──
+    const getInitialFormData = () => ({
         tipoEvento: 'Incidente',
         fechaEvento: new Date().toISOString().split('T')[0],
         horaEvento: '08:00',
         lugarEvento: '',
         departamento: '',
         municipio: '',
-        // Datos del Trabajador Afectado
         afectadoNombre: '',
         afectadoCedula: '',
         afectadoCargo: '',
@@ -162,22 +160,36 @@ const InvestigacionATEL = () => {
         jornadaLaboral: 'Diurna',
         experienciaLaboral: '',
         tiempoEnCargo: '',
-        // Descripción del Evento
         actividadMomento: '',
         descripcionHechos: '',
         consecuencias: '',
         diasIncapacidad: '0',
-        // Descripción de la lesión
         naturalezaLesion: '',
         agenteCausal: '',
         parteCuerpo: '',
-        // Datos evidencia / fotos
         foto1Desc: '',
         foto2Desc: '',
         foto3Desc: '',
         foto4Desc: '',
     });
 
+    const getInitialEquipoList = () => [
+        { nombre: '', cedula: '', rol: 'Jefe Inmediato / Supervisor' },
+        { nombre: '', cedula: '', rol: 'Representante COPASST / Vigía' },
+        { nombre: '', cedula: '', rol: 'Encargado SST / HSEQ' },
+    ];
+
+    const getInitialTestigosList = () => [
+        { nombre: '', cedula: '', cargo: '', testimonio: '' }
+    ];
+
+    // ── Multiple Investigations State ──
+    const [investigaciones, setInvestigaciones] = useState<any[]>([]);
+    const [activeInvestId, setActiveInvestId] = useState<string | null>(null);
+    const [isLoadingList, setIsLoadingList] = useState(false);
+
+    // ── Form State ──
+    const [formData, setFormData] = useState(getInitialFormData());
     const [images, setImages] = useState<{ [key: string]: string | null }>({
         foto1: null,
         foto2: null,
@@ -189,6 +201,37 @@ const InvestigacionATEL = () => {
     const [inboxTestimonios, setInboxTestimonios] = useState<any[]>([]);
     const [showInbox, setShowInbox] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+
+    const fetchInvestigationsList = async (selectId?: string) => {
+        if (!token) return;
+        setIsLoadingList(true);
+        try {
+            const res = await fetch('/api/sgsst/investigacion-atel/list', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setInvestigaciones(data.list || []);
+                if (data.list?.length > 0) {
+                    const targetId = selectId || data.list[0].id;
+                    setActiveInvestId(targetId);
+                } else {
+                    const newId = crypto.randomUUID();
+                    setActiveInvestId(newId);
+                    setFormData(getInitialFormData());
+                    setEquipoList(getInitialEquipoList());
+                    setTestigosList(getInitialTestigosList());
+                    setImages({ foto1: null, foto2: null, foto3: null, foto4: null });
+                    setVideo(null);
+                    setInboxTestimonios([]);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching list', err);
+        } finally {
+            setIsLoadingList(false);
+        }
+    };
 
     const downloadQR = (title: string, containerId: string) => {
         const svgElement = document.getElementById(containerId)?.querySelector('svg');
@@ -271,40 +314,115 @@ const InvestigacionATEL = () => {
             .catch(err => console.error('Error fetching workers', err));
     }, [token]);
 
-    // Fetch saved form data
-    React.useEffect(() => {
-        if (!token) return;
-        fetch('/api/sgsst/investigacion-atel/data', {
+    // Load investigations list on mount
+    useEffect(() => {
+        if (token) {
+            fetchInvestigationsList();
+        }
+    }, [token]);
+
+    // Fetch saved form data when activeInvestId changes
+    useEffect(() => {
+        if (!token || !activeInvestId) return;
+        
+        fetch(`/api/sgsst/investigacion-atel/data?id=${activeInvestId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 404) return null;
+                return res.json();
+            })
             .then(data => {
+                if (!data) return;
+                
+                setFormData(getInitialFormData());
+                
                 if (Object.keys(data.formData || {}).length > 0) {
                     setFormData(prev => ({ ...prev, ...data.formData }));
                 }
-                if (data.equipoList?.length) setEquipoList(data.equipoList);
-                if (data.testigosList?.length) setTestigosList(data.testigosList);
-                if (data.images) setImages(data.images);
-                if (data.video) setVideo(data.video);
-                if (data.inboxTestimonios) setInboxTestimonios(data.inboxTestimonios);
+                setEquipoList(data.equipoList?.length ? data.equipoList : getInitialEquipoList());
+                setTestigosList(data.testigosList?.length ? data.testigosList : getInitialTestigosList());
+                setImages(data.images || { foto1: null, foto2: null, foto3: null, foto4: null });
+                setVideo(data.video || null);
+                setInboxTestimonios(data.inboxTestimonios || []);
             })
             .catch(err => console.error('Error fetching investigacion atel data', err));
-    }, [token]);
+    }, [token, activeInvestId]);
 
     // ── Save Form Data ──
     const handleSaveData = async (silent = false) => {
-        if (!token) return;
+        if (!token || !activeInvestId) return;
         try {
             const res = await fetch('/api/sgsst/investigacion-atel/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ formData, equipoList, testigosList, images, video })
+                body: JSON.stringify({ id: activeInvestId, formData, equipoList, testigosList, images, video })
             });
-            if (res.ok && !silent) {
-                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+            if (res.ok) {
+                fetchInvestigationsList(activeInvestId);
+                if (!silent) {
+                    showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+                }
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
+        }
+    };
+
+    const handleAddInvestigacion = () => {
+        const newId = crypto.randomUUID();
+        setActiveInvestId(newId);
+        setFormData(getInitialFormData());
+        setEquipoList(getInitialEquipoList());
+        setTestigosList(getInitialTestigosList());
+        setImages({ foto1: null, foto2: null, foto3: null, foto4: null });
+        setVideo(null);
+        setInboxTestimonios([]);
+        setIsFormExpanded(true);
+        
+        setInvestigaciones(prev => [
+            {
+                id: newId,
+                tipoEvento: 'Incidente',
+                fechaEvento: new Date().toISOString().split('T')[0],
+                afectadoNombre: 'Borrador (Sin guardar)',
+                updatedAt: new Date()
+            },
+            ...prev
+        ]);
+        showToast({ message: 'Nueva investigación creada. Complete los datos y guarde.', status: 'info' });
+    };
+
+    const handleDeleteInvestigacion = async (idToDelete: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm('¿Está seguro de eliminar esta investigación? Esta acción no se puede deshacer.')) return;
+        
+        try {
+            const res = await fetch(`/api/sgsst/investigacion-atel/delete/${idToDelete}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                showToast({ message: 'Investigación eliminada.', status: 'success', severity: 'success' });
+                const remaining = investigaciones.filter(i => i.id !== idToDelete);
+                if (activeInvestId === idToDelete) {
+                    if (remaining.length > 0) {
+                        fetchInvestigationsList(remaining[0].id);
+                    } else {
+                        fetchInvestigationsList();
+                    }
+                } else {
+                    fetchInvestigationsList(activeInvestId || undefined);
+                }
+            } else {
+                setInvestigaciones(prev => prev.filter(i => i.id !== idToDelete));
+                if (activeInvestId === idToDelete) {
+                    fetchInvestigationsList();
+                }
+                showToast({ message: 'Investigación borrada localmente.', status: 'info' });
+            }
+        } catch (err) {
+            showToast({ message: 'Error al eliminar la investigación.', status: 'error' });
         }
     };
 
@@ -804,7 +922,7 @@ const InvestigacionATEL = () => {
 
                             <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
                                 <div id="atel-portal-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Investigacion_ATEL_Testimonios_SGSST", 'atel-portal-qr-container')}
@@ -820,21 +938,21 @@ const InvestigacionATEL = () => {
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`}
+                                        value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`}
                                         className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
-                                </div>
                             </div>
                         </div>
+                    </div>
 
                         {/* Modal Footer */}
                         <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">
@@ -848,6 +966,85 @@ const InvestigacionATEL = () => {
                 </div>,
                 document.body
             )}
+
+            {/* Listado de Investigaciones (Cards Grid) */}
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                        <span className="text-sm font-black uppercase tracking-widest text-text-primary">
+                            Historial de Investigaciones
+                        </span>
+                        {isLoadingList && <span className="text-xs text-text-secondary animate-pulse">(Cargando...)</span>}
+                    </div>
+                    <button
+                        onClick={handleAddInvestigacion}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-xl text-xs font-black border border-teal-500/20 dark:border-teal-400/20 hover:from-teal-500/20 hover:to-cyan-500/20 hover:border-teal-500/40 transition-all shadow-sm cursor-pointer"
+                    >
+                        <Plus className="h-4 w-4" /> Nueva Investigación
+                    </button>
+                </div>
+                
+                {investigaciones.length === 0 ? (
+                    <div className="text-center py-6 text-text-secondary text-sm border-2 border-dashed border-border-medium/50 rounded-xl">
+                        No hay investigaciones registradas. Registre un accidente en Estadísticas ATEL o haga clic en "Nueva Investigación".
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {investigaciones.map(item => {
+                            const isActive = activeInvestId === item.id;
+                            const isAT = item.tipoEvento?.includes('Accidente') || item.tipoEvento === 'AT';
+                            return (
+                                <div
+                                    key={item.id}
+                                    className={cn(
+                                        "group relative flex flex-col justify-between p-4 rounded-2xl transition-all duration-300 cursor-pointer border select-none h-[110px] shadow-sm hover:shadow-md",
+                                        isActive 
+                                            ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent shadow-[0_4px_15px_rgba(20,184,166,0.25)] scale-[1.02]" 
+                                            : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:bg-surface-secondary/90 hover:scale-[1.01] dark:bg-surface-primary/20"
+                                    )}
+                                    onClick={() => setActiveInvestId(item.id)}
+                                >
+                                    {isActive && (
+                                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 to-cyan-400" />
+                                    )}
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className={cn(
+                                                "px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                                                isActive
+                                                    ? "bg-white/20 text-white"
+                                                    : isAT 
+                                                        ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400" 
+                                                        : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                            )}>
+                                                {item.tipoEvento}
+                                            </span>
+                                            
+                                            <button
+                                                onClick={(e) => handleDeleteInvestigacion(item.id, e)}
+                                                className={cn(
+                                                    "p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity",
+                                                    isActive ? "text-red-300 hover:text-red-100 hover:bg-white/10" : "text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                )}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                        <h5 className={cn("font-bold text-xs line-clamp-1 mt-1", isActive ? "text-white" : "text-text-primary")}>
+                                            Afectado: {item.afectadoNombre || 'Sin asignar'}
+                                        </h5>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] opacity-80 mt-2">
+                                        <span>{item.fechaEvento || 'Sin fecha'}</span>
+                                        <span>{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('es-CO') : ''}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
 
             {/* ── Form Container ── */}
             <div className={cn("rounded-2xl border border-border-medium bg-surface-secondary shadow-sm transition-all", isFormExpanded ? "overflow-visible" : "overflow-hidden")}>

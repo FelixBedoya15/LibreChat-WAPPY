@@ -8,7 +8,7 @@ import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'system_update' | 'welcome_promo';
+    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'system_update' | 'welcome_promo' | 'group_invitation';
     title: string;
     body: string;
     read: boolean;
@@ -129,6 +129,12 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             return;
         }
 
+        if (notification.type === 'group_invitation') {
+            navigate('/sgsst');
+            onClose();
+            return;
+        }
+
         // Navigation logic for other types
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
             const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } });
@@ -222,6 +228,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
                                     : n.type === 'system_update'
                                     ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-500'
+                                    : n.type === 'group_invitation'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                             )}>
                                 {n.type === 'ticket_responded'
@@ -236,6 +244,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? <FileText className="w-3.5 h-3.5" />
                                     : n.type === 'system_update'
                                     ? <Map className="w-3.5 h-3.5" />
+                                    : n.type === 'group_invitation'
+                                    ? <Users className="w-3.5 h-3.5" />
                                     : <Ticket className="w-3.5 h-3.5" />
                                 }
                             </div>

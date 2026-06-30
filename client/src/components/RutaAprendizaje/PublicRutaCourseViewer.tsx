@@ -6,6 +6,7 @@ import { ChevronLeft, CheckCircle, Circle, PlayCircle, FileText, Trophy, BookOpe
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import RutaCertificate from './RutaCertificate';
+import SignaturePad from '~/components/SGSST/SignaturePad';
 
 interface WorkerSession {
     companyId: string;
@@ -13,6 +14,7 @@ interface WorkerSession {
     nombre: string;
     cedula: string;
     cargo: string;
+    firmaDigital?: string | null;
 }
 
 export default function PublicRutaCourseViewer() {
@@ -36,6 +38,7 @@ export default function PublicRutaCourseViewer() {
 
     // Certificate View State
     const [showCertificate, setShowCertificate] = useState(false);
+    const [isSignatureOpen, setIsSignatureOpen] = useState(false);
 
     // Initial session verify
     useEffect(() => {
@@ -124,6 +127,30 @@ export default function PublicRutaCourseViewer() {
         } catch (error) {
             console.error('Error updating progress:', error);
             showToast({ message: 'Error al guardar el progreso.', status: 'error' });
+        }
+    };
+
+    const handleSaveSignature = async (signatureBase64: string) => {
+        if (!session || !courseId || !companyId) return;
+
+        try {
+            const response = await axios.post('/api/ruta-aprendizaje/public/sign', {
+                companyId,
+                courseId,
+                workerCedula: session.cedula,
+                signature: signatureBase64
+            });
+
+            if (response.data.success) {
+                showToast({ message: '¡Firma guardada correctamente!', status: 'success' });
+                await fetchCourseData(session.cedula);
+            }
+        } catch (error: any) {
+            console.error('Error saving signature:', error);
+            showToast({ 
+                message: error.response?.data?.error || 'Error al guardar la firma.', 
+                status: 'error' 
+            });
         }
     };
 
@@ -314,23 +341,48 @@ export default function PublicRutaCourseViewer() {
                                 </button>
                             </div>
                         )}
-                    </div>
 
-                    {isCourseCompleted && (
-                        <div className="p-4 bg-emerald-950/30 border-t border-emerald-900/40 text-center space-y-3">
-                            <Trophy className="w-8 h-8 mx-auto text-emerald-400" />
-                            <div>
-                                <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">¡Ruta Finalizada!</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Has completado todas las lecciones y evaluaciones.</p>
+                        {isCourseCompleted && (
+                            <div className="p-4 bg-emerald-950/30 border-t border-emerald-900/40 text-center space-y-3">
+                                <Trophy className="w-8 h-8 mx-auto text-emerald-400" />
+                                <div>
+                                    <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">¡Ruta Finalizada!</h3>
+                                    <p className="text-xs text-slate-400 mt-0.5">Has completado todas las lecciones y evaluaciones.</p>
+                                </div>
+                                
+                                {course.progress?.workerSignature ? (
+                                    <button
+                                        onClick={() => setShowCertificate(true)}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-2.5 text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 shadow"
+                                    >
+                                        <Award className="w-4 h-4" /> Ver Certificado
+                                    </button>
+                                ) : (
+                                    <div className="space-y-2 pt-1">
+                                        <p className="text-[11px] text-amber-400 font-medium leading-snug">
+                                            ⚠️ Para descargar tu certificado de asistencia, por favor firma la finalización de la ruta.
+                                        </p>
+                                        
+                                        {session.firmaDigital ? (
+                                            <button
+                                                onClick={() => handleSaveSignature(session.firmaDigital)}
+                                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow"
+                                            >
+                                                ✍️ Usar firma oficial guardada
+                                            </button>
+                                        ) : null}
+
+                                        <button
+                                            onClick={() => setIsSignatureOpen(true)}
+                                            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border border-slate-700"
+                                        >
+                                            ✍️ Firmar en pantalla
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                            <button
-                                onClick={() => setShowCertificate(true)}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-2.5 text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 shadow"
-                            >
-                                <Award className="w-4 h-4" /> Ver Certificado
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* Main Content Area */}
@@ -574,7 +626,8 @@ export default function PublicRutaCourseViewer() {
                     worker={{
                         nombre: session.nombre,
                         cedula: session.cedula,
-                        cargo: session.cargo
+                        cargo: session.cargo,
+                        signature: course.progress?.workerSignature || null
                     }}
                     company={{
                         companyName: session.companyName,
@@ -585,6 +638,17 @@ export default function PublicRutaCourseViewer() {
                     onClose={() => setShowCertificate(false)}
                 />
             )}
+
+            {/* Signature Pad Modal */}
+            <SignaturePad
+                isOpen={isSignatureOpen}
+                onClose={() => setIsSignatureOpen(false)}
+                onSave={(sig) => {
+                    setIsSignatureOpen(false);
+                    handleSaveSignature(sig);
+                }}
+                title={`Firma de Aceptación: ${session.nombre}`}
+            />
         </div>
     );
 }

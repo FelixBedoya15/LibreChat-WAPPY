@@ -8,6 +8,7 @@ interface RutaCertificateProps {
         nombre: string;
         cedula: string;
         cargo?: string;
+        signature?: string | null;
     };
     company: {
         companyName: string;
@@ -133,11 +134,11 @@ export default function RutaCertificate({ course, worker, company, onClose }: Ru
                         </div>
                     </div>
 
-                    {/* Signature representation */}
-                    <div className="text-center w-52 sm:w-64">
+                    {/* Legal Representative Signature */}
+                    <div className="text-center w-48 sm:w-56">
                         <div className="h-10 sm:h-12 flex items-end justify-center pb-1 relative">
                             {/* Decorative line mimicking signature */}
-                            <span className="font-serif italic text-lg sm:text-xl text-slate-400 absolute bottom-2 select-none">
+                            <span className="font-serif italic text-base sm:text-lg text-slate-400 absolute bottom-2 select-none">
                                 {company.legalRepresentative || 'Representante Legal'}
                             </span>
                             <div className="w-full h-px bg-slate-400" />
@@ -145,6 +146,24 @@ export default function RutaCertificate({ course, worker, company, onClose }: Ru
                         <div className="mt-1.5 text-[10px] sm:text-xs text-slate-500 font-semibold tracking-wider uppercase">
                             {company.legalRepresentative || 'Firma Autorizada'}
                             <span className="block font-normal text-[9px] sm:text-[10px] text-slate-400 lowercase tracking-normal">Representante Legal</span>
+                        </div>
+                    </div>
+
+                    {/* Worker Signature */}
+                    <div className="text-center w-48 sm:w-56">
+                        <div className="h-10 sm:h-12 flex items-end justify-center pb-1 relative">
+                            {worker.signature ? (
+                                <img src={worker.signature} alt="Firma Trabajador" className="max-h-10 sm:max-h-12 object-contain" />
+                            ) : (
+                                <span className="font-serif italic text-base sm:text-lg text-slate-400 absolute bottom-2 select-none">
+                                    Firma del Trabajador
+                                </span>
+                            )}
+                            <div className="w-full h-px bg-slate-400" />
+                        </div>
+                        <div className="mt-1.5 text-[10px] sm:text-xs text-slate-500 font-semibold tracking-wider uppercase truncate">
+                            {worker.nombre}
+                            <span className="block font-normal text-[9px] sm:text-[10px] text-slate-400 lowercase tracking-normal">Trabajador</span>
                         </div>
                     </div>
 

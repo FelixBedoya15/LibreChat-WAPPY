@@ -11,6 +11,7 @@ interface WorkerSession {
     nombre: string;
     cedula: string;
     cargo: string;
+    firmaDigital?: string | null;
 }
 
 export default function PublicRutaAprendizaje() {
@@ -133,7 +134,8 @@ export default function PublicRutaAprendizaje() {
                     companyName: response.data.companyName,
                     nombre: response.data.worker.nombre,
                     cedula: response.data.worker.cedula,
-                    cargo: response.data.worker.cargo
+                    cargo: response.data.worker.cargo,
+                    firmaDigital: response.data.worker.firmaDigital || null
                 };
 
                 localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
@@ -386,7 +388,8 @@ export default function PublicRutaAprendizaje() {
                     worker={{
                         nombre: session.nombre,
                         cedula: session.cedula,
-                        cargo: session.cargo
+                        cargo: session.cargo,
+                        signature: coursesProgress[selectedCertificateCourse._id]?.workerSignature || null
                     }}
                     company={{
                         companyName: session.companyName,

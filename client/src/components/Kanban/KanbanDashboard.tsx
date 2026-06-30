@@ -14,7 +14,10 @@ import {
   BookOpen, 
   ExternalLink,
   ChevronRight,
-  Pencil
+  Pencil,
+  Eye,
+  EyeOff,
+  BarChart2
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -43,6 +46,20 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
   const { showToast } = useToastContext();
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showDashboard, setShowDashboard] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('acpm_show_dashboard') !== 'false';
+    }
+    return true;
+  });
+
+  const toggleDashboard = () => {
+    setShowDashboard(prev => {
+      const next = !prev;
+      localStorage.setItem('acpm_show_dashboard', String(next));
+      return next;
+    });
+  };
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -274,6 +291,28 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
     }
   };
 
+  const handleAcceptGroupInvite = async (invitationId: string) => {
+    try {
+      await axios.post(`/api/chat-sst/invitations/${invitationId}/accept`);
+      showToast({ message: '¡Invitación aceptada! Te has unido al grupo.', status: 'success' });
+      fetchTasks();
+    } catch (err) {
+      console.error('Error al aceptar invitación:', err);
+      showToast({ message: 'No se pudo aceptar la invitación.', status: 'error' });
+    }
+  };
+
+  const handleRejectGroupInvite = async (invitationId: string) => {
+    try {
+      await axios.post(`/api/chat-sst/invitations/${invitationId}/reject`);
+      showToast({ message: 'Invitación rechazada.', status: 'success' });
+      fetchTasks();
+    } catch (err) {
+      console.error('Error al rechazar invitación:', err);
+      showToast({ message: 'No se pudo rechazar la invitación.', status: 'error' });
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'todo': return 'Pendiente';
@@ -297,6 +336,38 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
   const dueSoonTasks = tasks.filter(t => t.status === 'due_soon');
   const overdueTasks = tasks.filter(t => t.status === 'overdue');
   const doneTasks = tasks.filter(t => t.status === 'done');
+
+  // Compliance calculations
+  const complianceRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 100;
+  
+  const donePct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const dueSoonPct = totalCount > 0 ? Math.round((dueSoonCount / totalCount) * 100) : 0;
+  const overduePct = totalCount > 0 ? Math.round((overdueCount / totalCount) * 100) : 0;
+  const todoPct = totalCount > 0 ? Math.round((todoTasks.length / totalCount) * 100) : 0;
+
+  const categoryInfo: Record<string, { label: string; color: string; bg: string }> = {
+    medical_exam: { label: 'Exámenes Médicos', color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500' },
+    soat: { label: 'SOAT Vehículos', color: 'text-purple-500 dark:text-purple-400', bg: 'bg-purple-500' },
+    rtm: { label: 'Técnico-Mecánica', color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500' },
+    driver_license: { label: 'Licencias Conducción', color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-500' },
+    training: { label: 'Capacitaciones SST', color: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500' },
+    manual: { label: 'Tareas Generales', color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-500' },
+    other: { label: 'Otros', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-500' }
+  };
+
+  const categoryStats = Object.keys(categoryInfo).map(type => {
+    const typeTasks = tasks.filter(t => t.type === type);
+    const total = typeTasks.length;
+    const completed = typeTasks.filter(t => t.status === 'done').length;
+    const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      type,
+      total,
+      completed,
+      rate,
+      ...categoryInfo[type]
+    };
+  }).filter(c => c.total > 0);
 
   // Render type icon & badge
   const renderTaskBadge = (task: KanbanTask) => {
@@ -418,19 +489,212 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
             </p>
           </div>
         )}
-        <button
-          onClick={openCreateModal}
-          className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
-          title="Nueva Actividad"
-        >
-          <div className="relative flex-shrink-0 flex items-center justify-center">
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-            <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Actividad</span>
-          </div>
-        </button>
+        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+          <button
+            onClick={toggleDashboard}
+            className={`group flex items-center justify-center h-9 px-3.5 sm:h-10 sm:px-4 rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 gap-2 cursor-pointer shadow-sm ${
+              showDashboard 
+                ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400' 
+                : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+            }`}
+            title={showDashboard ? "Ocultar Dashboard" : "Mostrar Dashboard"}
+          >
+            {showDashboard ? (
+              <>
+                <EyeOff className="w-4.5 h-4.5 text-current" />
+                <span className="hidden sm:inline">Ocultar Analíticas</span>
+                <span className="sm:hidden">Ocultar</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4.5 h-4.5 text-current" />
+                <span className="hidden sm:inline">Ver Analíticas</span>
+                <span className="sm:hidden">Analíticas</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+            title="Nueva Actividad"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Actividad</span>
+            </div>
+          </button>
+        </div>
       </div>
+
+      {/* Compliance Dashboard Panel */}
+      {showDashboard && (
+        <div className="px-6 pt-4 pb-2 transform transition-all duration-300 ease-in-out origin-top">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 p-5 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+            
+            {/* Card 1: General Compliance Donut Chart */}
+            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
+              <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90">
+                  <defs>
+                    <linearGradient id="complianceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#0d9488" />
+                      <stop offset="100%" stopColor="#10b981" />
+                    </linearGradient>
+                  </defs>
+                  <circle 
+                    cx="48" 
+                    cy="48" 
+                    r="38" 
+                    className="stroke-gray-100 dark:stroke-gray-800" 
+                    strokeWidth="8" 
+                    fill="transparent" 
+                  />
+                  <circle 
+                    cx="48" 
+                    cy="48" 
+                    r="38" 
+                    stroke="url(#complianceGrad)"
+                    strokeWidth="8" 
+                    fill="transparent" 
+                    strokeDasharray={2 * Math.PI * 38} 
+                    strokeDashoffset={2 * Math.PI * 38 * (1 - complianceRate / 100)} 
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-black text-text-primary">{complianceRate}%</span>
+                  <span className="text-[8px] text-text-tertiary font-bold uppercase tracking-wider">Logrado</span>
+                </div>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase">Cumplimiento General</h4>
+                <p className="text-[11px] text-text-secondary mt-1">
+                  Se han completado <strong className="text-teal-600 dark:text-teal-400 font-bold">{doneCount}</strong> de <strong className="text-text-primary font-bold">{totalCount}</strong> actividades totales.
+                </p>
+                <div className="mt-2.5">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    complianceRate >= 90 
+                      ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400' 
+                      : complianceRate >= 70
+                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400'
+                  }`}>
+                    {complianceRate >= 90 ? '¡Excelente Trabajo!' : complianceRate >= 70 ? 'Buen Progreso' : 'Atención Requerida'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Status Distribution Stacked Bar */}
+            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm">
+              <div>
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase flex items-center gap-1.5">
+                  <BarChart2 className="w-4 h-4 text-teal-500" />
+                  Distribución de Estados
+                </h4>
+                <p className="text-[10px] text-text-tertiary mt-0.5">Representación de la carga de trabajo por estado.</p>
+              </div>
+
+              {/* Stacked Progress Bar */}
+              <div className="mt-3.5 h-3 w-full bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden flex gap-[2px]">
+                {doneCount > 0 && (
+                  <div 
+                    style={{ width: `${(doneCount / totalCount) * 100}%` }}
+                    className="h-full bg-green-500 transition-all duration-500"
+                    title={`Completadas: ${doneCount}`}
+                  />
+                )}
+                {dueSoonCount > 0 && (
+                  <div 
+                    style={{ width: `${(dueSoonCount / totalCount) * 100}%` }}
+                    className="h-full bg-amber-500 transition-all duration-500 animate-pulse"
+                    title={`Próximas a vencer: ${dueSoonCount}`}
+                  />
+                )}
+                {overdueCount > 0 && (
+                  <div 
+                    style={{ width: `${(overdueCount / totalCount) * 100}%` }}
+                    className="h-full bg-rose-500 transition-all duration-500"
+                    title={`Vencidas (Alerta): ${overdueCount}`}
+                  />
+                )}
+                {todoTasks.length > 0 && (
+                  <div 
+                    style={{ width: `${(todoTasks.length / totalCount) * 100}%` }}
+                    className="h-full bg-gray-400 dark:bg-gray-600 transition-all duration-500"
+                    title={`Pendientes: ${todoTasks.length}`}
+                  />
+                )}
+                {totalCount === 0 && (
+                  <div className="h-full w-full bg-gray-200 dark:bg-gray-800 transition-all duration-500" />
+                )}
+              </div>
+
+              {/* Legend with percentages */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="truncate">Hechas: {donePct}%</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-600" />
+                  <span className="truncate">Pendientes: {todoPct}%</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="truncate">Próximas: {dueSoonPct}%</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="truncate">Vencidas: {overduePct}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Category Compliance Breakdown */}
+            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm min-h-[120px]">
+              <div>
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase">Cumplimiento por Categoría</h4>
+                <p className="text-[10px] text-text-tertiary mt-0.5">Rendimiento por tipo de control.</p>
+              </div>
+              
+              <div className="mt-3.5 flex flex-col gap-2.5 max-h-[96px] overflow-y-auto pr-1">
+                {categoryStats.length === 0 ? (
+                  <div className="text-[11px] text-text-tertiary italic text-center py-2">
+                    Sin actividades activas
+                  </div>
+                ) : (
+                  categoryStats.slice(0, 3).map(cat => (
+                    <div key={cat.type} className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-[10px] font-bold">
+                        <span className="text-text-primary truncate">{cat.label}</span>
+                        <span className={`${cat.color}`}>{cat.completed}/{cat.total} ({cat.rate}%)</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                          style={{ width: `${cat.rate}%` }}
+                          className={`h-full ${cat.bg} transition-all duration-500 rounded-full`}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+                {categoryStats.length > 3 && (
+                  <div className="text-[9px] text-text-tertiary font-bold text-right">
+                    + {categoryStats.length - 3} categorías más
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Analytics Summary Banner */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pt-4 pb-2">
@@ -587,19 +851,38 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
 
                         {/* Complete action quick button */}
                         {task.status !== 'done' && (
-                          <button
-                            onClick={() => {
-                              if (task.type !== 'manual') {
-                                openEditModal(task);
-                              } else {
-                                handleMarkComplete(task._id);
-                              }
-                            }}
-                            className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1 bg-surface-tertiary hover:bg-green-500/10 hover:text-green-600 dark:hover:bg-green-950/20 dark:hover:text-green-400 rounded-lg text-[11px] font-bold text-text-secondary transition-all"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            {task.type !== 'manual' ? 'Registrar Cierre / Renovación' : 'Marcar completado'}
-                          </button>
+                          task.referenceName === 'group_invitation' ? (
+                            <div className="mt-2.5 flex items-center gap-2 w-full">
+                              <button
+                                onClick={() => handleAcceptGroupInvite(task.referenceId)}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Aceptar
+                              </button>
+                              <button
+                                onClick={() => handleRejectGroupInvite(task.referenceId)}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-300 rounded-lg text-[11px] font-bold transition-all border border-zinc-200 dark:border-zinc-700"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                Rechazar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (task.type !== 'manual') {
+                                  openEditModal(task);
+                                } else {
+                                  handleMarkComplete(task._id);
+                                }
+                              }}
+                              className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1 bg-surface-tertiary hover:bg-green-500/10 hover:text-green-600 dark:hover:bg-green-950/20 dark:hover:text-green-400 rounded-lg text-[11px] font-bold text-text-secondary transition-all"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              {task.type !== 'manual' ? 'Registrar Cierre / Renovación' : 'Marcar completado'}
+                            </button>
+                          )
                         )}
                       </div>
                     </div>

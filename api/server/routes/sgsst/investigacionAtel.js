@@ -28,13 +28,52 @@ async function getActiveCompanyId(userId) {
     return active ? active._id : null;
 }
 
+// ─── GET /api/sgsst/investigacion-atel/list ───────────────────────────────────
+router.get('/list', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const mongoose = require('mongoose');
+        const list = await InvestigacionAtelData.find({ user: req.user.id, companyId: companyId })
+            .select('id formData updatedAt')
+            .sort({ updatedAt: -1 })
+            .lean();
+        
+        const result = list.map(item => ({
+            id: item.id || String(item._id),
+            tipoEvento: item.formData?.tipoEvento || 'Incidente',
+            fechaEvento: item.formData?.fechaEvento || '',
+            afectadoNombre: item.formData?.afectadoNombre || 'Sin asignar',
+            updatedAt: item.updatedAt
+        }));
+        
+        res.json({ list: result });
+    } catch (error) {
+        logger.error('[InvestigacionATEL] List load error:', error);
+        res.status(500).json({ error: 'Error al obtener la lista de investigaciones.' });
+    }
+});
+
 // ─── GET /api/sgsst/investigacion-atel/data ───────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
+        const { id } = req.query;
         const companyId = await getActiveCompanyId(req.user.id);
-        const stored = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: companyId }).lean();
+        const mongoose = require('mongoose');
+        
+        let query = { user: req.user.id, companyId: companyId };
+        if (id) {
+            query.id = id;
+        }
+        
+        let stored = await InvestigacionAtelData.findOne(query).lean();
+        
+        if (!stored && id && mongoose.Types.ObjectId.isValid(id)) {
+            stored = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: companyId, _id: id }).lean();
+        }
+
         if (stored) {
             return res.json({
+                id: stored.id || String(stored._id),
                 formData: stored.formData || {},
                 equipoList: stored.equipoList || [],
                 testigosList: stored.testigosList || [],
@@ -43,7 +82,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 inboxTestimonios: stored.inboxTestimonios || []
             });
         }
-        res.json({ formData: {}, equipoList: [], testigosList: [], images: {}, video: null, inboxTestimonios: [] });
+        
+        if (id) {
+            return res.status(404).json({ error: 'Investigación no encontrada.' });
+        }
+        
+        res.json({ id: '', formData: {}, equipoList: [], testigosList: [], images: {}, video: null, inboxTestimonios: [] });
     } catch (error) {
         logger.error('[InvestigacionATEL] Data load error:', error);
         res.status(500).json({ error: 'Error al cargar los datos del reporte.' });
@@ -54,9 +98,14 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const { formData, equipoList, testigosList, images, video } = req.body;
+        const { id, formData, equipoList, testigosList, images, video } = req.body;
+        
+        if (!id) {
+            return res.status(400).json({ error: 'El ID de la investigación es requerido.' });
+        }
+
         await InvestigacionAtelData.findOneAndUpdate(
-            { user: req.user.id, companyId: companyId },
+            { user: req.user.id, companyId: companyId, id: id },
             { $set: { companyId, formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -66,6 +115,30 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         res.status(500).json({ error: 'Error al guardar los datos.' });
     }
 });
+
+// ─── DELETE /api/sgsst/investigacion-atel/delete/:id ──────────────────────────
+router.delete('/delete/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const { id } = req.params;
+        const mongoose = require('mongoose');
+        
+        let result = await InvestigacionAtelData.findOneAndDelete({ user: req.user.id, companyId: companyId, id: id });
+        if (!result && mongoose.Types.ObjectId.isValid(id)) {
+            result = await InvestigacionAtelData.findOneAndDelete({ user: req.user.id, companyId: companyId, _id: id });
+        }
+        
+        if (result) {
+            return res.json({ success: true });
+        } else {
+            return res.status(404).json({ error: 'Investigación no encontrada.' });
+        }
+    } catch (error) {
+        logger.error('[InvestigacionATEL] Data delete error:', error);
+        res.status(500).json({ error: 'Error al eliminar la investigación.' });
+    }
+});
+
 
 // ─── POST /api/sgsst/investigacion-atel/import-file ──────────────────────────
 router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
@@ -172,7 +245,11 @@ router.post('/inbox/testimonio/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
         const { reportId } = req.body;
-        const doc = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: companyId });
+        const doc = await InvestigacionAtelData.findOne({
+            user: req.user.id,
+            companyId: companyId,
+            'inboxTestimonios.id': reportId
+        });
         if (doc && doc.inboxTestimonios) {
             doc.inboxTestimonios = doc.inboxTestimonios.filter(item => String(item.id) !== String(reportId));
             await doc.save();

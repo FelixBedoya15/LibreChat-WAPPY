@@ -32,6 +32,10 @@ const userProgressSchema = mongoose.Schema({
         type: String,
         required: false
     },
+    workerSignature: {
+        type: String,
+        required: false
+    },
     lastAccessed: {
         type: Date,
         default: Date.now,

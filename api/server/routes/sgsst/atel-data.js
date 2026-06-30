@@ -137,6 +137,72 @@ router.post('/save', requireJwtAuth, async (req, res) => {
                                 }
                             );
                         }
+
+                        // Si es un Accidente de Trabajo (AT), iniciar/crear una investigación
+                        if (ev.tipo === 'AT') {
+                            try {
+                                const InvestigacionAtel = require('../../../models/InvestigacionAtelData');
+                                const existingInvest = await InvestigacionAtel.findOne({
+                                    user: userId,
+                                    companyId,
+                                    id: ev.id
+                                });
+                                if (!existingInvest) {
+                                    const initialFormData = {
+                                        tipoEvento: 'Accidente Leve',
+                                        fechaEvento: ev.fecha || new Date().toISOString().split('T')[0],
+                                        horaEvento: '08:00',
+                                        lugarEvento: '',
+                                        departamento: '',
+                                        municipio: '',
+                                        afectadoNombre: '',
+                                        afectadoCedula: '',
+                                        afectadoCargo: '',
+                                        afectadoEps: '',
+                                        afectadoArl: '',
+                                        tipoContrato: 'Indefinido',
+                                        jornadaLaboral: 'Diurna',
+                                        experienciaLaboral: '',
+                                        tiempoEnCargo: '',
+                                        actividadMomento: ev.peligro || '',
+                                        descripcionHechos: ev.causaInmediata ? `Causa inmediata reportada: ${ev.causaInmediata}.` : '',
+                                        consecuencias: ev.consecuencia || '',
+                                        diasIncapacidad: String(ev.diasIncapacidad || '0'),
+                                        naturalezaLesion: ev.consecuencia || '',
+                                        agenteCausal: ev.causaInmediata || '',
+                                        parteCuerpo: ev.parteCuerpo || '',
+                                    };
+
+                                    await InvestigacionAtel.create({
+                                        id: ev.id,
+                                        user: userId,
+                                        companyId,
+                                        formData: initialFormData,
+                                        equipoList: [
+                                            { nombre: '', cedula: '', rol: 'Jefe Inmediato / Supervisor' },
+                                            { nombre: '', cedula: '', rol: 'Representante COPASST / Vigía' },
+                                            { nombre: '', cedula: '', rol: 'Encargado SST / HSEQ' },
+                                        ],
+                                        testigosList: [
+                                            { nombre: '', cedula: '', cargo: '', testimonio: '' }
+                                        ],
+                                        images: {
+                                            foto1: null,
+                                            foto2: null,
+                                            foto3: null,
+                                            foto4: null
+                                        },
+                                        video: null,
+                                        inboxTestimonios: [],
+                                        updatedAt: new Date()
+                                    });
+                                    logger.info(`[SGSST ATEL] Creada investigación automática para accidente con ID: ${ev.id}`);
+                                }
+                            } catch (atelErr) {
+                                logger.error('[SGSST ATEL] Error al crear investigación automática:', atelErr);
+                            }
+                        }
+
                     }
                 }
             }

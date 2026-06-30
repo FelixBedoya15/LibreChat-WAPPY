@@ -36,6 +36,12 @@ const chatSSTMessageSchema = mongoose.Schema(
       enum: ['sent', 'processing', 'completed', 'error'],
       default: 'sent',
     },
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ChatSSTGroup',
+      required: false,
+      index: true,
+    },
   },
   { timestamps: true }
 );

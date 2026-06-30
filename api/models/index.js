@@ -151,5 +151,7 @@ module.exports = {
 
   Files: File,
   ChatSSTMessage: require('./ChatSSTMessage'),
+  ChatSSTGroup: require('./ChatSSTGroup'),
+  ChatSSTGroupInvitation: require('./ChatSSTGroupInvitation'),
 };
 

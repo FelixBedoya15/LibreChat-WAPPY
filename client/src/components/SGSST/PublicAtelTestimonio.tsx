@@ -16,6 +16,8 @@ import axios from 'axios';
 
 export default function PublicAtelTestimonio() {
   const { companyId } = useParams();
+  const searchParams = new URLSearchParams(window.location.search);
+  const investigacionId = searchParams.get('investigacionId') || undefined;
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [step, setStep] = useState(1);
@@ -160,6 +162,7 @@ export default function PublicAtelTestimonio() {
       const payload = {
         cedula,
         nombre,
+        investigacionId,
         data: {
           cargo,
           testimonio,
