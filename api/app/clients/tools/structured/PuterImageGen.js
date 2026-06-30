@@ -99,7 +99,11 @@ class PuterImageGen extends Tool {
     }
 
     if (this.isAgent) {
-      const content = [
+      return [
+        {
+          type: ContentTypes.TEXT,
+          text: displayMessage,
+        },
         {
           type: ContentTypes.IMAGE_URL,
           image_url: {
@@ -107,14 +111,6 @@ class PuterImageGen extends Tool {
           },
         },
       ];
-
-      const response = [
-        {
-          type: ContentTypes.TEXT,
-          text: displayMessage,
-        },
-      ];
-      return [response, { content }];
     }
 
     const dataUrl = result.src;
