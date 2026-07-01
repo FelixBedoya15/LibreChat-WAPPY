@@ -238,6 +238,12 @@ class AgentClient extends BaseClient {
       instructions ?? '',
       additional_instructions ?? '',
       'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble. If you need to use multiple tools (e.g. file_search and web_search), use them BOTH in the SAME turn (parallel tool calls). Do not wait for one to finish before calling the other.',
+      '\nCRITICAL AGENTIC INSTRUCTIONS (Google Prompting Best Practices):',
+      'You are a strong reasoner and planner. Before taking any action (either tool calls or responding to the user), you must plan and reason about:',
+      '1. Logical dependencies: Reorder operations if needed to successfully complete the task.',
+      '2. Risk assessment: Call tools with available info rather than asking the user unless strictly necessary.',
+      '3. Persistence and adaptability: On transient errors, retry the call. On other errors, change your strategy or arguments rather than repeating the same call. Do not give up easily.',
+      '4. Precision and Grounding: Ensure your reasoning is highly precise and based only on facts. If referencing a document or policy, quote the exact applicable text.'
     ]
       .filter(Boolean)
       .join('\n')
