@@ -144,13 +144,37 @@ router.get('/profile/:workerId', async (req, res) => {
     // Search across all users' data for this worker ID
     const allData = await PerfilSociodemograficoData.find({}).lean();
     let worker = null;
+    let matchingDoc = null;
     for (const doc of allData) {
       const found = (doc.trabajadores || []).find(t => t.id === workerId);
-      if (found) { worker = found; break; }
+      if (found) { worker = found; matchingDoc = doc; break; }
     }
 
     if (!worker) {
       return res.status(404).send('<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID <strong>' + workerId + '</strong> no existe o fue eliminado.</p></body></html>');
+    }
+
+    // Get company info
+    let companyName = '';
+    let companyLogo = '';
+    if (matchingDoc) {
+      let company = null;
+      if (matchingDoc.companyId) {
+        company = await CompanyInfo.findById(matchingDoc.companyId).lean();
+      }
+      if (!company && matchingDoc.user) {
+        company = await CompanyInfo.findOne({ user: matchingDoc.user, isActive: true }).lean()
+          || await CompanyInfo.findOne({ user: matchingDoc.user }).lean();
+      }
+      if (company) {
+        companyName = company.companyName || '';
+        companyLogo = company.logoBase64 || '';
+      }
+    }
+
+    let logoSrc = '';
+    if (companyLogo) {
+      logoSrc = companyLogo.startsWith('data:') ? companyLogo : `data:image/png;base64,${companyLogo}`;
     }
 
     const mapsLink = worker.direccion
@@ -167,215 +191,857 @@ router.get('/profile/:workerId', async (req, res) => {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${profileTitle}: ${nameStr}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; min-height: 100vh; }
-  .card { background: white; border-radius: 20px; padding: 28px 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.10); max-width: 440px; margin: 0 auto; }
-  .header { text-align: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
-  .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg,${isHealth ? '#0d9488,#0f766e' : '#0ea5e9,#6366f1'}); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: white; margin: 0 auto 12px; }
-  h1 { font-size: 22px; font-weight: 800; color: ${isHealth ? '#115e59' : '#1e40af'}; line-height: 1.2; margin-bottom: 6px; }
-  .badge { display: inline-block; background: ${isHealth ? '#ccfbf1' : '#dbeafe'}; color: ${isHealth ? '#0f766e' : '#0f766e'}; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
-  .section { margin-bottom: 18px; }
-  .section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .field { background: #f8fafc; border-radius: 10px; padding: 10px 12px; }
-  .field-full { background: #f8fafc; border-radius: 10px; padding: 10px 12px; grid-column: span 2; }
-  .field .label, .field-full .label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 3px; }
-  .field .value, .field-full .value { font-size: 14px; font-weight: 700; color: #1e293b; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+  }
   
-  .dates-box { background: ${isHealth ? '#fff1f2' : '#fffbeb'}; border: 1px solid ${isHealth ? '#fecdd3' : '#fde68a'}; border-radius: 12px; padding: 14px; }
-  .date-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px dashed ${isHealth ? '#fecdd3' : '#fde68a'}; }
-  .date-row:last-child { border-bottom: none; padding-bottom: 0; }
-  .date-label { font-size: 12px; color: ${isHealth ? '#9f1239' : '#92400e'}; font-weight: 600; flex: 1; }
-  .date-value { font-size: 13px; color: ${isHealth ? '#881337' : '#78350f'}; font-weight: 800; white-space: nowrap; }
-  .maps-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; text-align: center; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; margin-top: 20px; transition: opacity 0.2s; }
-  .maps-btn:hover { opacity: 0.9; }
-  .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #94a3b8; }
+  .app-container {
+    width: 100%;
+    max-width: 480px;
+    background: #f8fafc;
+    min-height: 100vh;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  
+  .app-header {
+    background: linear-gradient(135deg, #0d9488, #115e59);
+    color: white;
+    padding: 24px 20px 60px;
+    border-radius: 0 0 24px 24px;
+    position: relative;
+  }
+  
+  .company-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .company-logo {
+    height: 28px;
+    max-width: 110px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: white;
+    padding: 2px 4px;
+  }
+  .company-badge {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: white;
+  }
+  .app-title {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: #ccfbf1;
+    margin-top: 4px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  
+  .profile-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    margin: -40px 16px 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 10;
+    border: 1px solid #f1f5f9;
+  }
+  
+  .profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, ${isHealth ? '#0d9488, #0f766e' : '#0ea5e9, #4f46e5'});
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: white;
+    box-shadow: 0 4px 12px ${isHealth ? 'rgba(13, 148, 136, 0.2)' : 'rgba(14, 165, 233, 0.2)'};
+    flex-shrink: 0;
+  }
+  
+  .profile-info {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .profile-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .profile-role {
+    display: inline-block;
+    background: ${isHealth ? '#f0fdfa' : '#f0f9ff'};
+    color: ${isHealth ? '#0f766e' : '#0369a1'};
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: capitalize;
+  }
+  
+  .tab-container {
+    padding: 0 16px;
+    margin-bottom: 20px;
+  }
+  .tabs {
+    display: flex;
+    background: #e2e8f0;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 4px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tab-btn.active {
+    background: white;
+    color: ${isHealth ? '#0f766e' : '#1e40af'};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  
+  .tab-content {
+    display: none;
+    padding: 0 16px;
+    animation: fadeIn 0.25s ease;
+  }
+  .tab-content.active {
+    display: block;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .info-card {
+    background: white;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02);
+    border: 1px solid #f1f5f9;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .title-red { color: #dc2626; }
+  .title-teal { color: #0d9488; }
+  .title-blue { color: #2563eb; }
+  .title-purple { color: #7c3aed; }
+  .title-orange { color: #ea580c; }
+  
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .info-row:last-child {
+    border-bottom: none;
+  }
+  .icon-wrapper {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-red { background: #fff1f2; color: #f43f5e; }
+  .icon-blue { background: #eff6ff; color: #3b82f6; }
+  .icon-green { background: #f0fdf4; color: #10b981; }
+  .icon-orange { background: #fff7ed; color: #f97316; }
+  .icon-purple { background: #faf5ff; color: #a855f7; }
+  
+  .info-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .info-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
+  .info-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    word-break: break-word;
+  }
+  
+  .emergency-banner {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: white;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.2);
+  }
+  .emergency-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+    opacity: 0.95;
+  }
+  .emergency-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .emergency-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .emergency-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .emergency-value {
+    font-size: 16px;
+    font-weight: 800;
+  }
+  .emergency-value.blood-type {
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .emergency-contact-box {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .emergency-value-contact {
+    font-size: 14px;
+    font-weight: 800;
+  }
+  
+  .alert-box {
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid;
+    margin-bottom: 10px;
+  }
+  .alert-box:last-child {
+    margin-bottom: 0;
+  }
+  .alert-red { background: #fff5f5; border-color: #feb2b2; }
+  .alert-red .alert-label { color: #c53030; }
+  .alert-red .alert-value { color: #9b2c2c; }
+  
+  .alert-orange { background: #fffaf0; border-color: #fbd38d; }
+  .alert-orange .alert-label { color: #c05621; }
+  .alert-orange .alert-value { color: #9c4221; }
+
+  .alert-gray { background: #f8fafc; border-color: #e2e8f0; }
+  .alert-gray .alert-label { color: #475569; }
+  .alert-gray .alert-value { color: #1e293b; }
+
+  .alert-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
+  .alert-value {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  
+  .safe-card {
+    border: 1px solid #d1fae5;
+    background: #f0fdf4;
+  }
+  
+  .maps-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    text-align: center;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    margin-top: 16px;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .maps-btn:hover {
+    opacity: 0.95;
+  }
+  
+  .app-footer {
+    text-align: center;
+    padding: 24px 16px;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: auto;
+    border-top: 1px solid #f1f5f9;
+    background: white;
+  }
+  .app-footer strong {
+    color: #64748b;
+  }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="header">
-    <div class="avatar">${nameStr.charAt(0).toUpperCase()}</div>
-    <div style="font-size:10px; font-weight:bold; color:#64748b; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">${profileTitle}</div>
-    <h1>${nameStr}</h1>
-    <span class="badge">${worker.cargo || 'Sin Cargo'}</span>
+<div class="app-container">
+  
+  <!-- Encabezado de la App -->
+  <header class="app-header">
+    <div class="company-section">
+      ${logoSrc ? `<img src="${logoSrc}" alt="${companyName}" class="company-logo">` : ''}
+      <span class="company-badge">${companyName || 'SST - WAPPY'}</span>
+    </div>
+    <div class="app-title">${profileTitle}</div>
+  </header>
+  
+  <!-- Tarjeta del Trabajador -->
+  <div class="profile-card">
+    <div class="profile-avatar">${nameStr.charAt(0).toUpperCase()}</div>
+    <div class="profile-info">
+      <h1 class="profile-name" title="${nameStr}">${nameStr}</h1>
+      <span class="profile-role">${worker.cargo || 'Sin Cargo'}</span>
+    </div>
   </div>
 
   ${isHealth ? `
-  <!-- ================= TARJETA DE EMERGENCIA ================= -->
+  <!-- ================= VISTA MÉDICA / SALUD ================= -->
+  
+  <!-- Navegación por Pestañas -->
+  <div class="tab-container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(event, 'salud-tab')">🩺 Salud</button>
+      <button class="tab-btn" onclick="switchTab(event, 'cert-tab')">🎓 Certificados</button>
+      <button class="tab-btn" onclick="switchTab(event, 'contact-tab')">📞 Contacto</button>
+    </div>
+  </div>
 
-  <!-- ALERTA CRÍTICA DE EMERGENCIA -->
-  <div style="background: linear-gradient(135deg, #dc2626, #b91c1c); border-radius: 14px; padding: 16px; margin-bottom: 18px; color: white;">
-    <div style="font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; margin-bottom: 10px;">⚠️ Información de Emergencia</div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-      <div>
-        <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Tipo de Sangre</div>
-        <div style="font-size: 22px; font-weight: 900;">${worker.tipoSangre || '—'}</div>
+  <!-- Pestaña 1: Salud -->
+  <div id="salud-tab" class="tab-content active">
+    <!-- Información de Emergencia Crítica -->
+    <div class="emergency-banner">
+      <div class="emergency-header">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <span>Información de Emergencia</span>
       </div>
-      <div>
-        <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Teléfono</div>
-        <div style="font-size: 16px; font-weight: 800;">${worker.telefono || '—'}</div>
+      <div class="emergency-grid">
+        <div class="emergency-item">
+          <div class="emergency-label">Tipo de Sangre</div>
+          <div class="emergency-value blood-type">${worker.tipoSangre || '—'}</div>
+        </div>
+        <div class="emergency-item">
+          <div class="emergency-label">Teléfono</div>
+          <div class="emergency-value">${worker.telefono || '—'}</div>
+        </div>
+      </div>
+      ${worker.emergenciaContacto ? `
+      <div class="emergency-contact-box">
+        <div class="emergency-label">Contacto de Emergencia</div>
+        <div class="emergency-value-contact">${worker.emergenciaContacto}</div>
+      </div>` : ''}
+    </div>
+
+    <!-- Alertas Médicas -->
+    ${(worker.alergiasQuimicas || worker.limitacionesBiomecanicas || worker.enfermedades || worker.medicamentos) ? `
+    <div class="info-card">
+      <h2 class="card-title title-red">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        Alertas Médicas Registradas
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        ${worker.alergiasQuimicas ? `
+        <div class="alert-box alert-red">
+          <div class="alert-label">Alergias Químicas</div>
+          <div class="alert-value">${worker.alergiasQuimicas}</div>
+        </div>` : ''}
+        ${worker.limitacionesBiomecanicas ? `
+        <div class="alert-box alert-orange">
+          <div class="alert-label">Restricciones / Limitaciones</div>
+          <div class="alert-value">${worker.limitacionesBiomecanicas}</div>
+        </div>` : ''}
+        ${worker.enfermedades ? `
+        <div class="alert-box alert-gray">
+          <div class="alert-label">Enfermedades Preexistentes</div>
+          <div class="alert-value">${worker.enfermedades}</div>
+        </div>` : ''}
+        ${worker.medicamentos ? `
+        <div class="alert-box alert-gray">
+          <div class="alert-label">Medicamentos de Consumo</div>
+          <div class="alert-value">${worker.medicamentos}</div>
+        </div>` : ''}
+      </div>
+    </div>` : `
+    <div class="info-card safe-card">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="icon-wrapper icon-green">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        </div>
+        <div>
+          <div style="font-weight:700; color:#065f46; font-size:14px;">Sin Alertas Médicas</div>
+          <div style="font-size:12px; color:#047857;">El trabajador no registra alergias o restricciones.</div>
+        </div>
+      </div>
+    </div>`}
+  </div>
+
+  <!-- Pestaña 2: Certificados -->
+  <div id="cert-tab" class="tab-content">
+    <div class="info-card">
+      <h2 class="card-title title-teal">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Cursos y Exámenes Ocupacionales
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Alturas — Trab. Autorizado</div>
+            <div class="info-value">${worker.fechaCursoAlturasAutorizado || 'No registra'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Alturas — Coordinador</div>
+            <div class="info-value">${worker.fechaCursoAlturasCoordinador || 'No registra'}</div>
+          </div>
+        </div>
+        ${worker.fechaExamenMedico ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.871 4A17.926 17.926 0 003 12c0 2.871.67 5.586 1.871 8m14.13 0a17.93 17.93 0 001.87-8c0-2.871-.67-5.586-1.87-8M9 9h1.5m2 0H14m-7 4h1.5m2 0H12m-7 4h1.5m2 0H10"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Examen Médico Ocupacional</div>
+            <div class="info-value">${worker.fechaExamenMedico}</div>
+          </div>
+        </div>` : ''}
+        ${worker.licenciaSST ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Licencia SST</div>
+            <div class="info-value">${worker.licenciaSST}</div>
+          </div>
+        </div>` : ''}
+        ${worker.curso50h ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Curso 50 Horas</div>
+            <div class="info-value">${worker.curso50h}</div>
+          </div>
+        </div>` : ''}
+        ${worker.curso20h ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Curso 20 Horas</div>
+            <div class="info-value">${worker.curso20h}</div>
+          </div>
+        </div>` : ''}
       </div>
     </div>
-    ${worker.emergenciaContacto ? `
-    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.25);">
-      <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">📞 Contacto de Emergencia</div>
-      <div style="font-size: 15px; font-weight: 800;">${worker.emergenciaContacto}</div>
+
+    ${(worker.esCopasst && worker.esCopasst !== 'No') || (worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') || (worker.esBrigadista && worker.esBrigadista !== 'No') || (worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `
+    <div class="info-card">
+      <h2 class="card-title title-teal">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Comités y Participación SG-SST
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        ${(worker.esCopasst && worker.esCopasst !== 'No') ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">COPASST</div>
+            <div class="info-value">${worker.esCopasst}</div>
+          </div>
+        </div>` : ''}
+        ${(worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Comité de Convivencia</div>
+            <div class="info-value">${worker.esComiteConvivencia}</div>
+          </div>
+        </div>` : ''}
+        ${(worker.esBrigadista && worker.esBrigadista !== 'No') ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-orange">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343m1.414-1.414A8 8 0 0118.657 17.3m-10.6-10.6l10.6 10.6M9 9h.01M15 15h.01M12 12h.01M12 15h.01M12 9h.01M9 12h.01M15 12h.01"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Brigadista de Emergencia</div>
+            <div class="info-value">${worker.esBrigadista}</div>
+          </div>
+        </div>` : ''}
+        ${(worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Comité de Seguridad Vial</div>
+            <div class="info-value">${worker.esComiteSeguridadVial}</div>
+          </div>
+        </div>` : ''}
+      </div>
     </div>` : ''}
   </div>
 
-  <!-- ALERTAS MÉDICAS -->
-  ${(worker.alergiasQuimicas || worker.limitacionesBiomecanicas || worker.enfermedades || worker.medicamentos) ? `
-  <div class="section">
-    <div class="section-title" style="color: #dc2626;">🚨 Alertas Médicas</div>
-    <div class="grid">
-      ${worker.alergiasQuimicas ? `
-      <div class="field-full" style="background:#fff1f2; border: 1px solid #fecdd3;">
-        <span class="label" style="color:#e11d48;">Alergias Químicas</span>
-        <span class="value" style="color:#9f1239;">${worker.alergiasQuimicas}</span>
-      </div>` : ''}
-      ${worker.limitacionesBiomecanicas ? `
-      <div class="field-full" style="background:#fff7ed; border: 1px solid #fed7aa;">
-        <span class="label" style="color:#c2410c;">Restricciones / Limitaciones</span>
-        <span class="value" style="color:#9a3412;">${worker.limitacionesBiomecanicas}</span>
-      </div>` : ''}
-      ${worker.enfermedades ? `
-      <div class="field-full">
-        <span class="label">Enfermedades Preexistentes</span>
-        <span class="value">${worker.enfermedades}</span>
-      </div>` : ''}
-      ${worker.medicamentos ? `
-      <div class="field-full">
-        <span class="label">Medicamentos de Consumo</span>
-        <span class="value">${worker.medicamentos}</span>
-      </div>` : ''}
-    </div>
-  </div>` : ''}
-
-  <!-- CARGO Y PROFESION -->
-  <div class="section">
-    <div class="section-title">💼 Cargo y Perfil Profesional</div>
-    <div class="grid">
-      <div class="field-full"><span class="label">Cargo</span><span class="value">${worker.cargo || '—'}</span></div>
-      <div class="field"><span class="label">Cédula</span><span class="value">${worker.identificacion || '—'}</span></div>
-      <div class="field"><span class="label">Dirección Domicilio</span><span class="value">${worker.direccion || '—'}</span></div>
+  <!-- Pestaña 3: Contacto -->
+  <div id="contact-tab" class="tab-content">
+    <div class="info-card">
+      <h2 class="card-title title-blue">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+        Datos de Contacto e Identificación
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Identificación (Cédula)</div>
+            <div class="info-value">${worker.identificacion || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Teléfono Principal</div>
+            <div class="info-value">
+              <a href="tel:${worker.telefono}" style="color: inherit; text-decoration: none;">${worker.telefono || '—'}</a>
+            </div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Dirección Residencia</div>
+            <div class="info-value">${worker.direccion || '—'}</div>
+          </div>
+        </div>
+      </div>
+      ${mapsLink ? `
+      <a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+        Ver Dirección en Google Maps
+      </a>` : ''}
     </div>
   </div>
-
-  <!-- CAPACITACIONES Y CERTIFICACIONES -->
-  <div class="section">
-    <div class="section-title">🎓 Capacitaciones y Certificaciones</div>
-    <div class="dates-box">
-      <div class="date-row">
-        <span class="date-label">Alturas — Trab. Autorizado</span>
-        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'N/A'}</span>
-      </div>
-      <div class="date-row">
-        <span class="date-label">Alturas — Coordinador</span>
-        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</span>
-      </div>
-      ${worker.fechaExamenMedico ? `
-      <div class="date-row">
-        <span class="date-label">Examen Médico Ocupacional</span>
-        <span class="date-value">${worker.fechaExamenMedico}</span>
-      </div>` : ''}
-      ${worker.licenciaSST ? `
-      <div class="date-row">
-        <span class="date-label">Licencia SST</span>
-        <span class="date-value">${worker.licenciaSST}</span>
-      </div>` : ''}
-      ${worker.curso50h ? `
-      <div class="date-row">
-        <span class="date-label">Curso 50 Horas</span>
-        <span class="date-value">${worker.curso50h}</span>
-      </div>` : ''}
-      ${worker.curso20h ? `
-      <div class="date-row">
-        <span class="date-label">Curso 20 Horas</span>
-        <span class="date-value">${worker.curso20h}</span>
-      </div>` : ''}
-    </div>
-  </div>
-
-  <!-- COMITÉS SGSST -->
-  ${(worker.esCopasst && worker.esCopasst !== 'No') || (worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') || (worker.esBrigadista && worker.esBrigadista !== 'No') || (worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `
-  <div class="section">
-    <div class="section-title">🛡️ Participación en Comités SG-SST</div>
-    <div class="grid">
-      ${(worker.esCopasst && worker.esCopasst !== 'No') ? `<div class="field"><span class="label">COPASST</span><span class="value" style="color:#0f766e;">${worker.esCopasst}</span></div>` : ''}
-      ${(worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') ? `<div class="field"><span class="label">Comité Convivencia</span><span class="value" style="color:#0f766e;">${worker.esComiteConvivencia}</span></div>` : ''}
-      ${(worker.esBrigadista && worker.esBrigadista !== 'No') ? `<div class="field"><span class="label">Brigadista</span><span class="value" style="color:#0f766e;">${worker.esBrigadista}</span></div>` : ''}
-      ${(worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `<div class="field"><span class="label">Comité Seg. Vial</span><span class="value" style="color:#0f766e;">${worker.esComiteSeguridadVial}</span></div>` : ''}
-    </div>
-  </div>` : ''}
-  
-  ${mapsLink
-        ? `<a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
-             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-             </svg>
-             Ver Dirección en Google Maps
-           </a>`
-        : ''
-      }
   ` : `
   <!-- ================= VISTA SOCIODEMOGRÁFICA ================= -->
-  <div class="section">
-    <div class="section-title">Información Personal</div>
-    <div class="grid">
-      <div class="field"><span class="label">Cédula</span><span class="value">${worker.identificacion || '—'}</span></div>
-      <div class="field"><span class="label">Edad</span><span class="value">${worker.edad ? worker.edad + ' años' : '—'}</span></div>
-      <div class="field"><span class="label">Género</span><span class="value">${worker.genero || '—'}</span></div>
-      <div class="field"><span class="label">Estado Civil</span><span class="value">${worker.estadoCivil || '—'}</span></div>
-      <div class="field"><span class="label">Escolaridad</span><span class="value">${worker.nivelEscolaridad || '—'}</span></div>
-      <div class="field"><span class="label">Teléfono</span><span class="value">${worker.telefono || '—'}</span></div>
-      <div class="field-full"><span class="label">Contacto de Emergencia</span><span class="value">${worker.emergenciaContacto || '—'}</span></div>
+  
+  <!-- Navegación por Pestañas -->
+  <div class="tab-container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(event, 'personal-tab')">👤 Personal</button>
+      <button class="tab-btn" onclick="switchTab(event, 'socio-tab')">💼 Socioec.</button>
+      <button class="tab-btn" onclick="switchTab(event, 'cert-tab')">🎓 Certificados</button>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Información Socioeconómica</div>
-    <div class="grid">
-        <div class="field"><span class="label">Vivienda</span><span class="value">${worker.vivienda || '—'}</span></div>
-        <div class="field"><span class="label">Estrato</span><span class="value">${worker.estrato || '—'}</span></div>
-        <div class="field-full"><span class="label">Personas a Cargo</span><span class="value">${worker.personasCargo !== undefined && worker.personasCargo !== '' ? worker.personasCargo : '—'}</span></div>
+  <!-- Pestaña 1: Información Personal -->
+  <div id="personal-tab" class="tab-content active">
+    <div class="info-card">
+      <h2 class="card-title title-blue">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+        Información General
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Cédula</div>
+            <div class="info-value">${worker.identificacion || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Edad</div>
+            <div class="info-value">${worker.edad ? worker.edad + ' años' : '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Género / Sexo</div>
+            <div class="info-value">${worker.genero || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Estado Civil</div>
+            <div class="info-value">${worker.estadoCivil || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Nivel de Escolaridad</div>
+            <div class="info-value">${worker.nivelEscolaridad || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Teléfono</div>
+            <div class="info-value">
+              <a href="tel:${worker.telefono}" style="color: inherit; text-decoration: none;">${worker.telefono || '—'}</a>
+            </div>
+          </div>
+        </div>
+        ${worker.emergenciaContacto ? `
+        <div class="info-row">
+          <div class="icon-wrapper icon-red">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Contacto de Emergencia</div>
+            <div class="info-value">${worker.emergenciaContacto}</div>
+          </div>
+        </div>` : ''}
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Dirección Domicilio</div>
+            <div class="info-value">${worker.direccion || '—'}</div>
+          </div>
+        </div>
+      </div>
+      ${mapsLink ? `
+      <a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+        Ver Dirección en Google Maps
+      </a>` : ''}
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Certificaciones Operativas</div>
-    <div class="dates-box">
-      <div class="date-row">
-        <span class="date-label">Alturas — Trab. Autorizado</span>
-        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'N/A'}</span>
+  <!-- Pestaña 2: Información Socioeconómica -->
+  <div id="socio-tab" class="tab-content">
+    <div class="info-card">
+      <h2 class="card-title title-orange">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        Condiciones Habitacionales
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        <div class="info-row">
+          <div class="icon-wrapper icon-orange">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Tipo de Vivienda</div>
+            <div class="info-value">${worker.vivienda || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-orange">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Estrato Habitacional</div>
+            <div class="info-value">${worker.estrato || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-orange">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Personas a Cargo</div>
+            <div class="info-value">${worker.personasCargo !== undefined && worker.personasCargo !== '' ? worker.personasCargo : '—'}</div>
+          </div>
+        </div>
       </div>
-      <div class="date-row">
-        <span class="date-label">Alturas — Coordinador</span>
-        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</span>
-      </div>
-      <div class="date-row" style="border-top: 1px solid #fde68a;">
-        <span class="date-label">Consentimiento Firma Digital</span>
-        <span class="date-value">${worker.consentimientoFirmaDigital === 'Sí' ? 'Autorizado' : 'No Autorizado'}</span>
-      </div>
-      ${worker.consentimientoFirmaDigital === 'Sí' && worker.firmaDigital ? `
-      <div style="margin-top: 15px; text-align: center;">
-        <span style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px; text-transform: uppercase;">Firma Registrada</span>
-        <img src="${worker.firmaDigital}" alt="Firma del trabajador" style="max-height: 80px; max-width: 100%; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;" />
-      </div>` : ''}
     </div>
   </div>
 
-  ${mapsLink
-        ? `<a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
-        📍 Ver Dirección en Google Maps
-      </a>`
-        : `<div style="text-align:center;padding:14px;background:#f1f5f9;border-radius:12px;margin-top:20px;color:#94a3b8;font-size:13px;font-weight:600;">Sin dirección registrada</div>`
-  }`}
+  <!-- Pestaña 3: Certificados Operativos -->
+  <div id="cert-tab" class="tab-content">
+    <div class="info-card">
+      <h2 class="card-title title-purple">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Certificaciones e Inducciones
+      </h2>
+      <div style="display: flex; flex-direction: column;">
+        <div class="info-row">
+          <div class="icon-wrapper icon-purple">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Alturas — Trab. Autorizado</div>
+            <div class="info-value">${worker.fechaCursoAlturasAutorizado || 'N/A'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-purple">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Alturas — Coordinador</div>
+            <div class="info-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-purple">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Firma Digital</div>
+            <div class="info-value">${worker.consentimientoFirmaDigital === 'Sí' ? 'Autorizado' : 'No Autorizado'}</div>
+          </div>
+        </div>
+        ${worker.consentimientoFirmaDigital === 'Sí' && worker.firmaDigital ? `
+        <div style="margin-top: 15px; text-align: center; background: #f8fafc; border-radius: 12px; padding: 12px; border: 1px dashed #cbd5e1;">
+          <span style="display: block; font-size: 10px; color: #64748b; margin-bottom: 8px; text-transform: uppercase; font-weight: 700; letter-spacing:0.05em;">Firma del Trabajador</span>
+          <img src="${worker.firmaDigital}" alt="Firma del trabajador" style="max-height: 80px; max-width: 100%; border-radius:4px;" />
+        </div>` : ''}
+      </div>
+    </div>
+  </div>
+  `}
 
-  <div class="footer">Perfil generado por SGSST · WAPPY IA</div>
+  <!-- Pie de Página -->
+  <footer class="app-footer">
+    <div>Ficha generada el ${new Date().toLocaleDateString('es-ES')}</div>
+    <div style="margin-top:4px;">SG-SST · Sistema de Gestión · <strong>WAPPY IA</strong></div>
+  </footer>
 </div>
+
+<script>
+  function switchTab(evt, tabId) {
+    // Ocultar todos los contenidos de pestaña
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(c => c.classList.remove('active'));
+    
+    // Desactivar todos los botones de pestaña
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(b => b.classList.remove('active'));
+    
+    // Mostrar contenido de pestaña activo
+    document.getElementById(tabId).classList.add('active');
+    
+    // Activar botón pulsado
+    evt.currentTarget.classList.add('active');
+  }
+</script>
 </body>
 </html>`;
 
