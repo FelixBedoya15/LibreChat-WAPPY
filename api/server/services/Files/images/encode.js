@@ -1,4 +1,8 @@
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { GoogleAIFileManager } = require('@google/generative-ai/server');
 const { logAxiosError } = require('@librechat/api');
 const { logger } = require('@librechat/data-schemas');
 const {
@@ -102,13 +106,100 @@ async function encodeAndFormat(req, files, endpoint, mode) {
     return result;
   }
 
+  // Resolve Google API key for Files API
+  const apiKey = req?.body?.apiKey || 
+                 req?.body?.endpointOption?.model_parameters?.apiKey || 
+                 req?.body?.agent?.model_parameters?.apiKey || 
+                 process.env.GEMINI_API_KEY || 
+                 process.env.GOOGLE_API_KEY;
+
   for (let file of files) {
     /** @type {FileSources} */
     const source = file.source ?? FileSources.local;
 
     const isVideo = file.type?.startsWith('video/');
     const isAudio = file.type?.startsWith('audio/');
-    const isMultimodal = !!file.height || (endpoint === EModelEndpoint.google && (isVideo || isAudio));
+    const isPDF = file.type === 'application/pdf';
+    
+    // We use the Files API for Google endpoint when we have a key and the file is a PDF, Video, Audio, or > 2MB
+    const useFilesAPI = endpoint === EModelEndpoint.google && 
+                        apiKey && 
+                        (isPDF || isVideo || isAudio || (file.size && file.size > 2 * 1024 * 1024));
+
+    if (useFilesAPI) {
+      try {
+        logger.info(`[Google Files API] Uploading ${file.filename} (${file.type}) to Gemini Files API`);
+        const fileManager = new GoogleAIFileManager(apiKey);
+        
+        // Storage-agnostic download of the file to a temp local file
+        const { getDownloadStream } = getStrategyFunctions(source);
+        const stream = await getDownloadStream(req, file.filepath);
+        const tempPath = path.join(os.tmpdir(), `${Date.now()}_${path.basename(file.filename || 'attachment')}`);
+        const writeStream = fs.createWriteStream(tempPath);
+        
+        await new Promise((resolve, reject) => {
+          stream.pipe(writeStream);
+          stream.on('error', reject);
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+        });
+
+        let uploadedFile = await fileManager.uploadFile(tempPath, {
+          mimeType: file.type,
+          displayName: file.filename || 'Attachment',
+        });
+
+        // Clean up temp file immediately after upload
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (unlinkErr) {
+          logger.error('[Google Files API] Error deleting temp file:', unlinkErr);
+        }
+
+        // Wait for processing if video or audio
+        if (isVideo || isAudio) {
+          let check = await fileManager.getFile(uploadedFile.name);
+          while (check.state === 'PROCESSING') {
+            logger.info(`[Google Files API] Waiting for file ${uploadedFile.name} to finish processing...`);
+            await new Promise((resCheck) => setTimeout(resCheck, 2000));
+            check = await fileManager.getFile(uploadedFile.name);
+          }
+          if (check.state === 'FAILED') {
+            throw new Error(`Google Files API processing failed for ${file.filename}`);
+          }
+        }
+
+        logger.info(`[Google Files API] Successfully uploaded ${file.filename} as ${uploadedFile.uri}`);
+
+        const fileMetadata = {
+          type: file.type,
+          file_id: file.file_id,
+          filepath: file.filepath,
+          filename: file.filename,
+          embedded: !!file.embedded,
+          metadata: file.metadata,
+        };
+
+        const mediaPart = {
+          type: 'media',
+          file_uri: uploadedFile.uri,
+          fileUri: uploadedFile.uri,
+          mime_type: file.type,
+          mimeType: file.type,
+          mediaResolution: 'MEDIA_RESOLUTION_LOW',
+          media_resolution: 'MEDIA_RESOLUTION_LOW',
+        };
+
+        result.image_urls.push(mediaPart);
+        result.files.push(fileMetadata);
+        continue;
+      } catch (uploadError) {
+        logger.error(`[Google Files API] Failed to upload via Files API, falling back to base64:`, uploadError);
+        // Fall back to standard flow (base64)
+      }
+    }
+
+    const isMultimodal = !!file.height || (endpoint === EModelEndpoint.google && (isVideo || isAudio || isPDF));
 
     if (!isMultimodal) {
       promises.push([file, null]);
@@ -187,6 +278,8 @@ async function encodeAndFormat(req, files, endpoint, mode) {
       imagePart.type = 'media';
       imagePart.mimeType = file.type;
       imagePart.data = imageContent;
+      imagePart.mediaResolution = 'MEDIA_RESOLUTION_LOW';
+      imagePart.media_resolution = 'MEDIA_RESOLUTION_LOW';
     } else if (endpoint === EModelEndpoint.anthropic) {
       imagePart.type = 'image';
       imagePart.source = {

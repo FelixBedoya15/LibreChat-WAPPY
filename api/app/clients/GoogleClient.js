@@ -339,6 +339,13 @@ class GoogleClient extends BaseClient {
       for (const images of _message.image_urls) {
         if (images.inlineData) {
           parts.push({ inlineData: images.inlineData });
+        } else if (images.file_uri || images.fileUri) {
+          parts.push({
+            fileData: {
+              fileUri: images.file_uri || images.fileUri,
+              mimeType: images.mime_type || images.mimeType,
+            }
+          });
         }
       }
 
@@ -716,11 +723,17 @@ class GoogleClient extends BaseClient {
       if (!EXCLUDED_GENAI_MODELS.test(modelName) && !this.project_id) {
         /** @type {GenerativeModel} */
         const client = this.client;
+        
+        const modelOptions = { ...this.modelOptions };
+        if (!modelOptions.mediaResolution) {
+          modelOptions.mediaResolution = 'MEDIA_RESOLUTION_LOW';
+        }
+
         /** @type {GenerateContentRequest} */
         const requestOptions = {
           safetySettings,
           contents: _payload,
-          generationConfig: googleGenConfigSchema.parse(this.modelOptions),
+          generationConfig: googleGenConfigSchema.parse(modelOptions),
         };
 
         const promptPrefix = (this.systemMessage ?? '').trim();

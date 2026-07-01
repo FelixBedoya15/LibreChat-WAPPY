@@ -437,8 +437,7 @@ ${imageParts.length > 0 ? `*(Tienes ${imageParts.length} archivo(s) de evidencia
 Genera un INFORME DE INVESTIGACIÓN PROFESIONAL y VISUAL en HTML cumpliendo la Resolución 1401 de 2007.
 El informe debe verse como un DASHBOARD TÉCNICO de alta calidad.
 
-1. **ENCABEZADO (Obligatorio — incluye exactamente este HTML):**
-${headerHtml}
+1. **ENCABEZADO:** No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **DESCRIPCIÓN ANALÍTICA DEL EVENTO:**
    Narra perícialmente cómo ocurrió el evento en tres momentos: ANTES, DURANTE y DESPUÉS.
@@ -455,7 +454,7 @@ ${headerHtml}
 4. **METODOLOGÍA 2 — DIAGRAMA DE ISHIKAWA (ESPINA DE PESCADO — SVG OBLIGATORIO):**
    DEBES CONSTRUIR ESTE DIAGRAMA USANDO SVG INLINE. Es la única forma de garantizar líneas diagonales precisas y consistentes.
 
-   COPIA EXACTAMENTE ESTE BLOQUE HTML y reemplaza SOLO los textos entre [CORCHETES] con el contenido real del accidente:
+    Utiliza de base la siguiente estructura SVG para el Diagrama de Ishikawa y rellena el contenido del accidente (sustituye las etiquetas entre [CORCHETES] con datos reales):
 
    <div class="diagram-node" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:2px solid #0369a1;border-radius:14px;padding:20px;margin:24px 0;overflow-x:auto;">
    <h3 style="text-align:center;color:#0c4a6e;font-size:17px;font-weight:800;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;">DIAGRAMA DE ISHIKAWA — ANÁLISIS CAUSA-EFECTO</h3>
@@ -546,7 +545,7 @@ ${headerHtml}
    1. CÍRCULOS = "Hechos Inusuales" (eventos que ocurrieron)
    2. RECTÁNGULOS = "Hechos Permanentes" (condiciones siempre existentes en el sistema)
 
-   PATRÓN CSS DE CONECTORES (copia EXACTAMENTE, nunca omitas las líneas de conexión):
+    PATRÓN CSS DE CONECTORES (utiliza este diseño de base, nunca omitas las líneas de conexión):
 
    Nodo con UN hijo (secuencial):
    <div style="display:flex;flex-direction:column;align-items:center;width:100%;">
@@ -644,6 +643,9 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             .replace(/<head>[\s\S]*?<\/head>/gi, '')
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedReport = headerHtml + '\n' + cleanedReport;
 
         // ── Incorporate images in the final report HTML ───────────────────────
         let imagesHtml = '';

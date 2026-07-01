@@ -967,6 +967,7 @@ export const googleGenConfigSchema = z
       })
       .optional(),
     web_search: z.boolean().optional(),
+    mediaResolution: z.string().optional(),
   })
   .strip()
   .optional();
