@@ -2,6 +2,7 @@ const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { sendEmail, createDraft } = require('~/server/services/googleGmail');
+const { getActiveCompany } = require('~/server/services/googleAuthHelper');
 
 class GoogleGmailTool extends Tool {
   static lc_name() {
@@ -41,6 +42,8 @@ class GoogleGmailTool extends Tool {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
     }
     const userId = this.req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
 
     let finalBody = body;
     const conversationId = this.req.body?.conversationId;
@@ -148,7 +151,7 @@ class GoogleGmailTool extends Tool {
         if (!subject) throw new Error('Se requiere el campo "subject" (asunto) para enviar el correo.');
         if (!finalBody) throw new Error('Se requiere el campo "body" (contenido) para enviar el correo.');
 
-        const result = await sendEmail(userId, { to, subject, body: finalBody, cc, bcc });
+        const result = await sendEmail(userId, { to, subject, body: finalBody, cc, bcc }, companyId);
         return `Correo enviado exitosamente a través de tu cuenta de Gmail:\n- Destinatario: ${to}\n- Asunto: "${subject}"\n- ID de mensaje: ${result.id}`;
       }
 
@@ -157,7 +160,7 @@ class GoogleGmailTool extends Tool {
         if (!subject) throw new Error('Se requiere el campo "subject" (asunto) para crear el borrador.');
         if (!finalBody) throw new Error('Se requiere el campo "body" (contenido) para crear el borrador.');
 
-        const result = await createDraft(userId, { to, subject, body: finalBody, cc, bcc });
+        const result = await createDraft(userId, { to, subject, body: finalBody, cc, bcc }, companyId);
         return `Borrador creado exitosamente en tu cuenta de Gmail:\n- Destinatario: ${to}\n- Asunto: "${subject}"\n- ID de borrador: ${result.id}\nPuedes revisarlo y enviarlo desde tu bandeja de salida en Gmail.`;
       }
 
