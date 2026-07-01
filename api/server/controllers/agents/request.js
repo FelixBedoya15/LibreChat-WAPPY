@@ -9,6 +9,36 @@ const {
 const { disposeClient, clientRegistry, requestDataMap } = require('~/server/cleanup');
 const { saveMessage } = require('~/models');
 
+const isHeavyRequest = (text, tools) => {
+  const lowercaseText = (text || '').toLowerCase();
+  
+  if (text?.includes('/background') || text?.includes('/goal') || text?.includes('/segundoplano')) {
+    return true;
+  }
+  
+  const heavyTools = ['somos_sst', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'n8n', 'dalle3', 'flux_api', 'stable_diffusion'];
+  if (Array.isArray(tools)) {
+    for (const tool of tools) {
+      if (heavyTools.includes(tool)) {
+        return true;
+      }
+    }
+  }
+
+  const heavyKeywords = [
+    'auditoria', 'auditoría', 'matriz', 'reporte completo', 'informe completo', 
+    'generar informe', 'generar reporte', 'gtc45', 'gtc-45', 'pesv', 'ats', 
+    'owas', 'diagnostico'
+  ];
+  for (const keyword of heavyKeywords) {
+    if (lowercaseText.includes(keyword)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 function createCloseHandler(abortController) {
   return function (manual) {
     if (!manual) {
@@ -22,8 +52,8 @@ function createCloseHandler(abortController) {
       return;
     }
 
-    if (process.env.ABORT_ON_CLOSE === 'false') {
-      logger.debug('[AgentController] Request closed, but ABORT_ON_CLOSE is false. Continuing.');
+    if (process.env.ABORT_ON_CLOSE === 'false' || abortController.isHeavy) {
+      logger.debug('[AgentController] Request closed, but it is a heavy/background task or ABORT_ON_CLOSE is false. Continuing.');
       return;
     }
 
@@ -55,6 +85,7 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
   let getAbortData;
   let client = null;
   let cleanupHandlers = [];
+  let heartbeatInterval = null;
 
   const newConvo = !conversationId;
   const userId = req.user.id;
@@ -84,6 +115,10 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
   // Create a function to handle final cleanup
   const performCleanup = () => {
     logger.debug('[AgentController] Performing cleanup');
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
     if (Array.isArray(cleanupHandlers)) {
       for (const handler of cleanupHandlers) {
         try {
@@ -212,7 +247,30 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
       },
     };
 
+    const isHeavy = req.body.background === true || isHeavyRequest(text, client?.options?.agent?.tools);
+    if (isHeavy) {
+      logger.info(`[AgentController] Heavy request detected for user ${userId}. Marking abortController as isHeavy to run in background on close.`);
+      abortController.isHeavy = true;
+    }
+
+    if (!res.finished && !res.writableEnded) {
+      logger.info('[AgentController] Initializing keep-alive heartbeat interval');
+      heartbeatInterval = setInterval(() => {
+        if (res.finished || res.writableEnded) {
+          clearInterval(heartbeatInterval);
+          return;
+        }
+        logger.debug('[AgentController] Sending keep-alive SSE ping');
+        res.write(':\n\n');
+      }, 15000);
+    }
+
     let response = await client.sendMessage(text, messageOptions);
+
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
 
     // Extract what we need and immediately break reference
     const messageId = response.messageId;
