@@ -1667,6 +1667,18 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
         }
+
+        // Adapt systemInstruction for voice/video session to prevent HTML/markdown issues
+        const voiceSystemInstructionSuffix = `
+[CRITICAL FOR VOICE/VIDEO SESSION]:
+- You are speaking via a real-time voice and video call.
+- NEVER output HTML tags, custom elements (like <wappy-card>), markdown formatting (such as bold **, headers, lists, bullet points), or backticks.
+- Speak in natural, fluent, conversational Spanish.
+- Do NOT list items with bullet points. Instead, speak them as a natural, continuous paragraph (e.g. "Primero..., Segundo..., Además...").
+- Keep your responses short, conversational, and direct to ensure natural turn-taking.
+- If you need to request information, ask for it in a simple, friendly spoken question.
+`;
+        config.systemInstruction = (config.systemInstruction || '') + voiceSystemInstructionSuffix;
         
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);

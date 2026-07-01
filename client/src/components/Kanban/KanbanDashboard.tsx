@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { 
   Trello, 
   Plus, 
@@ -17,7 +18,9 @@ import {
   Pencil,
   Eye,
   EyeOff,
-  BarChart2
+  BarChart2,
+  Upload,
+  X
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -59,6 +62,222 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
       localStorage.setItem('acpm_show_dashboard', String(next));
       return next;
     });
+  };
+
+  // Excel & AI File Import states
+  const [importPreview, setImportPreview] = useState<any[] | null>(null);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [pendingFileData, setPendingFileData] = useState<{
+    dataUrl: string;
+    name: string;
+    type: string;
+  } | null>(null);
+  const [isConfirmAiModalOpen, setIsConfirmAiModalOpen] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    const requestAiImport = () => {
+      const base64Reader = new FileReader();
+      base64Reader.onload = (base64Event) => {
+        setPendingFileData({
+          dataUrl: base64Event.target?.result as string,
+          name: file.name,
+          type: file.type || 'application/octet-stream'
+        });
+        setIsConfirmAiModalOpen(true);
+      };
+      base64Reader.readAsDataURL(file);
+    };
+
+    // If PDF, Word, or plain text, go straight to AI
+    if (['pdf', 'docx', 'doc', 'txt'].includes(extension || '')) {
+      requestAiImport();
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    // If Excel, read and validate headers
+    if (extension === 'xlsx' || extension === 'xls') {
+      const reader = new FileReader();
+      reader.onload = async (eEvent) => {
+        try {
+          const data = eEvent.target?.result;
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const importedData = XLSX.utils.sheet_to_json<any>(sheet);
+
+          if (!importedData || importedData.length === 0) {
+            showToast({ message: 'El archivo Excel no contiene filas con datos.', status: 'warning' });
+            return;
+          }
+
+          // Check if there are standard headers in the first row
+          const firstRow = importedData[0];
+          const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
+          const isStandard = keys.some(k => 
+            k.includes('actividad') || 
+            k.includes('tarea') || 
+            k.includes('titulo') || 
+            k.includes('nombre') || 
+            k.includes('activity') || 
+            k.includes('title')
+          );
+
+          if (isStandard) {
+            // Local Excel mapping
+            const parsedTasks: any[] = [];
+            importedData.forEach((row: any) => {
+              const getVal = (possibleKeys: string[]): any => {
+                const rowKeys = Object.keys(row);
+                const foundKey = rowKeys.find(rk => {
+                  const cleaned = rk.toLowerCase().trim().replace(/\s+/g, '');
+                  return possibleKeys.some(pk => cleaned.includes(pk));
+                });
+                return foundKey ? row[foundKey] : undefined;
+              };
+
+              const title = getVal(['actividad', 'tarea', 'titulo', 'nombre', 'activity', 'title']);
+              if (!title) return;
+
+              const description = getVal(['descripcion', 'detalles', 'detalle', 'description', 'notes']);
+
+              let dueDateRaw = getVal(['fechalimite', 'fecha', 'vencimiento', 'duedate', 'fechaentrega']);
+              let dueDate = '';
+
+              if (dueDateRaw) {
+                if (typeof dueDateRaw === 'number') {
+                  const dateObj = new Date((dueDateRaw - 25569) * 86400 * 1000);
+                  dueDate = dateObj.toISOString().split('T')[0];
+                } else {
+                  try {
+                    const dateObj = new Date(dueDateRaw);
+                    if (!isNaN(dateObj.getTime())) {
+                      dueDate = dateObj.toISOString().split('T')[0];
+                    }
+                  } catch {
+                    dueDate = '';
+                  }
+                }
+              }
+
+              if (!dueDate) {
+                const defaultDate = new Date();
+                defaultDate.setDate(defaultDate.getDate() + 7);
+                dueDate = defaultDate.toISOString().split('T')[0];
+              }
+
+              const statusRaw = getVal(['estado', 'status', 'columna']);
+              let status: 'todo' | 'due_soon' | 'overdue' | 'done' = 'todo';
+              if (statusRaw) {
+                const statusStr = String(statusRaw).toLowerCase().trim();
+                if (statusStr.includes('completada') || statusStr.includes('hecha') || statusStr.includes('done') || statusStr.includes('terminada')) {
+                  status = 'done';
+                } else if (statusStr.includes('vencida') || statusStr.includes('overdue') || statusStr.includes('alerta')) {
+                  status = 'overdue';
+                } else if (statusStr.includes('proxima') || statusStr.includes('próxima') || statusStr.includes('due_soon')) {
+                  status = 'due_soon';
+                }
+              }
+
+              const typeRaw = getVal(['categoria', 'categoría', 'tipo', 'type']);
+              let type = 'manual';
+              if (typeRaw) {
+                const typeStr = String(typeRaw).toLowerCase().trim();
+                if (typeStr.includes('capacitacion') || typeStr.includes('capacitación') || typeStr.includes('training')) {
+                  type = 'training';
+                } else if (typeStr.includes('examen') || typeStr.includes('medical')) {
+                  type = 'medical_exam';
+                } else if (typeStr.includes('soat')) {
+                  type = 'soat';
+                } else if (typeStr.includes('rtm') || typeStr.includes('tecnomecanica')) {
+                  type = 'rtm';
+                } else if (typeStr.includes('licencia')) {
+                  type = 'driver_license';
+                } else if (typeStr.includes('otro') || typeStr.includes('other')) {
+                  type = 'other';
+                }
+              }
+
+              parsedTasks.push({
+                title: String(title).trim(),
+                description: description ? String(description).trim() : '',
+                dueDate,
+                status,
+                type
+              });
+            });
+
+            if (parsedTasks.length === 0) {
+              showToast({ message: 'No se encontraron actividades válidas en el Excel. Asegúrate de incluir una columna "Actividad" o "Tarea".', status: 'warning' });
+              return;
+            }
+
+            setImportPreview(parsedTasks);
+          } else {
+            // Non-standard Excel, go to AI import
+            requestAiImport();
+          }
+        } catch (err) {
+          console.error('Error importing Excel:', err);
+          showToast({ message: 'Error al leer el archivo Excel. Verifica el formato.', status: 'error' });
+        } finally {
+          if (e.target) e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  };
+
+  const handleConfirmAiImport = async () => {
+    if (!pendingFileData) return;
+    setIsConfirmAiModalOpen(false);
+    setIsAiLoading(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/import-file', {
+        fileData: pendingFileData.dataUrl,
+        fileName: pendingFileData.name,
+        mimeType: pendingFileData.type
+      });
+      if (res.data && res.data.tasks) {
+        setImportPreview(res.data.tasks);
+        showToast({ message: `IA procesó el archivo con éxito. Detectó ${res.data.tasks.length} actividades.`, status: 'success' });
+      } else {
+        showToast({ message: 'No se pudieron extraer actividades con IA.', status: 'warning' });
+      }
+    } catch (err: any) {
+      console.error('Error in AI import:', err);
+      showToast({ message: err.response?.data?.error || 'Error al procesar el archivo con IA', status: 'error' });
+    } finally {
+      setIsAiLoading(false);
+      setPendingFileData(null);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importPreview || importPreview.length === 0) return;
+    setIsImporting(true);
+    try {
+      await axios.post('/api/sgsst/kanban/bulk-save', { tasks: importPreview });
+      showToast({ message: `¡Se importaron ${importPreview.length} actividades correctamente!`, status: 'success' });
+      setImportPreview(null);
+      fetchTasks();
+    } catch (err) {
+      console.error('Error saving imported tasks:', err);
+      showToast({ message: 'No se pudieron guardar las actividades importadas.', status: 'error' });
+    } finally {
+      setIsImporting(false);
+    }
   };
   
   // Modal states
@@ -462,10 +681,14 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
   };
 
   return (
-    <div className={`flex-1 flex flex-col bg-surface-secondary/30 relative overflow-hidden ${
-      inline ? "h-[650px] rounded-3xl border border-border-medium/30 shadow-inner" : "h-screen"
+    <div className={`flex-1 flex flex-col bg-surface-secondary/30 relative ${
+      inline 
+        ? "h-[650px] rounded-3xl border border-border-medium/30 shadow-inner overflow-hidden" 
+        : "min-h-screen h-auto overflow-y-auto pb-12"
     }`}>
-      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${isLocked ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
+      <div className={`flex-1 flex flex-col ${
+        inline ? "min-h-0 overflow-hidden" : "h-auto overflow-visible"
+      } ${isLocked ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
         {/* Upper header */}
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${inline ? 'py-3.5 px-5' : ''}`}>
         {!inline ? (
@@ -513,6 +736,26 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
               </>
             )}
           </button>
+
+          <button
+            onClick={triggerFileInput}
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:rotate-3 sm:hover:scale-105 active:scale-95"
+            title="Importar Actividades (Excel, Word, PDF, Texto)"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Importar Archivo</span>
+            </div>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
+          />
 
           <button
             onClick={openCreateModal}
@@ -747,7 +990,9 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
         </div>
       ) : (
         /* Board columns container */
-        <div className="flex-1 overflow-x-auto p-6 flex gap-6 select-none">
+        <div className={`overflow-x-auto p-6 flex gap-6 select-none ${
+          inline ? "flex-1" : "h-[750px] min-h-[600px]"
+        }`}>
           {/* Column template */}
           {[
             { id: 'todo', title: 'Pendientes', tasks: todoTasks, border: 'border-t-4 border-t-gray-400', headerBg: 'bg-gray-500/10 text-gray-700 dark:text-gray-300' },
@@ -854,14 +1099,14 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
                           task.referenceName === 'group_invitation' ? (
                             <div className="mt-2.5 flex items-center gap-2 w-full">
                               <button
-                                onClick={() => handleAcceptGroupInvite(task.referenceId)}
+                                onClick={() => handleAcceptGroupInvite(task.referenceId || '')}
                                 className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs"
                               >
                                 <Check className="w-3.5 h-3.5" />
                                 Aceptar
                               </button>
                               <button
-                                onClick={() => handleRejectGroupInvite(task.referenceId)}
+                                onClick={() => handleRejectGroupInvite(task.referenceId || '')}
                                 className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-300 rounded-lg text-[11px] font-bold transition-all border border-zinc-200 dark:border-zinc-700"
                               >
                                 <X className="w-3.5 h-3.5" />
@@ -1021,6 +1266,164 @@ export default function KanbanDashboard({ inline = false }: KanbanDashboardProps
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Excel Import Preview Modal */}
+      {importPreview && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
+            <div className="p-6 border-b border-border-medium/30 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-emerald-500" />
+                  Confirmar Importación de Actividades
+                </h2>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Revisa las actividades detectadas en el archivo Excel antes de guardarlas.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 rounded-full text-xs font-bold shrink-0">
+                {importPreview.length} {importPreview.length === 1 ? 'Actividad' : 'Actividades'}
+              </span>
+            </div>
+
+            <div className="p-6 max-h-[350px] overflow-y-auto flex flex-col gap-4">
+              {importPreview.map((task, idx) => (
+                <div 
+                  key={idx} 
+                  className="p-3.5 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col gap-1.5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="font-bold text-[13px] text-text-primary leading-tight">
+                      {task.title}
+                    </h4>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase shrink-0 ${
+                      task.status === 'done' 
+                        ? 'bg-green-50 text-green-600 dark:bg-green-950/20' 
+                        : task.status === 'overdue'
+                          ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20'
+                          : 'bg-gray-50 text-gray-600 dark:bg-gray-800'
+                    }`}>
+                      {getStatusLabel(task.status)}
+                    </span>
+                  </div>
+
+                  {task.description && (
+                    <p className="text-[11px] text-text-secondary line-clamp-2">
+                      {task.description}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between text-[10px] text-text-tertiary font-bold mt-1">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
+                      {formatDate(task.dueDate)}
+                    </span>
+                    <span className="capitalize px-1.5 py-0.5 rounded-full bg-surface-tertiary font-semibold">
+                      {categoryInfo[task.type]?.label || task.type}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="p-6 border-t border-border-medium/30 flex gap-3 bg-surface-primary dark:bg-gray-900/40">
+              <button
+                type="button"
+                onClick={() => setImportPreview(null)}
+                disabled={isImporting}
+                className="flex-1 py-2.5 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={isImporting}
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {isImporting ? 'Importando...' : 'Confirmar e Importar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* AI File Import Confirmation Modal */}
+      {isConfirmAiModalOpen && pendingFileData && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
+            <div className="p-6 border-b border-border-medium/30">
+              <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
+                <Upload className="w-5 h-5 text-emerald-500" />
+                Procesar con IA
+              </h2>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                La Inteligencia Artificial extraerá automáticamente las actividades del documento.
+              </p>
+            </div>
+            
+            <div className="p-6 flex flex-col gap-4">
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                  {pendingFileData.name.split('.').pop() || 'FILE'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-xs text-text-primary truncate">
+                    {pendingFileData.name}
+                  </h4>
+                  <p className="text-[10px] text-text-secondary mt-0.5">
+                    Listo para ser analizado
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-xs text-text-secondary leading-relaxed bg-surface-secondary/20 dark:bg-gray-950 p-4 border border-border-medium/10 rounded-2xl">
+                <strong>¿Cómo funciona?</strong> La IA leerá los textos, cronogramas o planes de acción que se encuentren en el documento para crear tarjetas en tu tablero con sus títulos, descripciones y fechas límites recomendadas.
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="p-6 border-t border-border-medium/30 flex gap-3 bg-surface-primary dark:bg-gray-900/40">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmAiModalOpen(false);
+                  setPendingFileData(null);
+                }}
+                className="flex-1 py-2.5 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAiImport}
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center gap-1.5"
+              >
+                Comenzar Análisis IA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Parsing Loading Screen Overlay */}
+      {isAiLoading && (
+        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 flex flex-col items-center gap-4 max-w-sm shadow-2xl border border-border-medium/30 text-center animate-in zoom-in-95">
+            <div className="relative flex items-center justify-center w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-pulse"></div>
+              <Upload className="w-7 h-7 text-emerald-500 animate-bounce" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-text-primary">
+                La Inteligencia Artificial está analizando tu archivo...
+              </h3>
+              <p className="text-xs text-text-secondary mt-1">
+                Esto puede tomar unos segundos mientras extraemos y organizamos las actividades del documento.
+              </p>
+            </div>
           </div>
         </div>
       )}

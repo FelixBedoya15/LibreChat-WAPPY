@@ -41,7 +41,7 @@ interface LiveAnalysisModalProps {
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
     onReportReceived?: (html: string, kpi?: any, messageId?: string) => void;
-    onConversationUpdated?: () => void;
+    onConversationUpdated?: (conversationId?: string) => void;
     selectedModel?: string;
 }
 
@@ -369,13 +369,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const handleAudioReceived = useCallback((audioData: string) => {
         try {
-            if (!audioContextRef.current) {
+            let ctx = audioContextRef.current;
+            if (!ctx) {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                audioContextRef.current = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
-                (window as any).sharedAudioContext24k = audioContextRef.current;
+                ctx = ((window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 })) as AudioContext;
+                audioContextRef.current = ctx;
+                (window as any).sharedAudioContext24k = ctx;
             }
-            if (audioContextRef.current.state === 'suspended') {
-                audioContextRef.current.resume().catch(console.error);
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(console.error);
             }
 
             const binaryString = atob(audioData);
@@ -387,7 +389,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const dataView = new DataView(bytes.buffer);
             for (let i = 0; i < len / 2; i++) float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
 
-            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+            const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
 
             scheduleAudio(audioBuffer);
@@ -409,8 +411,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onTextReceived: (text: string) => {
             onTextReceived?.(text);
         },
-        onConversationUpdated: () => {
-            onConversationUpdated?.();
+        onConversationUpdated: (updatedId?: string) => {
+            onConversationUpdated?.(updatedId);
         },
         onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
@@ -1267,7 +1269,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             let ctx = audioContextRef.current;
             if (!ctx) {
-                ctx = (window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 });
+                ctx = ((window as any).sharedAudioContext24k || new AudioContextClass({ sampleRate: 24000 })) as AudioContext;
                 audioContextRef.current = ctx;
                 (window as any).sharedAudioContext24k = ctx;
                 console.log('[LiveAnalysisModal] AudioContext created eagerly on user gesture:', ctx.state);

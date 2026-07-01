@@ -14,7 +14,7 @@ interface UseVoiceSessionOptions {
     onError?: (error: string) => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
-    onConversationUpdated?: () => void;
+    onConversationUpdated?: (conversationId?: string) => void;
     disableAudio?: boolean;
     mode?: 'chat' | 'live_analysis';
     initialVoice?: string;
@@ -463,8 +463,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'conversationUpdated':
                 console.log('[VoiceSession] Conversation updated event received from WS');
                 if (optionsRef.current.onConversationUpdated) {
-                    console.log('[VoiceSession] Executing onConversationUpdated callback');
-                    optionsRef.current.onConversationUpdated();
+                    console.log('[VoiceSession] Executing onConversationUpdated callback with ID:', message.data.conversationId);
+                    optionsRef.current.onConversationUpdated(message.data.conversationId);
                 } else {
                     console.warn('[VoiceSession] No onConversationUpdated callback defined');
                 }

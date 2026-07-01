@@ -5,6 +5,10 @@ const KanbanTask = require('../../../models/KanbanTask');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstVehicleData = require('../../../models/SgsstVehicleData');
 const { logger } = require('~/config');
+const { generateWithKeyRotation } = require('./sgsstGemini');
+const mammoth = require('mammoth');
+const pdf = require('pdf-parse');
+const XLSX = require('xlsx');
 
 // Load dynamic models
 if (!mongoose.models.PerfilSociodemograficoData) {
@@ -527,6 +531,139 @@ router.post('/save', requireJwtAuth, async (req, res) => {
   } catch (error) {
     logger.error('[SGSST Kanban] Save error:', error);
     res.status(500).json({ error: 'Error al guardar la tarea' });
+  }
+});
+
+// ─── POST /bulk-save — Importar múltiples tareas desde Excel ─────────────────
+router.post('/bulk-save', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    const { tasks } = req.body;
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(400).json({ error: 'Se requiere una lista de tareas' });
+    }
+
+    const createdTasks = [];
+    for (const t of tasks) {
+      if (!t.title || !t.dueDate) continue;
+
+      const created = await KanbanTask.create({
+        user: userId,
+        companyId,
+        title: t.title,
+        description: t.description || '',
+        dueDate: new Date(t.dueDate),
+        status: t.status || 'todo',
+        type: t.type || 'manual',
+      });
+      createdTasks.push(created);
+    }
+
+    res.json({ success: true, count: createdTasks.length, tasks: createdTasks });
+  } catch (error) {
+    logger.error('[SGSST Kanban] Bulk save error:', error);
+    res.status(500).json({ error: 'Error al importar tareas en lote' });
+  }
+});
+
+// ─── POST /import-file ──────────────────────────────────────────────────────
+router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName, mimeType, modelName } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'No se recibieron datos del archivo.' });
+
+    // 1. Convertir Base64 a Buffer en memoria
+    const base64Data = fileData.split(';base64,').pop();
+    const buffer = Buffer.from(base64Data, 'base64');
+    let extractedText = '';
+
+    // 2. Extraer texto según tipo de archivo (Todo en memoria)
+    if (mimeType === 'application/pdf') {
+      const pdfData = await pdf(buffer);
+      extractedText = pdfData.text;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+      mimeType === 'application/msword'
+    ) {
+      const result = await mammoth.extractRawText({ buffer });
+      extractedText = result.value;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+      mimeType === 'application/vnd.ms-excel'
+    ) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+        if (csv.trim()) {
+          extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
+        }
+      });
+    } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
+      extractedText = buffer.toString('utf8');
+    } else {
+      extractedText = buffer.toString('utf8');
+    }
+
+    if (!extractedText || !extractedText.trim()) {
+      return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
+    }
+
+    // 3. Configurar e invocar a Gemini
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    const modelInstance = {
+      model: finalModelName,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              dueDate: { type: 'string' },
+              status: { type: 'string', enum: ['todo', 'due_soon', 'overdue', 'done'] },
+              type: { type: 'string', enum: ['manual', 'training', 'medical_exam', 'soat', 'rtm', 'driver_license', 'other'] }
+            },
+            required: ['title', 'dueDate', 'status', 'type'],
+          },
+        },
+      },
+    };
+
+    const promptText = `
+    Eres un experto senior en Seguridad y Salud en el Trabajo (SST) en Colombia.
+    Tu tarea es leer el siguiente documento adjunto y extraer todas las actividades, capacitaciones, inspecciones, exámenes médicos, renovaciones de documentos (SOAT/RTM) o tareas programadas descritas en él.
+    Para cada actividad identificada, mapea la información a la estructura JSON solicitada.
+    
+    Asegúrate de:
+    - Retornar un array JSON conteniendo cada tarea como un objeto.
+    - El campo 'dueDate' debe ser una fecha con formato YYYY-MM-DD. Si el documento no especifica una fecha exacta o año, asume el año actual (${new Date().getFullYear()}) y deduce una fecha lógica.
+    - El campo 'type' debe ser uno de los siguientes valores: 'manual' (para tareas generales), 'training' (para capacitaciones o cursos), 'medical_exam' (para exámenes médicos), 'soat' (renovación de SOAT), 'rtm' (revisión técnico-mecánica), 'driver_license' (licencia de conducción), 'other' (otros).
+    - El campo 'status' debe ser por defecto 'todo'.
+    
+    DOCUMENTO A ANALIZAR:
+    ${extractedText}
+    `;
+
+    const result = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, [{ text: promptText }]);
+    const response = await result.response;
+    const responseText = response.text();
+    const cleanJson = JSON.parse(responseText.trim());
+
+    res.json({ success: true, tasks: cleanJson });
+  } catch (error) {
+    logger.error('[SGSST Kanban] Import error:', error);
+    res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });
   }
 });
 

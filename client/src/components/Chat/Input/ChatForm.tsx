@@ -445,11 +445,12 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           queryClient.invalidateQueries([QueryKeys.messages, newId]);
           queryClient.invalidateQueries([QueryKeys.allConversations]);
         }}
-        onConversationUpdated={() => {
-          // FASE 1 FIX: Evitar refetchQueries sincrónico que traba el stream WS de Gemini Live, usar invalidate
-          if (conversationId) {
-            console.log('[ChatForm] Invalidate queries for messages live update:', conversationId);
-            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
+        onConversationUpdated={(updatedId) => {
+          // Use the directly received conversation ID (from WS message) if available, falling back to local state
+          const idToInvalidate = updatedId || conversationId;
+          if (idToInvalidate && idToInvalidate !== Constants.NEW_CONVO) {
+            console.log('[ChatForm] Invalidate queries for messages live update:', idToInvalidate);
+            queryClient.invalidateQueries([QueryKeys.messages, idToInvalidate]);
             queryClient.invalidateQueries([QueryKeys.allConversations]);
           }
         }}

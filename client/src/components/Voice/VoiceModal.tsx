@@ -38,7 +38,7 @@ interface VoiceModalProps {
     onClose: () => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
-    onConversationUpdated?: () => void;
+    onConversationUpdated?: (conversationId?: string) => void;
     model?: string;
     endpoint?: string;
     agentId?: string;
@@ -478,7 +478,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     const handleClose = () => {
         if (onConversationUpdated && conversationId) {
-            onConversationUpdated();
+            onConversationUpdated(conversationId);
         }
         onClose();
     };

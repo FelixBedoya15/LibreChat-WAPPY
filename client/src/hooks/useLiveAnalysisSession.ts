@@ -14,7 +14,7 @@ interface UseLiveAnalysisSessionOptions {
     onError?: (error: string) => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
-    onConversationUpdated?: () => void;
+    onConversationUpdated?: (conversationId?: string) => void;
     disableAudio?: boolean;
     initialVoice?: string;
     selectedModel?: string;
@@ -402,8 +402,8 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             case 'conversationUpdated':
                 console.log('[LiveAnalysisSession] Conversation updated event received from WS');
                 if (optionsRef.current.onConversationUpdated) {
-                    console.log('[LiveAnalysisSession] Executing onConversationUpdated callback');
-                    optionsRef.current.onConversationUpdated();
+                    console.log('[LiveAnalysisSession] Executing onConversationUpdated callback with ID:', message.data.conversationId);
+                    optionsRef.current.onConversationUpdated(message.data.conversationId);
                 } else {
                     console.warn('[LiveAnalysisSession] No onConversationUpdated callback defined');
                 }

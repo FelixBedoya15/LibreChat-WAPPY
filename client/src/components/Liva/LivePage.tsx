@@ -968,10 +968,11 @@ const LivePage = () => {
                     onTextReceived={handleTextReceived}
                     onReportReceived={handleReportReceived}
                     selectedModel={selectedModel}
-                    onConversationUpdated={() => {
-                        if (conversationId && conversationId !== 'new') {
-                            console.log('[LivePage] Invalidate queries for live analysis update:', conversationId);
-                            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
+                    onConversationUpdated={(updatedId) => {
+                        const idToInvalidate = updatedId || conversationId;
+                        if (idToInvalidate && idToInvalidate !== 'new') {
+                            console.log('[LivePage] Invalidate queries for live analysis update:', idToInvalidate);
+                            queryClient.invalidateQueries([QueryKeys.messages, idToInvalidate]);
                         }
                         queryClient.invalidateQueries([QueryKeys.allConversations]);
                     }}
