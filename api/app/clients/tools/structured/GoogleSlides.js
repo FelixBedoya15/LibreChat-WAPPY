@@ -8,8 +8,46 @@ const {
   updateScopedAuthValue,
 } = require('~/server/services/googleAuthHelper');
 
+function convertHtmlToMarkdown(html) {
+  if (!html) return '';
+  let md = html;
+  // Replace block tags
+  md = md.replace(/<h1>\s*(.*?)\s*<\/h1>/gi, '\n# $1\n');
+  md = md.replace(/<h2>\s*(.*?)\s*<\/h2>/gi, '\n## $1\n');
+  md = md.replace(/<h3>\s*(.*?)\s*<\/h3>/gi, '\n### $1\n');
+  md = md.replace(/<h4>\s*(.*?)\s*<\/h4>/gi, '\n#### $1\n');
+  // Replace list items
+  md = md.replace(/<li>\s*(.*?)\s*<\/li>/gi, '* $1\n');
+  md = md.replace(/<\/ul>/gi, '\n');
+  md = md.replace(/<\/ol>/gi, '\n');
+  md = md.replace(/<ul>/gi, '\n');
+  md = md.replace(/<ol>/gi, '\n');
+  // Replace inline bold
+  md = md.replace(/<strong>\s*(.*?)\s*<\/strong>/gi, '**$1**');
+  md = md.replace(/<b>\s*(.*?)\s*<\/b>/gi, '**$1**');
+  // Replace line breaks and paragraphs
+  md = md.replace(/<br\s*\/?>/gi, '\n');
+  md = md.replace(/<p>\s*(.*?)\s*<\/p>/gi, '\n$1\n');
+  // Remove any remaining HTML tags
+  md = md.replace(/<[^>]+>/g, '');
+  // Decode HTML entities
+  md = md.replace(/&nbsp;/gi, ' ')
+         .replace(/&amp;/gi, '&')
+         .replace(/&lt;/gi, '<')
+         .replace(/&gt;/gi, '>')
+         .replace(/&quot;/gi, '"')
+         .replace(/&#39;/gi, "'");
+  // Clean up multiple consecutive newlines
+  md = md.replace(/\n\s*\n\s*\n+/g, '\n\n');
+  return md.trim();
+}
+
 function parseMarkdownForShape(mdText) {
-  const lines = mdText.split('\n');
+  let processedText = mdText;
+  if (/<[a-z][\s\S]*>/i.test(mdText)) {
+    processedText = convertHtmlToMarkdown(mdText);
+  }
+  const lines = processedText.split('\n');
   let cleanText = '';
   const styles = [];
 

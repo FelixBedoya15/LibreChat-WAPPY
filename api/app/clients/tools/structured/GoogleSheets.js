@@ -8,6 +8,16 @@ const {
   updateScopedAuthValue,
 } = require('~/server/services/googleAuthHelper');
 
+function stripHtmlTags(val) {
+  if (typeof val !== 'string') return val;
+  return val
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
 class GoogleSheetsTool extends Tool {
   static lc_name() {
     return 'google_sheets';
@@ -151,12 +161,18 @@ class GoogleSheetsTool extends Tool {
         if (!range) throw new Error('Se requiere "range" (ej: "Sheet1!A1") para escribir datos.');
         if (!values || !Array.isArray(values)) throw new Error('Se requiere "values" como un array de arrays.');
 
+        const cleanedValues = values.map(row => 
+          Array.isArray(row) 
+            ? row.map(cell => (typeof cell === 'string' ? stripHtmlTags(cell) : cell))
+            : row
+        );
+
         const response = await sheets.spreadsheets.values.update({
           spreadsheetId,
           range,
           valueInputOption: 'USER_ENTERED',
           resource: {
-            values,
+            values: cleanedValues,
           },
         });
         return `Valores actualizados con éxito en el rango "${range}". Celdas afectadas: ${response.data.updatedCells}.`;
@@ -167,13 +183,19 @@ class GoogleSheetsTool extends Tool {
         if (!values || !Array.isArray(values)) throw new Error('Se requiere "values" como un array de arrays.');
         const appendRange = range || 'Sheet1!A1';
 
+        const cleanedValues = values.map(row => 
+          Array.isArray(row) 
+            ? row.map(cell => (typeof cell === 'string' ? stripHtmlTags(cell) : cell))
+            : row
+        );
+
         const response = await sheets.spreadsheets.values.append({
           spreadsheetId,
           range: appendRange,
           valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           resource: {
-            values,
+            values: cleanedValues,
           },
         });
         return `Filas añadidas exitosamente al final de la hoja. Rango actualizado: ${response.data.updates.updatedRange}.`;
