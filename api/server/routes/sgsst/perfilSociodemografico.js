@@ -182,7 +182,7 @@ router.get('/profile/:workerId', async (req, res) => {
       : null;
 
     const isHealth = type === 'health';
-    const profileTitle = isHealth ? 'Historial Clínico Ocupacional' : 'Perfil Sociodemográfico';
+    const profileTitle = isHealth ? 'Tarjeta de Emergencias o Identificación del Colaborador' : 'Perfil Sociodemográfico';
     const nameStr = worker.nombre || 'Sin Nombre';
 
     let html = `<!DOCTYPE html>
