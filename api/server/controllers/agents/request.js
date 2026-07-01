@@ -252,14 +252,6 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
       logger.info(`[AgentController] Heavy request detected for user ${userId}. Marking abortController as isHeavy to run in background on close.`);
       abortController.isHeavy = true;
 
-      // Inject runtime system instruction telling the agent to output the background notification notice
-      if (client?.options?.agent) {
-        const backgroundWarning = `\n\n[IMPORTANTE - INDICACIÓN DE SEGUNDO PLANO]:
-Al iniciar tu respuesta (como el primer bloque de texto), DEBES escribir exactamente la siguiente nota con el formato Markdown de bloque de alerta (blockquote) indicado y luego dos saltos de línea:
-"> 💡 **Nota:** Esta es una tarea de procesamiento complejo. Se está generando en segundo plano; puedes cerrar esta pestaña con seguridad y te notificaremos en tu campana de alertas al terminar."
-Luego de escribir la nota anterior, continúa normalmente con tu respuesta.`;
-        client.options.agent.instructions = (client.options.agent.instructions || '') + backgroundWarning;
-      }
     }
 
     if (!res.finished && !res.writableEnded) {

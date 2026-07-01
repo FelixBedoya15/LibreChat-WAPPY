@@ -152,6 +152,27 @@ function getDefaultHandlers({ res, aggregateContent, toolEndCallback, collectedU
        * @param {GraphRunnableConfig['configurable']} [metadata] The runnable metadata.
        */
       handle: (event, data, metadata) => {
+        // Send background warning text block instantly on the first run step of a heavy request
+        if (res && res.abortController?.isHeavy && !res.backgroundWarningSent && data?.id) {
+          res.backgroundWarningSent = true;
+          sendEvent(res, { event, data });
+
+          const warningText = `> 💡 **Nota:** Esta es una tarea de procesamiento complejo. Se está generando en segundo plano; puedes cerrar esta pestaña con seguridad y te notificaremos en tu campana de alertas al terminar.\n\n`;
+          sendEvent(res, {
+            event: 'on_message_delta',
+            data: {
+              id: data.id,
+              delta: {
+                content: {
+                  type: 'text',
+                  text: warningText
+                }
+              }
+            }
+          });
+          return;
+        }
+
         if (data?.stepDetails.type === StepTypes.TOOL_CALLS) {
           sendEvent(res, { event, data });
         } else if (checkIfLastAgent(metadata?.last_agent_id, metadata?.langgraph_node)) {
