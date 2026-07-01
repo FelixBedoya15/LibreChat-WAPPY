@@ -34,6 +34,7 @@ const getScopedAuthValue = async (userId, companyId, baseKey, throwError = false
     if (value !== null && value !== undefined) {
       return value;
     }
+    return null; // Do not fallback to base key if we have an active company
   }
 
   return await getUserPluginAuthValue(userId, baseKey, throwError, 'google_drive');
@@ -52,9 +53,10 @@ const updateScopedAuthValue = async (userId, companyId, baseKey, value) => {
   if (targetCompanyId) {
     const scopedKey = `${baseKey}_${targetCompanyId}`;
     await updateUserPluginAuth(userId, scopedKey, 'google_drive', value);
+  } else {
+    // Solo actualizamos la clave base si es una conexión personal sin empresa
+    await updateUserPluginAuth(userId, baseKey, 'google_drive', value);
   }
-  // También actualizamos la clave base para mantener compatibilidad predeterminada
-  await updateUserPluginAuth(userId, baseKey, 'google_drive', value);
 };
 
 /**
@@ -73,9 +75,10 @@ const deleteScopedAuthValue = async (userId, companyId) => {
     for (const key of keys) {
       await deleteUserPluginAuth(userId, `${key}_${targetCompanyId}`, false, 'google_drive');
     }
-  }
-  for (const key of keys) {
-    await deleteUserPluginAuth(userId, key, false, 'google_drive');
+  } else {
+    for (const key of keys) {
+      await deleteUserPluginAuth(userId, key, false, 'google_drive');
+    }
   }
 };
 

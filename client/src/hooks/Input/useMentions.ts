@@ -23,6 +23,7 @@ import { useAgentsMapContext } from '~/Providers/AgentsMapContext';
 import { mapEndpoints, getPresetTitle } from '~/utils';
 import { EndpointIcon } from '~/components/Endpoints';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 const defaultInterface = getConfigDefaults().interface;
 
@@ -58,6 +59,9 @@ export default function useMentions({
   assistantMap: TAssistantsMap;
   includeAssistants: boolean;
 }) {
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === 'ADMIN';
+
   const hasAgentAccess = useHasAccess({
     permissionType: PermissionTypes.AGENTS,
     permission: Permissions.USE,
@@ -237,6 +241,10 @@ export default function useMentions({
       ...modelOptions,
     ];
 
+    if (!isAdmin) {
+      return mentions.filter((option) => option.type === EModelEndpoint.agents);
+    }
+
     return mentions;
   }, [
     presets,
@@ -250,6 +258,7 @@ export default function useMentions({
     includeAssistants,
     interfaceConfig.presets,
     interfaceConfig.modelSelect,
+    isAdmin,
   ]);
 
   return {

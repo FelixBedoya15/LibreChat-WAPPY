@@ -120,9 +120,9 @@ export default function GoogleDriveConnect() {
       <div className="flex flex-col gap-3 py-2 text-sm text-text-primary">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex gap-3">
-          {/* Custom Google Drive SVG Icon */}
-          <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/10 to-cyan-500/10 border border-green-500/20 flex-shrink-0 flex items-center justify-center w-10 h-10">
-            <svg viewBox="0 0 24 24" className="w-5.5 h-5.5">
+          {/* Custom Google Workspace Circular White Badge Icon */}
+          <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-border-medium flex-shrink-0 flex items-center justify-center shadow-sm">
+            <svg viewBox="0 0 24 24" className="w-[22px] h-[22px]">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z"/>
@@ -130,8 +130,13 @@ export default function GoogleDriveConnect() {
             </svg>
           </div>
           <div>
-            <h4 className="font-bold flex items-center gap-2">
-              Google Workspace (Drive y Calendario) {companyName ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-tertiary text-text-secondary border border-border-light font-normal">Empresa: {companyName}</span> : null}
+            <h4 className="font-bold flex flex-wrap items-center gap-2 text-text-primary">
+              Google Workspace (Drive y Calendario) 
+              {companyName ? (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500/10 to-emerald-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20 font-bold uppercase tracking-wider">
+                  🏢 {companyName}
+                </span>
+              ) : null}
             </h4>
             <p className="text-xs text-text-secondary mt-1 max-w-[400px]">
               Permite que tus agentes lean tus archivos, guarden reportes en Drive y programen alertas automáticas o recordatorios en tu Google Calendar para <strong>{companyName || 'la empresa activa'}</strong>.
@@ -169,7 +174,12 @@ export default function GoogleDriveConnect() {
           
           <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
           <div className="flex flex-col">
-            <span className="font-bold text-green-600 dark:text-green-500">Google Workspace Conectado ({companyName || 'Empresa Activa'})</span>
+            <span className="font-bold text-green-600 dark:text-green-500 flex items-center gap-1.5">
+              Google Workspace Conectado 
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-700 dark:text-green-400 font-extrabold uppercase tracking-wide">
+                {companyName || 'Empresa Activa'}
+              </span>
+            </span>
             <span className="text-xs text-text-secondary">Cuenta vinculada: <strong className="text-text-primary">{email}</strong></span>
           </div>
         </div>
