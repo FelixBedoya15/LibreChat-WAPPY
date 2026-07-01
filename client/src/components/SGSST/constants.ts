@@ -113,6 +113,11 @@ export const PHASE_CATEGORIES = {
             id: 'control_acpm', title: 'Centro de Control ACPM', icon: 'Trello',
             bioRationale: 'Control operativo, predictivo e integral de las Acciones Correctivas, Preventivas y de Mejora del sistema.',
             normativity: 'Hito 5: Oráculo Predictivo'
+        },
+        { 
+            id: 'investigacion_profunda', title: 'Investigación Profunda SST', icon: 'Search',
+            bioRationale: 'Realiza análisis legales y predictivos complejos cruzando base de datos interna y normatividad colombiana.', 
+            normativity: 'Hito 5: Oráculo Predictivo' 
         }
     ],
 

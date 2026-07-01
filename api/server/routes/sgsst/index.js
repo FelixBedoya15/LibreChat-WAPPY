@@ -30,6 +30,7 @@ const syncAgents = require('./syncAgents');
 const programaCapacitaciones = require('./programaCapacitaciones');
 const workers = require('./workers');
 const epp = require('./epp');
+const investigacionProfunda = require('./investigacionProfunda');
 
 
 
@@ -72,5 +73,6 @@ module.exports = {
     heights: require('./heights'),
     chemicals: require('./chemicals'),
     kanban: require('./kanban'),
+    investigacionProfunda,
 };
 

@@ -6,7 +6,7 @@ import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
-    Car, Wrench, FlaskConical, Trello
+    Car, Wrench, FlaskConical, Trello, Search
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -35,6 +35,7 @@ import DashboardPredictivo from './DashboardPredictivo';
 import AltaDireccionChecklist from './AltaDireccionChecklist';
 import ProgramaCapacitaciones from './ProgramaCapacitaciones';
 import KanbanDashboard from '../Kanban/KanbanDashboard';
+import InvestigacionProfunda from './InvestigacionProfunda';
 
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -58,7 +59,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
     BrainCircuit, Blocks, Heart, Shield,
-    Car, Wrench, FlaskConical, Trello
+    Car, Wrench, FlaskConical, Trello, Search
 };
 
 
@@ -624,6 +625,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  {category.id === 'predictivo' && (
                                                      <div className="mb-6">
                                                          <DashboardPredictivo />
+                                                     </div>
+                                                 )}
+
+                                                 {/* Show InvestigacionProfunda for investigacion_profunda category */}
+                                                 {category.id === 'investigacion_profunda' && (
+                                                     <div className="mb-6">
+                                                         <InvestigacionProfunda />
                                                      </div>
                                                  )}
 

@@ -253,6 +253,7 @@ const startServer = async () => {
   app.use('/api/sgsst/chemical-compatibility', routes.sgsst.chemicalCompatibilityWorkspace);
   app.use('/api/sgsst/workers', routes.sgsst.workers);
   app.use('/api/sgsst/canvas', routes.sgsst.canvas);
+  app.use('/api/sgsst/investigacion-profunda', routes.sgsst.investigacionProfunda);
   app.use('/api/sgsst/epp', routes.sgsst.epp);
   app.use('/api/sgsst/vehicles', routes.sgsst.vehicles);
   app.use('/api/sgsst/heights', routes.sgsst.heights);
