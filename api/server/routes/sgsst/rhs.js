@@ -50,8 +50,7 @@ ${buildCompanyContextString(companyInfo)}
 ${additionalContextContext}
 
 ### Instrucciones de Formato y Estructura:
-1.  **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
-${headerHTML}
+1.  **ENCABEZADO**: No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2.  **Articulado**: Organiza el reglamento en artículos numerados (Artículo 1, Artículo 2, etc.), divididos en capítulos si es necesario (ej. Disposiciones Generales, Obligaciones de la Empresa, Obligaciones de los Trabajadores, Riesgos Identificados, Sanciones, Vigencia).
 3.  **Riesgos Específicos**: Asegúrate de mencionar los riesgos propios de la actividad económica de la empresa y los proporcionados en "Riesgos Críticos Identificados" si los hay.
@@ -111,6 +110,9 @@ ${headerHTML}
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedHtml = headerHTML + '\n' + cleanedHtml;
 
         if (companyInfo) {
             cleanedHtml += buildSignatureSection(companyInfo);

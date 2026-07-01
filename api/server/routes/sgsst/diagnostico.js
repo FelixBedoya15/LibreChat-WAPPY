@@ -101,6 +101,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             : (totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : "0.0");
 
         let promptText = '';
+        let headerHTML = '';
 
         if (type === 'auditoria') {
             const { weightedScore = 0, weightedPercentage = 0, phvaStats: clientPhvaStats } = req.body;
@@ -133,7 +134,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
                 return `- **${phvaLabels[cycle]}:** ${d.percentage}% (${d.cumple} cumplen / ${d.total} total | No cumplen: ${d.noCumple} | Parcial: ${d.parcial} | No aplica: ${d.noAplica})`;
             }).join('\n');
 
-            const auditHeaderHTML = buildStandardHeader({
+            headerHTML = buildStandardHeader({
                 title: 'INFORME DE AUDITORÍA INTERNA SG-SST',
                 companyInfo: loadedCompanyInfo,
                 date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -196,9 +197,8 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 **IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser profesional y de alto nivel.
 
 1. **ENCABEZADO Y CONTEXTO**:
-   - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
-   ${auditHeaderHTML}
-   - **DESPUÉS** del encabezado, incluye: Auditor Líder, Alcance, Criterios de auditoría.
+   - No generes el encabezado del documento ni logos. El sistema los insertará automáticamente.
+   - Incluye directamente el contenido inicial: Auditor Líder, Alcance, Criterios de auditoría.
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #0f766e; margin-bottom: 20px;">
@@ -260,7 +260,7 @@ MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombre
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
         } else if (type === 'alta_direccion') {
-            const reportHeaderHTML = buildStandardHeader({
+            headerHTML = buildStandardHeader({
                 title: 'INFORME DE REVISIÓN POR LA ALTA DIRECCIÓN',
                 companyInfo: loadedCompanyInfo,
                 date: currentDate || new Date().toLocaleDateString('es-CO'),
@@ -288,8 +288,7 @@ ${checklist.map((item, idx) => {
 **INSTRUCCIONES DE ESTRUCTURA (Tu respuesta DEBE ser exclusivamente código HTML):**
 
 1. **ENCABEZADO TÉCNICO**:
-   Usa EXACTAMENTE este código HTML para el inicio:
-   ${reportHeaderHTML}
+   - No generes el encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **RESUMEN EJECUTIVO PARA LA GERENCIA**:
    Redacta un párrafo formal y estratégico (mínimo 150 palabras) que resuma el compromiso de la alta dirección con el SGSST. Menciona la importancia de esta revisión anual como motor de la mejora continua.
@@ -324,7 +323,7 @@ Genera SOLO el contenido del cuerpo HTML.`;
 
         } else {
             // Default Diagnostic Prompt (Resolución 0312)
-            const diagnosticHeaderHTML = buildStandardHeader({
+            headerHTML = buildStandardHeader({
                 title: 'INFORME GERENCIAL DE EVALUACIÓN SG-SST',
                 companyInfo: loadedCompanyInfo,
                 date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -392,8 +391,7 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 **REGLA SOBRE OBSERVACIONES:** Cuando un estándar tenga una OBSERVACIÓN DEL EVALUADOR, DEBES usar ese texto como base principal del hallazgo en el informe. NO inventes detalles diferentes. La observación del evaluador refleja la realidad encontrada en campo y debe ser citada o parafraseada con fidelidad.
 
 1. **ENCABEZADO Y CONTEXTO**:
-   - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
-   ${diagnosticHeaderHTML}
+   - No generes el encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #0f766e; margin-bottom: 20px;">
@@ -500,6 +498,9 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedReport = headerHTML + '\n' + cleanedReport;
 
         // Strip full HTML document structure if AI still generates it
         const bodyMatch = cleanedReport.match(/<body[^>]*>([\s\S]*?)<\/body>/i);

@@ -149,8 +149,7 @@ ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
 Genera una POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO (SST) completa y profesional en formato HTML con las siguientes secciones:
 
-1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
-${policyHeaderHTML}
+1. **ENCABEZADO**: No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **DECLARACIÓN DE LA DIRECCIÓN**: Compromiso formal de la alta dirección con la SST, incluyendo:
    - Compromiso con la protección de la seguridad y salud de los trabajadores
@@ -210,6 +209,9 @@ El diseño debe ser elegante con colores institucionales (azul #0f766e para enca
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedPolicy = policyHeaderHTML + '\n' + cleanedPolicy;
 
         if (loadedCompanyInfo) {
             cleanedPolicy += buildSignatureSection(loadedCompanyInfo);

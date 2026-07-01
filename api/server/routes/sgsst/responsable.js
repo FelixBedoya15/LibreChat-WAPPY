@@ -127,8 +127,7 @@ ${finalNorms}
 ## INSTRUCCIONES
 Genera un documento oficial de ASIGNACIÓN DEL RESPONSABLE DEL SG-SST completo y profesional en formato HTML con las siguientes secciones:
 
-1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del documento):
-${reportHeaderHTML}
+1. **ENCABEZADO**: No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **OBJETO DE LA ASIGNACIÓN**: Designación formal de la persona responsable para el diseño e implementación del SG-SST.
 
@@ -180,6 +179,9 @@ Asegúrate de que el documento se vea como una carta formal de asignación corpo
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedDoc = reportHeaderHTML + '\n' + cleanedDoc;
 
         if (loadedCompanyInfo) {
             cleanedDoc += buildSignatureSection(loadedCompanyInfo);

@@ -178,15 +178,9 @@ ${itemsLogText}
 4. **NO VUELVAS A ESCRIBIR UNA TABLA CON LOS ÍTEMS**. El sistema añadirá el anexo detallado automáticamente. Tu trabajo es solo la narrativa ejecutiva y analítica.
 
 **Formato HTML del Entregable:**
-Primero, incluye EXACTAMENTE el siguiente encabezado HTML al inicio del informe:
-${buildStandardHeader({
-            title: 'MATRIZ DE REQUISITOS LEGALES SG-SST Evaluada',
-            companyInfo: loadedCompanyInfo,
-            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
-            norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
-        })}
+No generes el encabezado del documento ni logos. El sistema los insertará automáticamente.
 
-Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${compliancePercentage || 0}%) y las recomendaciones para la alta dirección.
+Después de las firmas o información omitida, el resumen ejecutivo, el Indicador de Cumplimiento (${compliancePercentage || 0}%) y las recomendaciones para la alta dirección.
 
 ¡El documento debe renderizarse como HTML válido!
 `;
@@ -202,10 +196,20 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
         const text = response.text();
 
         // 5. Clean Output & append table
+        const headerHTML = buildStandardHeader({
+            title: 'MATRIZ DE REQUISITOS LEGALES SG-SST Evaluada',
+            companyInfo: loadedCompanyInfo,
+            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
+        });
+
         let cleanedMatrix = text
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedMatrix = headerHTML + '\n' + cleanedMatrix;
 
         // Generar tabla manual en HTML
         let tableRowsHTML = processedItems.map((item, idx) => {

@@ -261,8 +261,7 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
 
 **CONTENIDO EXIGIDO (ALTO NIVEL DE PROFUNDIDAD Y EXTENSIÓN):**
 
-1.  **ENCABEZADO OFICIAL (INSERTA ESTO TAL CUAL Y NO LO MODIFIQUES):**
-    ${headerHTML}
+1.  **ENCABEZADO**: No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2.  **RESUMEN EJECUTIVO Y ANÁLISIS DEL IMPACTO ORGANIZACIONAL:**
     - Diagnóstico profundo, extenso y crítico. Habla de finanzas, reputación corporativa, costos ocultos y prima ARL. Analiza holísticamente.
@@ -296,6 +295,9 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedReport = headerHTML + '\n' + cleanedReport;
 
         if (ci) {
             cleanedReport += buildSignatureSection(ci);

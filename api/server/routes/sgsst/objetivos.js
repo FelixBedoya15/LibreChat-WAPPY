@@ -184,8 +184,7 @@ ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML.
 **REGLA DE ORO:** TIENES ESTRICTAMENTE PROHIBIDO INVENTAR TEXTO GENÉRICO, PORCENTAJES ALEATORIOS (ej. "reducir 50%") O FRASES DE CAJÓN (ej. "intervenir las causas raíz"). Eres un transcriptor analítico: DEBES tomar los textos LITERALES de las fuentes de información y convertirlos en objetivos.
 
-1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
-${headerHTML}
+1. **ENCABEZADO**: No generes ningún encabezado del documento ni logos. El sistema los insertará automáticamente.
 
 2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas presentadas. IMPORTANTÍSIMO MENCIONAR CON EXACTITUD EL NOMBRE DE LOS TEXTOS PROVISTOS QUE NO SE CUMPLEN.
 
@@ -235,6 +234,9 @@ Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; wi
             .replace(/<head>[\s\S]*?<\/head>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        // Prepend the standard header automatically to avoid recitation block issues on Gemini
+        cleanedHtml = headerHTML + '\n' + cleanedHtml;
 
         if (loadedCompanyInfo) {
             cleanedHtml += buildSignatureSection(loadedCompanyInfo);
