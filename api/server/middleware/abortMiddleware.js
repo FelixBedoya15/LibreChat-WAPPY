@@ -195,17 +195,6 @@ const createAbortController = (req, res, getAbortData, getReqData) => {
   const onStart = (userMessage, responseMessageId, isNewConvo) => {
     sendEvent(res, { message: userMessage, created: true });
 
-    // If this is a heavy/background request, immediately tell the client via a
-    // dedicated named SSE event so it can show the user a notice without waiting
-    // for the LangGraph stream to begin.
-    if (res.isHeavy) {
-      try {
-        if (!res.writableEnded && !res.finished) {
-          res.write(`event: background_notify\ndata: ${JSON.stringify({ responseMessageId })}\n\n`);
-        }
-      } catch (_) { /* ignore write errors */ }
-    }
-
     const prelimAbortKey = userMessage?.conversationId ?? req.user.id;
     const abortKey = isNewConvo
       ? `${prelimAbortKey}${Constants.COMMON_DIVIDER}${Constants.NEW_CONVO}`

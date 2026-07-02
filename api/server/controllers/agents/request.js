@@ -251,8 +251,6 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
     if (isHeavy) {
       logger.info(`[AgentController] Heavy request detected for user ${userId}. Marking abortController as isHeavy to run in background on close.`);
       abortController.isHeavy = true;
-      // Also mark on res so abortMiddleware onStart can read it before sendMessage runs
-      res.isHeavy = true;
     }
 
     if (!res.finished && !res.writableEnded) {
