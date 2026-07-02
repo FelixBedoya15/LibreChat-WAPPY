@@ -14,6 +14,7 @@ import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat
 import type { EventHandlerParams } from './useEventHandlers';
 import type { TResData } from '~/common';
 import { useGenTitleMutation, useGetStartupConfig, useGetUserBalance } from '~/data-provider';
+import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
 import store from '~/store';
@@ -48,6 +49,7 @@ export default function useSSE(
   const setActiveRunId = useSetRecoilState(store.activeRunFamily(runIndex));
 
   const { token, isAuthenticated } = useAuthContext();
+  const { showToast } = useToastContext();
   const [completed, setCompleted] = useState(new Set());
   const setAbortScroll = useSetRecoilState(store.abortScrollFamily(runIndex));
   const setShowStopButton = useSetRecoilState(store.showStopButtonByIndex(runIndex));
@@ -116,6 +118,15 @@ export default function useSSE(
       } catch (error) {
         console.error(error);
       }
+    });
+
+    sse.addEventListener('background_notify', () => {
+      showToast({
+        message:
+          '💡 Esta es una tarea compleja. Se está procesando en segundo plano — puedes cerrar esta pestaña con seguridad y te notificaremos cuando termine.',
+        status: 'info',
+        duration: 12000,
+      });
     });
 
     sse.addEventListener('message', (e: MessageEvent) => {
