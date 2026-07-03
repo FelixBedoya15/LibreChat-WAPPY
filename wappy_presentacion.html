@@ -908,6 +908,97 @@
         padding: 1rem;
       }
     }
+
+    /* COMPARATIVE STYLES WAPPY vs CLAUDE */
+    .compare-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 0.6rem;
+      flex: 1;
+    }
+    
+    .compare-box {
+      border-radius: 16px;
+      padding: clamp(0.8rem, 2vh, 1.3rem);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      height: 100%;
+    }
+    
+    .compare-box.claude {
+      background: rgba(217, 119, 6, 0.02);
+      border: 1px solid rgba(217, 119, 6, 0.15);
+    }
+    
+    .compare-box.wappy {
+      background: rgba(34, 197, 94, 0.02);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.05);
+    }
+    
+    .compare-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: clamp(1rem, 2.2vh, 1.25rem);
+      font-family: var(--font-heading);
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.5rem;
+    }
+    
+    .compare-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .compare-badge.claude {
+      background: rgba(217, 119, 6, 0.15);
+      color: #f59e0b;
+    }
+    
+    .compare-badge.wappy {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--color-primary);
+    }
+    
+    .compare-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    
+    .compare-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: clamp(0.75rem, 1.8vh, 0.85rem);
+      line-height: 1.4;
+    }
+    
+    .compare-item.negative {
+      color: #cbd5e1;
+    }
+    
+    .compare-item.positive {
+      color: #f8fafc;
+      font-weight: 500;
+    }
+    
+    .compare-item svg {
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
   </style>
 </head>
 <body>
@@ -943,9 +1034,7 @@
           Modo Grabación (Teleprompter)
         </button>
       </div>
-    </header>
-
-    <!-- MAIN PRESENTATION SLIDESPORT -->
+    </header>    <!-- MAIN PRESENTATION SLIDESPORT -->
     <div class="presentation-viewport">
       <div class="slides-wrapper">
         
@@ -955,10 +1044,10 @@
             <div>
               <div class="presenter-badge">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Presentación de Plataforma de IA para SST
+                Charla: La SST del Futuro con IA
               </div>
-              <h1 class="slide-title">Bienvenido a la <span class="gradient-text">Nueva Era de la SST</span></h1>
-              <p class="slide-subtitle">Descubre cómo optimizar tu tiempo de gestión, elevar tus ingresos y centrarte en lo verdaderamente importante: la prevención en campo.</p>
+              <h1 class="slide-title">Ecosistema Profesional: <span class="gradient-text">Mi Portafolio con WAPPY IA</span></h1>
+              <p class="slide-subtitle">Descubre cómo optimizar el tiempo de gestión legal, multiplicar la capacidad de tus consultorías y centrarte en la prevención estratégica utilizando IA especializada.</p>
             </div>
             <div class="avatar-wrapper">
               <div class="avatar-circle">
@@ -972,19 +1061,19 @@
         <div class="slide" id="slide-2">
           <div class="glass-card">
             <h2 class="slide-title" style="font-size: 2.8rem;">El Dolor Oculto del <span class="gradient-text">Prevencionista</span></h2>
-            <p class="slide-subtitle" style="margin-bottom: 1.5rem;">Pasamos más del 80% de nuestra jornada atascados en laberintos administrativos.</p>
+            <p class="slide-subtitle" style="margin-bottom: 1.5rem;">Pasamos más del 80% de nuestra jornada atascados en laberintos administrativos, digitación de matrices e informes repetitivos.</p>
             
             <div class="grid-3col">
               <div class="stat-card">
-                <div class="stat-number">10h</div>
-                <div class="stat-label">En una sola Matriz</div>
+                <div class="stat-number">10h+</div>
+                <div class="stat-label">En una sola Matriz GTC-45</div>
               </div>
               <div class="stat-card" style="border-color: rgba(6, 182, 212, 0.15)">
                 <div class="stat-number">80%</div>
                 <div class="stat-label">Carga Administrativa</div>
               </div>
               <div class="stat-card">
-                <div class="stat-number">0%</div>
+                <div class="stat-number">20%</div>
                 <div class="stat-label">Prevención Real en Campo</div>
               </div>
             </div>
@@ -996,21 +1085,21 @@
           <div class="glass-card grid-2col" style="align-items: center;">
             <div>
               <h2 class="slide-title" style="font-size: 2.5rem;">La IA no te reemplaza. <span class="gradient-text">El profesional que la use, sí.</span></h2>
-              <p class="slide-subtitle" style="font-size: 1.15rem; margin-top: 1rem;">El panorama laboral está cambiando radicalmente. O nos adaptamos o quedamos rezagados frente a quienes ya producen el triple en la mitad de tiempo.</p>
+              <p class="slide-subtitle" style="font-size: 1.15rem; margin-top: 1rem;">El panorama laboral en SST está cambiando radicalmente en Colombia. O nos adaptamos o quedamos rezagados frente a prevencionistas que automatizan y producen el triple en la mitad de tiempo.</p>
             </div>
             <div style="display: flex; justify-content: center;">
               <svg width="220" height="220" viewBox="0 0 100 100" fill="none">
-                <circle cx="50" cy="50" r="40" stroke="url(#brain-grad-2)" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <circle cx="50" cy="50" r="40" stroke="url(#brain-grad-3)" stroke-width="1.5" stroke-dasharray="4 4"/>
                 <circle cx="50" cy="20" r="6" fill="#22c55e"><animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite"/></circle>
                 <circle cx="20" cy="60" r="5" fill="#06b6d4"><animate attributeName="r" values="3;6;3" dur="2.5s" repeatCount="indefinite"/></circle>
                 <circle cx="80" cy="60" r="5" fill="#10b981"><animate attributeName="r" values="3;6;3" dur="1.8s" repeatCount="indefinite"/></circle>
                 <line x1="50" y1="20" x2="20" y2="60" stroke="#22c55e" stroke-width="1"/>
                 <line x1="50" y1="20" x2="80" y2="60" stroke="#10b981" stroke-width="1"/>
                 <line x1="20" y1="60" x2="80" y2="60" stroke="#06b6d4" stroke-width="1"/>
-                <circle cx="50" cy="50" r="12" fill="#090d16" stroke="url(#brain-grad-2)" stroke-width="2"/>
+                <circle cx="50" cy="50" r="12" fill="#090d16" stroke="url(#brain-grad-3)" stroke-width="2"/>
                 <path d="M48 46H52V54H48V46Z" fill="#22c55e"/>
                 <defs>
-                  <linearGradient id="brain-grad-2" x1="20" y1="20" x2="80" y2="80">
+                  <linearGradient id="brain-grad-3" x1="20" y1="20" x2="80" y2="80">
                     <stop stop-color="#22c55e" />
                     <stop offset="1" stop-color="#06b6d4" />
                   </linearGradient>
@@ -1025,16 +1114,16 @@
           <div class="glass-card cover-layout">
             <div>
               <div class="presenter-badge" style="border-color: rgba(6, 182, 212, 0.3); color: var(--color-accent)">
-                👨‍💻 El Creador
+                👨‍💻 Psicólogo & Desarrollador
               </div>
-              <h1 class="slide-title">Mucho gusto, soy <span class="gradient-text">Felix Bedoya</span></h1>
-              <p class="slide-subtitle" style="font-size: 1.15rem; line-height: 1.6;">
-                Psicólogo especialista en SST y Desarrollador Senior con más de 8 años de experiencia. He trabajado con las ARLs más grandes del país diseñando soluciones y ahora quiero compartir contigo la plataforma que mejoró mis ingresos y calidad de vida.
+              <h1 class="slide-title">Mi Portafolio: <span class="gradient-text">Felix Bedoya</span></h1>
+              <p class="slide-subtitle" style="font-size: 1.1rem; line-height: 1.55;">
+                Psicólogo especialista en SST y Desarrollador Senior con más de 8 años de experiencia. He diseñado integraciones tecnológicas y herramientas para las ARLs más grandes de Colombia (Sura, Colpatria, Positiva) uniendo la psicología, la legalidad y la IA para transformar el día a día del prevencionista.
               </p>
-              <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                <span class="badge-sst" style="background: rgba(6, 182, 212, 0.08); border-color: var(--color-accent); color: var(--color-accent);">+8 Años Exp</span>
-                <span class="badge-sst">Psicólogo SST</span>
-                <span class="badge-sst" style="background: rgba(34, 197, 94, 0.08);">Dev Senior</span>
+              <div style="display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap;">
+                <span class="badge-sst" style="background: rgba(6, 182, 212, 0.08); border-color: var(--color-accent); color: var(--color-accent);">+8 Años Experiencia</span>
+                <span class="badge-sst">Especialista SST Colombia</span>
+                <span class="badge-sst" style="background: rgba(34, 197, 94, 0.08);">Dev FullStack</span>
               </div>
             </div>
             <div class="avatar-wrapper">
@@ -1045,99 +1134,387 @@
           </div>
         </div>
 
-        <!-- Slide 5: Felix Bedoya - Rentabilidad -->
+        <!-- Slide 5: Ecosistema WAPPY (Resumen del Portafolio) -->
         <div class="slide" id="slide-5">
+          <div class="glass-card">
+            <h2 class="slide-title" style="font-size: 2.2rem; margin-bottom: 0.6rem;">El Ecosistema <span class="gradient-text">WAPPY IA</span></h2>
+            <p class="slide-subtitle" style="margin-bottom: 0.8rem;">Un portafolio robusto e integrado con más de 15 agentes especialistas y herramientas dinámicas.</p>
+            
+            <div class="grid-3col" style="gap: 0.8rem;">
+              <div class="feature-box">
+                <div class="feature-icon">💬</div>
+                <h4>Tenshi & 15+ Agentes IA</h4>
+                <p>Médico Laboral, Abogado Ocupacional, Higienista y Ergónomo listos para asesorar.</p>
+              </div>
+              <div class="feature-box">
+                <div class="feature-icon">📊</div>
+                <h4>Matriz GTC-45 IPEVAR</h4>
+                <p>Identificación de peligros, cálculo automático de riesgos y control predictivo.</p>
+              </div>
+              <div class="feature-box">
+                <div class="feature-icon">🚗</div>
+                <h4>Matriz PESV Vial</h4>
+                <p>Evaluación de factores de riesgo vial bajo las exigencias de la ANSV.</p>
+              </div>
+              <div class="feature-box">
+                <div class="feature-icon">🧪</div>
+                <h4>Química SGA</h4>
+                <p>Matriz de compatibilidad y mezcla química con semáforo según Decreto 1496/2018.</p>
+              </div>
+              <div class="feature-box">
+                <div class="feature-icon">📝</div>
+                <h4>Editor Legal RIT</h4>
+                <p>Reglamento Interno de Trabajo estructurado para las 42 horas en Colombia.</p>
+              </div>
+              <div class="feature-box">
+                <div class="feature-icon">📈</div>
+                <h4>Análisis en Vivo</h4>
+                <p>Calculadora de ausentismo con Índice de Frecuencia (IF) y Severidad (IS).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 6: WAPPY vs. Claude: Especialización Legal -->
+        <div class="slide" id="slide-6">
+          <div class="glass-card">
+            <h2 class="slide-title" style="font-size: 2.2rem; margin-bottom: 0.4rem;">WAPPY vs Claude: <span class="gradient-text">Especialización Ocupacional</span></h2>
+            <p class="slide-subtitle" style="margin-bottom: 0.6rem;">¿Cómo se compara un modelo general con una plataforma diseñada con control legal local?</p>
+            
+            <div class="compare-container">
+              <div class="compare-box claude">
+                <div class="compare-header">
+                  <span>Claude (Proyectos)</span>
+                  <span class="compare-badge claude">General con Contexto</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e59866" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    Permite subir PDF de leyes a un "Proyecto" para dar contexto, pero el usuario debe recolectar y subir los archivos manualmente.
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Riesgo de alucinaciones en legislación cruzada (mezcla leyes colombianas con normas OSHA de EE.UU. o de España).
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Requiere diseñar minuciosamente las "Instrucciones de Proyecto" para no recibir respuestas de SST genéricas.
+                  </li>
+                </ul>
+              </div>
+              <div class="compare-box wappy">
+                <div class="compare-header">
+                  <span>WAPPY IA</span>
+                  <span class="compare-badge wappy">Especialista Nativo</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Base legal pre-configurada y actualizada</strong> (Decreto 1072, GTC-45, Resolución 0312, etc.) lista desde el segundo cero.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Agentes pre-calibrados por roles reales</strong> (Abogado RIT, Médico Laboral, Ergónomo, Experto RETIE) sin escribir prompts.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    Filtros de control para garantizar el cumplimiento estricto con los formatos exigidos por las ARL colombianas.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 7: WAPPY vs. Claude: Herramientas de Ejecución SST -->
+        <div class="slide" id="slide-7">
+          <div class="glass-card">
+            <h2 class="slide-title" style="font-size: 2.2rem; margin-bottom: 0.4rem;">WAPPY vs Claude: <span class="gradient-text">Herramientas vs Artefactos</span></h2>
+            <p class="slide-subtitle" style="margin-bottom: 0.6rem;">¿Qué ocurre al pasar de la simulación visual a la descarga de archivos listos para firma?</p>
+            
+            <div class="compare-container">
+              <div class="compare-box claude">
+                <div class="compare-header">
+                  <span>Claude (Artifacts)</span>
+                  <span class="compare-badge claude">Artefacto Visual</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e59866" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Excelente editor interactivo</strong> de código, HTML o SVG. Puede renderizar un mock-up de matriz en el panel lateral.
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    No se conecta a un sistema de base de datos para guardar los cambios de forma modular. Son archivos planos.
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    No genera descargas nativas Excel (.xlsx) o Word (.docx) formateadas con los estándares regulatorios locales.
+                  </li>
+                </ul>
+              </div>
+              <div class="compare-box wappy">
+                <div class="compare-header">
+                  <span>WAPPY IA</span>
+                  <span class="compare-badge wappy">Ejecución Estructurada</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Editores Modulares (LiveEditor)</strong>: la IA edita celdas directamente de forma persistente e inteligente.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Herramientas con lógica dura</strong>: Cálculo del Índice de Riesgo Vial, matriz SGA de riesgos químicos con validación lógica de mezclas.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Descarga Directa Premium</strong>: Generación de documentos oficiales en Word y Excel listos para presentar en auditorías.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 8: WAPPY vs. Claude: Centralización Multi-Cliente -->
+        <div class="slide" id="slide-8">
+          <div class="glass-card">
+            <h2 class="slide-title" style="font-size: 2.2rem; margin-bottom: 0.4rem;">WAPPY vs Claude: <span class="gradient-text">SaaS Multi-Cliente</span></h2>
+            <p class="slide-subtitle" style="margin-bottom: 0.6rem;">La diferencia de arquitectura entre un chat individual y una consola para consultores de SST.</p>
+            
+            <div class="compare-container">
+              <div class="compare-box claude">
+                <div class="compare-header">
+                  <span>Claude (Chats y Datos)</span>
+                  <span class="compare-badge claude">Chat de Datos Aislado</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e59866" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Data Analysis excelente</strong> para correr scripts o graficar datos cargados en la sesión.
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Los datos son temporales. No puedes consolidar el historial anual de ausentismo de un cliente y compararlo con otro.
+                  </li>
+                  <li class="compare-item negative">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Sin panel multi-tenant: manejar 10 empresas clientes requiere subir archivos y cambiar de Proyecto constantemente.
+                  </li>
+                </ul>
+              </div>
+              <div class="compare-box wappy">
+                <div class="compare-header">
+                  <span>WAPPY IA</span>
+                  <span class="compare-badge wappy">Consola Centralizada</span>
+                </div>
+                <ul class="compare-list">
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>SaaS Multi-Nit y Multi-Cliente</strong>: Cambia de empresa cliente en el menú superior y mantén los datos aislados.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Persistencia total</strong>: Almacena históricos de accidentalidad, ausentismo e inspecciones mensuales de forma segura.
+                  </li>
+                  <li class="compare-item positive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <strong>Dashboards de control predictivos</strong> (ACPM, ausentismo acumulado) vinculados a la base de datos de tu perfil.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 9: Demo - Matriz IPEVAR -->
+        <div class="slide" id="slide-9">
+          <div class="glass-card grid-2col" style="align-items: center;">
+            <div>
+              <div class="presenter-badge">⚡ DEMOSTRACIÓN</div>
+              <h2 class="slide-title" style="font-size: 2.4rem;">Matriz <span class="gradient-text">IPEVAR GTC-45</span></h2>
+              <p class="slide-subtitle" style="font-size: 1.05rem;">Identifica peligros, evalúa riesgos y define medidas de control asistido por IA directamente en una interfaz de tabla interactiva.</p>
+              <div class="feature-box" style="margin-top: 1rem; padding: 0.8rem 1.2rem;">
+                <p style="font-size: 0.85rem; color: #fff; font-weight: 600;">✓ Formulación matemática GTC-45 automática (ND x NE = NP, etc.).</p>
+                <p style="font-size: 0.85rem; color: #fff; font-weight: 600; margin-top: 0.4rem;">✓ Exportación a Excel lista para auditorías.</p>
+              </div>
+            </div>
+            <div class="mockup-window">
+              <div class="mockup-header">
+                <div class="mockup-dots">
+                  <div class="mockup-dot red"></div>
+                  <div class="mockup-dot yellow"></div>
+                  <div class="mockup-dot green"></div>
+                </div>
+                <div class="mockup-title">Matriz IPEVAR - GTC 45</div>
+              </div>
+              <div class="mockup-body" style="padding: 0;">
+                <table class="mockup-table">
+                  <thead>
+                    <tr>
+                      <th>Peligro / Proceso</th>
+                      <th>Efectos Posibles</th>
+                      <th>ND</th>
+                      <th>NE</th>
+                      <th>NR</th>
+                      <th>Nivel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Trabajo en Alturas (Mantenimiento)</td>
+                      <td>Caídas a diferente nivel, trauma, muerte</td>
+                      <td>6</td>
+                      <td>4</td>
+                      <td>240</td>
+                      <td><span class="badge-risk-high">II (Alto)</span></td>
+                    </tr>
+                    <tr>
+                      <td>Posturas Prolongadas (Oficinas)</td>
+                      <td>Desórdenes músculo-esqueléticos</td>
+                      <td>2</td>
+                      <td>3</td>
+                      <td>60</td>
+                      <td style="color:#f59e0b;font-weight:bold;">III (Medio)</td>
+                    </tr>
+                    <tr>
+                      <td>Manipulación Químicos (Limpieza)</td>
+                      <td>Dermatitis, quemaduras químicas</td>
+                      <td>2</td>
+                      <td>2</td>
+                      <td>40</td>
+                      <td style="color:#10b981;font-weight:bold;">IV (Bajo)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 10: Demo - Análisis en Vivo -->
+        <div class="slide" id="slide-10">
+          <div class="glass-card grid-2col" style="align-items: center;">
+            <div>
+              <div class="presenter-badge">⚡ DEMOSTRACIÓN</div>
+              <h2 class="slide-title" style="font-size: 2.4rem;">Análisis <span class="gradient-text">en Vivo</span></h2>
+              <p class="slide-subtitle" style="font-size: 1.05rem;">Procesa bases de datos de ausentismo e incapacidades en tiempo real. Obtén indicadores y gráficas automáticas para presentar a la gerencia.</p>
+              <div class="feature-box" style="margin-top: 1rem; padding: 0.8rem 1.2rem;">
+                <p style="font-size: 0.85rem; color: #fff; font-weight: 600;">✓ Cálculo de Índices: Frecuencia (IF) y Severidad (IS) colombianos.</p>
+                <p style="font-size: 0.85rem; color: #fff; font-weight: 600; margin-top: 0.4rem;">✓ Detección de patrones predictivos de condiciones de riesgo.</p>
+              </div>
+            </div>
+            <div class="mockup-window" style="background:#0a0f1d;">
+              <div class="mockup-header">
+                <div class="mockup-dots">
+                  <div class="mockup-dot red"></div>
+                  <div class="mockup-dot yellow"></div>
+                  <div class="mockup-dot green"></div>
+                </div>
+                <div class="mockup-title">Dashboard - Ausentismo Laboral</div>
+              </div>
+              <div class="mockup-body" style="display:flex; flex-direction:column; justify-content:space-around; align-items:center;">
+                <div style="display:flex; gap:1rem; width:100%; justify-content:space-around;">
+                  <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:0.5rem; text-align:center; flex:1;">
+                    <div style="font-size:1.2rem; font-weight:bold; color:var(--color-primary);">12.5</div>
+                    <div style="font-size:0.6rem; color:var(--text-secondary);">Índice de Frecuencia (IF)</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:0.5rem; text-align:center; flex:1;">
+                    <div style="font-size:1.2rem; font-weight:bold; color:var(--color-accent);">45.2</div>
+                    <div style="font-size:0.6rem; color:var(--text-secondary);">Índice de Severidad (IS)</div>
+                  </div>
+                </div>
+                <!-- Mini SVG Chart Mockup -->
+                <svg width="100%" height="150" viewBox="0 0 300 150">
+                  <path d="M10 130 Q 75 80, 150 90 T 290 30" fill="none" stroke="var(--color-primary)" stroke-width="3" />
+                  <path d="M10 130 Q 75 80, 150 90 T 290 30 L 290 140 L 10 140 Z" fill="url(#chart-grad-p)" opacity="0.15" />
+                  <line x1="10" y1="140" x2="290" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+                  <line x1="10" y1="10" x2="10" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+                  <circle cx="150" cy="90" r="4" fill="var(--color-accent)" />
+                  <circle cx="290" cy="30" r="4" fill="var(--color-primary)" />
+                  <defs>
+                    <linearGradient id="chart-grad-p" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#22c55e" />
+                      <stop offset="100%" stop-color="transparent" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 11: Caso de éxito - Felix Bedoya -->
+        <div class="slide" id="slide-11">
           <div class="glass-card grid-2col" style="align-items: center;">
             <div>
               <div class="presenter-badge" style="border-color: rgba(6, 182, 212, 0.3); color: var(--color-accent)">
-                💡 Mi Caso de Éxito
+                💡 El Creador y Caso de Éxito
               </div>
               <h2 class="slide-title" style="font-size: 2.3rem;">De la Frustración a la <span class="gradient-text">Rentabilidad</span></h2>
               <p class="slide-subtitle" style="font-size: 1.05rem; line-height: 1.5; margin-bottom: 0;">
-                "Al unir la tecnología y la IA con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió atender más clientes, asegurar mayor calidad legal con las ARLs más grandes de Colombia y escalar mis ingresos drásticamente."
+                "Al unir la tecnología y la IA con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió multiplicar por 4 mi volumen de clientes activos de consultoría, con una calidad de entregables impecable frente a las ARLs y asegurando mi calidad de vida."
               </p>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
-              <div class="avatar-circle" style="width: 160px; height: 160px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 1.2rem;">
+              <div class="avatar-circle" style="width: 150px; height: 150px;">
                 <img src="Agentes/Miniaturas/Avatar%20/avatar2.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix2'">
               </div>
               <div style="text-align: center;">
-                <h4 style="font-size: 1.2rem; font-weight: 800;">Felix Bedoya</h4>
-                <p style="color: var(--color-primary); font-size: 0.9rem; font-weight: 600;">Fundador de Wappy</p>
+                <h4 style="font-size: 1.1rem; font-weight: 800;">Felix Bedoya</h4>
+                <p style="color: var(--color-primary); font-size: 0.85rem; font-weight: 600;">Fundador de WAPPY IA</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Slide 6: Demo 1 - WAPPY CHAT con Agentes -->
-        <div class="slide" id="slide-6">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Wappy Chat <span class="gradient-text">con Agentes</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Chatea con más de 15 IAs especialistas entrenadas en Medicina Laboral, Derecho y Psicología Organizacional.</p>
-          </div>
-        </div>
-
-        <!-- Slide 7: Demo 2 - Herramienta Canvas -->
-        <div class="slide" id="slide-7">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Herramienta <span class="gradient-text">Canvas</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Organiza tus ideas, flujos de procesos y planes de trabajo en un tablero visual interactivo sin fricciones.</p>
-          </div>
-        </div>
-
-        <!-- Slide 8: Demo 3 - Matriz IPEVAR -->
-        <div class="slide" id="slide-8">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Matriz <span class="gradient-text">IPEVAR</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Identifica peligros, evalúa riesgos y define medidas de control bajo la GTC 45 asistido por IA.</p>
-          </div>
-        </div>
-
-        <!-- Slide 9: Demo 4 - Reglamento Interno -->
-        <div class="slide" id="slide-9">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Reglamento <span class="gradient-text">Interno de Trabajo</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Estructura y redacta el reglamento interno adaptado a la normatividad laboral colombiana en un par de clics.</p>
-          </div>
-        </div>
-
-        <!-- Slide 10: Demo 5 - Análisis en Vivo -->
-        <div class="slide" id="slide-10">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Análisis <span class="gradient-text">en Vivo</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Procesa y diagnostica métricas de ausentismo, incidentes y reportes de condiciones inseguras en tiempo real.</p>
-          </div>
-        </div>
-
-        <!-- Slide 11: Demo 6 - Aula de Estudio & Blog -->
-        <div class="slide" id="slide-11">
-          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div class="presenter-badge" style="margin-bottom: 1.5rem;">⚡ DEMOSTRACIÓN</div>
-            <h2 class="slide-title" style="font-size: 3.5rem; margin-bottom: 1.5rem;">Aula de <span class="gradient-text">Estudio y Blog</span></h2>
-            <p class="slide-subtitle" style="font-size: 1.35rem; max-width: 750px; line-height: 1.6;">Mantente al día con capacitaciones continuas, tutoriales y noticias del ámbito legal y operativo de la SST.</p>
-          </div>
-        </div>
-
-        <!-- Slide 12: Call to Action -->
+        <!-- Slide 12: Planes y Licencias -->
         <div class="slide" id="slide-12">
           <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <h2 class="slide-title" style="font-size: 3.2rem;">Únete a la <span class="gradient-text">Revolución</span></h2>
-            <p class="slide-subtitle" style="max-width: 600px;">El futuro de la Seguridad y Salud en el Trabajo ya está aquí y habla tu mismo idioma. No te quedes atrás.</p>
+            <h2 class="slide-title" style="font-size: 2.8rem; margin-bottom: 0.5rem;">Planes para <span class="gradient-text">Profesionales y Empresas</span></h2>
+            <p class="slide-subtitle" style="max-width: 700px; margin-bottom: 1.5rem;">Suscripciones flexibles diseñadas para consultores independientes y grandes corporativos.</p>
             
-            <a href="#" class="btn-play-prompter" style="margin-top: 1rem; padding: 0.8rem 2.5rem; height: auto; font-size: 1.2rem; text-decoration: none;">
-              Registrarse ya
+            <div style="display: flex; gap: 1.5rem; justify-content: center; width: 100%; max-width: 800px; margin-bottom: 1rem;">
+              <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:1.2rem; flex:1; text-align:center;">
+                <h4 style="font-family:var(--font-heading); font-size:1.1rem;">Plan Básico</h4>
+                <p style="color:var(--text-secondary); font-size:0.75rem; margin-top:0.3rem;">Para consultores junior</p>
+                <div style="font-size:1.6rem; font-weight:800; color:var(--color-accent); margin:0.6rem 0;">Asequible</div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Acceso a 5 agentes y matrices básicas.</p>
+              </div>
+              <div style="background:rgba(34,197,94,0.05); border:2px solid var(--color-primary); border-radius:12px; padding:1.2rem; flex:1; text-align:center; transform:scale(1.03); box-shadow:0 10px 20px rgba(34,197,94,0.1);">
+                <span class="compare-badge wappy" style="margin-bottom:0.4rem; display:inline-block;">Recomendado</span>
+                <h4 style="font-family:var(--font-heading); font-size:1.1rem; color:#fff;">Plan Profesional</h4>
+                <p style="color:var(--text-secondary); font-size:0.75rem; margin-top:0.3rem;">Para consultores senior</p>
+                <div style="font-size:1.6rem; font-weight:800; color:var(--color-primary); margin:0.6rem 0;">Premium</div>
+                <p style="font-size:0.75rem; color:#fff;">15+ agentes, descargas de matrices ilimitadas y Canvas.</p>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:1.2rem; flex:1; text-align:center;">
+                <h4 style="font-family:var(--font-heading); font-size:1.1rem;">Plan Corporativo</h4>
+                <p style="color:var(--text-secondary); font-size:0.75rem; margin-top:0.3rem;">Para agencias de SST</p>
+                <div style="font-size:1.6rem; font-weight:800; color:var(--color-accent); margin:0.6rem 0;">Multi-empresa</div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Acceso compartido, multi-nit e integraciones personalizadas.</p>
+              </div>
+            </div>
+            
+            <div style="background: rgba(34, 197, 94, 0.08); border: 2px dashed var(--color-primary); padding: 0.6rem 1.5rem; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.6rem; color: #fff; font-size: 0.9rem;">
+              🎁 Cupón de regalo: <span style="color: var(--color-accent); font-weight: 800; font-size: 1.1rem; letter-spacing: 1px; font-family: var(--font-heading);">VITAL30</span> (30% de descuento en planes anuales)
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 13: Call to Action (Cierre) -->
+        <div class="slide" id="slide-13">
+          <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h2 class="slide-title" style="font-size: 3.2rem;">Únete a la <span class="gradient-text">Revolución SST</span></h2>
+            <p class="slide-subtitle" style="max-width: 600px; font-size:1.2rem;">El futuro de la Seguridad y Salud en el Trabajo ya está aquí. Es hora de dejar atrás el Excel manual y liderar con IA.</p>
+            
+            <a href="#" class="btn-play-prompter" style="margin-top: 1.5rem; padding: 0.8rem 2.5rem; height: auto; font-size: 1.2rem; text-decoration: none;">
+              Comenzar Gratis Ahora
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
             
-            <!-- Gift Coupon Card -->
-            <div style="margin-top: 1.8rem; background: rgba(34, 197, 94, 0.08); border: 2px dashed var(--color-primary); padding: 0.8rem 1.8rem; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.6rem; color: #fff;">
-              🎁 Cupón de regalo: <span style="color: var(--color-accent); font-weight: 800; font-size: 1.3rem; letter-spacing: 1px; font-family: var(--font-heading);">VITAL30</span> (Descuento al adquirir cualquiera de nuestros planes)
-            </div>
+            <p style="color:var(--text-tertiary); font-size:0.85rem; margin-top:2rem;">Presentado por: <strong>Felix Bedoya</strong> - Fundador WAPPY IA</p>
           </div>
         </div>
 
@@ -1192,7 +1569,7 @@
         <div class="progress-bar-bg">
           <div class="progress-bar-fill" id="progressBarFill"></div>
         </div>
-        <div class="progress-text" id="progressText">Diapositiva 1 de 12</div>
+        <div class="progress-text" id="progressText">Diapositiva 1 de 13</div>
       </div>
 
       <div class="slide-indicator-dots" id="dotsContainer">
@@ -1205,39 +1582,40 @@
   <script>
     // PRESENTATION STATE
     let currentSlideIndex = 0;
-    const totalSlides = 12;
+    const totalSlides = 13;
     let prompterActive = false;
     let prompterFontSize = 24; // pixels
     let scrollInterval = null;
     let isScrolling = false;
     let scrollSpeed = 2; // 1 to 10 scale
 
-    // SCRIPTS FOR EACH SLIDE (Felix's 12 slides pitch)
+    // SCRIPTS FOR EACH SLIDE (Felix's 13 slides pitch)
     const slideScripts = [
       // Slide 1: Welcome
-      "Hola a todos. Si eres consultor, especialista, profesional o tecnólogo en Seguridad y Salud en el Trabajo, quiero hacerte una pregunta: ¿Cuánto tiempo de tu semana te la pasas llenando papeles y formatos en lugar de estar en el campo previniendo accidentes?",
+      "Hola a todos y bienvenidos a esta charla sobre la transformación tecnológica de la Seguridad y Salud en el Trabajo. Hoy les quiero presentar el portafolio del ecosistema de WAPPY IA, una plataforma diseñada por y para prevencionistas para optimizar nuestra labor diaria mediante Inteligencia Artificial especializada.",
       // Slide 2: El dolor
-      "La realidad es dura. Desde WAPPY LTDA, como agencia de seguros e intermediarios de riesgos laborales, hemos visto cómo los prevencionistas se ven envueltos en una gestión del tiempo agotadora. Diseñar una matriz de peligros de forma decente te puede tomar 8, 10 o incluso más horas de trabajo. Y a eso súmale: investigaciones de accidentes, análisis de puestos de trabajo, políticas... al final del día, lo administrativo nos ahoga y nos hace perder de vista lo más importante: la prevención y promoción en el campo, con la gente.",
+      "Empecemos por ver el gran dolor oculto en la SST. Los prevencionistas pasamos más del 80% de nuestro tiempo redactando y digitando papeles, políticas e informes en lugar de estar en el campo, previniendo accidentes reales y salvando vidas. Una sola matriz de peligros decente bajo la GTC-45 nos puede tomar más de 10 horas de trabajo repetitivo.",
       // Slide 3: IA Shift
-      "Por eso creamos WAPPY. Nació de la necesidad urgente de automatizar el tiempo, generar recursos eficientes y mejorar la calidad de nuestro servicio. Hoy, la Inteligencia Artificial está cambiando las reglas del juego. Seguro has escuchado que la IA va a desplazar empleos. Pero déjame decirte algo: la IA no te va a reemplazar; te va a reemplazar el profesional de SST que sí aprenda a usar la IA. Wappy está diseñado para que esa tecnología trabaje para ti, dándote superpoderes administrativos para que tú te enfoques en la estrategia y en la vida de los trabajadores.",
+      "Frente a esto, la Inteligencia Artificial está cambiando el panorama laboral en Colombia. Decimos que la IA no va a reemplazar al prevencionista; pero el prevencionista que aprenda a usar la IA sí reemplazará a aquel que siga haciendo todo de manera manual o en hojas de cálculo tradicionales. La productividad se triplica si dominamos esta tecnología.",
       // Slide 4: Presentación Felix
-      "Mucho gusto, soy Felix Bedoya. Soy psicólogo especialista en SST y desarrollador senior con más de 8 años de experiencia en el mercado, trabajando con las ARLs más grandes de Colombia. Hoy les voy a compartir mi plataforma de IA para SST y cómo logré mejorar mis ingresos, mi tiempo y la calidad de mi trabajo.",
-      // Slide 5: Éxito Felix
-      "Durante años viví en carne propia el cansancio de las entregas interminables. Pero cuando uní la IA con la SST, mi vida profesional dio un giro de 180 grados: multipliqué mis ingresos, optimicé mi tiempo y elevé la calidad de mi trabajo. Wappy es la herramienta que yo mismo diseñé para salvar mi tiempo, y hoy quiero compartirla contigo.",
-      // Slide 6: Demo 1 Chat
-      "Comencemos con el corazón de Wappy: el Chat con Agentes. Aquí cuentas con más de 15 agentes especialistas. Puedes chatear con un abogado laboral, un médico ocupacional o un higienista para resolver dudas normativas y técnicas al instante, redactando respuestas profesionales basadas en legislación vigente.",
-      // Slide 7: Demo 2 Canvas
-      "La Herramienta Canvas es tu espacio de trabajo visual. Te permite estructurar ideas, diseñar flujos de procesos y organizar la información de tus clientes en una pizarra interactiva súper intuitiva, facilitando la planificación y co-creación en tiempo real.",
-      // Slide 8: Demo 3 IPEVAR
-      "La joya de la corona: la Matriz IPEVAR interactiva. Olvídate de pasar 10 horas en Excel. Con Wappy puedes identificar peligros, evaluar riesgos y definir medidas de control bajo la GTC 45, de forma asistida y en solo minutos directamente a través del chat, con un LiveEditor listo para descargar en Word.",
-      // Slide 9: Demo 4 Reglamento
-      "Elaborar un Reglamento Interno de Trabajo suele ser un proceso tedioso y lleno de riesgos legales. Con Wappy, nuestro agente experto en Derecho Laboral redacta la estructura y el contenido completo del reglamento, adaptado a la normatividad colombiana y a las especificidades de la empresa en un par de clics.",
-      // Slide 10: Demo 5 Análisis
-      "Con la función de Análisis en Vivo, puedes cargar bases de datos de ausentismo, accidentes de trabajo o resultados de inspecciones, y nuestra IA procesará los datos al instante, generando diagnósticos predictivos y reportes visuales listos para presentar a la gerencia.",
-      // Slide 11: Demo 6 Aula
-      "Finalmente, contamos con el Aula de Estudio y nuestro Blog de SST. Un espacio de formación continua y noticias de actualidad regulatoria, donde puedes mantenerte al día con las últimas tendencias de la industria y aprender a dominar las herramientas de IA aplicadas a la prevención.",
-      // Slide 12: Call to Action
-      "Te invito a iniciar este viaje conmigo. No te quedes atrás en la era digital. Automatiza tu gestión, protege a tus trabajadores con herramientas modernas y lleva tu consultoría al siguiente nivel. Entra a Wappy, regístrate ya mismo y aprovecha nuestro cupón de regalo especial VITAL30 para obtener un descuento exclusivo en cualquiera de nuestros planes al adquirirlo. ¡Vamos allá!"
+      "Para quienes no me conocen, soy Felix Bedoya. Psicólogo especialista en SST y desarrollador senior con más de 8 años de experiencia. He diseñado integraciones y herramientas complejas para las ARLs más grandes de Colombia (Sura, Colpatria, Positiva). He unido estas dos pasiones para crear una solución real que alivie la carga administrativa de nuestra profesión.",
+      // Slide 5: Ecosistema WAPPY
+      "Este es el portafolio de WAPPY IA: un ecosistema completo que incluye el chat con más de 15 agentes especialistas, la Matriz IPEVAR GTC-45 interactiva, la Matriz PESV para seguridad vial, matrices de compatibilidad química SGA automáticas con validación física de mezclas, un editor legal para el Reglamento Interno y herramientas de análisis en vivo.",
+      // Slide 6: WAPPY vs Claude - Especialización
+      "Muchos nos preguntan: '¿Por qué usar Wappy si tengo Claude con Proyectos donde puedo cargar mis PDF?' Es una gran pregunta. En Claude, tú debes recolectar y subir los PDF de leyes en cada proyecto, y existe el riesgo de que la IA alucine mezclando leyes de Colombia con normas OSHA o españolas. Wappy viene pre-entrenado nativamente con toda la normatividad de Colombia, lista desde el primer segundo con agentes con roles ya calibrados.",
+      // Slide 7: WAPPY vs Claude - Herramientas Activas
+      "La segunda diferencia crucial es que en Claude, aunque sus Artifacts son excelentes para renderizar prototipos visuales o scripts, estos se quedan en archivos planos temporales. Wappy cuenta con módulos nativos donde la IA edita celdas directamente de forma persistente, calcula incompatibilidades químicas con lógica dura y genera archivos Word y Excel oficiales listos para descargar y presentar en auditorías.",
+      // Slide 8: WAPPY vs Claude - Persistencia Multi-Cliente
+      "La tercera diferencia es la gestión empresarial. El data analysis de Claude es asombroso para procesar datos en la sesión, pero los chats son aislados y temporales. En Wappy, tienes una consola SaaS multi-nit diseñada para consultores. Puedes administrar 20 empresas clientes por separado, guardar el historial de ausentismo anual de forma permanente y graficar indicadores para el COPASST.",
+      // Slide 9: Demo - Matriz IPEVAR
+      "Aquí vemos la demostración de la Matriz IPEVAR GTC-45. Puedes identificar peligros y evaluar riesgos de forma asistida. La IA calcula automáticamente la formulación matemática del nivel de probabilidad y de riesgo, inyectando los datos en una tabla interactiva lista para exportar a Excel con formato ARL.",
+      // Slide 10: Demo - Análisis de ausentismo
+      "Con la función de Análisis en Vivo, puedes subir bases de datos de ausentismo o incapacidades. Nuestra IA calcula instantáneamente el Índice de Frecuencia y Severidad según la resolución colombiana, identificando patrones predictivos de riesgo a través de dashboards interactivos con gráficos dinámicos.",
+      // Slide 11: Caso de éxito - Felix
+      "Esta automatización me cambió la vida profesional. Pasé de la frustración por entregas interminables a la rentabilidad. Wappy me permitió cuadruplicar mi volumen de clientes activos de asesorías manteniendo una calidad técnica y legal impecable frente a las ARLs y asegurando mi calidad de vida.",
+      // Slide 12: Planes y Licencias
+      "Ofrecemos suscripciones sumamente flexibles: el Plan Básico para prevencionistas que inician, el Plan Profesional Premium recomendado para consultores independientes con descargas ilimitadas, y el Plan Corporativo para agencias. Además, hoy pueden usar el cupón de regalo especial VITAL30 para obtener un 30% de descuento en planes anuales.",
+      "Los invito a unirse a la revolución de la SST. Dejemos atrás el Excel estático y el papeleo aburrido. Registrate gratis en Wappy hoy mismo y lleva tu gestión preventiva al siguiente nivel. ¡Muchas gracias!"
     ];
 
     // INITIALIZATION

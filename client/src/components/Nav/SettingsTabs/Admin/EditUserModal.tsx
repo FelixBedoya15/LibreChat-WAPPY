@@ -47,6 +47,10 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
     const [partnerSupportContact, setPartnerSupportContact] = useState('');
     const [pointsAdjustment, setPointsAdjustment] = useState<number>(0);
 
+    // Available ambassadors for assignment
+    const [ambassadors, setAmbassadors] = useState<any[]>([]);
+    const [selectedAmbassadorId, setSelectedAmbassadorId] = useState<string>('');
+
     useEffect(() => {
         if (user) {
             setFormData({
@@ -82,6 +86,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                             : '',
                     }));
                     setCreatedCompaniesCount(response.data.createdCompaniesCount || 0);
+                    setSelectedAmbassadorId(response.data.referredByPartner || '');
 
                     if (response.data.partner) {
                         setCommercialTier(response.data.partner.type || 'partner');
@@ -107,6 +112,20 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchAmbassadors = async () => {
+                try {
+                    const response = await axios.get('/api/admin/ambassadors');
+                    setAmbassadors(response.data);
+                } catch (err) {
+                    console.error('Error fetching ambassadors:', err);
+                }
+            };
+            fetchAmbassadors();
+        }
+    }, [isOpen]);
 
     // Auto-update status based on dates (only for USER_PRO / paid roles)
     useEffect(() => {
@@ -135,7 +154,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 partnerPaymentDetails: commercialTier !== 'none' ? partnerPaymentDetails : '',
                 partnerSupportContact: commercialTier === 'embajador' ? partnerSupportContact : '',
                 pointsAdjustment: pointsAdjustment,
-                companyLimit: formData.companyLimit === '' ? null : formData.companyLimit
+                companyLimit: formData.companyLimit === '' ? null : formData.companyLimit,
+                referredByPartner: selectedAmbassadorId
             };
             if (!payload.password) delete payload.password; // TypeScript safe with typing as 'any'
 
@@ -422,6 +442,28 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                                 />
                                                             </div>
                                                         </div>
+                                                    </div>
+
+                                                    {/* ASIGNACIÓN DE EMBAJADOR */}
+                                                    <div className="flex flex-col gap-2 bg-purple-500/[0.02] dark:bg-purple-500/[0.04] p-5 rounded-2xl border border-purple-500/25">
+                                                        <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                                                            💎 Embajador / Promotor Asignado
+                                                        </label>
+                                                        <p className="text-[10px] text-text-secondary mb-1">
+                                                            Selecciona el embajador o socio comercial que apoya a esta empresa.
+                                                        </p>
+                                                        <select
+                                                            value={selectedAmbassadorId}
+                                                            onChange={(e) => setSelectedAmbassadorId(e.target.value)}
+                                                            className="block w-full rounded-2xl border border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-800 px-4 py-2.5 text-xs text-text-primary focus:border-purple-500 outline-none cursor-pointer"
+                                                        >
+                                                            <option value="">Ningún Embajador (Sin Referido)</option>
+                                                            {ambassadors.map((amb) => (
+                                                                <option key={amb._id} value={amb._id}>
+                                                                    {amb.name} ({amb.email}) — [{amb.type === 'embajador' ? 'Embajador' : 'Partner'}]
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     </div>
 
                                                     {/* SELECTOR DE ROL COMERCIAL */}

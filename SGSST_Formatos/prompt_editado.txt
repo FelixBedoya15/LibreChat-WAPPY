@@ -1,0 +1,476 @@
+Actúa como un Programador Frontend Senior y Consultor experto en SG-SST en Colombia.
+Necesito que crees un nuevo aplicativo interactivo premium titulado "{{Nombre del Aplicativo}}".
+
+El archivo generado debe ser un único documento HTML autónomo (sin dependencias de backend, estilizado con Tailwind CSS por CDN y usando iconos de Lucide-Icons). Debe implementar exactamente el encabezado, el pie de página, el chat del copiloto de IA y la lógica de conexión a la API descritos en este blueprint.
+
+El agente debe diseñar libremente, de forma interactiva y profesional, el cuerpo principal del aplicativo (por ejemplo, formularios de recolección de datos, vista previa del reporte final editable y planes de acción) dentro del contenedor principal, alineado a la temática del aplicativo, sector industrial y normativa aplicable.
+
+### 🎨 PARÁMETROS ESPECÍFICOS A INTEGRAR:
+- **Nombre del Aplicativo:** {{Nombre del Aplicativo}}
+- **Paleta de Colores:** {{Paleta de Colores:Esmeralda a Cian (Default)|Azul Real a Indigo|Violeta a Fucsia|Ámbar a Naranja|Rojo a Coral|Pizarra a Carbón (Minimalista)}}
+- **Sector Industrial:** {{Sector Industrial:Construcción|Manufactura/Industrial|Servicios/Oficinas|Salud/Clínico|Transporte/Logística|Educación|Comercio/Retail|Otro}}
+- **Normativa Aplicable:** {{Normativa Aplicable:Resolución 0312 de 2019 y Decreto 1072 de 2015 (General)|Resolución 4272 de 2021 (Alturas)|GTC-45 (Peligros y Riesgos)|Resolución 1401 de 2007 (Accidentes)|Decreto 1072 de 2015 (RIT / Reglamento)|Otra normatividad colombiana}}
+- **Instrucciones Especiales / Requisitos Adicionales:** {{Requisitos adicionales}}
+
+### 🛠️ TAREAS DE PERSONALIZACIÓN DEL AGENTE:
+1. Diseñar e implementar el cuerpo y contenido del aplicativo interactivo (Pestañas/Wizard de carga de datos, evidencias multimedia, reportes y Kanban) dentro del contenedor de la página.
+2. Reemplazar en todo el código HTML y JavaScript la cadena "[Nombre del Aplicativo]" por el valor real del parámetro "[Nombre del Aplicativo]", y "[Normativa Aplicable]" por el valor real de "[Normativa Aplicable]".
+3. Mantener exactamente la maqueta, clases y diseño del banner y la cabecera (Header Panel) de la página.
+4. Asegurar que el pie de página (Footer) esté fijo al fondo y muestre de forma obligatoria la firma: "By WappyClub - WAPPY LTDA".
+5. Ocultar los campos de clave API y selector de modelos dentro de un panel colapsable (`<details>`) en el drawer lateral para proteger la privacidad de la API Key.
+6. Conservar exactamente la integración del Copiloto IA (Gemini API), la selección de modelos, el botón flotante y el drawer (panel lateral de chat) con su maquetación, utilizando la función `fetchWithRetry` para manejar de forma robusta las sobrecargas del servicio de Gemini (errores HTTP 503 y 429).
+7. Personalizar el esquema de salida JSON en `jsonSchema` dentro de `triggerIAGeneration()` y las instrucciones en `systemContext` para que correspondan exactamente con los IDs de los campos interactivos editables del reporte que diseñes.
+
+Aquí tienes la maqueta exacta y el código que debes utilizar:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Nombre del Aplicativo] - SG-SST</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        .gradient-banner {
+            background: linear-gradient(135deg, #059669 0%, #06b6d4 100%);
+        }
+        .glass-card {
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen pb-24 light">
+
+    <!-- Header Panel -->
+    <header class="max-w-[1400px] mx-auto px-4 md:px-6 pt-6">
+        <div class="gradient-banner rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                    <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)"></path>
+                </svg>
+            </div>
+
+            <div class="flex items-center gap-5 z-10 w-full md:w-auto">
+                <div onclick="document.getElementById('logo-upload-input').click()" class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 active:scale-95 transition-all shadow-inner relative overflow-hidden group" title="Haga clic para subir logotipo">
+                    <img id="logo-preview-img" src="" class="h-full w-full object-cover rounded-2xl absolute inset-0 z-10 hidden">
+                    <div id="logo-placeholder-icon" class="flex flex-col items-center justify-center text-white/70">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="image" aria-hidden="true" class="lucide lucide-image w-6 h-6 mb-0.5 group-hover:scale-110 transition-transform"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+                        <span class="text-[8px] font-black tracking-widest uppercase">LOGO</span>
+                    </div>
+                </div>
+                <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()">
+                
+                <div class="flex-1">
+                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">[Nombre del Aplicativo]</h1>
+                    <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
+                    <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40">Documento Corporativo Oficial - Conforme a la Normatividad Vigente</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto">
+                <span contenteditable="true" id="app-document-badge" onblur="saveDocHeader()" class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase focus:outline-none whitespace-nowrap">PROCESO: SG-SST | V.01</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+        <!-- [AI: Diseña e implementa aquí la estructura del asistente, formularios, matrices, Kanbans y reportes interactivos del aplicativo] -->
+    </main>
+
+    <!-- Conversational AI Copiloto Chat Sidebar -->
+    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] bg-white/95 dark:bg-slate-900/95 border-l border-slate-200 dark:border-slate-800 z-50 p-6 transform transition-transform duration-300 flex flex-col gap-4 shadow-2xl backdrop-blur-md translate-x-full">
+        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h3 class="text-sm font-black text-blue-600 dark:text-blue-455 uppercase tracking-widest flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-4 h-4"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg> Wappy IA Copiloto
+            </h3>
+            <button onclick="toggleAISidebar()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 font-bold">✕</button>
+        </div>
+
+        <!-- Chat messages -->
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto flex flex-col gap-3 p-1 min-h-0">
+            <div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355">
+                ¡Hola! Soy tu Copiloto IA experto en SST. Escribe una duda o pídeme sugerencias específicas para este formato. ¡Podrás aplicarlas con un solo clic!
+            </div>
+        </div>
+
+        <!-- Collapsible Configuration Settings Panel (Protects API key visibility) -->
+        <details class="border-t dark:border-slate-800 pt-3 text-xs no-print">
+            <summary class="cursor-pointer font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 mb-2 flex items-center gap-1">
+                Configuración del Copiloto
+            </summary>
+            <div class="flex flex-col gap-2.5 mt-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850">
+                <div class="flex flex-col gap-1">
+                    <label for="gemini-key" class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Clave API de Gemini:</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="gemini-key" class="flex-1 rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 shadow-sm" placeholder="AIzaSy...">
+                        <button onclick="saveAPIKey()" class="py-1 px-3 bg-slate-900 hover:bg-slate-850 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded text-xs font-bold transition active:scale-95 cursor-pointer">Guardar</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="gemini-model" class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Modelo IA:</label>
+                    <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
+                        <option value="gemini-3.1-flash-lite" selected>Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                        <option value="gemini-3.5-flash">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    </select>
+                </div>
+            </div>
+        </details>
+
+        <!-- Chat Input -->
+        <div class="flex flex-col gap-2 border-t dark:border-slate-800 pt-3 no-print">
+            <textarea id="ai-chat-input" class="w-full rounded-xl bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-900 dark:text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
+            <button onclick="sendChatMessage()" class="w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="send" aria-hidden="true" class="lucide lucide-send w-3.5 h-3.5"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg> Enviar Mensaje
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating AI Chat Button -->
+    <div class="no-print">
+        <button onclick="toggleAISidebar()" class="fixed bottom-20 right-6 z-40 p-4 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-2xl hover:scale-110 transition active:scale-95 animate-bounce flex items-center justify-center" title="Copiloto de IA">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-6 h-6"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg>
+        </button>
+    </div>
+
+    <!-- Fixed Bottom Footer -->
+    <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-855 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-500 dark:text-slate-400 no-print">
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-355 transition active:scale-95 border border-slate-200 dark:border-slate-700" title="Alternar Modo Claro/Oscuro">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="moon" aria-hidden="true" id="theme-float-icon" class="lucide lucide-moon w-4 h-4 dark:text-amber-400 text-slate-650"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>
+                <span id="theme-text">Modo Oscuro</span>
+            </button>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-[10px] uppercase tracking-wider text-slate-400">By WappyClub - WAPPY LTDA</span>
+            <span id="footer-current-date" class="text-[10px] font-bold text-slate-455"></span>
+        </div>
+    </footer>
+
+    <script>
+        // Variables globales del sistema
+        let appDocHeader = {
+            companyName: "WAPPY SA",
+            companyNit: "NIT: 901437310",
+            companyArl: "Colmena",
+            companyWorkers: "30",
+            companyRisk: "Clase III",
+            changeCode: "GC-SST-AT-01",
+            lastUpdated: new Date().toISOString().split('T')[0],
+            appTitle: "[Nombre del Aplicativo]",
+            appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
+            appDesc: "Documento Corporativo Oficial - Conforme a la Normatividad Vigente",
+            appBadge: "PROCESO: SG-SST | V.01",
+            customFields: {},
+            logoBase64: ""
+        };
+
+        let currentTheme = 'light';
+        let isLoadingState = false;
+        const storageKey = 'wappy_sst___nombre_del_aplicativo__';
+
+        // Helpers de Almacenamiento Seguro
+        function safeGetLocalStorage(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeSetLocalStorage(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) {}
+        }
+        function safeRemoveLocalStorage(key) {
+            try { localStorage.removeItem(key); } catch (e) {}
+        }
+
+        // Helper para reintentos con API de Gemini (maneja error 503/429)
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 503 || response.status === 429) {
+                    if (retries > 0) {
+                        console.warn(`Gemini API respondió con ${response.status}. Reintentando en ${delay}ms... (${retries} intentos restantes)`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return fetchWithRetry(url, options, retries - 1, delay * 2);
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    console.warn(`Error de red: ${error.message}. Reintentando en ${delay}ms... (${retries} intentos restantes)`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
+
+        // Toggle Sidebar
+        function toggleAISidebar() {
+            const drawer = document.getElementById('ai-drawer');
+            if (drawer) drawer.classList.toggle('translate-x-full');
+        }
+
+        // Save API Keys
+        function saveAPIKey() {
+            const key = document.getElementById('gemini-key').value.trim();
+            safeSetLocalStorage('wappy_gemini_key', key);
+            alert("API Key de Gemini guardada localmente.");
+        }
+        
+        function saveSelectedModel() {
+            const model = document.getElementById('gemini-model').value;
+            safeSetLocalStorage('wappy_gemini_model', model);
+        }
+
+        // Send chat messages to Gemini API
+        async function sendChatMessage() {
+            const inputEl = document.getElementById('ai-chat-input');
+            const messageText = inputEl.value.trim();
+            if (!messageText) return;
+
+            addChatMessage('user', messageText);
+            inputEl.value = '';
+
+            const apiKey = safeGetLocalStorage('wappy_gemini_key');
+            if (!apiKey) {
+                addChatMessage('assistant', "⚠️ Por favor, ingrese y guarde su API Key de Gemini en la configuración lateral para poder ayudarle.");
+                return;
+            }
+
+            const model = document.getElementById('gemini-model').value;
+            addChatMessage('assistant', "🤖 Pensando...");
+
+            // Construir contexto en vivo recopilando los campos del formulario dinámico
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                if (input.id && !excluded.includes(input.id) && !input.id.startsWith('signer-')) {
+                    const labelEl = document.querySelector(`label[for="${input.id}"]`) || input.previousElementSibling;
+                    const labelText = labelEl ? labelEl.textContent.trim() : input.id;
+                    currentValues[labelText] = input.value;
+                }
+            });
+
+            const headerInfo = {
+                "Empresa": appDocHeader.companyName,
+                "NIT": appDocHeader.companyNit,
+                "ARL": appDocHeader.companyArl,
+                "Código de Registro": appDocHeader.changeCode,
+                "Última Actualización": appDocHeader.lastUpdated,
+                "Título del Aplicativo": appDocHeader.appTitle
+            };
+
+            let documentContext = `DATOS ACTUALES DEL FORMULARIO Y CONTEXTO:\n`;
+            documentContext += `Información de cabecera:\n${JSON.stringify(headerInfo, null, 2)}\n\n`;
+            documentContext += `Campos del Formulario:\n`;
+            for (const [key, val] of Object.entries(currentValues)) {
+                if (val && val.trim() !== '') {
+                    documentContext += `- ${key}: ${val}\n`;
+                }
+            }
+
+            const systemContext = `Actúas como un experto consultor de Seguridad y Salud en el Trabajo (SST) de Colombia.
+Tu especialidad específica para esta sesión es el aplicativo: ${appDocHeader.appTitle}.
+Debes asegurar cumplimiento legal bajo la normatividad colombiana del SG-SST ([Normativa Aplicable]).
+Responde siempre de forma profesional, técnica y detallada con terminología de SST.
+Tu rol es puramente conversacional y de asesoría: responde dudas, explica metodologías, brinda recomendaciones y ayuda al usuario.
+No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, claro y constructivo.
+
+${documentContext}`;
+
+            try {
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            { role: 'user', parts: [{ text: `${systemContext}\n\nMensaje del usuario: ${messageText}` }] }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `Error HTTP ${response.status}`;
+                    throw new Error(errMsg);
+                }
+
+                const data = await response.json();
+                const aiResponseText = data.candidates[0].content.parts[0].text;
+
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                messagesContainer.removeChild(messagesContainer.lastChild); // Remover cargando
+
+                addChatMessage('assistant', aiResponseText);
+            } catch (err) {
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                if (messagesContainer.lastChild && messagesContainer.lastChild.innerText.includes("Pensando")) {
+                    messagesContainer.removeChild(messagesContainer.lastChild);
+                }
+                addChatMessage('assistant', "⚠️ Error de la API de Gemini: " + err.message);
+            }
+        }
+
+        // Trigger AI Generation (Autofill specific fields)
+        async function triggerIAGeneration() {
+            const apiKey = safeGetLocalStorage('wappy_gemini_key') || '';
+            if (!apiKey) {
+                alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
+                toggleAISidebar();
+                return;
+            }
+
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                if (!excluded.includes(input.id)) {
+                    currentValues[input.id] = input.value;
+                }
+            });
+
+            const model = document.getElementById('gemini-model').value;
+            const loader = document.getElementById('ai-status-loader');
+            if (loader) loader.classList.remove('hidden');
+
+            // [AI: Definir el esquema JSON específico con los IDs de los campos del reporte en Pestaña 3]
+            const jsonSchema = {
+                "custom-form-descripcion": "Descripción o diagnóstico detallado del hallazgo...",
+                "custom-form-observaciones": "Acciones correctivas o preventivas a implementar..."
+                // [AI: Define las llaves JSON asociadas a los IDs editables de la pestaña 3]
+            };
+
+            const systemInstruction = `Actúas como un experto consultor de SST de Colombia. Analizarás los datos actuales ingresados en el formato y completarás los campos técnicos sugeridos que correspondan al aplicativo actual con información profesional de alto nivel y con base en el marco regulatorio colombiano de SST.
+Devolverás OBLIGATORIAMENTE un JSON estructurado con los campos que deben llenarse o enriquecerse y un listado de tareas preventivas en "newTasks".
+NO utilices bloques de código de markdown. Devuelve solo el JSON plano.
+
+IMPORTANTE: Analizarás los datos ingresados en el aplicativo, pero bajo NINGUNA circunstancia debes sobrescribir o modificar los campos que el usuario ya haya diligenciado de forma manual con información de campo real. Solo debes proponer autocompletar aquellos campos que estén vacíos o que necesiten diagnóstico técnico complementario.
+
+Estructura de salida obligatoria:
+${JSON.stringify(jsonSchema, null, 2)}`;
+
+            const userPrompt = `Información actual ingresada en el formato:
+${JSON.stringify(currentValues, null, 2)}
+
+Por favor, completa el reporte en formato JSON.`;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        generationConfig: { responseMimeType: "application/json" },
+                        contents: [{ role: "user", parts: [{ text: userPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Error API: ${response.status}`);
+                }
+
+                const resData = await response.json();
+                const textContent = resData.candidates[0].content.parts[0].text;
+                const aiResult = JSON.parse(textContent);
+
+                // Sincronizar el objeto JSON devuelto con el DOM de la Pestaña 3
+                for (const [key, val] of Object.entries(aiResult)) {
+                    if (key !== 'newTasks' && val) {
+                        const el = document.getElementById(key);
+                        if (el) {
+                            if (!el.value || el.value.trim() === '') {
+                                el.value = val;
+                                el.dispatchEvent(new Event('input'));
+                            }
+                        }
+                    }
+                }
+                alert("¡Reporte completado por la IA con éxito!");
+            } catch (err) {
+                console.error(err);
+                alert("Error al generar análisis con IA: " + err.message);
+            } finally {
+                if (loader) loader.classList.add('hidden');
+            }
+        }
+
+        function addChatMessage(role, text) {
+            const container = document.getElementById('ai-chat-messages');
+            if (!container) return;
+            const msgDiv = document.createElement('div');
+            if (role === 'user') {
+                msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20';
+                msgDiv.innerText = text;
+            } else {
+                msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-355';
+                msgDiv.innerHTML = `<div>${markdownToHTML(text)}</div>`;
+            }
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function markdownToHTML(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const body = document.body;
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.remove('dark');
+                body.classList.remove('dark');
+                body.classList.add('light');
+                currentTheme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                body.classList.remove('light');
+                body.classList.add('dark');
+                currentTheme = 'dark';
+            }
+        }
+
+        window.onload = function() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+            const key = safeGetLocalStorage('wappy_gemini_key') || '';
+            const keyEl = document.getElementById('gemini-key');
+            if (keyEl) keyEl.value = key;
+
+            const modelEl = document.getElementById('gemini-model');
+            let model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.1-flash-lite';
+            if (modelEl) {
+                const options = Array.from(modelEl.options).map(opt => opt.value);
+                if (!options.includes(model)) {
+                    model = 'gemini-3.1-flash-lite';
+                }
+                modelEl.value = model;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const footerDateEl = document.getElementById('footer-current-date');
+            if (footerDateEl) footerDateEl.innerText = today;
+        }
+    </script>
+</body>
+</html>
+```

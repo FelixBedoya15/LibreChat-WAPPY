@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección de Equipos Contra Incendio y de Emergencia - SG-SST</title>
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.top = '0';
+            errDiv.style.left = '0';
+            errDiv.style.width = '100%';
+            errDiv.style.backgroundColor = '#f87171';
+            errDiv.style.color = '#7f1d1d';
+            errDiv.style.padding = '16px';
+            errDiv.style.zIndex = '99999';
+            errDiv.style.fontWeight = 'bold';
+            errDiv.style.borderBottom = '4px solid #b91c1c';
+            errDiv.innerHTML = '⚠️ ERROR DE JAVASCRIPT DETECTADO:<br><span style="font-family: monospace; font-size: 11px;">' + e.message + ' en ' + e.filename + ':' + e.lineno + '</span>';
+            document.body.appendChild(errDiv);
+        });
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        .gradient-banner {
+            background: linear-gradient(135deg, #059669 0%, #06b6d4 100%);
+        }
+        .glass-card {
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
+        
+        .tab-active {
+            border-bottom: 3px solid #10b981;
+            color: #10b981 !important;
+            font-weight: 850 !important;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .tab-content { display: block !important; }
+            .print-layout { border: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen pb-24 light">
+
+    <!-- Header Panel -->
+    <header class="max-w-[1400px] mx-auto px-4 md:px-6 pt-6">
+        <div class="gradient-banner rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                    <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)"></path>
+                </svg>
+            </div>
+
+            <div class="flex items-center gap-5 z-10 w-full md:w-auto">
+                <div onclick="document.getElementById('logo-upload-input').click()" class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 active:scale-95 transition-all shadow-inner relative overflow-hidden group" title="Haga clic para subir logotipo">
+                    <img id="logo-preview-img" src="" class="h-full w-full object-cover rounded-2xl absolute inset-0 z-10 hidden">
+                    <div id="logo-placeholder-icon" class="flex flex-col items-center justify-center text-white/70">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="image" aria-hidden="true" class="lucide lucide-image w-6 h-6 mb-0.5 group-hover:scale-110 transition-transform"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+                        <span class="text-[8px] font-black tracking-widest uppercase">LOGO</span>
+                    </div>
+                </div>
+                <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()">
+                
+                <div class="flex-1">
+                    <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-xl md:text-2xl lg:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">Inspección de Equipos Contra Incendio y de Emergencia</h1>
+                    <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-blue-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
+                    <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-blue-100 mt-0.5 opacity-80 focus:outline-none border-b border-transparent focus:border-white/40">Documento de Control SG-SST - Conforme a la Normatividad Vigente Colombiana</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto">
+                <span contenteditable="true" id="app-document-badge" onblur="saveDocHeader()" class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase focus:outline-none whitespace-nowrap">PROCESO: SG-SST | V.01</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+
+        <!-- Doc Header Meta -->
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-emerald-500">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div class="flex-grow">
+                    <div class="flex items-center gap-2">
+                        <span contenteditable="true" id="company-name" onblur="saveDocHeader()" class="text-xl font-bold focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500 text-slate-900 dark:text-white">WAPPY SA</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 rounded border border-emerald-255 dark:border-emerald-800/40">NIT</span>
+                        <span contenteditable="true" id="company-nit" onblur="saveDocHeader()" class="text-xs font-semibold text-slate-500 dark:text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500">NIT: 901437310-8</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">Colmena Seguros</span></span>
+                        <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">30</span></span>
+                        <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">Clase III</span></span>
+                    </p>
+                </div>
+            </div>
+            <div class="text-left md:text-right w-full md:w-auto pt-4 md:pt-0 border-t border-slate-200 dark:border-0 md:border-t-0">
+                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
+                <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-lg font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">GC-SST-INC-01</span>
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-700 dark:text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">2026-05-29</span></span>
+            </div>
+        </div>
+
+        <!-- CUSTOM WIZARD TAB LAYOUT -->
+        <div class="glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-none flex flex-col gap-6 print-layout">
+            
+            <!-- TAB BUTTONS -->
+            <div class="flex border-b dark:border-slate-800 light:border-slate-200 overflow-x-auto no-print mb-4">
+                <button onclick="switchTab('tab-identification')" id="btn-tab-identification" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer tab-active">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="file-text" aria-hidden="true" class="lucide lucide-file-text w-3.5 h-3.5"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+                    1. Identificación y Aportante
+                </button>
+                <button onclick="switchTab('tab-description')" id="btn-tab-description" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="align-left" aria-hidden="true" class="lucide lucide-align-left w-3.5 h-3.5"><path d="M21 5H3"></path><path d="M15 12H3"></path><path d="M17 19H3"></path></svg>
+                    2. Detalles e Inspección
+                </button>
+                <button onclick="switchTab('tab-analysis')" id="btn-tab-analysis" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="activity" aria-hidden="true" class="lucide lucide-activity w-3.5 h-3.5"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
+                    3. Vista Previa / Reporte
+                </button>
+                <button onclick="switchTab('tab-plan')" id="btn-tab-plan" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="kanban" aria-hidden="true" class="lucide lucide-kanban w-3.5 h-3.5"><path d="M5 3v14"></path><path d="M12 3v8"></path><path d="M19 3v18"></path></svg>
+                    4. Plan de Acción (Kanban)
+                </button>
+                <button onclick="switchTab('tab-evidences')" id="btn-tab-evidences" class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="users" aria-hidden="true" class="lucide lucide-users w-3.5 h-3.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    5. Firmas y Cierre
+                </button>
+            </div>
+
+            <!-- TAB 1: IDENTIFICACIÓN Y DATOS GENERALES -->
+            <div id="tab-identification" class="tab-content flex flex-col gap-5">
+                <div class="flex flex-col gap-4">
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="building-2" aria-hidden="true" class="lucide lucide-building-2 w-4 h-4"><path d="M10 12h4"></path><path d="M10 8h4"></path><path d="M14 21v-3a2 2 0 0 0-4 0v3"></path><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"></path><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path></svg> 1.1 Datos de la Empresa (Razón Social y NIT)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RAZÓN SOCIAL</label>
+                            <input type="text" id="aportante-razon" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="WAPPY SA">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NIT</label>
+                            <input type="text" id="aportante-nit" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="901437310-8">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ARL</label>
+                            <input type="text" id="aportante-arl" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Colmena Seguros">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-4 border-b dark:border-slate-800 pb-2">
+                        <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user" aria-hidden="true" class="lucide lucide-user w-4 h-4"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 1.2 Datos del Inspector / Trabajador
+                        </h3>
+                    </div>
+                    
+                    <div id="reportante-fields-grid" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE COMPLETO</label>
+                            <input type="text" id="trabajador-nombre" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Juan Pérez" value="Juan Carlos Gómez Bedoya">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÉDULA / IDENTIFICACIÓN</label>
+                            <input type="text" id="trabajador-cedula" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: 10234567" value="1.018.452.963">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">VINCULACIÓN</label>
+                            <select id="trabajador-vinculacion" onchange="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm cursor-pointer font-semibold shadow-sm">
+                                <option value="Planta" selected>Planta / Directo</option>
+                                <option value="Contratista">Contratista</option>
+                                <option value="Temporal">Temporal</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="reportante-fields-grid-2" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">CARGO / OFICIO</label>
+                            <input type="text" id="trabajador-cargo" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Coordinador SST" value="Coordinador SG-SST">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">ÁREA DE TRABAJO</label>
+                            <input type="text" id="trabajador-area" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="Planta de Producción">
+                        </div>
+                    </div>
+
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar" aria-hidden="true" class="lucide lucide-calendar w-4 h-4"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg> 1.3 Datos de la Inspección (Fecha y Ubicación)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA</label>
+                            <input type="date" id="evento-fecha" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-05-29">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HORA / MOMENTO</label>
+                            <input type="time" id="evento-hora" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="09:30">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">UBICACIÓN / LUGAR</label>
+                            <input type="text" id="evento-lugar" oninput="saveLocalData()" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" placeholder="Ej: Oficina Principal" value="Bodega Almacenamiento Principal">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Navigation buttons -->
+                <div class="flex justify-end items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-description')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Detalles)</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: DETALLES ESPECÍFICOS DEL FORMATO -->
+            <div id="tab-description" class="tab-content flex flex-col gap-5 hidden">
+                <div class="flex flex-col gap-4">
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="list-todo" class="w-4 h-4"></i> 2.1 Formulario de Inspección de Equipos Contra Incendio y Emergencia
+                    </h3>
+                    
+                    <!-- Formulario Específico de Recolección de Datos -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Extintor Tipo -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">TIPO DE EXTINTOR EVALUADO</label>
+                            <select id="extintor-tipo" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="ABC Multipropósito">ABC Multipropósito (Polvo Químico Seco)</option>
+                                <option value="CO2 (Bióxido de Carbono)">CO2 (Bióxido de Carbono)</option>
+                                <option value="Agua Presurizada">Agua Presurizada (Clase A)</option>
+                                <option value="Solkaflam 123">Solkaflam 123 (Agente Limpio)</option>
+                                <option value="Clase K (Grasas de Cocina)">Clase K (Cocinas Comerciales)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Extintor Capacidad -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">CAPACIDAD DEL EXTINTOR</label>
+                            <select id="extintor-capacidad" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="10 lbs">10 Libras (Estándar)</option>
+                                <option value="20 lbs">20 Libras</option>
+                                <option value="5 lbs">5 Libras</option>
+                                <option value="150 lbs (Satelital)">150 Libras (Satelital / Carretilla)</option>
+                            </select>
+                        </div>
+
+                        <!-- Presión -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">PRESIÓN (MANÓMETRO EN VERDE)</label>
+                            <select id="extintor-presion" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Sí / Normal">Sí (Normal / En rango verde)</option>
+                                <option value="No / Baja presión">No (Baja presión / Requiere recarga)</option>
+                                <option value="No / Sobrecargado">No (Sobrecargado)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Manguera -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">ESTADO MANGUERA Y CORNETA</label>
+                            <select id="extintor-manguera" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Adecuado (Sin fisuras ni daños)">Adecuado (Sin fisuras, limpia y acoplada)</option>
+                                <option value="Inadecuado (Con fisuras, rota o taponada)">Inadecuado (Con fisuras, rota o taponada)</option>
+                            </select>
+                        </div>
+
+                        <!-- Pasador -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">PASADOR Y SELLO DE SEGURIDAD</label>
+                            <select id="extintor-pasador" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Instalado (Sello intacto)">Instalado (Sello plástico de seguridad intacto)</option>
+                                <option value="Faltante (Violado / Roto)">Faltante o Violado (Sello roto / Sin pasador)</option>
+                            </select>
+                        </div>
+
+                        <!-- Vencimiento -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">FECHA DE VENCIMIENTO DE RECARGA</label>
+                            <input type="date" id="extintor-vencimiento" oninput="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm" value="2026-12-31">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-4 border-b dark:border-slate-800 pb-2">
+                        <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="shield-alert" class="w-4 h-4"></i> 2.2 Inspección de Botiquines, Camillas y Señalizaciones
+                        </h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <!-- Botiquín -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">BOTIQUÍN COMPLETO (Resol. 0705)</label>
+                            <select id="botiquin-completo" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Completo (Con insumos vigentes)">Completo (Con todos los insumos vigentes)</option>
+                                <option value="Incompleto (Faltan insumos o vencidos)">Incompleto (Faltan elementos clave o vencidos)</option>
+                                <option value="No Aplica">No Aplica en esta área</option>
+                            </select>
+                        </div>
+
+                        <!-- Camilla -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">CAMILLA DE EMERGENCIA CON ARNÉS</label>
+                            <select id="camilla-estado" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Adecuado (Camilla libre y arnés completo)">Adecuado (Camilla libre de obstáculos y arnés completo)</option>
+                                <option value="Inadecuado (Sin arnés o con fisuras)">Inadecuado (Sin correas de sujeción / fisuras)</option>
+                                <option value="No Aplica">No Aplica en esta área</option>
+                            </select>
+                        </div>
+
+                        <!-- Alarmas -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">ALARMA DE EMERGENCIAS OPERATIVA</label>
+                            <select id="alarma-operativa" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Sí / Operativa">Sí (Pulsador y sirena funcionan)</option>
+                                <option value="No operativa / Requiere revisión">No (Falla de corriente / Daño físico)</option>
+                                <option value="No Aplica">No Aplica en esta área</option>
+                            </select>
+                        </div>
+
+                        <!-- Señalización -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">SEÑALIZACIÓN DE EQUIPOS Y RUTAS</label>
+                            <select id="senalizacion-adecuada" onchange="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm cursor-pointer">
+                                <option value="Adecuada y visible">Adecuada (Letreros fotoluminiscentes y visibles)</option>
+                                <option value="Inadecuada / Obstruida / Deteriorada">Inadecuada (Obstruida, desgastada o ausente)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                        <!-- Descripción General -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">HALLAZGOS DE INSPECCIÓN (TERRENO)</label>
+                            <textarea id="custom-form-descripcion" oninput="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm resize-none" rows="4" placeholder="Describa si se evidenció algún elemento obstruido, vencido, deteriorado o ausente..."></textarea>
+                        </div>
+                        
+                        <!-- Observaciones / Comentarios -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-555 dark:text-slate-400 mb-1">ACCIONES CORRECTIVAS INMEDIATAS RECOMENDADAS</label>
+                            <textarea id="custom-form-observaciones" oninput="saveLocalData(); updateReportPreview();" class="w-full rounded-2xl bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-0 p-4 text-sm font-semibold shadow-sm resize-none" rows="4" placeholder="Indique medidas prioritarias como limpieza, recolocación de equipos, compra de señalización, recarga, etc..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REGISTRO DE EVIDENCIA MULTIMEDIA DIRECTA -->
+                <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                        <i data-lucide="camera" class="w-4 h-4 text-emerald-500"></i> Evidencias Multimedia en Terreno
+                    </span>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Photos -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 shadow-inner">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"></i> Fotos de Soporte (Máx 3)
+                            </span>
+                            <input type="file" id="evidence-images-input" accept="image/*" class="hidden" multiple onchange="handleImageUpload(event)">
+                            <button type="button" onclick="document.getElementById('evidence-images-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir Fotos
+                            </button>
+                            <div id="photos-grid" class="grid grid-cols-3 gap-2 min-h-[60px] items-center"></div>
+                        </div>
+                        
+                        <!-- Audio -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 shadow-inner">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-500"></i> Nota de Audio
+                            </span>
+                            <input type="file" id="evidence-audio-input" accept="audio/*" class="hidden" onchange="handleAudioUpload(event)">
+                            <button type="button" onclick="document.getElementById('evidence-audio-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir Audio
+                            </button>
+                            <div id="audio-container" class="flex flex-col gap-1 mt-1">
+                                <audio id="audio-playback" controls class="w-full hidden text-xs" src=""></audio>
+                                <button type="button" id="btn-delete-audio" onclick="deleteAudio()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end">Eliminar Audio</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Video -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/50 flex flex-col gap-3 relative shadow-inner">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <i data-lucide="video" class="w-3.5 h-3.5 text-emerald-500"></i> Video de Evidencia
+                            </span>
+                            <input type="file" id="evidence-video-input" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
+                            <button type="button" onclick="document.getElementById('evidence-video-input').click()" class="py-2 px-3 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir Video
+                            </button>
+                            <div id="video-container" class="flex flex-col gap-1 mt-1">
+                                <video id="video-playback" controls class="w-full hidden rounded-lg max-h-[140px]" src=""></video>
+                                <button type="button" id="btn-delete-video" onclick="deleteVideo()" class="hidden text-[10px] text-red-500 hover:underline font-bold self-end">Eliminar Video</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SPECIAL IA GENERATOR TRIGGER BUTTON (TAB 2 END) -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-6 flex flex-col items-center justify-center gap-3 no-print">
+                    <div class="text-center max-w-[480px]">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold">¿Deseas que el Copiloto IA de Wappy analice estos datos de campo para autocompletar técnicamente el aplicativo?</p>
+                    </div>
+                    <button onclick="triggerIAGeneration()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs transition shadow-lg flex items-center gap-2 cursor-pointer active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-4 h-4"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg> GENERAR ANÁLISIS Y PLAN CON IA
+                    </button>
+                    <div id="ai-status-loader" class="text-xs text-emerald-500 dark:text-emerald-400 font-bold animate-pulse hidden">
+                        Consultando API de Gemini... analizando el contexto y completando campos técnicos...
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-identification')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-analysis')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Vista Previa)</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: VISTA PREVIA O EVALUACIÓN -->
+            <div id="tab-analysis" class="tab-content flex flex-col gap-6 hidden">
+                <div class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    <h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+                        <i data-lucide="activity" class="w-4 h-4"></i> CONSOLIDADO Y COMPILACIÓN DEL REPORTE
+                    </h4>
+                    <p>Visualice a continuación el reporte dinámico generado para su revisión final antes de firmar y exportar. Puede hacer modificaciones directamente en las áreas de texto editable, las cuales se sincronizarán de vuelta al formulario.</p>
+                </div>
+
+                <div class="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20">
+                    <div id="analysis-report-viewer" class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-slate-300">
+                        <h2 class="text-center font-bold text-lg mb-4 uppercase text-slate-900 dark:text-white">REPORTE CONSOLIDADO: INSPECCIÓN DE EQUIPOS DE EMERGENCIA</h2>
+                        <p class="text-center text-xs text-slate-400 mb-6">Documento de Control SG-SST - Generado localmente</p>
+                        
+                        <div class="grid grid-cols-1 gap-6">
+                            <!-- Datos del Extintor Consolidados -->
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col gap-3">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b dark:border-slate-800 pb-1 flex items-center gap-1">
+                                    <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-emerald-500"></i> Información Técnica del Extintor
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Tipo de Extintor</span>
+                                        <div id="preview-extintor-tipo" contenteditable="true" onblur="syncBackToForm('extintor-tipo', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">ABC Multipropósito</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Capacidad</span>
+                                        <div id="preview-extintor-capacidad" contenteditable="true" onblur="syncBackToForm('extintor-capacidad', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">10 lbs</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Presión (Manómetro)</span>
+                                        <div id="preview-extintor-presion" contenteditable="true" onblur="syncBackToForm('extintor-presion', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Sí / Normal</div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mt-1">
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Estado Manguera</span>
+                                        <div id="preview-extintor-manguera" contenteditable="true" onblur="syncBackToForm('extintor-manguera', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Adecuado</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Pasador y Sello</span>
+                                        <div id="preview-extintor-pasador" contenteditable="true" onblur="syncBackToForm('extintor-pasador', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Instalado</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Vencimiento Recarga</span>
+                                        <div id="preview-extintor-vencimiento" contenteditable="true" onblur="syncBackToForm('extintor-vencimiento', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">2026-12-31</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botiquín, Camilla y Señalización -->
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col gap-3">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b dark:border-slate-800 pb-1 flex items-center gap-1">
+                                    <i data-lucide="package" class="w-3.5 h-3.5 text-emerald-500"></i> Estado de Insumos y Dispositivos de Emergencia
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Botiquín (Resol. 0705)</span>
+                                        <div id="preview-botiquin-completo" contenteditable="true" onblur="syncBackToForm('botiquin-completo', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Completo</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Camilla de Emergencia</span>
+                                        <div id="preview-camilla-estado" contenteditable="true" onblur="syncBackToForm('camilla-estado', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Adecuado</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Alarma de Emergencias</span>
+                                        <div id="preview-alarma-operativa" contenteditable="true" onblur="syncBackToForm('alarma-operativa', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Sí / Operativa</div>
+                                    </div>
+                                    <div>
+                                        <span class="block text-slate-400 font-bold uppercase text-[9px]">Señalización General</span>
+                                        <div id="preview-senalizacion-adecuada" contenteditable="true" onblur="syncBackToForm('senalizacion-adecuada', this)" class="font-semibold text-slate-900 dark:text-white p-2 rounded bg-slate-50/80 dark:bg-slate-950/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:ring-1 focus:ring-blue-500 outline-none">Adecuada y visible</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hallazgos en Terreno -->
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5 text-emerald-500"></i> Hallazgos Detectados en Terreno
+                                </h4>
+                                <div id="preview-form-descripcion" contenteditable="true" onblur="syncBackToForm('custom-form-descripcion', this)" class="text-sm font-semibold text-slate-900 dark:text-white min-h-[80px] outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Complete los campos en la pestaña anterior o haga click aquí para editar...]"></div>
+                            </div>
+                            
+                            <!-- Acciones Correctivas -->
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
+                                    <i data-lucide="wrench" class="w-3.5 h-3.5 text-emerald-500"></i> Acciones Correctivas Inmediatas Recomendadas
+                                </h4>
+                                <div id="preview-form-observaciones" contenteditable="true" onblur="syncBackToForm('custom-form-observaciones', this)" class="text-sm font-semibold text-slate-900 dark:text-white min-h-[80px] outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Complete los campos en la pestaña anterior o haga click aquí para editar...]"></div>
+                            </div>
+
+                            <!-- Campos Técnicos Adicionales Autocompletables por IA -->
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
+                                    <i data-lucide="cpu" class="w-3.5 h-3.5 text-emerald-500"></i> Diagnóstico Técnico de Cumplimiento (AI)
+                                </h4>
+                                <div id="preview-diagnostico-tecnico" contenteditable="true" onblur="syncBackToForm('preview-diagnostico-tecnico', this)" class="text-sm font-medium text-slate-800 dark:text-slate-300 min-h-[100px] outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Haga clic en 'Generar análisis con IA' o escriba el diagnóstico normativo...]"></div>
+                            </div>
+
+                            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
+                                    <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-emerald-500"></i> Recomendaciones del Plan de Prevención (AI)
+                                </h4>
+                                <div id="preview-recomendaciones-sst" contenteditable="true" onblur="syncBackToForm('preview-recomendaciones-sst', this)" class="text-sm font-medium text-slate-800 dark:text-slate-300 min-h-[100px] outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-xl p-3 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition bg-slate-50/50 dark:bg-slate-950/20" placeholder="[Haga clic en 'Generar análisis con IA' o escriba las recomendaciones preventivas...]"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-description')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-plan')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Plan de Acción)</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 4: PLAN DE ACCIÓN (KANBAN) -->
+            <div id="tab-plan" class="tab-content flex flex-col gap-5 hidden">
+                <div class="flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="kanban" aria-hidden="true" class="lucide lucide-kanban w-4 h-4"><path d="M5 3v14"></path><path d="M12 3v8"></path><path d="M19 3v18"></path></svg> Kanban de Planes de Acción
+                        </h3>
+                        <button onclick="addNewKanbanTask()" class="py-1.5 px-3.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold border border-blue-500/20 dark:border-blue-500/30 transition active:scale-95 cursor-pointer">Agregar Tarea</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- To Do -->
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-red-400 animate-pulse"></span> Por Hacer / Pendiente
+                            </span>
+                            <div id="kanban-todo" ondragover="allowDrop(event)" ondrop="drop(event, 'todo')" class="flex flex-col gap-2 min-h-[100px]"></div>
+                        </div>
+                        
+                        <!-- In Progress -->
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></span> En Proceso / Ejecutándose
+                            </span>
+                            <div id="kanban-progress" ondragover="allowDrop(event)" ondrop="drop(event, 'progress')" class="flex flex-col gap-2 min-h-[100px]"></div>
+                        </div>
+                        
+                        <!-- Done -->
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-3 min-h-[150px] flex-grow">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-emerald-400"></span> Realizado / Finalizado
+                            </span>
+                            <div id="kanban-done" ondragover="allowDrop(event)" ondrop="drop(event, 'done')" class="flex flex-col gap-2 min-h-[100px]"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-analysis')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="switchTab('tab-evidences')" class="px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span>Siguiente (Firmas y Cierre)</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right w-3.5 h-3.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 5: FIRMAS Y CIERRE -->
+            <div id="tab-evidences" class="tab-content flex flex-col gap-5 hidden">
+                
+                <!-- SUMMARY CARDS FOR PRE-SIGNING REVIEW -->
+                <div class="flex flex-col gap-3">
+                    <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i data-lucide="check-square" class="w-4 h-4"></i> 5.1 Resumen Consolidado de Hallazgos
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Card 1: Empresa -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs flex flex-col gap-1 shadow-sm">
+                            <span class="font-bold text-[10px] text-slate-400 uppercase tracking-wide border-b dark:border-slate-800 pb-1 mb-1">Aportante</span>
+                            <div id="summary-empresa-info" class="text-slate-700 dark:text-slate-300 flex flex-col gap-0.5 font-semibold"></div>
+                        </div>
+                        
+                        <!-- Card 2: Inspector -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs flex flex-col gap-1 shadow-sm">
+                            <span class="font-bold text-[10px] text-slate-400 uppercase tracking-wide border-b dark:border-slate-800 pb-1 mb-1">Personal Inspector</span>
+                            <div id="summary-inspector-info" class="text-slate-700 dark:text-slate-300 flex flex-col gap-0.5 font-semibold"></div>
+                        </div>
+
+                        <!-- Card 3: Detalles Extintor -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs flex flex-col gap-1 shadow-sm">
+                            <span class="font-bold text-[10px] text-slate-400 uppercase tracking-wide border-b dark:border-slate-800 pb-1 mb-1">Inspección Extintor</span>
+                            <div id="summary-equipos-info" class="text-slate-700 dark:text-slate-300 flex flex-col gap-0.5 font-semibold"></div>
+                        </div>
+
+                        <!-- Card 4: Insumos -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs flex flex-col gap-1 shadow-sm">
+                            <span class="font-bold text-[10px] text-slate-400 uppercase tracking-wide border-b dark:border-slate-800 pb-1 mb-1">Otros Dispositivos</span>
+                            <div id="summary-otros-info" class="text-slate-700 dark:text-slate-300 flex flex-col gap-0.5 font-semibold"></div>
+                        </div>
+
+                        <!-- Card 5: Diagnóstico / Hallazgos -->
+                        <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs flex flex-col gap-1 shadow-sm md:col-span-2">
+                            <span class="font-bold text-[10px] text-slate-400 uppercase tracking-wide border-b dark:border-slate-800 pb-1 mb-1">Hallazgos e Instrucciones en Terreno</span>
+                            <div id="summary-hallazgos-info" class="text-slate-700 dark:text-slate-300 flex flex-col gap-0.5"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4 mt-2">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="signature" aria-hidden="true" class="lucide lucide-signature w-4 h-4"><path d="m21 17-2.613-2.613a.85.85 0 1 0-1.2 1.2L19.8 18.2a.5.5 0 0 1-.354.854H13a6 6 0 0 1-6-6V7a1 1 0 0 0-1-1H3"></path><path d="M21 12H3"></path><path d="M12 2v2"></path><circle cx="12" cy="7" r="1"></circle></svg> 5.2 Registro de Firmas Digitales
+                        </h3>
+                        <button onclick="addAdditionalSignatureCard()" class="py-1.5 px-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-500/20 dark:border-emerald-500/30 transition active:scale-95 cursor-pointer no-print flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Firma Testigo</button>
+                    </div>
+
+                    <div id="signatures-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Firma Inspector -->
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                <i data-lucide="user-check" class="w-4 h-4 text-emerald-500"></i> Firma del Inspector de Campo
+                            </span>
+                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-inner">
+                                <canvas id="signature-trabajador" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-trabajador" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-trabajador')">
+                                <button onclick="document.getElementById('upload-sig-trabajador').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar</button>
+                                <button onclick="clearSignatureCanvas('signature-trabajador')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                    <input type="text" id="signer-trabajador-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="Juan Carlos Gómez Bedoya">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA / IDENTIFICACIÓN</label>
+                                    <input type="text" id="signer-trabajador-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="1.018.452.963">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Firma Responsable SST -->
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                                <i data-lucide="user-check" class="w-4 h-4 text-emerald-500"></i> Firma del Responsable del SG-SST
+                            </span>
+                            <div class="relative bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-inner">
+                                <canvas id="signature-sgsst" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                                <input type="file" id="upload-sig-sgsst" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-sgsst')">
+                                <button onclick="document.getElementById('upload-sig-sgsst').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar</button>
+                                <button onclick="clearSignatureCanvas('signature-sgsst')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                                    <input type="text" id="signer-sgsst-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">IDENTIFICACIÓN</label>
+                                        <input type="text" id="signer-sgsst-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Documento" value="">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">LICENCIA SST</label>
+                                        <input type="text" id="signer-sgsst-license" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Licencia" value="">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EXPORT BUTTON AND DATE -->
+                <div class="border-t dark:border-slate-800 light:border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 no-print">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-555 dark:text-slate-400">FECHA DE EMISIÓN:</label>
+                        <input type="date" id="export-date" oninput="saveLocalData()" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2.5 text-xs text-slate-900 dark:text-white font-semibold shadow-sm w-48 text-center focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <button onclick="exportUpdatedHTML()" class="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center gap-2 cursor-pointer active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="download" aria-hidden="true" class="lucide lucide-download w-4 h-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg> Exportar Aplicativo Inspección de Equipos Contra Incendio Firmado
+                    </button>
+                </div>
+
+                <!-- Navigation buttons -->
+                <div class="flex justify-between items-center border-t dark:border-slate-800 light:border-slate-200 pt-4 no-print">
+                    <button onclick="switchTab('tab-plan')" class="px-4 py-2 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer">
+                        Atrás
+                    </button>
+                    <button onclick="window.print()" class="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i> Imprimir Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- LEGAL MODAL -->
+    <div id="legal-modal" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto flex flex-col gap-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                <span class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <i data-lucide="info" class="w-4 h-4"></i> Normatividad Aplicable en Colombia (SG-SST)
+                </span>
+                <button onclick="closeLegalModal()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕ Cerrar</button>
+            </div>
+            <div class="text-xs leading-relaxed text-slate-600 dark:text-slate-300 flex flex-col gap-3">
+                <p>La inspección periódica de los equipos de prevención y atención de emergencias es un requisito obligatorio bajo la legislación colombiana:</p>
+                <ul class="list-disc list-inside ml-2 flex flex-col gap-1.5">
+                    <li><strong>Decreto 1072 de 2015:</strong> Obliga a diseñar e implementar el Plan de Prevención, Preparación y Respuesta ante Emergencias, asegurando el mantenimiento de equipos de control de incendios y primeros auxilios.</li>
+                    <li><strong>Resolución 0312 de 2019:</strong> Establece dentro de los Estándares Mínimos la obligatoriedad de realizar inspecciones periódicas a las instalaciones y equipos de emergencia (extintores, botiquines, camillas).</li>
+                    <li><strong>Resolución 2400 de 1979 (Estatuto de Seguridad Industrial):</strong> Dispone que todos los establecimientos de trabajo deben contar con extintores y equipos contra incendio según el tipo de riesgo.</li>
+                    <li><strong>Norma Técnica Colombiana (NTC 2885 / NFPA 10):</strong> Define las directrices técnicas para la instalación, inspección, mantenimiento y pruebas de los extintores portátiles.</li>
+                    <li><strong>Resolución 0705 de 2007 (Bogotá / Nacional):</strong> Regula la obligatoriedad del primer respondiente y los elementos mínimos con los que debe contar el botiquín de primeros auxilios.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Copiloto IA (API Gemini Directa) Drawer -->
+    <div id="ai-drawer" class="fixed top-0 right-0 h-full w-[380px] bg-white dark:bg-[#080c14] border-l border-slate-200 dark:border-slate-800 z-50 p-5 shadow-2xl flex flex-col gap-4 translate-x-full transition-transform duration-300 no-print">
+        <div class="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+            <span class="text-xs font-black uppercase tracking-wider text-orange-500 dark:text-orange-400 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Copiloto de IA - Wappy
+            </span>
+            <button onclick="toggleAISidebar()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕ Cerrar</button>
+        </div>
+        
+        <!-- Chat Area -->
+        <div id="ai-chat-messages" class="flex-grow overflow-y-auto flex flex-col gap-3 pr-1 max-h-[380px]">
+            <div class="p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300">
+                ¡Hola! Soy el Copiloto de IA de Wappy, experto en SG-SST en Colombia. ¿En qué puedo ayudarte en relación con la Inspección de Equipos Contra Incendio y Emergencias?
+            </div>
+        </div>
+
+        <!-- API Key and Model Selector -->
+        <div class="flex flex-col gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 text-xs">
+            <div class="flex flex-col gap-1">
+                <label for="gemini-key" class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Clave API de Gemini:</label>
+                <div class="flex gap-2">
+                    <input type="password" id="gemini-key" class="flex-1 rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 shadow-sm" placeholder="AIzaSy...">
+                    <button onclick="saveAPIKey()" class="py-1 px-3 bg-slate-900 hover:bg-slate-850 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded text-xs font-bold transition active:scale-95">Guardar</button>
+                </div>
+            </div>
+            <div class="flex flex-col gap-1">
+                <label for="gemini-model" class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Modelo IA Seleccionado:</label>
+                <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
+                    <option value="gemini-3.1-flash-lite" selected>Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.5-flash">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="flex flex-col gap-2 border-t dark:border-slate-800 pt-3 no-print">
+            <textarea id="ai-chat-input" class="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-900 dark:text-slate-300 focus:border-blue-500 focus:ring-0 resize-none" rows="2" placeholder="Escribe tu mensaje aquí..."></textarea>
+            <button onclick="sendChatMessage()" class="w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="send" aria-hidden="true" class="lucide lucide-send w-3.5 h-3.5"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg> Enviar Mensaje
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating AI Chat Button -->
+    <div class="no-print">
+        <button onclick="toggleAISidebar()" class="fixed bottom-20 right-6 z-40 p-4 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-2xl hover:scale-110 transition active:scale-95 animate-bounce flex items-center justify-center animate-pulse" title="Copiloto de IA">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles w-6 h-6"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg>
+        </button>
+    </div>
+
+    <!-- Fixed Bottom Footer -->
+    <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#080c14]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-3.5 px-6 flex flex-row items-center justify-between shadow-lg text-xs font-semibold text-slate-555 dark:text-slate-400 no-print">
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 border border-slate-200 dark:border-slate-750" title="Alternar Modo Claro/Oscuro">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="moon" aria-hidden="true" id="theme-float-icon" class="lucide lucide-moon w-4 h-4 dark:text-amber-400 text-slate-600"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>
+                <span id="theme-text">Modo Oscuro</span>
+            </button>
+            <button onclick="openLegalModal()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-750 dark:text-emerald-400 transition active:scale-95 border border-emerald-500/20 dark:border-emerald-500/30 font-bold" title="Información Legal">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="info" aria-hidden="true" class="lucide lucide-info w-4 h-4"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                <span>Normativa Legal</span>
+            </button>
+            <button onclick="resetSSTForm()" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-655 dark:text-red-400 transition active:scale-95 border border-red-500/20 dark:border-red-500/30 font-bold" title="Reiniciar Formulario">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="rotate-ccw" aria-hidden="true" class="lucide lucide-rotate-ccw w-4 h-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                <span>Reiniciar Formulario</span>
+            </button>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-[10px] uppercase tracking-wider text-slate-400">By WAPPY IA</span>
+            <span id="footer-current-date" class="text-[10px] font-bold text-slate-400"></span>
+        </div>
+    </footer>
+
+    <script>
+        // Variables globales del sistema
+        let masterSavedChanges = [];
+        let appDocHeader = {
+            companyName: "WAPPY SA",
+            companyNit: "NIT: 901437310-8",
+            companyArl: "Colmena Seguros",
+            companyWorkers: "30",
+            companyRisk: "Clase III",
+            changeCode: "GC-SST-INC-01",
+            lastUpdated: "2026-05-29",
+            appTitle: "Inspección de Equipos Contra Incendio y de Emergencia",
+            appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO",
+            appDesc: "Documento de Control SG-SST - Conforme a la Normatividad Vigente Colombiana",
+            appBadge: "PROCESO: SG-SST | V.01",
+            customFields: {
+                "extintor-tipo": "ABC Multipropósito",
+                "extintor-capacidad": "10 lbs",
+                "extintor-presion": "Sí / Normal",
+                "extintor-manguera": "Adecuado (Sin fisuras ni daños)",
+                "extintor-pasador": "Instalado (Sello intacto)",
+                "extintor-vencimiento": "2026-12-31",
+                "botiquin-completo": "Completo (Con insumos vigentes)",
+                "camilla-estado": "Adecuado (Camilla libre y arnés completo)",
+                "alarma-operativa": "Sí / Operativa",
+                "senalizacion-adecuada": "Adecuada y visible",
+                "custom-form-descripcion": "",
+                "custom-form-observaciones": "",
+                "preview-diagnostico-tecnico": "",
+                "preview-recomendaciones-sst": "",
+                "export-date": new Date().toISOString().split('T')[0]
+            },
+            logoBase64: ""
+        };
+
+        let currentTheme = 'light';
+        let isLoadingState = false;
+        const storageKey = 'wappy_sst_inspeccion_equipos_emergencia';
+        let currentWizard = {
+            tasks: [
+                { id: "t1", title: "Socializar el aplicativo de Inspección de Equipos Contra Incendio", resp: "SST", date: new Date().toISOString().split('T')[0], column: "todo" },
+                { id: "t2", title: "Verificar el estado físico y presión de todos los extintores en terreno", resp: "Inspector", date: new Date().toISOString().split('T')[0], column: "todo" }
+            ],
+            photos: [],
+            audioBase64: "",
+            videoBase64: "",
+            customSignatures: [],
+            signatures: {}
+        };
+
+        // Helpers de Almacenamiento Seguro
+        function safeGetLocalStorage(key) {
+            try { return localStorage.getItem(key); } catch (e) { console.warn("localStorage.getItem blocked:", e); return null; }
+        }
+        function safeSetLocalStorage(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) { console.warn("localStorage.setItem blocked:", e); }
+        }
+        function safeRemoveLocalStorage(key) {
+            try { localStorage.removeItem(key); } catch (e) { console.warn("localStorage.removeItem blocked:", e); }
+        }
+
+        // IndexedDB para firmas y archivos multimedia pesados (Evita colapso de LocalStorage)
+        const dbName = 'WappySSTDb';
+        const dbVersion = 1;
+        const storeName = 'mediaStore';
+
+        // Helper para reintentos con API de Gemini (maneja error 503/429)
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 503 || response.status === 429) {
+                    if (retries > 0) {
+                        console.warn(`Gemini API respondió con ${response.status}. Reintentando en ${delay}ms... (${retries} intentos restantes)`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return fetchWithRetry(url, options, retries - 1, delay * 2);
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    console.warn(`Error de red: ${error.message}. Reintentando en ${delay}ms... (${retries} intentos restantes)`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, dbVersion);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function saveCanvasToIndexedDB(id, base64Data) {
+            try {
+                const db = await openDB();
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                await store.put({ id: id, data: base64Data });
+            } catch(e) { console.error("Error saving canvas to IndexedDB", e); }
+        }
+
+        async function loadCanvasFromIndexedDB(id) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const req = store.get(id);
+                    req.onsuccess = () => resolve(req.result ? req.result.data : '');
+                    req.onerror = () => resolve('');
+                });
+            } catch(e) { console.error("Error loading canvas from IndexedDB", e); return ''; }
+        }
+
+        async function saveMediaToDB(docId, photos, audio, video) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.put({
+                        id: 'media_' + docId,
+                        photos: photos || [],
+                        audioBase64: audio || '',
+                        videoBase64: video || ''
+                    });
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            } catch(e) { console.error("IndexedDB save media error:", e); }
+        }
+
+        async function loadMediaFromDB(docId) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.get('media_' + docId);
+                    request.onsuccess = (e) => {
+                        resolve(e.target.result || { photos: [], audioBase64: '', videoBase64: '' });
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            } catch(e) {
+                console.error("IndexedDB load media error:", e);
+                return { photos: [], audioBase64: '', videoBase64: '' };
+            }
+        }
+
+        async function deleteMediaFromDB(docId) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.delete('media_' + docId);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            } catch(e) { console.error("IndexedDB delete media error:", e); }
+        }
+
+        async function saveGlobalLogoToDB(logoBase64) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.put({
+                        id: 'wappy_sst_global_logo',
+                        logoBase64: logoBase64
+                    });
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            } catch(e) { console.error("Error saving global logo to IndexedDB:", e); }
+        }
+
+        async function loadGlobalLogoFromDB() {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.get('wappy_sst_global_logo');
+                    request.onsuccess = (e) => {
+                        resolve(e.target.result ? e.target.result.logoBase64 : '');
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            } catch(e) {
+                console.error("Error loading global logo from IndexedDB:", e);
+                return '';
+            }
+        }
+
+        // Inicialización de Firmas con Fondo Blanco e Hilo Oscuro Fijos
+        function initializeSingleCanvas(canvasId) {
+            const cvs = document.getElementById(canvasId);
+            if (!cvs) return;
+            const context = cvs.getContext('2d');
+            context.strokeStyle = '#1e293b'; // Trazo oscuro constante
+            context.lineWidth = 2.5;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            
+            cvs.isDrawing = false;
+            cvs.hasDrawn = false;
+            
+            const getPos = (e) => {
+                const rect = cvs.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const startDraw = (e) => {
+                cvs.isDrawing = true;
+                const pos = getPos(e);
+                context.beginPath();
+                context.moveTo(pos.x, pos.y);
+                e.preventDefault();
+            };
+
+            const draw = (e) => {
+                if (!cvs.isDrawing) return;
+                cvs.hasDrawn = true;
+                const pos = getPos(e);
+                context.lineTo(pos.x, pos.y);
+                context.stroke();
+                e.preventDefault();
+            };
+
+            const stopDraw = () => {
+                if (!cvs.isDrawing) return;
+                cvs.isDrawing = false;
+                if (!isLoadingState) saveLocalData();
+            };
+
+            cvs.addEventListener('mousedown', startDraw);
+            cvs.addEventListener('mousemove', draw);
+            cvs.addEventListener('mouseup', stopDraw);
+            cvs.addEventListener('mouseleave', stopDraw);
+
+            cvs.addEventListener('touchstart', startDraw, { passive: false });
+            cvs.addEventListener('touchmove', draw, { passive: false });
+            cvs.addEventListener('touchend', stopDraw);
+        }
+
+        function clearSignatureCanvas(canvasId) {
+            const cvs = document.getElementById(canvasId);
+            if (!cvs) return;
+            const context = cvs.getContext('2d');
+            context.clearRect(0, 0, cvs.width, cvs.height);
+            cvs.hasDrawn = false;
+            if (!isLoadingState) {
+                saveLocalData();
+                saveCanvasToIndexedDB(canvasId, '');
+            }
+        }
+
+        function uploadSignatureImage(canvasId) {
+            const uploadEl = document.getElementById(canvasId === 'signature-sgsst' ? 'upload-sig-sgsst' : 'upload-sig-trabajador');
+            if (!uploadEl) return;
+            const file = uploadEl.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const cvs = document.getElementById(canvasId);
+                    const ctx = cvs.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() {
+                        ctx.clearRect(0, 0, cvs.width, cvs.height);
+                        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+                        cvs.hasDrawn = true;
+                        saveLocalData();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Subir y guardar logo
+        function uploadLogoImage() {
+            const input = document.getElementById('logo-upload-input');
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewImg = document.getElementById('logo-preview-img');
+                    const placeholderIcon = document.getElementById('logo-placeholder-icon');
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                    }
+                    if (placeholderIcon) {
+                        placeholderIcon.classList.add('hidden');
+                    }
+                    appDocHeader.logoBase64 = e.target.result;
+                    saveLocalData();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveDocHeader() {
+            appDocHeader.appTitle = document.getElementById('app-document-title').innerText.trim();
+            appDocHeader.appSubtitle = document.getElementById('app-document-subtitle').innerText.trim();
+            appDocHeader.appDesc = document.getElementById('app-document-desc').innerText.trim();
+            appDocHeader.appBadge = document.getElementById('app-document-badge').innerText.trim();
+            appDocHeader.companyName = document.getElementById('company-name').innerText.trim();
+            appDocHeader.companyNit = document.getElementById('company-nit').innerText.trim();
+            appDocHeader.companyArl = document.getElementById('company-arl').innerText.trim();
+            appDocHeader.companyWorkers = document.getElementById('company-workers').innerText.trim();
+            appDocHeader.companyRisk = document.getElementById('company-risk').innerText.trim();
+            appDocHeader.changeCode = document.getElementById('change-code').innerText.trim();
+            appDocHeader.lastUpdated = document.getElementById('last-updated-text').innerText.trim();
+            saveLocalData();
+        }
+
+        // Guardado de Estado Local
+        function saveLocalData() {
+            if (isLoadingState) return;
+
+            // Sincronizar campos principales en customFields
+            appDocHeader.customFields = {};
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id], div[contenteditable="true"]');
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                if (input.id && !excluded.includes(input.id) && !input.id.startsWith('upload-sig-') && !input.id.startsWith('signer-')) {
+                    if (input.tagName === 'DIV') {
+                        appDocHeader.customFields[input.id] = input.innerText;
+                    } else {
+                        appDocHeader.customFields[input.id] = input.value;
+                    }
+                }
+            });
+
+            // Guardar firmas customizadas dinámicas
+            if (currentWizard.customSignatures) {
+                currentWizard.customSignatures.forEach(sig => {
+                    const nameEl = document.getElementById(`signer-${sig.id}-name`);
+                    const ccEl = document.getElementById(`signer-${sig.id}-cc`);
+                    if (nameEl) sig.name = nameEl.value;
+                    if (ccEl) sig.cc = ccEl.value;
+                });
+            }
+
+            // Guardar nombres de firmantes por defecto
+            const sgsstName = document.getElementById('signer-sgsst-name');
+            const sgsstCc = document.getElementById('signer-sgsst-cc');
+            const sgsstLicense = document.getElementById('signer-sgsst-license');
+            if (sgsstName) appDocHeader.customFields['signer-sgsst-name'] = sgsstName.value;
+            if (sgsstCc) appDocHeader.customFields['signer-sgsst-cc'] = sgsstCc.value;
+            if (sgsstLicense) appDocHeader.customFields['signer-sgsst-license'] = sgsstLicense.value;
+
+            const trabajadorName = document.getElementById('signer-trabajador-name');
+            const trabajadorCc = document.getElementById('signer-trabajador-cc');
+            if (trabajadorName) appDocHeader.customFields['signer-trabajador-name'] = trabajadorName.value;
+            if (trabajadorCc) appDocHeader.customFields['signer-trabajador-cc'] = trabajadorCc.value;
+
+            // Registrar si las firmas en canvas tienen dibujos
+            currentWizard.signatures = {};
+            document.querySelectorAll('canvas').forEach(canvas => {
+                if (canvas.hasDrawn) {
+                    currentWizard.signatures[canvas.id] = canvas.toDataURL();
+                    saveCanvasToIndexedDB(canvas.id, canvas.toDataURL());
+                }
+            });
+
+            // Remover binarios pesados antes de escribir en LocalStorage
+            const strippedWizard = { ...currentWizard };
+            delete strippedWizard.photos;
+            delete strippedWizard.audioBase64;
+            delete strippedWizard.videoBase65;
+            
+            const strippedDocHeader = { ...appDocHeader };
+            delete strippedDocHeader.logoBase64;
+
+            const data = {
+                appDocHeader: strippedDocHeader,
+                currentWizard: strippedWizard
+            };
+            safeSetLocalStorage(storageKey, JSON.stringify(data));
+
+            // Escribir multimedia en DB
+            saveMediaToDB('inspeccion_equipos_emergencia', currentWizard.photos, currentWizard.audioBase64, currentWizard.videoBase64);
+            
+            if (appDocHeader.logoBase64) {
+                saveGlobalLogoToDB(appDocHeader.logoBase64);
+            }
+
+            updateMediaSummary();
+        }
+
+        // Carga de Estado Local
+        async function loadState() {
+            isLoadingState = true;
+            try {
+                // Recuperar credenciales del copiloto
+                const key = safeGetLocalStorage('wappy_gemini_key') || '';
+                const keyEl = document.getElementById('gemini-key');
+                if (keyEl) keyEl.value = key;
+
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.1-flash-lite';
+                const modelEl = document.getElementById('gemini-model');
+                if (modelEl) modelEl.value = model;
+
+                const saved = safeGetLocalStorage(storageKey);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.appDocHeader) appDocHeader = { ...appDocHeader, ...data.appDocHeader };
+                    if (data.currentWizard) {
+                        currentWizard = {
+                            tasks: [],
+                            photos: [],
+                            audioBase64: "",
+                            videoBase64: "",
+                            customSignatures: [],
+                            signatures: {},
+                            ...data.currentWizard
+                        };
+                    }
+                }
+
+                // Cargar logo global desde DB
+                const dbLogo = await loadGlobalLogoFromDB();
+                if (dbLogo) {
+                    appDocHeader.logoBase64 = dbLogo;
+                    const previewImg = document.getElementById('logo-preview-img');
+                    if (previewImg) {
+                        previewImg.src = dbLogo;
+                        previewImg.classList.remove('hidden');
+                    }
+                    const placeholderIcon = document.getElementById('logo-placeholder-icon');
+                    if (placeholderIcon) placeholderIcon.classList.add('hidden');
+                }
+
+                // Cargar archivos multimedia de IndexedDB
+                const dbMedia = await loadMediaFromDB('inspeccion_equipos_emergencia');
+                if (dbMedia) {
+                    currentWizard.photos = dbMedia.photos || [];
+                    currentWizard.audioBase64 = dbMedia.audioBase64 || '';
+                    currentWizard.videoBase64 = dbMedia.videoBase64 || '';
+                }
+
+                // Rellenar inputs y contenteditables
+                const inputs = document.querySelectorAll('input[id], textarea[id], select[id], div[contenteditable="true"]');
+                inputs.forEach(input => {
+                    const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                    if (input.id && !excluded.includes(input.id) && appDocHeader.customFields && appDocHeader.customFields[input.id] !== undefined) {
+                        if (input.tagName === 'DIV') {
+                            input.innerText = appDocHeader.customFields[input.id];
+                        } else {
+                            input.value = appDocHeader.customFields[input.id];
+                        }
+                    }
+                });
+
+                // Cargar nombres de firmantes
+                if (appDocHeader.customFields['signer-sgsst-name'] !== undefined) {
+                    const el = document.getElementById('signer-sgsst-name');
+                    if (el) el.value = appDocHeader.customFields['signer-sgsst-name'];
+                }
+                if (appDocHeader.customFields['signer-sgsst-cc'] !== undefined) {
+                    const el = document.getElementById('signer-sgsst-cc');
+                    if (el) el.value = appDocHeader.customFields['signer-sgsst-cc'];
+                }
+                if (appDocHeader.customFields['signer-sgsst-license'] !== undefined) {
+                    const el = document.getElementById('signer-sgsst-license');
+                    if (el) el.value = appDocHeader.customFields['signer-sgsst-license'];
+                }
+
+                if (appDocHeader.customFields['signer-trabajador-name'] !== undefined) {
+                    const el = document.getElementById('signer-trabajador-name');
+                    if (el) el.value = appDocHeader.customFields['signer-trabajador-name'];
+                }
+                if (appDocHeader.customFields['signer-trabajador-cc'] !== undefined) {
+                    const el = document.getElementById('signer-trabajador-cc');
+                    if (el) el.value = appDocHeader.customFields['signer-trabajador-cc'];
+                }
+
+                // Inicializar y cargar firmas
+                initializeSingleCanvas('signature-sgsst');
+                initializeSingleCanvas('signature-trabajador');
+
+                const sigSSTData = await loadCanvasFromIndexedDB('signature-sgsst');
+                if (sigSSTData) {
+                    const cvs = document.getElementById('signature-sgsst');
+                    const ctx = cvs.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() { ctx.drawImage(img, 0, 0, cvs.width, cvs.height); cvs.hasDrawn = true; };
+                    img.src = sigSSTData;
+                }
+                
+                const sigTrabajadorData = await loadCanvasFromIndexedDB('signature-trabajador');
+                if (sigTrabajadorData) {
+                    const cvs = document.getElementById('signature-trabajador');
+                    const ctx = cvs.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() { ctx.drawImage(img, 0, 0, cvs.width, cvs.height); cvs.hasDrawn = true; };
+                    img.src = sigTrabajadorData;
+                }
+
+                // Cargar firmas dinámicas adicionales
+                if (currentWizard.customSignatures) {
+                    const grid = document.getElementById('signatures-grid');
+                    currentWizard.customSignatures.forEach(async (sig) => {
+                        createSignatureCardDOM(sig);
+                        initializeSingleCanvas('signature-' + sig.id);
+                        const sigData = await loadCanvasFromIndexedDB('signature-' + sig.id);
+                        if (sigData) {
+                            const cvs = document.getElementById('signature-' + sig.id);
+                            const ctx = cvs.getContext('2d');
+                            const img = new Image();
+                            img.onload = function() { ctx.drawImage(img, 0, 0, cvs.width, cvs.height); cvs.hasDrawn = true; };
+                            img.src = sigData;
+                        }
+                    });
+                }
+
+                // Cargar multimedia en reproductores
+                if (currentWizard.audioBase64) {
+                    const player = document.getElementById('audio-playback');
+                    if (player) {
+                        player.src = currentWizard.audioBase64;
+                        player.classList.remove('hidden');
+                    }
+                    const deleteBtn = document.getElementById('btn-delete-audio');
+                    if (deleteBtn) deleteBtn.classList.remove('hidden');
+                }
+
+                if (currentWizard.videoBase64) {
+                    const player = document.getElementById('video-playback');
+                    if (player) {
+                        player.src = currentWizard.videoBase64;
+                        player.classList.remove('hidden');
+                    }
+                    const deleteBtn = document.getElementById('btn-delete-video');
+                    if (deleteBtn) deleteBtn.classList.remove('hidden');
+                }
+
+                renderPhotosGrid();
+                updateMediaSummary();
+                renderKanban();
+                updateReportPreview();
+
+                // Cabecera editable
+                document.getElementById('app-document-title').innerText = appDocHeader.appTitle || 'Inspección de Equipos Contra Incendio y de Emergencia';
+                document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || 'SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO';
+                document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || 'Documento de Control SG-SST - Conforme a la Normatividad Vigente Colombiana';
+                document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || 'PROCESO: SG-SST | V.01';
+                document.getElementById('company-name').innerText = appDocHeader.companyName;
+                document.getElementById('company-nit').innerText = appDocHeader.companyNit;
+                document.getElementById('company-arl').innerText = appDocHeader.companyArl;
+                document.getElementById('company-workers').innerText = appDocHeader.companyWorkers;
+                document.getElementById('company-risk').innerText = appDocHeader.companyRisk;
+                document.getElementById('change-code').innerText = appDocHeader.changeCode;
+                document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated;
+
+            } catch (err) {
+                console.error("loadState Error:", err);
+            }
+            isLoadingState = false;
+        }
+
+        // Tab Switching
+        let activeTab = 'tab-identification';
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('[id^="btn-tab-"]').forEach(b => b.classList.remove('tab-active'));
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(`btn-${tabId}`).classList.add('tab-active');
+            activeTab = tabId;
+
+            // Sincronizar de Pestaña 2 a Pestaña 3 en la vista
+            updateReportPreview();
+
+            if (tabId === 'tab-evidences') {
+                // Actualizar tarjetas de resumen consolidado en Pestaña 5
+                const getVal = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return '';
+                    if (el.tagName === 'SELECT') {
+                        return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : el.value;
+                    }
+                    return el.value;
+                };
+
+                document.getElementById('summary-empresa-info').innerHTML = `
+                    <p class="mb-0.5"><strong>Empresa:</strong> ${appDocHeader.companyName}</p>
+                    <p class="mb-0.5"><strong>NIT:</strong> ${appDocHeader.companyNit}</p>
+                    <p class="mb-0.5"><strong>ARL:</strong> ${appDocHeader.companyArl}</p>
+                    <p class="mb-0.5"><strong>Código:</strong> ${appDocHeader.changeCode}</p>
+                    <p class="mb-0.5"><strong>Últ. Vigencia:</strong> ${appDocHeader.lastUpdated}</p>
+                `;
+
+                document.getElementById('summary-inspector-info').innerHTML = `
+                    <p class="mb-0.5"><strong>Nombre:</strong> ${getVal('trabajador-nombre')}</p>
+                    <p class="mb-0.5"><strong>Cédula:</strong> ${getVal('trabajador-cedula')}</p>
+                    <p class="mb-0.5"><strong>Cargo:</strong> ${getVal('trabajador-cargo')}</p>
+                    <p class="mb-0.5"><strong>Área:</strong> ${getVal('trabajador-area')}</p>
+                    <p class="mb-0.5"><strong>Fecha/Hora:</strong> ${getVal('evento-fecha')} ${getVal('evento-hora')}</p>
+                    <p class="mb-0.5"><strong>Lugar:</strong> ${getVal('evento-lugar')}</p>
+                `;
+
+                document.getElementById('summary-equipos-info').innerHTML = `
+                    <p class="mb-0.5"><strong>Extintor Tipo:</strong> ${getVal('extintor-tipo')}</p>
+                    <p class="mb-0.5"><strong>Capacidad:</strong> ${getVal('extintor-capacidad')}</p>
+                    <p class="mb-0.5"><strong>Presión:</strong> ${getVal('extintor-presion')}</p>
+                    <p class="mb-0.5"><strong>Manguera:</strong> ${getVal('extintor-manguera')}</p>
+                    <p class="mb-0.5"><strong>Pasador/Sello:</strong> ${getVal('extintor-pasador')}</p>
+                    <p class="mb-0.5"><strong>Vence Recarga:</strong> ${getVal('extintor-vencimiento')}</p>
+                `;
+
+                document.getElementById('summary-otros-info').innerHTML = `
+                    <p class="mb-0.5"><strong>Botiquín:</strong> ${getVal('botiquin-completo')}</p>
+                    <p class="mb-0.5"><strong>Camilla:</strong> ${getVal('camilla-estado')}</p>
+                    <p class="mb-0.5"><strong>Alarma:</strong> ${getVal('alarma-operativa')}</p>
+                    <p class="mb-0.5"><strong>Señalización:</strong> ${getVal('senalizacion-adecuada')}</p>
+                `;
+
+                document.getElementById('summary-hallazgos-info').innerHTML = `
+                    <p class="font-bold text-[9px] text-slate-400 uppercase">Hallazgos registrados:</p>
+                    <p class="mb-2 italic text-slate-700 dark:text-slate-300 font-semibold">${getVal('custom-form-descripcion') || 'Sin hallazgos reportados en terreno.'}</p>
+                    <p class="font-bold text-[9px] text-slate-400 uppercase">Acciones recomendadas:</p>
+                    <p class="italic text-slate-700 dark:text-slate-300 font-semibold">${getVal('custom-form-observaciones') || 'Sin acciones correctivas inmediatas registradas.'}</p>
+                `;
+            }
+        }
+
+        // Sincronizar de Formulario a Vista Previa de Pestaña 3
+        function updateReportPreview() {
+            const mappings = [
+                { formId: 'extintor-tipo', previewId: 'preview-extintor-tipo', fallback: '[Tipo de Extintor]' },
+                { formId: 'extintor-capacidad', previewId: 'preview-extintor-capacidad', fallback: '[Capacidad]' },
+                { formId: 'extintor-presion', previewId: 'preview-extintor-presion', fallback: '[Presión]' },
+                { formId: 'extintor-manguera', previewId: 'preview-extintor-manguera', fallback: '[Manguera]' },
+                { formId: 'extintor-pasador', previewId: 'preview-extintor-pasador', fallback: '[Pasador]' },
+                { formId: 'extintor-vencimiento', previewId: 'preview-extintor-vencimiento', fallback: '[Vencimiento]' },
+                { formId: 'botiquin-completo', previewId: 'preview-botiquin-completo', fallback: '[Botiquín]' },
+                { formId: 'camilla-estado', previewId: 'preview-camilla-estado', fallback: '[Camilla]' },
+                { formId: 'alarma-operativa', previewId: 'preview-alarma-operativa', fallback: '[Alarma]' },
+                { formId: 'senalizacion-adecuada', previewId: 'preview-senalizacion-adecuada', fallback: '[Señalización]' },
+                { formId: 'custom-form-descripcion', previewId: 'preview-form-descripcion', fallback: '[Sin hallazgos registrados]' },
+                { formId: 'custom-form-observaciones', previewId: 'preview-form-observaciones', fallback: '[Sin observaciones registradas]' }
+            ];
+            
+            mappings.forEach(m => {
+                const formEl = document.getElementById(m.formId);
+                const prevEl = document.getElementById(m.previewId);
+                if (formEl && prevEl) {
+                    let val = formEl.value;
+                    if (formEl.tagName === 'SELECT') {
+                        val = formEl.options[formEl.selectedIndex] ? formEl.options[formEl.selectedIndex].text : val;
+                    }
+                    // Solo actualizar si no es el elemento activo para evitar romper el cursor
+                    if (prevEl !== document.activeElement) {
+                        prevEl.innerText = val || m.fallback;
+                    }
+                }
+            });
+        }
+
+        // Sincronizar cambios en campos editables de reporte hacia el formulario original
+        function syncBackToForm(formFieldId, previewEl) {
+            const formField = document.getElementById(formFieldId);
+            if (formField) {
+                const textVal = previewEl.innerText.trim();
+                if (formField.tagName === 'SELECT') {
+                    let optionExists = false;
+                    for (let i = 0; i < formField.options.length; i++) {
+                        if (formField.options[i].value === textVal || formField.options[i].text === textVal) {
+                            formField.selectedIndex = i;
+                            optionExists = true;
+                            break;
+                        }
+                    }
+                    if (!optionExists) {
+                        const newOpt = new Option(textVal, textVal);
+                        formField.add(newOpt);
+                        formField.value = textVal;
+                    }
+                } else {
+                    formField.value = textVal;
+                }
+                saveLocalData();
+            }
+        }
+
+        // Tablero Kanban de Plan de Acción
+        function renderKanban() {
+            const columns = { todo: [], progress: [], done: [] };
+            currentWizard.tasks.forEach(t => {
+                if (columns[t.column]) columns[t.column].push(t);
+            });
+
+            const renderCol = (colId, list) => {
+                const container = document.getElementById('kanban-' + colId);
+                if (!container) return;
+                container.innerHTML = '';
+                list.forEach(t => {
+                    const card = document.createElement('div');
+                    card.className = 'p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing text-xs flex flex-col gap-1.5';
+                    card.draggable = true;
+                    card.ondragstart = (e) => drag(e, t.id);
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="font-bold text-slate-800 dark:text-slate-200 leading-tight">${t.title}</span>
+                            <button onclick="removeKanbanTask('${t.id}')" class="text-slate-400 hover:text-red-500 font-bold no-print">✕</button>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-semibold">
+                            <span>Resp: ${t.resp}</span>
+                            <span>Vence: ${t.date}</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            };
+
+            renderCol('todo', columns.todo);
+            renderCol('progress', columns.progress);
+            renderCol('done', columns.done);
+        }
+
+        function addNewKanbanTask() {
+            const title = prompt("Ingrese el título de la nueva tarea preventiva:");
+            if (!title) return;
+            const resp = prompt("Responsable de la tarea (Ej: SST, Operario, Brigada):", "SST");
+            const date = prompt("Fecha límite (AAAA-MM-DD):", new Date().toISOString().split('T')[0]);
+            
+            const newTask = {
+                id: 'task_' + Date.now(),
+                title: title,
+                resp: resp || 'SST',
+                date: date || new Date().toISOString().split('T')[0],
+                column: 'todo'
+            };
+            currentWizard.tasks.push(newTask);
+            renderKanban();
+            saveLocalData();
+        }
+
+        function removeKanbanTask(id) {
+            if (confirm("¿Seguro que desea eliminar esta tarea?")) {
+                currentWizard.tasks = currentWizard.tasks.filter(t => t.id.toString() !== id.toString());
+                renderKanban();
+                saveLocalData();
+            }
+        }
+
+        // Kanban Drag & Drop
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev, taskId) { ev.dataTransfer.setData("text", taskId); }
+        function drop(ev, columnName) {
+            ev.preventDefault();
+            const taskId = ev.dataTransfer.getData("text");
+            const task = currentWizard.tasks.find(t => t.id.toString() === taskId.toString());
+            if (task) {
+                task.column = columnName;
+                renderKanban();
+                saveLocalData();
+            }
+        }
+
+        // Multimedia Handlers
+        function handleImageUpload(ev) {
+            const files = ev.target.files;
+            if (!files) return;
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentWizard.photos = currentWizard.photos || [];
+                    if (currentWizard.photos.length >= 3) {
+                        alert("Solo se permite un máximo de 3 fotos de soporte.");
+                        return;
+                    }
+                    currentWizard.photos.push(e.target.result);
+                    renderPhotosGrid();
+                    saveLocalData();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPhotosGrid() {
+            const grid = document.getElementById('photos-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            currentWizard.photos = currentWizard.photos || [];
+            currentWizard.photos.forEach((src, idx) => {
+                const item = document.createElement('div');
+                item.className = 'relative h-16 w-16 rounded-xl border overflow-hidden shadow-sm border-slate-200 dark:border-slate-800';
+                item.innerHTML = `
+                    <img src="${src}" class="h-full w-full object-cover">
+                    <button onclick="removePhoto(${idx})" class="absolute top-1 right-1 h-4 w-4 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold no-print">✕</button>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function removePhoto(idx) {
+            currentWizard.photos.splice(idx, 1);
+            renderPhotosGrid();
+            saveLocalData();
+        }
+
+        function handleAudioUpload(ev) {
+            const file = ev.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentWizard.audioBase64 = e.target.result;
+                    const player = document.getElementById('audio-playback');
+                    const deleteBtn = document.getElementById('btn-delete-audio');
+                    if (player) {
+                        player.src = e.target.result;
+                        player.classList.remove('hidden');
+                    }
+                    if (deleteBtn) deleteBtn.classList.remove('hidden');
+                    saveLocalData();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function deleteAudio() {
+            currentWizard.audioBase64 = '';
+            const player = document.getElementById('audio-playback');
+            const deleteBtn = document.getElementById('btn-delete-audio');
+            if (player) {
+                player.src = '';
+                player.classList.add('hidden');
+            }
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+            saveLocalData();
+        }
+
+        function handleVideoUpload(ev) {
+            const file = ev.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentWizard.videoBase64 = e.target.result;
+                    const player = document.getElementById('video-playback');
+                    const deleteBtn = document.getElementById('btn-delete-video');
+                    if (player) {
+                        player.src = e.target.result;
+                        player.classList.remove('hidden');
+                    }
+                    if (deleteBtn) deleteBtn.classList.remove('hidden');
+                    saveLocalData();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function deleteVideo() {
+            currentWizard.videoBase64 = '';
+            const player = document.getElementById('video-playback');
+            const deleteBtn = document.getElementById('btn-delete-video');
+            if (player) {
+                player.src = '';
+                player.classList.add('hidden');
+            }
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+            saveLocalData();
+        }
+
+        function updateMediaSummary() {
+            const summaryEl = document.getElementById('summary-audio-video');
+            const summaryPhotos = document.getElementById('summary-photos');
+            if (!summaryEl) return;
+            
+            const photoCount = currentWizard.photos ? currentWizard.photos.length : 0;
+            if (summaryPhotos) {
+                summaryPhotos.innerHTML = photoCount > 0 
+                    ? `<span class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350"><i data-lucide="image" class="w-3.5 h-3.5 text-emerald-500"></i> ${photoCount} foto(s) cargada(s)</span>` 
+                    : 'Ninguna cargada';
+            }
+
+            let elements = [];
+            if (currentWizard.audioBase64) {
+                elements.push(`
+                    <div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350">
+                        <i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-500"></i> Audio cargado
+                    </div>
+                `);
+            }
+            if (currentWizard.videoBase64) {
+                elements.push(`
+                    <div class="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-350">
+                        <i data-lucide="video" class="w-3.5 h-3.5 text-emerald-500"></i> Video cargado
+                    </div>
+                `);
+            }
+            
+            summaryEl.innerHTML = elements.length === 0 ? 'Ninguno registrado' : elements.join('');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Firmas adicionales dinámicas
+        function addAdditionalSignatureCard() {
+            const id = 'sig_' + Date.now();
+            const newSig = { id: id, name: "", cc: "", role: "" };
+            currentWizard.customSignatures = currentWizard.customSignatures || [];
+            currentWizard.customSignatures.push(newSig);
+            
+            createSignatureCardDOM(newSig);
+            initializeSingleCanvas('signature-' + id);
+            saveLocalData();
+        }
+
+        function createSignatureCardDOM(sig) {
+            const grid = document.getElementById('signatures-grid');
+            if (!grid) return;
+
+            const card = document.createElement('div');
+            card.id = 'signature-card-' + sig.id;
+            card.className = 'p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-4 shadow-sm relative';
+            card.innerHTML = `
+                <button onclick="removeSignatureCard('${sig.id}')" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold no-print text-xs">✕ Eliminar</button>
+                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white flex items-center gap-1.5 border-b dark:border-slate-800 pb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-check" aria-hidden="true" class="lucide lucide-user-check w-4 h-4 text-emerald-500"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg> Firma Adicional / Testigo
+                </span>
+                <div class="relative bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200 dark:border-slate-855 p-2 shadow-inner">
+                    <canvas id="signature-${sig.id}" width="300" height="120" class="w-full bg-white rounded-xl cursor-crosshair border border-slate-200 dark:border-slate-800"></canvas>
+                    <input type="file" id="upload-sig-${sig.id}" class="hidden" accept="image/*" onchange="uploadSignatureImage('signature-${sig.id}')">
+                    <button onclick="document.getElementById('upload-sig-${sig.id}').click()" class="absolute bottom-4 left-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Cargar</button>
+                    <button onclick="clearSignatureCanvas('signature-${sig.id}')" class="absolute bottom-4 right-4 py-1 px-2 rounded-lg bg-slate-250 dark:bg-slate-800 hover:bg-slate-355 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-400 border border-slate-300 dark:border-slate-700 text-[10px] transition cursor-pointer no-print">Limpiar</button>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">NOMBRE COMPLETO</label>
+                        <input type="text" id="signer-${sig.id}-name" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Nombre completo" value="${sig.name || ""}">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">CÉDULA / VÍNCULO</label>
+                        <input type="text" id="signer-${sig.id}-cc" oninput="saveLocalData()" class="w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 p-2 text-xs text-slate-900 dark:text-white font-medium shadow-sm" placeholder="Identificación" value="${sig.cc || ""}">
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function removeSignatureCard(id) {
+            if (confirm("¿Desea eliminar este panel de firma adicional?")) {
+                const card = document.getElementById('signature-card-' + id);
+                if (card) card.remove();
+                currentWizard.customSignatures = currentWizard.customSignatures.filter(s => s.id !== id);
+                saveLocalData();
+            }
+        }
+
+        // Modales
+        function openLegalModal() { document.getElementById('legal-modal').classList.remove('hidden'); }
+        function closeLegalModal() { document.getElementById('legal-modal').classList.add('hidden'); }
+        function resetSSTForm() {
+            if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
+                safeRemoveLocalStorage(storageKey);
+                deleteMediaFromDB('inspeccion_equipos_emergencia').then(() => {
+                    window.location.reload();
+                });
+            }
+        }
+
+        // Copiloto IA (API Gemini Directa)
+        function toggleAISidebar() {
+            const drawer = document.getElementById('ai-drawer');
+            if (drawer) drawer.classList.toggle('translate-x-full');
+        }
+
+        function saveAPIKey() {
+            const key = document.getElementById('gemini-key').value.trim();
+            safeSetLocalStorage('wappy_gemini_key', key);
+            alert("API Key de Gemini guardada localmente.");
+        }
+        
+        function saveSelectedModel() {
+            const model = document.getElementById('gemini-model').value;
+            safeSetLocalStorage('wappy_gemini_model', model);
+        }
+
+        async function sendChatMessage() {
+            const inputEl = document.getElementById('ai-chat-input');
+            const messageText = inputEl.value.trim();
+            if (!messageText) return;
+
+            addChatMessage('user', messageText);
+            inputEl.value = '';
+
+            const apiKey = safeGetLocalStorage('wappy_gemini_key');
+            if (!apiKey) {
+                addChatMessage('assistant', "⚠️ Por favor, ingrese y guarde su API Key de Gemini abajo en el panel lateral para poder ayudarle.");
+                return;
+            }
+
+            const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.1-flash-lite';
+            addChatMessage('assistant', "🤖 Pensando...");
+
+            // Construir contexto en vivo del documento
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                if (input.id && !excluded.includes(input.id) && !input.id.startsWith('signer-')) {
+                    const labelEl = document.querySelector(`label[for="${input.id}"]`) || input.previousElementSibling;
+                    const labelText = labelEl ? labelEl.textContent.trim() : input.id;
+                    currentValues[labelText] = input.value;
+                }
+            });
+
+            const headerInfo = {
+                "Empresa": appDocHeader.companyName,
+                "NIT": appDocHeader.companyNit,
+                "ARL": appDocHeader.companyArl,
+                "Código de Registro": appDocHeader.changeCode,
+                "Última Actualización": appDocHeader.lastUpdated,
+                "Título del Aplicativo": appDocHeader.appTitle
+            };
+
+            let documentContext = `DATOS ACTUALES DEL FORMULARIO Y CONTEXTO:\n`;
+            documentContext += `Información de cabecera:\n${JSON.stringify(headerInfo, null, 2)}\n\n`;
+            documentContext += `Campos de Inspección:\n`;
+            for (const [key, val] of Object.entries(currentValues)) {
+                if (val && val.trim() !== '') {
+                    documentContext += `- ${key}: ${val}\n`;
+                }
+            }
+
+            if (currentWizard.tasks && currentWizard.tasks.length > 0) {
+                documentContext += `\nPlan de Acción (Kanban):\n`;
+                currentWizard.tasks.forEach(t => {
+                    documentContext += `- Tarea: "${t.title}" | Responsable: ${t.resp} | Estado: ${t.column}\n`;
+                });
+            }
+
+            const systemContext = `Actúas como un experto consultor e inspector de Seguridad y Salud en el Trabajo (SST) de Colombia.
+Tu especialidad específica para esta sesión es el aplicativo: ${appDocHeader.appTitle} en el sector Industrial/Manufacturero.
+Normatividad aplicable principal: Resolución 0312 de 2019 de Colombia, Decreto 1072 de 2015, Resolución 2400 de 1979 y NFPA 10 (Norma de Extintores Portátiles).
+Responde siempre de forma extremadamente profesional, técnica y detallada con terminología de SST colombiana.
+Tu rol es puramente conversacional y de asesoría: responde dudas, explica metodologías, brinda recomendaciones de prevención y responde preguntas del usuario.
+No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, claro y constructivo.
+
+${documentContext}`;
+
+            try {
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            { role: 'user', parts: [{ text: `${systemContext}\n\nMensaje del usuario: ${messageText}` }] }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `Error HTTP ${response.status}`;
+                    throw new Error(errMsg);
+                }
+
+                const data = await response.json();
+                const aiResponseText = data.candidates[0].content.parts[0].text;
+
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                messagesContainer.removeChild(messagesContainer.lastChild); // Remover cargando
+
+                addChatMessage('assistant', aiResponseText);
+            } catch (err) {
+                const messagesContainer = document.getElementById('ai-chat-messages');
+                if (messagesContainer.lastChild.innerText.includes("Pensando")) {
+                    messagesContainer.removeChild(messagesContainer.lastChild);
+                }
+                addChatMessage('assistant', "⚠️ Error de la API de Gemini: " + err.message);
+            }
+        }
+
+        async function triggerIAGeneration() {
+            const apiKey = safeGetLocalStorage('wappy_gemini_key') || '';
+            if (!apiKey) {
+                alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
+                toggleAISidebar();
+                return;
+            }
+
+            const inputs = document.querySelectorAll('input[id], textarea[id], select[id]');
+            let currentValues = {};
+            inputs.forEach(input => {
+                const excluded = ['gemini-key', 'gemini-model', 'ai-chat-input', 'logo-upload-input', 'evidence-images-input', 'evidence-audio-input', 'evidence-video-input'];
+                if (!excluded.includes(input.id)) {
+                    currentValues[input.id] = input.value;
+                }
+            });
+
+            const model = document.getElementById('gemini-model').value;
+            const loader = document.getElementById('ai-status-loader');
+            if (loader) loader.classList.remove('hidden');
+
+            // CRÍTICO: Esquema de salida exacto para Pestaña 3 (Solo reporte y tareas de plan)
+            const jsonSchema = {
+                "preview-form-descripcion": "Diagnóstico detallado de los hallazgos en terreno (ej: Extintores obstruidos, falta de señalización, botiquín vencido). Proponer diagnóstico solo si el campo original de descripción está vacío o es muy genérico.",
+                "preview-form-observaciones": "Acciones correctivas recomendadas específicas en terreno (ej: Despejar rutas, rotar camilla, programar recarga inmediata, reponer gasas/antisépticos).",
+                "preview-diagnostico-tecnico": "Diagnóstico legal integral de cumplimiento del Plan de Prevención y Control Contra Incendios bajo la Resolución 0312 de 2019 y Resolución 2400 de 1979.",
+                "preview-recomendaciones-sst": "Recomendaciones estratégicas de SST a mediano plazo (ej: Charlas de 5 min a brigadistas, pruebas de presión hidrostática, auditoría anual a sistemas de extinción fija).",
+                "newTasks": [
+                    { "title": "Programar recarga de extintores vencidos o con baja presión" },
+                    { "title": "Reponer medicamentos y elementos de primeros auxilios en el botiquín de emergencias" },
+                    { "title": "Realizar mantenimiento y pruebas de funcionamiento del sistema de alarmas" },
+                    { "title": "Capacitar a los trabajadores del área en manejo básico de extintores portátiles" }
+                ]
+            };
+
+            const systemInstruction = `Actúas como un experto consultor senior de SST e inspector especialista en Planes de Emergencia y Control Contra Incendio en Colombia bajo las normas Resolución 0312 de 2019, Decreto 1072 de 2015, Resolución 2400 de 1979 y NFPA 10.
+Analizarás con detalle técnico la información y hallazgos diligenciados.
+Completarás los campos técnicos del consolidado final del reporte y diseñarás el plan de acción (Kanban).
+Devolverás OBLIGATORIAMENTE un JSON estructurado con los campos editables del reporte y un listado de tareas en "newTasks".
+NO utilices bloques de código de markdown. Devuelve solo el JSON plano.
+
+REGLA CRÍTICA: NO debes sobrescribir ni borrar los datos de entrada primarios tomados en terreno. Tu misión es proponer el autocompletado y enriquecimiento únicamente de los campos técnicos correspondientes al reporte final en la Pestaña 3 que tengan los IDs definidos en el esquema.
+
+Estructura de salida obligatoria:
+${JSON.stringify(jsonSchema, null, 2)}`;
+
+            const userPrompt = `Información de la inspección tomada en terreno para el aplicativo "${appDocHeader.appTitle}":
+${JSON.stringify(currentValues, null, 2)}
+
+Por favor, analiza la información de terreno y completa de forma profesional los campos de análisis y diagnóstico del reporte final, junto con el plan de tareas en formato JSON.`;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const response = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        generationConfig: { responseMimeType: "application/json" },
+                        contents: [{ role: "user", parts: [{ text: userPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Error en la API de Gemini: ${response.status}`);
+                }
+
+                const resData = await response.json();
+                const textContent = resData.candidates[0].content.parts[0].text;
+                const aiResult = JSON.parse(textContent);
+
+                // Asignar y sincronizar campos al DOM interactivo de la Pestaña 3
+                for (const [key, val] of Object.entries(aiResult)) {
+                    if (key !== 'newTasks' && val) {
+                        const el = document.getElementById(key);
+                        if (el) {
+                            // Si está vacío o es un placeholder genérico, se llena
+                            if (!el.innerText || el.innerText.trim() === '' || el.innerText.includes('[Sin') || el.innerText.includes('[Haga clic')) {
+                                el.innerText = val;
+                                // Sincronizar de regreso al input de terreno si corresponde
+                                if (key === 'preview-form-descripcion') {
+                                    const formInput = document.getElementById('custom-form-descripcion');
+                                    if (formInput) formInput.value = val;
+                                }
+                                if (key === 'preview-form-observaciones') {
+                                    const formInput = document.getElementById('custom-form-observaciones');
+                                    if (formInput) formInput.value = val;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Autocompletar Kanban si hay tareas sugeridas
+                if (aiResult.newTasks && Array.isArray(aiResult.newTasks)) {
+                    currentWizard.tasks = aiResult.newTasks.map((t, idx) => ({
+                        id: 'task_' + Date.now() + '_' + idx,
+                        title: t.title,
+                        resp: 'SST',
+                        date: new Date().toISOString().split('T')[0],
+                        column: 'todo'
+                    }));
+                    renderKanban();
+                }
+
+                saveLocalData();
+                alert("¡Campos autocompletados y plan de acción generado con éxito por la IA!");
+                switchTab('tab-analysis');
+            } catch (err) {
+                console.error(err);
+                alert("Error al generar análisis con IA: " + err.message);
+            } finally {
+                if (loader) loader.classList.add('hidden');
+            }
+        }
+
+        function addChatMessage(role, text) {
+            const container = document.getElementById('ai-chat-messages');
+            if (!container) return;
+            const msgDiv = document.createElement('div');
+            if (role === 'user') {
+                msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-blue-500/10 text-blue-800 dark:text-blue-300 self-end ml-auto border border-blue-500/20';
+                msgDiv.innerText = text;
+            } else {
+                msgDiv.className = 'p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300';
+                msgDiv.innerHTML = `<div>${markdownToHTML(text)}</div>`;
+            }
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function markdownToHTML(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/^### (.+)$/gm, '<h3 class="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2 class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1 class="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-3 mb-1">$1</h1>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Exportador de HTML integrado (Reemplazo Inline de Variables)
+        async function exportUpdatedHTML() {
+            saveLocalData();
+            let baseHTML = "";
+            try {
+                const response = await fetch(window.location.href);
+                if (response.ok) baseHTML = await response.text();
+            } catch (e) {}
+
+            if (!baseHTML) {
+                baseHTML = "<!DOCTYPE html>\n<html>" + document.documentElement.innerHTML + "</html>";
+            }
+
+            const masterRegex = /let\s+masterSavedChanges\s*=\s*\[[\s\S]*?\]\s*;/;
+            const headerRegex = /let\s+appDocHeader\s*=\s*\{[\s\S]*?\}\s*;/;
+            const wizardRegex = /let\s+currentWizard\s*=\s*\{[\s\S]*?\}\s*;/;
+
+            const newMasterStr = `let masterSavedChanges = ${JSON.stringify(masterSavedChanges, null, 4)};`;
+            const newHeaderStr = `let appDocHeader = ${JSON.stringify(appDocHeader, null, 4)};`;
+            const newWizardStr = `let currentWizard = ${JSON.stringify(currentWizard, null, 4)};`;
+
+            let updatedHTML = baseHTML;
+            if (masterRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(masterRegex, newMasterStr);
+            if (headerRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(headerRegex, newHeaderStr);
+            if (wizardRegex.test(updatedHTML)) updatedHTML = updatedHTML.replace(wizardRegex, newWizardStr);
+
+            const blob = new Blob([updatedHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = appDocHeader.companyName.replace(/[^a-zA-Z0-9]/g, "_") + "_" + appDocHeader.changeCode + ".html";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Alternancia de Temas
+        function toggleTheme() {
+            const body = document.body;
+            const floatIcon = document.getElementById('theme-float-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.remove('dark');
+                body.classList.remove('dark');
+                body.classList.add('light');
+                floatIcon.setAttribute('data-lucide', 'moon');
+                floatIcon.className = "lucide lucide-moon w-4 h-4 text-slate-600";
+                themeText.innerText = 'Modo Oscuro';
+                currentTheme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                body.classList.remove('light');
+                body.classList.add('dark');
+                floatIcon.setAttribute('data-lucide', 'sun');
+                floatIcon.className = "lucide lucide-sun w-4 h-4 text-amber-400";
+                themeText.innerText = 'Modo Claro';
+                currentTheme = 'dark';
+            }
+            
+            // Forzar firmas canvas a mantener hilo legible
+            document.querySelectorAll('canvas').forEach(cvs => {
+                const context = cvs.getContext('2d');
+                if (context) {
+                    context.strokeStyle = '#1e293b';
+                }
+            });
+            
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Evento de inicialización al cargar la página
+        window.onload = async function() {
+            try {
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (e) { console.error("Error creating Lucide icons:", e); }
+            
+            try {
+                await loadState();
+            } catch (e) { console.error("Error loading state:", e); }
+            
+            // Set default dates
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const exportDateEl = document.getElementById('export-date');
+                if (exportDateEl && !exportDateEl.value) {
+                    exportDateEl.value = today;
+                }
+                const footerDateEl = document.getElementById('footer-current-date');
+                if (footerDateEl) {
+                    footerDateEl.innerText = today;
+                }
+            } catch (e) { console.error("Error setting default export date:", e); }
+        }
+
+        window.addEventListener('beforeunload', saveLocalData);
+    </script>
+</body>
+</html>

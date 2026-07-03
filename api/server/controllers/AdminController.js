@@ -73,11 +73,11 @@ const updateUser = async (req, res) => {
         const { 
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
-            companyLimit
+            companyLimit, referredByPartner
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit
+            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, referredByPartner
         });
 
         const updateData = {};
@@ -135,6 +135,28 @@ const updateUser = async (req, res) => {
                         paymentDetails: partnerPaymentDetails ? partnerPaymentDetails.trim() : '',
                         supportContact: partnerSupportContact ? partnerSupportContact.trim() : ''
                     },
+                    { upsert: true, new: true }
+                );
+            }
+        }
+
+        // --- Handle Ambassador (referredByPartner) assignment ---
+        if (referredByPartner !== undefined) {
+            const ReferralRecord = require('~/models/ReferralRecord');
+            if (!referredByPartner || referredByPartner === 'none' || referredByPartner === '') {
+                const existingRecord = await ReferralRecord.findOne({ referredUserId: userId });
+                if (existingRecord) {
+                    if (existingRecord.referredByUser) {
+                        existingRecord.referredByPartner = null;
+                        await existingRecord.save();
+                    } else {
+                        await ReferralRecord.deleteOne({ referredUserId: userId });
+                    }
+                }
+            } else {
+                await ReferralRecord.findOneAndUpdate(
+                    { referredUserId: userId },
+                    { referredByPartner },
                     { upsert: true, new: true }
                 );
             }
@@ -356,11 +378,15 @@ const getUserReferralDetails = async (req, res) => {
         // 4. Fetch company limits and created companies count
         const UserPlan = require('~/db/models/UserPlan');
         const CompanyInfo = require('~/models/CompanyInfo');
+        const ReferralRecord = require('~/models/ReferralRecord');
 
         const userPlanDoc = await UserPlan.findOne({ userId }).lean();
         const companyLimit = userPlanDoc ? userPlanDoc.companyLimit : null;
 
         const createdCompaniesCount = await CompanyInfo.countDocuments({ user: userId });
+
+        const referralRecord = await ReferralRecord.findOne({ referredUserId: userId }).lean();
+        const referredByPartner = referralRecord ? referralRecord.referredByPartner : null;
 
         return res.json({
             pointsBalance,
@@ -368,11 +394,34 @@ const getUserReferralDetails = async (req, res) => {
             commissionsStats,
             payoutRequests,
             companyLimit,
-            createdCompaniesCount
+            createdCompaniesCount,
+            referredByPartner
         });
     } catch (err) {
         logger.error('[getUserReferralDetails] Error:', err);
         return res.status(500).json({ message: 'Error al obtener detalles de referidos del usuario.' });
+    }
+};
+
+const getAmbassadors = async (req, res) => {
+    try {
+        const Partner = require('~/models/Partner');
+        const partners = await Partner.find({ status: 'approved' })
+            .populate('userId', 'name email username')
+            .lean();
+        
+        const result = partners.map(p => ({
+            _id: p._id,
+            slug: p.slug,
+            type: p.type,
+            name: p.userId?.name || p.userId?.username || p.slug || 'Sin nombre',
+            email: p.userId?.email || 'Sin correo',
+        }));
+        
+        res.status(200).json(result);
+    } catch (err) {
+        logger.error('[getAmbassadors]', err);
+        res.status(500).json({ message: 'Error fetching ambassadors' });
     }
 };
 
@@ -385,5 +434,6 @@ module.exports = {
     getUserConversations, 
     getConversationDetails, 
     getAllCompanyInfo,
-    getUserReferralDetails
+    getUserReferralDetails,
+    getAmbassadors
 };
