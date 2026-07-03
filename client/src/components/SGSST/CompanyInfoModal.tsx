@@ -165,13 +165,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, [user?.createdAt]);
 
     const effectiveLimit = React.useMemo(() => {
-        if (isLegacyUser) {
-            if (userPlanName === 'pro') {
-                return 3;
-            }
-            return Math.min(3, Math.max(1, companies.length));
-        }
-        return companyLimit;
+        const legacyLimit = isLegacyUser
+            ? (userPlanName === 'pro' ? 3 : Math.min(3, Math.max(1, companies.length)))
+            : 1;
+        return Math.max(companyLimit, legacyLimit);
     }, [isLegacyUser, userPlanName, companyLimit, companies.length]);
 
     const sortedCompanies = React.useMemo(() => {
