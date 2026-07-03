@@ -478,6 +478,7 @@ export default function UserManagementTable() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_email')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_username')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_role')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Registro</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Activación</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_status')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_actions')}</th>
@@ -486,7 +487,7 @@ export default function UserManagementTable() {
                     <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-10 text-center text-sm text-gray-400 italic">
+                                <td colSpan={10} className="px-6 py-10 text-center text-sm text-gray-400 italic">
                                     {hasFilters ? 'No se encontraron usuarios con los filtros aplicados.' : localize('com_ui_nothing_found')}
                                 </td>
                             </tr>
@@ -520,6 +521,20 @@ export default function UserManagementTable() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{
                                         { USER: 'Invitado', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Wappy Pro', USER_IPEVAR: 'Wappy Vital', IPEVAR: 'Wappy Vital Legacy', USER_CUSTOM: 'A la Medida', ADMIN: 'Admin' }[user.role] || user.role
                                     }</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">
+                                        {user.createdAt ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-text-primary">
+                                                    {new Date(user.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                                </span>
+                                                <span className="text-[10px] text-text-tertiary mt-0.5">
+                                                    {new Date(user.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 italic">—</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">
                                         {user.activeAt ? (
                                             <div className="flex flex-col">
