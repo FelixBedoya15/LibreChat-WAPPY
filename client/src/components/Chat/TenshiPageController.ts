@@ -212,6 +212,9 @@ export async function executeGUIAction(
       el.dispatchEvent(new MouseEvent('mouseup', opts));
       
       el.click();
+      
+      // Esperar a que la SPA procese la navegación o transición y renderice la nueva UI
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       return { success: true, message: `Clic ejecutado en el elemento [${index}] (${el.tagName.toLowerCase()}).` };
     } catch (err: any) {
