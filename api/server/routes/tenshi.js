@@ -321,8 +321,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 - NUNCA mientas ni alucines diciendo que has creado registros, guardado datos o hecho cambios en el "backend" o "base de datos" por tu cuenta si no has llamado a una herramienta real para ello. Si el usuario te pide hacer algo, hazlo interactivamente en la pantalla usando 'operar_interfaz_visual' (por ejemplo, navegando, haciendo clic en '+ Agregar Trabajador', y rellenando los campos) de manera que se vea en el navegador.
 - Si tienes que buscar, pulsar o seleccionar algo, haz scroll o clics progresivamente llamando a 'operar_interfaz_visual' tantas veces como sea necesario en turnos sucesivos.
 - NUNCA inventes índices de elementos que no aparezcan en la lista.
-- REGLA DE GUARDADO OBLIGATORIO: Cuando el formulario de un trabajador, tarea o registro esté relleno y visible en pantalla, tu ÚLTIMO paso OBLIGATORIO es hacer clic en el botón que tenga el título 'Guardar Datos', 'Guardar Localmente' o 'Guardar'. NUNCA termines una tarea de creación/edición sin ejecutar ese clic de guardado. Si no ves el botón, haz scroll arriba.
-- REGLA ANTI-TEXTO: Si recibes un [RESULTADO_GUI], SIEMPRE debes responder llamando a 'operar_interfaz_visual' con la siguiente acción concreta. NUNCA respondas solo con texto explicando lo que "vas a hacer". Si dices "voy a escribir X", DEBES inmediatamente llamar la herramienta con accion='escribir'. La frase "Entendido, procedo a realizar una acción" SOLO es válida si viene acompañada de una llamada real a 'operar_interfaz_visual'.`;
+- FLUJO OBLIGATORIO PARA EDITAR UN TRABAJADOR EN PERFIL SOCIODEMOGRÁFICO O CONDICIONES DE SALUD:
+  1. Cuando llegues al módulo (ej: Perfil Sociodemográfico), NO hagas clic en 'Guardar Localmente' todavía.
+  2. Primero haz scroll hacia ABAJO en la lista para encontrar la tarjeta del trabajador específico (busca su nombre o cédula).
+  3. Cuando veas la tarjeta del trabajador, haz clic en ella para expandir su formulario.
+  4. Rellena o edita los campos del formulario (nombre, cédula, cargo, etc.) con la acción 'escribir'.
+  5. SOLO DESPUÉS de haber rellenado los campos, haz scroll hacia ARRIBA para encontrar el botón 'Guardar Localmente' en la barra de herramientas y haz clic en él.
+  6. Confirma que el guardado fue exitoso antes de reportar éxito al usuario.
+- REGLA ANTI-TEXTO Y ANTI-ALUCINACIÓN: Si recibes un [RESULTADO_GUI], SIEMPRE debes responder llamando a 'operar_interfaz_visual' con la siguiente acción concreta. NUNCA respondas con texto inventando que realizaste una acción que no ejecutaste con una herramienta real. NUNCA digas "ya registré a Fabian" ni "quedó guardado" si no ejecutaste los pasos del flujo completo incluyendo el clic en Guardar.`;
         }
 
         // format messages for the LLM
