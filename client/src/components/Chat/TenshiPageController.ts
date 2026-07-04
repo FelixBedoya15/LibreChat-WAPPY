@@ -56,6 +56,16 @@ function isInteractive(el: HTMLElement): boolean {
     return true;
   }
 
+  // Si no es un elemento interactivo nativo ni tiene rol interactivo explícito,
+  // y además contiene elementos interactivos nativos adentro, no lo tratamos como interactivo.
+  // Esto evita que la IA haga clic en contenedores padres gigantes (ej: divs del sidebar).
+  if (!['button', 'input', 'select', 'textarea', 'a'].includes(tagName) && role !== 'button' && role !== 'link') {
+    const hasInteractiveChildren = el.querySelector('button, input, select, textarea, a, [role="button"], [role="link"]') !== null;
+    if (hasInteractiveChildren) {
+      return false;
+    }
+  }
+
   // Si tiene un cursor de puntero configurado por CSS
   const style = window.getComputedStyle(el);
   if (style.cursor === 'pointer') {
