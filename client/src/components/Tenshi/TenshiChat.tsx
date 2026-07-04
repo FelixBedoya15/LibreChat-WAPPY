@@ -25,6 +25,7 @@ export default function TenshiChat() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [tenshiStatus, setTenshiStatus] = useState<string>('');
+  const [guiSteps, setGuiSteps] = useState<{ action: string; details: string; status: 'pending' | 'success' | 'failed' }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -406,6 +407,7 @@ export default function TenshiChat() {
         role: 'assistant',
         content: responseData.response,
         htmlReport: responseData.htmlReport,
+        isIntermediate: !!responseData.guiAction,
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
@@ -413,6 +415,27 @@ export default function TenshiChat() {
       if (responseData.guiAction) {
         console.log('[Tenshi Frontend] GUI action requested:', responseData.guiAction);
         setTenshiStatus(`Acción visual requerida: ${responseData.guiAction.accion}...`);
+
+        // Registrar paso de automatización para mostrar en el acordeón de acciones
+        const actionLabel = responseData.guiAction.accion.toUpperCase();
+        let detailLabel = '';
+        if (responseData.guiAction.indice !== undefined) {
+          detailLabel = `Índice [${responseData.guiAction.indice}]`;
+        }
+        if (responseData.guiAction.texto) {
+          detailLabel += `${detailLabel ? ': ' : ''}"${responseData.guiAction.texto}"`;
+        } else if (responseData.guiAction.direccion) {
+          detailLabel += `${detailLabel ? ': ' : ''}hacia ${responseData.guiAction.direccion}`;
+        }
+        if (!detailLabel) {
+          detailLabel = responseData.guiAction.accion === 'esperar' ? 'Espera temporal de 1.5s' : 'Ejecución de acción general';
+        }
+
+        setGuiSteps((prev) => [
+          ...prev,
+          { action: actionLabel, details: detailLabel, status: 'pending' },
+        ]);
+
         // Esperamos un momento para que el usuario lea el mensaje intermedio de Tenshi
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
@@ -424,6 +447,15 @@ export default function TenshiChat() {
           responseData.guiAction.direccion,
         );
         console.log('[Tenshi Frontend] GUI action result:', actionResult);
+
+        // Actualizar estado de la acción ejecutada en los logs del acordeón
+        setGuiSteps((prev) => {
+          const updated = [...prev];
+          if (updated.length > 0) {
+            updated[updated.length - 1].status = actionResult.success ? 'success' : 'failed';
+          }
+          return updated;
+        });
 
         const newDOM = getDehydratedDOM();
         // Detectar si el scroll no cambió el DOM (bucle infinito de scroll)
@@ -474,6 +506,7 @@ export default function TenshiChat() {
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
+    setGuiSteps([]); // Limpiar logs de automatización anteriores
     const userMsg = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
@@ -674,7 +707,7 @@ export default function TenshiChat() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
-            {messages.filter(msg => !msg.content?.startsWith('[RESULTADO_GUI]')).map((msg, i) => (
+            {messages.filter(msg => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate).map((msg, i) => (
               <div
                 key={i}
                 className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -785,6 +818,48 @@ export default function TenshiChat() {
                 )}
               </div>
             ))}
+
+            {/* Live automation steps collapsible log */}
+            {guiSteps.length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white/80 p-3.5 backdrop-blur-sm shadow-sm dark:border-gray-700/50 dark:bg-gray-800/80">
+                <details className="group" open>
+                  <summary className="flex cursor-pointer items-center justify-between font-bold text-xs text-gray-700 select-none dark:text-gray-300">
+                    <span className="flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      Acciones automáticas en pantalla ({guiSteps.filter(s => s.status === 'success').length}/{guiSteps.length})
+                    </span>
+                    <span className="transition-transform duration-200 group-open:rotate-180 text-gray-400 text-[10px]">▼</span>
+                  </summary>
+                  <div className="mt-3.5 space-y-2 border-t border-gray-100/50 pt-2.5 dark:border-gray-700/50">
+                    {guiSteps.map((step, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono text-[9px] dark:bg-gray-700 dark:text-gray-300">
+                            {step.action}
+                          </span>
+                          {step.details}
+                        </span>
+                        <span>
+                          {step.status === 'pending' && (
+                            <span className="text-amber-500 font-medium animate-pulse">Ejecutando...</span>
+                          )}
+                          {step.status === 'success' && (
+                            <span className="text-emerald-500 font-bold">✓ Listo</span>
+                          )}
+                          {step.status === 'failed' && (
+                            <span className="text-rose-500 font-bold">✗ Error</span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            )}
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">

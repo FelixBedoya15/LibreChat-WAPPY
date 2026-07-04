@@ -202,7 +202,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         // Intelligent Retrieval (RAG) instead of static limit
         const userQuery = messages[messages.length - 1]?.content || '';
-        if (userQuery) {
+        if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {
             await TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
         const ticketContext = await getRelevantTickets(req, userQuery);
@@ -640,7 +640,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             responseText = oaiRes.data.choices[0].message.content;
         }
 
-        if (responseText) {
+        if (responseText && !requestedGuiAction) {
             await TenshiMessage.create({
                 user: req.user.id,
                 role: 'assistant',
