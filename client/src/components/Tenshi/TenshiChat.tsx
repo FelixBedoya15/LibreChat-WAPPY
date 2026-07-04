@@ -407,74 +407,83 @@ export default function TenshiChat() {
         role: 'assistant',
         content: responseData.response,
         htmlReport: responseData.htmlReport,
-        isIntermediate: !!responseData.guiAction,
+        isIntermediate: !!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0),
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Si Tenshi requiere una acción visual, la ejecutamos en el cliente y continuamos el ciclo
-      if (responseData.guiAction) {
-        console.log('[Tenshi Frontend] GUI action requested:', responseData.guiAction);
-        setTenshiStatus(`Acción visual requerida: ${responseData.guiAction.accion}...`);
+      // Si Tenshi requiere una o más acciones visuales, las ejecutamos en secuencia en el cliente
+      const actions = responseData.guiActions || (responseData.guiAction ? [responseData.guiAction] : []);
+      if (actions.length > 0) {
+        console.log('[Tenshi Frontend] GUI actions requested:', actions);
+        let cumulativeMessages = [...currentMessages, assistantMsg];
+        let lastResult = null;
+        let index = 0;
 
-        // Registrar paso de automatización para mostrar en el acordeón de acciones
-        const actionLabel = responseData.guiAction.accion.toUpperCase();
-        let detailLabel = '';
-        if (responseData.guiAction.indice !== undefined) {
-          detailLabel = `Índice [${responseData.guiAction.indice}]`;
-        }
-        if (responseData.guiAction.texto) {
-          detailLabel += `${detailLabel ? ': ' : ''}"${responseData.guiAction.texto}"`;
-        } else if (responseData.guiAction.direccion) {
-          detailLabel += `${detailLabel ? ': ' : ''}hacia ${responseData.guiAction.direccion}`;
-        }
-        if (!detailLabel) {
-          detailLabel = responseData.guiAction.accion === 'esperar' ? 'Espera temporal de 1.5s' : 'Ejecución de acción general';
-        }
+        for (const action of actions) {
+          setTenshiStatus(`Acción visual (${index + 1}/${actions.length}): ${action.accion}...`);
 
-        setGuiSteps((prev) => [
-          ...prev,
-          { action: actionLabel, details: detailLabel, status: 'pending' },
-        ]);
-
-        // Esperamos un momento mínimo para actualización de UI
-        await new Promise((resolve) => setTimeout(resolve, 250));
-
-        setTenshiStatus(`Desplazando e interactuando con elemento [${responseData.guiAction.indice}]...`);
-        const actionResult = await executeGUIAction(
-          responseData.guiAction.accion,
-          responseData.guiAction.indice,
-          responseData.guiAction.texto,
-          responseData.guiAction.direccion,
-        );
-        console.log('[Tenshi Frontend] GUI action result:', actionResult);
-
-        // Actualizar estado de la acción ejecutada en los logs del acordeón
-        setGuiSteps((prev) => {
-          const updated = [...prev];
-          if (updated.length > 0) {
-            updated[updated.length - 1].status = actionResult.success ? 'success' : 'failed';
+          // Registrar paso de automatización para mostrar en el acordeón de acciones
+          const actionLabel = action.accion.toUpperCase();
+          let detailLabel = '';
+          if (action.indice !== undefined) {
+            detailLabel = `Índice [${action.indice}]`;
           }
-          return updated;
-        });
+          if (action.texto) {
+            detailLabel += `${detailLabel ? ': ' : ''}"${action.texto}"`;
+          } else if (action.direccion) {
+            detailLabel += `${detailLabel ? ': ' : ''}hacia ${action.direccion}`;
+          }
+          if (!detailLabel) {
+            detailLabel = action.accion === 'esperar' ? 'Espera temporal de 1.5s' : 'Ejecución de acción general';
+          }
+
+          setGuiSteps((prev) => [
+            ...prev,
+            { action: actionLabel, details: detailLabel, status: 'pending' },
+          ]);
+
+          // Esperamos un momento mínimo para actualización de UI
+          await new Promise((resolve) => setTimeout(resolve, 250));
+
+          setTenshiStatus(`Desplazando e interactuando con elemento [${action.indice}]...`);
+          const actionResult = await executeGUIAction(
+            action.accion,
+            action.indice,
+            action.texto,
+            action.direccion,
+          );
+          console.log('[Tenshi Frontend] GUI action result:', actionResult);
+
+          lastResult = actionResult;
+
+          // Actualizar estado de la acción ejecutada en los logs del acordeón
+          setGuiSteps((prev) => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1].status = actionResult.success ? 'success' : 'failed';
+            }
+            return updated;
+          });
+
+          // Guardar en el historial temporal acumulado para que el backend tenga contexto
+          cumulativeMessages.push({
+            role: 'user',
+            content: `[RESULTADO_GUI] Acción ${action.accion} ejecutada en elemento [${action.indice}]. Resultado: ${actionResult.message}`,
+          });
+
+          index++;
+        }
 
         const newDOM = getDehydratedDOM();
-        // Detectar si el scroll no cambió el DOM (bucle infinito de scroll)
-        const lastUserMsg = currentMessages.filter(m => m.role === 'user').at(-1);
-        const lastDOM = lastUserMsg?.content?.includes('Estado actual de la pantalla:')
-          ? lastUserMsg.content.split('Estado actual de la pantalla:')[1]?.trim()
-          : null;
-        const domChanged = !lastDOM || lastDOM !== newDOM;
-        const scrollStuck = responseData.guiAction.accion === 'scroll' && !domChanged;
-
-        const feedbackMsg = {
+        const finalFeedbackMsg = {
           role: 'user',
-          content: `[RESULTADO_GUI] Acción ${responseData.guiAction.accion} ejecutada. Resultado: ${scrollStuck ? 'ADVERTENCIA: El DOM no cambió tras el scroll. Has llegado al límite de la página. El botón de guardar puede ser uno de los botones sin etiqueta visibles en pantalla (como [28] o [29]). Analiza los elementos vacíos disponibles y haz clic en el correcto.' : actionResult.message}. Estado actual de la pantalla:\n${newDOM}`,
+          content: `[RESULTADO_GUI] Lote de acciones completado en el cliente. Último resultado: ${lastResult?.message}. Estado actual de la pantalla:\n${newDOM}`,
         };
 
-        // Reanudamos la conversación de forma automática pasándole todo el historial acumulado
-        console.log('[Tenshi Frontend] Sending automated feedback to backend:', feedbackMsg);
+        // Reanudamos la conversación de forma automática pasándole todo el historial acumulado en lote
+        console.log('[Tenshi Frontend] Sending batched feedback to backend:', finalFeedbackMsg);
         setTenshiStatus('Enviando resultado...');
-        await runChatTurn([...currentMessages, assistantMsg, feedbackMsg]);
+        await runChatTurn([...cumulativeMessages, finalFeedbackMsg]);
       } else {
         console.log('[Tenshi Frontend] No GUI action requested. Ending turn.');
         setTenshiStatus('');

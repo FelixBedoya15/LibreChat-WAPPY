@@ -96,6 +96,55 @@ function getElementText(el: HTMLElement): string {
 }
 
 /**
+ * Intenta deducir la etiqueta de texto asociada a un elemento de formulario (input, select, textarea)
+ */
+function getInputLabel(el: HTMLElement): string {
+  // 1. Atributos explícitos
+  const explicit = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('aria-describedby') || el.getAttribute('data-tooltip') || el.getAttribute('data-title');
+  if (explicit) return explicit.trim();
+
+  // 2. Asociaciones de etiqueta por ID (htmlFor)
+  const id = el.getAttribute('id');
+  if (id) {
+    const labelEl = document.querySelector(`label[for="${id}"]`);
+    if (labelEl && labelEl.textContent) {
+      return labelEl.textContent.trim().replace(/\s+/g, ' ');
+    }
+  }
+
+  // 3. Si el input está anidado dentro de una etiqueta label
+  const parentLabel = el.closest('label');
+  if (parentLabel && parentLabel.textContent) {
+    return parentLabel.textContent.trim().replace(el.textContent || '', '').trim().replace(/\s+/g, ' ');
+  }
+
+  // 4. Buscar texto de etiqueta en hermanos anteriores
+  let prev = el.previousElementSibling;
+  for (let i = 0; i < 3; i++) {
+    if (!prev) break;
+    const text = (prev.textContent || '').trim().replace(/\s+/g, ' ');
+    if (text && text.length < 50 && !prev.querySelector('input, select, textarea, button')) {
+      return text;
+    }
+    prev = prev.previousElementSibling;
+  }
+
+  // 5. Buscar en hermanos anteriores del contenedor padre
+  const parent = el.parentElement;
+  if (parent) {
+    let parentPrev = parent.previousElementSibling;
+    if (parentPrev) {
+      const text = (parentPrev.textContent || '').trim().replace(/\s+/g, ' ');
+      if (text && text.length < 50 && !parentPrev.querySelector('input, select, textarea, button')) {
+        return text;
+      }
+    }
+  }
+
+  return '';
+}
+
+/**
  * Deshidrata el DOM actual en un formato de texto estructurado y ligero para el LLM
  */
 export function getDehydratedDOM(): string {
@@ -131,7 +180,7 @@ export function getDehydratedDOM(): string {
         const placeholder = htmlEl.getAttribute('placeholder') || '';
         const value = (htmlEl as any).value || '';
         const checked = (htmlEl as any).checked ? 'checked' : '';
-        const text = getElementText(htmlEl);
+        const text = ['input', 'select', 'textarea'].includes(tagName) ? getInputLabel(htmlEl) : getElementText(htmlEl);
 
         // Crear representación compacta de texto
         let attrs = '';

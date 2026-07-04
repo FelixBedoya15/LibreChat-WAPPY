@@ -181,6 +181,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         let capturedHtmlReport = null;
         let requestedGuiAction = null;
+        let requestedGuiActions = null;
 
         // Fetch dynamic knowledge (latest blogs)
         let latestBlogs = [];
@@ -328,7 +329,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
   4. Rellena o edita los campos del formulario (nombre, cédula, cargo, etc.) con la acción 'escribir'.
   5. SOLO DESPUÉS de haber rellenado los campos, haz scroll hacia ARRIBA para encontrar el botón 'Guardar Localmente' en la barra de herramientas y haz clic en él.
   6. Confirma que el guardado fue exitoso antes de reportar éxito al usuario.
-- REGLA ANTI-TEXTO Y ANTI-ALUCINACIÓN: Si recibes un [RESULTADO_GUI], SIEMPRE debes responder llamando a 'operar_interfaz_visual' con la siguiente acción concreta. NUNCA respondas con texto inventando que realizaste una acción que no ejecutaste con una herramienta real. NUNCA digas "ya registré a Fabian" ni "quedó guardado" si no ejecutaste los pasos del flujo completo incluyendo el clic en Guardar.`;
+- REGLA ANTI-TEXTO Y ANTI-ALUCINACIÓN: Si recibes un [RESULTADO_GUI], SIEMPRE debes responder llamando a 'operar_interfaz_visual' con la siguiente acción concreta. NUNCA respondas con texto inventando que realizaste una acción que no ejecutaste con una herramienta real. NUNCA digas "ya registré a Fabian" ni "quedó guardado" si no ejecutaste los pasos del flujo completo incluyendo el clic en Guardar.
+- CAPACIDAD DE ACCIÓN EN LOTE (PARALELO): Puedes llamar a la herramienta 'operar_interfaz_visual' múltiples veces en la misma respuesta (en paralelo) si deseas ejecutar una secuencia de pasos lógicos seguidos (ej: hacer clic en una tarjeta, escribir en un campo, y luego hacer clic en guardar). Esto ahorra tiempo de red y ejecuta todo de una vez. Preferible usar esto para rellenar formularios rápidamente.`;
         }
 
         // format messages for the LLM
@@ -547,12 +549,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 const toolInstance = new CanvasTool({ req });
                                 toolOutput = await toolInstance._call(call.args);
                             } else if (call.name === 'operar_interfaz_visual') {
-                                requestedGuiAction = {
-                                    accion: call.args.accion,
-                                    indice: call.args.indice,
-                                    texto: call.args.texto,
-                                    direccion: call.args.direccion
-                                };
+                                const guiCalls = calls.filter(c => c.name === 'operar_interfaz_visual');
+                                requestedGuiActions = guiCalls.map(c => ({
+                                    accion: c.args.accion,
+                                    indice: c.args.indice,
+                                    texto: c.args.texto,
+                                    direccion: c.args.direccion
+                                }));
+                                requestedGuiAction = requestedGuiActions[0]; // fallback
                                 break;
                             } else {
                                 break;
@@ -640,7 +644,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             responseText = oaiRes.data.choices[0].message.content;
         }
 
-        if (responseText && !requestedGuiAction) {
+        if (responseText && !requestedGuiAction && (!requestedGuiActions || requestedGuiActions.length === 0)) {
             await TenshiMessage.create({
                 user: req.user.id,
                 role: 'assistant',
@@ -649,7 +653,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
-        res.json({ response: responseText, htmlReport: capturedHtmlReport, guiAction: requestedGuiAction });
+        res.json({ response: responseText, htmlReport: capturedHtmlReport, guiAction: requestedGuiAction, guiActions: requestedGuiActions });
     } catch (error) {
         console.error('CRITICAL Error in Tenshi chat route:', error);
         if (error.response) {
