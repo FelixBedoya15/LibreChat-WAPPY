@@ -554,6 +554,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         try {
                             responseText = responseResult.response.text();
+                            if (!responseText || !responseText.trim()) {
+                                responseText = "Entendido, procedo a realizar una acción en la pantalla...";
+                            }
                         } catch (textErr) {
                             responseText = "Entendido, procedo a realizar una acción en la pantalla...";
                         }

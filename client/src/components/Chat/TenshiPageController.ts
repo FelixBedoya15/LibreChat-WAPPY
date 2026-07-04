@@ -86,60 +86,65 @@ function getElementText(el: HTMLElement): string {
  * Deshidrata el DOM actual en un formato de texto estructurado y ligero para el LLM
  */
 export function getDehydratedDOM(): string {
-  selectorMap.clear();
-  let index = 0;
-  let resultText = '';
+  try {
+    selectorMap.clear();
+    let index = 0;
+    let resultText = '';
 
-  // Escanear recursivamente el DOM a partir del body
-  function traverse(el: Element, depth = 0) {
-    const htmlEl = el as HTMLElement;
-    if (!htmlEl || !isElementVisible(htmlEl)) return;
+    // Escanear recursivamente el DOM a partir del body
+    function traverse(el: Element, depth = 0) {
+      const htmlEl = el as HTMLElement;
+      if (!htmlEl || !isElementVisible(htmlEl)) return;
 
-    const indent = '\t'.repeat(depth);
+      const indent = '\t'.repeat(depth);
 
-    if (isInteractive(htmlEl)) {
-      const idx = index++;
-      selectorMap.set(idx, htmlEl);
+      if (isInteractive(htmlEl)) {
+        const idx = index++;
+        selectorMap.set(idx, htmlEl);
 
-      const tagName = htmlEl.tagName.toLowerCase();
-      const type = htmlEl.getAttribute('type') || '';
-      const placeholder = htmlEl.getAttribute('placeholder') || '';
-      const value = (htmlEl as any).value || '';
-      const checked = (htmlEl as any).checked ? 'checked' : '';
-      const text = getElementText(htmlEl);
+        const tagName = htmlEl.tagName.toLowerCase();
+        const type = htmlEl.getAttribute('type') || '';
+        const placeholder = htmlEl.getAttribute('placeholder') || '';
+        const value = (htmlEl as any).value || '';
+        const checked = (htmlEl as any).checked ? 'checked' : '';
+        const text = getElementText(htmlEl);
 
-      // Crear representación compacta de texto
-      let attrs = '';
-      if (type) attrs += ` type="${type}"`;
-      if (placeholder) attrs += ` placeholder="${placeholder}"`;
-      if (value && ['input', 'textarea'].includes(tagName)) attrs += ` value="${value}"`;
-      if (checked) attrs += ` ${checked}`;
+        // Crear representación compacta de texto
+        let attrs = '';
+        if (type) attrs += ` type="${type}"`;
+        if (placeholder) attrs += ` placeholder="${placeholder}"`;
+        if (value && ['input', 'textarea'].includes(tagName)) attrs += ` value="${value}"`;
+        if (checked) attrs += ` ${checked}`;
 
-      resultText += `${indent}[${idx}]<${tagName}${attrs}>${text}</${tagName}>\n`;
-      
-      // Detener recursión profunda en elementos interactivos pequeños para evitar ruido
-      if (['button', 'a', 'option'].includes(tagName)) return;
-    } else {
-      // Si es un contenedor con texto directo útil, capturar el texto
-      const childNodes = Array.from(htmlEl.childNodes);
-      const hasDirectText = childNodes.some(
-        node => node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim()
-      );
-      
-      if (hasDirectText && depth < 4) {
-        const text = (htmlEl.innerText || '').trim().replace(/\s+/g, ' ');
-        if (text && text.length < 150) {
-          resultText += `${indent}${text}\n`;
+        resultText += `${indent}[${idx}]<${tagName}${attrs}>${text}</${tagName}>\n`;
+        
+        // Detener recursión profunda en elementos interactivos pequeños para evitar ruido
+        if (['button', 'a', 'option'].includes(tagName)) return;
+      } else {
+        // Si es un contenedor con texto directo útil, capturar el texto
+        const childNodes = Array.from(htmlEl.childNodes);
+        const hasDirectText = childNodes.some(
+          node => node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim()
+        );
+        
+        if (hasDirectText && depth < 4) {
+          const text = (htmlEl.innerText || '').trim().replace(/\s+/g, ' ');
+          if (text && text.length < 150) {
+            resultText += `${indent}${text}\n`;
+          }
         }
       }
+
+      // Continuar explorando hijos
+      Array.from(htmlEl.children).forEach(child => traverse(child, depth + 1));
     }
 
-    // Continuar explorando hijos
-    Array.from(htmlEl.children).forEach(child => traverse(child, depth + 1));
+    traverse(document.body);
+    return resultText || '<Pantalla sin elementos interactivos visibles>';
+  } catch (err: any) {
+    console.error('Error deshidratando el DOM:', err);
+    return `<Error deshidratando el DOM: ${err.message}>`;
   }
-
-  traverse(document.body);
-  return resultText || '<Pantalla sin elementos interactivos visibles>';
 }
 
 /**
