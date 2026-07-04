@@ -847,16 +847,28 @@ class GoogleClient extends BaseClient {
       const isServiceUnavailable = e.status === 503 || (e.response && e.response.status === 503) ||
         (e.message && (e.message.includes('overloaded') || e.message.includes('Service Unavailable') || e.message.includes('UNAVAILABLE')));
 
-      if ((isRateLimit || isQuotaExceeded || isInvalidKey) && this.rotateKey()) {
-        logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
-        const { sendEvent } = require('@librechat/api');
-        await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
+      if (isRateLimit || isQuotaExceeded || isInvalidKey) {
+        if (this.rotateKey()) {
+          logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
+          const { sendEvent } = require('@librechat/api');
+          await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
 
-        if (options.onProgress) {
-          options.onProgress({ clear_step_maps: true });
+          if (options.onProgress) {
+            options.onProgress({ clear_step_maps: true });
+          }
+
+          return this.getCompletion(_payload, options);
+        } else if (this.rotateModel()) {
+          logger.warn(`[GoogleClient] All API keys exhausted for current model under Rate Limit/Quota/Invalid key. Switching to fallback model and retrying...`);
+          const { sendEvent } = require('@librechat/api');
+          await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
+
+          if (options.onProgress) {
+            options.onProgress({ clear_step_maps: true });
+          }
+
+          return this.getCompletion(_payload, options);
         }
-
-        return this.getCompletion(_payload, options);
       }
 
       if (isServiceUnavailable && this.rotateModel()) {

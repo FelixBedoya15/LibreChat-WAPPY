@@ -726,7 +726,11 @@ export default function TenshiChat() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
-            {messages.filter(msg => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate).map((msg, i) => (
+            {(() => {
+              const visibleMessages = messages.filter(
+              (msg) => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate
+            );
+            return visibleMessages.map((msg, i) => (
               <div
                 key={i}
                 className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -780,7 +784,7 @@ export default function TenshiChat() {
                               font-size: 0.75rem;
                           }
                         `}</style>
-                        <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
+                        <Markdown content={msg.content} isLatestMessage={i === visibleMessages.length - 1} />
                       </div>
                       {(() => {
                         const reportHtml = getHtmlFromMsg(msg);
@@ -817,7 +821,7 @@ export default function TenshiChat() {
                         <span>Editar</span>
                       </button>
                     )}
-                    {msg.role === 'assistant' && i === messages.length - 1 && (
+                    {msg.role === 'assistant' && i === visibleMessages.length - 1 && (
                       <button
                         onClick={() => handleRegenerate(msg._id!)}
                         className="flex items-center gap-0.5 hover:text-green-600 dark:hover:text-green-400 transition-colors"
@@ -836,7 +840,8 @@ export default function TenshiChat() {
                   </div>
                 )}
               </div>
-            ))}
+            ));
+          })()}
 
             {/* Live automation steps collapsible log */}
             {guiSteps.length > 0 && (
