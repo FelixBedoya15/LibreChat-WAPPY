@@ -436,8 +436,8 @@ export default function TenshiChat() {
           { action: actionLabel, details: detailLabel, status: 'pending' },
         ]);
 
-        // Esperamos un momento para que el usuario lea el mensaje intermedio de Tenshi
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        // Esperamos un momento mínimo para actualización de UI
+        await new Promise((resolve) => setTimeout(resolve, 250));
 
         setTenshiStatus(`Desplazando e interactuando con elemento [${responseData.guiAction.indice}]...`);
         const actionResult = await executeGUIAction(

@@ -22,21 +22,16 @@ let selectorMap = new Map<number, HTMLElement>();
  */
 function isElementVisible(el: HTMLElement): boolean {
   const rect = el.getBoundingClientRect();
-  const viewWidth = window.innerWidth || document.documentElement.clientWidth;
-  const viewHeight = window.innerHeight || document.documentElement.clientHeight;
 
   // Si tiene dimensiones cero, o está oculto por estilos, no es visible
   if (rect.width === 0 || rect.height === 0) return false;
   const style = window.getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
 
-  // Verificar si se cruza con el viewport
-  return (
-    rect.top < viewHeight &&
-    rect.bottom > 0 &&
-    rect.left < viewWidth &&
-    rect.right > 0
-  );
+  // Retornamos true aunque esté fuera del viewport (off-screen) para evitar que la IA
+  // tenga que hacer scroll paso a paso para descubrir los elementos.
+  // El controlador ya desplaza el elemento a la vista automáticamente al interactuar.
+  return true;
 }
 
 /**
@@ -209,7 +204,7 @@ export async function executeGUIAction(
 
   // Desplazar elemento a la vista
   el.scrollIntoView({ block: 'center', inline: 'center' });
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 150));
 
   if (action === 'click') {
     try {
@@ -243,7 +238,7 @@ export async function executeGUIAction(
       el.click();
       
       // Esperar a que la SPA procese la navegación o transición y renderice la nueva UI
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       return { success: true, message: `Clic ejecutado en el elemento [${index}] (${el.tagName.toLowerCase()}).` };
     } catch (err: any) {
