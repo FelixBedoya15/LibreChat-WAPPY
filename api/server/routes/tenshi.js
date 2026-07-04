@@ -277,35 +277,38 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             // 1. Retrieve Tenshi-specific Google API keys (falling back to general keys if not set or empty)
             let rawKey;
-            try {
-                let storedKey = await getUserKey({ userId: req.user.id, name: 'tenshi_google' });
-                let parsedKey;
-                if (storedKey) {
-                    try {
-                        const parsed = JSON.parse(storedKey);
-                        parsedKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-                    } catch (parseErr) {
-                        parsedKey = storedKey;
-                    }
-                }
-
-                // If Tenshi keys are empty or not set, fall back to general google keys
-                const hasKeys = parsedKey && parsedKey.split(',').map(k => k.trim()).filter(Boolean).length > 0;
-                if (!hasKeys) {
-                    storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            
+            // Helper to safely get and parse a key by name, catching individual DB errors
+            const getSafeUserKey = async (keyName) => {
+                try {
+                    const storedKey = await getUserKey({ userId: req.user.id, name: keyName });
                     if (storedKey) {
                         try {
                             const parsed = JSON.parse(storedKey);
-                            rawKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                            return parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || storedKey;
                         } catch (parseErr) {
-                            rawKey = storedKey;
+                            return storedKey;
                         }
                     }
+                } catch (err) {
+                    // Ignore NO_USER_KEY or lookup errors safely
+                }
+                return null;
+            };
+
+            try {
+                // Try Tenshi keys first
+                const tenshiKey = await getSafeUserKey('tenshi_google');
+                const hasTenshiKeys = tenshiKey && tenshiKey.split(',').map(k => k.trim()).filter(Boolean).length > 0;
+                
+                if (hasTenshiKeys) {
+                    rawKey = tenshiKey;
                 } else {
-                    rawKey = parsedKey;
+                    // Fallback to general google keys
+                    rawKey = await getSafeUserKey('google');
                 }
             } catch (err) {
-                logger.debug('[Tenshi] Error retrieving Tenshi/Google key:', err.message);
+                logger.debug('[Tenshi] Error in key fallback retrieval:', err.message);
             }
 
             if (!rawKey) {
