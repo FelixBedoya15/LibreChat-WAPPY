@@ -124,7 +124,7 @@ router.delete('/history', requireJwtAuth, async (req, res) => {
 // A simple chat endpoint for Tenshi
 router.post('/chat', requireJwtAuth, async (req, res) => {
     try {
-        const { messages } = req.body;
+        const { messages, browserState } = req.body;
         const config = await TenshiConfig.findOne();
 
         if (!config || !config.isActive) {
@@ -132,6 +132,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         let capturedHtmlReport = null;
+        let requestedGuiAction = null;
 
         // Fetch dynamic knowledge (latest blogs)
         let latestBlogs = [];
@@ -203,7 +204,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             logger.warn('[Tenshi] Error fetching company info:', e.message);
         }
 
-        const systemMessage = `${config.systemPrompt}
+        let systemMessage = `${config.systemPrompt}
 
 Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
 
@@ -252,6 +253,16 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
 1. Saluda cordial y alegremente llamando al usuario por su nombre.
 2. Usa viñetas estructuradas y emojis (🚀, ✨, 🔥, 🏢, 💪) para presentar datos e informes de forma clara y profesional.`;
 
+        if (browserState) {
+            systemMessage += `\n\n### 🌐 ESTADO VISUAL DE LA PÁGINA ACTUAL (DEL NAVEGADOR DEL USUARIO)
+Puedes interactuar con la pantalla del usuario (hacer clic, rellenar formularios, escribir texto, hacer scroll) utilizando la herramienta 'operar_interfaz_visual' pasándole el [índice] correspondiente de esta lista:
+${browserState}
+
+REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
+- Si el usuario te pide llenar un campo o pulsar un botón en la pantalla, DEBES usar obligatoriamente la herramienta 'operar_interfaz_visual' e interactuar con el índice correspondiente.
+- NUNCA inventes índices de elementos que no aparezcan en la lista.`;
+        }
+
         // format messages for the LLM
         const formattedMessages = [
             { role: 'system', content: systemMessage },
@@ -264,18 +275,37 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-            // 1. Retrieve ALL user Google API keys (supports comma-separated for rotation)
+            // 1. Retrieve Tenshi-specific Google API keys (falling back to general keys if not set or empty)
             let rawKey;
             try {
-                const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-                try {
-                    const parsed = JSON.parse(storedKey);
-                    rawKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-                } catch (parseErr) {
-                    rawKey = storedKey;
+                let storedKey = await getUserKey({ userId: req.user.id, name: 'tenshi_google' });
+                let parsedKey;
+                if (storedKey) {
+                    try {
+                        const parsed = JSON.parse(storedKey);
+                        parsedKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                    } catch (parseErr) {
+                        parsedKey = storedKey;
+                    }
+                }
+
+                // If Tenshi keys are empty or not set, fall back to general google keys
+                const hasKeys = parsedKey && parsedKey.split(',').map(k => k.trim()).filter(Boolean).length > 0;
+                if (!hasKeys) {
+                    storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+                    if (storedKey) {
+                        try {
+                            const parsed = JSON.parse(storedKey);
+                            rawKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                        } catch (parseErr) {
+                            rawKey = storedKey;
+                        }
+                    }
+                } else {
+                    rawKey = parsedKey;
                 }
             } catch (err) {
-                logger.debug('[Tenshi] No user Google key found, trying env vars:', err.message);
+                logger.debug('[Tenshi] Error retrieving Tenshi/Google key:', err.message);
             }
 
             if (!rawKey) {
@@ -380,10 +410,37 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
                             }
                         };
 
+                        const operarGUIDeclaration = {
+                            name: 'operar_interfaz_visual',
+                            description: 'Operar Interfaz Visual (GUI): Permite simular clics y escrituras directamente en el navegador del usuario. Úsala cuando necesites hacer clic en un botón, escribir texto en un input, o hacer scroll en la pantalla activa del usuario.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    accion: {
+                                        type: 'STRING',
+                                        description: 'La acción a ejecutar: click, escribir, scroll, esperar.'
+                                    },
+                                    indice: {
+                                        type: 'NUMBER',
+                                        description: 'El índice numérico del elemento interactivo obtenido de la lista del DOM (ej: 0, 1, 2...). Requerido para "click" y "escribir".'
+                                    },
+                                    texto: {
+                                        type: 'STRING',
+                                        description: 'El texto a escribir (obligatorio si la acción es "escribir").'
+                                    },
+                                    direccion: {
+                                        type: 'STRING',
+                                        description: 'La dirección del scroll: "arriba" o "abajo" (obligatorio si la acción es "scroll").'
+                                    }
+                                },
+                                required: ['accion']
+                            }
+                        };
+
                         const geminiModel = genAI.getGenerativeModel({
                             model: currentModel,
                             systemInstruction: systemMessage,
-                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration] }],
+                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration] }],
                             generationConfig: { temperature: 1.0 }
                         });
                         const chat = geminiModel.startChat({ history });
@@ -391,6 +448,7 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
 
                         let calls = responseResult.response.functionCalls();
                         let loops = 0;
+                        let requestedGuiAction = null;
                         while (calls && calls.length > 0 && loops < 5) {
                             loops++;
                             const call = calls[0];
@@ -406,6 +464,14 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
                             } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
                                 const toolInstance = new CanvasTool({ req });
                                 toolOutput = await toolInstance._call(call.args);
+                            } else if (call.name === 'operar_interfaz_visual') {
+                                requestedGuiAction = {
+                                    accion: call.args.accion,
+                                    indice: call.args.indice,
+                                    texto: call.args.texto,
+                                    direccion: call.args.direccion
+                                };
+                                break;
                             } else {
                                 break;
                             }
@@ -431,7 +497,11 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
                             calls = responseResult.response.functionCalls();
                         }
 
-                        responseText = responseResult.response.text();
+                        try {
+                            responseText = responseResult.response.text();
+                        } catch (textErr) {
+                            responseText = "Entendido, procedo a realizar una acción en la pantalla...";
+                        }
                         lastError = null;
                         succeeded = true;
                         break; // Key rotation done — success
@@ -493,7 +563,7 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
-        res.json({ response: responseText, htmlReport: capturedHtmlReport });
+        res.json({ response: responseText, htmlReport: capturedHtmlReport, guiAction: requestedGuiAction });
     } catch (error) {
         console.error('CRITICAL Error in Tenshi chat route:', error);
         if (error.response) {

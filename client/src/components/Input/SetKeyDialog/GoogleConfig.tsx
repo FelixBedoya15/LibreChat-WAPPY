@@ -23,6 +23,14 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
   const { getMultiKey, setMultiKey } = useMultipleKeys(setUserKey);
   const { user } = useAuthContext();
 
+  const [tenshiKeyStr, setTenshiKeyStr] = React.useState(() => {
+    try {
+      return localStorage.getItem('librechat_user_key_tenshi_google') || '';
+    } catch {
+      return '';
+    }
+  });
+
   const keyLimit = React.useMemo(() => {
     if (!user) return 1;
     switch (user.role) {
@@ -76,6 +84,33 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
             }}
             label={`${localize('com_endpoint_config_google_api_key')} ${index + 1}`}
             subLabel={index === 0 ? localize('com_endpoint_config_google_gemini_api') : ''}
+          />
+        );
+      })}
+      <div className="my-4 border-t border-border-light pt-4 dark:border-gray-600" />
+      <div className="flex flex-row mb-2">
+        <Label className="text-left text-sm font-semibold text-text-primary">
+          Claves API para Tenshi (Exclusivas)
+        </Label>
+      </div>
+      {Array.from({ length: 3 }).map((_, index) => {
+        const currentTenshiKeys = tenshiKeyStr.split(',');
+        while (currentTenshiKeys.length < 3) currentTenshiKeys.push('');
+
+        return (
+          <InputWithLabel
+            key={`tenshi-${index}`}
+            id={`tenshi-key-${index}`}
+            value={currentTenshiKeys[index]?.trim() ?? ''}
+            onChange={(e: { target: { value: string } }) => {
+              const newKeys = [...currentTenshiKeys];
+              newKeys[index] = e.target.value;
+              const combined = newKeys.join(',');
+              setTenshiKeyStr(combined);
+              localStorage.setItem('librechat_user_key_tenshi_google', combined);
+            }}
+            label={`Clave API Tenshi ${index + 1}`}
+            subLabel={index === 0 ? "Claves Gemini exclusivas para el agente Tenshi" : ""}
           />
         );
       })}

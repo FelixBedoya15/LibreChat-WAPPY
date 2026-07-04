@@ -6,6 +6,7 @@ import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
+import { getDehydratedDOM, executeGUIAction } from '../Chat/TenshiPageController';
 
 export default function TenshiChat() {
   const { isAuthenticated, token } = useAuthContext();
@@ -285,26 +286,49 @@ export default function TenshiChat() {
   const floatPosition =
     positionClasses[config.location as keyof typeof positionClasses] || 'bottom-6 right-6';
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
-
-    const userMsg = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
+  const runChatTurn = async (currentMessages: { role: string; content: string; htmlReport?: string }[]) => {
     setIsTyping(true);
-
     try {
+      const domState = getDehydratedDOM();
       const response = await axios.post(
         '/api/tenshi/chat',
-        { messages: [...messages, userMsg].filter((m) => m.role !== 'system') },
+        {
+          messages: currentMessages.filter((m) => m.role !== 'system'),
+          browserState: domState,
+        },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
+
+      const responseData = response.data;
       const assistantMsg = {
         role: 'assistant',
-        content: response.data.response,
-        htmlReport: response.data.htmlReport,
+        content: responseData.response,
+        htmlReport: responseData.htmlReport,
       };
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // Si Tenshi requiere una acción visual, la ejecutamos en el cliente y continuamos el ciclo
+      if (responseData.guiAction) {
+        // Esperamos un momento para que el usuario lea el mensaje intermedio de Tenshi
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+
+        const actionResult = await executeGUIAction(
+          responseData.guiAction.accion,
+          responseData.guiAction.indice,
+          responseData.guiAction.texto,
+          responseData.guiAction.direccion,
+        );
+
+        const feedbackMsg = {
+          role: 'user',
+          content: `[RESULTADO_GUI] Acción ${responseData.guiAction.accion} ejecutada. Resultado: ${actionResult.message}. Estado actual de la pantalla:\n\n${getDehydratedDOM()}`,
+        };
+
+        // Reanudamos la conversación de forma automática pasándole todo el historial acumulado
+        await runChatTurn([...currentMessages, assistantMsg, feedbackMsg]);
+      } else {
+        setIsTyping(false);
+      }
     } catch (error: any) {
       console.error('Error con Tenshi:', error);
       const status = error.response?.status;
@@ -322,9 +346,18 @@ export default function TenshiChat() {
           content: `Lo siento, he tenido un inconveniente de conexión. ${userFriendlyMsg}`,
         },
       ]);
-    } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
+
+    const userMsg = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+
+    await runChatTurn([...messages, userMsg]);
   };
 
   const openHtmlReport = (html: string) => {

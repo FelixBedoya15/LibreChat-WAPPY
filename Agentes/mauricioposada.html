@@ -2748,6 +2748,12 @@
     
     // Load saved theme on startup
     document.addEventListener('DOMContentLoaded', () => {
+      try {
+        localStorage.setItem('wappy_ref', 'mauricioposadac');
+      } catch (refErr) {
+        console.warn('Error storing referral code in localStorage:', refErr);
+      }
+
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'light') {
         document.body.classList.add('light-theme');

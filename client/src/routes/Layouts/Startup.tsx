@@ -46,6 +46,19 @@ export default function StartupLayout({ isAuthenticated }: { isAuthenticated?: b
     setHeaderText(null);
   }, [location.pathname]);
 
+  // Capture referral parameter
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const referral = searchParams.get('ref');
+      if (referral) {
+        localStorage.setItem('wappy_ref', referral.trim());
+      }
+    } catch (e) {
+      console.warn('Error capturing referral parameter in StartupLayout:', e);
+    }
+  }, [location.search]);
+
   // Use `data` directly from React Query to avoid a one-render race condition:
   // `startupConfig` local state only updates via useEffect (one cycle after isFetching
   // becomes false). During that gap, Login.tsx sees startupConfig=null and renders

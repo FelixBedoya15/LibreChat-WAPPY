@@ -190,6 +190,7 @@ const SetKeyDialog = ({
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const [expiresAtLabel, setExpiresAtLabel] = useState(EXPIRY.NEVER.label);
   const { getExpiry, saveUserKey } = useUserKey(endpoint);
+  const { saveUserKey: saveTenshiKey } = useUserKey('tenshi_google');
   const { showToast } = useToastContext();
   const localize = useLocalize();
 
@@ -225,6 +226,14 @@ const SetKeyDialog = ({
       saveUserKey(key, expiresAt, {
         onSuccess: () => {
           localStorage.setItem(`librechat_user_key_${endpoint}`, key);
+          if (endpoint === EModelEndpoint.google) {
+            try {
+              const tenshiKey = localStorage.getItem('librechat_user_key_tenshi_google') || '';
+              saveTenshiKey(tenshiKey, expiresAt);
+            } catch (err) {
+              logger.error('Error saving Tenshi key:', err);
+            }
+          }
           showToast({
             message: localize('com_ui_save_key_success'),
             status: NotificationSeverity.SUCCESS,
