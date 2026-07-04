@@ -311,6 +311,7 @@ Puedes interactuar con la pantalla del usuario (hacer clic, rellenar formularios
 ${browserState}
 
 REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
+- NUNCA utilices la herramienta 'operar_interfaz_visual' para responder a saludos simples ("hola", "buenos días", etc.), despedidas o preguntas de texto puro que no requieran ninguna navegación ni interacción con la pantalla.
 - Si el usuario te pide explícitamente realizar una acción o tarea que se pueda hacer navegando, haciendo clic, abriendo un chat, seleccionando opciones, escribiendo en pantalla o interactuando con la interfaz, DEBES utilizar obligatoriamente la herramienta 'operar_interfaz_visual' en lugar de resolverlo en el backend o simularlo en texto. ¡El usuario quiere ver la automatización en vivo en su navegador!
 - Si tienes que buscar, pulsar o seleccionar algo, haz scroll o clics progresivamente llamando a 'operar_interfaz_visual' tantas veces como sea necesario en turnos sucesivos.
 - NUNCA inventes índices de elementos que no aparezcan en la lista.`;
