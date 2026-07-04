@@ -603,7 +603,7 @@ export default function TenshiChat() {
             }
           : {}
       }
-      className={`fixed z-[9999] ${position ? '' : floatPosition} flex flex-col items-end`}
+      className={`tenshi-widget-container fixed z-[9999] ${position ? '' : floatPosition} flex flex-col items-end`}
     >
       {isOpen && (
         <div className="mb-4 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in slide-in-from-bottom-5 dark:border-gray-700 dark:bg-gray-800 sm:w-[400px]">

@@ -96,6 +96,11 @@ export function getDehydratedDOM(): string {
       const htmlEl = el as HTMLElement;
       if (!htmlEl || !isElementVisible(htmlEl)) return;
 
+      // Excluir el widget de Tenshi por completo para evitar que la IA interactúe consigo misma
+      if (htmlEl.classList.contains('tenshi-widget-container') || htmlEl.closest('.tenshi-widget-container')) {
+        return;
+      }
+
       const indent = '\t'.repeat(depth);
 
       if (isInteractive(htmlEl)) {
