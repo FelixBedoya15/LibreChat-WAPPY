@@ -507,7 +507,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         let calls = responseResult.response.functionCalls();
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
-                        let requestedGuiAction = null;
+                        requestedGuiAction = null;
                         while (calls && calls.length > 0 && loops < 5) {
                             loops++;
                             const call = calls[0];
