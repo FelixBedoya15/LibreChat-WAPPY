@@ -172,6 +172,7 @@ router.delete('/message/:id', requireJwtAuth, async (req, res) => {
 router.post('/chat', requireJwtAuth, async (req, res) => {
     try {
         const { messages, browserState } = req.body;
+        logger.info(`[Tenshi Backend] /chat request received. Messages count: ${messages?.length}, browserState length: ${browserState?.length || 0}`);
         const config = await TenshiConfig.findOne();
 
         if (!config || !config.isActive) {
@@ -499,9 +500,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             generationConfig: { temperature: 1.0 }
                         });
                         const chat = geminiModel.startChat({ history });
+                        logger.info(`[Tenshi Backend] Sending request to Gemini with message: "${messages[messages.length - 1].content}"`);
                         let responseResult = await chat.sendMessage(messages[messages.length - 1].content);
 
                         let calls = responseResult.response.functionCalls();
+                        logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
                         let requestedGuiAction = null;
                         while (calls && calls.length > 0 && loops < 5) {
@@ -560,6 +563,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         } catch (textErr) {
                             responseText = "Entendido, procedo a realizar una acción en la pantalla...";
                         }
+                        logger.info(`[Tenshi Backend] Final responseText: "${responseText}", guiAction: ${JSON.stringify(requestedGuiAction)}`);
                         lastError = null;
                         succeeded = true;
                         break; // Key rotation done — success

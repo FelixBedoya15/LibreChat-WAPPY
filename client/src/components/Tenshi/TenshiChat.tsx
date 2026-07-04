@@ -366,7 +366,10 @@ export default function TenshiChat() {
   const runChatTurn = async (currentMessages: { role: string; content: string; htmlReport?: string }[]) => {
     setIsTyping(true);
     try {
+      console.log('[Tenshi Frontend] Starting chat turn. Messages:', currentMessages);
       const domState = getDehydratedDOM();
+      console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length);
+      
       const response = await axios.post(
         '/api/tenshi/chat',
         {
@@ -377,6 +380,8 @@ export default function TenshiChat() {
       );
 
       const responseData = response.data;
+      console.log('[Tenshi Frontend] Received response:', responseData);
+
       const assistantMsg = {
         role: 'assistant',
         content: responseData.response,
@@ -386,15 +391,18 @@ export default function TenshiChat() {
 
       // Si Tenshi requiere una acción visual, la ejecutamos en el cliente y continuamos el ciclo
       if (responseData.guiAction) {
+        console.log('[Tenshi Frontend] GUI action requested:', responseData.guiAction);
         // Esperamos un momento para que el usuario lea el mensaje intermedio de Tenshi
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
+        console.log('[Tenshi Frontend] Executing GUI action...');
         const actionResult = await executeGUIAction(
           responseData.guiAction.accion,
           responseData.guiAction.indice,
           responseData.guiAction.texto,
           responseData.guiAction.direccion,
         );
+        console.log('[Tenshi Frontend] GUI action result:', actionResult);
 
         const feedbackMsg = {
           role: 'user',
@@ -402,12 +410,14 @@ export default function TenshiChat() {
         };
 
         // Reanudamos la conversación de forma automática pasándole todo el historial acumulado
+        console.log('[Tenshi Frontend] Sending automated feedback to backend:', feedbackMsg);
         await runChatTurn([...currentMessages, assistantMsg, feedbackMsg]);
       } else {
+        console.log('[Tenshi Frontend] No GUI action requested. Ending turn.');
         setIsTyping(false);
       }
     } catch (error: any) {
-      console.error('Error con Tenshi:', error);
+      console.error('[Tenshi Frontend] Error in runChatTurn:', error);
       const status = error.response?.status;
       let userFriendlyMsg = error.response?.data?.details || error.message;
 
