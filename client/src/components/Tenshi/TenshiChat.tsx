@@ -373,10 +373,27 @@ export default function TenshiChat() {
       console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length);
       
       setTenshiStatus('Consultando con Tenshi...');
+
+      // Limitar el historial a los últimos 20 mensajes para evitar saturación de tokens (429).
+      // Siempre preservar el primer mensaje del usuario como ancla de la tarea original.
+      const filteredMessages = currentMessages.filter((m) => m.role !== 'system');
+      const MAX_HISTORY = 20;
+      let cappedMessages = filteredMessages;
+      if (filteredMessages.length > MAX_HISTORY) {
+        const firstUserMsg = filteredMessages.find(m => m.role === 'user');
+        const recentMessages = filteredMessages.slice(-MAX_HISTORY);
+        // Preservar el primer mensaje si no está en los recientes
+        if (firstUserMsg && !recentMessages.includes(firstUserMsg)) {
+          cappedMessages = [firstUserMsg, ...recentMessages];
+        } else {
+          cappedMessages = recentMessages;
+        }
+      }
+
       const response = await axios.post(
         '/api/tenshi/chat',
         {
-          messages: currentMessages.filter((m) => m.role !== 'system'),
+          messages: cappedMessages,
           browserState: domState,
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
