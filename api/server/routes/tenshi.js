@@ -384,16 +384,25 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // Build ordered model list: primaryModel first, then remaining from env
             const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
 
-            // Build history once (reusable across all retries)
+            // Build history once (reusable across all retries), cleaning up old DOM states to save tokens and prevent context clutter
             const rawHistory = messages.slice(0, -1);
             const history = [];
             let firstUserFound = false;
             for (const m of rawHistory) {
                 if (!firstUserFound && m.role !== 'user') continue;
                 firstUserFound = true;
+                
+                let contentText = m.content;
+                if (m.role === 'user' && contentText.startsWith('[RESULTADO_GUI]')) {
+                    const delimiterIndex = contentText.indexOf('Estado actual de la pantalla:');
+                    if (delimiterIndex !== -1) {
+                        contentText = contentText.substring(0, delimiterIndex).trim();
+                    }
+                }
+
                 history.push({
                     role: m.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: m.content }]
+                    parts: [{ text: contentText }]
                 });
             }
 
