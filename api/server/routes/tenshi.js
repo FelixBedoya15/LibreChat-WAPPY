@@ -226,6 +226,10 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         } catch (e) {
             logger.warn('[Tenshi] Error reading manual file:', e.message);
         }
+        // Limitar el manual a 3000 caracteres para evitar saturación de tokens en el system prompt
+        if (manualContent && manualContent.length > 3000) {
+            manualContent = manualContent.substring(0, 3000) + '\n...(manual truncado para eficiencia de tokens)';
+        }
 
         // Fetch user company info
         let companyInfoStr = 'El usuario no ha registrado la información de su empresa en el Gestor SG-SST.';

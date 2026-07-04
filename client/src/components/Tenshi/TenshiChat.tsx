@@ -408,9 +408,18 @@ export default function TenshiChat() {
         );
         console.log('[Tenshi Frontend] GUI action result:', actionResult);
 
+        const newDOM = getDehydratedDOM();
+        // Detectar si el scroll no cambió el DOM (bucle infinito de scroll)
+        const lastUserMsg = currentMessages.filter(m => m.role === 'user').at(-1);
+        const lastDOM = lastUserMsg?.content?.includes('Estado actual de la pantalla:')
+          ? lastUserMsg.content.split('Estado actual de la pantalla:')[1]?.trim()
+          : null;
+        const domChanged = !lastDOM || lastDOM !== newDOM;
+        const scrollStuck = responseData.guiAction.accion === 'scroll' && !domChanged;
+
         const feedbackMsg = {
           role: 'user',
-          content: `[RESULTADO_GUI] Acción ${responseData.guiAction.accion} ejecutada. Resultado: ${actionResult.message}. Estado actual de la pantalla:\n\n${getDehydratedDOM()}`,
+          content: `[RESULTADO_GUI] Acción ${responseData.guiAction.accion} ejecutada. Resultado: ${scrollStuck ? 'ADVERTENCIA: El DOM no cambió tras el scroll. Has llegado al límite de la página. El botón de guardar puede ser uno de los botones sin etiqueta visibles en pantalla (como [28] o [29]). Analiza los elementos vacíos disponibles y haz clic en el correcto.' : actionResult.message}. Estado actual de la pantalla:\n${newDOM}`,
         };
 
         // Reanudamos la conversación de forma automática pasándole todo el historial acumulado
@@ -648,7 +657,7 @@ export default function TenshiChat() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
-            {messages.map((msg, i) => (
+            {messages.filter(msg => !msg.content?.startsWith('[RESULTADO_GUI]')).map((msg, i) => (
               <div
                 key={i}
                 className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}

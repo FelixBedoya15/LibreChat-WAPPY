@@ -56,16 +56,6 @@ function isInteractive(el: HTMLElement): boolean {
     return true;
   }
 
-  // Si no es un elemento interactivo nativo ni tiene rol interactivo explícito,
-  // y además contiene elementos interactivos nativos adentro, no lo tratamos como interactivo.
-  // Esto evita que la IA haga clic en contenedores padres gigantes (ej: divs del sidebar).
-  if (!['button', 'input', 'select', 'textarea', 'a'].includes(tagName) && role !== 'button' && role !== 'link') {
-    const hasInteractiveChildren = el.querySelector('button, input, select, textarea, a, [role="button"], [role="link"]') !== null;
-    if (hasInteractiveChildren) {
-      return false;
-    }
-  }
-
   // Si tiene un cursor de puntero configurado por CSS
   const style = window.getComputedStyle(el);
   if (style.cursor === 'pointer') {
@@ -84,12 +74,30 @@ function isInteractive(el: HTMLElement): boolean {
  * Obtiene el texto representativo o la etiqueta del elemento
  */
 function getElementText(el: HTMLElement): string {
-  const label = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder');
+  // 1. Atributos explícitos de accesibilidad
+  const label = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('aria-describedby') || el.getAttribute('data-tooltip') || el.getAttribute('data-title');
   if (label) return label.trim();
 
-  // Texto interno limpio, truncado si es demasiado largo
-  const text = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ');
-  return text.length > 50 ? text.substring(0, 47) + '...' : text;
+  // 2. Texto interno limpio, truncado si es demasiado largo
+  const innerText = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ');
+  if (innerText) return innerText.length > 50 ? innerText.substring(0, 47) + '...' : innerText;
+
+  // 3. Para botones sin texto ni aria-label, intentar inferir función por clases CSS
+  const classList = el.className || '';
+  if (/save|guardar|submit/i.test(classList)) return '[Botón Guardar]';
+  if (/delete|eliminar|trash/i.test(classList)) return '[Botón Eliminar]';
+  if (/edit|editar|pencil/i.test(classList)) return '[Botón Editar]';
+  if (/expand|chevron|toggle/i.test(classList)) return '[Botón Expandir]';
+  if (/close|cerrar/i.test(classList)) return '[Botón Cerrar]';
+
+  // 4. Inspeccionar ícono SVG hijo por data attributes
+  const svgChild = el.querySelector('svg[data-icon], svg[aria-label]');
+  if (svgChild) {
+    const svgLabel = svgChild.getAttribute('data-icon') || svgChild.getAttribute('aria-label');
+    if (svgLabel) return `[Ícono: ${svgLabel}]`;
+  }
+
+  return '';
 }
 
 /**
