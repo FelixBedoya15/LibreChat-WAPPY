@@ -393,10 +393,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
             // Dual-axis rotation: keys first, then model fallback (503 Service Unavailable)
-            const primaryModel = config.model || 'gemini-3-flash-preview';
-            const envModels = (process.env.GOOGLE_MODELS || primaryModel).split(',').map(m => m.trim()).filter(Boolean);
-            // Build ordered model list: primaryModel first, then remaining from env
-            const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
+            const primaryModel = 'gemini-3.1-flash-lite';
+            const modelFallbacks = ['gemini-3.1-flash-lite', 'gemini-3.1-flash', 'gemini-1.5-flash'];
 
             // Build history once (reusable across all retries), cleaning up old DOM states to save tokens and prevent context clutter
             const rawHistory = messages.slice(0, -1);

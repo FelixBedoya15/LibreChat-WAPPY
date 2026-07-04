@@ -369,9 +369,19 @@ export default function TenshiChat() {
     setIsTyping(true);
     setTenshiStatus('Capturando pantalla...');
     try {
-      console.log('[Tenshi Frontend] Starting chat turn. Messages:', currentMessages);
-      const domState = getDehydratedDOM();
-      console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length);
+      const lastMessage = currentMessages.at(-1);
+      const isLoopFeedback = lastMessage?.content?.startsWith('[RESULTADO_GUI]');
+      
+      // Heurística para saber si la pregunta es solo de texto/especialistas y no requiere interactuar con el DOM
+      const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
+      const specialistKeywords = ['medico', 'médico', 'psicologo', 'psicólogo', 'abogado', 'auditor', 'especialista', 'consultor', 'juridico', 'jurídico', 'analiza', 'consulta', 'opinas', 'recomiendas'];
+      const isSpecialistQuery = specialistKeywords.some(kw => textQuery.includes(kw));
+      const isGreetingOrShortText = /^(hola|buenos dias|buenas tardes|buenas noches|gracias|chao|adios|saludos)/i.test(textQuery) && textQuery.length < 25;
+      
+      const shouldCaptureDOM = isLoopFeedback || (!isSpecialistQuery && !isGreetingOrShortText);
+      
+      const domState = shouldCaptureDOM ? getDehydratedDOM() : '';
+      console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length, '(Capture enabled:', shouldCaptureDOM, ')');
       
       setTenshiStatus('Consultando con Tenshi...');
 

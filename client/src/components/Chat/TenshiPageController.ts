@@ -194,15 +194,15 @@ export function getDehydratedDOM(): string {
         // Detener recursión profunda en elementos interactivos pequeños para evitar ruido
         if (['button', 'a', 'option'].includes(tagName)) return;
       } else {
-        // Si es un contenedor con texto directo útil, capturar el texto
+        // Si es un contenedor con texto directo útil, capturar solo el texto directo (no de los descendientes)
         const childNodes = Array.from(htmlEl.childNodes);
-        const hasDirectText = childNodes.some(
+        const directTextNodes = childNodes.filter(
           node => node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim()
         );
         
-        if (hasDirectText && depth < 4) {
-          const text = (htmlEl.innerText || '').trim().replace(/\s+/g, ' ');
-          if (text && text.length < 150) {
+        if (directTextNodes.length > 0 && depth < 5) {
+          const text = directTextNodes.map(node => node.nodeValue?.trim()).join(' ').replace(/\s+/g, ' ');
+          if (text && text.length < 100) {
             resultText += `${indent}${text}\n`;
           }
         }
