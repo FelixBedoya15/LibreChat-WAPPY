@@ -6,6 +6,7 @@ const { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUse
 const { getPlans, updatePlan, getVisibilitySettings, updateVisibilitySettings } = require('~/server/controllers/AdminPlansController');
 const { getPromoCodes, createPromoCode, deletePromoCode, togglePromoCode } = require('~/server/controllers/AdminPromoCodeController');
 const { recordEvent, getSummary, getRecentEvents } = require('~/server/controllers/CheckoutAnalyticsController');
+const { generateMarketingEmail, sendMarketingEmail } = require('~/server/controllers/AdminMarketingController');
 
 router.get('/users', requireJwtAuth, requireAdmin, getAllUsers);
 router.get('/company-info', requireJwtAuth, requireAdmin, getAllCompanyInfo);
@@ -38,5 +39,9 @@ const { recordLead, getAllLeads, deleteLead } = require('~/server/controllers/Le
 router.post('/leads', recordLead);
 router.get('/leads', requireJwtAuth, requireAdmin, getAllLeads);
 router.delete('/leads/:id', requireJwtAuth, requireAdmin, deleteLead);
+
+// Marketing Email Portal
+router.post('/marketing/generate', requireJwtAuth, requireAdmin, generateMarketingEmail);
+router.post('/marketing/send', requireJwtAuth, requireAdmin, sendMarketingEmail);
 
 module.exports = router;

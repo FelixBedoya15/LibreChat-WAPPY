@@ -6,6 +6,7 @@ import SubscriptionPlansTable from './SubscriptionPlansTable';
 import PromoCodesTable from './PromoCodesTable';
 import PaymentAnalyticsDashboard from './PaymentAnalyticsDashboard';
 import PushTestPanel from './PushTestPanel';
+import MarketingPortal from './MarketingPortal';
 // import TicketManagement from '~/components/Tickets/TicketManagement';
 import { cn } from '~/utils';
 
@@ -106,6 +107,17 @@ export default function Admin() {
                         >
                             Notificaciones Push
                         </button>
+                        <button
+                            onClick={() => setActiveTab('marketing')}
+                            className={cn(
+                                "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                                activeTab === 'marketing'
+                                    ? "border-b-2 border-pink-500 text-pink-600 dark:text-pink-400"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            Mercadeo por Correo
+                        </button>
                     </div>
                 </div>
             </div>
@@ -122,6 +134,8 @@ export default function Admin() {
                     <PaymentAnalyticsDashboard />
                 ) : activeTab === 'push-test' ? (
                     <PushTestPanel />
+                ) : activeTab === 'marketing' ? (
+                    <MarketingPortal />
                 ) : (
                     <PromoCodesTable />
                 )}
