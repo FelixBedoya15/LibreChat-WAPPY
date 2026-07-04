@@ -234,18 +234,23 @@ export async function executeGUIAction(
 
       el.focus();
 
-      // Simular escritura asegurando compatibilidad con el rastreador de estado de React
+      // Simular escritura asegurando compatibilidad con el rastreador de estado de React 16+
       const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
-      const lastValue = inputEl.value || '';
-      inputEl.value = texto;
-
-      // React 15/16+ Value Tracker Hack
-      const tracker = (inputEl as any)._valueTracker;
-      if (tracker) {
-        tracker.setValue(lastValue);
+      const isTextArea = inputEl.tagName.toLowerCase() === 'textarea';
+      
+      const prototype = isTextArea 
+        ? window.HTMLTextAreaElement.prototype 
+        : window.HTMLInputElement.prototype;
+        
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+      
+      if (descriptor && descriptor.set) {
+        descriptor.set.call(inputEl, texto);
+      } else {
+        inputEl.value = texto;
       }
 
-      // Disparar eventos nativos para que React/Vue detecten la mutación
+      // Disparar eventos nativos para que React detecte la mutación
       inputEl.dispatchEvent(new Event('input', { bubbles: true }));
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
