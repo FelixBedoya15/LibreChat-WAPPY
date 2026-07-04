@@ -629,8 +629,8 @@ export default function TenshiChat() {
             </div>
           </div>
 
-          {/* Chat Area */}
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
+            {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
