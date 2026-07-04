@@ -104,7 +104,7 @@ router.post('/config', requireJwtAuth, async (req, res) => {
 router.get('/history', requireJwtAuth, async (req, res) => {
     try {
         const history = await TenshiMessage.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
-        res.json(history.map(m => ({ role: m.role, content: m.content, htmlReport: m.htmlReport })));
+        res.json(history.map(m => ({ _id: m._id, role: m.role, content: m.content, htmlReport: m.htmlReport })));
     } catch (error) {
         console.error('Error fetching Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -117,6 +117,53 @@ router.delete('/history', requireJwtAuth, async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error clearing Tenshi history:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.put('/message/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const msgId = req.params.id;
+        const { content } = req.body;
+        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: req.user.id });
+        if (!targetMsg) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Update content
+        targetMsg.content = content;
+        await targetMsg.save();
+
+        // Delete all subsequent messages
+        await TenshiMessage.deleteMany({
+            user: req.user.id,
+            createdAt: { $gt: targetMsg.createdAt }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating Tenshi message:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.delete('/message/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const msgId = req.params.id;
+        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: req.user.id });
+        if (!targetMsg) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Delete this message and all subsequent ones
+        await TenshiMessage.deleteMany({
+            user: req.user.id,
+            createdAt: { $gte: targetMsg.createdAt }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting Tenshi message:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -259,7 +306,8 @@ Puedes interactuar con la pantalla del usuario (hacer clic, rellenar formularios
 ${browserState}
 
 REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
-- Si el usuario te pide llenar un campo o pulsar un botón en la pantalla, DEBES usar obligatoriamente la herramienta 'operar_interfaz_visual' e interactuar con el índice correspondiente.
+- Si el usuario te pide explícitamente realizar una acción o tarea que se pueda hacer navegando, haciendo clic, abriendo un chat, seleccionando opciones, escribiendo en pantalla o interactuando con la interfaz, DEBES utilizar obligatoriamente la herramienta 'operar_interfaz_visual' en lugar de resolverlo en el backend o simularlo en texto. ¡El usuario quiere ver la automatización en vivo en su navegador!
+- Si tienes que buscar, pulsar o seleccionar algo, haz scroll o clics progresivamente llamando a 'operar_interfaz_visual' tantas veces como sea necesario en turnos sucesivos.
 - NUNCA inventes índices de elementos que no aparezcan en la lista.`;
         }
 

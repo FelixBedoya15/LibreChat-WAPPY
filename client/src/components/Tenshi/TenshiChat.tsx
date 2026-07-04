@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { X, Send, Sparkles, RotateCcw, FileText } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
@@ -12,7 +12,7 @@ export default function TenshiChat() {
   const { isAuthenticated, token } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
-    { role: string; content: string; htmlReport?: string }[]
+    { _id?: string; role: string; content: string; htmlReport?: string }[]
   >([
     {
       role: 'assistant',
@@ -22,6 +22,8 @@ export default function TenshiChat() {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -233,8 +235,18 @@ export default function TenshiChat() {
   );
 
   useEffect(() => {
-    if (historyData && historyData.length > 0) {
-      setMessages(historyData);
+    if (historyData) {
+      if (historyData.length > 0) {
+        setMessages(historyData);
+      } else {
+        setMessages([
+          {
+            role: 'assistant',
+            content:
+              '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+          },
+        ]);
+      }
     }
   }, [historyData]);
 
@@ -254,6 +266,71 @@ export default function TenshiChat() {
       refetchHistory();
     } catch (err) {
       console.error('Error clearing Tenshi history:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm('¿Deseas eliminar este mensaje y el resto de la conversación a partir de este punto?')) return;
+    try {
+      await axios.delete(`/api/tenshi/message/${msgId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const res = await axios.get('/api/tenshi/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setMessages(res.data.length > 0 ? res.data : [
+        {
+          role: 'assistant',
+          content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+        }
+      ]);
+      refetchHistory();
+    } catch (err) {
+      console.error('Error deleting message:', err);
+    }
+  };
+
+  const handleUpdateMessage = async (msgId: string, newContent: string) => {
+    if (!newContent.trim()) return;
+    setEditingMessageId(null);
+    setIsTyping(true);
+    try {
+      await axios.put(
+        `/api/tenshi/message/${msgId}`,
+        { content: newContent },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      
+      const res = await axios.get('/api/tenshi/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setMessages(res.data);
+      refetchHistory();
+      
+      await runChatTurn(res.data);
+    } catch (err) {
+      console.error('Error updating message:', err);
+      setIsTyping(false);
+    }
+  };
+
+  const handleRegenerate = async (msgId: string) => {
+    setIsTyping(true);
+    try {
+      await axios.delete(`/api/tenshi/message/${msgId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      
+      const res = await axios.get('/api/tenshi/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setMessages(res.data);
+      refetchHistory();
+
+      await runChatTurn(res.data);
+    } catch (err) {
+      console.error('Error regenerating response:', err);
+      setIsTyping(false);
     }
   };
 
@@ -554,10 +631,9 @@ export default function TenshiChat() {
 
           {/* Chat Area */}
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
-            {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
                   className={`max-w-[85%] rounded-2xl p-3 text-sm ${
@@ -566,40 +642,103 @@ export default function TenshiChat() {
                       : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'
                   }`}
                 >
-                  <div className="markdown-content max-w-full overflow-hidden">
-                    <style>{`
-                                            .markdown-content table {
-                                                display: block;
-                                                width: 100%;
-                                                overflow-x: auto;
-                                                white-space: nowrap;
-                                                border-collapse: collapse;
-                                                margin-top: 0.5rem;
-                                                margin-bottom: 0.5rem;
-                                            }
-                                            .markdown-content th, .markdown-content td {
-                                                padding: 6px 10px;
-                                                border: 1px solid rgba(156, 163, 175, 0.3);
-                                                font-size: 0.75rem;
-                                            }
-                                        `}</style>
-                    <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
-                  </div>
-                  {(() => {
-                    const reportHtml = getHtmlFromMsg(msg);
-                    if (!reportHtml) return null;
-                    return (
-                      <button
-                        onClick={() => openHtmlReport(reportHtml)}
-                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500 hover:shadow-xl active:scale-95"
-                      >
-                        <FileText className="h-4 w-4 animate-pulse" />
-                        {/* eslint-disable-next-line i18next/no-literal-string */}
-                        <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
-                      </button>
-                    );
-                  })()}
+                  {editingMessageId === msg._id ? (
+                    <div className="flex flex-col gap-2 min-w-[200px]">
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full rounded-lg border border-blue-300 p-2 text-xs text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
+                        rows={3}
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingMessageId(null)}
+                          className="rounded bg-gray-200 px-2.5 py-1 text-[10px] font-bold text-gray-600 hover:bg-gray-300 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleUpdateMessage(msg._id!, editingText)}
+                          className="rounded bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-blue-700 transition-colors"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="markdown-content max-w-full overflow-hidden">
+                        <style>{`
+                          .markdown-content table {
+                              display: block;
+                              width: 100%;
+                              overflow-x: auto;
+                              white-space: nowrap;
+                              border-collapse: collapse;
+                              margin-top: 0.5rem;
+                              margin-bottom: 0.5rem;
+                          }
+                          .markdown-content th, .markdown-content td {
+                              padding: 6px 10px;
+                              border: 1px solid rgba(156, 163, 175, 0.3);
+                              font-size: 0.75rem;
+                          }
+                        `}</style>
+                        <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
+                      </div>
+                      {(() => {
+                        const reportHtml = getHtmlFromMsg(msg);
+                        if (!reportHtml) return null;
+                        return (
+                          <button
+                            onClick={() => openHtmlReport(reportHtml)}
+                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500 hover:shadow-xl active:scale-95"
+                          >
+                            <FileText className="h-4 w-4 animate-pulse" />
+                            {/* eslint-disable-next-line i18next/no-literal-string */}
+                            <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
+                          </button>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
+
+                {/* Message action controls (Edit, Delete, Regenerate) */}
+                {msg._id && editingMessageId !== msg._id && (
+                  <div className={`mt-1 flex items-center gap-2 text-[10px] transition-all opacity-40 hover:opacity-100 sm:opacity-0 group-hover:opacity-100 ${
+                    msg.role === 'user' ? 'justify-end pr-1 text-blue-500/70 dark:text-blue-400/70' : 'justify-start pl-1 text-gray-400 dark:text-gray-500'
+                  }`}>
+                    {msg.role === 'user' && (
+                      <button
+                        onClick={() => {
+                          setEditingMessageId(msg._id!);
+                          setEditingText(msg.content);
+                        }}
+                        className="flex items-center gap-0.5 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+                      >
+                        <Edit2 className="h-2.5 w-2.5" />
+                        <span>Editar</span>
+                      </button>
+                    )}
+                    {msg.role === 'assistant' && i === messages.length - 1 && (
+                      <button
+                        onClick={() => handleRegenerate(msg._id!)}
+                        className="flex items-center gap-0.5 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                      >
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        <span>Regenerar</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteMessage(msg._id!)}
+                      className="flex items-center gap-0.5 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {isTyping && (
