@@ -24,6 +24,7 @@ export default function TenshiChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [tenshiStatus, setTenshiStatus] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -365,11 +366,13 @@ export default function TenshiChat() {
 
   const runChatTurn = async (currentMessages: { role: string; content: string; htmlReport?: string }[]) => {
     setIsTyping(true);
+    setTenshiStatus('Capturando pantalla...');
     try {
       console.log('[Tenshi Frontend] Starting chat turn. Messages:', currentMessages);
       const domState = getDehydratedDOM();
       console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length);
       
+      setTenshiStatus('Consultando con Tenshi...');
       const response = await axios.post(
         '/api/tenshi/chat',
         {
@@ -392,10 +395,11 @@ export default function TenshiChat() {
       // Si Tenshi requiere una acción visual, la ejecutamos en el cliente y continuamos el ciclo
       if (responseData.guiAction) {
         console.log('[Tenshi Frontend] GUI action requested:', responseData.guiAction);
+        setTenshiStatus(`Acción visual requerida: ${responseData.guiAction.accion}...`);
         // Esperamos un momento para que el usuario lea el mensaje intermedio de Tenshi
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
-        console.log('[Tenshi Frontend] Executing GUI action...');
+        setTenshiStatus(`Desplazando e interactuando con elemento [${responseData.guiAction.indice}]...`);
         const actionResult = await executeGUIAction(
           responseData.guiAction.accion,
           responseData.guiAction.indice,
@@ -411,13 +415,16 @@ export default function TenshiChat() {
 
         // Reanudamos la conversación de forma automática pasándole todo el historial acumulado
         console.log('[Tenshi Frontend] Sending automated feedback to backend:', feedbackMsg);
+        setTenshiStatus('Enviando resultado...');
         await runChatTurn([...currentMessages, assistantMsg, feedbackMsg]);
       } else {
         console.log('[Tenshi Frontend] No GUI action requested. Ending turn.');
+        setTenshiStatus('');
         setIsTyping(false);
       }
     } catch (error: any) {
       console.error('[Tenshi Frontend] Error in runChatTurn:', error);
+      setTenshiStatus('Error en la automatización.');
       const status = error.response?.status;
       let userFriendlyMsg = error.response?.data?.details || error.message;
 
@@ -434,6 +441,7 @@ export default function TenshiChat() {
         },
       ]);
       setIsTyping(false);
+      setTenshiStatus('');
     }
   };
 
@@ -754,10 +762,17 @@ export default function TenshiChat() {
             {isTyping && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                  <div className="flex gap-1.5">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]"></span>
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]"></span>
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></span>
+                  <div className="flex flex-col gap-2">
+                    {tenshiStatus && (
+                      <span className="text-[10px] text-gray-500 font-semibold animate-pulse dark:text-gray-400">
+                        ⚙️ {tenshiStatus}
+                      </span>
+                    )}
+                    <div className="flex gap-1.5">
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]"></span>
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]"></span>
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></span>
+                    </div>
                   </div>
                 </div>
               </div>
