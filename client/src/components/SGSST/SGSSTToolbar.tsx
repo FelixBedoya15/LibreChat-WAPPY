@@ -265,6 +265,8 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             whileTap="tap"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
             disabled={disabled}
+            title={title}
+            aria-label={title}
             className={cn(
                 "group flex items-center justify-center h-8 px-2 min-w-[32px] sm:h-10 sm:px-2.5 sm:min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                 variantStyles[variant]

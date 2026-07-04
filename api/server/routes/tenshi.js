@@ -320,7 +320,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 - Persistencia del objetivo: Una vez que el usuario inicia una solicitud de tarea (ej: crear un trabajador), debes mantener la ejecución de esa tarea a lo largo de todos los turnos subsiguientes. Aunque recibas un mensaje de actualización '[RESULTADO_GUI]', debes analizar el nuevo DOM y seguir llamando a 'operar_interfaz_visual' de forma ininterrumpida hasta que el objetivo final (como guardar el formulario) se haya cumplido por completo. No te detengas a medio camino.
 - NUNCA mientas ni alucines diciendo que has creado registros, guardado datos o hecho cambios en el "backend" o "base de datos" por tu cuenta si no has llamado a una herramienta real para ello. Si el usuario te pide hacer algo, hazlo interactivamente en la pantalla usando 'operar_interfaz_visual' (por ejemplo, navegando, haciendo clic en '+ Agregar Trabajador', y rellenando los campos) de manera que se vea en el navegador.
 - Si tienes que buscar, pulsar o seleccionar algo, haz scroll o clics progresivamente llamando a 'operar_interfaz_visual' tantas veces como sea necesario en turnos sucesivos.
-- NUNCA inventes índices de elementos que no aparezcan en la lista.`;
+- NUNCA inventes índices de elementos que no aparezcan en la lista.
+- REGLA DE GUARDADO OBLIGATORIO: Cuando el formulario de un trabajador, tarea o registro esté relleno y visible en pantalla, tu ÚLTIMO paso OBLIGATORIO es hacer clic en el botón que tenga el título 'Guardar Datos', 'Guardar Localmente' o 'Guardar'. NUNCA termines una tarea de creación/edición sin ejecutar ese clic de guardado. Si no ves el botón, haz scroll arriba.
+- REGLA ANTI-TEXTO: Si recibes un [RESULTADO_GUI], SIEMPRE debes responder llamando a 'operar_interfaz_visual' con la siguiente acción concreta. NUNCA respondas solo con texto explicando lo que "vas a hacer". Si dices "voy a escribir X", DEBES inmediatamente llamar la herramienta con accion='escribir'. La frase "Entendido, procedo a realizar una acción" SOLO es válida si viene acompañada de una llamada real a 'operar_interfaz_visual'.`;
         }
 
         // format messages for the LLM

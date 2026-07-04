@@ -119,6 +119,12 @@ export function getDehydratedDOM(): string {
         return;
       }
 
+      // Excluir elementos SVG y sus hijos — nunca son interactivos y son ruido puro para el LLM
+      const tagNameLower = htmlEl.tagName.toLowerCase();
+      if (['svg', 'path', 'rect', 'circle', 'line', 'polygon', 'polyline', 'ellipse', 'g', 'defs', 'use', 'symbol', 'clippath', 'lineargradient'].includes(tagNameLower)) {
+        return;
+      }
+
       const indent = '\t'.repeat(depth);
 
       if (isInteractive(htmlEl)) {
