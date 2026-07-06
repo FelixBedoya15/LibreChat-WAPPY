@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>De la Idea a tu Propia App — Presentación del Curso</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #09090e;
+      --bg-card: rgba(18, 18, 29, 0.6);
+      --border-card: rgba(255, 255, 255, 0.08);
+      --primary: #a855f7; /* Purple */
+      --secondary: #14b8a6; /* Teal */
+      --accent: #3b82f6; /* Blue */
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --gradient-main: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--secondary) 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* Background decorative blobs */
+    .blob {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      filter: blur(150px);
+      z-index: -1;
+      opacity: 0.35;
+      animation: float 20s infinite alternate;
+    }
+
+    .blob-1 {
+      background-color: var(--primary);
+      top: -100px;
+      left: -100px;
+    }
+
+    .blob-2 {
+      background-color: var(--secondary);
+      bottom: -150px;
+      right: -100px;
+      animation-delay: -10s;
+    }
+
+    @keyframes float {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(50px, 30px) scale(1.1); }
+    }
+
+    /* Top navigation bar */
+    header {
+      padding: 1.5rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(9, 9, 14, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: var(--gradient-main);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 1.2rem;
+      background: linear-gradient(to right, #fff, var(--text-muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slide-indicator {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--secondary);
+      background: rgba(20, 184, 166, 0.1);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      border: 1px solid rgba(20, 184, 166, 0.2);
+    }
+
+    /* Main Slides container */
+    main {
+      flex-grow: 1;
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(20px) scale(0.98);
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Content Cards (Glassmorphism) */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      padding: 2.5rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      max-height: 80vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card::-webkit-scrollbar {
+      width: 6px;
+    }
+    .card::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    h1, h2, h3 {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .slide h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1.2;
+      background: linear-gradient(to right, #ffffff, #d8b4fe, #a5f3fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .slide-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      body {
+        overflow-y: auto;
+        height: auto;
+      }
+      .slide {
+        position: relative;
+        height: auto;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        margin-bottom: 3rem;
+      }
+      main {
+        flex-direction: column;
+      }
+    }
+
+    /* Styled Lists & Badges */
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .bullet-check {
+      color: var(--secondary);
+      font-weight: bold;
+    }
+
+    .bullet-cross {
+      color: #ef4444;
+      font-weight: bold;
+    }
+
+    .highlight-box {
+      background: rgba(168, 85, 247, 0.08);
+      border-left: 4px solid var(--primary);
+      padding: 1rem;
+      border-radius: 0 12px 12px 0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .alert-box {
+      background: rgba(20, 184, 166, 0.08);
+      border-left: 4px solid var(--secondary);
+      padding: 1rem;
+      border-radius: 0 12px 12px 0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Prompt Box Styles */
+    .prompt-container {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1rem;
+      position: relative;
+      margin-top: 0.75rem;
+    }
+
+    .prompt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .prompt-text {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #a5f3fc;
+      line-height: 1.4;
+      word-break: break-word;
+      user-select: all;
+    }
+
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .btn-copy:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+
+    /* Syllabus Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 0.8rem;
+    }
+
+    .timeline-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .timeline-num {
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      min-width: 70px;
+    }
+
+    .timeline-content h4 {
+      font-family: 'Outfit', sans-serif;
+      color: #fff;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .timeline-content p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Ad Carousel Preview Grid */
+    .ad-card {
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 12px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .ad-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: bold;
+      align-self: flex-start;
+    }
+    
+    .ad-badge-1 { background: rgba(168, 85, 247, 0.2); color: var(--primary); }
+    .ad-badge-2 { background: rgba(20, 184, 166, 0.2); color: var(--secondary); }
+    .ad-badge-3 { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+
+    .ad-title-preview {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .ad-desc-preview {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Bottom Control Bar */
+    footer {
+      padding: 1rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(9, 9, 14, 0.9);
+    }
+
+    .progress-bar-container {
+      flex-grow: 1;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 0 2rem;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--gradient-main);
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(20, 184, 166, 0.6);
+    }
+
+    .btn-nav {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn-nav-primary {
+      background: var(--gradient-main);
+      border: none;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+    }
+
+    .btn-nav-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
+      transform: translateY(-1px);
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      right: 2rem;
+      background: #10b981;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <span class="logo-badge">IA</span>
+      <span class="logo-text">De la Idea a tu Propia App</span>
+    </div>
+    <div class="slide-indicator" id="slide-indicator">Slide 1 de 6</div>
+  </header>
+
+  <!-- Main Slides Container -->
+  <main>
+
+    <!-- SLIDE 1: PORTADA -->
+    <section class="slide active" id="slide-0">
+      <div class="card">
+        <div class="grid-2">
+          <div>
+            <h1>De la Idea a tu Propia App</h1>
+            <p class="slide-subtitle">Curso práctico de plataformas web para emprendedores sin código.</p>
+            <div class="highlight-box" style="margin-top: 1.5rem;">
+              <strong>La Promesa Central:</strong><br>
+              Al finalizar, cada estudiante tendrá su propia aplicación web real, corriendo en producción, bajo su propio servidor y dominio, utilizando la potencia de la Inteligencia Artificial (Antigravity y Gemini API) para delegar la programación.
+            </div>
+            <div class="alert-box" style="margin-top: 1rem;">
+              <strong>Caso de Éxito de Referencia:</strong> WAPPY<br>
+              La plataforma de SST creada por el instructor con bases mínimas de programación, <strong>lanzada hace solo 4 meses</strong> y facturando en promedio <strong>$17.000.000 COP al mes</strong> con más de 200 miembros activos.
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; justify-content: center; gap: 1rem;">
+            <div class="ad-card" style="background: rgba(168, 85, 247, 0.03); border-color: rgba(168, 85, 247, 0.15);">
+              <h3 style="color: var(--primary);">Datos Clave del Curso</h3>
+              <ul class="feature-list" style="margin-top: 0.5rem;">
+                <li><span class="bullet-check">✓</span> <strong>Duración:</strong> 9 clases de 2.5 horas cada una (22.5 horas totales).</li>
+                <li><span class="bullet-check">✓</span> <strong>Formato:</strong> Clases teóricas en grupo de 16; clases prácticas divididas en 2 subgrupos de 8.</li>
+                <li><span class="bullet-check">✓</span> <strong>Precio:</strong> COP 1.700.000 pagado en 2 cuotas de $850.000 (2da cuota antes de la Clase 5).</li>
+                <li><span class="bullet-check">✓</span> <strong>Requisitos:</strong> Computador, tarjeta para hosting/dominio (aprox. $15 USD) y una idea de negocio.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: CRONOGRAMA DE CLASES -->
+    <section class="slide" id="slide-1">
+      <div class="card">
+        <h2>Cronograma del Curso paso a paso</h2>
+        <p class="slide-subtitle">Flujo lógico diseñado para llevar al estudiante de cero a una app en vivo.</p>
+        <div class="grid-2">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 1</div>
+              <div class="timeline-content">
+                <h4>Arranque e Idea de Negocio</h4>
+                <p>Presentación de Antigravity. Definición del proyecto a construir y creación de cuentas (Google Cloud, GitHub, AI Studio).</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 2</div>
+              <div class="timeline-content">
+                <h4>Dominios y DNS</h4>
+                <p>Cómo elegir y comprar tu dominio web. Explicación y configuración de registros DNS A y CNAME.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 3</div>
+              <div class="timeline-content">
+                <h4>Servidores VPS</h4>
+                <p>Qué es un VPS y por qué es mejor. Contratación, acceso seguro por SSH y configuración básica de firewall.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 4</div>
+              <div class="timeline-content">
+                <h4>Docker y Dokploy</h4>
+                <p>Instalación de Docker y Dokploy. Tour de la interfaz visual para gestionar aplicaciones y bases de datos.</p>
+              </div>
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item" style="border-left: 2px solid var(--secondary); padding-left: 1rem;">
+              <div class="timeline-num" style="color: var(--secondary);">Clase 5</div>
+              <div class="timeline-content">
+                <h4>GitHub y Primer Deploy (Ajustado)</h4>
+                <p>Control de versiones para no programadores. Creación de un proyecto base "plantilla" simple y conexión con Dokploy para habilitar el deploy automático.</p>
+              </div>
+            </div>
+            <div class="timeline-item" style="border-left: 2px solid var(--secondary); padding-left: 1rem;">
+              <div class="timeline-num" style="color: var(--secondary);">Clase 6</div>
+              <div class="timeline-content">
+                <h4>Construcción con IA (Parte 1)</h4>
+                <p>Cómo escribir prompts para Antigravity. Construcción guiada de la estructura real del proyecto de cada uno, reemplazando la plantilla inicial vía Git.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 7</div>
+              <div class="timeline-content">
+                <h4>IA con Gemini API (Parte 2)</h4>
+                <p>Integrar el cerebro de Google Gemini en la app (chatbots, autogeneración). Automatización simple conectando formularios a WhatsApp, correos o Google Sheets.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 8</div>
+              <div class="timeline-content">
+                <h4>Funciones de Negocio y Pulido</h4>
+                <p>Autenticación simple de usuarios (login), base de datos de almacenamiento, diseño estético final y checklist de producción (SSL).</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">Clase 9</div>
+              <div class="timeline-content">
+                <h4>Deploy Final y Demo Day</h4>
+                <p>Puesta en marcha oficial. Presentación de la app funcional (demo de 5-7 mins por estudiante). Próximos pasos y soporte.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: TÉRMINOS, CONDICIONES Y ALCANCE -->
+    <section class="slide" id="slide-2">
+      <div class="card">
+        <h2>Términos y Alcance Legal del Proyecto</h2>
+        <p class="slide-subtitle">Límites claros del curso y protección legal adaptada al Estatuto del Consumidor en Colombia.</p>
+        <div class="grid-2">
+          <div>
+            <h3>Alcance Aprobado de los Proyectos</h3>
+            <ul class="feature-list" style="margin-top: 1rem;">
+              <li><span class="bullet-check">✓</span> <strong>Se Acepta (En las 9 clases):</strong> Apps con una función principal (agendar, catálogo, leads, CRM simple, SaaS básico), un solo tipo de usuario y máximo 1 integración externa simple.</li>
+              <li><span class="bullet-check">✓</span> <strong>Ruta Avanzada (Bajo propio riesgo):</strong> Sistemas con cobros en producción de pasarelas como Wompi o integraciones múltiples. Se advierte que requiere trabajo fuera de clase y el cumplimiento de la Ley 1581 (Habeas Data) es responsabilidad del alumno.</li>
+              <li><span class="bullet-cross">✗</span> <strong>No Se Acepta:</strong> Marketplaces complejos de múltiples vendedores, lógicas pesadas de nómina/contabilidad, o migración de sistemas antiguos.</li>
+            </ul>
+          </div>
+          <div>
+            <div class="highlight-box" style="border-color: var(--secondary);">
+              <h3>Política de Reembolso Ajustada (Ley 1480 de 2011)</h3>
+              <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+                De conformidad con el Estatuto del Consumidor en Colombia, para compras electrónicas, el estudiante cuenta con <strong>cinco (5) días hábiles</strong> contados a partir del pago de la inscripción (1ra cuota) para ejercer su <strong>Derecho de Retracto</strong> y solicitar la devolución total de su dinero, siempre y cuando no se haya dado inicio al curso (Clase 1).
+              </p>
+              <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                Una vez iniciado el curso o transcurrido este plazo, no se realizarán devoluciones ni reembolsos bajo ninguna circunstancia.
+              </p>
+            </div>
+            <div class="alert-box" style="margin-top: 1rem; border-color: var(--accent);">
+              <strong>Soporte y Costos Adicionales:</strong><br>
+              El soporte del instructor culmina el Demo Day. Los costos de VPS, dominio y consumo extra de Gemini API son asumidos 100% por el estudiante.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: ESTRATEGIA DE VENTAS Y COPY -->
+    <section class="slide" id="slide-3">
+      <div class="card">
+        <h2>Estrategia de Copywriting y Ventas</h2>
+        <p class="slide-subtitle">Fórmula de ventas enfocada en el anclaje de valor por hora e hitos reales.</p>
+        <div class="grid-2">
+          <div>
+            <h3>Estructura del Headline de Landing</h3>
+            <div class="highlight-box" style="margin-top: 0.75rem; font-size: 1.05rem; font-style: italic;">
+              "Yo aprendí a programar lo básico y con eso construí WAPPY, una plataforma lanzada hace solo 4 meses que hoy factura en promedio $17.000.000 al mes en membresías. Ahora te enseño el mismo camino — con IA, para que te tome semanas, no años."
+            </div>
+            <h3 style="margin-top: 1.5rem;">Prueba Social / Autoridad</h3>
+            <ul class="feature-list" style="margin-top: 0.5rem;">
+              <li><span class="bullet-check">✓</span> <strong>Lanzada hace solo 4 meses</strong> con tracción explosiva.</li>
+              <li><span class="bullet-check">✓</span> <strong>200+ suscriptores activos</strong> pagando membresías recurrentes.</li>
+              <li><span class="bullet-check">✓</span> <strong>Soporte automatizado con IA</strong> (usando las mismas herramientas del curso).</li>
+            </ul>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <h3>Estrategias de Anclaje de Precios</h3>
+            <div class="ad-card">
+              <span class="ad-badge ad-badge-1">Opción A: Por hora de clase</span>
+              <p class="ad-title-preview">"Menos de $76.000 por hora de clase en vivo"</p>
+              <p class="ad-desc-preview">Comparado con una hora de consultoría freelance de desarrollo ($80k-$150k) donde solo te resuelven una duda y no te entregan una app completa.</p>
+            </div>
+            <div class="ad-card">
+              <span class="ad-badge ad-badge-2">Opción B: Costo de NO hacerlo</span>
+              <p class="ad-title-preview">"Un programador freelance te cobra entre $3M y $8M por un MVP"</p>
+              <p class="ad-desc-preview">Este curso cuesta una fracción de eso, se completa en el mismo tiempo y al final tú sabes cómo actualizar tu app sin depender de nadie.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: IMÁGENES Y PROMPTS (PARTE 1) -->
+    <section class="slide" id="slide-4">
+      <div class="card">
+        <h2>Carrusel de Ventas: Slides 1, 2 y 3</h2>
+        <p class="slide-subtitle">Propuestas de imágenes limpias para Canva con sus respectivos prompts de Inteligencia Artificial.</p>
+        <div class="grid-3">
+          <!-- Slide Ad 1 -->
+          <div class="ad-card">
+            <span class="ad-badge ad-badge-1">Imagen 1: Portada</span>
+            <p class="ad-title-preview">Texto en Canva:</p>
+            <p class="ad-desc-preview">"Crea tu propia aplicación web de negocio (sin saber programar). Usa IA para construir una plataforma real. Como WAPPY, lanzada hace solo 4 meses y que ya factura $17M/mes."</p>
+            <div class="prompt-container">
+              <div class="prompt-header">
+                <span>Prompt (Midjourney/DALL-E)</span>
+                <button class="btn-copy" onclick="copyPrompt('prompt1', this)">Copiar</button>
+              </div>
+              <div class="prompt-text" id="prompt1">A high-end modern laptop open on a clean desk, screen displaying a colorful dark-mode web application with simple abstract charts and no text. Smooth neon purple and teal lighting, shallow depth of field, photorealistic, clean and minimalist workspace, no letters or text on screen. --ar 4:5</div>
+            </div>
+          </div>
+          
+          <!-- Slide Ad 2 -->
+          <div class="ad-card">
+            <span class="ad-badge ad-badge-2">Imagen 2: El Mercado / Ideas</span>
+            <p class="ad-title-preview">Texto en Canva:</p>
+            <p class="ad-desc-preview">"Hay empresas esperando la solución que tienes en mente. ¿No tienes una idea clara? Te daré 8 propuestas de aplicaciones web listas para construir y explotar en el mercado."</p>
+            <div class="prompt-container">
+              <div class="prompt-header">
+                <span>Prompt (Midjourney/DALL-E)</span>
+                <button class="btn-copy" onclick="copyPrompt('prompt2', this)">Copiar</button>
+              </div>
+              <div class="prompt-text" id="prompt2">A closeup of a hand holding a glowing holographic light bulb containing abstract tech nodes and connections. Futuristic minimalist background, soft neon purple and blue lights, depth of field, photorealistic, no text. --ar 4:5</div>
+            </div>
+          </div>
+
+          <!-- Slide Ad 3 -->
+          <div class="ad-card">
+            <span class="ad-badge ad-badge-3">Imagen 3: Las Herramientas</span>
+            <p class="ad-title-preview">Texto en Canva:</p>
+            <p class="ad-desc-preview">"Herramientas sencillas que dominarás:<br>🌐 Dominio (Namecheap)<br>☁️ Servidor (Hostinger)<br>🎛️ Dokploy (Panel visual)<br>🔒 GitHub (Caja Fuerte)<br>🧠 Gemini (Cerebro IA)"</p>
+            <div class="prompt-container">
+              <div class="prompt-header">
+                <span>Prompt (Midjourney/DALL-E)</span>
+                <button class="btn-copy" onclick="copyPrompt('prompt3', this)">Copiar</button>
+              </div>
+              <div class="prompt-text" id="prompt3">An elegant 3d render of five glowing floating spheres interconnected by light lines. Each sphere has a simple, clean, friendly tech symbol inside (cloud, gear, padlock, brain, globe). High-tech but friendly aesthetic, neon purple and green colors, clean dark background, no text. --ar 4:5</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: IMÁGENES Y PROMPTS (PARTE 2) -->
+    <section class="slide" id="slide-5">
+      <div class="card">
+        <h2>Carrusel de Ventas: Slides 4 y 5</h2>
+        <p class="slide-subtitle">Cierre de la secuencia comercial enfocada en la entrega de valor y llamados a la acción.</p>
+        <div class="grid-2">
+          <!-- Slide Ad 4 -->
+          <div class="ad-card">
+            <span class="ad-badge ad-badge-1">Imagen 4: Qué te llevas</span>
+            <p class="ad-title-preview">Texto en Canva (Español):</p>
+            <p class="ad-desc-preview">"¿Con qué saldrás al terminar?<br>🚀 Tu propia aplicación web funcionando en vivo en internet.<br>🔑 Control absoluto de tu plataforma (cero mensualidades).<br>💬 Un asistente inteligente con IA de Google integrado.<br>🧙‍♂️ La habilidad para seguir mejorando tu app dándole órdenes a la IA."</p>
+            <div class="prompt-container">
+              <div class="prompt-header">
+                <span>Prompt (Midjourney/DALL-E)</span>
+                <button class="btn-copy" onclick="copyPrompt('prompt4', this)">Copiar</button>
+              </div>
+              <div class="prompt-text" id="prompt4">A professional product shot of a laptop and a smartphone side-by-side. The screens show a matching responsive website mockup with clean abstract layouts and card designs, no readable text. Soft studio lighting, warm violet accents, highly professional, clean aesthetic. --ar 4:5</div>
+            </div>
+          </div>
+
+          <!-- Slide Ad 5 -->
+          <div class="ad-card">
+            <span class="ad-badge ad-badge-2">Imagen 5: Llamado a la Acción (CTA)</span>
+            <p class="ad-title-preview">Texto en Canva (Español):</p>
+            <p class="ad-desc-preview">"¡Reserva tu cupo hoy mismo!<br>👥 Grupo exclusivo de 16 personas (dividido en 8 para soporte real 1-a-1).<br>💳 Financiado en 2 cuotas (paga la mitad al iniciar y la mitad en la clase 5).<br>⏱️ Menos de $76.000 COP por hora de clase en vivo.<br>👉 Escríbeme por DM para postularte."</p>
+            <div class="prompt-container">
+              <div class="prompt-header">
+                <span>Prompt (Midjourney/DALL-E)</span>
+                <button class="btn-copy" onclick="copyPrompt('prompt5', this)">Copiar</button>
+              </div>
+              <div class="prompt-text" id="prompt5">A glowing futuristic digital invitation ticket card floating in the air, neon purple and teal glow on its borders, clean dark studio background, elegant volumetric lighting, high quality 3d render, no letters or text on the card. --ar 4:5</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Controls Footer -->
+  <footer>
+    <button class="btn-nav" id="btn-prev" onclick="changeSlide(-1)" disabled>Anterior</button>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <button class="btn-nav btn-nav-primary" id="btn-next" onclick="changeSlide(1)">Siguiente</button>
+  </footer>
+
+  <!-- Toast Element -->
+  <div class="toast" id="toast-notify">¡Copiado al portapapeles!</div>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const indicator = document.getElementById('slide-indicator');
+    const progressBar = document.getElementById('progress-bar');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const toast = document.getElementById('toast-notify');
+
+    function updateControls() {
+      // Update indicators & buttons
+      indicator.textContent = `Slide ${currentSlide + 1} de ${totalSlides}`;
+      progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+      
+      btnPrev.disabled = currentSlide === 0;
+      if (currentSlide === totalSlides - 1) {
+        btnNext.textContent = 'Finalizar';
+        btnNext.classList.remove('btn-nav-primary');
+        btnNext.style.background = 'rgba(20, 184, 166, 0.2)';
+        btnNext.style.borderColor = 'var(--secondary)';
+        btnNext.style.color = 'var(--secondary)';
+      } else {
+        btnNext.textContent = 'Siguiente';
+        btnNext.classList.add('btn-nav-primary');
+        btnNext.style.background = '';
+        btnNext.style.borderColor = '';
+        btnNext.style.color = '';
+      }
+    }
+
+    function changeSlide(direction) {
+      if (direction === 1 && currentSlide === totalSlides - 1) {
+        // Reset to first slide at the end
+        slides[currentSlide].classList.remove('active');
+        currentSlide = 0;
+        slides[currentSlide].classList.add('active');
+        updateControls();
+        return;
+      }
+      
+      const nextSlideIndex = currentSlide + direction;
+      if (nextSlideIndex >= 0 && nextSlideIndex < totalSlides) {
+        slides[currentSlide].classList.remove('active');
+        currentSlide = nextSlideIndex;
+        slides[currentSlide].classList.add('active');
+        updateControls();
+      }
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        changeSlide(1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        changeSlide(-1);
+      }
+    });
+
+    // Copy Prompt Functionality
+    function copyPrompt(id, button) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        // Show success toast
+        toast.classList.add('show');
+        
+        // Temporarily change button visual state
+        const originalText = button.textContent;
+        button.textContent = '✓ Copiado';
+        button.style.background = 'var(--secondary)';
+        button.style.borderColor = 'var(--secondary)';
+        
+        setTimeout(() => {
+          toast.classList.remove('show');
+          button.textContent = originalText;
+          button.style.background = '';
+          button.style.borderColor = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('No se pudo copiar el texto: ', err);
+      });
+    }
+
+    // Initial setup
+    updateControls();
+  </script>
+</body>
+</html>

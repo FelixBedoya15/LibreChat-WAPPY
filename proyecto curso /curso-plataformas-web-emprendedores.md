@@ -56,15 +56,16 @@ Esto mantiene el acompañamiento personalizado donde más se necesita (cuando ca
 - Instalar Dokploy y conectar el dominio
 - Tour de la interfaz de Dokploy: apps, bases de datos, variables de entorno
 
-### Clase 5 — GitHub como "caja fuerte" del proyecto
+### Clase 5 — GitHub como "caja fuerte" y primer Deploy
 - Para qué sirve un repositorio (control de versiones explicado con ejemplos de negocio, no de código)
-- Crear repo, subir el proyecto generado por Antigravity
-- Conectar el repositorio a Dokploy → **deploy automático** cada vez que se actualiza el proyecto
+- Creación de un proyecto base "plantilla" o "Template Starter" simple para pruebas
+- Crear repo en GitHub, subir la plantilla base del proyecto
+- Conectar el repositorio a Dokploy → configuración de **deploy automático** (CI/CD) para ver la plantilla corriendo en vivo en su dominio
 
 ### Clase 6 — Construcción de la app con Antigravity (parte 1)
 - Cómo escribir buenos prompts para pedirle a Antigravity que construya funciones (formularios, páginas, secciones)
-- Construcción guiada de la estructura base de la app de cada estudiante
-- Primer despliegue de prueba al VPS
+- Construcción guiada de la estructura base real de la app de cada estudiante (reemplazando la plantilla de la Clase 5)
+- Git commit y push para ver el despliegue automático en producción a través de Dokploy
 
 ### Clase 7 — Construcción con Antigravity + Gemini API (parte 2)
 - Añadir inteligencia a la app: chatbot, generación de textos/imágenes, recomendaciones — usando la Gemini API key

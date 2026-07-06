@@ -5,11 +5,12 @@
 ## VERSIÓN 1 — Para página de ventas / landing
 
 ### Headline
-**Yo aprendí a programar lo básico y con eso construí WAPPY, una plataforma que hoy factura en promedio $17.000.000 al mes en membresías. Ahora te enseño el mismo camino — con IA, para que te tome semanas, no años.**
+**Yo aprendí a programar lo básico y con eso construí WAPPY, una plataforma lanzada hace solo 4 meses que hoy factura en promedio $17.000.000 al mes en membresías. Ahora te enseño el mismo camino — con IA, para que te tome semanas, no años.**
 
 ### Bloque de prueba (autoridad)
 No te voy a enseñar teoría. Te voy a enseñar el proceso exacto que usé para construir y sostener **WAPPY**, mi propia plataforma de Seguridad y Salud en el Trabajo:
 
+- ✅ **Lanzada hace solo 4 meses** y en constante crecimiento
 - ✅ Más de **200 suscriptores** pagando membresía activa
 - ✅ Facturación promedio de **$17.000.000 COP/mes**
 - ✅ Soporte automatizado con IA (Antigravity) — la misma herramienta que vas a aprender a usar

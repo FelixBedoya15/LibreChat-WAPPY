@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAPPY IA vs ALISSTA - Alianza Estratégica de Inteligencia para SST</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    /* DESIGN SYSTEM & COLORS */
+    :root {
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-code: 'Fira Code', monospace;
+      
+      --color-bg: #060913;
+      --color-card-bg: rgba(10, 16, 32, 0.7);
+      --color-border: rgba(34, 197, 94, 0.15);
+      --color-border-hover: rgba(34, 197, 94, 0.4);
+      --color-primary: #22c55e;
+      --color-primary-dark: #15803d;
+      --color-secondary: #06b6d4;
+      --color-accent: #f59e0b;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--color-bg);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Background Ambient Glows */
+    .glow-bg {
+      position: absolute;
+      width: 50vw;
+      height: 50vw;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(160px);
+      z-index: 0;
+      opacity: 0.12;
+      transition: all 1s ease-in-out;
+    }
+
+    .glow-1 {
+      top: -15%;
+      right: -10%;
+      background: var(--color-primary);
+    }
+
+    .glow-2 {
+      bottom: -15%;
+      left: -10%;
+      background: var(--color-secondary);
+    }
+
+    /* Layout structure */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      width: 100vw;
+      transition: grid-template-columns 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .app-container.panel-active {
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+
+    /* HEADER */
+    header {
+      padding: 1.2rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(6, 9, 19, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-text {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-sst {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: var(--color-primary);
+      text-transform: uppercase;
+    }
+
+    .badge-vs {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: var(--color-accent);
+      text-transform: uppercase;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .btn-toggle {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.25s ease;
+    }
+
+    .btn-toggle:hover {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.3);
+      color: var(--color-primary);
+    }
+
+    .btn-toggle.active {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
+    }
+
+    /* MAIN PRESENTATION AREA */
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    .slides-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 1100px;
+      max-height: 620px;
+    }
+
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(35px) scale(0.98);
+      transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      z-index: 1;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      z-index: 2;
+    }
+
+    .slide.previous {
+      transform: translateX(-35px) scale(0.98);
+    }
+
+    /* Slide Card Style */
+    .slide-card {
+      background: var(--color-card-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      padding: 2.2rem 2.8rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide-title {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: clamp(1.8rem, 4vh, 2.5rem);
+      line-height: 1.15;
+      margin-bottom: 0.6rem;
+      letter-spacing: -0.5px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(0.9rem, 2vh, 1.1rem);
+      color: var(--text-secondary);
+      margin-bottom: 1.2rem;
+      font-weight: 300;
+      line-height: 1.5;
+    }
+
+    /* Grid Formats */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 2rem;
+      align-items: center;
+      height: 100%;
+    }
+
+    .grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.2rem;
+      margin-top: 0.5rem;
+    }
+
+    /* UI Cards inside slides */
+    .info-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1.2rem;
+      transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+      background: rgba(34, 197, 94, 0.03);
+      border-color: rgba(34, 197, 94, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .info-card h4 {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      margin-bottom: 0.4rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .info-card p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .avatar-circle {
+      width: clamp(140px, 28vh, 220px);
+      height: clamp(140px, 28vh, 220px);
+      border-radius: 50%;
+      border: 4px solid var(--color-primary);
+      background: #090d16;
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.25);
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    .avatar-circle img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+    }
+
+    /* Comparison Table in HTML Slide */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    .compare-table th {
+      padding: 0.6rem 0.8rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .compare-table td {
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      line-height: 1.35;
+    }
+
+    .compare-table tr:hover td {
+      background: rgba(255, 255, 255, 0.01);
+      color: var(--text-primary);
+    }
+
+    .badge-cell {
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .badge-cell.wappy {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--color-primary);
+    }
+
+    .badge-cell.alissta {
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--color-secondary);
+    }
+
+    /* SIDE PANEL (TELEPROMPTER & PROMPTS) */
+    .side-panel {
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      background: #090e1a;
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .app-container.panel-active .side-panel {
+      display: flex;
+      animation: slideIn 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--color-primary);
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 2px solid var(--color-primary);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .content-section {
+      display: none;
+    }
+
+    .content-section.active {
+      display: block;
+    }
+
+    /* Teleprompter Styling */
+    .teleprompter-text {
+      font-size: 1.15rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .teleprompter-text p {
+      margin-bottom: 1.5rem;
+    }
+
+    .teleprompter-text strong {
+      color: var(--text-primary);
+    }
+
+    .teleprompter-highlight {
+      background: rgba(34, 197, 94, 0.08);
+      border-left: 4px solid var(--color-primary);
+      padding: 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+
+    /* Prompt Box Styling */
+    .prompt-box {
+      margin-top: 0.8rem;
+    }
+
+    .prompt-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--color-secondary);
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-copy:hover {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    .prompt-code {
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+      background: #04060d;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 1rem;
+      border-radius: 8px;
+      color: #a7f3d0;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      max-height: 380px;
+      line-height: 1.45;
+    }
+
+    /* FOOTER */
+    footer {
+      padding: 1.2rem 2.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(6, 9, 19, 0.9);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .btn-nav {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: scale(1.05);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .btn-nav svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .progress-bar-wrapper {
+      flex: 1;
+      max-width: 450px;
+      margin: 0 2rem;
+    }
+
+    .progress-bar-bg {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+      width: 100%;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+      border-radius: 3px;
+      width: 11.11%;
+      transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .progress-txt {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      margin-top: 0.35rem;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .slide-dots {
+      display: flex;
+      gap: 0.45rem;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .dot.active {
+      background: var(--color-primary);
+      width: 20px;
+      border-radius: 3px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .grid-2col {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+      .app-container.panel-active {
+        grid-template-columns: 1fr;
+      }
+      .app-container.panel-active .viewport {
+        display: none;
+      }
+      header {
+        padding: 0.8rem 1.5rem;
+      }
+      footer {
+        padding: 0.8rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background ambient animations -->
+  <div class="glow-bg glow-1"></div>
+  <div class="glow-bg glow-2"></div>
+
+  <div class="app-container panel-active" id="appContainer">
+    
+    <!-- HEADER -->
+    <header>
+      <div class="logo-container">
+        <!-- WAPPY Logo -->
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+          <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#gradient)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="gradient" x1="4" y1="8" x2="28" y2="24">
+              <stop stop-color="#22c55e" />
+              <stop offset="1" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">WAPPY IA</span>
+        <span class="badge-vs">VS</span>
+        <span class="logo-text" style="background: var(--color-secondary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ALISSTA</span>
+      </div>
+
+      <div class="header-controls">
+        <button class="btn-toggle active" id="btnSidePanel" onclick="toggleSidePanel()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M3 20v-8a2 2 0 0 1 2-2h4M3 12h6M3 8V4a2 2 0 0 1 2-2h4M15 12h6m-6-4h6m-6 8h6"/></svg>
+          Panel de Soporte e IA Prompts
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEWPORT SLIDES -->
+    <div class="viewport">
+      <div class="slides-container">
+        
+        <!-- Slide 1: Welcome -->
+        <div class="slide active" id="slide-1">
+          <div class="slide-card grid-2col">
+            <div>
+              <span class="badge-sst" style="margin-bottom: 0.6rem; display: inline-block;">Propuesta de Alianza</span>
+              <h1 class="slide-title">WAPPY IA + ALISSTA:<br><span class="gradient-text">Alianza Estratégica de Inteligencia para ARL Positiva</span></h1>
+              <p class="slide-subtitle" style="margin-top: 0.8rem;">Descubre cómo unir un Sistema de Registro oficial con un Motor de IA Ocupacional para multiplicar la productividad, la calidad de datos y salvar vidas en campo.</p>
+            </div>
+            <div style="text-align: center;">
+              <div class="avatar-circle">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=wappy_positiva" alt="Bot Wappy">
+              </div>
+              <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">Ecosistema Inteligente para Prevencionistas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2: El Dolor Operativo -->
+        <div class="slide" id="slide-2">
+          <div class="slide-card">
+            <h2 class="slide-title">El Dolor de la SST: <span class="gradient-text">El Laberinto Administrativo</span></h2>
+            <p class="slide-subtitle">Los prevencionistas y asesores dedican más del 80% de su tiempo a tareas de digitación y papeleo, reduciendo la presencia real en campo.</p>
+            <div class="grid-3col">
+              <div class="info-card">
+                <h4 style="color: #ef4444;">⏱️ +10 Horas</h4>
+                <p>Es el tiempo promedio invertido por un prevencionista en formular y transcribir manualmente una sola matriz GTC-45 en plataformas tradicionales.</p>
+              </div>
+              <div class="info-card" style="border-color: rgba(245, 158, 11, 0.25);">
+                <h4 style="color: var(--color-accent);">✍️ Doble Digitación</h4>
+                <p>Las plataformas como ALISSTA exigen reportes manuales exhaustivos. El usuario suele estructurar su matriz en Excel y luego transcribirla celda por celda.</p>
+              </div>
+              <div class="info-card" style="border-color: rgba(6, 182, 212, 0.25);">
+                <h4 style="color: var(--color-secondary);">📈 Calidad del Dato</h4>
+                <p>Si los datos ingresados al portal transaccional de la ARL contienen errores lógicos o de cálculo, los dashboards e indicadores no reflejan la realidad.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 3: Coexistencia Estratégica -->
+        <div class="slide" id="slide-3">
+          <div class="slide-card">
+            <h2 class="slide-title">WAPPY vs ALISSTA: <span class="gradient-text">Sistemas Complementarios</span></h2>
+            <p class="slide-subtitle">La alianza perfecta entre el cumplimiento legal exigido por la aseguradora y el copiloto de creación de la IA.</p>
+            
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>Característica</th>
+                  <th>ALISSTA (Positiva)</th>
+                  <th>WAPPY IA</th>
+                  <th>Sinergia Estratégica</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Rol Primario</strong></td>
+                  <td><span class="badge-cell alissta">Sistema de Registro</span></td>
+                  <td><span class="badge-cell wappy">Sistema de Inteligencia</span></td>
+                  <td>Wappy crea los entregables y ALISSTA los archiva y audita.</td>
+                </tr>
+                <tr>
+                  <td><strong>Matriz de Riesgos</strong></td>
+                  <td>Formularios rígidos o subida de plantillas manuales.</td>
+                  <td>Generador en vivo con sugerencias de peligro e IA.</td>
+                  <td>IA redacta peligros y controles basados en actividad en segundos.</td>
+                </tr>
+                <tr>
+                  <td><strong>Ausentismo</strong></td>
+                  <td>Registro manual individual, cálculo básico de índices.</td>
+                  <td>Live Analysis: ingesta cruda de datos mediante LLM.</td>
+                  <td>Wappy interpreta los CIE-10 crudos y entrega el reporte limpio.</td>
+                </tr>
+                <tr>
+                  <td><strong>Base de Datos</strong></td>
+                  <td>Ligado a una única empresa (Mono-NIT).</td>
+                  <td>Consola multi-nit para consultores independientes.</td>
+                  <td>Un consultor atiende 4x más clientes y reporta a Positiva.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Slide 4: Módulos de Especialización WAPPY -->
+        <div class="slide" id="slide-4">
+          <div class="slide-card">
+            <h2 class="slide-title">Módulos Estrella de <span class="gradient-text">WAPPY IA</span></h2>
+            <p class="slide-subtitle">Herramientas inteligentes diseñadas bajo la legislación de Colombia que cierran las brechas operativas de ALISSTA.</p>
+            <div class="grid-3col">
+              <div class="info-card">
+                <h4>🧪 Matriz Química SGA</h4>
+                <p>Validación automática de mezclas químicas y semáforo de compatibilidad física bajo el Decreto 1496/2018. Evita accidentes por almacenamiento inadecuado.</p>
+              </div>
+              <div class="info-card">
+                <h4>🚗 Matriz PESV Vial</h4>
+                <p>Evaluación de factores de riesgo vial integrada bajo los estándares de la guía ANSV 2022 e ISO 31000. Ausente en la estructura clásica de ALISSTA.</p>
+              </div>
+              <div class="info-card">
+                <h4>⚖️ Editor Legal RIT</h4>
+                <p>Workspace especializado para la actualización legal del Reglamento Interno de Trabajo frente a la reducción de jornada a 42 horas en Colombia.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 5: Los 15+ Agentes Especialistas -->
+        <div class="slide" id="slide-5">
+          <div class="slide-card grid-2col">
+            <div>
+              <h2 class="slide-title">Tenshi y el <span class="gradient-text">Comité Técnico de IA</span></h2>
+              <p class="slide-subtitle">Un portafolio de más de 15 agentes expertos calibrados con normatividad colombiana, listos sin necesidad de crear prompts.</p>
+              <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; color: var(--text-secondary);">
+                <div><strong>• Médico Laboral:</strong> Interpreta exámenes y califica ausentismo.</div>
+                <div><strong>• Abogado SST:</strong> Diseña descargos legales y revisa el RIT.</div>
+                <div><strong>• Ergónomo e Higienista:</strong> Valida puestos y calcula iluminación/ruido.</div>
+                <div><strong>• Experto RETIE:</strong> Analiza riesgos de arco eléctrico en mantenimiento.</div>
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <svg width="180" height="180" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="40" stroke="url(#brain-grad)" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <circle cx="50" cy="18" r="7" fill="#22c55e"><animate attributeName="r" values="5;8;5" dur="2s" repeatCount="indefinite"/></circle>
+                <circle cx="20" cy="65" r="6" fill="#06b6d4"><animate attributeName="r" values="4;7;4" dur="2.5s" repeatCount="indefinite"/></circle>
+                <circle cx="80" cy="65" r="6" fill="#f59e0b"><animate attributeName="r" values="4;7;4" dur="1.8s" repeatCount="indefinite"/></circle>
+                <line x1="50" y1="18" x2="20" y2="65" stroke="#22c55e" stroke-width="1"/>
+                <line x1="50" y1="18" x2="80" y2="65" stroke="#f59e0b" stroke-width="1"/>
+                <line x1="20" y1="65" x2="80" y2="65" stroke="#06b6d4" stroke-width="1"/>
+                <circle cx="50" cy="50" r="14" fill="#060913" stroke="url(#brain-grad)" stroke-width="2"/>
+                <path d="M47 47H53V53H47V47Z" fill="#22c55e"/>
+                <defs>
+                  <linearGradient id="brain-grad" x1="20" y1="20" x2="80" y2="80">
+                    <stop stop-color="#22c55e" />
+                    <stop offset="1" stop-color="#06b6d4" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.5rem;">Orquestación Multi-Agente en Tiempo Real</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 6: Estrategia de Integración Técnica -->
+        <div class="slide" id="slide-6">
+          <div class="slide-card">
+            <h2 class="slide-title">Ruta de Integración: <span class="gradient-text">Cerrando la Barrera Operativa</span></h2>
+            <p class="slide-subtitle">¿Cómo logramos que WAPPY y ALISSTA conversen y eliminen la doble digitación?</p>
+            <div class="grid-3col">
+              <div class="info-card">
+                <h4>Fase 1: Interoperabilidad</h4>
+                <p style="font-weight: 700; margin-bottom: 0.3rem; color: var(--color-primary);">Cargue Masivo (Inmediato)</p>
+                <p>WAPPY exporta las matrices de riesgo, ausentismo y requisitos legales en plantillas Excel que cumplen exactamente el formato de subida de ALISSTA.</p>
+              </div>
+              <div class="info-card">
+                <h4>Fase 2: Asistente RPA</h4>
+                <p style="font-weight: 700; margin-bottom: 0.3rem; color: var(--color-secondary);">Extensión de Navegador</p>
+                <p>Una extensión de Chrome lee los datos de WAPPY y rellena automáticamente los campos del formulario web de ALISSTA, evitando el copy-paste.</p>
+              </div>
+              <div class="info-card">
+                <h4>Fase 3: API & Webhooks</h4>
+                <p style="font-weight: 700; margin-bottom: 0.3rem; color: var(--color-accent);">Alianza B2B Oficial</p>
+                <p>Proponer un API gateway privado con el equipo de TI de Positiva. WAPPY inyecta los datos validados por IA de forma directa y segura.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 7: Propuesta Comercial ARL Positiva -->
+        <div class="slide" id="slide-7">
+          <div class="slide-card">
+            <h2 class="slide-title">¿Qué Gana <span class="gradient-text">ARL Positiva</span> con esta Alianza?</h2>
+            <p class="slide-subtitle">Tres pilares de retorno sobre la inversión y valor agregado para sus empresas afiliadas.</p>
+            <div class="grid-3col">
+              <div class="info-card">
+                <h4 style="color: var(--color-primary);">👥 Productividad de Asesores</h4>
+                <p>Multiplica por 4 la capacidad de los asesores técnicos de la ARL Positiva, automatizando el diseño de planes de mejora in situ.</p>
+              </div>
+              <div class="info-card" style="border-color: rgba(6, 182, 212, 0.25);">
+                <h4 style="color: var(--color-secondary);">📉 Calidad e Indicadores</h4>
+                <p>Limpieza total de bases de datos antes de ingresar a ALISSTA. Indicadores de ausentismo y matrices sin errores matemáticos.</p>
+              </div>
+              <div class="info-card" style="border-color: rgba(245, 158, 11, 0.25);">
+                <h4 style="color: var(--color-accent);">🛡️ Reducción de Siniestralidad</h4>
+                <p>Acceso a un copiloto de prevención (IA) para las PYMEs que no pueden pagar consultores de tiempo completo, previniendo accidentes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 8: Prompts del Motor IA -->
+        <div class="slide" id="slide-8">
+          <div class="slide-card">
+            <h2 class="slide-title">Bajo la Capucha: <span class="gradient-text">Prompts Calibrados de la IA</span></h2>
+            <p class="slide-subtitle">Los prompts de ingeniería de WAPPY se calibran a nivel legal y de ingeniería para garantizar el cumplimiento con las guías colombianas.</p>
+            <div class="grid-2col" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="info-card" style="padding: 0.8rem; font-size: 0.85rem;">
+                <h4 style="color: var(--color-primary); font-size: 1rem;">⚙️ Prompt de la Matriz GTC-45</h4>
+                <p style="font-size: 0.75rem; margin-top: 0.2rem;">Define el rol de Higienista Industrial para evaluar probabilidad y nivel de deficiencia según la guía de ICONTEC de forma matemática.</p>
+              </div>
+              <div class="info-card" style="padding: 0.8rem; font-size: 0.85rem;">
+                <h4 style="color: var(--color-secondary); font-size: 1rem;">🧪 Prompt de Compatibilidad Química</h4>
+                <p style="font-size: 0.75rem; margin-top: 0.2rem;">Instruye al agente a evaluar mezclas según la matriz del SGA (Decreto 1496/2018), generando semáforos de riesgo y reactividad química.</p>
+              </div>
+            </div>
+            <p style="margin-top: 0.8rem; font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; text-align: center;">💡 Haz clic en la pestaña "IA Prompts" del panel lateral para ver y copiar el código completo de cada prompt.</p>
+          </div>
+        </div>
+
+        <!-- Slide 9: CTA -->
+        <div class="slide" id="slide-9">
+          <div class="slide-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h2 class="slide-title" style="font-size: 3rem;">Lideremos la <span class="gradient-text">Revolución Inteligente</span> de la SST</h2>
+            <p class="slide-subtitle" style="max-width: 600px; font-size: 1.15rem; margin-top: 0.5rem;">Cerrar la barrera operativa de ALISSTA no requiere cambiar la plataforma, requiere complementarla con el cerebro de WAPPY IA.</p>
+            <a href="#" class="btn-toggle active" style="margin-top: 1.5rem; padding: 0.8rem 2.5rem; font-size: 1.1rem; border-radius: 50px; text-decoration: none;">
+              Comenzar Plan Piloto
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SIDE PANEL (TELEPROMPTER & PROMPTS) -->
+    <div class="side-panel" id="sidePanel">
+      <div class="panel-tabs">
+        <button class="tab active" id="tabTeleprompter" onclick="switchTab('teleprompter')">Guión (Teleprompter)</button>
+        <button class="tab" id="tabPrompts" onclick="switchTab('prompts')">IA Prompts</button>
+      </div>
+
+      <div class="panel-content">
+        <!-- Tab 1: Teleprompter -->
+        <div class="content-section active" id="sectionTeleprompter">
+          <div class="teleprompter-text" id="teleprompterText">
+            <!-- Loaded dynamically based on slide -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Prompts -->
+        <div class="content-section" id="sectionPrompts">
+          <div class="prompt-box">
+            <div class="prompt-title">
+              <span id="promptName">Prompt: Matriz Peligros GTC-45</span>
+              <button class="btn-copy" onclick="copyPromptText()">Copiar Prompt</button>
+            </div>
+            <pre class="prompt-code" id="promptCode">
+<!-- Loaded dynamically based on slide -->
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER NAVIGATION -->
+    <footer>
+      <div class="nav-controls">
+        <button class="btn-nav" id="btnPrev" onclick="changeSlide(-1)">
+          <svg viewBox="0 0 24 24"><path d="M15.41 16.58L10.83 12L15.41 7.41L14 6L8 12L14 18L15.41 16.58Z"/></svg>
+        </button>
+        <button class="btn-nav" id="btnNext" onclick="changeSlide(1)">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.58L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.58Z"/></svg>
+        </button>
+      </div>
+
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="progress-txt" id="progressText">Diapositiva 1 de 9</div>
+      </div>
+
+      <div class="slide-dots" id="dotsContainer">
+        <!-- Loaded dynamically -->
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    let currentSlideIndex = 0;
+    const totalSlides = 9;
+    let activeTab = 'teleprompter';
+
+    // TELEPROMPTER SCRIPTS FOR THE PITCH
+    const teleprompterScripts = [
+      // Slide 1
+      "<p><strong>Diapositiva 1: Portada</strong></p><p>Buenos días a todos los miembros de la junta y al equipo técnico de Positiva ARL. Hoy venimos a presentar una propuesta de valor única: conectar el cerebro de <strong>WAPPY IA</strong> con el portal transaccional <strong>ALISSTA</strong>. Nuestro objetivo no es competir ni reemplazar a ALISSTA, sino crear una alianza estratégica que cierre la barrera operativa del prevencionista utilizando inteligencia artificial ocupacional colombiana.</p>",
+      // Slide 2
+      "<p><strong>Diapositiva 2: El Dolor de la SST</strong></p><p>El gran problema de la gestión de la SST en Colombia no es la falta de normatividad, sino la carga administrativa. Los prevencionistas gastan el 80% de su tiempo redactando actas, calculando riesgos y digitando datos repetidamente. Esto les quita tiempo valioso para estar en la fábrica, en el campo o en las oficinas previniendo accidentes. Además, la doble digitación manual en portales transaccionales es lenta y genera errores.</p>",
+      // Slide 3
+      "<p><strong>Diapositiva 3: Sistemas Complementarios</strong></p><p>Aquí definimos los roles. ALISSTA es el <strong>Sistema de Registro</strong> oficial de la ARL; es el lugar donde se archiva, audita y valida el cumplimiento. WAPPY IA, por su parte, es el <strong>Sistema de Inteligencia</strong>; es el motor que ayuda al prevencionista a generar, redactar y calcular toda la información técnica previa. Juntos forman la dupla perfecta: WAPPY hace la labor pesada del diseño y ALISSTA recibe un dato limpio y verificado.</p>",
+      // Slide 4
+      "<p><strong>Diapositiva 4: Módulos de Especialización</strong></p><p>WAPPY aporta soluciones específicas que complementan la gestión tradicional. Por ejemplo, nuestra <strong>Matriz Química SGA</strong> calcula de forma predictiva la incompatibilidad de mezclas bajo el Decreto 1496 de 2018 mediante lógica de semáforo. También incluimos la <strong>Matriz PESV</strong> alineada a la guía de la ANSV de 2022 y un editor inteligente para acomodar el Reglamento Interno a la transición legal de las 42 horas en Colombia.</p>",
+      // Slide 5
+      "<p><strong>Diapositiva 5: Tenshi y Multi-Agente</strong></p><p>Bajo WAPPY no hay una IA de chat genérica. Contamos con un ecosistema multi-agente liderado por Tenshi. Hay más de 15 agentes configurados en roles reales: un Médico Laboral para analizar ausentismo, un Ergónomo, un Abogado experto en SST y un Especialista RETIE. Esto le permite al prevencionista contar con un comité asesor técnico especializado 24/7 para responder preguntas normativas de inmediato.</p>",
+      // Slide 6
+      "<p><strong>Diapositiva 6: Ruta de Integración Técnica</strong></p><p>¿Cómo solucionamos la brecha técnica? Planteamos tres fases. En la <strong>Fase 1</strong>, aprovechamos las funciones de 'Cargue Masivo' que ALISSTA ya posee en su manual, permitiendo a WAPPY exportar plantillas de Excel idénticas a las exigidas por el sistema. En la <strong>Fase 2</strong>, implementamos un asistente RPA por extensión web que autocompleta los campos. En la <strong>Fase 3</strong>, proponemos el desarrollo conjunto de un API Gateway seguro para sincronización directa en tiempo real.</p>",
+      // Slide 7
+      "<p><strong>Diapositiva 7: ¿Qué Gana ARL Positiva?</strong></p><p>Esta alianza entrega retornos claros a la ARL. Primero, los propios asesores técnicos de Positiva pueden realizar auditorías in situ 4 veces más rápido. Segundo, se mejora sustancialmente la calidad de los datos de riesgo reportados en ALISSTA, libre de errores de cálculo. Y tercero, democratiza la consultoría para las PYMEs afiliadas que no tienen presupuesto para prevencionistas senior, disminuyendo las tasas de siniestralidad.</p>",
+      // Slide 8
+      "<p><strong>Diapositiva 8: Calibración y Prompts</strong></p><p>Mostramos transparencia tecnológica. Nuestros agentes no improvisan; se rigen por plantillas de prompts de nivel industrial que fuerzan a la IA a seguir estrictamente la normatividad colombiana (GTC-45, Decreto 1072, Decreto 1496). En el panel de la derecha pueden inspeccionar los prompts exactos de ingeniería que ejecutan nuestros agentes.</p>",
+      // Slide 9
+      "<p><strong>Diapositiva 9: Conclusión y Cierre</strong></p><p>Agradecemos su atención. Les proponemos iniciar con un proyecto piloto limitado a un grupo de 50 empresas afiliadas medianas para evaluar el impacto de la integración por plantillas de cargue masivo y el uso del copiloto de WAPPY IA. Es hora de llevar la SST en Colombia al nivel predictivo. ¡Muchas gracias!</p>"
+    ];
+
+    // TECHNICAL PROMPTS USED BY WAPPY AGENTS
+    const agentPrompts = [
+      // Slide 1 - General Prompt
+      `[ROL]: Eres Tenshi, el Agente AI Líder del Ecosistema WAPPY IA en Colombia.
+[CONTEXTO]: Tu objetivo es actuar como un Director de Seguridad y Salud en el Trabajo (SST) certificado con conocimiento de la legislación colombiana (Decreto 1072 de 2015, Resolución 0312 de 2019).
+[INSTRUCCIÓN]: Coordina a los agentes especialistas (Médico, Abogado, Ergónomo, Higienista) para evaluar el SG-SST de la empresa. Asegúrate de que todas las respuestas referencien la norma colombiana aplicable y no alucines con regulaciones OSHA o europeas a menos que se te solicite una comparación internacional.`,
+      
+      // Slide 2 - Dolor / Administrativo General
+      `[ROL]: Eres un Asistente de Automatización SST y Redactor Técnico.
+[TAREA]: Convierte notas sucias de campo, observaciones de voz transcritas o fotos de inspecciones en informes estructurados de no conformidad bajo el formato legal de ARL en Colombia.
+[FORMATO DE SALIDA]:
+- Hallazgo (Descripción clara)
+- Peligro asociado (Clasificación GTC-45)
+- Control propuesto (Siguiendo la jerarquía: Eliminación, Sustitución, Ingeniería, Administrativo, EPP)
+- Responsable y Plazo.`,
+      
+      // Slide 3 - GTC-45 Comparativa
+      `[ROL]: Eres un Ingeniero de Riesgos y Especialista en GTC-45 (2012).
+[TAREA]: Analiza la actividad económica: "[ACTIVIDAD_ECONOMICA]" y el puesto: "[PUESTO_TRABAJO]".
+[INSTRUCCIONES]:
+1. Identifica los 3 peligros biomecánicos, físicos y de seguridad más probables.
+2. Determina para cada peligro:
+   - Nivel de Deficiencia (ND): [Selecciona 2, 6 o 10 explicando la razón física]
+   - Nivel de Exposición (NE): [Selecciona 1, 2, 3 o 4 explicando frecuencia]
+   - Calcula Nivel de Probabilidad (NP = ND * NE)
+   - Define Nivel de Consecuencia (NC) y calcula Nivel de Riesgo (NR = NP * NC)
+   - Clasifica la Aceptabilidad del Riesgo de I a IV.
+3. Propón los Controles de Ingeniería y Administrativos específicos.`,
+
+      // Slide 4 - Matriz Química SGA
+      `[ROL]: Eres un Químico Industrial especialista en Seguridad Ocupacional y Decreto 1496 de 2018 (SGA en Colombia).
+[TAREA]: Evalúa la compatibilidad de almacenamiento en bodega entre la Sustancia A: "[SUSTANCIA_A]" y la Sustancia B: "[SUSTANCIA_B]".
+[REGLAS]:
+1. Consulta las indicaciones de peligro (Frases H) y consejos de prudencia (Frases P) de ambas sustancias.
+2. Determina si pertenecen a clases incompatibles (Ej. Comburentes con Inflamables, o Ácidos fuertes con Bases fuertes).
+3. Clasifica la compatibilidad física en:
+   - VERDE: Almacenamiento conjunto permitido.
+   - AMARILLO: Almacenamiento conjunto con restricciones y barreras físicas.
+   - ROJO: Almacenamiento conjunto PROHIBIDO. Explicar el riesgo de reacción (fuego, gas tóxico, explosión).`,
+
+      // Slide 5 - Multi-Agentes
+      `[ROL]: Eres el Médico Especialista en Salud Ocupacional de WAPPY IA.
+[TAREA]: Diseña el profesiograma inicial para el cargo: "[CARGO_TRABAJO]" de una empresa de construcción.
+[REQUERIMIENTOS]:
+1. Identifica las evaluaciones médicas obligatorias de ingreso, periódicas y de egreso.
+2. Determina los exámenes complementarios (Audiometría, espirometría, laboratorio clínico, etc.) basados en los factores de riesgo del cargo.
+3. Especifica las contraindicaciones médicas absolutas y relativas para el puesto (Ej. trabajo en alturas, espacios confinados).`,
+
+      // Slide 6 - Integración
+      `[ROL]: Eres un Arquitecto de Software y Analista SST.
+[TAREA]: Genera la estructura JSON de intercambio para la matriz de riesgos GTC-45 que coincida exactamente con las columnas y tipos de datos requeridos por la plantilla de cargue masivo de ALISSTA ARL Positiva.
+[DATOS REQUERIDOS]: NitEmpresa, CodProceso, DescActividad, PeligroClase, PeligroDetalle, ND, NE, NC, NR, Aceptabilidad, MedidasControlIng, MedidasControlAdm.`,
+
+      // Slide 7 - Propuesta ARL
+      `[ROL]: Eres un Asesor Senior de Prevención de Riesgos de ARL Positiva.
+[TAREA]: Diseña un plan de trabajo anual estándar para una empresa afiliada con Nivel de Riesgo IV de la actividad económica "Transporte terrestre de carga".
+[ESTRUCTURA]: El plan debe estructurarse mes a mes (de Enero a Diciembre) e incluir las capacitaciones obligatorias de la Resolución 0312 para riesgos IV, las inspecciones de vehículos obligatorias del PESV, y los reportes trimestrales de indicadores de accidentalidad a la ARL.`,
+
+      // Slide 8 - Prompt de Ausentismo (IF/IS)
+      `[ROL]: Eres un Médico Laboral y Científico de Datos experto en SST en Colombia.
+[TAREA]: Analiza la siguiente tabla cruda de ausentismo por incapacidad médica:
+"[DATOS_TABLA_INCAPACIDADES]"
+[INSTRUCCIONES]:
+1. Calcula las Horas Hombre Trabajadas (HHT) asumiendo una jornada de 47 horas semanales para [NUM_TRABAJADORES] empleados.
+2. Calcula el Índice de Frecuencia (IF) de Accidentes de Trabajo: (Nro. Accidentes / HHT) * 240.000.
+3. Calcula el Índice de Severidad (IS) de Accidentes de Trabajo: (Nro. Días perdidos + Días cargados / HHT) * 240.000.
+4. Identifica e interpreta las causas médicas principales según códigos CIE-10 (ej. M545 Lumbago, J069 Infección respiratoria).
+5. Genera conclusiones predictivas sobre ausentismo recurrente y emite una alerta temprana.`,
+
+      // Slide 9 - General / Cierre
+      `[ROL]: Eres el Director de Tecnología (CTO) de WAPPY IA.
+[INSTRUCCIÓN]: Elabora la propuesta técnica de API Gateway y seguridad de datos para presentar al equipo de infraestructura informática de Positiva Compañía de Seguros, detallando la encriptación AES-256 en reposo, comunicación HTTPS TLS 1.3 y autenticación mediante JWT y tokens OAuth2 empresariales.`
+    ];
+
+    const promptNames = [
+      "Prompt de Tenshi: Director SST General",
+      "Prompt de Conversión: Redacción Técnico en Campo",
+      "Prompt del Agente Higienista: Matriz GTC-45",
+      "Prompt del Agente Químico: Compatibilidad SGA",
+      "Prompt del Agente Médico: Profesiograma de Salud",
+      "Prompt de Estructuración: Exportador JSON ALISSTA",
+      "Prompt de Planificación: Diseñador del Plan Anual",
+      "Prompt de Analítica: Médico de Ausentismo (IF/IS)",
+      "Prompt de Seguridad: Propuesta API y Cifrado B2B"
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      buildDots();
+      updateView();
+      
+      // Keyboard Navigation
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+          changeSlide(1);
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          changeSlide(-1);
+          e.preventDefault();
+        }
+      });
+    });
+
+    // BUILD INDICATORS
+    function buildDots() {
+      const container = document.getElementById('dotsContainer');
+      container.innerHTML = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `dot ${i === 0 ? 'active' : ''}`;
+        dot.onclick = () => goToSlide(i);
+        container.appendChild(dot);
+      }
+    }
+
+    // SLIDE NAVIGATION
+    function changeSlide(delta) {
+      let target = currentSlideIndex + delta;
+      if (target >= 0 && target < totalSlides) {
+        goToSlide(target);
+      }
+    }
+
+    function goToSlide(index) {
+      const currentSlide = document.querySelector(`#slide-${currentSlideIndex + 1}`);
+      currentSlide.classList.remove('active');
+      currentSlide.classList.remove('previous');
+      if (currentSlideIndex > 0) {
+        document.querySelector(`#slide-${currentSlideIndex}`).classList.remove('previous');
+      }
+      
+      const oldIndex = currentSlideIndex;
+      currentSlideIndex = index;
+      
+      if (currentSlideIndex > 0) {
+        document.querySelector(`#slide-${currentSlideIndex}`).classList.add('previous');
+      }
+      
+      document.querySelector(`#slide-${currentSlideIndex + 1}`).classList.add('active');
+      
+      updateView();
+    }
+
+    // UPDATE INTERFACE
+    function updateView() {
+      document.getElementById('btnPrev').disabled = currentSlideIndex === 0;
+      document.getElementById('btnNext').disabled = currentSlideIndex === totalSlides - 1;
+      
+      // Progress Bar
+      const percent = ((currentSlideIndex + 1) / totalSlides) * 100;
+      document.getElementById('progressBarFill').style.width = `${percent}%`;
+      document.getElementById('progressText').textContent = `Diapositiva ${currentSlideIndex + 1} de ${totalSlides}`;
+      
+      // Dots
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((dot, idx) => {
+        if (idx === currentSlideIndex) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      // Update teleprompter & prompts
+      document.getElementById('teleprompterText').innerHTML = teleprompterScripts[currentSlideIndex];
+      document.getElementById('promptName').textContent = promptNames[currentSlideIndex];
+      document.getElementById('promptCode').textContent = agentPrompts[currentSlideIndex];
+    }
+
+    // SIDE PANEL TOGGLE
+    function toggleSidePanel() {
+      const panel = document.getElementById('sidePanel');
+      const app = document.getElementById('appContainer');
+      const btn = document.getElementById('btnSidePanel');
+      
+      if (app.classList.contains('panel-active')) {
+        app.classList.remove('panel-active');
+        btn.classList.remove('active');
+      } else {
+        app.classList.add('panel-active');
+        btn.classList.add('active');
+      }
+    }
+
+    // SWITCH SIDE PANEL TABS
+    function switchTab(tabName) {
+      activeTab = tabName;
+      document.getElementById('tabTeleprompter').classList.toggle('active', tabName === 'teleprompter');
+      document.getElementById('tabPrompts').classList.toggle('active', tabName === 'prompts');
+      
+      document.getElementById('sectionTeleprompter').classList.toggle('active', tabName === 'teleprompter');
+      document.getElementById('sectionPrompts').classList.toggle('active', tabName === 'prompts');
+    }
+
+    // COPY PROMPT
+    function copyPromptText() {
+      const codeElement = document.getElementById('promptCode');
+      const textToCopy = codeElement.textContent;
+      
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const copyBtn = document.querySelector('.btn-copy');
+        copyBtn.textContent = '¡Copiado!';
+        copyBtn.style.color = 'var(--color-primary)';
+        copyBtn.style.borderColor = 'var(--color-primary)';
+        
+        setTimeout(() => {
+          copyBtn.textContent = 'Copiar Prompt';
+          copyBtn.style.color = 'var(--text-secondary)';
+          copyBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        }, 2000);
+      }).catch(err => {
+        console.error('Error al copiar el texto: ', err);
+      });
+    }
+  </script>
+</body>
+</html>

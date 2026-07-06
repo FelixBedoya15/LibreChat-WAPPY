@@ -285,7 +285,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
       : 'Por definir según monitoreo de higiene industrial';
 
     const promptText = `
-Eres un Experto Senior en Gestión Humana, Seguridad y Salud en el Trabajo (SG-SST) y Psicología Organizacional con 20 años de experiencia. Tu especialidad es el diseño técnico de perfiles de cargo altamente detallados según la normativa colombiana actual, integrando rigurosamente la **Guía Técnica Colombiana GTC 45 (2012)** y la **Resolución 1843 de 2025 (Art. 16)**.
+Eres un Experto Senior en Gestión Humana, Seguridad y Salud en el Trabajo (SG-SST) y Psicología Organizacional con 20 años de experiencia. Tu especialidad es el diseño técnico de perfiles de cargo altamente detallados según la normativa colombiana actual, integrando la metodología de matriz bio-individual (alineada con la GTC 45) y la **Resolución 1843 de 2025 (Art. 16)**.
 
 Tu objetivo es generar el **PERFIL DE CARGO MÁS COMPLETO, EXTENSO Y TÉCNICO POSIBLE** en formato HTML. No escatimes en detalles. Desarrolla cada punto con profundidad académica y práctica.
 
@@ -309,8 +309,18 @@ ${companyContext}
 
 **INSTRUCCIONES DE CONTENIDO CRÍTICO:**
 
-1.  **EXTENSIÓN Y PROFUNDIDAD:** Cada sección debe ser rica en texto. Si mencionas una función, explica su impacto. Si mencionas un riesgo, detalla su origen y control según la jerarquía de la GTC 45.
-2.  **RIESGOS Y CONTROLES (GTC 45):** Identifica **TODOS** los peligros que apliquen razonablemente al cargo. Clasifícalos según la tabla de peligros de la GTC 45 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales). Para cada peligro, describe controles existentes en la fuente, el medio y la persona.
+1.  **EXTENSIÓN Y PROFUNDIDAD:** Cada sección debe ser rica en texto. Si mencionas una función, explica su impacto. Si mencionas un riesgo, detalla su origen y control según la jerarquía de controles de ley.
+2.  **RIESGOS Y CONTROLES (MATRIZ BIO-INDIVIDUAL):** Identifica **TODOS** los peligros que apliquen razonablemente al cargo. Clasifícalos de manera estricta según los **Dominios** y **Dimensiones** de nuestra Metodología Bio-Individual:
+    - **Osteomuscular**: Postura (mantenida, forzada, antigravitacional), Esfuerzo, Movimiento repetitivo, Manipulación manual de cargas.
+    - **Cardiovascular**: Temperaturas extremas (calor/frío), Presión atmosférica, Exigencia cardiovascular alta, Trabajo sedentario prolongado.
+    - **Neurológico**: Vibración (cuerpo entero, segmentaria), Fatiga del sistema nervioso, Alteración del ciclo circadiano, Sobrecarga sensorial.
+    - **Psicoemocional**: Gestión organizacional, Características de la organización, Características del grupo social, Condiciones de la tarea, Interfase persona-tarea, Jornada de trabajo.
+    - **Metabólico**: Líquidos (nieblas y rocíos), Alteración nutricional/digestiva, Desbalance térmico extremo, Sedentarismo metabólico.
+    - **Respiratorio**: Polvos orgánicos/inorgánicos, Fibras, Gases y vapores, Humos metálicos/no metálicos, Material particulado.
+    - **Sensorial**: Ruido (impacto, intermitente, continuo), Iluminación (exceso o deficiencia), Radiaciones no ionizantes, Radiaciones ionizantes, Afectación táctil/olfativa.
+    - **Inmunológico**: Virus, Bacterias, Hongos, Ricketsias, Parásitos, Picaduras/Mordeduras, Fluidos o excrementos.
+    - **Seguridad**: Mecánico (máquinas, herramientas), Eléctrico (alta/baja tensión), Locativo (superficies, caídas), Tecnológico (explosión, incendio), Accidentes de tránsito, Públicos (robos, asaltos), Trabajo en alturas, Espacios confinados, Fenómenos naturales (Sismo, etc.).
+    Para cada peligro identificado, describe detalladamente los controles existentes en la fuente, el medio y la persona/individuo.
 3.  **NORMATIVA:** Debes mencionar y alinearte explícitamente con el Art. 16 de la Resolución 1843 de 2025.
 
 **ESTRUCTURA OBLIGATORIA (HTML):**
@@ -335,8 +345,8 @@ ${companyContext}
 6️⃣ **IV. REQUISITOS FÍSICOS Y MENTALES (EXIGENCIAS BIOMECÁNICAS)**
    Detalla posturas (sentado, de pie, caminata), levantamiento de cargas (pesos exactos máximos de ley), exigencia visual, auditiva y carga mental cognitiva.
 
-7️⃣ **V. MATRIZ DE PELIGROS, RIESGOS Y CONTROLES (BASADA EN GTC 45)**
-   Tabla con columnas: Clasificación del Peligro | Peligro Específico | Descripción de la Actividad de Riesgo | **Controles Existentes (Fuente, Medio, Persona)** | Efectos Posibles en la Salud.
+7️⃣ **V. MATRIZ DE PELIGROS, RIESGOS Y CONTROLES (BASADA EN METODOLOGÍA BIO-INDIVIDUAL)**
+   Tabla con columnas: Dominio Bio-Individual | Dimensión Bio-Individual | Peligro del Cargo (Descripción del peligro/actividad de riesgo) | **Controles Existentes (Fuente, Medio, Individuo)** | Efectos Posibles en la Salud.
    *Debe ser la sección más larga del informe.*
 
 8️⃣ **VI. PLAN DE ENTRENAMIENTO, ELEMENTOS DE PROTECCIÓN (EPP) Y MEDIDAS COLECTIVAS**
