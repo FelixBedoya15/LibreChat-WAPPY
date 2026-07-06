@@ -205,6 +205,16 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'comunidadmp',
+      element: (
+        <AuthContextProvider>
+          <ComunidadPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'wappyvital',
       element: (
         <AuthContextProvider>

@@ -270,7 +270,7 @@ const createComunidadCheckout = async (req, res) => {
         }
 
         const amountInCents = Math.round(price * 100);
-        const prefix = funnelKey === 'wappyvital' ? 'WAP-VIT' : 'WAP-COM';
+        const prefix = funnelKey === 'wappyvital' ? 'WAP-VIT' : (funnelKey === 'comunidadmp' ? 'WAP-CMP' : 'WAP-COM');
         const reference = `${prefix}-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
         purchase.wompiReference = reference;
@@ -698,7 +698,7 @@ const fixComunidadPurchase = async (req, res) => {
                     phone: lead ? lead.phone : '3000000000',
                     isPaid: true,
                     status: 'APPROVED',
-                    wompiReference: reference || `${funnelKey === 'wappyvital' ? 'WAP-VIT' : 'WAP-COM'}-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+                    wompiReference: reference || `${funnelKey === 'wappyvital' ? 'WAP-VIT' : (funnelKey === 'comunidadmp' ? 'WAP-CMP' : 'WAP-COM')}-MANUAL-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
                     amountInCents: amount ? Number(amount) : 2800000,
                     purchaseTracked: false,
                     funnelKey

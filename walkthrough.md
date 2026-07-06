@@ -69,3 +69,16 @@ Se rediseñó el flujo de las tareas del Tablero Kanban para conectarlo de maner
 ## 🔍 Plan de Verificación Realizado
 1. **Compilación del Cliente**: Se verificó la compilación de todos los tipos y componentes de React.
 2. **Servicio y Autenticación Scoped**: Probados y validados los métodos de `googleAuthHelper.js` garantizando el aislamiento de credenciales entre distintas empresas.
+
+---
+
+## 👥 Duplicación de la Página de Comunidad a `/comunidadmp`
+
+Se duplicó la página de la comunidad `/comunidad` para que también responda en `/comunidadmp`:
+
+1. **Rutas del Frontend (`client/src/routes/index.tsx`)**:
+   * Se agregó la ruta `/comunidadmp` apuntando al componente `ComunidadPage`.
+2. **Identificación de la Comunidad (`client/src/components/Marketing/ComunidadPage.tsx`)**:
+   * Se actualizó la lógica de detección del `funnelKey` para identificar si la ruta contiene `comunidadmp`, estableciendo dicho identificador para la carga de su propia configuración independiente y aislamiento del almacenamiento en local.
+3. **Controlador del Backend (`api/server/controllers/ComunidadController.js`)**:
+   * Se integró el prefijo de referencia Wompi `WAP-CMP` para transacciones y referencias manuales asociadas a la comunidad `/comunidadmp` en vez del prefijo general de comunidad.
