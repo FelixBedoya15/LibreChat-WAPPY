@@ -282,7 +282,11 @@ export default function ComunidadPage() {
   const [isRecovering, setIsRecovering] = useState(false);
   // A/B visual comparison widget state for Mauricio Posada funnel
   const [abSelectedComparison, setAbSelectedComparison] = useState<'work' | 'safety'>('work');
+  // Iframe presentation pseudo-fullscreen state
+  const [isIframeFullscreen, setIsIframeFullscreen] = useState(false);
+  const isIframeFullscreenRef = useRef(false);
   // Admin Config Panel States
+  const isAdminPanelOpenRef = useRef(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [tempVideoUrl, setTempVideoUrl] = useState(videoUrl);
@@ -344,6 +348,42 @@ export default function ComunidadPage() {
   useEffect(() => {
     showLeadModalRef.current = showLeadModal;
   }, [showLeadModal]);
+
+  // Expose pseudo-fullscreen to iframe and listen for Escape key to close
+  useEffect(() => {
+    if (funnelKey !== 'comunidadmp') {
+      return;
+    }
+
+    const closeFullscreen = () => {
+      isIframeFullscreenRef.current = false;
+      setIsIframeFullscreen(false);
+      const iframe = document.querySelector('iframe[title="Presentación Interactiva Mauricio Posada"]') as HTMLIFrameElement | null;
+      if (iframe && iframe.contentDocument) {
+        const b = iframe.contentDocument.getElementById('fsBtn');
+        if (b) b.textContent = '⛶';
+      }
+    };
+
+    (window as any).toggleIframeFullscreen = () => {
+      const nextFs = !isIframeFullscreenRef.current;
+      isIframeFullscreenRef.current = nextFs;
+      setIsIframeFullscreen(nextFs);
+      return nextFs;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      delete (window as any).toggleIframeFullscreen;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [funnelKey]);
 
   // Synchronize theme with the presentation iframe
   useEffect(() => {
@@ -1803,6 +1843,18 @@ export default function ComunidadPage() {
               color: #FFFFFF !important;
               text-shadow: 0 0 30px rgba(14,165,165,0.4);
             }
+            .comunidadmp-fullscreen-iframe {
+              position: fixed !important;
+              inset: 0 !important;
+              width: 100vw !important;
+              height: 100vh !important;
+              max-width: 100vw !important;
+              z-index: 99999 !important;
+              border-radius: 0 !important;
+              border: none !important;
+              margin: 0 !important;
+              background-color: #000000 !important;
+            }
             .comunidadmp-kicker {
               font-family: 'JetBrains Mono', monospace !important;
               font-size: 13px !important;
@@ -2953,7 +3005,7 @@ export default function ComunidadPage() {
                   </p>
                 </div>
 
-                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10">
+                <div className={`w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10 ${isIframeFullscreen ? 'comunidadmp-fullscreen-iframe' : ''}`}>
                   <iframe 
                     src="/assets/gira-ia-sst.html" 
                     title="Presentación Interactiva Mauricio Posada" 

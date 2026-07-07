@@ -869,6 +869,54 @@ h3{font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--ink)}
 .agent.a-cyan .agent-img{border-color:var(--cyan)}
 @media (max-width:900px){.agent-grid{grid-template-columns:repeat(3,1fr)}}
 
+@media (max-width:768px){
+  .theme-btn, .fs-btn, .nav button {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+  }
+  .theme-btn {
+    bottom: 12px !important;
+    right: 12px !important;
+  }
+  .fs-btn {
+    bottom: 12px !important;
+    right: 58px !important;
+  }
+  .nav {
+    bottom: 12px !important;
+    right: 104px !important;
+    gap: 6px !important;
+  }
+  .counter {
+    bottom: 14px !important;
+    left: 12px !important;
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+  }
+  .theme-tag {
+    top: 12px !important;
+    left: 12px !important;
+    font-size: 9px !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+  }
+  .session {
+    top: 12px !important;
+    right: 12px !important;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+  }
+  .session .lab {
+    font-size: 8px !important;
+  }
+  .session .val {
+    font-size: 13px !important;
+    margin-top: 1px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1356,6 +1404,12 @@ applyThemeLabel();
 // Requires a user gesture (click/key) to activate.
 // ============================================
 function toggleFullscreen(){
+  const b=document.getElementById('fsBtn');
+  if (window.parent && typeof window.parent.toggleIframeFullscreen === 'function') {
+    const isNowFs = window.parent.toggleIframeFullscreen();
+    if (b) b.textContent = isNowFs ? '⛝' : '⛶';
+    return;
+  }
   const doc=document, el=doc.documentElement;
   const isFs = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
   try{
@@ -1415,6 +1469,12 @@ addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft')go(-1);
   if(e.key==='t'||e.key==='T')toggleTheme();
   if(e.key==='f'||e.key==='F')toggleFullscreen();
+  if(e.key==='Escape'){
+    const b=document.getElementById('fsBtn');
+    if (b && b.textContent === '⛝') {
+      toggleFullscreen();
+    }
+  }
 });
 
 // Touch swipe
