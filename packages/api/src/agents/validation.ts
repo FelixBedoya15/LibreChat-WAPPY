@@ -71,6 +71,7 @@ export const agentBaseSchema = z.object({
   support_contact: agentSupportContactSchema,
   category: z.string().optional(),
   is_whatsapp_enabled: z.boolean().optional(),
+  skills: z.array(z.string()).optional(),
 });
 
 /** Create schema extends base with required fields for creation */

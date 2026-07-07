@@ -12,6 +12,7 @@ models.User.schema.add({ pushSubscriptions: { type: Array, default: [] } });
 // Inject whatsapp routing field for Agents
 if (models.Agent && models.Agent.schema) {
   models.Agent.schema.add({ is_whatsapp_enabled: { type: Boolean, default: false } });
+  models.Agent.schema.add({ skills: { type: [String], default: [] } });
 }
 
 module.exports = { ...models };

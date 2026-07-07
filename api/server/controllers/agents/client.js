@@ -46,6 +46,7 @@ const BaseClient = require('~/app/clients/BaseClient');
 const { getRoleByName } = require('~/models/Role');
 const { loadAgent } = require('~/models/Agent');
 const { getMCPManager } = require('~/config');
+const { getActiveSkillInstructions } = require('~/server/services/skillRouter');
 
 const omitTitleOptions = new Set([
   'stream',
@@ -229,6 +230,10 @@ class AgentClient extends BaseClient {
       summary: this.shouldSummarize,
     });
 
+    const lastUserMessage = orderedMessages[orderedMessages.length - 1];
+    const lastUserText = lastUserMessage ? lastUserMessage.text : '';
+    const skillInstructions = getActiveSkillInstructions(lastUserText, this.options.agent?.skills);
+
     let payload;
     /** @type {number | undefined} */
     let promptTokens;
@@ -237,6 +242,7 @@ class AgentClient extends BaseClient {
     let systemContent = [
       instructions ?? '',
       additional_instructions ?? '',
+      skillInstructions,
       'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble. If you need to use multiple tools (e.g. file_search and web_search), use them BOTH in the SAME turn (parallel tool calls). Do not wait for one to finish before calling the other.',
       '\nCRITICAL AGENTIC INSTRUCTIONS (Google Prompting Best Practices):',
       'You are a strong reasoner and planner. Before taking any action (either tool calls or responding to the user), you must plan and reason about:',
