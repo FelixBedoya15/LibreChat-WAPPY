@@ -345,6 +345,55 @@ export default function ComunidadPage() {
     showLeadModalRef.current = showLeadModal;
   }, [showLeadModal]);
 
+  // Synchronize theme with the presentation iframe
+  useEffect(() => {
+    if (funnelKey !== 'comunidadmp') {
+      return;
+    }
+
+    const syncTheme = () => {
+      const iframe = document.querySelector('iframe[title="Presentación Interactiva Mauricio Posada"]') as HTMLIFrameElement | null;
+      if (!iframe || !iframe.contentDocument) {
+        return;
+      }
+      const isDark = document.documentElement.classList.contains('dark');
+      iframe.contentDocument.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      
+      // Trigger the theme label update inside the iframe
+      const applyThemeLabel = (iframe.contentWindow as any)?.applyThemeLabel;
+      if (typeof applyThemeLabel === 'function') {
+        applyThemeLabel();
+      }
+    };
+
+    const iframe = document.querySelector('iframe[title="Presentación Interactiva Mauricio Posada"]') as HTMLIFrameElement | null;
+    if (iframe) {
+      iframe.addEventListener('load', syncTheme);
+    }
+
+    // Observe changes to documentElement classList (Tailwind dark mode toggles)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          syncTheme();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    // Sync initially and periodically to ensure load is caught
+    const intervalId = setInterval(syncTheme, 1000);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(intervalId);
+      if (iframe) {
+        iframe.removeEventListener('load', syncTheme);
+      }
+    };
+  }, [funnelKey]);
+
   // 1. Fetch Page Configurations from Backend
   const fetchConfig = async () => {
     try {
@@ -2874,6 +2923,44 @@ export default function ComunidadPage() {
               )}
             </h1>
 
+            {/* Mauricio Posada Embedded Slideshow Presentation (FIRST POSITION) */}
+            {funnelKey === 'comunidadmp' && (
+              <div className="w-full max-w-4xl mx-auto mt-2 mb-12 text-left relative z-10">
+                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
+                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST</span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary outfit">
+                    Diapositivas Interactivas de la Capacitación
+                  </h2>
+                  <p className="text-xs sm:text-sm text-text-secondary">
+                    Desliza o usa los controles inferiores para navegar por la presentación oficial de Mauricio Posada.
+                  </p>
+                </div>
+
+                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10">
+                  <iframe 
+                    src="/assets/gira-ia-sst.html" 
+                    title="Presentación Interactiva Mauricio Posada" 
+                    className="w-full h-full border-0"
+                    allowFullScreen
+                  />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2 w-full">
+                  <p className="text-xs text-text-secondary">
+                    Navega a través de las diapositivas. Puedes cambiar el tema (claro/oscuro) y activar pantalla completa desde los controles de la presentación.
+                  </p>
+                  <a 
+                    href="/assets/gira-ia-sst.html" 
+                    download="Gira_IA_SST_Mauricio.html"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/20 hover:scale-105"
+                  >
+                    <Download className="w-4 h-4" />
+                    Descargar Memorias
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Quick Access / Skip Video Banner */}
             {!isUnlocked && (funnelKey === 'wappyvital' ? (showQuickAccessBanner || isVideoFinished) : showQuickAccessBanner) && (
               <div className="w-full max-w-3xl mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-500/[0.06] to-teal-500/[0.02] border border-emerald-500/30 backdrop-blur-md text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl shadow-emerald-500/[0.02] hover:border-emerald-500/50 transition-all duration-300 animate-premium-float relative z-10">
@@ -3004,30 +3091,6 @@ export default function ComunidadPage() {
               </div>
 
             </div>
-
-            {/* Mauricio Posada Embedded Slideshow Presentation */}
-            {funnelKey === 'comunidadmp' && (
-              <div className="w-full max-w-4xl mx-auto mt-6 mb-12 text-left relative z-10">
-                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
-                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST</span>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary outfit">
-                    Diapositivas Interactivas de la Capacitación
-                  </h2>
-                  <p className="text-xs sm:text-sm text-text-secondary">
-                    Desliza o usa los controles inferiores para navegar por la presentación oficial de Mauricio Posada.
-                  </p>
-                </div>
-
-                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-8 group transition-all duration-500 hover:border-emerald-500/35 z-10">
-                  <iframe 
-                    src="/assets/gira-ia-sst.html" 
-                    title="Presentación Interactiva Mauricio Posada" 
-                    className="w-full h-full border-0 select-none"
-                    allowFullScreen
-                  />
-                </div>
-              </div>
-            )}
 
             {funnelKey === 'wappyvital' && !isUnlocked && (
               <div className="w-full max-w-3xl mx-auto mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse">
