@@ -280,7 +280,8 @@ export default function ComunidadPage() {
   const [recoveryError, setRecoveryError] = useState('');
   const [recoverySuccess, setRecoverySuccess] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
-
+  // A/B visual comparison widget state for Mauricio Posada funnel
+  const [abSelectedComparison, setAbSelectedComparison] = useState<'work' | 'safety'>('work');
   // Admin Config Panel States
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -1677,23 +1678,13 @@ export default function ComunidadPage() {
   return (
     <div className={`min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'comunidadmp-bg' : ''}`}>
       
-      {/* Corner Brackets for Mauricio Posada theme */}
-      {funnelKey === 'comunidadmp' && (
-        <>
-          <span className="bracket-mp tl"></span>
-          <span className="bracket-mp tr"></span>
-          <span className="bracket-mp bl"></span>
-          <span className="bracket-mp br"></span>
-        </>
-      )}
-
       {/* Premium Tech Grid & Flowing Ambient Light */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_80%,transparent_100%)]"></div>
         {funnelKey === 'comunidadmp' ? (
           <>
-            <div className="absolute top-[10%] left-[20%] w-[60vw] h-[50vw] rounded-full bg-[#0EA5A5]/[0.08] blur-[140px] pointer-events-none" />
-            <div className="absolute bottom-[20%] right-[15%] w-[45vw] h-[45vw] rounded-full bg-[#06B6D4]/[0.06] blur-[120px] pointer-events-none" />
+            <div className="absolute top-[10%] left-[20%] w-[60vw] h-[50vw] rounded-full bg-[#0EA5A5]/[0.06] blur-[140px] pointer-events-none" />
+            <div className="absolute bottom-[20%] right-[15%] w-[45vw] h-[45vw] rounded-full bg-[#06B6D4]/[0.04] blur-[120px] pointer-events-none" />
           </>
         ) : (
           <>
@@ -1723,9 +1714,21 @@ export default function ComunidadPage() {
             /* Mauricio Presentation Custom overrides */
             .comunidadmp-bg {
               background-color: #000000 !important;
-              background-image: radial-gradient(ellipse 70% 50% at 25% 30%, rgba(14,165,165,0.06) 0%, transparent 70%),
-                                radial-gradient(ellipse 60% 70% at 85% 70%, rgba(6,182,212,0.04) 0%, transparent 70%) !important;
               color: #FFFFFF !important;
+              position: relative;
+            }
+            .comunidadmp-bg::before {
+              content: '';
+              position: absolute;
+              inset: 0;
+              background-image: url('/assets/casco-partido.jpg');
+              background-size: cover;
+              background-position: center 20%;
+              opacity: 0.08;
+              z-index: 0;
+              pointer-events: none;
+              mask-image: radial-gradient(circle, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 80%);
+              -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 80%);
             }
             .comunidadmp-title {
               font-family: 'Space Grotesk', sans-serif !important;
@@ -1735,7 +1738,7 @@ export default function ComunidadPage() {
             }
             .comunidadmp-kicker {
               font-family: 'JetBrains Mono', monospace !important;
-              font-size: 14px !important;
+              font-size: 13px !important;
               letter-spacing: 0.16em !important;
               text-transform: uppercase !important;
               color: #14D4D4 !important;
@@ -1747,6 +1750,7 @@ export default function ComunidadPage() {
               background: rgba(14,165,165,0.08) !important;
               border: 2px solid rgba(14,165,165,0.35) !important;
               transition: all 0.3s !important;
+              position: relative;
             }
             .comunidadmp-card:hover {
               border-color: #14D4D4 !important;
@@ -1775,19 +1779,19 @@ export default function ComunidadPage() {
               background: linear-gradient(135deg, #14D4D4, #06B6D4) !important;
               transform: scale(1.04);
             }
-            /* Corner Brackets Style */
+            /* Corner Brackets Style (Relative inside card) */
             .bracket-mp {
-              position: fixed;
-              width: 32px;
-              height: 32px;
-              border: 3px solid rgba(14,165,165,0.35);
-              z-index: 90;
+              position: absolute;
+              width: 24px;
+              height: 24px;
+              border: 2px solid rgba(14,165,165,0.35);
+              z-index: 5;
               pointer-events: none;
             }
-            .bracket-mp.tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
-            .bracket-mp.tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
-            .bracket-mp.bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
-            .bracket-mp.br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+            .bracket-mp.tl { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+            .bracket-mp.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+            .bracket-mp.bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+            .bracket-mp.br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
           `}</style>
         </>
       )}
@@ -2560,6 +2564,14 @@ export default function ComunidadPage() {
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 text-left mt-4 items-start relative z-10">
               
               <div className={funnelKey === 'comunidadmp' ? 'comunidadmp-card space-y-6' : 'space-y-6 bg-transparent border-t border-border-medium/80 pt-6'}>
+                {funnelKey === 'comunidadmp' && (
+                  <>
+                    <span className="bracket-mp tl"></span>
+                    <span className="bracket-mp tr"></span>
+                    <span className="bracket-mp bl"></span>
+                    <span className="bracket-mp br"></span>
+                  </>
+                )}
                 <h3 className="text-xl font-bold tracking-tight text-text-primary outfit">
                   {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
                 </h3>
@@ -2664,7 +2676,14 @@ export default function ComunidadPage() {
               </div>
 
               <div className={funnelKey === 'comunidadmp' ? 'comunidadmp-card relative' : 'bg-surface-primary/80 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl relative transition-all duration-300 hover:border-emerald-500/50'}>
-                
+                {funnelKey === 'comunidadmp' && (
+                  <>
+                    <span className="bracket-mp tl"></span>
+                    <span className="bracket-mp tr"></span>
+                    <span className="bracket-mp bl"></span>
+                    <span className="bracket-mp br"></span>
+                  </>
+                )}
                 {!showRecoveryView ? (
                   <form onSubmit={handleWompiCheckout} className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border-medium/60">
@@ -2985,6 +3004,84 @@ export default function ComunidadPage() {
               </div>
 
             </div>
+
+            {/* Mauricio Posada visual comparison widget (Antes vs Después con IA) */}
+            {funnelKey === 'comunidadmp' && (
+              <div className="w-full max-w-4xl mx-auto mt-6 mb-12 text-left relative z-10">
+                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
+                  <span className="comunidadmp-kicker font-mono">COMPARATIVA DE TRANSFORMACIÓN</span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-space-grotesk">
+                    La Revolución de la IA en la Gestión <span className="gr bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent">SST</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-text-secondary">
+                    Compara visualmente los procesos manuales y los riesgos tradicionales con la automatización inteligente.
+                  </p>
+                </div>
+
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => setAbSelectedComparison('work')}
+                    className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 ${
+                      abSelectedComparison === 'work'
+                        ? 'border-[#14D4D4] bg-[#0EA5A5]/20 text-[#14D4D4] shadow-sm shadow-[#14D4D4]/10'
+                        : 'border-border-medium/60 bg-surface-primary/30 text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    1. Transformación del Trabajo
+                  </button>
+                  <button
+                    onClick={() => setAbSelectedComparison('safety')}
+                    className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 ${
+                      abSelectedComparison === 'safety'
+                        ? 'border-[#14D4D4] bg-[#0EA5A5]/20 text-[#14D4D4] shadow-sm shadow-[#14D4D4]/10'
+                        : 'border-border-medium/60 bg-surface-primary/30 text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    2. Prevención de Accidentes
+                  </button>
+                </div>
+
+                <div className="comunidadmp-card w-full overflow-hidden p-0 sm:p-2 border-2 border-slate-900 bg-black/50 shadow-2xl relative">
+                  <span className="bracket-mp tl"></span>
+                  <span className="bracket-mp tr"></span>
+                  <span className="bracket-mp bl"></span>
+                  <span className="bracket-mp br"></span>
+
+                  <div className="w-full relative rounded-2xl overflow-hidden aspect-video">
+                    {abSelectedComparison === 'work' ? (
+                      <img 
+                        src="/assets/comparativa-trabajo.jpg" 
+                        alt="Comparativa del Trabajo con IA" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <img 
+                        src="/assets/comparativa-accidente.jpg" 
+                        alt="Comparativa de Accidentes" 
+                        className="w-full h-full object-cover" 
+                      />
+                    )}
+                    
+                    {/* Floating responsive labels over image comparison */}
+                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div className="flex gap-2">
+                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded bg-red-500/20 border border-red-500/40 text-red-400">
+                          Antes (Tradicional)
+                        </span>
+                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
+                          Después (Con WAPPY)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-medium font-sans">
+                        {abSelectedComparison === 'work' 
+                          ? 'De oficina caótica y manuales físicos a entorno digital asistido por IA'
+                          : 'De caídas por riesgos descontrolados a prevención activa y áreas seguras'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {funnelKey === 'wappyvital' && !isUnlocked && (
               <div className="w-full max-w-3xl mx-auto mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse">
