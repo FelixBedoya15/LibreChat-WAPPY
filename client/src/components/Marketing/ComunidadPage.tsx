@@ -2423,27 +2423,27 @@ export default function ComunidadPage() {
         ) : (funnelKey !== 'wappyvital' && actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled) ? (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center justify-center relative z-10 text-center">
             
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" />
-              {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL DE POR VIDA' : 'CURSO MASTERCLASS SST PREMIUM'}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wide mb-6 shadow-sm shadow-emerald-500/5 animate-pulse">
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+              {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL - ACCESO DE POR VIDA' : 'CURSO MASTERCLASS GESTIÓN SST IA'}
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-5 leading-tight max-w-3xl outfit">
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-text-primary mb-6 leading-[1.15] max-w-3xl outfit">
               {funnelKey === 'wappyvital' ? (
                 <>
-                  Consigue <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY VITAL de Por Vida</span>
+                  Consigue <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_2px_15px_rgba(16,185,129,0.15)]">WAPPY VITAL</span> de Por Vida
                 </>
               ) : (
                 <>
-                  Accede al Curso de Gestión de SST con <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Inteligencia Artificial</span>
+                  Optimiza tu Gestión de SST con <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_2px_15px_rgba(16,185,129,0.15)]">Inteligencia Artificial</span>
                 </>
               )}
             </h1>
 
-            <p className="text-sm text-text-secondary max-w-xl mb-8 leading-relaxed">
+            <p className="text-sm sm:text-base text-text-secondary max-w-2xl mb-10 leading-relaxed font-normal">
               {funnelKey === 'wappyvital' 
-                ? 'Paga una tarifa única y obtén acceso de por vida a Wappy IA, los 15+ agentes especialistas y editores de matrices de por vida.'
-                : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.'}
+                ? 'Paga una tarifa única y obtén acceso ilimitado de por vida a Wappy IA, los 15+ agentes especialistas de SST y editores avanzados de matrices.'
+                : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor inmediato.'}
             </p>
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start relative z-10">
@@ -2453,78 +2453,78 @@ export default function ComunidadPage() {
                   {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
                 </h3>
                 
-                <div className="space-y-4">
+                 <div className="space-y-3.5">
                   {funnelKey === 'wappyvital' ? (
                     <>
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Membresía de Por Vida a Wappy Vital (IA + Matrices)</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Paga una vez y usa Wappy IA para siempre (sin suscripción mensual) para redactar y automatizar tu gestión SST.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Membresía de Por Vida a Wappy Vital (IA + Matrices)</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Paga una vez y usa Wappy IA para siempre (sin suscripción mensual) para redactar y automatizar tu gestión SST.</p>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Más de 15 Agentes Especialistas de SST</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Consultas ilimitadas a agentes entrenados en GTC-45, Riesgo Psicosocial, Consultor Médico y Consultor Jurídico.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Más de 15 Agentes Especialistas de SST</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Consultas ilimitadas a agentes entrenados en GTC-45, Riesgo Psicosocial, Consultor Médico y Consultor Jurídico.</p>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Skill Canvas, RIT e IPEVAR</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Editores inteligentes para crear matrices y el Reglamento Interno de Trabajo en minutos y exportar a Word/Excel.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Skill Canvas, RIT e IPEVAR</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Editores inteligentes para crear matrices y el Reglamento Interno de Trabajo en minutos y exportar a Word/Excel.</p>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Mentoría y Capacitación Exclusiva</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Acceso a la mentoría completa en video y clases extra grabadas para dominar el uso de IA en tu gestión.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Mentoría y Capacitación Exclusiva</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Acceso a la mentoría completa en video y clases extra grabadas para dominar el uso de IA en tu gestión.</p>
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Videocapacitación Práctica Completa</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Domina la matriz de riesgos, aplicativos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Videocapacitación Práctica Completa</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Domina la matriz de riesgos, aplicativos automatizados y el diagnóstico global del SVE utilizando Inteligencia Artificial.</p>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Material y Plantillas Editables</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo al terminar de ver el video.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Material y Plantillas Editables</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Descarga de forma ilimitada la Matriz de Peligros, el Plan de Capacitaciones y el manual completo al terminar de ver el video.</p>
                         </div>
                       </div>
 
-                      <div className="flex gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/20">
+                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Acceso de por Vida y Sin Límite</h4>
-                          <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Vuelve a ingresar las veces que quieras con tu correo electrónico para revisar el material y descargar actualizaciones sin volver a pagar.</p>
+                          <h4 className="font-bold text-xs text-text-primary tracking-wide">Acceso de por Vida y Sin Límite</h4>
+                          <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">Vuelve a ingresar las veces que quieras con tu correo electrónico para revisar el material y descargar actualizaciones sin volver a pagar.</p>
                         </div>
                       </div>
                     </>
@@ -2568,48 +2568,48 @@ export default function ComunidadPage() {
                       </div>
                     )}
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Nombre Completo</label>
+                     <div>
+                      <label className="block text-[10px] font-bold text-text-secondary/80 uppercase tracking-wider mb-1.5">Nombre Completo</label>
                       <input
                         type="text"
                         value={checkoutFullName}
                         onChange={(e) => setCheckoutFullName(e.target.value)}
                         placeholder="Ej. Juan Pérez"
-                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary/70 border border-border-medium/80 text-text-primary text-xs focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 placeholder:text-text-secondary/40 font-medium"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo Electrónico</label>
+                      <label className="block text-[10px] font-bold text-text-secondary/80 uppercase tracking-wider mb-1.5">Correo Electrónico</label>
                       <input
                         type="email"
                         value={checkoutEmail}
                         onChange={(e) => setCheckoutEmail(e.target.value)}
                         placeholder="juan@correo.com"
-                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary/70 border border-border-medium/80 text-text-primary text-xs focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 placeholder:text-text-secondary/40 font-medium"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Número de Celular</label>
+                      <label className="block text-[10px] font-bold text-text-secondary/80 uppercase tracking-wider mb-1.5">Número de Celular</label>
                       <input
                         type="tel"
                         value={checkoutPhone}
                         onChange={(e) => setCheckoutPhone(e.target.value)}
                         placeholder="Ej. 3001234567"
-                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary/70 border border-border-medium/80 text-text-primary text-xs focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 placeholder:text-text-secondary/40 font-medium"
                       />
                     </div>
 
                     {funnelKey === 'wappyvital' && (
                       <div>
-                        <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Cupón de Descuento</label>
+                        <label className="block text-[10px] font-bold text-text-secondary/80 uppercase tracking-wider mb-1.5">Cupón de Descuento</label>
                         <input
                           type="text"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value)}
                           placeholder="Ej. PROMO30"
-                          className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-mono uppercase"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary/70 border border-border-medium/80 text-text-primary text-xs focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 placeholder:text-text-secondary/40 font-mono uppercase"
                         />
                       </div>
                     )}
@@ -2623,7 +2623,7 @@ export default function ComunidadPage() {
                       />
                       <span className="text-[10px] text-text-secondary leading-normal group-hover:text-text-primary transition-colors">
                         Acepto la{' '}
-                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">política de privacidad</a>{' '}
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline hover:text-emerald-400 transition-colors">política de privacidad</a>{' '}
                         y el tratamiento de datos de WAPPY.
                       </span>
                     </label>
@@ -2631,7 +2631,7 @@ export default function ComunidadPage() {
                     <button
                       type="submit"
                       disabled={isCheckoutSubmitting}
-                      className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold transition-all duration-300 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white dark:text-slate-950 font-extrabold transition-all duration-300 shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {isCheckoutSubmitting ? (
                         <>
@@ -2650,7 +2650,7 @@ export default function ComunidadPage() {
                       <button
                         type="button"
                         onClick={() => setShowRecoveryView(true)}
-                        className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
+                        className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline hover:text-emerald-500 flex items-center justify-center gap-1.5 mx-auto transition-colors"
                       >
                         <Key className="w-3.5 h-3.5" />
                         ¿Ya compraste? Recupera tu acceso
@@ -2683,20 +2683,20 @@ export default function ComunidadPage() {
                     )}
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo Electrónico registrado</label>
+                      <label className="block text-[10px] font-bold text-text-secondary/80 uppercase tracking-wider mb-1.5">Correo Electrónico registrado</label>
                       <input
                         type="email"
                         value={recoveryEmail}
                         onChange={(e) => setRecoveryEmail(e.target.value)}
                         placeholder="juan@correo.com"
-                        className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary/70 border border-border-medium/80 text-text-primary text-xs focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 placeholder:text-text-secondary/40 font-medium"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isRecovering}
-                      className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                     >
                       {isRecovering ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                       Verificar Acceso de Compra
@@ -2895,16 +2895,16 @@ export default function ComunidadPage() {
                     return (
                       <div 
                         key={idx} 
-                        className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between gap-4 ${
+                        className={`p-5 rounded-2xl border backdrop-blur-md transition-all duration-300 flex flex-col justify-between gap-4 relative overflow-hidden group/card ${
                           canDownload 
-                            ? 'bg-surface-primary border-emerald-500/30 hover:border-emerald-500/60 shadow-md hover:shadow-lg' 
-                            : 'bg-surface-primary/50 border-border-medium/60 opacity-70 select-none'
+                            ? 'bg-surface-primary/80 border-emerald-500/20 hover:border-emerald-500/40 shadow-md hover:shadow-lg hover:shadow-emerald-500/[0.02] hover:-translate-y-0.5' 
+                            : 'bg-surface-primary/40 border-border-medium/50 opacity-60 select-none'
                         }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className={`p-2.5 rounded-xl border shrink-0 ${
                             canDownload 
-                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-sm shadow-emerald-500/5' 
                               : 'bg-surface-secondary border-border-medium text-text-secondary/50'
                           }`}>
                             {canDownload ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -2921,7 +2921,7 @@ export default function ComunidadPage() {
                             href={file.url}
                             download
                             onClick={() => trackClick('downloadFile')}
-                            className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white dark:text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
                           >
                             <Download className="w-3.5 h-3.5" />
                             Descargar Archivo
@@ -2929,7 +2929,7 @@ export default function ComunidadPage() {
                         ) : (
                           <button
                             onClick={handleQuickAccessClick}
-                            className="w-full py-2 rounded-xl bg-surface-secondary border border-border-medium text-emerald-500 dark:text-emerald-400 hover:bg-surface-hover text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
+                            className="w-full py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-emerald-500 dark:text-emerald-400 hover:bg-surface-hover text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
                           >
                             <Lock className="w-3.5 h-3.5 text-text-secondary" />
                             Adquiere ya
@@ -2970,9 +2970,9 @@ export default function ComunidadPage() {
                  .map((item, index) => {
                   const isItemUnlocked = isUnlocked || index === 0;
                   return (
-                    <div key={item.num} className="bg-surface-primary border border-border-medium rounded-2xl overflow-hidden shadow-md flex flex-col justify-between">
-                      <div className="p-4 border-b border-border-medium bg-surface-secondary/40">
-                        <h4 className="font-bold text-xs text-text-primary outfit truncate" title={item.title || `Clase Extra ${item.num}`}>
+                    <div key={item.num} className="bg-surface-primary/80 border border-border-medium/60 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl hover:border-emerald-500/25 transition-all duration-300 flex flex-col justify-between group/tutorial">
+                      <div className="p-4 border-b border-border-medium/60 bg-surface-secondary/40">
+                        <h4 className="font-bold text-xs text-text-primary outfit truncate group-hover/tutorial:text-emerald-500 transition-colors" title={item.title || `Clase Extra ${item.num}`}>
                           {item.title || `Clase Extra ${item.num}`}
                         </h4>
                       </div>
