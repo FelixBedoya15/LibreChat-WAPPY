@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
+import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
 
 // Declare global types for YouTube Iframe Player API
@@ -282,6 +283,7 @@ export default function ComunidadPage() {
 
   // Admin Config Panel States
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
   const [tempVideoUrl, setTempVideoUrl] = useState(videoUrl);
   const [tempRequiresPayment, setTempRequiresPayment] = useState(requiresPayment);
   const [tempPrice, setTempPrice] = useState(price);
@@ -1454,6 +1456,44 @@ export default function ComunidadPage() {
     }
   };
 
+  const handleDownloadQR = () => {
+    const svgElement = document.getElementById('comunidad-qr-svg');
+    if (!svgElement) return;
+
+    const svgString = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const blobURL = URL.createObjectURL(svgBlob);
+
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 500;
+      canvas.height = 500;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(0, 0, 500, 500);
+        context.drawImage(image, 25, 25, 450, 450);
+
+        const pngURL = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngURL;
+        downloadLink.download = `QR_Acceso_Comunidad_${funnelKey}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
+    };
+    image.src = blobURL;
+  };
+
+  const handleCopyLink = () => {
+    const fullUrl = window.location.origin + window.location.pathname;
+    navigator.clipboard.writeText(fullUrl);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
   // --- Admin: Files Upload & Management ---
   const handleUploadFile = async () => {
     if (!selectedFile) {
@@ -1637,10 +1677,12 @@ export default function ComunidadPage() {
   return (
     <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
       
-      {/* Dynamic Glow Accents */}
+      {/* Premium Tech Grid & Flowing Ambient Light */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/5 dark:bg-emerald-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 dark:bg-purple-600/10 blur-[120px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_80%,transparent_100%)]"></div>
+        <div className="absolute top-[-20%] left-[10%] w-[60vw] h-[60vw] rounded-full bg-emerald-500/[0.04] dark:bg-emerald-500/[0.07] blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[10%] right-[5%] w-[40vw] h-[40vw] rounded-full bg-teal-500/[0.03] dark:bg-teal-500/[0.06] blur-[130px] animate-pulse" style={{ animationDuration: '12s' }} />
+        <div className="absolute top-[30%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-cyan-500/[0.02] dark:bg-cyan-500/[0.04] blur-[110px]" />
       </div>
 
       <style>{`
@@ -1661,7 +1703,7 @@ export default function ComunidadPage() {
 
       <div>
         {/* Top Header Navbar */}
-        <nav className="w-full max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6 flex items-center justify-between relative z-10">
+        <nav className="w-full max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-4 flex items-center justify-between relative z-10 border border-border-medium/40 bg-surface-primary/40 backdrop-blur-md rounded-2xl mt-4 shadow-sm transition-all duration-300">
           <div className="flex items-center gap-1.5 sm:gap-3">
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
@@ -1717,7 +1759,7 @@ export default function ComunidadPage() {
 
             <>
               <a
-                href={whatsappUrl}
+                href="https://wa.me/573106415385"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackClick('whatsapp')}
@@ -1728,13 +1770,15 @@ export default function ComunidadPage() {
                 </svg>
                 ¿Tienes dudas? Escríbenos
               </a>
-              <button
-                onClick={() => navigate('/login')}
-                className="px-2 py-1.5 sm:px-4 sm:py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1 sm:gap-1.5 hover:scale-105"
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                Acceder a WAPPY
-              </button>
+              {(isVideoFinished || isAdmin) && (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-2 py-1.5 sm:px-4 sm:py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1 sm:gap-1.5 hover:scale-105"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Acceder a WAPPY
+                </button>
+              )}
             </>
           </div>
         </nav>
@@ -2321,6 +2365,48 @@ export default function ComunidadPage() {
                         ))
                       )}
                     </div>
+
+                    {/* QR Code Section */}
+                    <div className="border-t border-border-medium/60 pt-4 mt-4 space-y-3">
+                      <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider">Código QR de la Página</h4>
+                      <p className="text-[10px] text-text-secondary">Comparte este código QR o enlace con tus usuarios para que accedan directamente a esta página de comunidad.</p>
+                      
+                      <div className="flex flex-col sm:flex-row items-center gap-4 p-3 rounded-xl bg-surface-secondary/40 border border-border-medium">
+                        <div className="bg-white p-2 rounded-lg border border-border-medium shrink-0">
+                          <QRCodeSVG
+                            id="comunidad-qr-svg"
+                            value={window.location.origin + window.location.pathname}
+                            size={100}
+                            bgColor={"#ffffff"}
+                            fgColor={"#0f172a"}
+                            level={"M"}
+                            includeMargin={false}
+                          />
+                        </div>
+                        <div className="flex-1 w-full space-y-2">
+                          <div className="flex gap-1.5">
+                            <input
+                              type="text"
+                              readOnly
+                              value={window.location.origin + window.location.pathname}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-surface-secondary border border-border-medium text-[10px] text-text-primary focus:outline-none font-mono"
+                            />
+                            <button
+                              onClick={handleCopyLink}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-all whitespace-nowrap"
+                            >
+                              {copyFeedback ? 'Copiado' : 'Copiar'}
+                            </button>
+                          </div>
+                          <button
+                            onClick={handleDownloadQR}
+                            className="w-full py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] flex items-center justify-center gap-1 transition-all shadow-sm"
+                          >
+                            <Download className="w-3 h-3" /> Descargar Código QR (PNG)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2360,9 +2446,9 @@ export default function ComunidadPage() {
                 : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor.'}
             </p>
 
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start">
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start relative z-10">
               
-              <div className="space-y-5 bg-surface-primary/50 border border-border-medium rounded-3xl p-6 sm:p-8 backdrop-blur-md">
+              <div className="space-y-5 bg-surface-primary/80 border border-border-medium/60 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-emerald-500/30">
                 <h3 className="text-lg font-bold text-emerald-500 outfit">
                   {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
                 </h3>
@@ -2466,7 +2552,7 @@ export default function ComunidadPage() {
                 </div>
               </div>
 
-              <div className="bg-surface-primary border border-border-medium rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+              <div className="bg-surface-primary/80 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl relative transition-all duration-300 hover:border-emerald-500/50">
                 
                 {!showRecoveryView ? (
                   <form onSubmit={handleWompiCheckout} className="space-y-4">
@@ -2656,7 +2742,7 @@ export default function ComunidadPage() {
 
             {/* Quick Access / Skip Video Banner */}
             {!isUnlocked && (funnelKey === 'wappyvital' ? (showQuickAccessBanner || isVideoFinished) : showQuickAccessBanner) && (
-              <div className="w-full max-w-3xl mb-8 p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 transition-all duration-300 animate-premium-float">
+              <div className="w-full max-w-3xl mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-500/[0.06] to-teal-500/[0.02] border border-emerald-500/30 backdrop-blur-md text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl shadow-emerald-500/[0.02] hover:border-emerald-500/50 transition-all duration-300 animate-premium-float relative z-10">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-medium text-text-primary leading-relaxed">
                     {funnelKey === 'wappyvital' ? (
@@ -2697,7 +2783,7 @@ export default function ComunidadPage() {
             )}
             <div 
               ref={playerContainerRef}
-              className="w-full relative rounded-3xl overflow-hidden border border-border-medium bg-surface-primary/70 shadow-2xl aspect-video mb-8 group"
+              className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-8 group transition-all duration-500 hover:border-emerald-500/35 z-10"
               onContextMenu={(e) => e.preventDefault()}
             >
               {isYouTube ? (

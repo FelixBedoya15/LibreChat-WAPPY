@@ -148,11 +148,14 @@ const AuthContextProvider = ({
   };
 
   const isPublicRoute = useCallback((pathname: string) => {
-    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
+    const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }
     if (pathname.startsWith('/comunidad/') || pathname === '/comunidad') {
+      return true;
+    }
+    if (pathname.startsWith('/comunidadmp/') || pathname === '/comunidadmp') {
       return true;
     }
     if (pathname.startsWith('/wappyvital/') || pathname === '/wappyvital') {

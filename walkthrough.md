@@ -82,3 +82,11 @@ Se duplicó la página de la comunidad `/comunidad` para que también responda e
    * Se actualizó la lógica de detección del `funnelKey` para identificar si la ruta contiene `comunidadmp`, estableciendo dicho identificador para la carga de su propia configuración independiente y aislamiento del almacenamiento en local.
 3. **Controlador del Backend (`api/server/controllers/ComunidadController.js`)**:
    * Se integró el prefijo de referencia Wompi `WAP-CMP` para transacciones y referencias manuales asociadas a la comunidad `/comunidadmp` en vez del prefijo general de comunidad.
+
+4. **Código QR y Copiado de Enlace en Ajustes**:
+   * Se integró la librería `QRCodeSVG` para renderizar el código QR de acceso público dinámicamente según la página actual.
+   * Se añadió un botón para descargar el código QR generado en formato PNG de alta resolución.
+   * Se agregó un campo de texto con el enlace de la página y un botón rápido de "Copiar" al portapapeles.
+5. **Condicional de Acceso y Contacto de Dudas**:
+   * El botón "Acceder a WAPPY" ahora se renderiza de forma condicional, mostrándose únicamente cuando el usuario ha finalizado la reproducción completa del video (`isVideoFinished`) o es un usuario administrador.
+   * Se modificó el enlace de WhatsApp del botón "Escríbenos si tienes dudas" para redirigir directamente al número personal del administrador (`+573106415385`) en Colombia.
