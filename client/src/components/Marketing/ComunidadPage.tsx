@@ -382,12 +382,15 @@ export default function ComunidadPage() {
 
     observer.observe(document.documentElement, { attributes: true });
 
-    // Sync initially and periodically to ensure load is caught
-    const intervalId = setInterval(syncTheme, 1000);
+    // Sync initially and with a slight delay to capture delayed load
+    syncTheme();
+    const timeoutId = setTimeout(syncTheme, 800);
+    const timeoutId2 = setTimeout(syncTheme, 2000);
 
     return () => {
       observer.disconnect();
-      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
       if (iframe) {
         iframe.removeEventListener('load', syncTheme);
       }
@@ -2912,13 +2915,15 @@ export default function ComunidadPage() {
             )}
 
             <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit ${funnelKey === 'comunidadmp' ? 'comunidadmp-title font-space-grotesk' : ''}`}>
-              {funnelKey === 'wappyvital' ? (
+              {funnelKey === 'comunidadmp' ? (
+                <>Diapositivas Interactivas de la Capacitación</>
+              ) : funnelKey === 'wappyvital' ? (
                 <>
-                  <span className={funnelKey === 'comunidadmp' ? 'bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent' : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'}>WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
+                  <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
                 </>
               ) : (
                 <>
-                  Descarga <span className={funnelKey === 'comunidadmp' ? 'bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent' : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'}>10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                  Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
                 </>
               )}
             </h1>
@@ -2927,12 +2932,9 @@ export default function ComunidadPage() {
             {funnelKey === 'comunidadmp' && (
               <div className="w-full max-w-4xl mx-auto mt-2 mb-12 text-left relative z-10">
                 <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
-                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST</span>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary outfit">
-                    Diapositivas Interactivas de la Capacitación
-                  </h2>
+                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST · MAURICIO POSADA</span>
                   <p className="text-xs sm:text-sm text-text-secondary">
-                    Desliza o usa los controles inferiores para navegar por la presentación oficial de Mauricio Posada.
+                    Desliza o usa los controles inferiores para navegar por la presentación oficial.
                   </p>
                 </div>
 
@@ -3002,6 +3004,15 @@ export default function ComunidadPage() {
                 </button>
               </div>
             )}
+            {/* Subtitle / text above video player for comunidadmp */}
+            {funnelKey === 'comunidadmp' && (
+              <div className="w-full max-w-3xl mx-auto mb-8 text-center z-10">
+                <h3 className="text-xl sm:text-2xl font-bold text-text-secondary dark:text-slate-300 leading-relaxed">
+                  Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                </h3>
+              </div>
+            )}
+
             <div 
               ref={playerContainerRef}
               className="w-full relative rounded-3xl overflow-hidden border-4 border-slate-900 dark:border-slate-800 bg-slate-950 shadow-2xl aspect-video mb-12 group transition-all duration-500 ring-1 ring-border-medium/60 z-10"
