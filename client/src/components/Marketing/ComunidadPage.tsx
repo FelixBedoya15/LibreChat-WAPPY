@@ -385,6 +385,21 @@ export default function ComunidadPage() {
     };
   }, [funnelKey]);
 
+  // Lock scroll when iframe is in pseudo-fullscreen
+  useEffect(() => {
+    if (funnelKey !== 'comunidadmp') {
+      return;
+    }
+    if (isIframeFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isIframeFullscreen, funnelKey]);
+
   // Synchronize theme with the presentation iframe
   useEffect(() => {
     if (funnelKey !== 'comunidadmp') {
@@ -1849,11 +1864,24 @@ export default function ComunidadPage() {
               width: 100vw !important;
               height: 100vh !important;
               max-width: 100vw !important;
-              z-index: 99999 !important;
+              z-index: 99999999 !important;
               border-radius: 0 !important;
               border: none !important;
               margin: 0 !important;
               background-color: #000000 !important;
+              aspect-ratio: auto !important;
+            }
+            @media (orientation: portrait) {
+              .comunidadmp-fullscreen-iframe {
+                top: 50% !important;
+                left: 50% !important;
+                right: auto !important;
+                bottom: auto !important;
+                width: 100vh !important;
+                height: 100vw !important;
+                transform: translate(-50%, -50%) rotate(90deg) !important;
+                transform-origin: center center !important;
+              }
             }
             .comunidadmp-kicker {
               font-family: 'JetBrains Mono', monospace !important;
