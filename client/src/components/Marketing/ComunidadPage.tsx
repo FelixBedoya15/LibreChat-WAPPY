@@ -1675,15 +1675,122 @@ export default function ComunidadPage() {
   const isUnlocked = isAdmin || isAccessGranted || (funnelKey !== 'wappyvital' && (!gatingEnabled || (!actualRequiresPayment && isLeadCaptured)));
 
   return (
-    <div className="min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between">
+    <div className={`min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'comunidadmp-bg' : ''}`}>
       
+      {/* Corner Brackets for Mauricio Posada theme */}
+      {funnelKey === 'comunidadmp' && (
+        <>
+          <span className="bracket-mp tl"></span>
+          <span className="bracket-mp tr"></span>
+          <span className="bracket-mp bl"></span>
+          <span className="bracket-mp br"></span>
+        </>
+      )}
+
       {/* Premium Tech Grid & Flowing Ambient Light */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_80%,transparent_100%)]"></div>
-        <div className="absolute top-[-20%] left-[10%] w-[60vw] h-[60vw] rounded-full bg-emerald-500/[0.04] dark:bg-emerald-500/[0.07] blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-[10%] right-[5%] w-[40vw] h-[40vw] rounded-full bg-teal-500/[0.03] dark:bg-teal-500/[0.06] blur-[130px] animate-pulse" style={{ animationDuration: '12s' }} />
-        <div className="absolute top-[30%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-cyan-500/[0.02] dark:bg-cyan-500/[0.04] blur-[110px]" />
+        {funnelKey === 'comunidadmp' ? (
+          <>
+            <div className="absolute top-[10%] left-[20%] w-[60vw] h-[50vw] rounded-full bg-[#0EA5A5]/[0.08] blur-[140px] pointer-events-none" />
+            <div className="absolute bottom-[20%] right-[15%] w-[45vw] h-[45vw] rounded-full bg-[#06B6D4]/[0.06] blur-[120px] pointer-events-none" />
+          </>
+        ) : (
+          <>
+            <div className="absolute top-[-20%] left-[10%] w-[60vw] h-[60vw] rounded-full bg-emerald-500/[0.04] dark:bg-emerald-500/[0.07] blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
+            <div className="absolute bottom-[10%] right-[5%] w-[40vw] h-[40vw] rounded-full bg-teal-500/[0.03] dark:bg-teal-500/[0.06] blur-[130px] animate-pulse" style={{ animationDuration: '12s' }} />
+            <div className="absolute top-[30%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-cyan-500/[0.02] dark:bg-cyan-500/[0.04] blur-[110px]" />
+          </>
+        )}
       </div>
+
+      {funnelKey === 'comunidadmp' && (
+        <>
+          <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+          <style>{`
+            :root {
+              --teal: #0EA5A5;
+              --teal-bright: #14D4D4;
+              --green: #10B981;
+              --green-bright: #34D399;
+              --cyan: #06B6D4;
+              --glow: .4;
+              --space-grotesk: 'Space Grotesk', sans-serif;
+            }
+            .font-space-grotesk {
+              font-family: 'Space Grotesk', sans-serif !important;
+            }
+            /* Mauricio Presentation Custom overrides */
+            .comunidadmp-bg {
+              background-color: #000000 !important;
+              background-image: radial-gradient(ellipse 70% 50% at 25% 30%, rgba(14,165,165,0.06) 0%, transparent 70%),
+                                radial-gradient(ellipse 60% 70% at 85% 70%, rgba(6,182,212,0.04) 0%, transparent 70%) !important;
+              color: #FFFFFF !important;
+            }
+            .comunidadmp-title {
+              font-family: 'Space Grotesk', sans-serif !important;
+              font-weight: 700 !important;
+              color: #FFFFFF !important;
+              text-shadow: 0 0 30px rgba(14,165,165,0.4);
+            }
+            .comunidadmp-kicker {
+              font-family: 'JetBrains Mono', monospace !important;
+              font-size: 14px !important;
+              letter-spacing: 0.16em !important;
+              text-transform: uppercase !important;
+              color: #14D4D4 !important;
+              font-weight: 600 !important;
+            }
+            .comunidadmp-card {
+              padding: 24px 28px !important;
+              border-radius: 18px !important;
+              background: rgba(14,165,165,0.08) !important;
+              border: 2px solid rgba(14,165,165,0.35) !important;
+              transition: all 0.3s !important;
+            }
+            .comunidadmp-card:hover {
+              border-color: #14D4D4 !important;
+              transform: translateY(-4px);
+              box-shadow: 0 10px 30px rgba(14,165,165,0.15);
+            }
+            .comunidadmp-btn-whatsapp {
+              border: 2px solid rgba(14,165,165,0.45) !important;
+              background: rgba(14,165,165,0.12) !important;
+              color: #14D4D4 !important;
+              transition: all 0.3s !important;
+            }
+            .comunidadmp-btn-whatsapp:hover {
+              background: #0EA5A5 !important;
+              border-color: #14D4D4 !important;
+              color: #FFFFFF !important;
+              transform: scale(1.04);
+            }
+            .comunidadmp-btn-wappy {
+              background: linear-gradient(135deg, #14D4D4, #34D399) !important;
+              color: #000000 !important;
+              font-weight: 700 !important;
+              box-shadow: 0 0 25px rgba(20,212,212,0.4) !important;
+            }
+            .comunidadmp-btn-wappy:hover {
+              background: linear-gradient(135deg, #14D4D4, #06B6D4) !important;
+              transform: scale(1.04);
+            }
+            /* Corner Brackets Style */
+            .bracket-mp {
+              position: fixed;
+              width: 32px;
+              height: 32px;
+              border: 3px solid rgba(14,165,165,0.35);
+              z-index: 90;
+              pointer-events: none;
+            }
+            .bracket-mp.tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+            .bracket-mp.tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+            .bracket-mp.bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+            .bracket-mp.br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+          `}</style>
+        </>
+      )}
 
       <style>{`
         @keyframes floatEffect {
@@ -1763,7 +1870,7 @@ export default function ComunidadPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackClick('whatsapp')}
-                className="px-3.5 py-2 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5"
+                className={`px-3.5 py-2 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
@@ -1773,7 +1880,7 @@ export default function ComunidadPage() {
               {(isVideoFinished || isAdmin) && (
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-md shadow-emerald-500/10 hover:scale-105"
+                  className={`px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-md shadow-emerald-500/10 hover:scale-105 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
                 >
                   <UserCheck className="w-3.5 h-3.5" />
                   Acceder a WAPPY
@@ -2423,19 +2530,23 @@ export default function ComunidadPage() {
         ) : (funnelKey !== 'wappyvital' && actualRequiresPayment && !isAccessGranted && !isAdmin && !gatingEnabled) ? (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center justify-center relative z-10 text-center">
             
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wide mb-6 shadow-sm shadow-emerald-500/5 animate-pulse">
-              <Sparkles className="w-4 h-4 text-emerald-500" />
-              {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL - ACCESO DE POR VIDA' : 'CURSO MASTERCLASS GESTIÓN SST IA'}
-            </div>
+            {funnelKey === 'comunidadmp' ? (
+              <span className="comunidadmp-kicker mb-6 block">ADELÁNTATE A LA IA · MAURICIO POSADA</span>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wide mb-6 shadow-sm shadow-emerald-500/5 animate-pulse">
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+                {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL - ACCESO DE POR VIDA' : 'CURSO MASTERCLASS GESTIÓN SST IA'}
+              </div>
+            )}
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-6 leading-[1.1] max-w-3xl outfit">
+            <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-6 leading-[1.1] max-w-3xl outfit ${funnelKey === 'comunidadmp' ? 'comunidadmp-title font-space-grotesk' : ''}`}>
               {funnelKey === 'wappyvital' ? (
                 <>
                   Consigue <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY VITAL</span> de Por Vida
                 </>
               ) : (
                 <>
-                  Optimiza tu Gestión de SST con <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">Inteligencia Artificial</span>
+                  Optimiza tu Gestión de SST con <span className={funnelKey === 'comunidadmp' ? 'bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent' : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'}>Inteligencia Artificial</span>
                 </>
               )}
             </h1>
@@ -2448,7 +2559,7 @@ export default function ComunidadPage() {
 
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 text-left mt-4 items-start relative z-10">
               
-              <div className="space-y-6 bg-transparent border-t border-border-medium/80 pt-6">
+              <div className={funnelKey === 'comunidadmp' ? 'comunidadmp-card space-y-6' : 'space-y-6 bg-transparent border-t border-border-medium/80 pt-6'}>
                 <h3 className="text-xl font-bold tracking-tight text-text-primary outfit">
                   {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
                 </h3>
@@ -2552,7 +2663,7 @@ export default function ComunidadPage() {
                 </div>
               </div>
 
-              <div className="bg-surface-primary/80 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl relative transition-all duration-300 hover:border-emerald-500/50">
+              <div className={funnelKey === 'comunidadmp' ? 'comunidadmp-card relative' : 'bg-surface-primary/80 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl relative transition-all duration-300 hover:border-emerald-500/50'}>
                 
                 {!showRecoveryView ? (
                   <form onSubmit={handleWompiCheckout} className="space-y-4">
@@ -2723,19 +2834,23 @@ export default function ComunidadPage() {
         ) : (
           <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center text-center relative z-10">
             
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" />
-              CAPACITACIÓN EXCLUSIVA WAPPY
-            </div>
+            {funnelKey === 'comunidadmp' ? (
+              <span className="comunidadmp-kicker mb-6 block">CAPACITACIÓN EXCLUSIVA · MAURICIO POSADA</span>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
+                <Sparkles className="w-3.5 h-3.5" />
+                CAPACITACIÓN EXCLUSIVA WAPPY
+              </div>
+            )}
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit">
+            <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit ${funnelKey === 'comunidadmp' ? 'comunidadmp-title font-space-grotesk' : ''}`}>
               {funnelKey === 'wappyvital' ? (
                 <>
-                  <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
+                  <span className={funnelKey === 'comunidadmp' ? 'bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent' : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'}>WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
                 </>
               ) : (
                 <>
-                  Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                  Descarga <span className={funnelKey === 'comunidadmp' ? 'bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent' : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'}>10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
                 </>
               )}
             </h1>
