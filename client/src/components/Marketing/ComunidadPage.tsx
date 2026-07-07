@@ -1727,7 +1727,7 @@ export default function ComunidadPage() {
                     setCurrentTime(0);
                     window.location.reload();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 transition-all text-xs font-semibold shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 text-red-500 transition-all text-xs font-semibold shadow-sm"
                   title="Reinicia las cookies locales para probar la vista pública"
                 >
                   Reiniciar Sesión
@@ -1738,7 +1738,7 @@ export default function ComunidadPage() {
                     setIsLeadsPanelOpen(!isLeadsPanelOpen);
                     setIsAdminPanelOpen(false);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
                 >
                   <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
                   Métricas de Comunidad
@@ -1749,7 +1749,7 @@ export default function ComunidadPage() {
                     setIsAdminPanelOpen(!isAdminPanelOpen);
                     setIsLeadsPanelOpen(false);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
                 >
                   <Settings className="w-3.5 h-3.5 text-emerald-500" />
                   Ajustes de Curso
@@ -1763,7 +1763,7 @@ export default function ComunidadPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackClick('whatsapp')}
-                className="px-2 py-1.5 sm:px-4 sm:py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-lg shadow-green-500/25 flex items-center gap-1 sm:gap-1.5 hover:scale-105"
+                className="px-3.5 py-2 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
@@ -1773,7 +1773,7 @@ export default function ComunidadPage() {
               {(isVideoFinished || isAdmin) && (
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-2 py-1.5 sm:px-4 sm:py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1 sm:gap-1.5 hover:scale-105"
+                  className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-md shadow-emerald-500/10 hover:scale-105"
                 >
                   <UserCheck className="w-3.5 h-3.5" />
                   Acceder a WAPPY
@@ -2428,14 +2428,14 @@ export default function ComunidadPage() {
               {funnelKey === 'wappyvital' ? 'PLAN WAPPY VITAL - ACCESO DE POR VIDA' : 'CURSO MASTERCLASS GESTIÓN SST IA'}
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-text-primary mb-6 leading-[1.15] max-w-3xl outfit">
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-6 leading-[1.1] max-w-3xl outfit">
               {funnelKey === 'wappyvital' ? (
                 <>
-                  Consigue <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_2px_15px_rgba(16,185,129,0.15)]">WAPPY VITAL</span> de Por Vida
+                  Consigue <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY VITAL</span> de Por Vida
                 </>
               ) : (
                 <>
-                  Optimiza tu Gestión de SST con <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_2px_15px_rgba(16,185,129,0.15)]">Inteligencia Artificial</span>
+                  Optimiza tu Gestión de SST con <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">Inteligencia Artificial</span>
                 </>
               )}
             </h1>
@@ -2446,19 +2446,19 @@ export default function ComunidadPage() {
                 : 'Paga una tarifa única para acceder a la videocapacitación completa y descargar todas las plantillas y aplicativos editables de valor inmediato.'}
             </p>
 
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mt-2 items-start relative z-10">
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 text-left mt-4 items-start relative z-10">
               
-              <div className="space-y-5 bg-surface-primary/80 border border-border-medium/60 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-emerald-500/30">
-                <h3 className="text-lg font-bold text-emerald-500 outfit">
+              <div className="space-y-6 bg-transparent border-t border-border-medium/80 pt-6">
+                <h3 className="text-xl font-bold tracking-tight text-text-primary outfit">
                   {funnelKey === 'wappyvital' ? '¿Qué incluye el Plan Wappy Vital?' : '¿Qué incluye tu compra?'}
                 </h3>
                 
-                 <div className="space-y-3.5">
+                 <div className="space-y-1">
                   {funnelKey === 'wappyvital' ? (
                     <>
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Membresía de Por Vida a Wappy Vital (IA + Matrices)</h4>
@@ -2466,9 +2466,9 @@ export default function ComunidadPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Más de 15 Agentes Especialistas de SST</h4>
@@ -2476,9 +2476,9 @@ export default function ComunidadPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Skill Canvas, RIT e IPEVAR</h4>
@@ -2486,9 +2486,9 @@ export default function ComunidadPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Mentoría y Capacitación Exclusiva</h4>
@@ -2498,9 +2498,9 @@ export default function ComunidadPage() {
                     </>
                   ) : (
                     <>
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Videocapacitación Práctica Completa</h4>
@@ -2508,9 +2508,9 @@ export default function ComunidadPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Material y Plantillas Editables</h4>
@@ -2518,9 +2518,9 @@ export default function ComunidadPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3.5 p-3.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/40 transition-all duration-300 hover:border-emerald-500/25 hover:bg-surface-secondary/80">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
-                          <Check className="w-3.5 h-3.5" />
+                      <div className="flex gap-4 py-4 border-b border-border-medium/30">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5 border border-emerald-500/25">
+                          <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-text-primary tracking-wide">Acceso de por Vida y Sin Límite</h4>
@@ -2728,14 +2728,14 @@ export default function ComunidadPage() {
               CAPACITACIÓN EXCLUSIVA WAPPY
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-text-primary mb-6 leading-tight max-w-3xl outfit">
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit">
               {funnelKey === 'wappyvital' ? (
                 <>
-                  <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
+                  <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
                 </>
               ) : (
                 <>
-                  Descarga <span className="bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                  Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
                 </>
               )}
             </h1>
@@ -2783,7 +2783,7 @@ export default function ComunidadPage() {
             )}
             <div 
               ref={playerContainerRef}
-              className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-8 group transition-all duration-500 hover:border-emerald-500/35 z-10"
+              className="w-full relative rounded-3xl overflow-hidden border-4 border-slate-900 dark:border-slate-800 bg-slate-950 shadow-2xl aspect-video mb-12 group transition-all duration-500 ring-1 ring-border-medium/60 z-10"
               onContextMenu={(e) => e.preventDefault()}
             >
               {isYouTube ? (
