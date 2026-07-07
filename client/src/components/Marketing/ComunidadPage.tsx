@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, createPortal } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
@@ -392,11 +392,33 @@ export default function ComunidadPage() {
     }
     if (isIframeFullscreen) {
       document.body.style.overflow = 'hidden';
+      // inject portrait-rotation styles for the portal overlay
+      const style = document.createElement('style');
+      style.id = 'mp-fs-portrait-style';
+      style.textContent = `
+        @media (orientation: portrait) {
+          #mp-fs-portal-overlay {
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          #mp-fs-portal-overlay iframe {
+            width: 100vh !important;
+            height: 100vw !important;
+            transform: rotate(90deg) !important;
+            transform-origin: center center !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
     } else {
       document.body.style.overflow = '';
+      const existing = document.getElementById('mp-fs-portrait-style');
+      if (existing) existing.remove();
     }
     return () => {
       document.body.style.overflow = '';
+      const existing = document.getElementById('mp-fs-portrait-style');
+      if (existing) existing.remove();
     };
   }, [isIframeFullscreen, funnelKey]);
 
@@ -3033,10 +3055,40 @@ export default function ComunidadPage() {
                   </p>
                 </div>
 
-                <div className={`w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10 ${isIframeFullscreen ? 'comunidadmp-fullscreen-iframe' : ''}`}>
-                  <iframe 
-                    src="/assets/gira-ia-sst.html" 
-                    title="Presentación Interactiva Mauricio Posada" 
+                {/* When fullscreen, render iframe as a Portal directly on document.body to escape any stacking context */}
+                {isIframeFullscreen && createPortal(
+                  <div
+                    id="mp-fs-portal-overlay"
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      zIndex: 2147483647,
+                      background: '#000',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <iframe
+                      src="/assets/gira-ia-sst.html"
+                      title="Presentación Interactiva Mauricio Posada"
+                      style={{
+                        border: 'none',
+                        width: '100%',
+                        height: '100%',
+                        display: 'block',
+                      }}
+                      allowFullScreen
+                    />
+                  </div>,
+                  document.body
+                )}
+
+                {/* Normal (non-fullscreen) iframe wrapper */}
+                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35">
+                  <iframe
+                    src="/assets/gira-ia-sst.html"
+                    title="Presentación Interactiva Mauricio Posada"
                     className="w-full h-full border-0"
                     allowFullScreen
                   />
