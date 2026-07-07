@@ -1763,11 +1763,12 @@ export default function ComunidadPage() {
             .font-space-grotesk {
               font-family: 'Space Grotesk', sans-serif !important;
             }
-            /* Mauricio Presentation Custom overrides */
+             /* Mauricio Presentation Custom overrides - Light Mode Default */
             .comunidadmp-bg {
-              background-color: #000000 !important;
-              color: #FFFFFF !important;
+              background-color: #F7F9FB !important;
+              color: #0B1220 !important;
               position: relative;
+              transition: background-color 0.3s ease, color 0.3s ease;
             }
             .comunidadmp-bg::before {
               content: '';
@@ -1776,15 +1777,29 @@ export default function ComunidadPage() {
               background-image: url('/assets/casco-partido.jpg');
               background-size: cover;
               background-position: center 20%;
-              opacity: 0.08;
+              opacity: 0.03;
               z-index: 0;
               pointer-events: none;
               mask-image: radial-gradient(circle, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 80%);
               -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 80%);
+              transition: opacity 0.3s ease;
             }
             .comunidadmp-title {
               font-family: 'Space Grotesk', sans-serif !important;
               font-weight: 700 !important;
+              color: #0B1220 !important;
+              transition: color 0.3s ease;
+            }
+
+            /* Mauricio Presentation Custom overrides - Dark Mode */
+            .dark .comunidadmp-bg {
+              background-color: #000000 !important;
+              color: #FFFFFF !important;
+            }
+            .dark .comunidadmp-bg::before {
+              opacity: 0.08;
+            }
+            .dark .comunidadmp-title {
               color: #FFFFFF !important;
               text-shadow: 0 0 30px rgba(14,165,165,0.4);
             }
@@ -2916,7 +2931,7 @@ export default function ComunidadPage() {
 
             <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit ${funnelKey === 'comunidadmp' ? 'comunidadmp-title font-space-grotesk' : ''}`}>
               {funnelKey === 'comunidadmp' ? (
-                <>Diapositivas Interactivas de la Capacitación</>
+                <>IA Aplicada a la Seguridad y salud en el Trabajo</>
               ) : funnelKey === 'wappyvital' ? (
                 <>
                   <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
