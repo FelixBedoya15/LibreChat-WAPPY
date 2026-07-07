@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo, createPortal } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
