@@ -153,7 +153,19 @@ router.get('/', requireJwtAuth, async (req, res) => {
  */
 router.get('/all', requireJwtAuth, async (req, res) => {
     try {
-        const companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        let companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        
+        // Auto-fix: Ensure at most one company is active to prevent duplicates
+        const activeCompanies = companies.filter(c => c.isActive);
+        if (activeCompanies.length > 1) {
+            const keepActiveId = activeCompanies[0]._id;
+            await CompanyInfo.updateMany(
+                { user: req.user.id, _id: { $ne: keepActiveId } },
+                { $set: { isActive: false } }
+            );
+            // Reload the list
+            companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        }
         
         if (companies && companies.length > 0) {
             // Background migration: assign any null companyId data to the oldest company
@@ -237,6 +249,14 @@ router.post('/', requireJwtAuth, async (req, res) => {
  */
 router.put('/:id', requireJwtAuth, async (req, res) => {
     try {
+        // Enforce single active company on update
+        if (req.body.isActive === true) {
+            await CompanyInfo.updateMany(
+                { user: req.user.id, _id: { $ne: req.params.id } },
+                { $set: { isActive: false } }
+            );
+        }
+
         // Enforce user ownership
         const info = await CompanyInfo.findOneAndUpdate(
             { _id: req.params.id, user: req.user.id },
@@ -270,6 +290,13 @@ router.put('/', requireJwtAuth, async (req, res) => {
             // Forward to POST if none exists
             req.url = '/';
             return router.handle(req, res);
+        }
+
+        if (req.body.isActive === true) {
+            await CompanyInfo.updateMany(
+                { user: req.user.id, _id: { $ne: active._id } },
+                { $set: { isActive: false } }
+            );
         }
 
         const info = await CompanyInfo.findOneAndUpdate(
