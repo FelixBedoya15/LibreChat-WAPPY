@@ -3005,7 +3005,6 @@ export default function ComunidadPage() {
 
             </div>
 
-<<<<<<< HEAD
             {/* Mauricio Posada Embedded Slideshow Presentation */}
             {funnelKey === 'comunidadmp' && (
               <div className="w-full max-w-4xl mx-auto mt-6 mb-12 text-left relative z-10">
@@ -3026,82 +3025,6 @@ export default function ComunidadPage() {
                     className="w-full h-full border-0 select-none"
                     allowFullScreen
                   />
-=======
-            {/* Mauricio Posada visual comparison widget (Antes vs Después con IA) */}
-            {funnelKey === 'comunidadmp' && (
-              <div className="w-full max-w-4xl mx-auto mt-6 mb-12 text-left relative z-10">
-                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
-                  <span className="comunidadmp-kicker font-mono">COMPARATIVA DE TRANSFORMACIÓN</span>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-space-grotesk">
-                    La Revolución de la IA en la Gestión <span className="gr bg-gradient-to-r from-[#14D4D4] via-[#34D399] to-[#06B6D4] bg-clip-text text-transparent">SST</span>
-                  </h2>
-                  <p className="text-xs sm:text-sm text-text-secondary">
-                    Compara visualmente los procesos manuales y los riesgos tradicionales con la automatización inteligente.
-                  </p>
-                </div>
-
-                <div className="flex gap-2 mb-6">
-                  <button
-                    onClick={() => setAbSelectedComparison('work')}
-                    className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 ${
-                      abSelectedComparison === 'work'
-                        ? 'border-[#14D4D4] bg-[#0EA5A5]/20 text-[#14D4D4] shadow-sm shadow-[#14D4D4]/10'
-                        : 'border-border-medium/60 bg-surface-primary/30 text-text-secondary hover:text-white'
-                    }`}
-                  >
-                    1. Transformación del Trabajo
-                  </button>
-                  <button
-                    onClick={() => setAbSelectedComparison('safety')}
-                    className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 ${
-                      abSelectedComparison === 'safety'
-                        ? 'border-[#14D4D4] bg-[#0EA5A5]/20 text-[#14D4D4] shadow-sm shadow-[#14D4D4]/10'
-                        : 'border-border-medium/60 bg-surface-primary/30 text-text-secondary hover:text-white'
-                    }`}
-                  >
-                    2. Prevención de Accidentes
-                  </button>
-                </div>
-
-                <div className="comunidadmp-card w-full overflow-hidden p-0 sm:p-2 border-2 border-slate-900 bg-black/50 shadow-2xl relative">
-                  <span className="bracket-mp tl"></span>
-                  <span className="bracket-mp tr"></span>
-                  <span className="bracket-mp bl"></span>
-                  <span className="bracket-mp br"></span>
-
-                  <div className="w-full relative rounded-2xl overflow-hidden aspect-video">
-                    {abSelectedComparison === 'work' ? (
-                      <img 
-                        src="/assets/comparativa-trabajo.jpg" 
-                        alt="Comparativa del Trabajo con IA" 
-                        className="w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <img 
-                        src="/assets/comparativa-accidente.jpg" 
-                        alt="Comparativa de Accidentes" 
-                        className="w-full h-full object-cover" 
-                      />
-                    )}
-                    
-                    {/* Floating responsive labels over image comparison */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                      <div className="flex gap-2">
-                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded bg-red-500/20 border border-red-500/40 text-red-400">
-                          Antes (Tradicional)
-                        </span>
-                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
-                          Después (Con WAPPY)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-medium font-sans">
-                        {abSelectedComparison === 'work' 
-                          ? 'De oficina caótica y manuales físicos a entorno digital asistido por IA'
-                          : 'De caídas por riesgos descontrolados a prevención activa y áreas seguras'}
-                      </span>
-                    </div>
-                  </div>
->>>>>>> 8f5f019942771617aede6a43d6f7d284e4646ce9
                 </div>
               </div>
             )}
