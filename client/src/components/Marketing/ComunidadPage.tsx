@@ -2871,6 +2871,30 @@ export default function ComunidadPage() {
 
             </div>
 
+            {/* Mauricio Posada Embedded Slideshow Presentation */}
+            {funnelKey === 'comunidadmp' && (
+              <div className="w-full max-w-4xl mx-auto mt-6 mb-12 text-left relative z-10">
+                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
+                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST</span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary outfit">
+                    Diapositivas Interactivas de la Capacitación
+                  </h2>
+                  <p className="text-xs sm:text-sm text-text-secondary">
+                    Desliza o usa los controles inferiores para navegar por la presentación oficial de Mauricio Posada.
+                  </p>
+                </div>
+
+                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-8 group transition-all duration-500 hover:border-emerald-500/35 z-10">
+                  <iframe 
+                    src="/assets/gira-ia-sst.html" 
+                    title="Presentación Interactiva Mauricio Posada" 
+                    className="w-full h-full border-0 select-none"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            )}
+
             {funnelKey === 'wappyvital' && !isUnlocked && (
               <div className="w-full max-w-3xl mx-auto mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse">
                 <span>🎁 ¡Ve la capacitación completa! Al finalizar el video obtendrás un regalo extra sorpresa.</span>
