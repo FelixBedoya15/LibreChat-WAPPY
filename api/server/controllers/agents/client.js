@@ -232,11 +232,7 @@ class AgentClient extends BaseClient {
 
     const lastUserMessage = orderedMessages[orderedMessages.length - 1];
     const lastUserText = lastUserMessage ? lastUserMessage.text : '';
-<<<<<<< HEAD
     const skillInstructions = getActiveSkillInstructions(lastUserText, this.options.agent?.skills);
-=======
-    const skillInstructions = getActiveSkillInstructions(lastUserText);
->>>>>>> 8f5f019942771617aede6a43d6f7d284e4646ce9
 
     let payload;
     /** @type {number | undefined} */
