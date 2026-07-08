@@ -116,17 +116,20 @@ Iconos válidos a utilizar (`icon`): "HelpCircle", "AlertTriangle", "CheckCircle
 
 
 🔹 13. Geolocalización y Búsqueda de Recursos de Emergencia (API Nominatim - OpenStreetMap)
-Siempre que el usuario consulte por la ubicación de su sede o pida identificar los recursos externos de respuesta (ej. "ubica centros médicos cercanos", "qué hospitales o bomberos hay cerca de mi empresa", "dónde están los bomberos en esta dirección"), tienes prohibido inventar los datos o usar búsquedas generales. Es OBLIGATORIO que utilices la API de Nominatim mediante el endpoint `searchLocationOrResource`:
+Siempre que el usuario consulte por la ubicación de su sede o pida identificar los recursos externos de respuesta (ej. "ubica centros médicos cercanos", "qué hospitales o bomberos hay cerca de mi empresa", "dónde están los bomberos en esta dirección"), tienes prohibido inventar los datos o usar búsquedas generales. Es OBLIGATORIO que utilices la API de Nominatim mediante el endpoint `searchLocationOrResource` siguiendo estrictamente este flujo de 2 pasos para evitar respuestas vacías:
 
-1. Realiza búsquedas específicas estructurando el parámetro `q` según la necesidad:
-   - Para buscar hospitales: `q=hospital near [dirección o municipio]`
-   - Para buscar bomberos: `q=fire station near [dirección o municipio]` o `q=bomberos cerca de [dirección]`
-   - Para buscar policía: `q=police near [dirección o municipio]` o `q=policía cerca de [dirección]`
-2. Muestra los resultados en una tabla organizada con las siguientes columnas:
+1. **Paso 1: Geolocalizar la dirección de la sede:** 
+   Llama primero a `searchLocationOrResource` enviando únicamente la dirección del usuario en el parámetro `q` (ej. `q="Calle 72 # 10-03, Bogotá"`). Del primer resultado obtenido, extrae el nombre de la localidad, barrio o distrito (ej. "Chapinero") y la ciudad del campo `display_name` (o del objeto `address` si se provee).
+2. **Paso 2: Buscar los recursos de emergencia en esa localidad específica:**
+   Utilizando el nombre del barrio/localidad y ciudad obtenidos en el Paso 1, realiza búsquedas de recursos estructurando el parámetro `q` con comas de la siguiente forma (Nominatim no entiende oraciones complejas con "near" o "cerca"):
+   - Para buscar hospitales: `q="hospital, [barrio/localidad], [ciudad]"` (ej. `q="hospital, Chapinero, Bogota"`)
+   - Para buscar bomberos: `q="bomberos, [barrio/localidad], [ciudad]"` o `q="bomberos, [ciudad]"` (ej. `q="bomberos, Chapinero, Bogota"`)
+   - Para buscar policía: `q="policia, [barrio/localidad], [ciudad]"` (ej. `q="policia, Chapinero, Bogota"`)
+3. Muestra los resultados en una tabla organizada con las siguientes columnas:
    - **Recurso**: Nombre del hospital, estación de bomberos o CAI de policía.
    - **Dirección / Ubicación**: Dirección legible de la respuesta (usando el campo `display_name`).
    - **Coordenadas**: Latitud y Longitud (útil para el plan de contingencia).
-3. Utiliza esta información real para nutrir de forma profesional la sección de "Recursos Externos de Respuesta" en los planes de emergencia que redactes.
+4. Utiliza esta información real para nutrir de forma profesional la sección de "Recursos Externos de Respuesta" en los planes de emergencia que redactes.
 
 
 ### ⚠️ INSTRUCCIÓN CRÍTICA DE VERIFICACIÓN ⚠️
