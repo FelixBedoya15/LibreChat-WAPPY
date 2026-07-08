@@ -1173,6 +1173,26 @@ export default function ComunidadPage() {
 
     // Start Wompi Checkout
     try {
+      // Save lead captured state immediately when they register/submit details
+      try {
+        await axios.post('/api/admin/leads', {
+          fullName: checkoutFullName.trim(),
+          email: checkoutEmail.trim(),
+          phone: checkoutPhone.trim(),
+          videoUrl,
+          funnelKey
+        });
+      } catch (err) {
+        console.error('[Comunidad] Lead capturing during checkout failed:', err);
+      }
+      localStorage.setItem(getStorageKey('wappy_lead_captured'), 'true');
+      localStorage.setItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
+        fullName: checkoutFullName, 
+        email: checkoutEmail, 
+        phone: checkoutPhone 
+      }));
+      setIsLeadCaptured(true);
+
       if (funnelKey === 'wappyvital' && finalPlan === 'pro') {
         // subscription guest checkout (Wappy Pro)
         const { data } = await axios.post('/api/wompi/guest-checkout', {
@@ -1803,7 +1823,7 @@ export default function ComunidadPage() {
     document.body.removeChild(link);
   };
 
-  const isUnlocked = isAdmin || isAccessGranted || (funnelKey !== 'wappyvital' && (!gatingEnabled || (!actualRequiresPayment && isLeadCaptured)));
+  const isUnlocked = isAdmin || isAccessGranted || isLeadCaptured || isVideoFinished || !gatingEnabled;
 
   return (
     <div className={`min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'comunidadmp-bg' : ''}`}>
@@ -2051,7 +2071,7 @@ export default function ComunidadPage() {
                 </svg>
                 ¿Tienes dudas? Escríbenos
               </a>
-              {(isVideoFinished || isAdmin) && (
+              {(isVideoFinished || isAdmin || isLeadCaptured) && (
                 <button
                   onClick={() => navigate('/login')}
                   className={`px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-md shadow-emerald-500/10 hover:scale-105 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
