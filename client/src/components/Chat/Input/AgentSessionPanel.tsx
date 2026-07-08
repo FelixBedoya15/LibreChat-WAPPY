@@ -5,7 +5,7 @@ import {
     Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
     FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail, FileSpreadsheet, Presentation,
     HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
-    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork
+    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin
 } from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
@@ -94,6 +94,9 @@ const getToolIcon = (toolId: string) => {
     }
     if (lowerId.includes('getghsclassification')) {
         return <FlaskConical className="h-4 w-4 text-lime-500" />;
+    }
+    if (lowerId.includes('searchlocationorresource')) {
+        return <MapPin className="h-4 w-4 text-red-500" />;
     }
     switch (toolId) {
         // --- Core / Wappy Custom Tools ---
@@ -443,6 +446,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                             displayName = 'Buscar ID de Químico';
                                         } else if (lowerId.includes('getghsclassification')) {
                                             displayName = 'Consultar Clasificación SGA';
+                                        } else if (lowerId.includes('searchlocationorresource')) {
+                                            displayName = 'Localizar Recursos de Emergencia';
                                         } else {
                                             displayName = toolId
                                                 .split('_')
