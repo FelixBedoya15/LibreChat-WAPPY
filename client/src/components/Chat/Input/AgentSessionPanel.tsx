@@ -436,10 +436,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 )}
                                 {generalExternalTools.map((toolId) => {
                                     const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
-                                    const displayName = toolTranslations[toolId] ?? toolId
-                                        .split('_')
-                                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                                        .join(' ');
+                                    let displayName = toolTranslations[toolId];
+                                    if (!displayName) {
+                                        const lowerId = toolId.toLowerCase();
+                                        if (lowerId.includes('getchemicalcid')) {
+                                            displayName = 'Buscar ID de Químico';
+                                        } else if (lowerId.includes('getghsclassification')) {
+                                            displayName = 'Consultar Clasificación SGA';
+                                        } else {
+                                            displayName = toolId
+                                                .split('_')
+                                                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                                                .join(' ');
+                                        }
+                                    }
                                     return (
                                         <Ariakit.MenuItem
                                             key={toolId}
