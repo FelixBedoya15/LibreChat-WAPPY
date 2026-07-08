@@ -173,6 +173,7 @@ export default function AgentPanel() {
         category,
         support_contact,
         is_whatsapp_enabled,
+        skills,
       } = data;
 
       const model = _model ?? '';
@@ -199,6 +200,7 @@ export default function AgentPanel() {
             category,
             support_contact,
             is_whatsapp_enabled,
+            skills,
           },
         });
         return;
@@ -234,6 +236,7 @@ export default function AgentPanel() {
         category,
         support_contact,
         is_whatsapp_enabled,
+        skills,
       });
     },
     [agent_id, create, update, showToast, localize],

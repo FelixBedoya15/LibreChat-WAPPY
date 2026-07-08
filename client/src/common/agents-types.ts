@@ -43,4 +43,5 @@ export type AgentForm = {
   category: string;
   order?: number;
   is_whatsapp_enabled?: boolean;
+  skills?: string[];
 } & TAgentCapabilities;

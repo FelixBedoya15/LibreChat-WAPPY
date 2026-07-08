@@ -55,6 +55,48 @@ router.post('/reorder', checkAgentAccess, v1.reorderAgents);
  * @route GET /agents/categories
  */
 router.get('/categories', v1.getAgentCategories);
+
+/**
+ * Get all available agent skills.
+ * @route GET /agents/skills
+ */
+router.get('/skills', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const yaml = require('js-yaml');
+  const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
+  
+  if (!fs.existsSync(SKILLS_DIR)) {
+    return res.json([]);
+  }
+  
+  try {
+    const files = fs.readdirSync(SKILLS_DIR);
+    const skills = [];
+    for (const file of files) {
+      if (file.endsWith('.md')) {
+        const content = fs.readFileSync(path.join(SKILLS_DIR, file), 'utf8');
+        const match = content.match(/^---([\s\S]*?)---([\s\S]*)$/);
+        if (match) {
+          try {
+            const frontmatter = yaml.load(match[1]);
+            skills.push({
+              id: frontmatter.name || file.replace('.md', ''),
+              name: frontmatter.name || file.replace('.md', ''),
+              description: frontmatter.description || '',
+              triggers: frontmatter.triggers || [],
+            });
+          } catch (e) {
+            // ignore error
+          }
+        }
+      }
+    }
+    res.json(skills);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 /**
  * Creates an agent.
  * @route POST /agents

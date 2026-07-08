@@ -83,6 +83,8 @@ export default function AgentSelect({
         support_contact: fullAgent.support_contact,
         // Load WhatsApp routing flag
         is_whatsapp_enabled: (fullAgent as any).is_whatsapp_enabled ?? false,
+        // Load skills
+        skills: (fullAgent as any).skills ?? [],
       };
 
       Object.entries(fullAgent).forEach(([name, value]) => {

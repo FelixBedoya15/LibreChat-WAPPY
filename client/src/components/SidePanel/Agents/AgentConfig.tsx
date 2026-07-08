@@ -31,6 +31,8 @@ import AgentTool from './AgentTool';
 import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
 import AgentWhatsAppToggle from './AgentWhatsAppToggle';
+import AgentSkill from './AgentSkill';
+import SkillSelectDialog from './SkillSelectDialog';
 
 const labelClass = 'mb-2 text-token-text-primary block font-medium';
 const inputClass = cn(
@@ -46,6 +48,7 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
   const methods = useFormContext<AgentForm>();
   const [showToolDialog, setShowToolDialog] = useState(false);
   const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
+  const [showSkillDialog, setShowSkillDialog] = useState(false);
   const {
     actions,
     setAction,
@@ -66,6 +69,7 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
   const agent = useWatch({ control, name: 'agent' });
   const tools = useWatch({ control, name: 'tools' });
   const agent_id = useWatch({ control, name: 'id' });
+  const skills = useWatch({ control, name: 'skills' }) || [];
 
   const { data: agentFiles = [] } = useGetAgentFiles(agent_id);
 
@@ -387,6 +391,37 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
             </div>
           </div>
         </div>
+        {/* Agent Skills */}
+        <div className="mb-4">
+          <label className={labelClass}>
+            Skills de consultoría
+          </label>
+          <div>
+            {skills.length > 0 && (
+              <div className="mb-2 border border-border-light rounded-lg p-1.5 bg-surface-secondary">
+                {skills.map((skillId, i) => (
+                  <AgentSkill
+                    key={`${skillId}-${i}-${agent_id}`}
+                    skillId={skillId}
+                    skillName={skillId}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="mt-2 flex">
+              <button
+                type="button"
+                onClick={() => setShowSkillDialog(true)}
+                className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium shadow-sm transition-all duration-200"
+                aria-haspopup="dialog"
+              >
+                <div className="flex w-full items-center justify-center gap-2">
+                  Añadir Skills
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
         {/* Support Contact (Optional) */}
         <div className="mb-4">
           <div className="mb-1.5 flex items-center gap-2">
@@ -490,6 +525,10 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
         isOpen={showToolDialog}
         setIsOpen={setShowToolDialog}
         endpoint={EModelEndpoint.agents}
+      />
+      <SkillSelectDialog
+        isOpen={showSkillDialog}
+        setIsOpen={setShowSkillDialog}
       />
       {
         startupConfig?.mcpServers != null && (
