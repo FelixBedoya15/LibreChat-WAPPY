@@ -118,7 +118,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   } else if (fileBasename === 'experto_en_riesgo_vial') {
     tools.push('matriz_pesv', 'canvas', 'context');
   } else if (fileBasename === 'experto_en_riesgo_quimico') {
-    tools.push('matriz_compatibilidad', 'canvas');
+    tools.push('canvas');
   }
 
   const timestamp = new Date();
@@ -335,15 +335,18 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error adding road safety tools to agent:', err);
     }
 
-    // Ensure the Chemical Risk agent has the matriz_compatibilidad and canvas tools
+    // Ensure the Chemical Risk agent has canvas and pull out matriz_compatibilidad (to avoid autostart)
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Químico' },
-        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+        { 
+          $addToSet: { tools: 'canvas' },
+          $pull: { tools: 'matriz_compatibilidad' }
+        }
       );
-      logger.info('[SyncAgents] Added matriz_compatibilidad and canvas tools to Especialista en Riesgo Químico');
+      logger.info('[SyncAgents] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Especialista en Riesgo Químico');
     } catch (err) {
-      logger.error('[SyncAgents] Error adding chemical compatibility tools to agent:', err);
+      logger.error('[SyncAgents] Error updating tools for Especialista en Riesgo Químico:', err);
     }
 
     return res.json({
@@ -497,15 +500,18 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.error('[CleanupSync] Error adding road safety tools to agent:', err);
     }
 
-    // Ensure the Chemical Risk agent has the matriz_compatibilidad and canvas tools
+    // Ensure the Chemical Risk agent has canvas and pull out matriz_compatibilidad (to avoid autostart)
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Químico' },
-        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+        { 
+          $addToSet: { tools: 'canvas' },
+          $pull: { tools: 'matriz_compatibilidad' }
+        }
       );
-      logger.info('[CleanupSync] Added matriz_compatibilidad and canvas tools to Especialista en Riesgo Químico');
+      logger.info('[CleanupSync] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Especialista en Riesgo Químico');
     } catch (err) {
-      logger.error('[CleanupSync] Error adding chemical compatibility tools to agent:', err);
+      logger.error('[CleanupSync] Error updating tools for Especialista en Riesgo Químico:', err);
     }
 
     return res.json({

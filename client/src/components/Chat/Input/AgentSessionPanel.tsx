@@ -88,6 +88,13 @@ function ToolRow({
 
 /* ─── Tool Icon Resolver ──────────────────────────────────────────────── */
 const getToolIcon = (toolId: string) => {
+    const lowerId = toolId.toLowerCase();
+    if (lowerId.includes('getchemicalcid')) {
+        return <Search className="h-4 w-4 text-sky-500" />;
+    }
+    if (lowerId.includes('getghsclassification')) {
+        return <FlaskConical className="h-4 w-4 text-lime-500" />;
+    }
     switch (toolId) {
         // --- Core / Wappy Custom Tools ---
         case 'context':
