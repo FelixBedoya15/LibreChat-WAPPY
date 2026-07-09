@@ -34,10 +34,10 @@ Al final del curso tienes, en tus manos, no en una diapositiva:
 
 ## VERSIÓN 2 — Presentación del precio (valor por hora, no el total)
 
-> La clave: nunca mostrar "$1.700.000" como número aislado. Siempre anclarlo contra algo — hora de clase, hora de freelancer, o costo de la alternativa (contratar un dev).
+> La clave: nunca mostrar "$1.670.000" como número aislado. Siempre anclarlo contra algo — hora de clase, hora de freelancer, o costo de la alternativa (contratar un dev).
 
 ### Opción A — Anclaje por hora de clase
-> **Menos de $76.000 por cada hora de clase en vivo, con acompañamiento directo mío, construyendo tu propia app real.**
+> **Menos de $74.000 por cada hora de clase en vivo, con acompañamiento directo mío, construyendo tu propia app real.**
 > (Una hora de consultoría freelance con un desarrollador cuesta entre $80.000 y $150.000 — y ahí solo te resuelven UNA duda puntual, no te dejan una app completa funcionando.)
 
 ### Opción B — Anclaje contra el costo de NO hacerlo
@@ -45,7 +45,7 @@ Al final del curso tienes, en tus manos, no en una diapositiva:
 > Este curso te cuesta una fracción de eso, en el mismo tiempo, y al final **tú** sabes moverte solo: agregar funciones, corregir errores, escalar cuando tu negocio crezca.
 
 ### Opción C — Fraccionado (recomendado para bajar la fricción de decisión)
-> **3 cuotas de $566.667** *(o el número de cuotas que definas)*
+> **3 cuotas de $556.667** *(o el número de cuotas que definas)*
 > Menos de lo que cuesta una campaña de publicidad de un mes, y te queda un activo — no un anuncio que desaparece.
 
 ---
@@ -59,7 +59,7 @@ Al final del curso tienes, en tus manos, no en una diapositiva:
 >
 > No es un curso de programación. Es un curso para que salgas con TU app funcionando — dominio propio, servidor propio, IA integrada.
 >
-> Por menos de $76.000 la hora de clase (menos que una consulta freelance), te llevas algo que otros pagan millones por encargarlo.
+> Por menos de $74.000 la hora de clase (menos que una consulta freelance), te llevas algo que otros pagan millones por encargarlo.
 >
 > Cupos limitados — grupo pequeño para dar acompañamiento real en el deploy de cada quien.
 > [link/CTA]
@@ -68,6 +68,6 @@ Al final del curso tienes, en tus manos, no en una diapositiva:
 
 ## Notas sobre esta estrategia de precio
 
-- **Por qué funciona el anclaje por hora:** un número grande como "$1.700.000" activa fricción mental inmediata ("es mucha plata"). Un número pequeño repetido ("$76.000 la hora") se siente accesible, aunque sea matemáticamente el mismo total — es psicología de precios estándar (igual que Netflix nunca dice "$204.000 al año", dice "$17.000 al mes").
+- **Por qué funciona el anclaje por hora:** un número grande como "$1.670.000" activa fricción mental inmediata ("es mucha plata"). Un número pequeño repetido ("$74.000 la hora") se siente accesible, aunque sea matemáticamente el mismo total — es psicología de precios estándar (igual que Netflix nunca dice "$204.000 al año", dice "$17.000 al mes").
 - **Cuidado con la honestidad del anclaje:** compara contra algo real y verificable (cotiza 2-3 freelancers o agencias antes de publicar el número de "$3M-$8M por un MVP", para que si alguien te pregunta puedas respaldarlo con casos reales, no una cifra inventada).
 - **El dato de $17M/mes de WAPPY es tu activo más fuerte** — más que cualquier técnica de precio. Si puedes, complementa con una captura del dashboard de suscriptores (difuminando datos sensibles) — la gente cree más lo que ve que lo que lee.

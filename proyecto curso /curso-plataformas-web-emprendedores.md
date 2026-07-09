@@ -96,12 +96,12 @@ Esto mantiene el acompañamiento personalizado donde más se necesita (cuando ca
 
 ## 5. Precio y forma de pago
 
-**Precio del curso: COP 1.700.000 por estudiante**, en **2 cuotas de $850.000**:
+**Precio del curso: COP 1.670.000 por estudiante**, en **2 cuotas de $835.000**:
 
 | Cuota | Monto | Momento del pago |
 |---|---|---|
-| 1ra cuota | $850.000 | Al inscribirse (asegura el cupo) |
-| 2da cuota | $850.000 | **Antes de la Clase 5** (~2 semanas después de iniciado el curso, justo antes de empezar la construcción de la app con Antigravity) |
+| 1ra cuota | $835.000 | Al inscribirse (asegura el cupo) |
+| 2da cuota | $835.000 | **Antes de la Clase 5** (~2 semanas después de iniciado el curso, justo antes de empezar la construcción de la app con Antigravity) |
 
 **Por qué ese momento para la 2da cuota:**
 - Para la Clase 4, el estudiante ya tiene su dominio comprado, su VPS funcionando, y Docker/Dokploy corriendo — ya vio resultados tangibles antes de pagar el resto.

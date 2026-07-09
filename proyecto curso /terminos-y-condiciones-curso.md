@@ -91,8 +91,8 @@ Estos proyectos son bienvenidos y se pueden desarrollar durante el curso, **pero
 
 ## 6. Pagos y cancelaciones
 
-- El valor del curso es de **COP 1.700.000**, cubierto exclusivamente la enseñanza y acompañamiento en clase; no incluye infraestructura (VPS/dominio) ni créditos de API.
-- **Forma de pago: 2 cuotas de $850.000 cada una.**
+- El valor del curso es de **COP 1.670.000**, cubierto exclusivamente la enseñanza y acompañamiento en clase; no incluye infraestructura (VPS/dominio) ni créditos de API.
+- **Forma de pago: 2 cuotas de $835.000 cada una.**
   - 1ra cuota: al momento de la inscripción, para asegurar el cupo.
   - 2da cuota: antes de la Clase 5, momento en el que inicia la fase de construcción práctica de la app. **El acceso a las Clases 5-9 queda condicionado al pago completo de la 2da cuota.**
 - El curso se dicta en cohortes de **16 estudiantes**, con las Clases 1-4 en grupo completo y las Clases 5-9 divididas en 2 subgrupos de 8 estudiantes cada uno, para garantizar acompañamiento personalizado en la fase de despliegue.
