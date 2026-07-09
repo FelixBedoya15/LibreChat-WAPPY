@@ -620,6 +620,10 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../contratoembajadores.html'));
   });
 
+  app.get(['/cursoappweb', '/cursoappweb.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../proyecto curso /cursoappweb/index.html'));
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;
