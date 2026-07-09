@@ -90,6 +90,7 @@ COPY client/public ./client/public
 COPY librechat.yaml ./librechat.yaml
 COPY convocatoria_embajadores.html ./convocatoria_embajadores.html
 COPY contratoembajadores.html ./contratoembajadores.html
+COPY cursoappweb.html ./cursoappweb.html
 # Agentes Wappy: plantillas de instrucciones para los agentes de IA
 COPY Agentes ./Agentes
 WORKDIR /app/api
