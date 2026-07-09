@@ -1484,9 +1484,11 @@ h3{font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--ink)}
             <span class="mockup-dot" style="background:#10B981"></span>
             <span class="mockup-title">Asistente SST especializado</span>
           </div>
-          <div class="mockup-body">
+          <div class="mockup-body" style="min-height:260px">
             <div class="chat-msg user">Genérame la matriz de peligros de la empresa.</div>
-            <div class="chat-msg ai">Ya conozco el contexto de la empresa (procesos, cargos, sedes). Empiezo a construir la matriz según GTC 45…</div>
+            <div class="chat-msg ai">Ya conozco el contexto de la empresa (procesos: excavación, encofrado, estructura; cargos: director de obra, residente, oficial, ayudante; sedes: Bogotá). Empiezo a construir la matriz según GTC 45…</div>
+            <div class="chat-msg ai"><strong>Peligro 1:</strong> Caída de altura (trabajo en andamios) — Nivel de riesgo: <strong>Alto</strong>. Control: arnés + línea de vida + permiso de trabajo en alturas.</div>
+            <div class="chat-msg ai"><strong>Peligro 2:</strong> Atrapamiento (maquinaria pesada) — Nivel: <strong>Medio</strong>. Control: señalización + bloqueo/etiquetado.</div>
           </div>
         </div>
         <p class="cmp-foot cmp-foot-loop">Prompt corto: <strong>ya tiene el contexto</strong> de la empresa. Ideal para tareas recurrentes.</p>
@@ -1501,9 +1503,11 @@ h3{font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--ink)}
             <span class="mockup-dot" style="background:#10B981"></span>
             <span class="mockup-title">Claude · propósito general</span>
           </div>
-          <div class="mockup-body">
-            <div class="chat-msg user">Eres profesional SST. La empresa es una obra con estos procesos, cargos y sedes […]. Genérame la matriz según GTC 45.</div>
-            <div class="chat-msg ai">Con el contexto que me diste, construyo la matriz…</div>
+          <div class="mockup-body" style="min-height:260px">
+            <div class="chat-msg user">Eres profesional SST. La empresa es una obra de construcción con procesos de excavación, encofrado y estructura. Cargos: director, residente, oficial, ayudante. Sede: Bogotá. Genérame la matriz de peligros según GTC 45.</div>
+            <div class="chat-msg ai">Con el contexto que me diste, construyo la matriz para obra de construcción en Bogotá…</div>
+            <div class="chat-msg ai"><strong>Peligro 1:</strong> Caída de altura — Fuente: andamios y bordes de losa — Efecto: fractura/muerte — Riesgo: <strong>Alto</strong>.</div>
+            <div class="chat-msg ai"><strong>Peligro 2:</strong> Golpe por objetos en movimiento (maquinaria) — Riesgo: <strong>Medio</strong>. Control sugerido: zona de exclusión + casco obligatorio.</div>
           </div>
         </div>
         <p class="cmp-foot">Prompt más extenso: <strong>hay que darle el contexto</strong>. A cambio, sirve para cualquier empresa o tarea.</p>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contrato Embajadores — WAPPY LTDA</title>
+  <meta name="description" content="Firma electrónica del Contrato de Corretaje Comercial y Promoción de Servicios entre WAPPY LTDA y el Embajador Oficial."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>
+:root{--primary:#22c55e;--primary-dark:#16a34a;--primary-glow:rgba(34,197,94,.25);--bg:#050e0a;--bg2:#091810;--surface:rgba(255,255,255,.04);--border:rgba(34,197,94,.18);--border-bright:rgba(34,197,94,.45);--text:#f0fdf4;--text-muted:rgba(240,253,244,.55);--danger:#f87171;--warning:#fbbf24;--radius:12px;--radius-sm:8px;--shadow:0 4px 32px rgba(0,0,0,.5)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:clip}
+.page-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+.page-header img{width:40px;height:40px;object-fit:contain}
+.brand{font-size:1.2rem;font-weight:800;letter-spacing:-.02em}
+.brand span{color:var(--primary)}
+.hdrbadge{margin-left:auto;background:var(--primary-glow);border:1px solid var(--border-bright);color:var(--primary);padding:.25rem .75rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.container{max-width:920px;margin:0 auto;padding:2.5rem 1.5rem 4rem;position:relative;z-index:1}
+.page-title{text-align:center;margin-bottom:2.5rem}
+.page-title h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;letter-spacing:-.03em}
+.page-title h1 span{color:var(--primary)}
+.page-title p{color:var(--text-muted);margin-top:.5rem;font-size:.95rem}
+.steps{display:flex;align-items:center;justify-content:center;margin-bottom:2.5rem;flex-wrap:wrap;row-gap:.5rem}
+.step-item{display:flex;align-items:center;gap:.5rem}
+.step-circle{width:36px;height:36px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--text-muted);transition:all .3s;background:var(--surface);flex-shrink:0}
+.step-item.active .step-circle{border-color:var(--primary);background:var(--primary-glow);color:var(--primary);box-shadow:0 0 16px var(--primary-glow)}
+.step-item.done .step-circle{border-color:var(--primary);background:var(--primary);color:#000}
+.step-label{font-size:.72rem;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.step-item.active .step-label{color:var(--primary)}
+.step-line{width:40px;height:2px;background:var(--border);flex-shrink:0;margin:0 4px}
+.step-line.done{background:var(--primary)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;margin-bottom:1.5rem;box-shadow:var(--shadow)}
+.card-title{font-size:1.05rem;font-weight:700;margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem}
+.cticon{width:32px;height:32px;background:var(--primary-glow);border:1px solid var(--border-bright);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+.form-group{display:flex;flex-direction:column;gap:.4rem}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:.78rem;font-weight:600;color:var(--text-muted);letter-spacing:.03em;text-transform:uppercase}
+.req{color:var(--primary);margin-left:2px}
+.form-control{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.65rem .85rem;color:var(--text);font-size:.92rem;font-family:inherit;transition:border-color .2s,box-shadow .2s;width:100%}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.form-control.error{border-color:var(--danger)}
+.form-control::placeholder{color:rgba(255,255,255,.25)}
+select.form-control option{background:#0d1f12;color:var(--text)}
+.field-error{font-size:.72rem;color:var(--danger);display:none}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:all .25s;position:relative;background:rgba(0,0,0,.2)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--primary);background:var(--primary-glow)}
+.drop-zone.uploaded{border-color:var(--primary);background:rgba(34,197,94,.08)}
+.drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2rem;margin-bottom:.5rem;display:block}
+.drop-label{font-size:.88rem;font-weight:600;margin-bottom:.25rem}
+.drop-sublabel{font-size:.72rem;color:var(--text-muted)}
+.file-preview{display:none;align-items:center;gap:.5rem;margin-top:.75rem;background:rgba(34,197,94,.12);border:1px solid var(--border-bright);border-radius:var(--radius-sm);padding:.5rem .75rem;font-size:.8rem;color:var(--primary)}
+.drop-zone.uploaded .file-preview{display:flex}
+.badge-req{font-size:.65rem;background:rgba(251,191,36,.15);color:var(--warning);border:1px solid rgba(251,191,36,.3);border-radius:4px;padding:1px 6px;font-weight:600;margin-left:.4rem}
+.contract-viewer{background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:var(--radius);height:480px;overflow-y:auto;padding:2rem;font-size:.88rem;line-height:1.75;color:rgba(240,253,244,.85);scroll-behavior:smooth}
+.contract-viewer::-webkit-scrollbar{width:6px}
+.contract-viewer::-webkit-scrollbar-track{background:transparent}
+.contract-viewer::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:3px}
+.contract-viewer h1{font-size:1.1rem;font-weight:800;text-align:center;margin-bottom:.25rem;color:var(--text)}
+.contract-viewer h2{font-size:.95rem;font-weight:700;margin:1.25rem 0 .4rem;color:var(--primary)}
+.contract-viewer h3{font-size:.88rem;font-weight:700;margin:.8rem 0 .25rem;color:var(--text)}
+.contract-viewer p,.contract-viewer li{margin-bottom:.5rem}
+.contract-viewer strong{color:var(--text)}
+.contract-viewer hr{border:none;border-top:1px solid var(--border);margin:.75rem 0}
+.contract-viewer li{margin-left:1.25rem}
+.scroll-progress-bar{height:3px;background:var(--primary);width:0%;transition:width .15s;border-radius:2px;margin-bottom:.5rem}
+.scroll-lock-msg{display:flex;align-items:center;gap:.5rem;padding:.6rem .85rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius-sm);font-size:.8rem;color:var(--warning);margin-top:.75rem}
+.scroll-lock-msg.hidden{display:none}
+.signature-wrapper{position:relative}
+.sig-canvas-box{border:2px solid var(--border);border-radius:var(--radius);background:#fff;overflow:hidden;touch-action:none}
+.sig-canvas-box canvas{display:block;width:100%;cursor:crosshair}
+.sig-controls{display:flex;gap:.75rem;margin-top:.75rem;flex-wrap:wrap}
+.sig-hint{font-size:.75rem;color:var(--text-muted);margin-top:.5rem}
+.sig-lock{position:absolute;inset:0;background:rgba(5,14,10,.85);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;font-size:.9rem;color:var(--text-muted);backdrop-filter:blur(4px);z-index:5}
+.sig-lock .licon{font-size:2.5rem}
+.otp-panel{display:none;background:rgba(34,197,94,.06);border:1px solid var(--border-bright);border-radius:var(--radius);padding:1.5rem;margin-top:1rem}
+.otp-panel.visible{display:block}
+.otp-code{font-size:2rem;font-weight:800;letter-spacing:.25em;color:var(--primary);text-align:center;padding:.75rem;background:rgba(0,0,0,.3);border-radius:var(--radius-sm);border:1px dashed var(--border-bright);margin-bottom:1rem;font-family:'Courier New',monospace}
+.otp-row{display:flex;gap:.75rem;align-items:center}
+.otp-row .form-control{font-size:1.1rem;letter-spacing:.15em;text-align:center;max-width:160px}
+.btn{padding:.65rem 1.5rem;border-radius:var(--radius-sm);font-size:.88rem;font-weight:700;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem;font-family:inherit}
+.btn-primary{background:var(--primary);color:#000}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
+.btn-primary:disabled{background:rgba(34,197,94,.3);color:rgba(0,0,0,.5);cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;color:var(--primary);border:1px solid var(--border-bright)}
+.btn-outline:hover{background:var(--primary-glow)}
+.btn-danger{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.3)}
+.btn-danger:hover{background:rgba(248,113,113,.25)}
+.btn-lg{padding:.85rem 2rem;font-size:.96rem}
+.actions{display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;flex-wrap:wrap;gap:.75rem}
+.success-screen{display:none;text-align:center;padding:3rem 1rem}
+.success-screen.visible{display:block}
+.success-icon{font-size:4rem;margin-bottom:1rem;animation:popIn .4s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes popIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.success-screen h2{font-size:1.8rem;font-weight:800;margin-bottom:.5rem}
+.success-screen h2 span{color:var(--primary)}
+.cert-box{background:var(--surface);border:1px solid var(--border-bright);border-radius:var(--radius);padding:1.25rem 1.5rem;text-align:left;max-width:500px;margin:0 auto 1.5rem}
+.cert-row{display:flex;gap:.5rem;font-size:.83rem;padding:.3rem 0;border-bottom:1px solid var(--border)}
+.cert-row:last-child{border-bottom:none}
+.cert-key{color:var(--text-muted);min-width:150px;font-weight:500}
+.cert-val{color:var(--text);font-weight:600;word-break:break-all}
+.hero-glow{position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse at center,rgba(34,197,94,.08) 0%,transparent 70%);pointer-events:none;z-index:0}
+.step-panel{display:none}
+.step-panel.active{display:block}
+.rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.88rem}
+.rep-box{background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem}
+.rep-lbl{color:var(--text-muted);font-size:.72rem;font-weight:600;text-transform:uppercase;margin-bottom:.5rem}
+.rep-name{font-weight:700;margin-bottom:.2rem}
+.rep-sub{color:var(--text-muted);font-size:.82rem}
+@media(max-width:640px){.form-grid,.form-grid.cols-3,.upload-grid,.rep-grid{grid-template-columns:1fr}.card{padding:1.25rem}.otp-row{flex-direction:column;align-items:flex-start}}
+  </style>
+</head>
+<body>
+<div class="hero-glow"></div>
+<header class="page-header">
+  <img src="client/public/assets/logo.png" onerror="this.src='Agentes/Miniaturas/Logos%20/logo-bg-removebg-preview.png';this.onerror=null;" alt="WAPPY"/>
+  <div class="brand">WAPPY <span>LTDA</span></div>
+  <div class="hdrbadge">Firma Electrónica</div>
+</header>
+
+<div class="container">
+  <div class="page-title">
+    <h1>Contrato de <span>Embajador Oficial</span></h1>
+    <p>Completa el formulario, lee el contrato y firma electrónicamente para formalizar tu alianza con WAPPY LTDA.</p>
+  </div>
+
+  <div class="steps" id="steps-indicator">
+    <div class="step-item active" data-step="1"><div class="step-circle">1</div><div class="step-label">Datos</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="2"><div class="step-circle">2</div><div class="step-label">Documentos</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="3"><div class="step-circle">3</div><div class="step-label">Contrato</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="4"><div class="step-circle">4</div><div class="step-label">Firma</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="5"><div class="step-circle">5</div><div class="step-label">Listo</div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step-panel active" id="panel-1">
+    <div class="card">
+      <div class="card-title"><div class="cticon">👤</div>Información Personal del Embajador</div>
+      <div class="form-grid">
+        <div class="form-group full"><label>Nombre Completo <span class="req">*</span></label><input type="text" id="f-nombre" class="form-control" placeholder="Carlos Andrés López Martínez"/><span class="field-error" id="err-nombre">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Cédula de Ciudadanía <span class="req">*</span></label><input type="text" id="f-cedula" class="form-control" placeholder="1234567890" inputmode="numeric"/><span class="field-error" id="err-cedula">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Lugar de Expedición C.C. <span class="req">*</span></label><input type="text" id="f-expedicion" class="form-control" placeholder="Medellín, Antioquia"/><span class="field-error" id="err-expedicion">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Correo Electrónico <span class="req">*</span></label><input type="email" id="f-email" class="form-control" placeholder="correo@ejemplo.com"/><span class="field-error" id="err-email">Correo inválido.</span></div>
+        <div class="form-group"><label>Número Celular <span class="req">*</span></label><input type="tel" id="f-celular" class="form-control" placeholder="300 000 0000" inputmode="numeric"/><span class="field-error" id="err-celular">Campo obligatorio.</span></div>
+        <div class="form-group full"><label>Dirección de Residencia <span class="req">*</span></label><input type="text" id="f-direccion" class="form-control" placeholder="Calle 10 # 20-30, Apto 501"/><span class="field-error" id="err-direccion">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Municipio de Domicilio <span class="req">*</span></label><input type="text" id="f-domicilio" class="form-control" placeholder="Medellín, Antioquia"/><span class="field-error" id="err-domicilio">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Territorio Asignado <span class="req">*</span></label><input type="text" id="f-territorio" class="form-control" placeholder="Envigado, Antioquia"/><span class="field-error" id="err-territorio">Campo obligatorio.</span></div>
+        <div class="form-group"><label>Municipios Aledaños <span style="font-weight:400;text-transform:none;">(opcional)</span></label><input type="text" id="f-aledanos" class="form-control" placeholder="Sabaneta, Itagüí"/></div>
+        <div class="form-group"><label>Profesión / Área SST</label><input type="text" id="f-profesion" class="form-control" placeholder="Especialista SST"/></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="cticon">🏦</div>Información Bancaria para Comisiones</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Entidad Bancaria <span class="req">*</span></label>
+          <select id="f-banco" class="form-control">
+            <option value="">Selecciona tu banco…</option>
+            <option>Bancolombia</option><option>Davivienda</option><option>BBVA Colombia</option>
+            <option>Banco de Bogotá</option><option>Banco de Occidente</option><option>Nequi</option>
+            <option>Daviplata</option><option>AV Villas</option><option>Nu Colombia</option>
+            <option>Lulo Bank</option><option>Banco Agrario</option><option>Otro</option>
+          </select><span class="field-error" id="err-banco">Selecciona un banco.</span></div>
+        <div class="form-group"><label>Tipo de Cuenta <span class="req">*</span></label>
+          <select id="f-tipo-cuenta" class="form-control"><option value="">Selecciona…</option><option value="ahorros">Cuenta de Ahorros</option><option value="corriente">Cuenta Corriente</option></select>
+          <span class="field-error" id="err-tipo-cuenta">Campo obligatorio.</span></div>
+        <div class="form-group full"><label>Número de Cuenta <span class="req">*</span></label><input type="text" id="f-cuenta" class="form-control" placeholder="123456789012" inputmode="numeric"/><span class="field-error" id="err-cuenta">Campo obligatorio.</span></div>
+      </div>
+    </div>
+    <div class="actions"><div></div><button class="btn btn-primary btn-lg" onclick="goToStep(2)">Siguiente — Documentos →</button></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-panel" id="panel-2">
+    <div class="card">
+      <div class="card-title"><div class="cticon">📎</div>Documentos Requeridos<span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:auto;">PDF, JPG, PNG — Máx 10 MB</span></div>
+      <div class="upload-grid">
+        <div>
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Cédula de Ciudadanía <span class="badge-req">OBLIGATORIO</span></div>
+          <div class="drop-zone" id="dz-cedula" onclick="document.getElementById('file-cedula').click()">
+            <input type="file" id="file-cedula" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile('cedula',this)"/>
+            <span class="drop-icon">🪪</span><div class="drop-label">Sube tu cédula</div>
+            <div class="drop-sublabel">Ambas caras en un solo archivo o imagen</div>
+            <div class="file-preview" id="prev-cedula"><span>✅</span><span id="prev-cedula-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">RUT Actualizado <span class="badge-req">OBLIGATORIO</span></div>
+          <div class="drop-zone" id="dz-rut" onclick="document.getElementById('file-rut').click()">
+            <input type="file" id="file-rut" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile('rut',this)"/>
+            <span class="drop-icon">📄</span><div class="drop-label">Sube tu RUT</div>
+            <div class="drop-sublabel">Con actividad de corretaje o servicios de apoyo</div>
+            <div class="file-preview" id="prev-rut"><span>✅</span><span id="prev-rut-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Planilla PILA <span style="font-size:.65rem;color:var(--text-muted);font-weight:400;">(si aplica)</span></div>
+          <div class="drop-zone" id="dz-pila" onclick="document.getElementById('file-pila').click()">
+            <input type="file" id="file-pila" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile('pila',this)"/>
+            <span class="drop-icon">🏥</span><div class="drop-label">Soporte Seguridad Social</div>
+            <div class="drop-sublabel">Requerido si comisiones ≥ 1 SMMLV y trabajo en campo</div>
+            <div class="file-preview" id="prev-pila"><span>✅</span><span id="prev-pila-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Hoja de Vida <span style="font-size:.65rem;color:var(--text-muted);font-weight:400;">(opcional)</span></div>
+          <div class="drop-zone" id="dz-hv" onclick="document.getElementById('file-hv').click()">
+            <input type="file" id="file-hv" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile('hv',this)"/>
+            <span class="drop-icon">📋</span><div class="drop-label">Hoja de vida o carta</div>
+            <div class="drop-sublabel">PDF, DOC o imagen</div>
+            <div class="file-preview" id="prev-hv"><span>✅</span><span id="prev-hv-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
+          </div>
+        </div>
+      </div>
+      <div id="upload-error" style="display:none;margin-top:1rem;color:var(--danger);font-size:.82rem;">⚠️ Debes cargar al menos la cédula y el RUT para continuar.</div>
+    </div>
+    <div class="actions"><button class="btn btn-outline" onclick="goToStep(1)">← Volver</button><button class="btn btn-primary btn-lg" onclick="goToStep(3)">Siguiente — Leer Contrato →</button></div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step-panel" id="panel-3">
+    <div class="card">
+      <div class="card-title"><div class="cticon">📜</div>Contrato de Corretaje Comercial<span id="read-badge" style="margin-left:auto;font-size:.7rem;background:rgba(251,191,36,.12);color:var(--warning);border:1px solid rgba(251,191,36,.3);border-radius:4px;padding:2px 8px;font-weight:600;">LECTURA PENDIENTE</span></div>
+      <div class="scroll-progress-bar" id="scroll-bar"></div>
+      <div class="contract-viewer" id="contract-body" onscroll="onContractScroll()"></div>
+      <div class="scroll-lock-msg" id="scroll-lock-msg">📖 Desplázate hasta el final del contrato para habilitar la firma electrónica.</div>
+    </div>
+    <div class="actions"><button class="btn btn-outline" onclick="goToStep(2)">← Volver</button><button class="btn btn-primary btn-lg" id="btn-to-sign" onclick="goToStep(4)" disabled>Ir a Firmar →</button></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step-panel" id="panel-4">
+    <!-- 1. Rep Legal -->
+    <div class="card">
+      <div class="card-title"><div class="cticon">🏢</div>Representante Legal — WAPPY LTDA</div>
+      <div class="rep-grid">
+        <div class="rep-box"><div class="rep-lbl">Representante Legal</div><div class="rep-name">Felix Mauricio Bedoya Ocampo</div><div class="rep-sub">C.C. 1.037.589.726 de Envigado, Antioquia</div><div class="rep-sub">NIT: 901437310</div></div>
+        <div class="rep-box"><div class="rep-lbl">Empresa</div><div class="rep-name">WAPPY LTDA</div><div class="rep-sub">Domicilio: Medellín, Antioquia</div><div class="rep-sub">Sociedad Virtual — Colombia</div></div>
+      </div>
+      <div style="margin-top:1rem;padding:.85rem;background:rgba(34,197,94,.06);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.8rem;color:var(--text-muted);">La firma del Representante Legal de WAPPY LTDA ha sido pre-aplicada digitalmente en el sistema. Tu firma a continuación complementa el proceso de vinculación.</div>
+    </div>
+
+    <!-- 2. VERIFICACIÓN POR EMAIL (PRIMERO) -->
+    <div class="card">
+      <div class="card-title"><div class="cticon">📧</div>Verificación de Identidad por Correo</div>
+      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:1rem;">Antes de firmar debes verificar tu identidad. Enviaremos un código de 6 dígitos al correo: <strong id="otp-email-display">—</strong></p>
+      <button class="btn btn-outline" id="btn-send-otp" onclick="sendOTP()">📨 Enviar Código al Correo</button>
+      <div id="otp-sending-msg" style="display:none;margin-top:.75rem;font-size:.82rem;color:var(--text-muted);">⏳ Enviando código a tu correo…</div>
+      <div class="otp-panel" id="otp-panel">
+        <h3 style="margin-bottom:.3rem;">🔐 Ingresa el Código de Verificación</h3>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem;">Revisa tu bandeja de entrada (o spam). Ingresa el código de 6 dígitos que llegó a <strong id="otp-email-display2">—</strong>:</p>
+        <div class="otp-row">
+          <input type="text" id="otp-input" class="form-control" placeholder="Código de 6 dígitos" inputmode="numeric" maxlength="6" autocomplete="one-time-code"/>
+          <button class="btn btn-primary" onclick="verifyOTP()">✓ Verificar</button>
+        </div>
+        <p id="otp-error" style="color:var(--danger);font-size:.8rem;margin-top:.5rem;display:none;">Código incorrecto. Inténtalo de nuevo.</p>
+        <p id="otp-success" style="color:var(--primary);font-size:.8rem;margin-top:.5rem;display:none;">✅ Identidad verificada. ¡Ya puedes firmar!</p>
+        <p style="font-size:.72rem;color:var(--text-muted);margin-top:.75rem;">¿No llegó? <button onclick="sendOTP()" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.72rem;text-decoration:underline;">Reenviar código</button></p>
+      </div>
+    </div>
+
+    <!-- 3. FIRMA (DESPUÉS DE VERIFICACIÓN) -->
+    <div class="card">
+      <div class="card-title"><div class="cticon">✍️</div>Tu Firma Electrónica</div>
+      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:1rem;">Dibuja tu firma en el recuadro. Compatible con celulares, tablets y PC.</p>
+      <div class="signature-wrapper">
+        <div class="sig-lock" id="sig-lock"><span class="licon">🔒</span><span>Primero verifica tu identidad por correo</span></div>
+        <div class="sig-canvas-box"><canvas id="sig-canvas" height="220"></canvas></div>
+      </div>
+      <div class="sig-controls">
+        <button class="btn btn-danger" onclick="clearSig()">🗑 Borrar</button>
+        <button class="btn btn-outline" onclick="previewSig()">👁 Vista previa</button>
+      </div>
+      <p class="sig-hint">💡 En móvil dibuja con el dedo. En PC usa el ratón.</p>
+    </div>
+
+    <!-- 4. ACEPTACIÓN -->
+    <div class="card" style="background:rgba(34,197,94,.04);">
+      <label style="display:flex;gap:.75rem;align-items:flex-start;cursor:pointer;font-size:.88rem;">
+        <input type="checkbox" id="chk-acepto" style="margin-top:3px;accent-color:var(--primary);width:16px;height:16px;flex-shrink:0;" onchange="updateFinalBtn()"/>
+        <span>He leído íntegramente el <strong>Contrato de Corretaje Comercial y Promoción de Servicios</strong> con WAPPY LTDA, comprendo y acepto todas sus cláusulas, y declaro que toda la información suministrada es verídica. Esta firma electrónica tiene plena validez jurídica conforme a la <strong>Ley 527 de 1999</strong> (Comercio Electrónico Colombia).</span>
+      </label>
+    </div>
+    <div class="actions"><button class="btn btn-outline" onclick="goToStep(3)">← Releer contrato</button><button class="btn btn-primary btn-lg" id="btn-finalizar" onclick="finalizeContract()" disabled>🖊 Formalizar y Descargar Contrato</button></div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step-panel" id="panel-5">
+    <div class="success-screen" id="success-screen">
+      <div class="success-icon">🎉</div>
+      <h2>¡Bienvenido a la red de <span>Embajadores</span>!</h2>
+      <p>Tu contrato ha sido firmado electrónicamente. Guarda el PDF generado como comprobante oficial.</p>
+      <div class="cert-box">
+        <div class="cert-row"><span class="cert-key">Embajador</span><span class="cert-val" id="cert-nombre">—</span></div>
+        <div class="cert-row"><span class="cert-key">C.C.</span><span class="cert-val" id="cert-cedula">—</span></div>
+        <div class="cert-row"><span class="cert-key">Correo verificado</span><span class="cert-val" id="cert-email">—</span></div>
+        <div class="cert-row"><span class="cert-key">Territorio</span><span class="cert-val" id="cert-territorio">—</span></div>
+        <div class="cert-row"><span class="cert-key">Fecha y hora</span><span class="cert-val" id="cert-fecha">—</span></div>
+        <div class="cert-row"><span class="cert-key">ID de Contrato</span><span class="cert-val" id="cert-id">—</span></div>
+        <div class="cert-row"><span class="cert-key">Representante Legal</span><span class="cert-val">Felix Mauricio Bedoya Ocampo</span></div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-lg" onclick="downloadPDF()">📥 Descargar Contrato PDF</button>
+        <button class="btn btn-outline" onclick="location.reload()">↩ Nuevo Registro</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const contractHTML=`<h1>CONTRATO DE CORRETAJE COMERCIAL Y PROMOCI&Oacute;N DE SERVICIOS</h1><p style="text-align:center;font-weight:600;">WAPPY LTDA &amp; EMBAJADOR OFICIAL WAPPY SST</p><hr/><p>Entre los suscritos a saber:</p><ol><li><strong>WAPPY LTDA</strong>, sociedad comercial legalmente constituida en Colombia, identificada con <strong>NIT 901437310</strong>, con domicilio principal en la ciudad de Medell&iacute;n, Antioquia, representada legalmente por <strong>Felix Mauricio Bedoya Ocampo</strong>, C.C. 1.037.589.726 de Envigado, Antioquia, y a quien en adelante se denominar&aacute; simplemente <strong>WAPPY</strong> o la <strong>COMPA&Ntilde;&Iacute;A</strong>; y</li><li><strong>[NOMBRE DEL EMBAJADOR]</strong>, persona natural, de nacionalidad colombiana, mayor de edad, identificado con C&eacute;dula de Ciudadan&iacute;a No. <strong>[N&Uacute;MERO DE C&Eacute;DULA]</strong> expedida en <strong>[CIUDAD DE EXPEDICI&Oacute;N]</strong>, domiciliado en <strong>[CIUDAD DE DOMICILIO]</strong>, actuando en su propio nombre y representaci&oacute;n, y a quien en adelante se denominar&aacute; el <strong>EMBAJADOR</strong>;</li></ol><p>Las partes acuerdan celebrar el presente <strong>CONTRATO DE CORRETAJE COMERCIAL Y PROMOCI&Oacute;N DE SERVICIOS</strong>, el cual se regir&aacute; por las normas comerciales vigentes en la Rep&uacute;blica de Colombia (especialmente por los Art&iacute;culos 1340 a 1346 del C&oacute;digo de Comercio), y por las cl&aacute;usulas detalladas a continuaci&oacute;n:</p><hr/><h2>CONSIDERACIONES</h2><ol><li><strong>WAPPY</strong> es una compa&ntilde;&iacute;a legalmente constituida dedicada al desarrollo, licenciamiento y comercializaci&oacute;n de soluciones tecnol&oacute;gicas basadas en Inteligencia Artificial aplicadas a la Seguridad y Salud en el Trabajo (SST), orientadas a la optimizaci&oacute;n, automatizaci&oacute;n y fortalecimiento de la profesi&oacute;n frente a la era digital.</li><li><strong>WAPPY</strong> ofrece a trav&eacute;s de su plataforma diversas temporalidades de licenciamiento (Planes Vital y Pro) y tambi&eacute;n act&uacute;a como canalizador para la intermediaci&oacute;n de Riesgos Laborales (ARL) mediante convenios comerciales estructurados.</li><li>El <strong>EMBAJADOR</strong> es un profesional id&oacute;neo, consultor, especialista o persona interesada en la Seguridad y Salud en el Trabajo con amplio conocimiento del sector y de su territorio local, quien desea promover las herramientas de la plataforma y gestionar la afiliaci&oacute;n corporativa de empresas a las ARL.</li><li>Es inter&eacute;s de ambas partes formalizar una alianza estrat&eacute;gica de corretaje comercial para expandir la cobertura de WAPPY en el territorio nacional bajo un esquema transparente de comisiones, exclusividad y acompa&ntilde;amiento profesional.</li></ol><hr/><h2>CL&Aacute;USULAS</h2><h3>CL&Aacute;USULA PRIMERA: OBJETO DEL CONTRATO</h3><p>El objeto del presente contrato es definir las condiciones bajo las cuales el <strong>EMBAJADOR</strong>, actuando de manera independiente y aut&oacute;noma, promover&aacute;, referenciar&aacute; e intermediar&aacute; ante terceros (personas naturales y jur&iacute;dicas) la adquisici&oacute;n de las licencias de software de WAPPY, as&iacute; como la vinculaci&oacute;n de empresas al sistema general de riesgos laborales (ARL) a trav&eacute;s del corretaje de <strong>WAPPY LTDA</strong>, a cambio del pago de las comisiones pactadas en este documento.</p><h3>CL&Aacute;USULA SEGUNDA: TERRITORIO Y EXCLUSIVIDAD LIMITADA</h3><ol><li><strong>Territorio Asignado</strong>: WAPPY concede al <strong>EMBAJADOR</strong> exclusividad comercial para promover y representar de forma oficial la marca en el municipio de <strong>[MUNICIPIO ASIGNADO]</strong>, incluyendo los municipios aleda&ntilde;os de <strong>[MUNICIPIOS ALEDA&Ntilde;OS]</strong> definidos por la COMPA&Ntilde;&Iacute;A.</li><li><strong>L&iacute;mite de Plazas y Co-Territorio</strong>: Se autorizar&aacute; un m&aacute;ximo de un (1) embajador por municipio y hasta dos (2) embajadores en ciudades principales. En las ciudades principales autorizadas con dos (2) embajadores, la exclusividad sobre clientes espec&iacute;ficos se regir&aacute; por la regla de <strong>&ldquo;Primer Registro&rdquo;</strong> en la plataforma WAPPY. El EMBAJADOR que registre primero a un cliente potencial (empresa o consultor) en el sistema tendr&aacute; la exclusividad de prospecci&oacute;n sobre dicho cliente por un plazo de sesenta (60) d&iacute;as calendario para concretar la venta; vencido este plazo sin registrar venta efectiva, el cliente quedar&aacute; liberado para el otro embajador.</li><li><strong>Clientes Fuera del Territorio</strong>: Si el <strong>EMBAJADOR</strong>, mediante relaciones interpersonales u org&aacute;nicas previas, logra vincular a un cliente (consultor o empresa) ubicado en un territorio o municipio diferente al asignado, <strong>se le reconocer&aacute;n plenamente las comisiones estipuladas</strong>.</li><li><strong>Restricci&oacute;n de Prospecci&oacute;n Activa y Pauta Digital</strong>: El <strong>EMBAJADOR</strong> tiene estrictamente prohibido realizar prospecci&oacute;n comercial activa o campa&ntilde;as de venta enfocadas en territorios asignados a otros embajadores. Asimismo, se proh&iacute;be al EMBAJADOR realizar pauta digital pagada en motores de b&uacute;squeda (Google Ads, Bing Ads, etc.) usando los t&eacute;rminos de marca &ldquo;Wappy&rdquo;, &ldquo;Wappy SST&rdquo;, &ldquo;WAPPY LTDA&rdquo; o variaciones similares como palabras clave (keywords) para redirigir tr&aacute;fico a su enlace de afiliado.</li><li><strong>Territorios Vacantes</strong>: En aquellos municipios o territorios que no cuenten con un EMBAJADOR oficial asignado por la COMPA&Ntilde;&Iacute;A, el EMBAJADOR podr&aacute; realizar de manera libre actividades de prospecci&oacute;n comercial activa y vinculaci&oacute;n de clientes. No obstante, una vez la COMPA&Ntilde;&Iacute;A designe y asigne formalmente un EMBAJADOR oficial para dicho territorio, el EMBAJADOR deber&aacute; cesar inmediatamente toda prospecci&oacute;n comercial activa y campa&ntilde;as publicitarias enfocadas en esa zona. Los clientes vinculados de forma previa a la designaci&oacute;n del nuevo EMBAJADOR seguir&aacute;n perteneciendo al EMBAJADOR que realiz&oacute; la venta, garantiz&aacute;ndosele sus comisiones correspondientes.</li></ol><h3>CL&Aacute;USULA TERCERA: DEP&Oacute;SITO DE RESERVA TERRITORIAL Y RETORNO</h3><ol><li><strong>Garant&iacute;a de Reserva</strong>: Con el fin de apartar, congelar y garantizar la exclusividad del territorio asignado frente a otros aspirantes comerciales, el <strong>EMBAJADOR</strong> realiza un dep&oacute;sito de reserva territorial por valor de <strong>SEISCIENTOS CINCUENTA MIL PESOS M/CTE ($650.000 COP)</strong>.</li><li><strong>Naturaleza del Dep&oacute;sito</strong>: Las partes aclaran expresamente que este monto <strong>no constituye un cobro, gasto administrativo o costo de franquicia</strong>, sino una garant&iacute;a de seriedad e inicio de operaciones.</li><li><strong>Retorno del 100% de la Reserva</strong>: WAPPY se compromete a reembolsar y devolver al <strong>EMBAJADOR</strong> la totalidad de los <strong>SEISCIENTOS CINCUENTA MIL PESOS ($650.000 COP)</strong> depositados, una vez se cumpla cualquiera de las siguientes condiciones (la que ocurra primero):<ul><li><strong>A. Ventas de Software Acumuladas</strong>: Que el <strong>EMBAJADOR</strong> acumule ventas de licencias o planes de la plataforma WAPPY por un valor total facturado neto igual o superior a <strong>UN MILL&Oacute;N DOSCIENTOS MIL PESOS M/CTE ($1.200.000 COP)</strong>, en cualquiera de las temporalidades disponibles (mensual, trimestral, semestral o anual).</li><li><strong>B. Vinculaci&oacute;n ARL</strong>: Que el <strong>EMBAJADOR</strong> vincule de forma efectiva a la primera empresa cliente a trav&eacute;s de la intermediaci&oacute;n de Riesgos Laborales (ARL) con WAPPY (bajo la Modalidad A), siempre y cuando dicha empresa cuente con un m&iacute;nimo de cinco (5) trabajadores cotizantes activos o genere una cotizaci&oacute;n mensual total de ARL igual o superior a <strong>TRESCIENTOS MIL PESOS M/CTE ($300.000 COP)</strong>.</li></ul></li></ol><h3>CL&Aacute;USULA CUARTA: DERECHO DE RETRACTO (GARANT&Iacute;A DE 1 MES)</h3><p>El <strong>EMBAJADOR</strong> contar&aacute; con un periodo de retracto de <strong>un (1) mes (30 d&iacute;as calendario)</strong> contados a partir de la firma del presente contrato. Si durante este periodo el <strong>EMBAJADOR</strong> decide no continuar con la representaci&oacute;n comercial o desiste del programa por cualquier motivo personal, podr&aacute; solicitar la terminaci&oacute;n del contrato y <strong>WAPPY devolver&aacute; el dep&oacute;sito de reserva ($650.000 COP)</strong> en un plazo m&aacute;ximo de quince (15) d&iacute;as h&aacute;biles, sin aplicar penalizaci&oacute;n alguna. No obstante, si el <strong>EMBAJADOR</strong> ha percibido comisiones por ventas durante este periodo, dicho valor pagado por comisiones <strong>se descontar&aacute; de la devoluci&oacute;n del dep&oacute;sito de reserva</strong>. Asimismo, se desactivar&aacute; de inmediato su cuenta de Embajador y las licencias de software asociadas.</p><h3>CL&Aacute;USULA QUINTA: ESQUEMA DE COMISIONES POR VENTA DE SOFTWARE</h3><p>Por la venta directa de licencias y planes de la plataforma WAPPY a trav&eacute;s del enlace de afiliaci&oacute;n del <strong>EMBAJADOR</strong>, se causar&aacute;n las siguientes comisiones:</p><ol><li><strong>Comisi&oacute;n Directa Base</strong>: El <strong>EMBAJADOR</strong> recibir&aacute; el <strong>veinte por ciento (20%)</strong> del valor neto facturado y pagado por el cliente, <strong>excluyendo el Impuesto al Valor Agregado (IVA)</strong> y cualquier otra tasa tributaria aplicable. Dicha comisi&oacute;n se causar&aacute; de manera <strong>recurrente</strong> seg&uacute;n la periodicidad del plan adquirido por el cliente (mensual, trimestral, semestral o anual) mientras la suscripci&oacute;n permanezca activa y el cliente realice sus pagos oportunamente.</li><li><strong>Bono por Cumplimiento (+5% Extra)</strong>: Si el <strong>EMBAJADOR</strong> logra cerrar y registrar un m&iacute;nimo de <strong>tres (3) suscripciones de cualquier plan en un mismo mes calendario</strong>, recibir&aacute; un bono del cinco por ciento (5%) adicional sobre todas las ventas de ese mes, para una comisi&oacute;n consolidada del <strong>veinticinco por ciento (25%)</strong>.</li><li><strong>Portafolio y Tarifas Base Actuales</strong>:<ul><li><em>Plan Wappy Vital (Pago &Uacute;nico)</em>: $350.000 COP.</li><li><em>Plan Wappy Pro Mensual</em>: $114.330 COP / mes.</li><li><em>Plan Wappy Pro Trimestral</em>: $331.270 COP / trimestre.</li><li><em>Plan Wappy Pro Semestral</em>: $641.960 COP / semestre.</li><li><em>Plan Wappy Pro Anual</em>: $1.200.000 COP / a&ntilde;o.</li></ul></li><li><strong>Fechas de Pago y Requisitos</strong>: Las comisiones se liquidar&aacute;n quincenalmente los d&iacute;as <strong>cinco (5) y veinticinco (25) de cada mes</strong>. Para proceder con el desembolso, el EMBAJADOR deber&aacute; haber presentado previamente ante la COMPA&Ntilde;&Iacute;A copia de su Registro &Uacute;nico Tributario (RUT) actualizado, emitir la Factura Electr&oacute;nica correspondiente o permitir la emisi&oacute;n del Documento Soporte en adquisiciones con no obligados a facturar, junto con su cuenta de cobro.</li><li><strong>Facultad de Modificaci&oacute;n de Precios</strong>: WAPPY LTDA se reserva el derecho de modificar unilateralmente las tarifas, planes y precios de su software y servicios. Las comisiones del EMBAJADOR se liquidar&aacute;n siempre sobre la tarifa real facturada y efectivamente pagada por el cliente final en el momento de cada transacci&oacute;n, ajust&aacute;ndose de forma autom&aacute;tica a los nuevos precios establecidos por la COMPA&Ntilde;&Iacute;A.</li></ol><h3>CL&Aacute;USULA SEXTA: INTERMEDIACI&Oacute;N ARL Y MODALIDADES DE ACOMPA&Ntilde;AMIENTO</h3><p>El corretaje de riesgos laborales constituye una l&iacute;nea de negocio conjunta entre WAPPY LTDA y el <strong>EMBAJADOR</strong> bajo las siguientes dos modalidades exclusivas:</p><ol><li><strong>Modalidad A (Acompa&ntilde;amiento por el Embajador)</strong>: Cuando el <strong>EMBAJADOR</strong> asuma contractualmente la obligaci&oacute;n de atender, gestionar, fidelizar y brindar acompa&ntilde;amiento/asesor&iacute;a t&eacute;cnica y comercial continua a la empresa vinculada, recibir&aacute; el <strong>setenta por ciento (70%) del ingreso neto</strong> que las Administradoras de Riesgos Laborales (ARL) transfieran a WAPPY LTDA por concepto de intermediaci&oacute;n.</li><li><strong>Modalidad B (Acompa&ntilde;amiento por WAPPY LTDA)</strong>: Cuando <strong>WAPPY LTDA</strong> asuma directamente la responsabilidad de atender, capacitar y dar soporte t&eacute;cnico/comercial continuo a la empresa vinculada, el <strong>EMBAJADOR</strong> recibir&aacute; el <strong>treinta por ciento (30%) del ingreso neto</strong> de intermediaci&oacute;n transferido por la ARL, y la COMPA&Ntilde;&Iacute;A retendr&aacute; el setenta por ciento (70%) restante.</li><li><strong>Definici&oacute;n y Medici&oacute;n de Abandono (para Modalidad A)</strong>: Con el fin de evitar disputas subjetivas y garantizar la calidad del servicio, se declarar&aacute; el abandono del cliente si el <strong>EMBAJADOR</strong> no registra ninguna interacci&oacute;n, gesti&oacute;n o actividad de seguimiento con la empresa en la plataforma WAPPY durante un lapso superior a <strong>sesenta (60) d&iacute;as calendario</strong>, o si la empresa presenta una queja formal por escrito debido a falta de atenci&oacute;n que el <strong>EMBAJADOR</strong> no resuelva en un plazo de <strong>diez (10) d&iacute;as h&aacute;biles</strong>. Al declararse el abandono, WAPPY asumir&aacute; el acompa&ntilde;amiento del cliente y la cuenta migrar&aacute; <strong>de manera permanente e irreversible</strong> a la <strong>Modalidad B</strong> (reduciendo la retribuci&oacute;n del Embajador al 30%) con el fin de sufragar los costos de soporte asumidos por la COMPA&Ntilde;&Iacute;A.</li><li><strong>Retenci&oacute;n de Impuestos y Tiempos de Pago</strong>: Las comisiones descritas en esta cl&aacute;usula se liquidar&aacute;n posterior a la aplicaci&oacute;n de retenciones de impuestos y antes de IVA, seg&uacute;n las normativas fiscales colombianas. El pago de estas comisiones al EMBAJADOR se realizar&aacute; en el siguiente ciclo de pago quincenal (d&iacute;as 5 o 25 del mes) inmediatamente posterior a la fecha en que WAPPY LTDA reciba efectivamente los fondos y comisiones por parte de la respectiva ARL.</li><li><strong>Licenciamiento Especial de Software</strong>: Dependiendo de la cotizaci&oacute;n y los recursos recurrentes que la empresa afiliada genere para WAPPY LTDA por su intermediaci&oacute;n ARL, se evaluar&aacute; y otorgar&aacute; a dicha empresa un <strong>Plan Wappy Vital</strong> o <strong>Plan Wappy Pro</strong> sin costo de software, el cual estar&aacute; vigente <strong>&uacute;nicamente mientras el contrato de ARL con WAPPY LTDA permanezca activo</strong>.</li></ol><h3>CL&Aacute;USULA S&Eacute;PTIMA: USO Y LICENCIA DE LA MARCA WAPPY</h3><ol><li>WAPPY otorga al <strong>EMBAJADOR</strong> una autorizaci&oacute;n limitada, no exclusiva, intransferible y revocable para utilizar el nombre comercial, logotipos y marca <strong>WAPPY</strong> &uacute;nicamente para los fines de promoci&oacute;n y corretaje objeto de este contrato.</li><li>El <strong>EMBAJADOR</strong> se presentar&aacute; ante terceros bajo la denominaci&oacute;n de <strong>&ldquo;Embajador Oficial WAPPY&rdquo;</strong>.</li><li>El <strong>EMBAJADOR</strong> se compromete a no realizar declaraciones que comprometan la responsabilidad civil o penal de la COMPA&Ntilde;&Iacute;A, a no registrar dominios web o redes sociales con el nombre exclusivo de Wappy sin autorizaci&oacute;n previa, y a velar por el buen nombre y prestigio de la marca en todo momento.</li><li><strong>Propiedad Intelectual de Mejoras</strong>: Toda idea, sugerencia, dise&ntilde;o o desarrollo personalizado solicitado por el EMBAJADOR e implementado por la COMPA&Ntilde;&Iacute;A en la plataforma WAPPY ser&aacute; de propiedad intelectual exclusiva de WAPPY LTDA. El EMBAJADOR renuncia a reclamar cualquier tipo de regal&iacute;a, derecho de autor o compensaci&oacute;n adicional por la integraci&oacute;n de dichas mejoras.</li><li><strong>Prohibici&oacute;n de Recaudo y Representaci&oacute;n</strong>: El EMBAJADOR act&uacute;a como contratista independiente y no tiene facultad ni representaci&oacute;n legal para suscribir contratos, contraer obligaciones, ni recaudar dineros directos o recibir pagos en efectivo o transferencia a nombre de WAPPY LTDA. Todo pago de licencias deber&aacute; realizarse por el cliente final obligatoriamente a trav&eacute;s de los canales oficiales de pago de la plataforma WAPPY.</li></ol><h3>CL&Aacute;USULA OCTAVA: INDEPENDENCIA DE LAS PARTES Y SEGURIDAD SOCIAL (PILA)</h3><ol><li><strong>Autonom&iacute;a</strong>: El presente contrato es de naturaleza estrictamente comercial y civil. El <strong>EMBAJADOR</strong> ejecutar&aacute; el corretaje con sus propios recursos, de manera independiente, con plena autonom&iacute;a t&eacute;cnica, administrativa y directiva, y sin estar sujeto a subordinaci&oacute;n laboral, horarios, o reglamentos internos de la COMPA&Ntilde;&Iacute;A.</li><li><strong>Aportes a Seguridad Social (PILA)</strong>: Al no existir v&iacute;nculo laboral, el <strong>EMBAJADOR</strong> es el &uacute;nico responsable de sus aportes al Sistema de Seguridad Social Integral (Salud, Pensi&oacute;n y ARL) como trabajador independiente. No obstante, bajo la legislaci&oacute;n colombiana, si las comisiones del mes son <strong>iguales o superiores a un (1) Salario M&iacute;nimo Mensual Legal Vigente (SMMLV)</strong> y el <strong>EMBAJADOR</strong> realiza actividades de acompa&ntilde;amiento o prospecci&oacute;n en campo, este deber&aacute; obligatoriamente adjuntar la correspondiente planilla de pago de Seguridad Social (PILA) junto con su cuenta de cobro mensual para proceder con el desembolso de los pagos.</li></ol><h3>CL&Aacute;USULA NOVENA: CONFIDENCIALIDAD, PROPIEDAD DE DATOS Y HABEAS DATA</h3><ol><li><strong>Reserva de Informaci&oacute;n</strong>: El <strong>EMBAJADOR</strong> se obliga a mantener bajo estricta reserva y confidencialidad toda la informaci&oacute;n t&eacute;cnica, comercial, de precios, algoritmos, bases de datos de clientes, metodolog&iacute;as y estrategias de WAPPY. Esta obligaci&oacute;n permanecer&aacute; vigente durante el contrato y por cinco (5) a&ntilde;os tras su terminaci&oacute;n.</li><li><strong>Propiedad de las Bases de Datos</strong>: WAPPY LTDA es la propietaria exclusiva de todas las bases de datos de clientes, empresas afiliadas e informaci&oacute;n de SST registrada en la plataforma. El <strong>EMBAJADOR</strong> act&uacute;a como encargado del tratamiento de datos bajo la <strong>Ley 1581 de 2012 de Colombia (Habeas Data)</strong> y tiene prohibido copiar, descargar, comercializar o transferir cualquier dato de los clientes sin autorizaci&oacute;n expresa de la COMPA&Ntilde;&Iacute;A.</li></ol><h3>CL&Aacute;USULA D&Eacute;CIMA: NO COMPETENCIA Y LEALTAD COMERCIAL</h3><ol><li><strong>Exclusividad de Promoci&oacute;n</strong>: Durante la vigencia de este contrato, el <strong>EMBAJADOR</strong> se compromete a no promover, vender, asesorar ni representar de forma directa o indirecta a otras plataformas de software, sistemas expertos o herramientas basadas en Inteligencia Artificial aplicadas a la Seguridad y Salud en el Trabajo (SST) que representen una competencia directa para WAPPY LTDA.</li><li><strong>No Atracci&oacute;n de Clientes (Post-Contrato)</strong>: El EMBAJADOR se obliga a no contactar, ofrecer servicios de la competencia, ni inducir de forma directa o indirecta a los clientes y empresas activas de WAPPY LTDA a migrar a otras plataformas o servicios comerciales ajenos a la COMPA&Ntilde;&Iacute;A, tanto durante la vigencia de este contrato como hasta por un (1) a&ntilde;o posterior a su terminaci&oacute;n por cualquier causa.</li></ol><h3>CL&Aacute;USULA D&Eacute;CIMA PRIMERA: OBLIGACI&Oacute;N DE INDEMNIDAD Y L&Iacute;MITE DE RESPONSABILIDAD</h3><ol><li><strong>Indemnidad</strong>: El <strong>EMBAJADOR</strong> se compromete a mantener indemne a WAPPY LTDA frente a cualquier reclamaci&oacute;n, queja, requerimiento, sanci&oacute;n administrativa, demanda civil o laboral entablada por terceros (incluyendo clientes, empresas afiliadas, ARL o autoridades) que se derive de su culpa, negligencia, mala asesor&iacute;a t&eacute;cnica en Seguridad y Salud en el Trabajo (SST), o declaraciones falsas o no autorizadas sobre el software o servicios de la COMPA&Ntilde;&Iacute;A.</li><li><strong>Exclusi&oacute;n de Responsabilidad por Fallas T&eacute;cnicas</strong>: WAPPY LTDA no ser&aacute; responsable ante el EMBAJADOR por lucro cesante, p&eacute;rdidas comerciales o perjuicios directos o indirectos derivados de ca&iacute;das temporales del servidor, labores de mantenimiento preventivo o correctivo, o indisponibilidad t&eacute;cnica temporal en el funcionamiento o acceso a la plataforma WAPPY.</li></ol><h3>CL&Aacute;USULA D&Eacute;CIMA SEGUNDA: DURACI&Oacute;N Y TERMINACI&Oacute;N</h3><ol><li><strong>Duraci&oacute;n</strong>: El presente contrato tendr&aacute; una duraci&oacute;n de un (1) a&ntilde;o contado a partir de su firma, prorrogable de manera autom&aacute;tica por periodos iguales, salvo que alguna de las partes manifieste por escrito su deseo de no prorrogarlo con una antelaci&oacute;n m&iacute;nima de treinta (30) d&iacute;as calendario.</li><li><strong>Terminaci&oacute;n Anticipada</strong>: Cualquiera de las partes podr&aacute; dar por terminado el contrato de manera unilateral y sin lugar a indemnizaci&oacute;n dando un preaviso por escrito con treinta (30) d&iacute;as calendario de antelaci&oacute;n.</li><li><strong>Causales de Terminaci&oacute;n por Incumplimiento</strong>: Son causales de terminaci&oacute;n inmediata de este contrato por parte de WAPPY, sin requerir preaviso:<ul><li>Realizar prospecci&oacute;n comercial activa en territorios ajenos.</li><li>Utilizar la marca WAPPY en actividades il&iacute;citas, contrarias a la &eacute;tica, o realizar mal uso de la marca.</li><li>Difundir informaci&oacute;n falsa o malintencionada que afecte el prestigio de la COMPA&Ntilde;&Iacute;A.</li><li>Abandonar el acompa&ntilde;amiento de las empresas vinculadas bajo el corretaje ARL (seg&uacute;n la Cl&aacute;usula Sexta).</li><li>Violar los acuerdos de confidencialidad, propiedad de datos o no competencia.</li><li>No cumplir con las metas comerciales m&iacute;nimas de permanencia que se pacten anualmente.</li></ul></li><li><strong>Efecto de la Terminaci&oacute;n sobre las Comisiones Recurrentes</strong>:<ul><li><strong>A. Terminaci&oacute;n sin Justa Causa o Mutuo Acuerdo</strong>: Si el contrato finaliza por mutuo acuerdo o preaviso unilateral de treinta (30) d&iacute;as (sin mediar incumplimiento), el <strong>EMBAJADOR conservar&aacute; el derecho a percibir sus comisiones recurrentes</strong> por los clientes de software y ARL que vincul&oacute; de forma efectiva durante la vigencia, siempre y cuando estos contin&uacute;en pagando. Si las cuentas estaban bajo Modalidad A, migrar&aacute;n a Modalidad B y la comisi&oacute;n se reajustar&aacute; al treinta por ciento (30%) neta.</li><li><strong>B. Terminaci&oacute;n con Justa Causa (Incumplimiento)</strong>: Si la terminaci&oacute;n se genera por incumplimiento del EMBAJADOR (causales enumeradas en el numeral 3), el <strong>EMBAJADOR perder&aacute; de forma inmediata y definitiva todo derecho a cobrar comisiones recurrentes</strong> futuras o pasadas a partir del d&iacute;a del incumplimiento.</li></ul></li></ol><h3>CL&Aacute;USULA D&Eacute;CIMA TERCERA: LEY APLICABLE Y RESOLUCI&Oacute;N DE CONFLICTOS</h3><p>El presente contrato se rige en su integridad por las leyes de la Rep&uacute;blica de Colombia. Cualquier disputa, diferencia o reclamaci&oacute;n que surja entre las partes con ocasi&oacute;n del desarrollo, interpretaci&oacute;n, ejecuci&oacute;n o terminaci&oacute;n del presente contrato, se resolver&aacute; en primera instancia de manera directa y amigable. De no lograrse un acuerdo en un t&eacute;rmino de treinta (30) d&iacute;as, las partes acudir&aacute;n a un Centro de Conciliaci&oacute;n en derecho autorizado, ya sea en la ciudad de Medell&iacute;n o ante la C&aacute;mara de Comercio con jurisdicci&oacute;n en el territorio asignado al EMBAJADOR, para dirimir la controversia.</p><hr/><p>Para constancia de lo anterior y en se&ntilde;al de aceptaci&oacute;n del contenido del presente documento, las partes lo firman en dos (2) ejemplares del mismo tenor y valor, a los <strong>[D&Iacute;A]</strong> d&iacute;as del mes de <strong>[MES]</strong> de <strong>[A&Ntilde;O]</strong>.</p><h3 style="text-align:center;margin-top:1.5rem;">FIRMA DE LAS PARTES</h3><p style="text-align:center;margin-top:1rem;">______________________________________<br/><strong>WAPPY LTDA (NIT 901437310)</strong><br/>Representante Legal: Felix Mauricio Bedoya Ocampo</p><p style="text-align:center;margin-top:1.5rem;">______________________________________<br/><strong>[NOMBRE DEL EMBAJADOR]</strong><br/>C.C. [N&Uacute;MERO DE C&Eacute;DULA]<br/>El EMBAJADOR</p>`;
+
+let curStep=1,otpCode=null,otpOk=false,sigDrawn=false,contractRead=false;
+let contractId='WB-'+Date.now().toString(36).toUpperCase();
+let sigDataUrl=null;
+const uploads={cedula:false,rut:false,pila:false,hv:false};
+
+/* Canvas */
+const sigCanvas=document.getElementById('sig-canvas');
+const sCtx=sigCanvas.getContext('2d');
+let drawing=false,lx=0,ly=0;
+
+function resizeSig(){
+  const box=sigCanvas.parentElement;
+  const w=box.clientWidth;const dpr=window.devicePixelRatio||1;
+  sigCanvas.width=w*dpr;sigCanvas.height=220*dpr;sigCanvas.style.height='220px';
+  sCtx.scale(dpr,dpr);sCtx.strokeStyle='#111';sCtx.lineWidth=2.5;sCtx.lineCap='round';sCtx.lineJoin='round';
+}
+function getXY(e){const r=sigCanvas.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];}
+function drawLine([x,y]){sCtx.beginPath();sCtx.moveTo(lx,ly);sCtx.lineTo(x,y);sCtx.stroke();[lx,ly]=[x,y];}
+sigCanvas.addEventListener('mousedown',e=>{if(!otpOk)return;drawing=true;[lx,ly]=getXY(e);});
+sigCanvas.addEventListener('mousemove',e=>{if(!drawing||!otpOk)return;drawLine(getXY(e));});
+sigCanvas.addEventListener('mouseup',()=>{drawing=false;if(otpOk){sigDrawn=true;updateFinalBtn();}});
+sigCanvas.addEventListener('mouseleave',()=>{drawing=false;});
+sigCanvas.addEventListener('touchstart',e=>{e.preventDefault();if(!otpOk)return;drawing=true;[lx,ly]=getXY(e.touches[0]);},{passive:false});
+sigCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing||!otpOk)return;drawLine(getXY(e.touches[0]));},{passive:false});
+sigCanvas.addEventListener('touchend',()=>{drawing=false;if(otpOk){sigDrawn=true;updateFinalBtn();}});
+function clearSig(){sCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);sigDrawn=false;updateFinalBtn();}
+function previewSig(){const a=document.createElement('a');a.download='firma.png';a.href=sigCanvas.toDataURL();a.click();}
+
+/* Upload */
+function handleFile(type,input){
+  const f=input.files[0];if(!f)return;
+  uploads[type]=true;
+  document.getElementById('dz-'+type).classList.add('uploaded');
+  document.getElementById('prev-'+type+'-name').textContent=f.name;
+}
+['cedula','rut','pila','hv'].forEach(t=>{
+  const dz=document.getElementById('dz-'+t);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag-over');
+    const f=e.dataTransfer.files[0];if(!f)return;
+    uploads[t]=true;dz.classList.add('uploaded');document.getElementById('prev-'+t+'-name').textContent=f.name;
+  });
+});
+
+/* Steps */
+function goToStep(n){
+  if(n===2&&!validateStep1())return;
+  if(n===3&&!validateStep2())return;
+  if(n===3)personalizeContract();
+  if(n===4)document.getElementById('otp-email-display').textContent=document.getElementById('f-email').value;
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  if(n===5)document.getElementById('success-screen').classList.add('visible');
+  curStep=n;renderSteps();window.scrollTo({top:0,behavior:'smooth'});
+}
+function renderSteps(){
+  document.querySelectorAll('.step-item').forEach(it=>{
+    const s=parseInt(it.dataset.step);it.classList.remove('active','done');
+    if(s===curStep)it.classList.add('active');else if(s<curStep)it.classList.add('done');
+  });
+  document.querySelectorAll('.step-line').forEach((l,i)=>l.classList.toggle('done',i+1<curStep));
+}
+
+/* Validation */
+function validateStep1(){
+  const fs=[
+    {id:'f-nombre',e:'err-nombre',fn:v=>v.trim().length>2},
+    {id:'f-cedula',e:'err-cedula',fn:v=>v.trim().length>4},
+    {id:'f-expedicion',e:'err-expedicion',fn:v=>v.trim().length>2},
+    {id:'f-email',e:'err-email',fn:v=>/^[^@]+@[^@]+\.[^@]+$/.test(v)},
+    {id:'f-celular',e:'err-celular',fn:v=>v.trim().length>=7},
+    {id:'f-direccion',e:'err-direccion',fn:v=>v.trim().length>3},
+    {id:'f-domicilio',e:'err-domicilio',fn:v=>v.trim().length>2},
+    {id:'f-territorio',e:'err-territorio',fn:v=>v.trim().length>2},
+    {id:'f-banco',e:'err-banco',fn:v=>v!==''},
+    {id:'f-tipo-cuenta',e:'err-tipo-cuenta',fn:v=>v!==''},
+    {id:'f-cuenta',e:'err-cuenta',fn:v=>v.trim().length>=6},
+  ];
+  let ok=true;
+  fs.forEach(f=>{const el=document.getElementById(f.id),er=document.getElementById(f.e),v=f.fn(el.value);el.classList.toggle('error',!v);if(er)er.style.display=v?'none':'block';if(!v)ok=false;});
+  if(!ok)document.getElementById('panel-1').scrollIntoView({behavior:'smooth'});
+  return ok;
+}
+function validateStep2(){
+  const er=document.getElementById('upload-error');
+  if(!uploads.cedula||!uploads.rut){er.style.display='block';return false;}
+  er.style.display='none';return true;
+}
+
+/* Contract */
+let contractText=''; // Stores plain text for PDF (avoids reading hidden DOM)
+function personalizeContract(){
+  const now=new Date();
+  const dd=now.getDate(),mm=now.toLocaleString('es-CO',{month:'long'}),yy=now.getFullYear();
+  const html=contractHTML
+    .replace(/\[NOMBRE DEL EMBAJADOR\]/g,document.getElementById('f-nombre').value)
+    .replace(/\[N&Uacute;MERO DE C&Eacute;DULA\]/g,document.getElementById('f-cedula').value)
+    .replace(/\[CIUDAD DE EXPEDICI&Oacute;N\]/g,document.getElementById('f-expedicion').value)
+    .replace(/\[CIUDAD DE DOMICILIO\]/g,document.getElementById('f-domicilio').value)
+    .replace(/\[MUNICIPIO ASIGNADO\]/g,document.getElementById('f-territorio').value)
+    .replace(/\[MUNICIPIOS ALEDA&Ntilde;OS\]/g,document.getElementById('f-aledanos').value||'por definir')
+    .replace(/\[D&Iacute;A\]/g,dd)
+    .replace(/\[MES\]/g,mm)
+    .replace(/\[A&Ntilde;O\]/g,yy);
+  document.getElementById('contract-body').innerHTML=html;
+  document.getElementById('contract-body').onscroll=onContractScroll;
+  // Store plain text NOW while element is visible
+  contractText=document.getElementById('contract-body').innerText||'';
+}
+function onContractScroll(){
+  const el=document.getElementById('contract-body');
+  const prog=el.scrollTop/(el.scrollHeight-el.clientHeight);
+  document.getElementById('scroll-bar').style.width=Math.min(prog*100,100)+'%';
+  if(prog>=0.95&&!contractRead){
+    contractRead=true;
+    document.getElementById('scroll-lock-msg').classList.add('hidden');
+    document.getElementById('btn-to-sign').disabled=false;
+    const rb=document.getElementById('read-badge');
+    rb.textContent='✅ LEÍDO';rb.style.background='rgba(34,197,94,.15)';rb.style.color='var(--primary)';rb.style.borderColor='var(--border-bright)';
+  }
+}
+
+/* OTP */
+function sendOTP(){
+  const email=document.getElementById('f-email').value;
+  if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){alert('Por favor ingresa un correo válido en el paso 1.');return;}
+  otpCode=Math.floor(100000+Math.random()*900000).toString();
+  // Update both email display elements
+  const d1=document.getElementById('otp-email-display');
+  const d2=document.getElementById('otp-email-display2');
+  if(d1)d1.textContent=email;
+  if(d2)d2.textContent=email;
+  // Show loading
+  const sendingMsg=document.getElementById('otp-sending-msg');
+  if(sendingMsg)sendingMsg.style.display='block';
+  // Try to send via EmailJS
+  const sendBtn=document.getElementById('btn-send-otp');
+  sendBtn.disabled=true;
+  if(typeof emailjs!=='undefined'&&window.EMAILJS_PUBLIC_KEY&&window.EMAILJS_SERVICE_ID&&window.EMAILJS_TEMPLATE_ID){
+    emailjs.send(window.EMAILJS_SERVICE_ID,window.EMAILJS_TEMPLATE_ID,{
+      to_email:email,
+      to_name:document.getElementById('f-nombre').value||email,
+      otp_code:otpCode,
+      company:'WAPPY LTDA'
+    },window.EMAILJS_PUBLIC_KEY)
+    .then(()=>{
+      if(sendingMsg)sendingMsg.style.display='none';
+      document.getElementById('otp-panel').classList.add('visible');
+      sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
+    })
+    .catch((err)=>{
+      console.warn('[EmailJS error]',err);
+      if(sendingMsg)sendingMsg.style.display='none';
+      document.getElementById('otp-panel').classList.add('visible');
+      sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
+      alert('El correo no pudo enviarse automáticamente. Código disponible en consola del navegador (F12) para pruebas.');
+    });
+  } else {
+    // Fallback: EmailJS not configured — show panel anyway (for testing)
+    if(sendingMsg)sendingMsg.style.display='none';
+    document.getElementById('otp-panel').classList.add('visible');
+    sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
+    // Only log to console, never show on screen
+    console.log('%c[WAPPY OTP — SOLO PRUEBAS] Código: '+otpCode,'color:#22c55e;font-size:16px;font-weight:bold');
+  }
+  document.getElementById('otp-error').style.display='none';
+  document.getElementById('otp-success').style.display='none';
+}
+function verifyOTP(){
+  if(document.getElementById('otp-input').value.trim()===otpCode){
+    otpOk=true;
+    document.getElementById('otp-error').style.display='none';
+    document.getElementById('otp-success').style.display='block';
+    document.getElementById('sig-lock').style.display='none';
+    updateFinalBtn();
+  }else{
+    document.getElementById('otp-error').style.display='block';
+    document.getElementById('otp-input').value='';
+    document.getElementById('otp-input').focus();
+  }
+}
+function updateFinalBtn(){
+  const accepted=document.getElementById('chk-acepto').checked;
+  document.getElementById('btn-finalizar').disabled=!(otpOk&&sigDrawn&&accepted);
+}
+
+/* Finalize */
+function finalizeContract(){
+  sigDataUrl=sigCanvas.toDataURL('image/png');
+  const now=new Date();
+  const ds=now.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})+' — '+now.toLocaleTimeString('es-CO');
+  document.getElementById('cert-nombre').textContent=document.getElementById('f-nombre').value;
+  document.getElementById('cert-cedula').textContent=document.getElementById('f-cedula').value+' exp. '+document.getElementById('f-expedicion').value;
+  document.getElementById('cert-email').textContent=document.getElementById('f-email').value;
+  document.getElementById('cert-territorio').textContent=document.getElementById('f-territorio').value;
+  document.getElementById('cert-fecha').textContent=ds;
+  document.getElementById('cert-id').textContent=contractId;
+  goToStep(5);
+}
+
+/* PDF */
+async function downloadPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const pw=210,ph=297,ml=18,mr=18,mt=22;
+  let y=mt;const uw=pw-ml-mr;
+  const G=[34,197,94],DK=[10,20,14],GR=[100,120,110],LT=[210,235,220];
+
+  // Cover background
+  doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');
+  doc.setFillColor(15,40,25);doc.rect(0,0,pw,55,'F');
+  doc.setFontSize(20);doc.setFont('helvetica','bold');doc.setTextColor(...G);
+  doc.text('CONTRATO DE CORRETAJE COMERCIAL',pw/2,22,{align:'center'});
+  doc.setFontSize(12);doc.setTextColor(240,253,244);
+  doc.text('WAPPY LTDA — EMBAJADOR OFICIAL',pw/2,30,{align:'center'});
+  doc.setFontSize(8);doc.setTextColor(...GR);
+  doc.text('NIT 901437310 | Medellín, Antioquia | wappy.co',pw/2,37,{align:'center'});
+  doc.setDrawColor(...G);doc.setLineWidth(0.5);doc.line(ml,44,pw-mr,44);
+  y=60;
+
+  const sec=(t)=>{doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...G);doc.text(t,ml,y);y+=2;doc.setDrawColor(...G);doc.setLineWidth(0.2);doc.line(ml,y,ml+80,y);y+=5;};
+  const row=(k,v)=>{doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(...GR);doc.text(k+':',ml,y);doc.setFont('helvetica','normal');doc.setTextColor(...LT);doc.text(v||'—',ml+55,y);y+=6;};
+
+  sec('DATOS DEL EMBAJADOR');
+  row('Nombre',document.getElementById('f-nombre').value);
+  row('Cédula',document.getElementById('f-cedula').value);
+  row('Lugar de Expedición',document.getElementById('f-expedicion').value);
+  row('Correo',document.getElementById('f-email').value);
+  row('Celular',document.getElementById('f-celular').value);
+  row('Dirección',document.getElementById('f-direccion').value);
+  row('Domicilio',document.getElementById('f-domicilio').value);
+  row('Territorio Asignado',document.getElementById('f-territorio').value);
+  row('Municipios Aledaños',document.getElementById('f-aledanos').value||'Por definir');
+  row('Profesión',document.getElementById('f-profesion').value||'N/A');
+  y+=2;sec('INFORMACIÓN BANCARIA');
+  row('Banco',document.getElementById('f-banco').value);
+  row('Tipo Cuenta',document.getElementById('f-tipo-cuenta').value);
+  row('Número Cuenta',document.getElementById('f-cuenta').value);
+  y+=3;sec('REPRESENTANTE LEGAL — WAPPY LTDA');
+  row('Nombre','Felix Mauricio Bedoya Ocampo');
+  row('Cédula','1.037.589.726 de Envigado, Antioquia');
+  row('Empresa','WAPPY LTDA (NIT 901437310)');
+  row('Domicilio','Medellín, Antioquia');
+  y+=3;sec('CERTIFICADO DE FIRMA ELECTRÓNICA');
+  const now2=new Date();
+  row('ID Contrato',contractId);
+  row('Fecha y Hora',now2.toLocaleDateString('es-CO')+' '+now2.toLocaleTimeString('es-CO'));
+  row('Correo Verificado',document.getElementById('f-email').value+' ✓ OTP');
+  row('Ley Aplicable','Ley 527 de 1999 — Comercio Electrónico Colombia');
+  y+=6;
+  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...G);doc.text('FIRMA ELECTRÓNICA DEL EMBAJADOR',ml,y);y+=4;
+  if(sigDataUrl){doc.setFillColor(255,255,255);doc.rect(ml,y,80,30,'F');doc.addImage(sigDataUrl,'PNG',ml,y,80,30);y+=34;}
+  doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...GR);
+  doc.text('Firma electrónica autenticada por OTP al correo registrado. Ley 527 de 1999.',ml,y);y+=5;
+  doc.text('_'.repeat(40),ml,y);doc.text('_'.repeat(38),ml+92,y);y+=4;
+  doc.text('EL EMBAJADOR',ml+10,y);doc.text('FELIX M. BEDOYA — REP. LEGAL WAPPY LTDA',ml+94,y);
+
+  // Contract page
+  doc.addPage();doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');
+  y=18;
+  const lines=(contractText||document.getElementById('contract-body').innerText||'').split('\n');
+  doc.setFontSize(7.5);
+  for(const line of lines){
+    if(!line.trim()){y+=2;continue;}
+    const hd=/^(CL[ÁA]USULA|CONSIDERACIONES|FIRMA|DATOS|TERRITORIO|OBJETO)/.test(line.trim());
+    doc.setFont('helvetica',hd?'bold':'normal');
+    doc.setTextColor(hd?G[0]:210,hd?G[1]:235,hd?G[2]:220);
+    const wr=doc.splitTextToSize(line.trim(),uw);
+    for(const wl of wr){if(y>ph-18){doc.addPage();doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');y=18;}doc.text(wl,ml,y);y+=4.5;}
+  }
+
+  // Footer
+  const tp=doc.internal.getNumberOfPages();
+  for(let i=1;i<=tp;i++){doc.setPage(i);doc.setFillColor(10,25,16);doc.rect(0,ph-12,pw,12,'F');doc.setFontSize(7);doc.setTextColor(...GR);doc.text('WAPPY LTDA — NIT 901437310 — Medellín, Antioquia',ml,ph-6);doc.text('Pág '+i+'/'+tp+' | ID: '+contractId,pw-mr,ph-6,{align:'right'});}
+
+  doc.save('Contrato_Embajador_'+document.getElementById('f-cedula').value+'_'+contractId+'.pdf');
+}
+
+/* Init */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('contract-body').innerHTML=contractHTML;
+  resizeSig();window.addEventListener('resize',resizeSig);
+  renderSteps();
+  document.getElementById('f-email').addEventListener('input',()=>{document.getElementById('otp-email-display').textContent=document.getElementById('f-email').value||'—';});
+});
+</script>
+</body>
+</html>

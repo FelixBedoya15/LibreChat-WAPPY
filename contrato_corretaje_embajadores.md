@@ -2,7 +2,7 @@
 **WAPPY LTDA & EMBAJADOR OFICIAL WAPPY SST**
 
 Entre los suscritos a saber:
-1. **WAPPY LTDA**, sociedad comercial legalmente constituida en Colombia, identificada con **NIT 901437310**, con domicilio principal en el municipio de Sopó, Cundinamarca, representada legalmente para efectos de este contrato por quien ejerza las facultades correspondientes, y a quien en adelante se denominará simplemente **WAPPY** o la **COMPAÑÍA**; y
+1. **WAPPY LTDA**, sociedad comercial legalmente constituida en Colombia, identificada con **NIT 901437310**, con domicilio principal en la ciudad de Medellín, Antioquia, representada legalmente para efectos de este contrato por quien ejerza las facultades correspondientes, y a quien en adelante se denominará simplemente **WAPPY** o la **COMPAÑÍA**; y
 2. **[NOMBRE DEL EMBAJADOR]**, persona natural, de nacionalidad colombiana, mayor de edad, identificado con Cédula de Ciudadanía No. **[NÚMERO DE CÉDULA]** expedida en **[CIUDAD DE EXPEDICIÓN]**, domiciliado en **[CIUDAD DE DOMICILIO]**, actuando en su propio nombre y representación, y a quien en adelante se denominará el **EMBAJADOR**;
 
 Las partes acuerdan celebrar el presente **CONTRATO DE CORRETAJE COMERCIAL Y PROMOCIÓN DE SERVICIOS**, el cual se regirá por las normas comerciales vigentes en la República de Colombia (especialmente por los Artículos 1340 a 1346 del Código de Comercio), y por las cláusulas detalladas a continuación:
