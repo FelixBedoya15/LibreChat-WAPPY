@@ -12,6 +12,16 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
 :root{--primary:#22c55e;--primary-dark:#16a34a;--primary-glow:rgba(34,197,94,.25);--bg:#050e0a;--bg2:#091810;--surface:rgba(255,255,255,.04);--border:rgba(34,197,94,.18);--border-bright:rgba(34,197,94,.45);--text:#f0fdf4;--text-muted:rgba(240,253,244,.55);--danger:#f87171;--warning:#fbbf24;--radius:12px;--radius-sm:8px;--shadow:0 4px 32px rgba(0,0,0,.5)}
+body.light-theme{--bg:#f4fbf7;--bg2:#e6f4ed;--surface:#ffffff;--border:rgba(34,197,94,.25);--border-bright:rgba(34,197,94,.6);--text:#0a2912;--text-muted:rgba(10,41,18,.65);--shadow:0 4px 20px rgba(0,0,0,.08)}
+body.light-theme .form-control{background:rgba(0,0,0,.04)}
+body.light-theme .form-control::placeholder{color:rgba(10,41,18,.4)}
+body.light-theme select.form-control option{background:#ffffff;color:var(--text)}
+body.light-theme .contract-viewer{background:rgba(255,255,255,.85);color:#0d2814}
+body.light-theme .rep-box{background:rgba(255,255,255,.7)}
+body.light-theme .drop-zone{background:rgba(255,255,255,.5)}
+body.light-theme .sig-lock{background:rgba(244,251,247,.95)}
+body.light-theme .otp-code{background:rgba(255,255,255,.8)}
+body.light-theme .success-icon{color:var(--primary)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:clip}
@@ -19,7 +29,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .page-header img{width:40px;height:40px;object-fit:contain}
 .brand{font-size:1.2rem;font-weight:800;letter-spacing:-.02em}
 .brand span{color:var(--primary)}
-.hdrbadge{margin-left:auto;background:var(--primary-glow);border:1px solid var(--border-bright);color:var(--primary);padding:.25rem .75rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.hdrbadge{background:var(--primary-glow);border:1px solid var(--border-bright);color:var(--primary);padding:.25rem .75rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.theme-toggle-btn{margin-left:auto;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.35rem .75rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.3rem;font-family:inherit}
+.theme-toggle-btn:hover{border-color:var(--primary);background:var(--primary-glow)}
 .container{max-width:920px;margin:0 auto;padding:2.5rem 1.5rem 4rem;position:relative;z-index:1}
 .page-title{text-align:center;margin-bottom:2.5rem}
 .page-title h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;letter-spacing:-.03em}
@@ -123,7 +135,8 @@ select.form-control option{background:#0d1f12;color:var(--text)}
 <header class="page-header">
   <img src="client/public/assets/logo.png" onerror="this.src='Agentes/Miniaturas/Logos%20/logo-bg-removebg-preview.png';this.onerror=null;" alt="WAPPY"/>
   <div class="brand">WAPPY <span>LTDA</span></div>
-  <div class="hdrbadge">Firma Electrónica</div>
+  <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()">☀️ Modo Claro</button>
+  <div class="hdrbadge" style="margin-left:1rem;">Firma Electrónica</div>
 </header>
 
 <div class="container">
@@ -333,8 +346,10 @@ let drawing=false,lx=0,ly=0;
 
 function resizeSig(){
   const box=sigCanvas.parentElement;
-  const w=box.clientWidth;const dpr=window.devicePixelRatio||1;
+  const w=box.clientWidth;if(w===0)return;
+  const dpr=window.devicePixelRatio||1;
   sigCanvas.width=w*dpr;sigCanvas.height=220*dpr;sigCanvas.style.height='220px';
+  sCtx.fillStyle='#ffffff';sCtx.fillRect(0,0,sigCanvas.width,sigCanvas.height);
   sCtx.scale(dpr,dpr);sCtx.strokeStyle='#111';sCtx.lineWidth=2.5;sCtx.lineCap='round';sCtx.lineJoin='round';
 }
 function getXY(e){const r=sigCanvas.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];}
@@ -346,7 +361,11 @@ sigCanvas.addEventListener('mouseleave',()=>{drawing=false;});
 sigCanvas.addEventListener('touchstart',e=>{e.preventDefault();if(!otpOk)return;drawing=true;[lx,ly]=getXY(e.touches[0]);},{passive:false});
 sigCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing||!otpOk)return;drawLine(getXY(e.touches[0]));},{passive:false});
 sigCanvas.addEventListener('touchend',()=>{drawing=false;if(otpOk){sigDrawn=true;updateFinalBtn();}});
-function clearSig(){sCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);sigDrawn=false;updateFinalBtn();}
+function clearSig(){
+  sCtx.save();sCtx.setTransform(1,0,0,1,0,0);
+  sCtx.fillStyle='#ffffff';sCtx.fillRect(0,0,sigCanvas.width,sigCanvas.height);
+  sCtx.restore();sigDrawn=false;updateFinalBtn();
+}
 function previewSig(){const a=document.createElement('a');a.download='firma.png';a.href=sigCanvas.toDataURL();a.click();}
 
 /* Upload */
@@ -375,6 +394,7 @@ function goToStep(n){
   if(n===4)document.getElementById('otp-email-display').textContent=document.getElementById('f-email').value;
   document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
+  if(n===4){resizeSig();}
   if(n===5)document.getElementById('success-screen').classList.add('visible');
   curStep=n;renderSteps();window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -610,8 +630,29 @@ async function downloadPDF(){
   doc.save('Contrato_Embajador_'+document.getElementById('f-cedula').value+'_'+contractId+'.pdf');
 }
 
+/* Theme Toggle */
+function toggleTheme(){
+  const body=document.body;
+  const btn=document.getElementById('theme-toggle');
+  if(body.classList.contains('light-theme')){
+    body.classList.remove('light-theme');
+    btn.textContent='☀️ Modo Claro';
+    localStorage.setItem('theme','dark');
+  }else{
+    body.classList.add('light-theme');
+    btn.textContent='🌙 Modo Oscuro';
+    localStorage.setItem('theme','light');
+  }
+}
+
 /* Init */
 document.addEventListener('DOMContentLoaded',()=>{
+  const savedTheme=localStorage.getItem('theme');
+  if(savedTheme==='light'){
+    document.body.classList.add('light-theme');
+    const btn=document.getElementById('theme-toggle');
+    if(btn)btn.textContent='🌙 Modo Oscuro';
+  }
   document.getElementById('contract-body').innerHTML=contractHTML;
   resizeSig();window.addEventListener('resize',resizeSig);
   renderSteps();
