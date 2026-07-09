@@ -621,7 +621,7 @@ const startServer = async () => {
   });
 
   app.get(['/cursoappweb', '/cursoappweb.html'], (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../../proyecto curso /cursoappweb/index.html'));
+    res.sendFile(path.resolve(__dirname, '../../cursoappweb.html'));
   });
 
   app.post('/api/embajadores/send-otp', async (req, res) => {
