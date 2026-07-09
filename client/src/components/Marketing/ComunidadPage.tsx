@@ -393,10 +393,22 @@ export default function ComunidadPage() {
     }
     if (isIframeFullscreen) {
       document.body.style.overflow = 'hidden';
-      // inject portrait-rotation styles for the portal overlay
+      // inject portrait-rotation and body hiding styles for the portal overlay
       const style = document.createElement('style');
       style.id = 'mp-fs-portrait-style';
       style.textContent = `
+        #root {
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+        #mp-fs-portal-overlay {
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
         @media (orientation: portrait) {
           #mp-fs-portal-overlay {
             align-items: center !important;
@@ -3080,7 +3092,7 @@ export default function ComunidadPage() {
 
             {/* Mauricio Posada Embedded Slideshow Presentation (FIRST POSITION) */}
             {funnelKey === 'comunidadmp' && (
-              <div className="w-full max-w-4xl mx-auto mt-2 mb-12 text-left relative z-10">
+              <div id="mp-presentation-parent" className="w-full max-w-4xl mx-auto mt-2 mb-12 text-left relative z-10">
                 <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
                   <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST · MAURICIO POSADA</span>
                   <p className="text-xs sm:text-sm text-text-secondary">
@@ -3088,37 +3100,11 @@ export default function ComunidadPage() {
                   </p>
                 </div>
 
-                {/* When fullscreen, render iframe as a Portal directly on document.body to escape any stacking context */}
-                {isIframeFullscreen && createPortal(
-                  <div
-                    id="mp-fs-portal-overlay"
-                    style={{
-                      position: 'fixed',
-                      inset: 0,
-                      zIndex: 2147483647,
-                      background: '#000',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <iframe
-                      src="/assets/gira-ia-sst.html"
-                      title="Presentación Interactiva Mauricio Posada"
-                      style={{
-                        border: 'none',
-                        width: '100%',
-                        height: '100%',
-                        display: 'block',
-                      }}
-                      allowFullScreen
-                    />
-                  </div>,
-                  document.body
-                )}
-
-                {/* Normal (non-fullscreen) iframe wrapper */}
-                <div className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35">
+                {/* Single iframe wrapper. Fullscreen states are managed entirely via dynamic CSS classes & layout overrides */}
+                <div 
+                  id="mp-presentation-container"
+                  className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35"
+                >
                   <iframe
                     src="/assets/gira-ia-sst.html"
                     title="Presentación Interactiva Mauricio Posada"

@@ -99,14 +99,11 @@ export default function useAgentSessionOverrides({
             const updates: Partial<TEphemeralAgentExtended> = {
                 _defaultsApplied: appliedKey,
             };
-
-            // Activate built-in tools if the agent has them
+            // Align built-in tools with the agent's actual database configuration
             const toolSet = new Set(agent.tools ?? []);
-            if (toolSet.has(Tools.web_search)) updates[Tools.web_search] = true;
-            if (toolSet.has(Tools.file_search)) updates[Tools.file_search] = true;
-            if (toolSet.has(Tools.execute_code) || toolSet.has(Tools.code_interpreter)) {
-                updates[Tools.execute_code] = true;
-            }
+            updates[Tools.web_search] = toolSet.has(Tools.web_search);
+            updates[Tools.file_search] = toolSet.has(Tools.file_search);
+            updates[Tools.execute_code] = toolSet.has(Tools.execute_code) || toolSet.has(Tools.code_interpreter);
 
             // Activate external tools by merging them into the tools array.
             // NOTE: 'editor_live', 'matriz_ipevar', 'google_drive', 'google_calendar' and 'context' are intentionally excluded

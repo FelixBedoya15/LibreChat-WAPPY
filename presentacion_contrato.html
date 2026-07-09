@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estructura Legal - Contrato de Corretaje WAPPY LTDA</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --------------------------------------------------
+           1. DESIGN SYSTEM & CSS VARIABLES
+           -------------------------------------------------- */
+        :root {
+            --bg-dark: #060911;
+            --bg-card: rgba(15, 23, 42, 0.65);
+            --border-color: rgba(34, 197, 94, 0.15);
+            --primary: #22c55e;
+            --primary-glow: rgba(34, 197, 94, 0.12);
+            --secondary: #10b981;
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.12);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --transition-speed: 0.4s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* --------------------------------------------------
+           2. AMBIENT GLOWS & BACKGROUND EFFECTS
+           -------------------------------------------------- */
+        .ambient-glow-1 {
+            position: absolute;
+            top: -15%;
+            right: -10%;
+            width: 55vw;
+            height: 55vw;
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.08) 0%, rgba(6, 182, 212, 0.03) 60%, rgba(0,0,0,0) 80%);
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 1;
+            animation: pulse-glow-1 18s infinite alternate;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            bottom: -15%;
+            left: -10%;
+            width: 55vw;
+            height: 55vw;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(34, 197, 94, 0.03) 60%, rgba(0,0,0,0) 80%);
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 1;
+            animation: pulse-glow-2 22s infinite alternate-reverse;
+        }
+
+        @keyframes pulse-glow-1 {
+            0% { transform: scale(1) translate(0, 0); opacity: 0.7; }
+            100% { transform: scale(1.1) translate(20px, -20px); opacity: 1; }
+        }
+
+        @keyframes pulse-glow-2 {
+            0% { transform: scale(1) translate(0, 0); opacity: 0.7; }
+            100% { transform: scale(1.15) translate(-20px, 20px); opacity: 1; }
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            background-image: 
+                radial-gradient(1px 1px at 40px 60px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 120px 150px, rgba(34, 197, 94, 0.5), rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 200px 80px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 280px 240px, rgba(6, 182, 212, 0.5), rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 300px 300px;
+            opacity: 0.25;
+            animation: star-drift 120s linear infinite;
+        }
+
+        @keyframes star-drift {
+            from { background-position: 0px 0px; }
+            to { background-position: 300px 600px; }
+        }
+
+        /* --------------------------------------------------
+           3. LAYOUT STRUCTURE
+           -------------------------------------------------- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 3rem;
+            z-index: 10;
+            background: linear-gradient(to bottom, rgba(6, 9, 17, 0.95) 0%, rgba(6, 9, 17, 0) 100%);
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .logo-img {
+            height: 38px;
+            filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.4));
+        }
+
+        .brand-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffffff 40%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.03em;
+        }
+
+        .header-badge {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            color: var(--accent);
+            padding: 0.35rem 0.85rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Progress Bar Indicator */
+        .progress-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.03);
+            z-index: 20;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 9.09%; /* 1 / 11 slides */
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+            transition: width 0.35s ease;
+        }
+
+        /* Slides Deck Area */
+        .slide-deck {
+            flex-grow: 1;
+            position: relative;
+            z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem 3rem;
+            perspective: 1200px;
+        }
+
+        /* Slide Styling */
+        .slide {
+            position: absolute;
+            width: 95%;
+            max-width: 1150px;
+            height: 72vh;
+            min-height: 480px;
+            max-height: 75vh;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96) translateZ(-50px) rotateX(1deg);
+            transition: opacity var(--transition-speed) ease, transform var(--transition-speed) cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 2.25rem 3rem;
+            border-radius: 24px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(34, 197, 94, 0.2) transparent;
+        }
+
+        .slide::-webkit-scrollbar {
+            width: 4px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background-color: rgba(34, 197, 94, 0.2);
+            border-radius: 10px;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateZ(0px) rotateX(0deg);
+            z-index: 10;
+        }
+
+        /* Footer Controls */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 3rem;
+            z-index: 10;
+            background: linear-gradient(to top, rgba(6, 9, 17, 0.95) 0%, rgba(6, 9, 17, 0) 100%);
+        }
+
+        .slide-counter {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            font-weight: 500;
+        }
+
+        .slide-dots {
+            display: flex;
+            gap: 0.45rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dot.active {
+            background: var(--primary);
+            transform: scale(1.35);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .slide-controls {
+            display: flex;
+            gap: 0.65rem;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .ctrl-btn:hover:not(:disabled) {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+        }
+
+        .ctrl-btn:disabled {
+            opacity: 0.15;
+            cursor: not-allowed;
+        }
+
+        /* --------------------------------------------------
+           4. TYPOGRAPHY & DECORATIONS
+           -------------------------------------------------- */
+        .title-gradient {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            font-size: 2.45rem;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #ffffff 20%, var(--primary) 70%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.015em;
+        }
+
+        .subtitle-gradient {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.45rem;
+            line-height: 1.25;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.85rem;
+        }
+
+        .text-lead {
+            font-size: 0.98rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+            max-width: 900px;
+        }
+
+        .badge-clause {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 2.25rem;
+            align-items: center;
+        }
+
+        .grid-equal-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: stretch;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Cards and Lists */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .glass-card:hover {
+            background: rgba(34, 197, 94, 0.02);
+            border-color: rgba(34, 197, 94, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.03);
+        }
+
+        .glass-card.accent-card:hover {
+            background: rgba(6, 182, 212, 0.02);
+            border-color: rgba(6, 182, 212, 0.25);
+            box-shadow: 0 10px 20px rgba(6, 182, 212, 0.03);
+        }
+
+        .glass-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .glass-card-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--primary);
+        }
+
+        .accent-card .glass-card-icon {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent);
+        }
+
+        .glass-card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .glass-card-desc {
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: var(--text-muted);
+        }
+
+        /* Checklists */
+        .checklist {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.92rem;
+            line-height: 1.45;
+            color: var(--text-main);
+        }
+
+        .checklist-icon {
+            color: var(--primary);
+            font-size: 1.1rem;
+            line-height: 1;
+            margin-top: 0.15rem;
+        }
+
+        .checklist-item strong {
+            color: #fff;
+        }
+
+        /* --------------------------------------------------
+           5. INTERACTIVE CALCULATOR (Slide 6)
+           -------------------------------------------------- */
+        .calculator-panel {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .slider-group {
+            margin-bottom: 0.85rem;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            font-weight: 500;
+        }
+
+        .slider-val {
+            color: var(--primary);
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .range-slider {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            outline: none;
+            border-radius: 10px;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            transition: transform 0.1s ease;
+        }
+
+        .range-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .calc-results {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.06);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .calc-res-box {
+            text-align: center;
+        }
+
+        .calc-lbl {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.2rem;
+        }
+
+        .calc-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .calc-val.highlighted {
+            font-size: 1.55rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .bonus-pill {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            font-size: 0.65rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-weight: 800;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* --------------------------------------------------
+           6. BIG GRAPHIC NUMBER STATS
+           -------------------------------------------------- */
+        .big-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .big-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, #fff 10%, var(--primary) 60%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .big-num-lbl {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        /* --------------------------------------------------
+           7. SLIDE-SPECIFIC CUSTOM STYLE
+           -------------------------------------------------- */
+        .portada-card {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(6, 182, 212, 0.03) 100%);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            padding: 2rem 2.5rem;
+            border-radius: 20px;
+        }
+
+        .contract-meta {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .contract-meta span strong {
+            color: var(--text-main);
+        }
+
+        .arl-partner-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .arl-badge {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .arl-badge.sura { color: #0033a0; border-color: rgba(0, 51, 160, 0.2); }
+        .arl-badge.colmena { color: #e87722; border-color: rgba(232, 119, 34, 0.2); }
+        .arl-badge.axa { color: #d32f2f; border-color: rgba(211, 47, 47, 0.2); }
+        .arl-badge.bolivar { color: #ffcd00; border-color: rgba(255, 205, 0, 0.2); }
+
+        .law-box {
+            background: rgba(6, 182, 212, 0.02);
+            border: 1px dashed rgba(6, 182, 212, 0.25);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Stars effect -->
+    <div class="stars"></div>
+    <!-- Ambient backgrounds -->
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo-group">
+            <img src="client/public/assets/logo.png" onerror="this.src='Agentes/Miniaturas/Logos%20/logo-bg-removebg-preview.png'; this.onerror=null;" class="logo-img" alt="Wappy Logo">
+            <span class="brand-text">WAPPY LTDA</span>
+        </div>
+        <div class="header-badge">Estructura Legal y Comercial</div>
+    </header>
+
+    <!-- Slide Deck -->
+    <div class="slide-deck">
+
+        <!-- SLIDE 1: PORTADA -->
+        <div class="slide active">
+            <div class="grid-2">
+                <div class="portada-card">
+                    <span class="badge-clause">Marco Normativo Colombia</span>
+                    <h1 class="title-gradient">Contrato de Corretaje Comercial</h1>
+                    <p class="subtitle-gradient">Embajadores Oficiales WAPPY LTDA</p>
+                    <p class="text-lead">Presentación técnica y legal de las cláusulas, deberes, comisiones y responsabilidades contempladas en el acuerdo comercial de intermediación y promoción de servicios.</p>
+                    <div class="contract-meta">
+                        <span>Compañía: <strong>WAPPY LTDA (NIT 901437310)</strong></span>
+                        <span>Normativa: <strong>Código de Comercio (Art. 1340-1346)</strong></span>
+                    </div>
+                </div>
+                <div class="big-stat" style="padding: 2.5rem; justify-content: center; display: flex; align-items: center;">
+                    <img src="Agentes/Miniaturas/Logos%20/logo-bg-removebg-preview.png" onerror="this.src='client/public/assets/logo.png'; this.onerror=null;" alt="Logo Wappy" style="height: 180px; max-width: 100%; object-fit: contain; filter: drop-shadow(0 0 25px rgba(34, 197, 94, 0.45));">
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: NATURALEZA Y OBJETO -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 1ª y 8ª: Objeto e Independencia</span>
+            <h2 class="title-gradient">Naturaleza Comercial y Autonomía</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">El contrato define una relación de <strong>Corretaje Comercial</strong> civil e independiente, regulada bajo la legislación comercial colombiana.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Objeto Principal:</strong> Promover y referenciar licencias de software WAPPY e intermediar la vinculación de empresas al Sistema de Riesgos Laborales (ARL).</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Ausencia de Vínculo Laboral:</strong> El embajador actúa de manera autónoma, sin subordinación, horarios ni reglamentos internos de la compañía.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Seguridad Social:</strong> El embajador asume sus aportes al sistema de seguridad social (PILA) como trabajador independiente.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="grid-equal-2">
+                    <div class="glass-card">
+                        <div class="glass-card-header">
+                            <div class="glass-card-icon">⚡</div>
+                            <span class="glass-card-title">Comercial</span>
+                        </div>
+                        <p class="glass-card-desc">Contrato civil de corretaje autónomo que protege legalmente a Wappy de demandas por pasivos laborales.</p>
+                    </div>
+                    <div class="glass-card accent-card">
+                        <div class="glass-card-header">
+                            <div class="glass-card-icon">🛡️</div>
+                            <span class="glass-card-title">Autonomía</span>
+                        </div>
+                        <p class="glass-card-desc">El Embajador ejecuta las actividades con sus propios recursos, herramientas y metodologías de prospección.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: TERRITORIO Y EXCLUSIVIDAD -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 2ª: Territorio y Límites</span>
+            <h2 class="title-gradient">Exclusividad y Reglas Territoriales</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Wappy concede exclusividad oficial para evitar la competencia desleal y permitir el desarrollo orgánico de mercados locales.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Plazas Limitadas:</strong> Máximo un (1) embajador por municipio y hasta dos (2) en ciudades principales.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Ventas Fuera del Territorio:</strong> Si logras cerrar un cliente en otra región por relaciones preexistentes, <strong>se te pagará la comisión del 100%</strong>.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">❌</span>
+                            <span><strong>Prospección Activa Prohibida:</strong> No se permite publicidad de pago geolocalizada o campañas activas en municipios asignados a otros embajadores.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="big-stat">
+                    <div class="big-num">100%</div>
+                    <div class="big-num-lbl">Pago en ventas orgánicas externas</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: DEPÓSITO Y RETORNO -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 3ª: Reserva Territorial</span>
+            <h2 class="title-gradient">Depósito de Reserva y Retorno</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Para congelar y garantizar la exclusividad del territorio, se realiza un depósito temporal que cuenta con un retorno total garantizado.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Valor del Depósito:</strong> $650.000 COP, destinados a reservar la plaza comercial y bloquear otros aspirantes.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Retorno del 100%:</strong> Se devuelve la totalidad de la reserva comercial de manera conjunta con la liquidación de la <strong>primera venta efectiva del Plan Wappy Pro Anual</strong> ($1.200.000 COP).</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Naturaleza Legal:</strong> No constituye cobro administrativo, costo fijo de membresía o franquicia, sino un depósito reembolsable de seriedad.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="big-stat">
+                    <div class="big-num">$650K</div>
+                    <div class="big-num-lbl">Depósito 100% Retornable</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: GARANTÍA DE RETRACTO -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 4ª: Derecho de Retracto</span>
+            <h2 class="title-gradient">Garantía de Retracto (1 Mes)</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Queremos que la alianza sea una decisión transparente y segura. Por eso, cuentas con un período de prueba protegido legalmente.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Plazo de Retracto:</strong> Un mes completo (30 días calendario) a partir del inicio y la firma del contrato.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Devolución Sin Penalizaciones:</strong> Si decides desistir del programa por cualquier motivo personal, Wappy reembolsa el 100% del depósito ($650.000 COP).</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Desembolso Ágil:</strong> El pago se efectúa en un plazo máximo de quince (15) días hábiles tras recibir la notificación por escrito.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="big-stat" style="border-color: var(--accent);">
+                    <div class="big-num" style="background: linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">30</div>
+                    <div class="big-num-lbl">Días de Garantía Absoluta</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: COMISIONES DE SOFTWARE -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 5ª: Comisiones de Licenciamiento</span>
+            <h2 class="title-gradient">Esquema Comercial e Incentivos</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Estructura comercial de comisiones recurrentes por las licencias de software vendidas a través de tu enlace oficial:</p>
+                    <ul class="checklist" style="margin-bottom: 1rem;">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Comisión Base:</strong> 20% sobre el valor neto de cada licencia vendida.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Bono por Volumen (+5%):</strong> Si cierras 3 o más ventas en el mismo mes calendario, la comisión se eleva al <strong>25% para todas las ventas</strong> de ese mes.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Frecuencia de Pago:</strong> Liquidaciones quincenales todos los días <strong>5 y 25 de cada mes</strong>.</span>
+                        </li>
+                    </ul>
+                    <div class="law-box">
+                        <span>⚖️ <strong>Precios Base (COP):</strong> Vital ($350K) · Pro Mensual ($114K) · Pro Trimestral ($331K) · Pro Semestral ($641K) · Pro Anual ($1.2M).</span>
+                    </div>
+                </div>
+                <div class="calculator-panel">
+                    <h3 class="glass-card-title" style="margin-bottom: 0.75rem;">Calculadora de Comisiones</h3>
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span>Ventas de Plan Pro Anual/Mes</span>
+                            <span class="slider-val" id="salesVal">2</span>
+                        </div>
+                        <input type="range" class="range-slider" id="salesSlider" min="1" max="10" value="2">
+                    </div>
+                    <div class="calc-results">
+                        <div class="calc-res-box">
+                            <div class="calc-lbl">Comisión directas</div>
+                            <div class="calc-val" id="commVal">$480.000</div>
+                        </div>
+                        <div class="calc-res-box">
+                            <div class="calc-lbl">Porcentaje total</div>
+                            <div class="calc-val" id="pctVal">20%</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 0.75rem;">
+                        <span class="calc-lbl">Ingreso Estimado + Devolución Reserva:</span>
+                        <div class="calc-val highlighted" id="totalVal">$1.130.000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: INTERMEDIACIÓN ARL -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 6ª: Intermediación de Riesgos</span>
+            <h2 class="title-gradient">Intermediación ARL y Soporte</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">La línea de negocios de intermediación de Riesgos Laborales permite ingresos residuales basados en la gestión comercial conjunta.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Ingreso Compartido:</strong> El embajador recibe el <strong>70% del valor neto</strong> transferido a Wappy LTDA por la ARL.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Responsabilidad de Cuenta:</strong> El embajador asume el deber de brindar acompañamiento comercial y asesoría técnica para fidelizar al cliente.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Software Incluido:</strong> A la empresa afiliada se le concede una licencia gratis (Vital o Pro) mientras dure el contrato ARL con Wappy LTDA.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-icon">💼</div>
+                        <span class="glass-card-title">Intermediación Autorizada</span>
+                    </div>
+                    <p class="glass-card-desc" style="margin-bottom: 0.5rem;">Gestión comercial autorizada con las principales administradoras de riesgos:</p>
+                    <div class="arl-partner-grid">
+                        <div class="arl-badge sura">SURA</div>
+                        <div class="arl-badge colmena">COLMENA</div>
+                        <div class="arl-badge axa">AXA</div>
+                        <div class="arl-badge bolivar">BOLÍVAR</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: MARCA Y CONFIDENCIALIDAD -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 7ª y 9ª: Propiedad e Información</span>
+            <h2 class="title-gradient">Uso de Marca y Confidencialidad</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Protección mutua de los recursos comerciales, el prestigio de la plataforma y el resguardo de información clave.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Identificación Autorizada:</strong> Uso del nombre y logos oficiales de la marca presentándote como <strong>"Embajador Oficial WAPPY LTDA"</strong>.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Protección Intelectual:</strong> No se permite registrar dominios, marcas o redes sociales con el nombre exclusivo de Wappy.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Deber de Reserva:</strong> Confidencialidad sobre los algoritmos, bases de datos de clientes y precios durante el contrato y por <strong>5 años posteriores a su terminación</strong>.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="big-stat">
+                    <div class="big-num">5 Años</div>
+                    <div class="big-num-lbl">Vigencia Post-Contrato de la Reserva</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: LEALTAD Y NO COMPETENCIA -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 10ª: Lealtad Comercial</span>
+            <h2 class="title-gradient">Acuerdo de No Competencia</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Para fortalecer la posición de mercado del ecosistema Wappy, se establece un compromiso recíproco de lealtad comercial.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Compromiso:</strong> Durante la vigencia del contrato, el embajador se compromete a no representar a marcas competidoras.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Restricción Específica:</strong> No promover, vender ni asesorar a otras plataformas de software o sistemas expertos de <strong>Inteligencia Artificial orientados al sector de Seguridad y Salud en el Trabajo (SST)</strong>.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Propósito:</strong> Concentrar el esfuerzo y la ventaja del territorio exclusivo para el posicionamiento de Wappy.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="glass-card accent-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-icon">🤝</div>
+                        <span class="glass-card-title">Lealtad Recíproca</span>
+                    </div>
+                    <p class="glass-card-desc">El Embajador recibe exclusividad regional y, en contraprestación, dedica su promoción tecnológica exclusivamente a las soluciones IA de WAPPY LTDA.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10: DURACIÓN Y TERMINACIÓN -->
+        <div class="slide">
+            <span class="badge-clause">Cláusula 11ª y 12ª: Terminación y Resolución</span>
+            <h2 class="title-gradient">Duración y Resolución de Conflictos</h2>
+            <div class="grid-2">
+                <div>
+                    <p class="text-lead">Términos normativos sobre la vigencia del contrato y los procesos formales en caso de diferencias entre las partes.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Vigencia:</strong> Duración de un (1) año, prorrogable de forma automática por periodos iguales.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Retiro Anticipado:</strong> Cualquiera de las partes puede darlo por terminado con un preaviso de 30 días calendario por escrito.</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span><strong>Causales de Retiro Inmediato:</strong> Prospección en territorios ajenos, violación de confidencialidad, o abandono del soporte técnico de empresas ARL.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="law-box" style="margin-bottom: 0.85rem;">
+                        <span>⚖️ <strong>Ley Aplicable:</strong> Regido enteramente por las leyes de la República de Colombia.</span>
+                    </div>
+                    <div class="glass-card">
+                        <div class="glass-card-header">
+                            <div class="glass-card-icon">🏛️</div>
+                            <span class="glass-card-title">Resolución de Disputas</span>
+                        </div>
+                        <p class="glass-card-desc">1º Arreglo directo y amigable (30 días). 2º Conciliación en derecho ante centros autorizados de Bogotá D.C. o de la Cámara de Comercio de Facatativá (Jurisdicción Sopó).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 11: FIRMA Y CONEXIÓN -->
+        <div class="slide">
+            <span class="badge-clause">Finalización del Acuerdo</span>
+            <h2 class="title-gradient">Formalización y Firma</h2>
+            <div class="grid-equal-2">
+                <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                    <img src="client/public/assets/logo.png" onerror="this.src='Agentes/Miniaturas/Logos%20/logo-bg-removebg-preview.png'; this.onerror=null;" alt="Wappy Logo" style="width: 50px; height: 50px; object-fit: contain; margin-bottom: 0.75rem; filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.3));">
+                    <div class="glass-card-header" style="justify-content: center; margin-bottom: 0.5rem; width: 100%;">
+                        <span class="glass-card-title">WAPPY LTDA</span>
+                    </div>
+                    <p class="glass-card-desc" style="line-height: 1.5;">
+                        <strong>NIT:</strong> 901437310<br>
+                        <strong>Domicilio:</strong> Sopó, Cundinamarca<br>
+                        <strong>Firma:</strong> Representante Legal
+                    </p>
+                </div>
+                <div class="glass-card accent-card" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                    <img src="Agentes/Miniaturas/Avatar%20/embajadorlider.png" onerror="this.src='Agentes/Miniaturas/Avatar%20/Avatar1.png'; this.onerror=null;" alt="Avatar Embajador" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%; margin-bottom: 0.75rem; border: 2px solid var(--primary); box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);">
+                    <div class="glass-card-header" style="justify-content: center; margin-bottom: 0.5rem; width: 100%;">
+                        <span class="glass-card-title">El Embajador</span>
+                    </div>
+                    <p class="glass-card-desc" style="line-height: 1.5;">
+                        <strong>Nombre:</strong> [NOMBRE DEL EMBAJADOR]<br>
+                        <strong>Identificación:</strong> C.C. [NÚMERO DE CÉDULA]<br>
+                        <strong>Vínculo:</strong> Contratista Independiente
+                    </p>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <p class="text-lead" style="margin: 0 auto 0.75rem auto;">"El futuro de la Seguridad y Salud en el Trabajo no se construirá resistiéndonos a la tecnología, sino aprendiendo a utilizarla a nuestro favor."</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer Controls -->
+    <footer>
+        <div class="slide-counter" id="slideCounter">DIAPOSITIVA 1 de 11</div>
+        <div class="slide-dots" id="slideDots"></div>
+        <div class="slide-controls">
+            <button class="ctrl-btn" id="prevBtn" disabled>←</button>
+            <button class="ctrl-btn" id="nextBtn">→</button>
+        </div>
+    </footer>
+
+    <!-- JavaScript Slide Logic -->
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const dotsContainer = document.getElementById('slideDots');
+        const counter = document.getElementById('slideCounter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+
+        // Generate Dots
+        slides.forEach((_, idx) => {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+            if (idx === 0) dot.classList.add('active');
+            dot.addEventListener('click', () => goToSlide(idx));
+            dotsContainer.appendChild(dot);
+        });
+
+        const dots = document.querySelectorAll('.dot');
+
+        function updateControls() {
+            // Update Active Slide
+            slides.forEach((slide, idx) => {
+                if (idx === currentIndex) {
+                    slide.classList.add('active');
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+
+            // Update Dots
+            dots.forEach((dot, idx) => {
+                if (idx === currentIndex) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+
+            // Update Counter
+            counter.innerText = `DIAPOSITIVA ${currentIndex + 1} de ${totalSlides}`;
+
+            // Update Progress Bar
+            const percent = ((currentIndex + 1) / totalSlides) * 100;
+            progressBar.style.width = `${percent}%`;
+
+            // Enable/Disable Buttons
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = currentIndex === totalSlides - 1;
+        }
+
+        function goToSlide(index) {
+            if (index >= 0 && index < totalSlides) {
+                currentIndex = index;
+                updateControls();
+            }
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentIndex > 0) goToSlide(currentIndex - 1);
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                if (currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+            } else if (e.key === 'ArrowLeft') {
+                if (currentIndex > 0) goToSlide(currentIndex - 1);
+            }
+        });
+
+        // Interactive Commission Calculator Logic
+        const salesSlider = document.getElementById('salesSlider');
+        const salesVal = document.getElementById('salesVal');
+        const commVal = document.getElementById('commVal');
+        const pctVal = document.getElementById('pctVal');
+        const totalVal = document.getElementById('totalVal');
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function calculateCommissions() {
+            const count = parseInt(salesSlider.value);
+            salesVal.innerText = count;
+
+            const planPrice = 1200000; // Plan Pro Anual ($1.200.000)
+            const baseDeposit = 650000; // Deposit Return
+            
+            // If count >= 3, they get a 25% commission (otherwise 20%)
+            const percent = count >= 3 ? 0.25 : 0.20;
+            
+            // Total commission direct
+            const comm = count * planPrice * percent;
+            
+            pctVal.innerText = `${percent * 100}%`;
+            
+            if (count >= 3) {
+                if (!pctVal.querySelector('.bonus-pill')) {
+                    pctVal.innerHTML = `25% <span class="bonus-pill">BONO +5%</span>`;
+                }
+            }
+
+            commVal.innerText = formatCurrency(comm);
+
+            // Total is commissions + return of deposit (returned on 1st sale, so always returned if count >= 1)
+            const total = comm + baseDeposit;
+            totalVal.innerText = formatCurrency(total);
+        }
+
+        salesSlider.addEventListener('input', calculateCommissions);
+        // Initialize calculation
+        calculateCommissions();
+    </script>
+</body>
+</html>
