@@ -294,6 +294,22 @@
     /* REVEAL */
     .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.7s ease, transform 0.7s ease; }
     .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* COSTS NOTE */
+    .costs-note {
+      max-width: 760px; margin: 1.5rem auto 0;
+      background: rgba(255, 107, 53, 0.05);
+      border: 1px solid rgba(255, 107, 53, 0.15);
+      border-radius: 14px; padding: 1.4rem 1.8rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+      text-align: left;
+    }
+    .costs-note .cn-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .costs-note strong { color: var(--white); display: block; margin-bottom: 0.5rem; }
+    .costs-note p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    .costs-note ul { margin: 0.8rem 0 0.8rem 1.2rem; color: var(--muted); font-size: 0.88rem; }
+    .costs-note li { margin-bottom: 0.4rem; }
+    .costs-note .cn-sub { font-size: 0.78rem; color: rgba(255, 107, 53, 0.7); margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -525,9 +541,9 @@
         <strong>Costos adicionales por cuenta del estudiante</strong>
         <p>El valor del curso cubre únicamente la enseñanza y acompañamiento en clase. Al momento de lanzar tu aplicación web deberás asumir directamente:</p>
         <ul>
-          <li>🌐 <strong>Dominio propio</strong> — aprox. USD 10–15/año (Namecheap, GoDaddy, .co)</li>
-          <li>🖥️ <strong>Servidor VPS</strong> — aprox. USD 5–15/mes (Hostinger, DigitalOcean, Contabo)</li>
-          <li>🔑 <strong>API de Gemini</strong> — capa gratuita muy amplia; costos extra solo si superas el límite</li>
+          <li>🌐 <strong>Dominio propio</strong> — aprox. $50.000 - $80.000/año (Namecheap, GoDaddy, .co)</li>
+          <li>🖥️ <strong>Servidor para lanzar el aplicativo</strong> — promedio $1.150.000</li>
+          <li>🔑 <strong>Plan de Google Gemini Pro (para Antigravity)</strong> — aprox. $90.000/mes (solo se necesita pagar un mes)</li>
           <li>💳 <strong>Pasarela de pago (ej. Wompi)</strong> — solo si tu app requiere cobros en línea</li>
         </ul>
         <p class="cn-sub">Estos valores son independientes al curso y quedan 100% en tu propiedad al terminar.</p>
