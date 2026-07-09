@@ -465,8 +465,11 @@ function sendOTP(){
   const sendBtn=document.getElementById('btn-send-otp');
   sendBtn.disabled=true;
 
+  // Dynamically target the live server if opened locally via file://
+  const API_BASE = window.location.protocol === 'file:' ? 'https://wappy-ia.com' : '';
+
   // Make request to backend
-  fetch('/api/embajadores/send-otp', {
+  fetch(API_BASE + '/api/embajadores/send-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, otpCode })

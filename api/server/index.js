@@ -627,10 +627,12 @@ const startServer = async () => {
         return res.status(400).json({ message: 'Faltan datos requeridos (email, name, otpCode).' });
       }
 
+      logger.info(`[Embajadores OTP] Intentando enviar correo a: ${email} para el embajador: ${name}`);
+
       const sendEmail = require('./utils/sendEmail');
-      await sendEmail({
+      const mailInfo = await sendEmail({
         email,
-        subject: '🔐 Código de Verificación para tu Contrato - WAPPY LTDA',
+        subject: 'Código de Verificación - WAPPY LTDA',
         payload: {
           name,
           otpCode,
@@ -638,9 +640,11 @@ const startServer = async () => {
         template: 'verifyEmbajadorOtp.handlebars',
       });
 
+      logger.info('[Embajadores OTP] Correo enviado exitosamente. Info:', mailInfo);
+
       res.json({ message: 'Código enviado con éxito.' });
     } catch (err) {
-      logger.error('[Embajadores OTP] Error sending email:', err);
+      logger.error('[Embajadores OTP] Error al enviar el correo:', err);
       res.status(500).json({ message: 'No se pudo enviar el correo de verificación.', error: err.message });
     }
   });
