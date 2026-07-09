@@ -392,29 +392,53 @@ export default function ComunidadPage() {
       return;
     }
     if (isIframeFullscreen) {
+      document.body.classList.add('mp-fs-active');
       document.body.style.overflow = 'hidden';
-      // inject portrait-rotation and body hiding styles for the portal overlay
+      // inject fullscreen styles and parent stacking context resets
       const style = document.createElement('style');
       style.id = 'mp-fs-portrait-style';
       style.textContent = `
-        #root {
-          visibility: hidden !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-          height: 0 !important;
-          overflow: hidden !important;
+        /* Reset stacking context of parent containers to let fixed presentation take full screen */
+        #root, 
+        #root > div, 
+        main,
+        .comunidadmp-bg {
+          transform: none !important;
+          will-change: auto !important;
+          filter: none !important;
+          perspective: none !important;
         }
-        #mp-fs-portal-overlay {
-          visibility: visible !important;
-          opacity: 1 !important;
-          pointer-events: auto !important;
+
+        /* Hide all other content when fullscreen is active */
+        body.mp-fs-active nav,
+        body.mp-fs-active footer,
+        body.mp-fs-active h1,
+        body.mp-fs-active .comunidadmp-kicker,
+        body.mp-fs-active #mp-presentation-parent > *:not(#mp-presentation-container),
+        body.mp-fs-active main > *:not(#mp-presentation-parent) {
+          display: none !important;
         }
+
+        body.mp-fs-active #mp-presentation-container {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 2147483647 !important;
+          background: #000 !important;
+          border: none !important;
+          border-radius: 0 !important;
+          margin: 0 !important;
+        }
+
         @media (orientation: portrait) {
-          #mp-fs-portal-overlay {
+          body.mp-fs-active #mp-presentation-container {
+            display: flex !important;
             align-items: center !important;
             justify-content: center !important;
           }
-          #mp-fs-portal-overlay iframe {
+          body.mp-fs-active #mp-presentation-container iframe {
             width: 100vh !important;
             height: 100vw !important;
             transform: rotate(90deg) !important;
@@ -424,11 +448,13 @@ export default function ComunidadPage() {
       `;
       document.head.appendChild(style);
     } else {
+      document.body.classList.remove('mp-fs-active');
       document.body.style.overflow = '';
       const existing = document.getElementById('mp-fs-portrait-style');
       if (existing) existing.remove();
     }
     return () => {
+      document.body.classList.remove('mp-fs-active');
       document.body.style.overflow = '';
       const existing = document.getElementById('mp-fs-portrait-style');
       if (existing) existing.remove();
@@ -2088,20 +2114,20 @@ export default function ComunidadPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackClick('whatsapp')}
-                className={`px-3.5 py-2 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
+                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
                 </svg>
-                ¿Tienes dudas? Escríbenos
+                <span><span className="hidden sm:inline">¿Tienes dudas? </span>Escríbenos</span>
               </a>
               {(isVideoFinished || isAdmin || isLeadCaptured) && (
                 <button
                   onClick={() => navigate('/login')}
-                  className={`px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-[10px] sm:text-xs shadow-md shadow-emerald-500/10 hover:scale-105 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
+                  className={`px-6 py-3 sm:px-8 sm:py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-xs sm:text-sm shadow-md shadow-emerald-500/10 hover:scale-105 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap min-w-[140px] sm:min-w-[180px] ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
                 >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Acceder a WAPPY
+                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Acceder a WAPPY</span>
                 </button>
               )}
             </>
