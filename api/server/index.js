@@ -616,6 +616,35 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../convocatoria_embajadores.html'));
   });
 
+  app.get(['/contratoembajadores', '/contratoembajadores.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../contratoembajadores.html'));
+  });
+
+  app.post('/api/embajadores/send-otp', async (req, res) => {
+    try {
+      const { email, name, otpCode } = req.body;
+      if (!email || !name || !otpCode) {
+        return res.status(400).json({ message: 'Faltan datos requeridos (email, name, otpCode).' });
+      }
+
+      const sendEmail = require('./utils/sendEmail');
+      await sendEmail({
+        email,
+        subject: '🔐 Código de Verificación para tu Contrato - WAPPY LTDA',
+        payload: {
+          name,
+          otpCode,
+        },
+        template: 'verifyEmbajadorOtp.handlebars',
+      });
+
+      res.json({ message: 'Código enviado con éxito.' });
+    } catch (err) {
+      logger.error('[Embajadores OTP] Error sending email:', err);
+      res.status(500).json({ message: 'No se pudo enviar el correo de verificación.', error: err.message });
+    }
+  });
+
   app.get(['/portafolio', '/portafolio.html'], (req, res) => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });

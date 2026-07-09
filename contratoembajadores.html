@@ -448,46 +448,52 @@ function onContractScroll(){
 /* OTP */
 function sendOTP(){
   const email=document.getElementById('f-email').value;
+  const name=document.getElementById('f-nombre').value;
   if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){alert('Por favor ingresa un correo válido en el paso 1.');return;}
   otpCode=Math.floor(100000+Math.random()*900000).toString();
+  
   // Update both email display elements
   const d1=document.getElementById('otp-email-display');
   const d2=document.getElementById('otp-email-display2');
   if(d1)d1.textContent=email;
   if(d2)d2.textContent=email;
+  
   // Show loading
   const sendingMsg=document.getElementById('otp-sending-msg');
   if(sendingMsg)sendingMsg.style.display='block';
-  // Try to send via EmailJS
+  
   const sendBtn=document.getElementById('btn-send-otp');
   sendBtn.disabled=true;
-  if(typeof emailjs!=='undefined'&&window.EMAILJS_PUBLIC_KEY&&window.EMAILJS_SERVICE_ID&&window.EMAILJS_TEMPLATE_ID){
-    emailjs.send(window.EMAILJS_SERVICE_ID,window.EMAILJS_TEMPLATE_ID,{
-      to_email:email,
-      to_name:document.getElementById('f-nombre').value||email,
-      otp_code:otpCode,
-      company:'WAPPY LTDA'
-    },window.EMAILJS_PUBLIC_KEY)
-    .then(()=>{
-      if(sendingMsg)sendingMsg.style.display='none';
-      document.getElementById('otp-panel').classList.add('visible');
-      sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
-    })
-    .catch((err)=>{
-      console.warn('[EmailJS error]',err);
-      if(sendingMsg)sendingMsg.style.display='none';
-      document.getElementById('otp-panel').classList.add('visible');
-      sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
-      alert('El correo no pudo enviarse automáticamente. Código disponible en consola del navegador (F12) para pruebas.');
-    });
-  } else {
-    // Fallback: EmailJS not configured — show panel anyway (for testing)
+
+  // Make request to backend
+  fetch('/api/embajadores/send-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, name, otpCode })
+  })
+  .then(async res => {
     if(sendingMsg)sendingMsg.style.display='none';
+    sendBtn.disabled=false;
+    sendBtn.textContent='🔄 Reenviar Código';
+    
+    if (res.ok) {
+      document.getElementById('otp-panel').classList.add('visible');
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Error del servidor');
+    }
+  })
+  .catch((err)=>{
+    console.warn('[Backend email error, trying console fallback]', err);
+    if(sendingMsg)sendingMsg.style.display='none';
+    sendBtn.disabled=false;
+    sendBtn.textContent='🔄 Reenviar Código';
     document.getElementById('otp-panel').classList.add('visible');
-    sendBtn.textContent='🔄 Reenviar Código';sendBtn.disabled=false;
-    // Only log to console, never show on screen
-    console.log('%c[WAPPY OTP — SOLO PRUEBAS] Código: '+otpCode,'color:#22c55e;font-size:16px;font-weight:bold');
-  }
+    // Fallback message for user testing locally without backend
+    console.log('%c[WAPPY OTP — LOCAL FALLBACK] Código: '+otpCode,'color:#22c55e;font-size:16px;font-weight:bold');
+    alert('Se generó el código de verificación para pruebas. Si estás en modo local sin servidor, puedes verlo en la consola (F12).');
+  });
+
   document.getElementById('otp-error').style.display='none';
   document.getElementById('otp-success').style.display='none';
 }
