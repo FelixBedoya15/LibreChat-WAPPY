@@ -687,6 +687,17 @@ export default function ComunidadPage() {
     verifyRedirectTransaction();
   }, []);
 
+  // Open lead registration modal immediately on landing if the user has not registered yet.
+  // And ensure it is NOT asked/shown if they are already registered.
+  useEffect(() => {
+    if (configLoading) return;
+    
+    const isRegistered = isAdmin || isAccessGranted || isLeadCaptured || !!user;
+    if (!isRegistered) {
+      setShowLeadModal(true);
+    }
+  }, [configLoading, isAdmin, isAccessGranted, isLeadCaptured, user]);
+
   const [sessionId] = useState(() => {
     let id = sessionStorage.getItem('wappy_sess_id');
     if (!id) {
@@ -1824,6 +1835,7 @@ export default function ComunidadPage() {
   };
 
   const isUnlocked = isAdmin || isAccessGranted || isLeadCaptured || isVideoFinished || !gatingEnabled;
+  const isDownloadUnlocked = isAdmin || isAccessGranted || isVideoFinished;
 
   return (
     <div className={`min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'comunidadmp-bg' : ''}`}>
@@ -3284,6 +3296,12 @@ export default function ComunidadPage() {
                   <h3 className="text-base font-bold text-text-primary outfit">Material Complementario y Plantillas Descargables</h3>
                 </div>
 
+                {!isDownloadUnlocked && (
+                  <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-sm animate-pulse">
+                    <span>⚠️ Para desbloquear las descargas de los aplicativos, debes ver el video completo de la capacitación.</span>
+                  </div>
+                )}
+
               {downloadableFiles.length === 0 ? (
                 <div className="p-8 rounded-2xl border border-border-medium bg-surface-primary/40 text-center text-xs text-text-secondary">
                   El administrador no ha subido materiales complementarios para esta clase aún.
@@ -3291,7 +3309,7 @@ export default function ComunidadPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {downloadableFiles.map((file, idx) => {
-                    const canDownload = isUnlocked || isVideoFinished;
+                    const canDownload = isAdmin || isAccessGranted || isVideoFinished;
                     return (
                       <div 
                         key={idx} 
@@ -3328,11 +3346,17 @@ export default function ComunidadPage() {
                           </a>
                         ) : (
                           <button
-                            onClick={handleQuickAccessClick}
-                            className="w-full py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-emerald-500 dark:text-emerald-400 hover:bg-surface-hover text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
+                            onClick={() => {
+                              if (actualRequiresPayment) {
+                                handleQuickAccessClick();
+                              } else {
+                                playerContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                              }
+                            }}
+                            className="w-full py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-amber-500 dark:text-amber-400 hover:bg-surface-hover text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
                           >
                             <Lock className="w-3.5 h-3.5 text-text-secondary" />
-                            Adquiere ya
+                            {actualRequiresPayment ? 'Adquiere ya' : 'Ve el video para descargar'}
                           </button>
                         )}
                       </div>
@@ -3354,6 +3378,12 @@ export default function ComunidadPage() {
                 </h3>
               </div>
 
+              {!isDownloadUnlocked && (
+                <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-sm animate-pulse">
+                  <span>⚠️ Para desbloquear el acceso a las clases extra, debes ver el video completo de la capacitación.</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
                   { num: 1, url: extraVideoUrl1, title: extraVideoTitle1, youtubeId: youtubeId1, isYouTube: isYouTube1 },
@@ -3368,7 +3398,7 @@ export default function ComunidadPage() {
                   { num: 10, url: extraVideoUrl10, title: extraVideoTitle10, youtubeId: youtubeId10, isYouTube: isYouTube10 },
                 ].filter((item) => !!item.url)
                  .map((item, index) => {
-                  const isItemUnlocked = isUnlocked || index === 0;
+                  const isItemUnlocked = isDownloadUnlocked || index === 0;
                   return (
                     <div key={item.num} className="bg-surface-primary/80 border border-border-medium/60 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl hover:border-emerald-500/25 transition-all duration-300 flex flex-col justify-between group/tutorial">
                       <div className="p-4 border-b border-border-medium/60 bg-surface-secondary/40">
@@ -3394,15 +3424,23 @@ export default function ComunidadPage() {
 
                         {!isItemUnlocked && (
                           <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 text-center z-10">
-                            <Lock className="w-8 h-8 text-emerald-500 mb-2 animate-pulse" />
+                            <Lock className="w-8 h-8 text-amber-500 mb-2 animate-pulse" />
                             <p className="text-[11px] text-text-secondary max-w-[240px] leading-relaxed mb-3">
-                              Disponible solo para usuarios Premium. Adquiere la membresía para acceder a esta clase.
+                              {actualRequiresPayment 
+                                ? 'Disponible solo para usuarios Premium. Adquiere la membresía para acceder a esta clase.' 
+                                : 'Para desbloquear esta clase extra, debes ver el video completo de la capacitación.'}
                             </p>
                             <button
-                              onClick={handleQuickAccessClick}
-                              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-emerald-500/25 hover:scale-105"
+                              onClick={() => {
+                                if (actualRequiresPayment) {
+                                  handleQuickAccessClick();
+                                } else {
+                                  playerContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }
+                              }}
+                              className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white dark:text-slate-950 font-bold text-[10px] transition-all shadow-md shadow-amber-500/25 hover:scale-105"
                             >
-                              Adquiere ya
+                              {actualRequiresPayment ? 'Adquiere ya' : 'Ver capacitación completa'}
                             </button>
                           </div>
                         )}
