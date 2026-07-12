@@ -20,7 +20,7 @@ export default function MarketingPortal() {
 
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview'>('edit');
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('gemini-2.5-flash');
+  const [model, setModel] = useState('gemini-3.5-flash');
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [buttonText, setButtonText] = useState('Mejorar Plan');

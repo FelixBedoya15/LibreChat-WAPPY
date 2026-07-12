@@ -1,5 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 const sendEmail = require('~/server/utils/sendEmail');
 const { logger } = require('@librechat/data-schemas');
 const { getUserKey } = require('~/server/services/UserService');
@@ -76,6 +78,37 @@ const generateMarketingEmail = async (req, res) => {
       return res.status(400).json({ message: 'No hay claves API de Google configuradas en el servidor.' });
     }
 
+    // Load dynamic knowledge: Wappy platform description and user manual (same as Tenshi)
+    let wappyDescription = '';
+    try {
+      const descPath = path.resolve(__dirname, '../../../Agentes/marketin/descripcion_plataforma_WAPPY.md');
+      if (fs.existsSync(descPath)) {
+        wappyDescription = fs.readFileSync(descPath, 'utf8');
+      }
+    } catch (err) {
+      logger.warn('[AdminMarketingController] No se pudo leer descripcion_plataforma_WAPPY.md:', err.message);
+    }
+
+    let userManual = '';
+    try {
+      const manualPath = path.resolve(__dirname, '../../../client/public/manual_usuario.md');
+      if (fs.existsSync(manualPath)) {
+        userManual = fs.readFileSync(manualPath, 'utf8');
+      } else {
+        const fallbackPath = path.resolve(__dirname, '../manual_wappy.md');
+        if (fs.existsSync(fallbackPath)) {
+          userManual = fs.readFileSync(fallbackPath, 'utf8');
+        }
+      }
+    } catch (err) {
+      logger.warn('[AdminMarketingController] No se pudo leer el manual de usuario:', err.message);
+    }
+
+    // Limit manual context to save tokens if needed (similar to Tenshi)
+    if (userManual && userManual.length > 4000) {
+      userManual = userManual.substring(0, 4000) + '\n...(manual truncado para eficiencia)...';
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const chosenModel = model || 'gemini-2.5-flash';
     const modelInstance = genAI.getGenerativeModel({
@@ -83,7 +116,15 @@ const generateMarketingEmail = async (req, res) => {
       systemInstruction: `Eres un redactor de marketing profesional experto. Generarás correos persuasivos, limpios y muy bonitos.
 Tu tarea es retornar una respuesta estructurada en formato JSON válido con las claves "subject" y "bodyHtml".
 El "bodyHtml" debe estar escrito en español y contener etiquetas HTML seguras (como <p>, <strong>, <ul>, <li>, <br>, <h2>) para estructurar el correo de manera atractiva. NO incluyas las etiquetas <html>, <head> ni <body>, solo el contenido del cuerpo.
-No uses markdown adicional fuera de las etiquetas HTML y el JSON. Asegúrate de que el JSON sea válido y sin caracteres de control extraños.`,
+No uses markdown adicional fuera de las etiquetas HTML and el JSON. Asegúrate de que el JSON sea válido y sin caracteres de control extraños.
+
+A continuación, tienes la base de conocimientos oficial sobre la plataforma WAPPY IA, sus módulos, sus planes y precios para fundamentar y enriquecer tus respuestas y redacciones:
+
+=== INFORMACIÓN Y PRECIOS DE WAPPY IA ===
+${wappyDescription || 'Wappy es una plataforma de IA especializada en SST.'}
+
+=== MANUAL DE FUNCIONAMIENTO ===
+${userManual || ''}`,
     });
 
     const promptText = `Escribe un correo de mercadeo según las siguientes instrucciones: "${prompt}"`;
@@ -121,7 +162,7 @@ const sendMarketingEmail = async (req, res) => {
       const testUser = await User.findOne({ email: testEmail }).lean() || { name: 'Admin de Pruebas', email: testEmail };
       await sendEmail({
         email: testEmail,
-        subject: `[Prueba] ${subject}`,
+        subject: subject,
         template: 'marketingEmail.handlebars',
         payload: {
           name: testUser.name || 'Usuario',
