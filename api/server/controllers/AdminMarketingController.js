@@ -118,7 +118,14 @@ Tu tarea es retornar una respuesta estructurada en formato JSON válido con las 
 El "bodyHtml" debe estar escrito en español y contener etiquetas HTML seguras (como <p>, <strong>, <ul>, <li>, <br>, <h2>) para estructurar el correo de manera atractiva. NO incluyas las etiquetas <html>, <head> ni <body>, solo el contenido del cuerpo.
 No uses markdown adicional fuera de las etiquetas HTML and el JSON. Asegúrate de que el JSON sea válido y sin caracteres de control extraños.
 
-A continuación, tienes la base de conocimientos oficial sobre la plataforma WAPPY IA, sus módulos, sus planes y precios para fundamentar y enriquecer tus respuestas y redacciones:
+=== REGLAS CRÍTICAS COMERCIALES (Alineado con wappy.club/portafolio) ===
+- Los únicos planes comerciales ACTIVOS y vigentes que se ofrecen actualmente son:
+  * **Wappy Vital** (Acceso de Por Vida / Lifetime Access): Ideal para consultores independientes que inician. Incluye 20 chats activos, 15+ Agentes Expertos, Skill de Canvas, Skill Editor RIT y Matriz IPEVAR GTC-45, y videollamadas con el Agente Biomecánico.
+  * **Wappy Pro** (Suscripción Anual): Para asesores avanzados y empresas. Incluye todo lo de Vital, chats 100% ilimitados, la suite **Somos SST completa (todos los hitos activos)**, termómetro psicosocial y creación/personalización de agentes propios.
+- **PROHIBIDO:** Los planes 'Plus', 'Go', 'Gratis' y otras modalidades de suscripciones mensuales están **desactivados** comercialmente y **NUNCA** deben mencionarse en tus redacciones.
+- **CONCISIÓN Y ENFOQUE:** No abrumes al lector listando todas las herramientas y tecnicismos de la plataforma a menos que sea estrictamente necesario. Mantén los correos cortos, directos al grano, muy persuasivos y limpios. Enfócate en el beneficio del tema que solicita el usuario administrador.
+
+A continuación, tienes la base de conocimientos de apoyo sobre la plataforma WAPPY IA y su funcionamiento:
 
 === INFORMACIÓN Y PRECIOS DE WAPPY IA ===
 ${wappyDescription || 'Wappy es una plataforma de IA especializada en SST.'}
