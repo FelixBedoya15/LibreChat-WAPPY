@@ -9,15 +9,16 @@ import {
   Palette,
   Eye,
   Loader2,
-  CheckCircle,
-  AlertCircle,
-  FileText
+  FileText,
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function MarketingPortal() {
   const localize = useLocalize();
   const { showToast } = useToastContext();
 
+  const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview'>('edit');
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('gemini-2.5-flash');
   const [subject, setSubject] = useState('');
@@ -338,170 +339,201 @@ export default function MarketingPortal() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* Controles a la Izquierda */}
-      <div className="flex flex-col gap-5 lg:col-span-7">
-        
-        {/* Redactor con IA */}
-        <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-5 dark:border-gray-700">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Sparkles className="h-4 w-4 text-purple-500 animate-pulse" />
-              Redactar con Inteligencia Artificial
-            </h4>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="rounded-md border border-gray-300 bg-surface-primary px-2 py-1 text-xs text-text-primary focus:outline-none dark:border-gray-600"
-            >
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-              <option value="gemini-3.1-flash-lite">Gemini 3.1 Lite</option>
-            </select>
-          </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ej: Escribe un correo invitando a los usuarios que están en el plan gratuito a que se actualicen a Wappy Pro, ofreciendo acceso completo a los agentes de SST y un 20% de descuento usando el cupón WAPPY20."
-            rows={4}
-            className="w-full rounded-lg border border-gray-300 bg-surface-primary p-3 text-sm text-text-primary placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
-          />
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Redactando correo...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" /> Generar Asunto y Cuerpo con IA
-              </>
-            )}
-          </button>
-        </div>
+    <div className="flex flex-col gap-4">
+      {/* Selector de sub-pestanas superior */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-2">
+        <button
+          onClick={() => setActiveSubTab('edit')}
+          className={`flex items-center gap-2 pb-3 px-4 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+            activeSubTab === 'edit'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          <FileText className="h-4 w-4" />
+          1. Redactar y Editar
+        </button>
+        <button
+          onClick={() => setActiveSubTab('preview')}
+          className={`flex items-center gap-2 pb-3 px-4 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+            activeSubTab === 'preview'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          <Eye className="h-4 w-4" />
+          2. Vista Previa y Envío
+        </button>
+      </div>
 
-        {/* Campos de Edición */}
-        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-surface-tertiary p-5 dark:border-gray-700">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-            <FileText className="h-4 w-4 text-blue-500" />
-            Personalizar Contenido del Correo
-          </h4>
-          
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-secondary">Asunto del Correo</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Ej: ¡Actualízate a Wappy Pro y lleva tu SST al siguiente nivel!"
-              className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-secondary">Cuerpo del Correo (Soporta HTML básico)</label>
+      {activeSubTab === 'edit' ? (
+        <div className="flex flex-col gap-4">
+          {/* Redactor con IA */}
+          <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-5 dark:border-gray-700">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <Sparkles className="h-4 w-4 text-purple-500 animate-pulse" />
+                Redactar con Inteligencia Artificial
+              </h4>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="rounded-md border border-gray-300 bg-surface-primary px-2 py-1 text-xs text-text-primary focus:outline-none dark:border-gray-600"
+              >
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Lite</option>
+              </select>
+            </div>
             <textarea
-              value={bodyHtml}
-              onChange={(e) => setBodyHtml(e.target.value)}
-              placeholder="Escribe aquí el cuerpo del correo en párrafos <p> o listas <ul>..."
-              rows={8}
-              className="w-full font-mono rounded-lg border border-gray-300 bg-surface-primary p-3 text-xs text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Ej: Escribe un correo invitando a los usuarios que están en el plan gratuito a que se actualicen a Wappy Pro, ofreciendo acceso completo a los agentes de SST y un 20% de descuento usando el cupón WAPPY20."
+              rows={4}
+              className="w-full rounded-lg border border-gray-300 bg-surface-primary p-3 text-sm text-text-primary placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
             />
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Redactando correo...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Generar Asunto y Cuerpo con IA
+                </>
+              )}
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Campos de Edición */}
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-surface-tertiary p-5 dark:border-gray-700">
+            <h4 className="text-sm font-semibold text-text-primary">
+              Personalizar Contenido del Correo
+            </h4>
+            
             <div>
-              <label className="mb-1 block text-xs font-medium text-text-secondary">Texto del Botón CTA (Opcional)</label>
+              <label className="mb-1 block text-xs font-medium text-text-secondary">Asunto del Correo</label>
               <input
                 type="text"
-                value={buttonText}
-                onChange={(e) => setButtonText(e.target.value)}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Ej: ¡Actualízate a Wappy Pro y lleva tu SST al siguiente nivel!"
                 className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
               />
             </div>
+
             <div>
-              <label className="mb-1 block text-xs font-medium text-text-secondary">URL del Botón CTA (Opcional)</label>
-              <input
-                type="text"
-                value={buttonUrl}
-                onChange={(e) => setButtonUrl(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
+              <label className="mb-1 block text-xs font-medium text-text-secondary">Cuerpo del Correo (Soporta HTML básico)</label>
+              <textarea
+                value={bodyHtml}
+                onChange={(e) => setBodyHtml(e.target.value)}
+                placeholder="Escribe aquí el cuerpo del correo en párrafos <p> o listas <ul>..."
+                rows={6}
+                className="w-full font-mono rounded-lg border border-gray-300 bg-surface-primary p-3 text-xs text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
               />
             </div>
-          </div>
 
-          {/* Selector de Temas */}
-          <div>
-            <label className="mb-2 block text-xs font-medium text-text-secondary flex items-center gap-1.5">
-              <Palette className="h-3.5 w-3.5" />
-              Estilo / Tema de Color
-            </label>
-            <div className="flex gap-3">
-              {[
-                { key: 'slate', name: 'Tecnológico', color: 'bg-slate-700 border-slate-500' },
-                { key: 'emerald', name: 'Esmeralda', color: 'bg-emerald-600 border-emerald-400' },
-                { key: 'indigo', name: 'Índigo', color: 'bg-indigo-600 border-indigo-400' },
-                { key: 'amber', name: 'Oro Cálido', color: 'bg-amber-500 border-amber-400' }
-              ].map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setTheme(t.key)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 ${t.color} ${
-                    theme === t.key ? 'ring-2 ring-blue-500 scale-105' : 'opacity-70'
-                  }`}
-                >
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                  {t.name}
-                </button>
-              ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-text-secondary">Texto del Botón CTA</label>
+                <input
+                  type="text"
+                  value={buttonText}
+                  onChange={(e) => setButtonText(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-text-secondary">URL del Botón CTA</label>
+                <input
+                  type="text"
+                  value={buttonUrl}
+                  onChange={(e) => setButtonUrl(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
+                />
+              </div>
             </div>
+
+            <button
+              onClick={() => setActiveSubTab('preview')}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              Continuar a Vista Previa y Envío <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
-
-        {/* Módulo de Destinatarios y Envío */}
-        <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-5 dark:border-gray-700">
-          <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
-            <Mail className="h-4 w-4 text-emerald-500" />
-            Configurar Audiencia y Envío
-          </h4>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+          {/* Columna Izquierda: Configuración de Envío y Estilos */}
+          <div className="flex flex-col gap-4 md:col-span-6">
             
+            {/* Estilo / Tema de Color */}
+            <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-4 dark:border-gray-700">
+              <h4 className="mb-3 flex items-center gap-2 text-xs font-bold text-text-primary uppercase tracking-wider">
+                <Palette className="h-4 w-4 text-purple-500" />
+                Estilo / Tema de Color
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: 'slate', name: 'Tecnológico', color: 'bg-slate-700 border-slate-500' },
+                  { key: 'emerald', name: 'Esmeralda', color: 'bg-emerald-600 border-emerald-400' },
+                  { key: 'indigo', name: 'Índigo', color: 'bg-indigo-600 border-indigo-400' },
+                  { key: 'amber', name: 'Oro Cálido', color: 'bg-amber-500 border-amber-400' }
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTheme(t.key)}
+                    className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-xs font-semibold text-white transition hover:opacity-90 ${t.color} ${
+                      theme === t.key ? 'ring-2 ring-blue-500 scale-[1.02]' : 'opacity-70'
+                    }`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Envío de Prueba */}
-            <div className="rounded-lg border border-gray-300 bg-surface-primary p-4 dark:border-gray-600">
+            <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-4 dark:border-gray-700">
               <h5 className="mb-2 text-xs font-bold text-text-primary uppercase tracking-wider">Paso 1: Probar Diseño</h5>
-              <p className="mb-3 text-[11px] text-text-secondary">Envía una copia de prueba a tu dirección de correo para verificar el diseño en tu bandeja de entrada.</p>
-              <div className="flex gap-2">
+              <p className="mb-3 text-[11px] text-text-secondary leading-relaxed">
+                Envía una copia a tu correo para verificar la diagramación en tu bandeja de entrada.
+              </p>
+              <div className="flex flex-col gap-2">
                 <input
                   type="email"
                   value={testEmail}
                   onChange={(e) => setTestEmail(e.target.value)}
                   placeholder="ejemplo@correo.com"
-                  className="flex-1 rounded-lg border border-gray-300 bg-surface-tertiary px-3 py-1.5 text-xs text-text-primary focus:border-blue-500 focus:outline-none dark:border-gray-600"
+                  className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-xs text-text-primary focus:border-blue-500 focus:outline-none dark:border-gray-600"
                 />
                 <button
                   onClick={handleSendTest}
                   disabled={isSendingTest}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                  className="w-full rounded-lg bg-blue-600 py-2 text-xs font-bold text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  {isSendingTest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                  Enviar Prueba
+                  {isSendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Enviar Correo de Prueba
                 </button>
               </div>
             </div>
 
             {/* Envío Masivo */}
-            <div className="rounded-lg border border-gray-300 bg-surface-primary p-4 dark:border-gray-600">
+            <div className="rounded-xl border border-gray-200 bg-surface-tertiary p-4 dark:border-gray-700">
               <h5 className="mb-2 text-xs font-bold text-text-primary uppercase tracking-wider">Paso 2: Enviar Campaña</h5>
-              <p className="mb-3 text-[11px] text-text-secondary">Selecciona el grupo destinatario. El envío masivo se ejecuta en el fondo para evitar bloqueos.</p>
+              <p className="mb-3 text-[11px] text-text-secondary leading-relaxed">
+                El envío masivo se ejecutará en segundo plano con retardos automáticos.
+              </p>
               <div className="flex flex-col gap-2">
                 <select
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-surface-tertiary px-3 py-1.5 text-xs text-text-primary focus:outline-none dark:border-gray-600"
+                  className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-xs text-text-primary focus:outline-none dark:border-gray-600"
                 >
                   <option value="USER">Solo Plan Invitado (Rol: USER)</option>
                   <option value="USER_GO">Plan Go (Rol: USER_GO)</option>
@@ -512,67 +544,67 @@ export default function MarketingPortal() {
                 <button
                   onClick={handleSendBulk}
                   disabled={isSendingBulk}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50"
                 >
-                  {isSendingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+                  {isSendingBulk ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
                   Lanzar Campaña Masiva
                 </button>
               </div>
             </div>
 
-          </div>
-        </div>
+            <button
+              onClick={() => setActiveSubTab('edit')}
+              className="mt-1 flex items-center justify-center gap-2 py-1.5 text-xs text-text-secondary hover:text-text-primary transition"
+            >
+              <ArrowLeft className="h-3 w-3" /> Regresar a editar contenido
+            </button>
 
-      </div>
-
-      {/* Vista Previa a la Derecha */}
-      <div className="flex flex-col gap-3 lg:col-span-5">
-        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-text-primary">
-          <Eye className="h-4 w-4 text-purple-500" />
-          Vista Previa Interactiva (Correo Entrante)
-        </h4>
-        
-        {/* Device Frame */}
-        <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface-tertiary dark:border-gray-700 shadow-lg min-h-[500px]">
-          {/* Email Top Bar Bar */}
-          <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-100 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-red-500" />
-              <span className="h-3 w-3 rounded-full bg-yellow-500" />
-              <span className="h-3 w-3 rounded-full bg-green-500" />
-            </div>
-            <span className="mx-auto text-[11px] font-medium text-gray-500 dark:text-gray-400">
-              Soporte Wappy • mercadeo@wappy.club
-            </span>
           </div>
 
-          {/* Email Header Panel */}
-          <div className="border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900 text-xs text-text-secondary">
-            <div>
-              <span className="font-bold text-text-primary">Para:</span> usuario@wappy.club
-            </div>
-            <div className="mt-1">
-              <span className="font-bold text-text-primary">Asunto:</span> {subject || '(Sin Asunto)'}
-            </div>
-          </div>
-
-          {/* Live Web Sandbox IFrame */}
-          <div className="flex-1 bg-[#0f172a] p-1">
-            {previewHtml ? (
-              <iframe
-                title="Email Preview"
-                srcDoc={previewHtml}
-                className="h-full w-full border-none"
-                sandbox="allow-popups allow-popups-to-escape-sandbox"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-text-tertiary">
-                Cargando vista previa interactiva...
+          {/* Columna Derecha: Vista Previa */}
+          <div className="flex flex-col gap-3 md:col-span-6">
+            <h4 className="flex items-center gap-1.5 text-xs font-bold text-text-primary uppercase tracking-wider">
+              <Eye className="h-4 w-4 text-purple-500" />
+              Vista Previa de Correo
+            </h4>
+            
+            {/* Mockup de Correo / Device */}
+            <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface-tertiary dark:border-gray-700 shadow-md min-h-[420px]">
+              {/* Simulated Window Topbar */}
+              <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                <span className="mx-auto text-[10px] font-medium text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                  mercadeo@wappy.club
+                </span>
               </div>
-            )}
+
+              {/* Envelope Header info */}
+              <div className="border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900 text-[11px] text-text-secondary flex flex-col gap-0.5">
+                <div className="truncate"><span className="font-semibold text-text-primary">Para:</span> usuario@wappy.club</div>
+                <div className="truncate"><span className="font-semibold text-text-primary">Asunto:</span> {subject || '(Sin Asunto)'}</div>
+              </div>
+
+              {/* Sandbox IFrame Container */}
+              <div className="flex-1 bg-[#0f172a] p-0.5">
+                {previewHtml ? (
+                  <iframe
+                    title="Email Preview"
+                    srcDoc={previewHtml}
+                    className="h-full w-full border-none min-h-[300px]"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[11px] text-text-tertiary">
+                    Cargando vista previa...
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
