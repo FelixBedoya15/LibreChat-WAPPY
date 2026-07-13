@@ -699,38 +699,61 @@ const startServer = async () => {
         });
       }
 
-      // 1️⃣ Email al admin / soporte (ambos correos en paralelo con todos los adjuntos)
+      // 1️⃣ Email al admin / soporte (uno por uno con try/catch y fallback si excede el tamaño)
       const adminEmails = [
         process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
         'wappyinteractivo@gmail.com',
       ];
-      await Promise.all(
-        adminEmails.map((adminEmail) =>
-          sendEmail({
+
+      for (const adminEmail of adminEmails) {
+        try {
+          await sendEmail({
             email: adminEmail,
             subject: `🖊️ Nuevo Contrato Embajador firmado — ${nombre} (${contractId})`,
             payload,
             template: 'contratoEmbajadorAdmin.handlebars',
             attachments: emailAttachments,
-          }),
-        ),
-      );
+          });
+          logger.info(`[Embajadores] Notificación enviada a admin: ${adminEmail}`);
+        } catch (adminErr) {
+          logger.error(`[Embajadores] Error al enviar notificación a admin (${adminEmail}):`, adminErr);
+
+          // FALLBACK: Si falló (ej: tamaño de adjuntos excedido), reintentar sin los anexos pesados, enviando SOLO el contrato PDF
+          try {
+            logger.info(`[Embajadores] Reintentando envío a admin (${adminEmail}) solo con PDF del contrato...`);
+            await sendEmail({
+              email: adminEmail,
+              subject: `🖊️ Nuevo Contrato Embajador firmado (Sin anexos grandes) — ${nombre} (${contractId})`,
+              payload,
+              template: 'contratoEmbajadorAdmin.handlebars',
+              attachments: emailAttachments.slice(0, 1), // Solo el PDF del contrato
+            });
+            logger.info(`[Embajadores] Reintento exitoso a admin: ${adminEmail}`);
+          } catch (fallbackErr) {
+            logger.error(`[Embajadores] Error en reintento fallback de admin (${adminEmail}):`, fallbackErr);
+          }
+        }
+      }
 
       // 2️⃣ Email de confirmación al embajador (solo con el PDF del contrato)
-      await sendEmail({
-        email,
-        subject: `¡Bienvenido como Embajador WAPPY! Tu contrato ${contractId} está listo`,
-        payload,
-        template: 'contratoEmbajadorConfirmacion.handlebars',
-        attachments: emailAttachments.slice(0, 1),
-      });
+      try {
+        await sendEmail({
+          email,
+          subject: `¡Bienvenido como Embajador WAPPY! Tu contrato ${contractId} está listo`,
+          payload,
+          template: 'contratoEmbajadorConfirmacion.handlebars',
+          attachments: emailAttachments.slice(0, 1),
+        });
+        logger.info(`[Embajadores] Confirmación de bienvenida enviada al embajador: ${email}`);
+      } catch (embajadorErr) {
+        logger.error(`[Embajadores] Error al enviar confirmación al embajador (${email}):`, embajadorErr);
+      }
 
-      logger.info(`[Embajadores] Correos enviados para contrato ${contractId} — Embajador: ${nombre} (${email})`);
-      res.json({ message: 'Notificaciones enviadas exitosamente.' });
+      logger.info(`[Embajadores] Correos procesados para contrato ${contractId} — Embajador: ${nombre} (${email})`);
+      res.json({ message: 'Notificaciones procesadas exitosamente.' });
     } catch (err) {
-      logger.error('[Embajadores notify-admin] Error al enviar correos:', err);
-      // No retornamos error al cliente para no interrumpir el flujo del contrato
-      res.status(200).json({ message: 'Contrato registrado (notificación con errores).', error: err.message });
+      logger.error('[Embajadores notify-admin] Error general:', err);
+      res.status(200).json({ message: 'Contrato registrado con advertencias.', error: err.message });
     }
   });
 
