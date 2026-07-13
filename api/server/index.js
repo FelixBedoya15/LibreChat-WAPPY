@@ -700,10 +700,10 @@ const startServer = async () => {
       }
 
       // 1️⃣ Email al admin / soporte (uno por uno con try/catch y fallback si excede el tamaño)
-      const adminEmails = [
+      const adminEmails = Array.from(new Set([
         process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
         'wappyinteractivo@gmail.com',
-      ];
+      ]));
 
       for (const adminEmail of adminEmails) {
         try {
