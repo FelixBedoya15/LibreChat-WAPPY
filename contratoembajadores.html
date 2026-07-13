@@ -550,38 +550,53 @@ function updateFinalBtn(){
 
 /* Finalize */
 async function finalizeContract(){
-  sigDataUrl=sigCanvas.toDataURL('image/png');
-  const now=new Date();
-  const ds=now.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})+' — '+now.toLocaleTimeString('es-CO');
-  document.getElementById('cert-nombre').textContent=document.getElementById('f-nombre').value;
-  document.getElementById('cert-cedula').textContent=document.getElementById('f-cedula').value+' exp. '+document.getElementById('f-expedicion').value;
-  document.getElementById('cert-email').textContent=document.getElementById('f-email').value;
-  document.getElementById('cert-territorio').textContent=document.getElementById('f-territorio').value;
-  document.getElementById('cert-fecha').textContent=ds;
-  document.getElementById('cert-id').textContent=contractId;
-  
-  // Generate PDF doc instance and get its base64 string
-  const doc = await generatePDFDoc();
-  const pdfBase64 = doc.output('datauristring');
-  
-  // Read selected files to base64
-  const attachmentsList = [];
-  for (const [key, file] of Object.entries(selectedFiles)) {
-    if (file) {
-      try {
-        const base64 = await fileToBase64(file);
-        attachmentsList.push({
-          filename: file.name,
-          base64: base64
-        });
-      } catch (err) {
-        console.error('Error converting file to base64:', file.name, err);
+  try {
+    sigDataUrl=sigCanvas.toDataURL('image/png');
+    const now=new Date();
+    const ds=now.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})+' — '+now.toLocaleTimeString('es-CO');
+    document.getElementById('cert-nombre').textContent=document.getElementById('f-nombre').value;
+    document.getElementById('cert-cedula').textContent=document.getElementById('f-cedula').value+' exp. '+document.getElementById('f-expedicion').value;
+    document.getElementById('cert-email').textContent=document.getElementById('f-email').value;
+    document.getElementById('cert-territorio').textContent=document.getElementById('f-territorio').value;
+    document.getElementById('cert-fecha').textContent=ds;
+    document.getElementById('cert-id').textContent=contractId;
+    
+    // Generate PDF doc instance and get its base64 string
+    let pdfBase64 = null;
+    try {
+      const doc = generatePDFDoc();
+      pdfBase64 = doc.output('datauristring');
+    } catch (pdfErr) {
+      console.error('Error generating PDF:', pdfErr);
+    }
+    
+    // Read selected files to base64
+    const attachmentsList = [];
+    for (const [key, file] of Object.entries(selectedFiles)) {
+      if (file) {
+        try {
+          const base64 = await fileToBase64(file);
+          attachmentsList.push({
+            filename: file.name,
+            base64: base64
+          });
+        } catch (err) {
+          console.error('Error converting file to base64:', file.name, err);
+        }
       }
     }
-  }
 
-  notifyAdmin(pdfBase64, attachmentsList);
-  goToStep(5);
+    try {
+      notifyAdmin(pdfBase64, attachmentsList);
+    } catch (emailErr) {
+      console.error('Error triggering notifyAdmin:', emailErr);
+    }
+  } catch (err) {
+    console.error('Error in finalizeContract:', err);
+    alert('Ocurrió un error al procesar el contrato: ' + err.message);
+  } finally {
+    goToStep(5);
+  }
 }
 
 function fileToBase64(file) {
@@ -626,7 +641,7 @@ function notifyAdmin(pdfBase64, attachments){
 }
 
 /* PDF Generation Helper */
-async function generatePDFDoc(){
+function generatePDFDoc(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
   const pw=210,ph=297,ml=20,mr=20,mt=25;
@@ -825,8 +840,8 @@ async function generatePDFDoc(){
   doc.save(`ContratoEmbajador_${cleanName}.pdf`);
 }
 
-async function downloadPDF(){
-  const doc = await generatePDFDoc();
+function downloadPDF(){
+  const doc = generatePDFDoc();
   const cleanName = document.getElementById('f-nombre').value.trim().replace(/\s+/g, '_');
   doc.save(`ContratoEmbajador_${cleanName}.pdf`);
 }
