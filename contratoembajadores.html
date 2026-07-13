@@ -453,8 +453,14 @@ function personalizeContract(){
     .replace(/\[A&Ntilde;O\]/g,yy);
   document.getElementById('contract-body').innerHTML=html;
   document.getElementById('contract-body').onscroll=onContractScroll;
-  // Store plain text NOW using textContent to prevent empty values when hidden
-  contractText=document.getElementById('contract-body').textContent||'';
+  
+  // Safe plain text extraction using a temporary off-screen div to preserve newlines
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  tempDiv.querySelectorAll('p, li, h1, h2, h3, hr, br').forEach(el => {
+    el.after(document.createTextNode('\n'));
+  });
+  contractText = tempDiv.textContent.trim();
 }
 function onContractScroll(){
   const el=document.getElementById('contract-body');
