@@ -486,7 +486,7 @@ function sendOTP(){
   sendBtn.disabled=true;
 
   // Dynamically target the live server if opened locally via file://
-  const API_BASE = window.location.protocol === 'file:' ? 'https://wappy-ia.com' : '';
+  const API_BASE = window.location.protocol === 'file:' ? 'https://wappy.club' : '';
 
   // Make request to backend
   fetch(API_BASE + '/api/embajadores/send-otp', {

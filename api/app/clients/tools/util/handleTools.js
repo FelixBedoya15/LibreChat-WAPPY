@@ -54,6 +54,7 @@ const {
   GoogleSheets,
   GoogleDocs,
   GoogleSlides,
+  OneDrive,
   PuterImageGen,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
@@ -282,6 +283,9 @@ const loadTools = async ({
     },
     google_drive: async (_toolContextMap) => {
       return new GoogleDrive({ req: options.req });
+    },
+    one_drive: async (_toolContextMap) => {
+      return new OneDrive({ req: options.req });
     },
     google_calendar: async (_toolContextMap) => {
       return new GoogleCalendar({ req: options.req });

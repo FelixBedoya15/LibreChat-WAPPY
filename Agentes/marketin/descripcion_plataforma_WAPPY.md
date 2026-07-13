@@ -1,7 +1,7 @@
 # WAPPY IA — Descripción Completa de la Plataforma
 ## Guion de Referencia para Marketing y Ventas
 
-> **Dominio:** [wappy-ia.com](https://wappy-ia.com) | [wappy.club](https://wappy.club)  
+> **Dominio:** [wappy.club](https://wappy.club) | [wappy.club](https://wappy.club)  
 > **Versión del documento:** Mayo 2026  
 > **Propósito:** Guion de referencia interno para crear contenidos, reels, presentaciones y scripts de venta.
 
@@ -439,7 +439,7 @@ Los administradores tienen acceso a:
 - **Exportación de documentos:** HTML → Word (mammoth), PDF (html2pdf), Excel (xlsx).
 - **Base de datos:** MongoDB.
 - **Despliegue:** Dokploy (Docker).
-- **Dominio Colombia:** wappy-ia.com | wappy.club.
+- **Dominio Colombia:** wappy.club | wappy.club.
 
 ---
 

@@ -24,7 +24,7 @@ export default function MarketingPortal() {
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [buttonText, setButtonText] = useState('Mejorar Plan');
-  const [buttonUrl, setButtonUrl] = useState('https://wappy-ia.com/planes');
+  const [buttonUrl, setButtonUrl] = useState('https://wappy.club/planes');
   const [theme, setTheme] = useState('slate');
   const [targetRole, setTargetRole] = useState('USER');
   const [testEmail, setTestEmail] = useState('');
@@ -199,7 +199,7 @@ export default function MarketingPortal() {
             <table class="main-table">
               <tr>
                 <td class="header-logo">
-                  <img class="logo-img" src="https://wappy-ia.com/assets/logo.png" alt="WAPPY IA">
+                  <img class="logo-img" src="https://wappy.club/assets/logo.png" alt="WAPPY IA">
                 </td>
               </tr>
               <tr>

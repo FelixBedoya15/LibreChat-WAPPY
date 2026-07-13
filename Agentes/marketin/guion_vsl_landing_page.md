@@ -133,4 +133,4 @@ El mercado ya cambió. La pregunta es: ¿vas a liderar el cambio o vas a dejar q
 
 Soy Félix Bedoya. Nos vemos adentro de la plataforma."
 
-*(Fundido a negro. Logo de WAPPY IA. Texto: wappy-ia.com | Aplica tu código ahora).*
+*(Fundido a negro. Logo de WAPPY IA. Texto: wappy.club | Aplica tu código ahora).*

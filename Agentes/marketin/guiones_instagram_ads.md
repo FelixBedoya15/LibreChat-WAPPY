@@ -100,7 +100,7 @@
 
 ---
 
-**[PANTALLA FINAL: Logo WAPPY IA + wappy-ia.com + "Clase Gratuita → link en bio"]**
+**[PANTALLA FINAL: Logo WAPPY IA + wappy.club + "Clase Gratuita → link en bio"]**
 
 ---
 
@@ -187,7 +187,7 @@ Descubre WAPPY IA. <break time="0.4s"/> En el Programa Somos SST, te enseño a u
 
 ---
 
-**[PANTALLA FINAL: Logo WAPPY IA + wappy-ia.com + "Clase Gratuita → link en bio"]**
+**[PANTALLA FINAL: Logo WAPPY IA + wappy.club + "Clase Gratuita → link en bio"]**
 
 ---
 

@@ -286,6 +286,13 @@
     "authConfig": []
   },
   {
+    "name": "OneDrive",
+    "pluginKey": "one_drive",
+    "description": "Permite al agente conectarse con OneDrive para buscar archivos, carpetas, leer el contenido de documentos (Word .docx, Excel .xlsx/.xls, PDFs, txt, csv, json) y guardar o crear nuevos documentos directamente en la cuenta del usuario.",
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_logo_%282019%E2%80%93present%29.svg",
+    "authConfig": []
+  },
+  {
     "name": "Google Calendar",
     "pluginKey": "google_calendar",
     "description": "Permite al agente programar, consultar o eliminar eventos y recordatorios directamente en tu Google Calendar con alertas automáticas para celular.",

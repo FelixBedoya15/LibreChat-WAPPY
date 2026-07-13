@@ -431,7 +431,7 @@ export default function EPPWorkspace() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png';
+    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png';
     const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
 
@@ -457,7 +457,7 @@ export default function EPPWorkspace() {
   const handleDownloadHtml = () => {
     if (!selectedWorker || !selectedDoc) return;
 
-    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png';
+    const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png';
     const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
 
@@ -587,7 +587,7 @@ export default function EPPWorkspace() {
                     selectedWorker,
                     selectedDoc,
                     selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital,
-                    localStorage.getItem('wappy_sst_global_logo') || 'https://wappy-ia.com/assets/logo.png',
+                    localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png',
                     new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
                   ) : ''}
                   exportFileName={`Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}`}

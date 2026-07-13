@@ -20,6 +20,7 @@ const agents = require('./agents');
 const roles = require('./roles');
 const oauth = require('./oauth');
 const googleDrive = require('./googleDrive');
+const oneDrive = require('./oneDrive');
 const files = require('./files');
 const share = require('./share');
 const tags = require('./tags');
@@ -77,6 +78,7 @@ module.exports = {
   memories,
   oauth,
   googleDrive,
+  oneDrive,
   accessPermissions,
   tags,
   mcp,

@@ -175,6 +175,7 @@ const startServer = async () => {
     ['referrals', routes.referrals],
     ['rutaAprendizaje', routes.rutaAprendizaje],
     ['googleDrive', routes.googleDrive],
+    ['oneDrive', routes.oneDrive],
   ];
 
 
@@ -192,6 +193,7 @@ const startServer = async () => {
   app.use('/api/keys', routes.keys);
   app.use('/api/user', routes.user);
   app.use('/api/google-drive', routes.googleDrive);
+  app.use('/api/one-drive', routes.oneDrive);
   app.use('/api/search', routes.search);
   app.use('/api/edit', routes.edit);
   app.use('/api/messages', routes.messages);

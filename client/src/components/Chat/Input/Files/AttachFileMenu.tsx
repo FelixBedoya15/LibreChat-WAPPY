@@ -92,6 +92,17 @@ const loadGooglePickerAPI = (): Promise<void> => {
   });
 };
 
+const OneDriveIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 32 32" className={className}>
+    <path fill="#0078d4" d="M25.5 15.5C25.5 11.9 22.6 9 19 9c-.6 0-1.1.1-1.6.3C16.4 5.7 12.5 3 8 3 3.6 3 0 6.6 0 11c0 .4 0 .7.1 1.1C.2 12.1 0 12.5 0 13c0 2.8 2.2 5 5 5h14c3.6 0 6.5-2.9 6.5-6.5l-.1 0z" />
+    <path fill="#005a9e" d="M32 20.5c0-3.6-2.9-6.5-6.5-6.5-.6 0-1.1.1-1.6.3-.5-1.9-1.9-3.4-3.8-4.1 1.2 1.4 1.9 3.3 1.9 5.3 0 .4 0 .8-.1 1.2.6.5 1 1.2 1 2 0 1.5-1.2 2.7-2.7 2.7H8.5c2.3 2.1 5.4 3.3 8.7 3.3h8.3c3.6 0 6.5-2.9 6.5-6.5l0-.2z" />
+  </svg>
+);
+
+const loadOneDriveScript = (): Promise<void> => {
+  return loadScript('https://js.live.net/v7.2/OneDrive.js');
+};
+
 interface AttachFileMenuProps {
   agentId?: string | null;
   endpoint?: string | null;
@@ -243,7 +254,119 @@ const AttachFileMenu = ({
     }
   }, [showToast, startupConfig, handleGoogleDriveFilesSelected]);
 
+  const handleOneDriveFilesSelected = React.useCallback(async (files: any[]) => {
+    setFilesLoading(true);
+    for (const file of files) {
+      const tempId = Math.random().toString(36).substring(2, 15);
+      const initialFile = {
+        file_id: tempId,
+        temp_file_id: tempId,
+        filename: file.name,
+        size: file.size,
+        progress: 0.1,
+        attached: true,
+      };
+      addFile(initialFile);
+      try {
+        const response = await axios.post('/api/one-drive/import-file', {
+          fileId: file.id,
+          fileName: file.name,
+          downloadUrl: file['@microsoft.graph.downloadUrl'],
+          endpoint: endpoint || EModelEndpoint.agents,
+          toolResource: toolResource,
+        });
+        const data = response.data;
+        updateFileById(tempId, {
+          progress: 1,
+          file_id: data.file_id,
+          temp_file_id: tempId,
+          filepath: data.filepath,
+          type: data.type,
+          height: data.height,
+          width: data.width,
+          filename: data.filename,
+          source: data.source,
+          embedded: data.embedded,
+        });
+      } catch (err: any) {
+        console.error('Failed to import OneDrive file:', err);
+        deleteFileById(tempId);
+        const errMsg = err.response?.data?.message || 'Error al descargar el archivo de OneDrive.';
+        showToast({
+          message: errMsg,
+          status: 'error',
+          duration: 5000,
+        });
+      }
+    }
+    setFilesLoading(false);
+  }, [setFilesLoading, addFile, endpoint, toolResource, updateFileById, deleteFileById, showToast]);
 
+  const handleOneDrivePickerOpen = React.useCallback(async () => {
+    try {
+      const tokenRes = await axios.get('/api/one-drive/token');
+      if (!tokenRes.data.connected || !tokenRes.data.accessToken) {
+        showToast({
+          message: 'OneDrive no está conectado. Por favor, conéctalo en Configuración de Cuenta.',
+          status: 'warning',
+          duration: 5000,
+        });
+        return;
+      }
+      const accessToken = tokenRes.data.accessToken;
+      const clientId = tokenRes.data.clientId;
+      if (!clientId) {
+        showToast({
+          message: 'Error: Clave de Cliente de OneDrive no configurada en el servidor.',
+          status: 'error',
+          duration: 5000,
+        });
+        return;
+      }
+      showToast({
+        message: 'Abriendo selector de OneDrive...',
+        status: 'info',
+        duration: 2000,
+      });
+      await loadOneDriveScript();
+      const OneDrive = (window as any).OneDrive;
+      if (typeof OneDrive === 'undefined') {
+        throw new Error('No se pudo inicializar el SDK de OneDrive.');
+      }
+      OneDrive.open({
+        clientId: clientId,
+        action: 'download',
+        multiSelect: true,
+        advanced: {
+          accessToken: accessToken,
+          endpointHint: 'https://graph.microsoft.com/v1.0/',
+        },
+        success: async (response: any) => {
+          if (response.value && response.value.length > 0) {
+            await handleOneDriveFilesSelected(response.value);
+          }
+        },
+        cancel: () => {
+          console.log('OneDrive picker cancelled');
+        },
+        error: (err: any) => {
+          console.error('OneDrive picker error callback:', err);
+          showToast({
+            message: 'Error al usar el selector de OneDrive.',
+            status: 'error',
+            duration: 5000,
+          });
+        }
+      });
+    } catch (error: any) {
+      console.error('OneDrive Picker error:', error);
+      showToast({
+        message: `Error al abrir OneDrive: ${error.message || 'Desconocido'}`,
+        status: 'error',
+        duration: 5000,
+      });
+    }
+  }, [showToast, handleOneDriveFilesSelected]);
 
   const [isSharePointDialogOpen, setIsSharePointDialogOpen] = useState(false);
 
@@ -414,6 +537,15 @@ const AttachFileMenu = ({
         handleGooglePickerOpen();
       }),
       icon: <GoogleDriveIcon className="icon-md" />,
+    });
+
+    localItems.push({
+      label: 'OneDrive',
+      onClick: wrapClick(() => {
+        setToolResource(undefined);
+        handleOneDrivePickerOpen();
+      }),
+      icon: <OneDriveIcon className="icon-md" />,
     });
 
     if (sharePointEnabled) {
