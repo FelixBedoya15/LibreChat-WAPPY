@@ -338,6 +338,7 @@ let curStep=1,otpCode=null,otpOk=false,sigDrawn=false,contractRead=false;
 let contractId='WB-'+Date.now().toString(36).toUpperCase();
 let sigDataUrl=null;
 const uploads={cedula:false,rut:false,pila:false,hv:false};
+const selectedFiles={cedula:null,rut:null,pila:null,hv:null};
 
 /* Canvas */
 const sigCanvas=document.getElementById('sig-canvas');
@@ -372,6 +373,7 @@ function previewSig(){const a=document.createElement('a');a.download='firma.png'
 function handleFile(type,input){
   const f=input.files[0];if(!f)return;
   uploads[type]=true;
+  selectedFiles[type]=f; // Store file object
   document.getElementById('dz-'+type).classList.add('uploaded');
   document.getElementById('prev-'+type+'-name').textContent=f.name;
 }
@@ -382,7 +384,9 @@ function handleFile(type,input){
   dz.addEventListener('drop',e=>{
     e.preventDefault();dz.classList.remove('drag-over');
     const f=e.dataTransfer.files[0];if(!f)return;
-    uploads[t]=true;dz.classList.add('uploaded');document.getElementById('prev-'+t+'-name').textContent=f.name;
+    uploads[t]=true;
+    selectedFiles[t]=f; // Store file object
+    dz.classList.add('uploaded');document.getElementById('prev-'+t+'-name').textContent=f.name;
   });
 });
 
@@ -449,8 +453,8 @@ function personalizeContract(){
     .replace(/\[A&Ntilde;O\]/g,yy);
   document.getElementById('contract-body').innerHTML=html;
   document.getElementById('contract-body').onscroll=onContractScroll;
-  // Store plain text NOW while element is visible
-  contractText=document.getElementById('contract-body').innerText||'';
+  // Store plain text NOW using textContent to prevent empty values when hidden
+  contractText=document.getElementById('contract-body').textContent||'';
 }
 function onContractScroll(){
   const el=document.getElementById('contract-body');
@@ -539,7 +543,7 @@ function updateFinalBtn(){
 }
 
 /* Finalize */
-function finalizeContract(){
+async function finalizeContract(){
   sigDataUrl=sigCanvas.toDataURL('image/png');
   const now=new Date();
   const ds=now.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})+' — '+now.toLocaleTimeString('es-CO');
@@ -549,13 +553,44 @@ function finalizeContract(){
   document.getElementById('cert-territorio').textContent=document.getElementById('f-territorio').value;
   document.getElementById('cert-fecha').textContent=ds;
   document.getElementById('cert-id').textContent=contractId;
-  notifyAdmin();
+  
+  // Generate PDF doc instance and get its base64 string
+  const doc = await generatePDFDoc();
+  const pdfBase64 = doc.output('datauristring');
+  
+  // Read selected files to base64
+  const attachmentsList = [];
+  for (const [key, file] of Object.entries(selectedFiles)) {
+    if (file) {
+      try {
+        const base64 = await fileToBase64(file);
+        attachmentsList.push({
+          filename: file.name,
+          base64: base64
+        });
+      } catch (err) {
+        console.error('Error converting file to base64:', file.name, err);
+      }
+    }
+  }
+
+  notifyAdmin(pdfBase64, attachmentsList);
   goToStep(5);
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+
 /* Notify Admin */
-function notifyAdmin(){
+function notifyAdmin(pdfBase64, attachments){
   const API_BASE = window.location.protocol === 'file:' ? 'https://wappy.club' : '';
+  const cleanName = document.getElementById('f-nombre').value.trim().replace(/\s+/g, '_');
   const data = {
     contractId,
     nombre:      document.getElementById('f-nombre').value,
@@ -572,7 +607,10 @@ function notifyAdmin(){
     tipoCuenta:  document.getElementById('f-tipo-cuenta').value,
     numeroCuenta:document.getElementById('f-cuenta').value,
     fechaFirma:  new Date().toLocaleString('es-CO'),
-    documentos:  Object.entries(uploads).filter(([,v])=>v).map(([k])=>k).join(', ')||'Ninguno'
+    documentos:  Object.entries(uploads).filter(([,v])=>v).map(([k])=>k).join(', ')||'Ninguno',
+    pdfBase64,
+    pdfFilename: `ContratoEmbajador_${cleanName}.pdf`,
+    attachments
   };
   fetch(API_BASE + '/api/embajadores/notify-admin', {
     method:'POST',
@@ -581,8 +619,8 @@ function notifyAdmin(){
   }).catch(()=>console.log('[WAPPY] Admin notification skipped (no server)'));
 }
 
-/* PDF */
-async function downloadPDF(){
+/* PDF Generation Helper */
+async function generatePDFDoc(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
   const pw=210,ph=297,ml=20,mr=20,mt=25;
@@ -750,10 +788,11 @@ async function downloadPDF(){
   doc.text('WAPPY LTDA  &  EMBAJADOR OFICIAL WAPPY SST',pw/2,y,{align:'center'});y+=4;
   doc.setDrawColor(...BORDER);doc.setLineWidth(0.4);doc.line(ml,y,pw-mr,y);y+=8;
 
-  const lines=(contractText||document.getElementById('contract-body').innerText||'').split('\n');
+  const lines=(contractText||document.getElementById('contract-body').textContent||'').split('\n');
   for(const line of lines){
     const t=line.trim();if(!t){y+=2;continue;}
     if(/^CONTRATO DE CORRETAJE/.test(t)||/^WAPPY LTDA.*EMBAJADOR/.test(t)){continue;} // skip duplicated title
+    if(t.includes('FIRMA DE LAS PARTES')){break;} // stop before signature lines
     if(/^CLÁUSULA (PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SÉPTIMA|OCTAVA|NOVENA|DÉCIMA)/.test(t)){
       clauseTitle(t);
     } else if(/^(CONSIDERACIONES|CLÁUSULAS|FIRMA DE LAS PARTES|Entre los suscritos)/.test(t)){
@@ -776,7 +815,14 @@ async function downloadPDF(){
     doc.text('Pág '+i+'/'+tp+' | ID: '+contractId,pw-mr,ph-6,{align:'right'});
   }
 
-  doc.save('Contrato_Embajador_'+document.getElementById('f-cedula').value+'_'+contractId+'.pdf');
+  const cleanName = document.getElementById('f-nombre').value.trim().replace(/\s+/g, '_');
+  doc.save(`ContratoEmbajador_${cleanName}.pdf`);
+}
+
+async function downloadPDF(){
+  const doc = await generatePDFDoc();
+  const cleanName = document.getElementById('f-nombre').value.trim().replace(/\s+/g, '_');
+  doc.save(`ContratoEmbajador_${cleanName}.pdf`);
 }
 
 /* Theme Toggle */

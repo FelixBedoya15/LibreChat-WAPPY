@@ -16,9 +16,10 @@ const { logAxiosError, isEnabled, readFileAsString } = require('@librechat/api')
  * @param {string} params.from - The sender's email address.
  * @param {string} params.subject - The subject of the email.
  * @param {string} params.html - The HTML content of the email.
+ * @param {Array} [params.attachments] - The email attachments.
  * @returns {Promise<Object>} - A promise that resolves to the response from Mailgun API.
  */
-const sendEmailViaMailgun = async ({ to, from, subject, html }) => {
+const sendEmailViaMailgun = async ({ to, from, subject, html, attachments }) => {
   const mailgunApiKey = process.env.MAILGUN_API_KEY;
   const mailgunDomain = process.env.MAILGUN_DOMAIN;
   const mailgunHost = process.env.MAILGUN_HOST || 'https://api.mailgun.net';
@@ -33,6 +34,12 @@ const sendEmailViaMailgun = async ({ to, from, subject, html }) => {
   formData.append('subject', subject);
   formData.append('html', html);
   formData.append('o:tracking-clicks', 'no');
+
+  if (attachments && Array.isArray(attachments)) {
+    attachments.forEach((att) => {
+      formData.append('attachment', att.content, att.filename);
+    });
+  }
 
   try {
     const response = await axios.post(`${mailgunHost}/v3/${mailgunDomain}/messages`, formData, {
@@ -74,6 +81,7 @@ const sendEmailViaSMTP = async ({ transporterOptions, mailOptions }) => {
  * @param {Record<string, string>} params.payload - The data to be used in the email template.
  * @param {string} params.template - The filename of the email template.
  * @param {boolean} [throwError=true] - Whether to throw an error if the email sending process fails.
+ * @param {Array} [attachments] - The email attachments.
  * @returns {Promise<Object>} - A promise that resolves to the info object of the sent email or the error if sending the email fails.
  *
  * @example
@@ -90,7 +98,7 @@ const sendEmailViaSMTP = async ({ transporterOptions, mailOptions }) => {
  *
  * @throws Will throw an error if the email sending process fails and throwError is `true`.
  */
-const sendEmail = async ({ email, subject, payload, template, from, throwError = true }) => {
+const sendEmail = async ({ email, subject, payload, template, from, throwError = true, attachments }) => {
   try {
     const { content: source } = await readFileAsString(path.join(__dirname, 'emails', template));
     const compiledTemplate = handlebars.compile(source);
@@ -106,7 +114,7 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
     }
 
     const fromAddress = `"${fromName}" <${fromEmail}>`;
-    const toAddress = `"${payload.name}" <${email}>`;
+    const toAddress = `"${payload.name || 'Usuario'}" <${email}>`;
 
     // Check if Mailgun is configured
     if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
@@ -116,6 +124,7 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
         to: toAddress,
         subject: subject,
         html: html,
+        attachments: attachments,
       });
     }
 
@@ -170,6 +179,7 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
       },
       subject: subject,
       html: html,
+      attachments: attachments,
     };
 
     return await sendEmailViaSMTP({ transporterOptions, mailOptions });

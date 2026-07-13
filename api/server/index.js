@@ -661,6 +661,7 @@ const startServer = async () => {
         contractId, nombre, cedula, expedicion, email, celular,
         direccion, domicilio, territorio, aledanos, profesion,
         banco, tipoCuenta, numeroCuenta, fechaFirma, documentos,
+        pdfBase64, pdfFilename, attachments
       } = req.body;
 
       if (!email || !nombre || !contractId) {
@@ -670,13 +671,35 @@ const startServer = async () => {
       const sendEmail = require('./utils/sendEmail');
 
       const payload = {
+        name: nombre, // map to name for Nodemailer toAddress field
         contractId, nombre, cedula, expedicion, email, celular,
         direccion, domicilio, territorio, aledanos, profesion,
         banco, tipoCuenta, numeroCuenta, fechaFirma,
         documentos: documentos || 'Cédula, RUT',
       };
 
-      // 1️⃣ Email al admin / soporte (ambos correos en paralelo)
+      // Process attachments
+      const emailAttachments = [];
+
+      if (pdfBase64 && pdfFilename) {
+        emailAttachments.push({
+          filename: pdfFilename,
+          content: Buffer.from(pdfBase64.split(';base64,').pop(), 'base64'),
+        });
+      }
+
+      if (attachments && Array.isArray(attachments)) {
+        attachments.forEach((att) => {
+          if (att.base64 && att.filename) {
+            emailAttachments.push({
+              filename: att.filename,
+              content: Buffer.from(att.base64.split(';base64,').pop(), 'base64'),
+            });
+          }
+        });
+      }
+
+      // 1️⃣ Email al admin / soporte (ambos correos en paralelo con todos los adjuntos)
       const adminEmails = [
         process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
         'wappyinteractivo@gmail.com',
@@ -688,16 +711,18 @@ const startServer = async () => {
             subject: `🖊️ Nuevo Contrato Embajador firmado — ${nombre} (${contractId})`,
             payload,
             template: 'contratoEmbajadorAdmin.handlebars',
+            attachments: emailAttachments,
           }),
         ),
       );
 
-      // 2️⃣ Email de confirmación al embajador
+      // 2️⃣ Email de confirmación al embajador (solo con el PDF del contrato)
       await sendEmail({
         email,
         subject: `¡Bienvenido como Embajador WAPPY! Tu contrato ${contractId} está listo`,
         payload,
         template: 'contratoEmbajadorConfirmacion.handlebars',
+        attachments: emailAttachments.slice(0, 1),
       });
 
       logger.info(`[Embajadores] Correos enviados para contrato ${contractId} — Embajador: ${nombre} (${email})`);
