@@ -655,6 +655,60 @@ const startServer = async () => {
     }
   });
 
+  app.post('/api/embajadores/notify-admin', async (req, res) => {
+    try {
+      const {
+        contractId, nombre, cedula, expedicion, email, celular,
+        direccion, domicilio, territorio, aledanos, profesion,
+        banco, tipoCuenta, numeroCuenta, fechaFirma, documentos,
+      } = req.body;
+
+      if (!email || !nombre || !contractId) {
+        return res.status(400).json({ message: 'Faltan datos requeridos.' });
+      }
+
+      const sendEmail = require('./utils/sendEmail');
+
+      const payload = {
+        contractId, nombre, cedula, expedicion, email, celular,
+        direccion, domicilio, territorio, aledanos, profesion,
+        banco, tipoCuenta, numeroCuenta, fechaFirma,
+        documentos: documentos || 'Cédula, RUT',
+      };
+
+      // 1️⃣ Email al admin / soporte (ambos correos en paralelo)
+      const adminEmails = [
+        process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
+        'wappyinteractivo@gmail.com',
+      ];
+      await Promise.all(
+        adminEmails.map((adminEmail) =>
+          sendEmail({
+            email: adminEmail,
+            subject: `🖊️ Nuevo Contrato Embajador firmado — ${nombre} (${contractId})`,
+            payload,
+            template: 'contratoEmbajadorAdmin.handlebars',
+          }),
+        ),
+      );
+
+      // 2️⃣ Email de confirmación al embajador
+      await sendEmail({
+        email,
+        subject: `¡Bienvenido como Embajador WAPPY! Tu contrato ${contractId} está listo`,
+        payload,
+        template: 'contratoEmbajadorConfirmacion.handlebars',
+      });
+
+      logger.info(`[Embajadores] Correos enviados para contrato ${contractId} — Embajador: ${nombre} (${email})`);
+      res.json({ message: 'Notificaciones enviadas exitosamente.' });
+    } catch (err) {
+      logger.error('[Embajadores notify-admin] Error al enviar correos:', err);
+      // No retornamos error al cliente para no interrumpir el flujo del contrato
+      res.status(200).json({ message: 'Contrato registrado (notificación con errores).', error: err.message });
+    }
+  });
+
   app.get(['/portafolio', '/portafolio.html'], (req, res) => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
   });

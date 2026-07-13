@@ -549,83 +549,232 @@ function finalizeContract(){
   document.getElementById('cert-territorio').textContent=document.getElementById('f-territorio').value;
   document.getElementById('cert-fecha').textContent=ds;
   document.getElementById('cert-id').textContent=contractId;
+  notifyAdmin();
   goToStep(5);
+}
+
+/* Notify Admin */
+function notifyAdmin(){
+  const API_BASE = window.location.protocol === 'file:' ? 'https://wappy.club' : '';
+  const data = {
+    contractId,
+    nombre:      document.getElementById('f-nombre').value,
+    cedula:      document.getElementById('f-cedula').value,
+    expedicion:  document.getElementById('f-expedicion').value,
+    email:       document.getElementById('f-email').value,
+    celular:     document.getElementById('f-celular').value,
+    direccion:   document.getElementById('f-direccion').value,
+    domicilio:   document.getElementById('f-domicilio').value,
+    territorio:  document.getElementById('f-territorio').value,
+    aledanos:    document.getElementById('f-aledanos').value||'Por definir',
+    profesion:   document.getElementById('f-profesion').value||'N/A',
+    banco:       document.getElementById('f-banco').value,
+    tipoCuenta:  document.getElementById('f-tipo-cuenta').value,
+    numeroCuenta:document.getElementById('f-cuenta').value,
+    fechaFirma:  new Date().toLocaleString('es-CO'),
+    documentos:  Object.entries(uploads).filter(([,v])=>v).map(([k])=>k).join(', ')||'Ninguno'
+  };
+  fetch(API_BASE + '/api/embajadores/notify-admin', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).catch(()=>console.log('[WAPPY] Admin notification skipped (no server)'));
 }
 
 /* PDF */
 async function downloadPDF(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
-  const pw=210,ph=297,ml=18,mr=18,mt=22;
+  const pw=210,ph=297,ml=20,mr=20,mt=25;
   let y=mt;const uw=pw-ml-mr;
-  const G=[34,197,94],DK=[10,20,14],GR=[100,120,110],LT=[210,235,220];
+  // Professional color palette — white background, dark text
+  const BLACK=[20,20,20],DARK=[40,40,40],MID=[90,90,90],LIGHT=[150,150,150],ACCENT=[22,100,58],ACCENT2=[16,74,42],WHITE=[255,255,255],BGPAGE=[250,251,250],BGHEAD=[240,248,242],BGROW=[248,251,249],BORDER=[200,220,208];
 
-  // Cover background
-  doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');
-  doc.setFillColor(15,40,25);doc.rect(0,0,pw,55,'F');
-  doc.setFontSize(20);doc.setFont('helvetica','bold');doc.setTextColor(...G);
-  doc.text('CONTRATO DE CORRETAJE COMERCIAL',pw/2,22,{align:'center'});
-  doc.setFontSize(12);doc.setTextColor(240,253,244);
-  doc.text('WAPPY LTDA — EMBAJADOR OFICIAL',pw/2,30,{align:'center'});
-  doc.setFontSize(8);doc.setTextColor(...GR);
-  doc.text('NIT 901437310 | Medellín, Antioquia | wappy.co',pw/2,37,{align:'center'});
-  doc.setDrawColor(...G);doc.setLineWidth(0.5);doc.line(ml,44,pw-mr,44);
-  y=60;
+  // ─── PAGE UTILS ───────────────────────────────────────────────
+  function newPage(){
+    doc.addPage();
+    doc.setFillColor(...BGPAGE);doc.rect(0,0,pw,ph,'F');
+    // top thin accent bar
+    doc.setFillColor(...ACCENT);doc.rect(0,0,pw,2,'F');
+    // bottom bar
+    doc.setFillColor(...BGHEAD);doc.rect(0,ph-14,pw,14,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...LIGHT);
+    doc.text('WAPPY LTDA — NIT 901437310 — Medellín, Colombia',ml,ph-6);
+    doc.text('wappy.club  |  Contrato ID: '+contractId,pw-mr,ph-6,{align:'right'});
+    y=18;
+  }
+  function checkPage(needed=6){
+    if(y+needed>ph-18)newPage();
+  }
+  const addRow=(k,v)=>{
+    checkPage(8);
+    // alternating row
+    doc.setFillColor(...BGROW);doc.rect(ml,y-4,uw,7,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...ACCENT2);
+    doc.text(k,ml+2,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(...DARK);
+    const val=String(v||'—');
+    const wrapped=doc.splitTextToSize(val,uw-48);
+    doc.text(wrapped,ml+52,y);
+    y+=Math.max(7,wrapped.length*4.5);
+  };
+  const secTitle=(t)=>{
+    checkPage(14);
+    y+=4;
+    doc.setFillColor(...ACCENT);doc.rect(ml,y-5,uw,10,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...WHITE);
+    doc.text(t,ml+3,y+0.5);
+    y+=8;
+  };
+  const clauseTitle=(t)=>{
+    checkPage(10);
+    y+=3;
+    doc.setFillColor(...BGHEAD);doc.rect(ml,y-4,uw,8,'F');
+    doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);doc.rect(ml,y-4,uw,8);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...ACCENT2);
+    doc.text(t,ml+2,y);
+    y+=7;
+  };
+  const bodyText=(t)=>{
+    const wrapped=doc.splitTextToSize(t,uw);
+    for(const ln of wrapped){
+      checkPage(5);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...DARK);
+      doc.text(ln,ml,y);y+=4.8;
+    }
+  };
 
-  const sec=(t)=>{doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...G);doc.text(t,ml,y);y+=2;doc.setDrawColor(...G);doc.setLineWidth(0.2);doc.line(ml,y,ml+80,y);y+=5;};
-  const row=(k,v)=>{doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(...GR);doc.text(k+':',ml,y);doc.setFont('helvetica','normal');doc.setTextColor(...LT);doc.text(v||'—',ml+55,y);y+=6;};
+  // ═══════════════════════════════════════════════════════════════
+  // PAGE 1 — PORTADA
+  // ═══════════════════════════════════════════════════════════════
+  doc.setFillColor(...BGPAGE);doc.rect(0,0,pw,ph,'F');
+  // Green header band
+  doc.setFillColor(...ACCENT);doc.rect(0,0,pw,60,'F');
+  // Logo text
+  doc.setFont('helvetica','bold');doc.setFontSize(28);doc.setTextColor(...WHITE);
+  doc.text('WAPPY',pw/2,28,{align:'center'});
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(200,240,215);
+  doc.text('Plataforma de Seguridad y Salud en el Trabajo con IA',pw/2,38,{align:'center'});
+  doc.setFontSize(8);doc.setTextColor(160,220,185);
+  doc.text('NIT 901437310 | Medellín, Antioquia, Colombia | wappy.club',pw/2,46,{align:'center'});
+  // White divider curve (simulate with rect)
+  doc.setFillColor(...BGPAGE);doc.rect(0,55,pw,10,'F');
 
-  sec('DATOS DEL EMBAJADOR');
-  row('Nombre',document.getElementById('f-nombre').value);
-  row('Cédula',document.getElementById('f-cedula').value);
-  row('Lugar de Expedición',document.getElementById('f-expedicion').value);
-  row('Correo',document.getElementById('f-email').value);
-  row('Celular',document.getElementById('f-celular').value);
-  row('Dirección',document.getElementById('f-direccion').value);
-  row('Domicilio',document.getElementById('f-domicilio').value);
-  row('Territorio Asignado',document.getElementById('f-territorio').value);
-  row('Municipios Aledaños',document.getElementById('f-aledanos').value||'Por definir');
-  row('Profesión',document.getElementById('f-profesion').value||'N/A');
-  y+=2;sec('INFORMACIÓN BANCARIA');
-  row('Banco',document.getElementById('f-banco').value);
-  row('Tipo Cuenta',document.getElementById('f-tipo-cuenta').value);
-  row('Número Cuenta',document.getElementById('f-cuenta').value);
-  y+=3;sec('REPRESENTANTE LEGAL — WAPPY LTDA');
-  row('Nombre','Felix Mauricio Bedoya Ocampo');
-  row('Cédula','1.037.589.726 de Envigado, Antioquia');
-  row('Empresa','WAPPY LTDA (NIT 901437310)');
-  row('Domicilio','Medellín, Antioquia');
-  y+=3;sec('CERTIFICADO DE FIRMA ELECTRÓNICA');
+  y=76;
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...BLACK);
+  doc.text('CONTRATO DE CORRETAJE COMERCIAL',pw/2,y,{align:'center'});y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(...MID);
+  doc.text('WAPPY LTDA  ·  EMBAJADOR OFICIAL WAPPY SST',pw/2,y,{align:'center'});y+=10;
+  doc.setDrawColor(...BORDER);doc.setLineWidth(0.5);doc.line(ml,y,pw-mr,y);y+=10;
+
+  // Cert card
   const now2=new Date();
-  row('ID Contrato',contractId);
-  row('Fecha y Hora',now2.toLocaleDateString('es-CO')+' '+now2.toLocaleTimeString('es-CO'));
-  row('Correo Verificado',document.getElementById('f-email').value+' ✓ OTP');
-  row('Ley Aplicable','Ley 527 de 1999 — Comercio Electrónico Colombia');
-  y+=6;
-  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...G);doc.text('FIRMA ELECTRÓNICA DEL EMBAJADOR',ml,y);y+=4;
-  if(sigDataUrl){doc.setFillColor(255,255,255);doc.rect(ml,y,80,30,'F');doc.addImage(sigDataUrl,'PNG',ml,y,80,30);y+=34;}
-  doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...GR);
-  doc.text('Firma electrónica autenticada por OTP al correo registrado. Ley 527 de 1999.',ml,y);y+=5;
-  doc.text('_'.repeat(40),ml,y);doc.text('_'.repeat(38),ml+92,y);y+=4;
-  doc.text('EL EMBAJADOR',ml+10,y);doc.text('FELIX M. BEDOYA — REP. LEGAL WAPPY LTDA',ml+94,y);
+  doc.setFillColor(...BGROW);doc.roundedRect(ml,y,uw,56,3,3,'F');
+  doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);doc.roundedRect(ml,y,uw,56,3,3);
+  y+=8;
+  const certVal=(k,v)=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...ACCENT2);
+    doc.text(k+':',ml+6,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(...DARK);
+    doc.text(String(v||'—'),ml+55,y);
+    y+=7;
+  };
+  certVal('Embajador',document.getElementById('f-nombre').value);
+  certVal('Cédula',document.getElementById('f-cedula').value+' exp. '+document.getElementById('f-expedicion').value);
+  certVal('Correo verificado',document.getElementById('f-email').value+' ✓ OTP');
+  certVal('Territorio asignado',document.getElementById('f-territorio').value);
+  certVal('Fecha y hora de firma',now2.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})+', '+now2.toLocaleTimeString('es-CO'));
+  certVal('ID de Contrato',contractId);
+  certVal('Ley aplicable','Ley 527 de 1999 — Comercio Electrónico Colombia');
+  y+=8;
 
-  // Contract page
-  doc.addPage();doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');
-  y=18;
+  // Signature section on page 1
+  doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);doc.line(ml,y,pw-mr,y);y+=10;
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...ACCENT2);
+  doc.text('FIRMA ELECTRÓNICA DEL EMBAJADOR',ml,y);y+=6;
+  doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...LIGHT);
+  doc.text('Autenticada mediante código OTP al correo registrado. Ley 527/1999.',ml,y);y+=8;
+  if(sigDataUrl){
+    doc.setFillColor(255,255,255);doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);
+    doc.rect(ml,y,88,35,'FD');
+    doc.addImage(sigDataUrl,'PNG',ml+2,y+2,84,31);
+    y+=39;
+  }
+  // Only Ambassador signature line
+  doc.setDrawColor(...MID);doc.setLineWidth(0.4);
+  doc.line(ml,y,ml+85,y);y+=4;
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...MID);
+  doc.text(document.getElementById('f-nombre').value,ml,y);y+=4;
+  doc.text('C.C. '+document.getElementById('f-cedula').value+' — EL EMBAJADOR',ml,y);
+
+  // Bottom bar p1
+  doc.setFillColor(...BGHEAD);doc.rect(0,ph-14,pw,14,'F');
+  doc.setFillColor(...ACCENT);doc.rect(0,ph-14,pw,1.5,'F');
+  doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...LIGHT);
+  doc.text('WAPPY LTDA — NIT 901437310 — Medellín, Colombia',ml,ph-6);
+  doc.text('Pág 1 | ID: '+contractId,pw-mr,ph-6,{align:'right'});
+
+  // ═══════════════════════════════════════════════════════════════
+  // PAGE 2 — DATOS COMPLETOS
+  // ═══════════════════════════════════════════════════════════════
+  newPage();
+  secTitle('DATOS DEL EMBAJADOR');
+  addRow('Nombre completo',document.getElementById('f-nombre').value);
+  addRow('Cédula de ciudadanía',document.getElementById('f-cedula').value);
+  addRow('Lugar de expedición C.C.',document.getElementById('f-expedicion').value);
+  addRow('Correo electrónico',document.getElementById('f-email').value);
+  addRow('Número celular',document.getElementById('f-celular').value);
+  addRow('Dirección de residencia',document.getElementById('f-direccion').value);
+  addRow('Municipio de domicilio',document.getElementById('f-domicilio').value);
+  addRow('Territorio asignado',document.getElementById('f-territorio').value);
+  addRow('Municipios aledaños',document.getElementById('f-aledanos').value||'Por definir');
+  addRow('Profesión / Área SST',document.getElementById('f-profesion').value||'N/A');
+  secTitle('INFORMACIÓN BANCARIA PARA COMISIONES');
+  addRow('Entidad bancaria',document.getElementById('f-banco').value);
+  addRow('Tipo de cuenta',document.getElementById('f-tipo-cuenta').value);
+  addRow('Número de cuenta',document.getElementById('f-cuenta').value);
+  secTitle('REPRESENTANTE LEGAL — WAPPY LTDA');
+  addRow('Nombre','Felix Mauricio Bedoya Ocampo');
+  addRow('Cédula','1.037.589.726 de Envigado, Antioquia');
+  addRow('NIT empresa','901437310');
+  addRow('Domicilio','Medellín, Antioquia');
+  addRow('Naturaleza jurídica','Sociedad de Responsabilidad Limitada — WAPPY LTDA');
+
+  // ═══════════════════════════════════════════════════════════════
+  // PAGES 3+ — CUERPO DEL CONTRATO
+  // ═══════════════════════════════════════════════════════════════
+  newPage();
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(...BLACK);
+  doc.text('CONTRATO DE CORRETAJE COMERCIAL Y PROMOCIÓN DE SERVICIOS',pw/2,y,{align:'center'});y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...MID);
+  doc.text('WAPPY LTDA  &  EMBAJADOR OFICIAL WAPPY SST',pw/2,y,{align:'center'});y+=4;
+  doc.setDrawColor(...BORDER);doc.setLineWidth(0.4);doc.line(ml,y,pw-mr,y);y+=8;
+
   const lines=(contractText||document.getElementById('contract-body').innerText||'').split('\n');
-  doc.setFontSize(7.5);
   for(const line of lines){
-    if(!line.trim()){y+=2;continue;}
-    const hd=/^(CL[ÁA]USULA|CONSIDERACIONES|FIRMA|DATOS|TERRITORIO|OBJETO)/.test(line.trim());
-    doc.setFont('helvetica',hd?'bold':'normal');
-    doc.setTextColor(hd?G[0]:210,hd?G[1]:235,hd?G[2]:220);
-    const wr=doc.splitTextToSize(line.trim(),uw);
-    for(const wl of wr){if(y>ph-18){doc.addPage();doc.setFillColor(10,20,14);doc.rect(0,0,pw,ph,'F');y=18;}doc.text(wl,ml,y);y+=4.5;}
+    const t=line.trim();if(!t){y+=2;continue;}
+    if(/^CONTRATO DE CORRETAJE/.test(t)||/^WAPPY LTDA.*EMBAJADOR/.test(t)){continue;} // skip duplicated title
+    if(/^CLÁUSULA (PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SÉPTIMA|OCTAVA|NOVENA|DÉCIMA)/.test(t)){
+      clauseTitle(t);
+    } else if(/^(CONSIDERACIONES|CLÁUSULAS|FIRMA DE LAS PARTES|Entre los suscritos)/.test(t)){
+      checkPage(10);y+=2;
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...ACCENT2);
+      doc.text(t,ml,y);y+=6;
+    } else {
+      bodyText(t);
+    }
   }
 
-  // Footer
+  // Update all page footers with correct total
   const tp=doc.internal.getNumberOfPages();
-  for(let i=1;i<=tp;i++){doc.setPage(i);doc.setFillColor(10,25,16);doc.rect(0,ph-12,pw,12,'F');doc.setFontSize(7);doc.setTextColor(...GR);doc.text('WAPPY LTDA — NIT 901437310 — Medellín, Antioquia',ml,ph-6);doc.text('Pág '+i+'/'+tp+' | ID: '+contractId,pw-mr,ph-6,{align:'right'});}
+  for(let i=1;i<=tp;i++){
+    doc.setPage(i);
+    doc.setFillColor(...BGHEAD);doc.rect(0,ph-14,pw,14,'F');
+    doc.setFillColor(...ACCENT);doc.rect(0,ph-14,pw,1.5,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...LIGHT);
+    doc.text('WAPPY LTDA — NIT 901437310 — Medellín, Colombia',ml,ph-6);
+    doc.text('Pág '+i+'/'+tp+' | ID: '+contractId,pw-mr,ph-6,{align:'right'});
+  }
 
   doc.save('Contrato_Embajador_'+document.getElementById('f-cedula').value+'_'+contractId+'.pdf');
 }
