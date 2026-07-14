@@ -533,8 +533,11 @@ class AgentClient extends BaseClient {
     let serviceKey = undefined;
 
     if (agent.provider === 'google') {
-      const googleKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_KEY;
-      if (googleKey) {
+      const googleKey = process.env.GOOGLE_API_KEY || 
+                        process.env.GEMINI_API_KEY || 
+                        (agent.model_parameters && agent.model_parameters.apiKey) || 
+                        process.env.GOOGLE_KEY;
+      if (googleKey && googleKey !== 'user_provided') {
         try {
           const parsed = JSON.parse(googleKey);
           if (parsed && parsed.project_id) {
@@ -546,7 +549,7 @@ class AgentClient extends BaseClient {
         }
       }
 
-      if (!isServiceAccount) {
+      if (!isServiceAccount && googleKey && googleKey !== 'user_provided') {
         apiKey = googleKey;
         if (apiKey && apiKey.includes(',')) {
           apiKey = apiKey.split(',')[0].trim();
@@ -556,7 +559,7 @@ class AgentClient extends BaseClient {
         }
       }
     } else if (agent.provider === 'openai') {
-      apiKey = process.env.OPENAI_API_KEY;
+      apiKey = process.env.OPENAI_API_KEY || (agent.model_parameters && agent.model_parameters.apiKey);
       if (apiKey && apiKey.includes(',')) {
         apiKey = apiKey.split(',')[0].trim();
       }
@@ -566,10 +569,15 @@ class AgentClient extends BaseClient {
       {
         provider: agent.provider,
         model: agent.model,
-        apiKey,
       },
       agent.model_parameters,
     );
+
+    if (isServiceAccount) {
+      delete llmConfig.apiKey;
+    } else if (apiKey) {
+      llmConfig.apiKey = apiKey;
+    }
 
     if (agent.provider === 'google') {
       if (isServiceAccount) {
