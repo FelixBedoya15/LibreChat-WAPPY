@@ -544,6 +544,12 @@ class AgentClient extends BaseClient {
       agent.model_parameters,
     );
 
+    if (agent.provider === 'google' && llmConfig.customHeaders) {
+      llmConfig.customHeaders = { ...llmConfig.customHeaders };
+      delete llmConfig.customHeaders['Authorization'];
+      delete llmConfig.customHeaders['authorization'];
+    }
+
     /** @type {import('@librechat/api').MemoryConfig} */
     const config = {
       validKeys: memoryConfig.validKeys,
