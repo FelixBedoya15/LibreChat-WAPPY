@@ -699,7 +699,7 @@ router.get('/skills', async (req, res) => {
             // Exclude skills scoped exclusively to agents chat panel
             if (scope === 'agents') continue;
             skills.push({
-              id: frontmatter.name || file.replace('.md', ''),
+              id: file.replace('.md', ''),
               name: frontmatter.name || file.replace('.md', ''),
               description: frontmatter.description || '',
               triggers: frontmatter.triggers || [],

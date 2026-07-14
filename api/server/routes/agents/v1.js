@@ -85,7 +85,7 @@ router.get('/skills', (req, res) => {
             const scope = frontmatter.scope || 'all';
             if (scope === 'tenshi') continue;
             skills.push({
-              id: frontmatter.name || file.replace('.md', ''),
+              id: file.replace('.md', ''),
               name: frontmatter.name || file.replace('.md', ''),
               description: frontmatter.description || '',
               triggers: frontmatter.triggers || [],
