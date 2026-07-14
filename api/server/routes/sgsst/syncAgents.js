@@ -11,86 +11,47 @@ const mongoose = require('mongoose');
 
 // Exact mapping between local markdown filenames (without .md) and database Agent names.
 const AGENT_FILE_MAP = {
-  'abogado_laboral': 'Consultor Jurídico Laboral',
-  'abogado_rit': 'Consultor Jurídico RIT',
-  'abogado_procesos_disciplinarios': 'Consultor de Debido Proceso y Despidos',
-  'abogado_acoso_sexual': 'Consultor de Protocolo de Acoso Sexual',
-  'agente_sst': 'Consultor SG-SST',
-  'asistente_ats': 'Gestor de Análisis de Trabajo Seguro (ATS)',
-  'asistente_de_aci': 'Analista Predictivo ACI',
-  'asistente_de_salud_mental': 'Consultor de Bienestar y Salud Mental',
-  'asistente_en_capacitaciones': 'Gestor de Formación Continua',
-  'asistente_en_nutricion': 'Consultor Nutricional Corporativo',
-  'asistente_en_primeros_auxilios': 'Gestor Clínico de Primeros Auxilios',
-  'asistente_inv_at': 'Analista Forense de Accidentalidad (AT)',
-  'asistente_inv_el': 'Analista Forense de Enfermedad Laboral (EL)',
-  'asistente_metodo_rosa': 'Analista Ergonómico ROSA',
-  'analista_ipt_ergonomico': 'Inspector de Puesto de Trabajo (IPT)',
-  'asistente_permiso_tsa': 'Gestor de Permisos de Trabajo (TSA)',
-  'auditor_sg_sst': 'Auditor Integral SG-SST',
-  'coordinador_ipevar': 'Especialista GTC-45 (Matriz IPEVAR)',
-  'experto_en_emergencias': 'Especialista en Prevención y Emergencias',
-  'experto_en_riesgo_biologico': 'Especialista en Riesgo Biológico',
-  'experto_en_riesgo_electrico': 'Especialista en Riesgo Eléctrico',
-  'experto_en_riesgo_quimico': 'Especialista en Riesgo Químico',
-  'experto_en_riesgo_vial': 'Especialista en Riesgo Vial',
-  'experto_en_tareas_de_alto_riesgo': 'Especialista en Tareas Críticas',
-  'fisioterapeuta_laboral': 'Especialista en Biomecánica Laboral',
-  'medico_laboral': 'Consultor Médico Ocupacional',
-  'profesional_sst': 'Consultor Senior SG-SST',
-  'psicologo_especialista_sst': 'Especialista en Riesgo Psicosocial',
-  'simulador_accidentes': 'Simulador de Accidentes SST',
-  'redactor_blog': 'Estratega de Contenidos Corporativos',
-  'gestor_gestion_ambiental': 'Consultor de Gestión Ambiental',
-  'experto_mineria_subterranea': 'Especialista en Minería Subterránea y Alto Riesgo'
+  'abogado_laboral': 'Abogado Laboral',
+  'medico_laboral': 'Médico Laboral',
+  'consultor_sg_sst': 'Consultor SG-SST',
+  'fisioterapeuta_laboral': 'Fisioterapeuta Laboral',
+  'psicologo_sst': 'Psicólogo SST',
+  'terapeuta_salud_mental': 'Terapeuta en Salud Mental',
+  'nutricionista_laboral': 'Nutricionista Laboral',
+  'primer_respondiente': 'Primer Respondiente',
+  'coordinador_emergencias': 'Coordinador de Emergencias',
+  'especialista_bioseguridad': 'Especialista en Bioseguridad',
+  'ingeniero_electricista_sst': 'Ingeniero Electricista SST',
+  'ingeniero_quimico_sst': 'Ingeniero Químico SST',
+  'coordinador_seguridad_vial': 'Coordinador de Seguridad Vial',
+  'coordinador_tareas_criticas': 'Coordinador de Tareas Críticas',
+  'ingeniero_minas_sst': 'Ingeniero de Minas SST',
+  'auditor_sg_sst': 'Auditor SG-SST',
+  'ingeniero_ambiental': 'Ingeniero Ambiental',
+  'redactor_creativo': 'Redactor Creativo',
+  'simulador_accidentes': 'Simulador de Accidentes SST'
 };
 
 const AGENT_CATEGORY_MAP = {
-  // 1. Gestión y Consultoría del SG-SST
-  'profesional_sst': 'gestion_consultoria_sg_sst',
-  'agente_sst': 'gestion_consultoria_sg_sst',
-  'auditor_sg_sst': 'gestion_consultoria_sg_sst',
-  'redactor_blog': 'gestion_consultoria_sg_sst',
-
-  // 2. Legal y Cumplimiento
   'abogado_laboral': 'legal_cumplimiento',
-  'abogado_rit': 'legal_cumplimiento',
-  'abogado_procesos_disciplinarios': 'legal_cumplimiento',
-  'abogado_acoso_sexual': 'legal_cumplimiento',
-
-  // 3. Especialistas en Riesgos Específicos
-  'coordinador_ipevar': 'especialistas_riesgos_especificos',
-  'experto_en_riesgo_quimico': 'especialistas_riesgos_especificos',
-  'experto_en_riesgo_electrico': 'especialistas_riesgos_especificos',
-  'experto_en_riesgo_biologico': 'especialistas_riesgos_especificos',
-  'experto_en_riesgo_vial': 'especialistas_riesgos_especificos',
-  'experto_en_tareas_de_alto_riesgo': 'especialistas_riesgos_especificos',
-  'experto_en_emergencias': 'especialistas_riesgos_especificos',
-  'experto_mineria_subterranea': 'especialistas_riesgos_especificos',
-
-  // 4. Investigación e Inspección
-  'asistente_inv_at': 'investigacion_inspeccion',
-  'asistente_inv_el': 'investigacion_inspeccion',
-  'asistente_de_aci': 'investigacion_inspeccion',
-  'analista_ipt_ergonomico': 'investigacion_inspeccion',
-  'simulador_accidentes': 'investigacion_inspeccion',
-
-  // 5. Ergonomía, Salud y Bienestar
-  'asistente_metodo_rosa': 'ergonomia_salud_bienestar',
-  'fisioterapeuta_laboral': 'ergonomia_salud_bienestar',
   'medico_laboral': 'ergonomia_salud_bienestar',
-  'psicologo_especialista_sst': 'ergonomia_salud_bienestar',
-  'asistente_de_salud_mental': 'ergonomia_salud_bienestar',
-  'asistente_en_nutricion': 'ergonomia_salud_bienestar',
-  'asistente_en_primeros_auxilios': 'ergonomia_salud_bienestar',
-
-  // 6. Operaciones de Campo y Capacitación
-  'asistente_ats': 'operaciones_campo_capacitacion',
-  'asistente_permiso_tsa': 'operaciones_campo_capacitacion',
-  'asistente_en_capacitaciones': 'operaciones_campo_capacitacion',
-
-  // 7. Gestión Ambiental
-  'gestor_gestion_ambiental': 'gestion_ambiental'
+  'consultor_sg_sst': 'gestion_consultoria_sg_sst',
+  'fisioterapeuta_laboral': 'ergonomia_salud_bienestar',
+  'psicologo_sst': 'ergonomia_salud_bienestar',
+  'terapeuta_salud_mental': 'ergonomia_salud_bienestar',
+  'nutricionista_laboral': 'ergonomia_salud_bienestar',
+  'primer_respondiente': 'ergonomia_salud_bienestar',
+  'coordinador_emergencias': 'especialistas_riesgos_especificos',
+  'especialista_bioseguridad': 'especialistas_riesgos_especificos',
+  'ingeniero_electricista_sst': 'especialistas_riesgos_especificos',
+  'ingeniero_quimico_sst': 'especialistas_riesgos_especificos',
+  'coordinador_seguridad_vial': 'especialistas_riesgos_especificos',
+  'coordinador_tareas_criticas': 'especialistas_riesgos_especificos',
+  'ingeniero_minas_sst': 'especialistas_riesgos_especificos',
+  'auditor_sg_sst': 'gestion_consultoria_sg_sst',
+  'ingeniero_ambiental': 'gestion_ambiental',
+  'redactor_creativo': 'gestion_consultoria_sg_sst',
+  'simulador_accidentes': 'investigacion_inspeccion'
 };
 
 async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
@@ -107,22 +68,16 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   const tools = [];
   if (fileBasename === 'simulador_accidentes') {
     tools.push('canvas');
-  } else if (fileBasename === 'psicologo_especialista_sst') {
+  } else if (fileBasename === 'psicologo_sst') {
     tools.push('consultar_analitica_psicosocial', 'canvas');
-  } else if (fileBasename === 'coordinador_ipevar') {
-    tools.push('matriz_ipevar');
-  } else if (fileBasename === 'asistente_de_aci') {
-    tools.push('consultar_analitica_actos_condiciones', 'canvas');
-  } else if (fileBasename === 'abogado_procesos_disciplinarios' || fileBasename === 'abogado_acoso_sexual') {
-    tools.push('canvas');
-  } else if (fileBasename === 'experto_en_riesgo_vial') {
+  } else if (fileBasename === 'coordinador_seguridad_vial') {
     tools.push('matriz_pesv', 'canvas', 'context');
-  } else if (fileBasename === 'experto_en_riesgo_quimico') {
+  } else if (fileBasename === 'ingeniero_quimico_sst') {
     tools.push('canvas');
   }
 
   const timestamp = new Date();
-  const defaultModel = fileBasename === 'psicologo_especialista_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+  const defaultModel = fileBasename === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
   const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
   const agentData = {
     id: agentId,
@@ -324,32 +279,21 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
     // Ensure the psychologist agent has the new psicosocial analytics tool
     try {
       await Agent.findOneAndUpdate(
-        { name: 'Especialista en Riesgo Psicosocial' },
+        { name: 'Psicólogo SST' },
         { $addToSet: { tools: { $each: ['consultar_analitica_psicosocial', 'canvas'] } } }
       );
-      logger.info('[SyncAgents] Added consultar_analitica_psicosocial and canvas tools to Especialista en Riesgo Psicosocial');
+      logger.info('[SyncAgents] Added consultar_analitica_psicosocial and canvas tools to Psicólogo SST');
     } catch (err) {
       logger.error('[SyncAgents] Error adding psicosocial tool to agent:', err);
-    }
-
-    // Ensure the ACI agent has the new actos/condiciones analytics tool and canvas
-    try {
-      await Agent.findOneAndUpdate(
-        { name: 'Analista Predictivo ACI' },
-        { $addToSet: { tools: { $each: ['consultar_analitica_actos_condiciones', 'canvas'] } } }
-      );
-      logger.info('[SyncAgents] Added consultar_analitica_actos_condiciones and canvas tools to Analista Predictivo ACI');
-    } catch (err) {
-      logger.error('[SyncAgents] Error adding actos_condiciones tool to agent:', err);
     }
 
     // Ensure the Road Safety agent has the matriz_pesv, canvas and context tools
     try {
       await Agent.findOneAndUpdate(
-        { name: 'Especialista en Riesgo Vial' },
+        { name: 'Coordinador de Seguridad Vial' },
         { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
       );
-      logger.info('[SyncAgents] Added matriz_pesv, canvas, and context tools to Especialista en Riesgo Vial');
+      logger.info('[SyncAgents] Added matriz_pesv, canvas, and context tools to Coordinador de Seguridad Vial');
     } catch (err) {
       logger.error('[SyncAgents] Error adding road safety tools to agent:', err);
     }
@@ -357,15 +301,15 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
     // Ensure the Chemical Risk agent has canvas and pull out matriz_compatibilidad (to avoid autostart)
     try {
       await Agent.findOneAndUpdate(
-        { name: 'Especialista en Riesgo Químico' },
+        { name: 'Ingeniero Químico SST' },
         { 
           $addToSet: { tools: 'canvas' },
           $pull: { tools: 'matriz_compatibilidad' }
         }
       );
-      logger.info('[SyncAgents] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Especialista en Riesgo Químico');
+      logger.info('[SyncAgents] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Ingeniero Químico SST');
     } catch (err) {
-      logger.error('[SyncAgents] Error updating tools for Especialista en Riesgo Químico:', err);
+      logger.error('[SyncAgents] Error updating tools for Ingeniero Químico SST:', err);
     }
 
     return res.json({
@@ -375,6 +319,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       failCount,
       results
     });
+
 
   } catch (err) {
     logger.error('[SyncAgents] Critical synchronization failure:', err);
