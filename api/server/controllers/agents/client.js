@@ -528,10 +528,18 @@ class AgentClient extends BaseClient {
       return;
     }
 
+    let apiKey = undefined;
+    if (agent.provider === 'google') {
+      apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_KEY;
+    } else if (agent.provider === 'openai') {
+      apiKey = process.env.OPENAI_API_KEY;
+    }
+
     const llmConfig = Object.assign(
       {
         provider: agent.provider,
         model: agent.model,
+        apiKey,
       },
       agent.model_parameters,
     );
