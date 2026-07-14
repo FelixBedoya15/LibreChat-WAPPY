@@ -1,7 +1,7 @@
 const express = require('express');
 const { generateCheckAccess } = require('@librechat/api');
 const { PermissionTypes, Permissions, PermissionBits } = require('librechat-data-provider');
-const { requireJwtAuth, configMiddleware, canAccessAgentResource } = require('~/server/middleware');
+const { requireJwtAuth, configMiddleware, canAccessAgentResource, checkAdmin } = require('~/server/middleware');
 const v1 = require('~/server/controllers/agents/v1');
 const { getRoleByName } = require('~/models/Role');
 const actions = require('./actions');
@@ -226,5 +226,168 @@ avatar.post(
   }),
   v1.uploadAgentAvatar,
 );
+
+/**
+ * Get details of a specific skill, including its full markdown content.
+ * @route GET /agents/skills/:id
+ */
+router.get('/skills/:id', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const yaml = require('js-yaml');
+  const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
+  
+  if (!/^[a-z0-9_-]+$/.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid skill ID' });
+  }
+  
+  const filePath = path.join(SKILLS_DIR, `${req.params.id}.md`);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Skill not found' });
+  }
+  
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const match = content.match(/^---([\s\S]*?)---([\s\S]*)$/);
+    if (match) {
+      const frontmatter = yaml.load(match[1]);
+      return res.json({
+        id: req.params.id,
+        name: frontmatter.name || req.params.id,
+        description: frontmatter.description || '',
+        triggers: frontmatter.triggers || [],
+        scope: frontmatter.scope || 'all',
+        content: match[2].trim(),
+      });
+    } else {
+      return res.json({
+        id: req.params.id,
+        name: req.params.id,
+        description: '',
+        triggers: [],
+        scope: 'all',
+        content: content.trim(),
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Create a new skill (Admin only).
+ * @route POST /agents/skills
+ */
+router.post('/skills', requireJwtAuth, checkAdmin, (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const yaml = require('js-yaml');
+  const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
+  
+  const { name, description, triggers, scope = 'all', content = '' } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  
+  const id = name.toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+    
+  if (!id) {
+    return res.status(400).json({ error: 'Invalid name provided' });
+  }
+  
+  const filename = `${id}.md`;
+  const filePath = path.join(SKILLS_DIR, filename);
+  
+  if (fs.existsSync(filePath)) {
+    return res.status(400).json({ error: 'A skill with this name already exists' });
+  }
+  
+  try {
+    const frontmatter = {
+      name: id,
+      description: description || '',
+      triggers: Array.isArray(triggers) ? triggers : [],
+      scope,
+    };
+    
+    const yamlStr = yaml.dump(frontmatter);
+    const fileContent = `---\n${yamlStr}---\n\n${content.trim()}\n`;
+    
+    if (!fs.existsSync(SKILLS_DIR)) {
+      fs.mkdirSync(SKILLS_DIR, { recursive: true });
+    }
+    fs.writeFileSync(filePath, fileContent, 'utf8');
+    return res.status(201).json({ id, name: id, description, triggers, scope, content });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Update an existing skill (Admin only).
+ * @route PUT /agents/skills/:id
+ */
+router.put('/skills/:id', requireJwtAuth, checkAdmin, (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const yaml = require('js-yaml');
+  const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
+  
+  if (!/^[a-z0-9_-]+$/.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid skill ID' });
+  }
+  
+  const filePath = path.join(SKILLS_DIR, `${req.params.id}.md`);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Skill not found' });
+  }
+  
+  const { description, triggers, scope = 'all', content = '' } = req.body;
+  
+  try {
+    const frontmatter = {
+      name: req.params.id,
+      description: description || '',
+      triggers: Array.isArray(triggers) ? triggers : [],
+      scope,
+    };
+    
+    const yamlStr = yaml.dump(frontmatter);
+    const fileContent = `---\n${yamlStr}---\n\n${content.trim()}\n`;
+    
+    fs.writeFileSync(filePath, fileContent, 'utf8');
+    return res.json({ id: req.params.id, name: req.params.id, description, triggers, scope, content });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Delete a skill (Admin only).
+ * @route DELETE /agents/skills/:id
+ */
+router.delete('/skills/:id', requireJwtAuth, checkAdmin, (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
+  
+  if (!/^[a-z0-9_-]+$/.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid skill ID' });
+  }
+  
+  const filePath = path.join(SKILLS_DIR, `${req.params.id}.md`);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Skill not found' });
+  }
+  
+  try {
+    fs.unlinkSync(filePath);
+    return res.json({ message: 'Skill deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = { v1: router, avatar };
