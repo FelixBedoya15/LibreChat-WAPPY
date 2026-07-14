@@ -276,10 +276,29 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
           continue;
         }
 
-        // Update the instructions and category of the agent
+        // Update the instructions, category, and versions of the agent to keep them aligned
+        const timestamp = new Date();
+        const updatedVersions = [
+          {
+            name: agent.name || dbName,
+            description: agent.description || `Agente SST: ${dbName}`,
+            instructions: mdContent,
+            provider: agent.provider || 'google',
+            model: agent.model || 'gemini-3.5-flash',
+            tools: agent.tools || [],
+            createdAt: agent.createdAt || timestamp,
+            updatedAt: timestamp
+          }
+        ];
         await Agent.findOneAndUpdate(
           { id: agent.id },
-          { $set: { instructions: mdContent, category: targetCategory } }
+          {
+            $set: {
+              instructions: mdContent,
+              category: targetCategory,
+              versions: updatedVersions
+            }
+          }
         );
 
         logger.info(`[SyncAgents] Successfully updated agent: "${dbName}" (${agent.id})`);
@@ -455,7 +474,29 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
           continue;
         }
 
-        await Agent.findOneAndUpdate({ _id: agent._id }, { $set: { instructions: mdContent, category: targetCategory } });
+        const timestamp = new Date();
+        const updatedVersions = [
+          {
+            name: agent.name || dbName,
+            description: agent.description || `Agente SST: ${dbName}`,
+            instructions: mdContent,
+            provider: agent.provider || 'google',
+            model: agent.model || 'gemini-3.5-flash',
+            tools: agent.tools || [],
+            createdAt: agent.createdAt || timestamp,
+            updatedAt: timestamp
+          }
+        ];
+        await Agent.findOneAndUpdate(
+          { _id: agent._id },
+          {
+            $set: {
+              instructions: mdContent,
+              category: targetCategory,
+              versions: updatedVersions
+            }
+          }
+        );
         syncedCount++;
         logger.info(`[CleanupSync] Synced "${dbName}" to MongoDB.`);
         results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'SUCCESS', message: 'Limpiado y sincronizado exitosamente.' });
