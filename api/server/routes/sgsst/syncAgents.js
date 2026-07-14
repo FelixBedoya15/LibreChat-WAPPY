@@ -13,7 +13,8 @@ const mongoose = require('mongoose');
 const AGENT_FILE_MAP = {
   'abogado_laboral': 'Abogado Laboral',
   'medico_laboral': 'Médico Laboral',
-  'consultor_sg_sst': 'Consultor SG-SST',
+  'agente_sst': 'Consultor SG-SST',
+  'profesional_sst': 'Profesional SST',
   'fisioterapeuta_laboral': 'Fisioterapeuta Laboral',
   'psicologo_sst': 'Psicólogo SST',
   'terapeuta_salud_mental': 'Terapeuta en Salud Mental',
@@ -28,14 +29,17 @@ const AGENT_FILE_MAP = {
   'ingeniero_minas_sst': 'Ingeniero de Minas SST',
   'auditor_sg_sst': 'Auditor SG-SST',
   'ingeniero_ambiental': 'Ingeniero Ambiental',
+  'especialista_riesgo_climatico': 'Especialista en Riesgo Climático',
   'redactor_creativo': 'Redactor Creativo',
-  'simulador_accidentes': 'Simulador de Accidentes SST'
+  'simulador_accidentes': 'Simulador de Accidentes SST',
+  'coordinador_capacitaciones': 'Coordinador de Capacitaciones'
 };
 
 const AGENT_CATEGORY_MAP = {
   'abogado_laboral': 'legal_cumplimiento',
   'medico_laboral': 'ergonomia_salud_bienestar',
-  'consultor_sg_sst': 'gestion_consultoria_sg_sst',
+  'agente_sst': 'gestion_consultoria_sg_sst',
+  'profesional_sst': 'gestion_consultoria_sg_sst',
   'fisioterapeuta_laboral': 'ergonomia_salud_bienestar',
   'psicologo_sst': 'ergonomia_salud_bienestar',
   'terapeuta_salud_mental': 'ergonomia_salud_bienestar',
@@ -50,8 +54,10 @@ const AGENT_CATEGORY_MAP = {
   'ingeniero_minas_sst': 'especialistas_riesgos_especificos',
   'auditor_sg_sst': 'gestion_consultoria_sg_sst',
   'ingeniero_ambiental': 'gestion_ambiental',
+  'especialista_riesgo_climatico': 'gestion_ambiental',
   'redactor_creativo': 'gestion_consultoria_sg_sst',
-  'simulador_accidentes': 'investigacion_inspeccion'
+  'simulador_accidentes': 'investigacion_inspeccion',
+  'coordinador_capacitaciones': 'gestion_consultoria_sg_sst'
 };
 
 async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
@@ -65,15 +71,53 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   const agentId = crypto.randomUUID();
 
   // Determine tools based on agent type
-  const tools = [];
-  if (fileBasename === 'simulador_accidentes') {
-    tools.push('canvas');
-  } else if (fileBasename === 'psicologo_sst') {
-    tools.push('consultar_analitica_psicosocial', 'canvas');
-  } else if (fileBasename === 'coordinador_seguridad_vial') {
-    tools.push('matriz_pesv', 'canvas', 'context');
-  } else if (fileBasename === 'ingeniero_quimico_sst') {
-    tools.push('canvas');
+  const tools = [
+    'google_slides', 'google_docs', 'google_sheets', 'google_gmail',
+    'google_calendar', 'google_drive', 'somos_sst', 'canvas', 'web_search',
+    'consultar_agente_especializado'
+  ];
+
+  const IPEVAR_AGENTS = [
+    'abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst',
+    'psicologo_sst', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'ingeniero_electricista_sst',
+    'coordinador_tareas_criticas', 'coordinador_seguridad_vial', 'ingeniero_minas_sst',
+    'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico'
+  ];
+  if (IPEVAR_AGENTS.includes(fileBasename)) {
+    tools.push('matriz_ipevar');
+  }
+
+  const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+  if (PESV_AGENTS.includes(fileBasename)) {
+    tools.push('matriz_pesv');
+  }
+
+  const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_tareas_criticas'];
+  if (COMPATIBILIDAD_AGENTS.includes(fileBasename)) {
+    tools.push('matriz_compatibilidad');
+  }
+
+  if (fileBasename === 'abogado_laboral') {
+    tools.push('editor_rit');
+  }
+
+  const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+  if (PSICOSOCIAL_AGENTS.includes(fileBasename)) {
+    tools.push('consultar_analitica_psicosocial');
+  }
+
+  if (fileBasename === 'redactor_creativo') {
+    tools.push('blog_editor');
+  }
+
+  const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
+  if (ACTOS_AGENTS.includes(fileBasename)) {
+    tools.push('consultar_analitica_actos_condiciones');
+  }
+
+  const EDITOR_LIVE_AGENTS = ['abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_emergencias', 'coordinador_capacitaciones', 'redactor_creativo', 'psicologo_sst'];
+  if (EDITOR_LIVE_AGENTS.includes(fileBasename)) {
+    tools.push('editor_live');
   }
 
   const timestamp = new Date();

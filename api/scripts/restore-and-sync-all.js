@@ -1,6 +1,6 @@
 /**
  * Script Maestro para Restaurar el Coordinador de Capacitaciones y el Profesional SST,
- * Sincronizar todos los 21 agentes en MongoDB, Asignar Avatares y Compartirlos.
+ * Sincronizar todos los 22 agentes en MongoDB, Asignar Avatares y Compartirlos.
  * 
  * Asigna herramientas por defecto a TODOS los agentes, manteniendo herramientas especiales.
  * 
@@ -63,7 +63,7 @@ const Project = mongoose.models.Project || mongoose.model('Project', ProjectSche
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 const AclEntry = mongoose.models.AclEntry || mongoose.model('AclEntry', AclEntrySchema);
 
-// Mapeos completos para los 21 agentes unificados
+// Mapeos completos para los 22 agentes unificados
 const AGENT_MAPS = {
   'abogado_laboral': { name: 'Abogado Laboral', category: 'legal_cumplimiento', avatar: 'abogado_laboral.png', desc: 'Soy tu Abogado Laboral. Te asesoro en normatividad laboral colombiana, redacción de contratos, reglamentos internos (RIT), procesos disciplinarios y blindaje ante la Ley 1010 y Ley 2365.', firstLine: 'Eres el Abogado Laboral de WAPPY IA...' },
   'medico_laboral': { name: 'Médico Laboral', category: 'ergonomia_salud_bienestar', avatar: 'medico_laboral.png', desc: 'Soy tu Médico Laboral. Te asesoro en exámenes médicos ocupacionales, calificación de origen, restricciones médicas, gestión de ausentismo y programas de vigilancia epidemiológica.', firstLine: 'Eres el Médico Laboral de WAPPY IA...' },
@@ -83,6 +83,7 @@ const AGENT_MAPS = {
   'ingeniero_minas_sst': { name: 'Ingeniero de Minas SST', category: 'especialistas_riesgos_especificos', avatar: 'tareas_alto_riesgo.png', desc: 'Soy tu Ingeniero de Minas SST. Te asesoro en seguridad para minería subterránea, control de gases, ventilación, soporte de túneles y manejo seguro de explosivos.', firstLine: 'Eres el Ingeniero de Minas SST de WAPPY IA...' },
   'auditor_sg_sst': { name: 'Auditor SG-SST', category: 'gestion_consultoria_sg_sst', avatar: 'auditor_sg_sst.png', desc: 'Soy tu Auditor SG-SST. Te asesoro en la evaluación de estándares mínimos de la Resolución 0312, auditorías internas del sistema y planes de mejoramiento continuo (PHVA).', firstLine: 'Eres el Auditor SG-SST de WAPPY IA...' },
   'ingeniero_ambiental': { name: 'Ingeniero Ambiental', category: 'gestion_ambiental', avatar: 'reporte_actos.png', desc: 'Soy tu Ingeniero Ambiental. Te asesoro en gestión de residuos, control de vertimientos, cumplimiento normativo ecológico y optimización de recursos ambientales corporativos.', firstLine: 'Eres el Ingeniero Ambiental de WAPPY IA...' },
+  'especialista_riesgo_climatico': { name: 'Especialista en Riesgo Climático', category: 'gestion_ambiental', avatar: 'coordinador_ipevar.png', desc: 'Soy tu Especialista en Riesgo Climático. Te asesoro en la identificación, evaluación y mitigación de riesgos laborales asociados al cambio climático, estrés térmico, radiación UV extrema, eventos hidrometeorológicos y adaptación de puestos de trabajo al aire libre.', firstLine: 'Eres el Especialista en Riesgo Climático de WAPPY IA...' },
   'redactor_creativo': { name: 'Redactor Creativo', category: 'gestion_consultoria_sg_sst', avatar: 'formacion.png', desc: 'Soy tu Redactor Creativo. Te asesoro en la redacción, curaduría y optimización de contenidos técnicos y pedagógicos de SST para el Blog corporativo.', firstLine: 'Eres el Redactor Creativo de WAPPY IA...' },
   'simulador_accidentes': { name: 'Simulador de Accidentes SST', category: 'investigacion_inspeccion', avatar: 'reporte_actos.png', desc: 'Soy tu Simulador de Accidentes SST. Te ayudo a recrear escenarios de siniestros laborales para identificar causas raíz y entrenar a tu equipo en prevención.', firstLine: 'Eres el Simulador de Accidentes SST de WAPPY IA...' },
   'coordinador_capacitaciones': { name: 'Coordinador de Capacitaciones', category: 'gestion_consultoria_sg_sst', avatar: 'capacitaciones.png', desc: 'Soy tu Coordinador de Capacitaciones. Te asesoro en el diseño del Plan Anual de Capacitación (PAC), inducciones, charlas de 5 minutos y registro de asistencia.', firstLine: 'Eres el Coordinador de Capacitaciones de WAPPY IA...' }
@@ -107,7 +108,8 @@ const DEFAULT_TOOLS = [
   'google_drive',
   'somos_sst',
   'canvas',
-  'web_search'
+  'web_search',
+  'consultar_agente_especializado'
 ];
 
 async function main() {
@@ -225,17 +227,7 @@ ${cleanContent}
     syncFileContent = syncFileContent.replace(/const AGENT_FILE_MAP = \{[\s\S]*?\};/, fileMapLines.join('\n'));
     syncFileContent = syncFileContent.replace(/const AGENT_CATEGORY_MAP = \{[\s\S]*?\};/, categoryMapLines.join('\n'));
 
-    // Herramientas en ensureAgentExists
-    syncFileContent = syncFileContent.replace(
-      /\} else if \(fileBasename === 'psicologo_sst'\) \{[\s\S]*?}/,
-      `} else if (fileBasename === 'psicologo_sst') {
-    tools.push('consultar_analitica_psicosocial', 'canvas');
-  } else if (fileBasename === 'coordinador_seguridad_vial') {
-    tools.push('matriz_pesv', 'canvas', 'context');
-  } else if (fileBasename === 'ingeniero_quimico_sst') {
-    tools.push('canvas');
-  }`
-    );
+    // ensureAgentExists is now handled directly in syncAgents.js
 
     fs.writeFileSync(SYNC_AGENTS_FILE, syncFileContent, 'utf8');
   }
@@ -274,11 +266,51 @@ ${cleanContent}
     const mdContent = fs.readFileSync(filePath, 'utf8');
     
     let tools = [...DEFAULT_TOOLS];
-    if (key === 'psicologo_sst') {
-      tools.push('consultar_analitica_psicosocial');
-    } else if (key === 'coordinador_seguridad_vial') {
-      tools.push('matriz_pesv', 'context');
+    
+    // Asignación granular de herramientas específicas por especialidad
+    const IPEVAR_AGENTS = [
+      'abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst',
+      'psicologo_sst', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'ingeniero_electricista_sst',
+      'coordinador_tareas_criticas', 'coordinador_seguridad_vial', 'ingeniero_minas_sst',
+      'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico'
+    ];
+    if (IPEVAR_AGENTS.includes(key)) {
+      tools.push('matriz_ipevar');
     }
+    
+    const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+    if (PESV_AGENTS.includes(key)) {
+      tools.push('matriz_pesv');
+    }
+    
+    const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_tareas_criticas'];
+    if (COMPATIBILIDAD_AGENTS.includes(key)) {
+      tools.push('matriz_compatibilidad');
+    }
+    
+    if (key === 'abogado_laboral') {
+      tools.push('editor_rit');
+    }
+    
+    const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+    if (PSICOSOCIAL_AGENTS.includes(key)) {
+      tools.push('consultar_analitica_psicosocial');
+    }
+    
+    if (key === 'redactor_creativo') {
+      tools.push('blog_editor');
+    }
+    
+    const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
+    if (ACTOS_AGENTS.includes(key)) {
+      tools.push('consultar_analitica_actos_condiciones');
+    }
+
+    const EDITOR_LIVE_AGENTS = ['abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_emergencias', 'coordinador_capacitaciones', 'redactor_creativo', 'psicologo_sst'];
+    if (EDITOR_LIVE_AGENTS.includes(key)) {
+      tools.push('editor_live');
+    }
+
     tools = [...new Set(tools)];
 
     const defaultModel = key === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
@@ -401,7 +433,7 @@ ${cleanContent}
       { _id: globalProject._id },
       { $addToSet: { agentIds: { $each: allAgentIds } } }
     );
-    console.log(`   🌐 Vinculados los 21 agentes al proyecto Global.`);
+    console.log(`   🌐 Vinculados los 22 agentes al proyecto Global.`);
   }
 
   await mongoose.disconnect();
