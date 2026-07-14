@@ -1,6 +1,7 @@
 ---
 name: skill-riesgo-psicosocial
 description: Instruye a Tenshi para manejar temas psicosociales llamando al psicólogo SST o consultando/editando el módulo de Somos SST, según cómo lo solicite el usuario.
+scope: tenshi
 triggers:
   - psicólogo
   - psicosocial

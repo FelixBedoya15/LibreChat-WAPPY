@@ -1,6 +1,7 @@
 ---
 name: skill-consultas-medicas
 description: Guía a Tenshi para manejar consultas médico-laborales, activando el Consultor Médico Ocupacional o gestionando exámenes médicos en Somos SST según el tipo de solicitud.
+scope: tenshi
 triggers:
   - médico
   - médico laboral

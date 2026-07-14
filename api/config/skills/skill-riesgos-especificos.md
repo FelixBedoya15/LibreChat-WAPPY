@@ -1,6 +1,7 @@
 ---
 name: skill-riesgos-especificos
 description: Enruta a Tenshi hacia el agente experto correcto según el tipo de riesgo específico mencionado (químico, eléctrico, biológico, vial, minería).
+scope: tenshi
 triggers:
   - riesgo químico
   - riesgo eléctrico

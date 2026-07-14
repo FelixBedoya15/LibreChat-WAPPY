@@ -1,6 +1,7 @@
 ---
 name: skill-planes-de-emergencia
 description: Skill de ACCIÓN. Se activa cuando el usuario pide que Tenshi ejecute directamente acciones relacionadas con emergencias, como registrar el análisis de vulnerabilidad en Somos SST o llamar al Experto en Emergencias para apoyo técnico.
+scope: tenshi
 triggers:
   - haz el plan de emergencia
   - registra la vulnerabilidad

@@ -1,6 +1,7 @@
 ---
 name: skill-consultas-juridicas
 description: Instruye a Tenshi para llamar al agente jurídico correcto según el tema legal mencionado (laboral, disciplinario, RIT, acoso sexual).
+scope: tenshi
 triggers:
   - abogado
   - demanda

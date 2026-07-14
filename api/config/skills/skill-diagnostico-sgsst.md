@@ -1,6 +1,7 @@
 ---
 name: skill-diagnostico-sgsst
 description: Orienta a Tenshi para gestionar el Diagnóstico de Estándares Mínimos Resolución 0312, la Auditoría Interna SG-SST y la revisión gerencial, según el tipo de solicitud.
+scope: tenshi
 triggers:
   - diagnóstico
   - resolución 0312

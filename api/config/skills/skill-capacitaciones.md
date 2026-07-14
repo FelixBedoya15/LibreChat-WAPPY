@@ -1,6 +1,7 @@
 ---
 name: skill-capacitaciones
 description: Guía a Tenshi para gestionar el programa de capacitaciones de Somos SST o delegar al agente especialista según el tipo de solicitud.
+scope: tenshi
 triggers:
   - capacitación
   - capacitaciones

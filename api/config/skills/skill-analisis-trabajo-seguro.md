@@ -1,6 +1,7 @@
 ---
 name: skill-analisis-trabajo-seguro
 description: Guía a Tenshi para gestionar ATS, Permisos de Alturas y tareas de alto riesgo, editando en Somos SST o indicando la ruta al usuario según el tipo de solicitud.
+scope: tenshi
 triggers:
   - ats
   - análisis de trabajo seguro

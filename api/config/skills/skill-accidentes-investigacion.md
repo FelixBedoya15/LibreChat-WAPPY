@@ -1,6 +1,7 @@
 ---
 name: skill-accidentes-investigacion
 description: Guía a Tenshi para registrar accidentes/incidentes en ATEL o dar instrucciones de cómo investigar un accidente usando el ecosistema WAPPY IA.
+scope: tenshi
 triggers:
   - accidente
   - incidente

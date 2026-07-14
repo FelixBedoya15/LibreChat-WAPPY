@@ -1,6 +1,7 @@
 ---
 name: skill-informes-estadisticas
 description: Instruye a Tenshi para generar informes HTML, consultar el historial de documentos y manejar estadísticas e indicadores de la empresa, evitando tablas extensas en el chat.
+scope: tenshi
 triggers:
   - informe
   - reporte

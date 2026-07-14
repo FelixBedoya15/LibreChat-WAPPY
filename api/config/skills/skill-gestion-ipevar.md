@@ -1,6 +1,7 @@
 ---
 name: skill-gestion-ipevar
 description: Guía a Tenshi para manejar la Matriz de Peligros GTC-45 e IPEVAR, delegando al especialista para análisis técnico o editando el módulo directamente según el tipo de solicitud.
+scope: tenshi
 triggers:
   - ipevar
   - matriz de peligros

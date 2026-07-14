@@ -1,6 +1,7 @@
 ---
 name: skill-guia-plataforma-wappy
 description: Skill maestra de conocimiento de la plataforma WAPPY IA. Se activa cuando el usuario pregunta cómo hacer algo, dónde encontrar algo, cómo usar una herramienta, o solicita orientación sobre cualquier funcionalidad del ecosistema WAPPY IA y Somos SST.
+scope: tenshi
 triggers:
   - cómo hago
   - como hago

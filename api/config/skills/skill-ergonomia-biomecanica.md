@@ -1,6 +1,7 @@
 ---
 name: skill-ergonomia-biomecanica
 description: Orienta a Tenshi sobre cómo manejar solicitudes ergonómicas y biomecánicas usando Somos SST o delegando al agente especialista, dependiendo de si el usuario pide instrucciones o acción directa.
+scope: tenshi
 triggers:
   - ergonomía
   - ergonómico
