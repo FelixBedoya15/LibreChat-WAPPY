@@ -4,9 +4,13 @@
  * 
  * Asigna herramientas por defecto a TODOS los agentes, manteniendo herramientas especiales.
  * 
- * CONDICIÓN DE SEGURIDAD:
- * Respeta los avatares personalizados por el usuario. Si un agente ya tiene un avatar
- * asignado en la base de datos, NO se sobrescribe.
+ * CONDICIÓN DE SEGURIDAD ACL:
+ * Respeta las configuraciones de privacidad y compartidos.
+ * Solo se generan ACLs (Propietario y Pública) para agentes NUEVOS en la base de datos.
+ * Si el agente ya existía, NO se tocan sus permisos ACL.
+ * 
+ * CONDICIÓN DE SEGURIDAD AVATAR:
+ * Si un agente ya tiene un avatar en la BD, no se sobrescribe.
  * 
  * Ejecutar con: node api/scripts/restore-and-sync-all.js
  */
@@ -93,7 +97,7 @@ const AGENT_SKILLS_MAP = {
   'Coordinador de Tareas Críticas': ['skill-ats-analisis', 'skill-permiso-alturas-tsa']
 };
 
-// Herramientas por defecto solicitadas por el usuario
+// Herramientas por defecto
 const DEFAULT_TOOLS = [
   'google_slides',
   'google_docs',
@@ -107,7 +111,7 @@ const DEFAULT_TOOLS = [
 ];
 
 async function main() {
-  console.log('🏁 Sincronizando prompts, asignando herramientas globales y reconstruyendo permisos...');
+  console.log('🏁 Sincronizando prompts, asignando herramientas globales y configurando ACLs seguras...');
 
   // 1. Restaurar/Renombrar archivo de capacitaciones
   const backupCapFilePath = path.join(BACKUP_DIR, 'asistente_en_capacitaciones.md');
@@ -269,27 +273,25 @@ ${cleanContent}
 
     const mdContent = fs.readFileSync(filePath, 'utf8');
     
-    // Herramientas: DEFAULT_TOOLS + Herramientas Especiales del Agente
     let tools = [...DEFAULT_TOOLS];
     if (key === 'psicologo_sst') {
       tools.push('consultar_analitica_psicosocial');
     } else if (key === 'coordinador_seguridad_vial') {
       tools.push('matriz_pesv', 'context');
     }
-    // Eliminar duplicados
     tools = [...new Set(tools)];
 
     const defaultModel = key === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
 
     let agent = await Agent.findOne({ name: val.name });
-    
-    // Decidir si asignamos avatar nuevo o respetamos el existente
+    const isNewAgent = !agent; // Indicador para saber si el agente es nuevo
+
     let finalAvatar = { filepath: `/images/${val.avatar}`, source: 'local' };
     if (agent && agent.avatar && agent.avatar.filepath) {
       finalAvatar = agent.avatar;
     }
 
-    if (!agent) {
+    if (isNewAgent) {
       const crypto = require('crypto');
       const agentId = crypto.randomUUID();
       const timestamp = new Date();
@@ -319,7 +321,7 @@ ${cleanContent}
         }]
       });
       await agent.save();
-      console.log(`  🆕 Registrado agente en BD: "${val.name}" con herramientas.`);
+      console.log(`  🆕 Registrado agente en BD: "${val.name}"`);
     } else {
       const timestamp = new Date();
       await Agent.updateOne(
@@ -347,43 +349,49 @@ ${cleanContent}
           }
         }
       );
-      console.log(`  🔄 Actualizado agente en BD: "${val.name}" con herramientas.`);
+      console.log(`  🔄 Actualizado agente en BD: "${val.name}"`);
     }
     allAgentIds.push(agent.get('id'));
 
-    // --- RECONSTRUCCIÓN DE PERMISOS ACL ---
-    const ownerAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'user' });
-    if (!ownerAcl) {
-      const newOwnerAcl = new AclEntry({
-        principalId: authorId,
-        principalModel: 'User',
-        principalType: 'user',
-        resourceId: agent._id,
-        resourceType: 'agent',
-        permBits: 15,
-        roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df44172'),
-        grantedBy: authorId,
-        createdAt: new Date(),
-        grantedAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newOwnerAcl.save();
-    }
+    // --- SEGURIDAD ACL: SOLO CREAR PERMISOS SI EL AGENTE ES NUEVO ---
+    if (isNewAgent) {
+      const ownerAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'user' });
+      if (!ownerAcl) {
+        const newOwnerAcl = new AclEntry({
+          principalId: authorId,
+          principalModel: 'User',
+          principalType: 'user',
+          resourceId: agent._id,
+          resourceType: 'agent',
+          permBits: 15,
+          roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df44172'),
+          grantedBy: authorId,
+          createdAt: new Date(),
+          grantedAt: new Date(),
+          updatedAt: new Date()
+        });
+        await newOwnerAcl.save();
+        console.log(`     🔑 ACL Propietario creada para agente NUEVO: "${val.name}"`);
+      }
 
-    const publicAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'public' });
-    if (!publicAcl) {
-      const newPublicAcl = new AclEntry({
-        principalType: 'public',
-        resourceId: agent._id,
-        resourceType: 'agent',
-        permBits: 1,
-        roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df4416e'),
-        grantedBy: authorId,
-        createdAt: new Date(),
-        grantedAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newPublicAcl.save();
+      const publicAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'public' });
+      if (!publicAcl) {
+        const newPublicAcl = new AclEntry({
+          principalType: 'public',
+          resourceId: agent._id,
+          resourceType: 'agent',
+          permBits: 1,
+          roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df4416e'),
+          grantedBy: authorId,
+          createdAt: new Date(),
+          grantedAt: new Date(),
+          updatedAt: new Date()
+        });
+        await newPublicAcl.save();
+        console.log(`     🌐 ACL Pública creada para agente NUEVO: "${val.name}" (Visible)`);
+      }
+    } else {
+      console.log(`     🔒 Respetando permisos y compartidos ACL existentes de: "${val.name}"`);
     }
   }
 
