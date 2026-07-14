@@ -1,10 +1,10 @@
 /**
- * Script Maestro para Restaurar el Coordinador de Capacitaciones,
- * Sincronizar todos los agentes en MongoDB, Asignar Avatares y Compartirlos.
+ * Script Maestro para Restaurar el Coordinador de Capacitaciones y el Profesional SST,
+ * Sincronizar todos los 21 agentes en MongoDB, Asignar Avatares y Compartirlos.
  * 
  * CONDICIÓN DE SEGURIDAD:
  * Respeta los avatares personalizados por el usuario. Si un agente ya tiene un avatar
- * asignado en la base de datos, NO se sobrescribe. Solo se asigna a los nuevos o vacíos.
+ * asignado en la base de datos, NO se sobrescribe.
  * 
  * Ejecutar con: node api/scripts/restore-and-sync-all.js
  */
@@ -18,6 +18,7 @@ const AGENTES_DIR = path.resolve(__dirname, '../../Agentes/Agentes Wappy');
 const BACKUP_DIR = path.join(AGENTES_DIR, 'backup_consolidacion');
 const SOURCE_AVATARS_DIR = path.resolve(__dirname, '../../Agentes/Miniaturas/AvataresAgentes');
 const DEST_AVATARS_DIR = path.resolve(__dirname, '../../client/public/images');
+const SKILLS_DIR = path.resolve(__dirname, '../../api/config/skills');
 const SYNC_AGENTS_FILE = path.resolve(__dirname, '../../api/server/routes/sgsst/syncAgents.js');
 
 const AgentSchema = new mongoose.Schema({
@@ -42,11 +43,12 @@ const Agent = mongoose.models.Agent || mongoose.model('Agent', AgentSchema);
 const Project = mongoose.models.Project || mongoose.model('Project', ProjectSchema);
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-// Mapeos completos para los 20 agentes unificados
+// Mapeos completos para los 21 agentes unificados
 const AGENT_MAPS = {
   'abogado_laboral': { name: 'Abogado Laboral', category: 'legal_cumplimiento', avatar: 'abogado_laboral.png', desc: 'Soy tu Abogado Laboral. Te asesoro en normatividad laboral colombiana, redacción de contratos, reglamentos internos (RIT), procesos disciplinarios y blindaje ante la Ley 1010 y Ley 2365.', firstLine: 'Eres el Abogado Laboral de WAPPY IA...' },
   'medico_laboral': { name: 'Médico Laboral', category: 'ergonomia_salud_bienestar', avatar: 'medico_laboral.png', desc: 'Soy tu Médico Laboral. Te asesoro en exámenes médicos ocupacionales, calificación de origen, restricciones médicas, gestión de ausentismo y programas de vigilancia epidemiológica.', firstLine: 'Eres el Médico Laboral de WAPPY IA...' },
-  'consultor_sg_sst': { name: 'Consultor SG-SST', category: 'gestion_consultoria_sg_sst', avatar: 'profesional_sst.png', desc: 'Soy tu Consultor en Seguridad y Salud en el Trabajo (SST). Te asesoro en la identificación, evaluación and control de riesgos laborales, implementación de programas de prevención, cumplimiento de la normatividad colombiana, gestión de emergencias, ergonomía, factores psicosociales y acompañamiento en auditorías.', firstLine: 'Eres el Consultor SG-SST de WAPPY IA...' },
+  'agente_sst': { name: 'Consultor SG-SST', category: 'gestion_consultoria_sg_sst', avatar: 'profesional_sst.png', desc: 'Soy tu Consultor en Seguridad y Salud en el Trabajo (SST). Te asesoro en la identificación, evaluación y control de riesgos laborales, implementación de programas de prevención, cumplimiento de la normatividad colombiana, gestión de emergencias, ergonomía, factores psicosociales y acompañamiento en auditorías.', firstLine: 'Eres el Consultor SG-SST de WAPPY IA, asistente general de Seguridad y Salud en el Trabajo...' },
+  'profesional_sst': { name: 'Profesional SST', category: 'gestion_consultoria_sg_sst', avatar: 'profesional_sst.png', desc: 'Soy tu Profesional en Seguridad y Salud en el Trabajo (SST). Te asesoro en la identificación, evaluación y control de riesgos de campo, jerarquía de controles e inspecciones de seguridad.', firstLine: 'Eres el Profesional SST de WAPPY IA...' },
   'fisioterapeuta_laboral': { name: 'Fisioterapeuta Laboral', category: 'ergonomia_salud_bienestar', avatar: 'fisioterapeuta.png', desc: 'Soy tu Fisioterapeuta Laboral. Te asesoro en la prevención de lesiones musculoesqueléticas, ergonomía postural con métodos ROSA y OWAS, y adaptación de puestos de trabajo.', firstLine: 'Eres el Fisioterapeuta Laboral de WAPPY IA...' },
   'psicologo_sst': { name: 'Psicólogo SST', category: 'ergonomia_salud_bienestar', avatar: 'psicologo_sst.png', desc: 'Soy tu Psicólogo SST. Te asesoro en la evaluación y control del riesgo psicosocial, aplicación de la batería del Ministerio, y prevención del estrés y el acoso laboral.', firstLine: 'Eres el Psicólogo SST de WAPPY IA...' },
   'terapeuta_salud_mental': { name: 'Terapeuta en Salud Mental', category: 'ergonomia_salud_bienestar', avatar: 'salud_mental.png', desc: 'Soy tu Terapeuta en Salud Mental. Te brindo apoyo emocional, primeros auxilios psicológicos y asesoría en el autocuidado y prevención del agotamiento laboral (burnout).', firstLine: 'Eres el Terapeuta en Salud Mental de WAPPY IA...' },
@@ -66,30 +68,80 @@ const AGENT_MAPS = {
   'coordinador_capacitaciones': { name: 'Coordinador de Capacitaciones', category: 'gestion_consultoria_sg_sst', avatar: 'capacitaciones.png', desc: 'Soy tu Coordinador de Capacitaciones. Te asesoro en el diseño del Plan Anual de Capacitación (PAC), inducciones, charlas de 5 minutos y registro de asistencia.', firstLine: 'Eres el Coordinador de Capacitaciones de WAPPY IA...' }
 };
 
-// Asignación de Skills
+// Asignación de Skills a los agentes maestros
 const AGENT_SKILLS_MAP = {
   'Abogado Laboral': ['skill-acoso-sexual-violencia', 'skill-procesos-disciplinarios', 'skill-reglamento-interno-trabajo'],
   'Psicólogo SST': ['skill-acoso-sexual-violencia'],
-  'Consultor SG-SST': ['skill-investigacion-accidentes', 'skill-investigacion-enfermedad', 'skill-analisis-causa-raiz', 'skill-formatos-sst'],
-  'Fisioterapeuta Laboral': ['skill-metodologia-rosa', 'skill-ergonomia-owas']
+  'Consultor SG-SST': ['skill-investigacion-accidentes', 'skill-investigacion-enfermedad', 'skill-analisis-causa-raiz', 'skill-formatos-sst', 'skill-gtc45-ipevar'],
+  'Fisioterapeuta Laboral': ['skill-metodologia-rosa', 'skill-ergonomia-owas'],
+  'Coordinador de Tareas Críticas': ['skill-ats-analisis', 'skill-permiso-alturas-tsa']
 };
 
 async function main() {
-  console.log('🏁 Iniciando restauración de Capacitaciones y Sincronización completa...');
+  console.log('🏁 Restaurando prompts limpios de Consultor SG-SST y Profesional SST...');
 
   // 1. Restaurar archivo de capacitaciones
   const backupCapFilePath = path.join(BACKUP_DIR, 'asistente_en_capacitaciones.md');
   const activeCapFilePath = path.join(AGENTES_DIR, 'coordinador_capacitaciones.md');
-  
   if (fs.existsSync(backupCapFilePath)) {
     fs.copyFileSync(backupCapFilePath, activeCapFilePath);
-    console.log('   🔄 Archivo de capacitaciones restaurado a coordinador_capacitaciones.md');
-  } else if (!fs.existsSync(activeCapFilePath)) {
-    console.error('❌ No se encontró el archivo de capacitaciones en el backup ni activo.');
-    process.exit(1);
+    console.log('   🔄 Archivo de capacitaciones restaurado.');
   }
 
-  // 2. Asegurar carpeta de imágenes y copiar avatares
+  // 2. Restaurar agente_sst.md como consultor_sg_sst.md y profesional_sst.md
+  const backupSstFilePath = path.join(BACKUP_DIR, 'agente_sst.md');
+  const activeSstFilePath = path.join(AGENTES_DIR, 'agente_sst.md');
+  if (fs.existsSync(backupSstFilePath)) {
+    fs.copyFileSync(backupSstFilePath, activeSstFilePath);
+    console.log('   🔄 Prompt limpio de agente_sst.md restaurado en su ruta activa.');
+  }
+
+  const backupProfessionalSstPath = path.join(BACKUP_DIR, 'profesional_sst.md');
+  const activeProfessionalSstPath = path.join(AGENTES_DIR, 'profesional_sst.md');
+  if (fs.existsSync(backupProfessionalSstPath)) {
+    fs.copyFileSync(backupProfessionalSstPath, activeProfessionalSstPath);
+    console.log('   🔄 Prompt de profesional_sst.md restaurado en su ruta activa.');
+  }
+
+  // Eliminar el archivo temporal consultor_sg_sst.md si existe localmente
+  const tempSstPath = path.join(AGENTES_DIR, 'consultor_sg_sst.md');
+  if (fs.existsSync(tempSstPath)) {
+    fs.unlinkSync(tempSstPath);
+    console.log('   🗑️ Archivo temporal consultor_sg_sst.md eliminado.');
+  }
+
+  // 3. Generar skills desde los agentes del backup requeridos
+  const skillsToGenerate = [
+    { file: 'coordinador_ipevar.md', name: 'skill-gtc45-ipevar', triggers: ['ipevar', 'gtc45', 'matriz de peligros', 'valoracion de riesgos'] },
+    { file: 'asistente_ats.md', name: 'skill-ats-analisis', triggers: ['ats', 'analisis de trabajo seguro', 'tarea segura'] },
+    { file: 'asistente_permiso_tsa.md', name: 'skill-permiso-alturas-tsa', triggers: ['permiso de alturas', 'tsa', 'trabajo en alturas', 'coordinador de alturas'] }
+  ];
+
+  if (!fs.existsSync(SKILLS_DIR)) {
+    fs.mkdirSync(SKILLS_DIR, { recursive: true });
+  }
+
+  for (const s of skillsToGenerate) {
+    const backupFilePath = path.join(BACKUP_DIR, s.file);
+    if (fs.existsSync(backupFilePath)) {
+      const content = fs.readFileSync(backupFilePath, 'utf8');
+      const cleanContent = content.replace(/🔹 \d+\. Formatos y Tablas[\s\S]*$/, '').trim();
+      const yamlContent = `---
+name: ${s.name}
+description: Skill de soporte para consultas técnicas de ${s.name.replace('skill-', '')}.
+scope: agents
+triggers:
+${s.triggers.map(t => `  - ${t}`).join('\n')}
+---
+
+${cleanContent}
+`;
+      fs.writeFileSync(path.join(SKILLS_DIR, `${s.name}.md`), yamlContent, 'utf8');
+      console.log(`   ⚡ Skill generada: ${s.name}.md`);
+    }
+  }
+
+  // 4. Asegurar carpeta de imágenes y copiar avatares
   if (!fs.existsSync(DEST_AVATARS_DIR)) {
     fs.mkdirSync(DEST_AVATARS_DIR, { recursive: true });
   }
@@ -100,9 +152,9 @@ async function main() {
       fs.copyFileSync(src, dest);
     }
   }
-  console.log('   💾 Copiados todos los avatares a client/public/images/');
+  console.log('   💾 Copiados todos los avatares.');
 
-  // 3. Actualizar prompts .md
+  // 5. Actualizar prompts .md (primera línea de identidad)
   for (const [key, val] of Object.entries(AGENT_MAPS)) {
     const filePath = path.join(AGENTES_DIR, `${key}.md`);
     if (fs.existsSync(filePath)) {
@@ -113,9 +165,9 @@ async function main() {
       fs.writeFileSync(filePath, content, 'utf8');
     }
   }
-  console.log('   ✍  Prompts locales de agentes editados con primera línea correcta.');
+  console.log('   ✍  Prompts locales actualizados.');
 
-  // 4. Modificar syncAgents.js
+  // 6. Modificar syncAgents.js
   if (fs.existsSync(SYNC_AGENTS_FILE)) {
     let syncFileContent = fs.readFileSync(SYNC_AGENTS_FILE, 'utf8');
 
@@ -155,7 +207,7 @@ async function main() {
     console.log('   ✅ syncAgents.js actualizado.');
   }
 
-  // 5. Base de Datos MongoDB
+  // 7. Base de Datos MongoDB
   await mongoose.connect(MONGO_URI);
   console.log('🔌 Conectado a MongoDB:', MONGO_URI);
 
@@ -197,7 +249,7 @@ async function main() {
     let finalAvatar = { filepath: `/images/${val.avatar}`, source: 'local' };
     if (agent && agent.avatar && agent.avatar.filepath) {
       console.log(`  🔒 Respetando avatar existente de "${val.name}":`, agent.avatar.filepath);
-      finalAvatar = agent.avatar; // Mantener el actual
+      finalAvatar = agent.avatar;
     }
 
     if (!agent) {
@@ -273,7 +325,7 @@ async function main() {
 
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
-  console.log('🎉 PROCESO DE MIGRACIÓN COMPLETADO CON ÉXITO.');
+  console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 
 main().catch(err => {
