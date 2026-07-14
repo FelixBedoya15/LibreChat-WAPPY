@@ -28,7 +28,7 @@ const AgentSchema = new mongoose.Schema({
   skills: [String],
   projectIds: [String],
   avatar: mongoose.Schema.Types.Mixed
-}, { strict: false, collection: 'agents' });
+}, { strict: false, id: false, collection: 'agents' }); // Deshabilitar virtual 'id' de Mongoose
 
 const ProjectSchema = new mongoose.Schema({
   name: String,
@@ -78,32 +78,37 @@ const AGENT_SKILLS_MAP = {
 };
 
 async function main() {
-  console.log('🏁 Restaurando prompts limpios de Consultor SG-SST y Profesional SST...');
+  console.log('🏁 Iniciando restauración de Capacitaciones, inyección de prompts limpios y sincronización...');
 
-  // 1. Restaurar archivo de capacitaciones
+  // 1. Restaurar/Renombrar archivo de capacitaciones
   const backupCapFilePath = path.join(BACKUP_DIR, 'asistente_en_capacitaciones.md');
+  const oldActiveCapFilePath = path.join(AGENTES_DIR, 'asistente_en_capacitaciones.md');
   const activeCapFilePath = path.join(AGENTES_DIR, 'coordinador_capacitaciones.md');
+  
   if (fs.existsSync(backupCapFilePath)) {
     fs.copyFileSync(backupCapFilePath, activeCapFilePath);
-    console.log('   🔄 Archivo de capacitaciones restaurado.');
+    console.log('   🔄 Archivo de capacitaciones restaurado desde el backup.');
+  } else if (fs.existsSync(oldActiveCapFilePath)) {
+    fs.renameSync(oldActiveCapFilePath, activeCapFilePath);
+    console.log('   🔄 Archivo de capacitaciones renombrado de asistente_en_capacitaciones.md a coordinador_capacitaciones.md');
   }
 
-  // 2. Restaurar agente_sst.md como consultor_sg_sst.md y profesional_sst.md
+  // 2. Restaurar agente_sst.md y profesional_sst.md si aplica
   const backupSstFilePath = path.join(BACKUP_DIR, 'agente_sst.md');
   const activeSstFilePath = path.join(AGENTES_DIR, 'agente_sst.md');
   if (fs.existsSync(backupSstFilePath)) {
     fs.copyFileSync(backupSstFilePath, activeSstFilePath);
-    console.log('   🔄 Prompt limpio de agente_sst.md restaurado en su ruta activa.');
+    console.log('   🔄 Prompt limpio de agente_sst.md restaurado.');
   }
 
   const backupProfessionalSstPath = path.join(BACKUP_DIR, 'profesional_sst.md');
   const activeProfessionalSstPath = path.join(AGENTES_DIR, 'profesional_sst.md');
   if (fs.existsSync(backupProfessionalSstPath)) {
     fs.copyFileSync(backupProfessionalSstPath, activeProfessionalSstPath);
-    console.log('   🔄 Prompt de profesional_sst.md restaurado en su ruta activa.');
+    console.log('   🔄 Prompt de profesional_sst.md restaurado.');
   }
 
-  // Eliminar el archivo temporal consultor_sg_sst.md si existe localmente
+  // Eliminar el archivo temporal consultor_sg_sst.md si existe
   const tempSstPath = path.join(AGENTES_DIR, 'consultor_sg_sst.md');
   if (fs.existsSync(tempSstPath)) {
     fs.unlinkSync(tempSstPath);
@@ -223,7 +228,7 @@ ${cleanContent}
     if (!activeNames.includes(agent.name)) {
       await Agent.deleteOne({ _id: agent._id });
       if (globalProject) {
-        await Project.findByIdAndUpdate(globalProject._id, { $pull: { agentIds: agent.id } });
+        await Project.findByIdAndUpdate(globalProject._id, { $pull: { agentIds: agent.get('id') } });
       }
     }
   }
@@ -232,7 +237,10 @@ ${cleanContent}
   const allAgentIds = [];
   for (const [key, val] of Object.entries(AGENT_MAPS)) {
     const filePath = path.join(AGENTES_DIR, `${key}.md`);
-    if (!fs.existsSync(filePath)) continue;
+    if (!fs.existsSync(filePath)) {
+      console.warn(`  ⚠️ Salteado por falta de archivo: ${key}.md`);
+      continue;
+    }
 
     const mdContent = fs.readFileSync(filePath, 'utf8');
     const tools = [];
@@ -312,7 +320,7 @@ ${cleanContent}
       );
       console.log(`  🔄 Actualizado agente en BD: "${val.name}"`);
     }
-    allAgentIds.push(agent.id);
+    allAgentIds.push(agent.get('id')); // Usar get('id') para evadir virtual shadow de mongoose
   }
 
   // Sincronizar en el proyecto Global
@@ -321,6 +329,7 @@ ${cleanContent}
       { _id: globalProject._id },
       { $addToSet: { agentIds: { $each: allAgentIds } } }
     );
+    console.log(`   🌐 Vinculados exitosamente los ${allAgentIds.length} agentes al proyecto Global.`);
   }
 
   await mongoose.disconnect();
