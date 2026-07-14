@@ -58,6 +58,7 @@ router.get('/categories', v1.getAgentCategories);
 
 /**
  * Get all available agent skills.
+ * Excludes skills with scope: 'tenshi' (those are exclusive to the Tenshi widget).
  * @route GET /agents/skills
  */
 router.get('/skills', (req, res) => {
@@ -65,11 +66,11 @@ router.get('/skills', (req, res) => {
   const path = require('path');
   const yaml = require('js-yaml');
   const SKILLS_DIR = path.join(__dirname, '../../../config/skills');
-  
+
   if (!fs.existsSync(SKILLS_DIR)) {
     return res.json([]);
   }
-  
+
   try {
     const files = fs.readdirSync(SKILLS_DIR);
     const skills = [];
@@ -80,14 +81,18 @@ router.get('/skills', (req, res) => {
         if (match) {
           try {
             const frontmatter = yaml.load(match[1]);
+            // Exclude skills scoped exclusively to Tenshi
+            const scope = frontmatter.scope || 'all';
+            if (scope === 'tenshi') continue;
             skills.push({
               id: frontmatter.name || file.replace('.md', ''),
               name: frontmatter.name || file.replace('.md', ''),
               description: frontmatter.description || '',
               triggers: frontmatter.triggers || [],
+              scope,
             });
           } catch (e) {
-            // ignore error
+            // ignore parse error
           }
         }
       }
