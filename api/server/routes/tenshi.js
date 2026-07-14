@@ -668,4 +668,53 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
     }
 });
 
+/**
+ * GET /api/tenshi/skills
+ * Devuelve las skills disponibles para Tenshi:
+ * - Skills con scope: 'tenshi'
+ * - Skills sin scope definido (scope: 'all')
+ * Excluye las skills con scope: 'agents'
+ */
+router.get('/skills', async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const yaml = require('js-yaml');
+  const SKILLS_DIR = path.join(__dirname, '../../config/skills');
+
+  if (!fs.existsSync(SKILLS_DIR)) {
+    return res.json([]);
+  }
+
+  try {
+    const files = fs.readdirSync(SKILLS_DIR);
+    const skills = [];
+    for (const file of files) {
+      if (file.endsWith('.md')) {
+        const content = fs.readFileSync(path.join(SKILLS_DIR, file), 'utf8');
+        const match = content.match(/^---([\s\S]*?)---([\s\S]*)$/);
+        if (match) {
+          try {
+            const frontmatter = yaml.load(match[1]);
+            const scope = frontmatter.scope || 'all';
+            // Exclude skills scoped exclusively to agents chat panel
+            if (scope === 'agents') continue;
+            skills.push({
+              id: frontmatter.name || file.replace('.md', ''),
+              name: frontmatter.name || file.replace('.md', ''),
+              description: frontmatter.description || '',
+              triggers: frontmatter.triggers || [],
+              scope,
+            });
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+    }
+    res.json(skills);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

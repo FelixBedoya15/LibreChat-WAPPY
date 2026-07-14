@@ -77,7 +77,7 @@ export default function TenshiAdminPanel() {
     });
 
     const { data: availableSkills } = useQuery(['availableSkills', token], async () => {
-        const res = await axios.get<Skill[]>('/api/agents/skills', {
+        const res = await axios.get<Skill[]>('/api/tenshi/skills', {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         return res.data;
