@@ -534,6 +534,9 @@ class AgentClient extends BaseClient {
       if (apiKey && apiKey.includes(',')) {
         apiKey = apiKey.split(',')[0].trim();
       }
+      if (apiKey) {
+        process.env.GOOGLE_API_KEY = apiKey;
+      }
     } else if (agent.provider === 'openai') {
       apiKey = process.env.OPENAI_API_KEY;
       if (apiKey && apiKey.includes(',')) {
@@ -555,6 +558,15 @@ class AgentClient extends BaseClient {
       delete llmConfig.customHeaders['Authorization'];
       delete llmConfig.customHeaders['authorization'];
     }
+
+    console.log('[DEBUG_FORENSIC_MEMORY_2]', {
+      provider: agent.provider,
+      model: agent.model,
+      apiKeyLength: llmConfig.apiKey ? llmConfig.apiKey.length : 0,
+      customHeadersKeys: llmConfig.customHeaders ? Object.keys(llmConfig.customHeaders) : null,
+      envGoogleKeyExists: !!process.env.GOOGLE_KEY,
+      envGoogleApiKey: process.env.GOOGLE_API_KEY ? process.env.GOOGLE_API_KEY.substring(0, 5) + '...' : null,
+    });
 
 
 
