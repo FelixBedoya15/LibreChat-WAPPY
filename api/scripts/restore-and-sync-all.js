@@ -28,7 +28,7 @@ const AgentSchema = new mongoose.Schema({
   skills: [String],
   projectIds: [String],
   avatar: mongoose.Schema.Types.Mixed
-}, { strict: false, id: false, collection: 'agents' }); // Deshabilitar virtual 'id' de Mongoose
+}, { strict: false, id: false, collection: 'agents' });
 
 const ProjectSchema = new mongoose.Schema({
   name: String,
@@ -39,9 +39,22 @@ const UserSchema = new mongoose.Schema({
   role: String
 }, { strict: false, collection: 'users' });
 
+const AclEntrySchema = new mongoose.Schema({
+  principalId: mongoose.Schema.Types.ObjectId,
+  principalModel: String,
+  principalType: String,
+  resourceId: mongoose.Schema.Types.ObjectId,
+  resourceType: String,
+  permBits: Number,
+  roleId: mongoose.Schema.Types.ObjectId,
+  grantedBy: mongoose.Schema.Types.ObjectId,
+  grantedAt: Date
+}, { strict: false, collection: 'aclentries' });
+
 const Agent = mongoose.models.Agent || mongoose.model('Agent', AgentSchema);
 const Project = mongoose.models.Project || mongoose.model('Project', ProjectSchema);
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
+const AclEntry = mongoose.models.AclEntry || mongoose.model('AclEntry', AclEntrySchema);
 
 // Mapeos completos para los 21 agentes unificados
 const AGENT_MAPS = {
@@ -78,7 +91,7 @@ const AGENT_SKILLS_MAP = {
 };
 
 async function main() {
-  console.log('🏁 Iniciando restauración de Capacitaciones, inyección de prompts limpios y sincronización...');
+  console.log('🏁 Sincronizando prompts y reconstruyendo permisos ACL...');
 
   // 1. Restaurar/Renombrar archivo de capacitaciones
   const backupCapFilePath = path.join(BACKUP_DIR, 'asistente_en_capacitaciones.md');
@@ -87,10 +100,10 @@ async function main() {
   
   if (fs.existsSync(backupCapFilePath)) {
     fs.copyFileSync(backupCapFilePath, activeCapFilePath);
-    console.log('   🔄 Archivo de capacitaciones restaurado desde el backup.');
+    console.log('   🔄 Archivo de capacitaciones restaurado.');
   } else if (fs.existsSync(oldActiveCapFilePath)) {
     fs.renameSync(oldActiveCapFilePath, activeCapFilePath);
-    console.log('   🔄 Archivo de capacitaciones renombrado de asistente_en_capacitaciones.md a coordinador_capacitaciones.md');
+    console.log('   🔄 Archivo de capacitaciones renombrado.');
   }
 
   // 2. Restaurar agente_sst.md y profesional_sst.md si aplica
@@ -112,7 +125,6 @@ async function main() {
   const tempSstPath = path.join(AGENTES_DIR, 'consultor_sg_sst.md');
   if (fs.existsSync(tempSstPath)) {
     fs.unlinkSync(tempSstPath);
-    console.log('   🗑️ Archivo temporal consultor_sg_sst.md eliminado.');
   }
 
   // 3. Generar skills desde los agentes del backup requeridos
@@ -142,7 +154,6 @@ ${s.triggers.map(t => `  - ${t}`).join('\n')}
 ${cleanContent}
 `;
       fs.writeFileSync(path.join(SKILLS_DIR, `${s.name}.md`), yamlContent, 'utf8');
-      console.log(`   ⚡ Skill generada: ${s.name}.md`);
     }
   }
 
@@ -157,7 +168,6 @@ ${cleanContent}
       fs.copyFileSync(src, dest);
     }
   }
-  console.log('   💾 Copiados todos los avatares.');
 
   // 5. Actualizar prompts .md (primera línea de identidad)
   for (const [key, val] of Object.entries(AGENT_MAPS)) {
@@ -170,7 +180,6 @@ ${cleanContent}
       fs.writeFileSync(filePath, content, 'utf8');
     }
   }
-  console.log('   ✍  Prompts locales actualizados.');
 
   // 6. Modificar syncAgents.js
   if (fs.existsSync(SYNC_AGENTS_FILE)) {
@@ -209,7 +218,6 @@ ${cleanContent}
     );
 
     fs.writeFileSync(SYNC_AGENTS_FILE, syncFileContent, 'utf8');
-    console.log('   ✅ syncAgents.js actualizado.');
   }
 
   // 7. Base de Datos MongoDB
@@ -227,13 +235,15 @@ ${cleanContent}
   for (const agent of currentDbAgents) {
     if (!activeNames.includes(agent.name)) {
       await Agent.deleteOne({ _id: agent._id });
+      // Remover ACLs
+      await AclEntry.deleteMany({ resourceId: agent._id });
       if (globalProject) {
         await Project.findByIdAndUpdate(globalProject._id, { $pull: { agentIds: agent.get('id') } });
       }
     }
   }
 
-  // Sincronizar
+  // Sincronizar agentes
   const allAgentIds = [];
   for (const [key, val] of Object.entries(AGENT_MAPS)) {
     const filePath = path.join(AGENTES_DIR, `${key}.md`);
@@ -256,7 +266,6 @@ ${cleanContent}
     // Decidir si asignamos avatar nuevo o respetamos el existente
     let finalAvatar = { filepath: `/images/${val.avatar}`, source: 'local' };
     if (agent && agent.avatar && agent.avatar.filepath) {
-      console.log(`  🔒 Respetando avatar existente de "${val.name}":`, agent.avatar.filepath);
       finalAvatar = agent.avatar;
     }
 
@@ -320,7 +329,46 @@ ${cleanContent}
       );
       console.log(`  🔄 Actualizado agente en BD: "${val.name}"`);
     }
-    allAgentIds.push(agent.get('id')); // Usar get('id') para evadir virtual shadow de mongoose
+    allAgentIds.push(agent.get('id'));
+
+    // --- RECONSTRUCCIÓN DE PERMISOS ACL ---
+    // 1. Asegurar AclEntry del Propietario (User Owner) -> permBits = 15
+    const ownerAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'user' });
+    if (!ownerAcl) {
+      const newOwnerAcl = new AclEntry({
+        principalId: authorId,
+        principalModel: 'User',
+        principalType: 'user',
+        resourceId: agent._id,
+        resourceType: 'agent',
+        permBits: 15,
+        roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df44172'),
+        grantedBy: authorId,
+        createdAt: new Date(),
+        grantedAt: new Date(),
+        updatedAt: new Date()
+      });
+      await newOwnerAcl.save();
+      console.log(`     🔑 ACL Propietario creada para "${val.name}"`);
+    }
+
+    // 2. Asegurar AclEntry Pública (View Public) -> permBits = 1
+    const publicAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'public' });
+    if (!publicAcl) {
+      const newPublicAcl = new AclEntry({
+        principalType: 'public',
+        resourceId: agent._id,
+        resourceType: 'agent',
+        permBits: 1,
+        roleId: new mongoose.Types.ObjectId('6921da20104fbcc42df4416e'),
+        grantedBy: authorId,
+        createdAt: new Date(),
+        grantedAt: new Date(),
+        updatedAt: new Date()
+      });
+      await newPublicAcl.save();
+      console.log(`     🌐 ACL Pública creada para "${val.name}" (¡Ya es visible!)`);
+    }
   }
 
   // Sincronizar en el proyecto Global
@@ -329,7 +377,7 @@ ${cleanContent}
       { _id: globalProject._id },
       { $addToSet: { agentIds: { $each: allAgentIds } } }
     );
-    console.log(`   🌐 Vinculados exitosamente los ${allAgentIds.length} agentes al proyecto Global.`);
+    console.log(`   🌐 Vinculados los 21 agentes al proyecto Global.`);
   }
 
   await mongoose.disconnect();
