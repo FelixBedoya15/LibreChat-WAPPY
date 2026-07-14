@@ -2,6 +2,8 @@
  * Script Maestro para Restaurar el Coordinador de Capacitaciones y el Profesional SST,
  * Sincronizar todos los 21 agentes en MongoDB, Asignar Avatares y Compartirlos.
  * 
+ * Asigna herramientas por defecto a TODOS los agentes, manteniendo herramientas especiales.
+ * 
  * CONDICIÓN DE SEGURIDAD:
  * Respeta los avatares personalizados por el usuario. Si un agente ya tiene un avatar
  * asignado en la base de datos, NO se sobrescribe.
@@ -27,7 +29,8 @@ const AgentSchema = new mongoose.Schema({
   description: String,
   skills: [String],
   projectIds: [String],
-  avatar: mongoose.Schema.Types.Mixed
+  avatar: mongoose.Schema.Types.Mixed,
+  tools: [String]
 }, { strict: false, id: false, collection: 'agents' });
 
 const ProjectSchema = new mongoose.Schema({
@@ -90,8 +93,21 @@ const AGENT_SKILLS_MAP = {
   'Coordinador de Tareas Críticas': ['skill-ats-analisis', 'skill-permiso-alturas-tsa']
 };
 
+// Herramientas por defecto solicitadas por el usuario
+const DEFAULT_TOOLS = [
+  'google_slides',
+  'google_docs',
+  'google_sheets',
+  'google_gmail',
+  'google_calendar',
+  'google_drive',
+  'somos_sst',
+  'canvas',
+  'web_search'
+];
+
 async function main() {
-  console.log('🏁 Sincronizando prompts y reconstruyendo permisos ACL...');
+  console.log('🏁 Sincronizando prompts, asignando herramientas globales y reconstruyendo permisos...');
 
   // 1. Restaurar/Renombrar archivo de capacitaciones
   const backupCapFilePath = path.join(BACKUP_DIR, 'asistente_en_capacitaciones.md');
@@ -235,7 +251,6 @@ ${cleanContent}
   for (const agent of currentDbAgents) {
     if (!activeNames.includes(agent.name)) {
       await Agent.deleteOne({ _id: agent._id });
-      // Remover ACLs
       await AclEntry.deleteMany({ resourceId: agent._id });
       if (globalProject) {
         await Project.findByIdAndUpdate(globalProject._id, { $pull: { agentIds: agent.get('id') } });
@@ -253,11 +268,16 @@ ${cleanContent}
     }
 
     const mdContent = fs.readFileSync(filePath, 'utf8');
-    const tools = [];
-    if (key === 'simulador_accidentes') tools.push('canvas');
-    else if (key === 'psicologo_sst') tools.push('consultar_analitica_psicosocial', 'canvas');
-    else if (key === 'coordinador_seguridad_vial') tools.push('matriz_pesv', 'canvas', 'context');
-    else if (key === 'ingeniero_quimico_sst') tools.push('canvas');
+    
+    // Herramientas: DEFAULT_TOOLS + Herramientas Especiales del Agente
+    let tools = [...DEFAULT_TOOLS];
+    if (key === 'psicologo_sst') {
+      tools.push('consultar_analitica_psicosocial');
+    } else if (key === 'coordinador_seguridad_vial') {
+      tools.push('matriz_pesv', 'context');
+    }
+    // Eliminar duplicados
+    tools = [...new Set(tools)];
 
     const defaultModel = key === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
 
@@ -299,7 +319,7 @@ ${cleanContent}
         }]
       });
       await agent.save();
-      console.log(`  🆕 Registrado agente en BD: "${val.name}"`);
+      console.log(`  🆕 Registrado agente en BD: "${val.name}" con herramientas.`);
     } else {
       const timestamp = new Date();
       await Agent.updateOne(
@@ -327,12 +347,11 @@ ${cleanContent}
           }
         }
       );
-      console.log(`  🔄 Actualizado agente en BD: "${val.name}"`);
+      console.log(`  🔄 Actualizado agente en BD: "${val.name}" con herramientas.`);
     }
     allAgentIds.push(agent.get('id'));
 
     // --- RECONSTRUCCIÓN DE PERMISOS ACL ---
-    // 1. Asegurar AclEntry del Propietario (User Owner) -> permBits = 15
     const ownerAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'user' });
     if (!ownerAcl) {
       const newOwnerAcl = new AclEntry({
@@ -349,10 +368,8 @@ ${cleanContent}
         updatedAt: new Date()
       });
       await newOwnerAcl.save();
-      console.log(`     🔑 ACL Propietario creada para "${val.name}"`);
     }
 
-    // 2. Asegurar AclEntry Pública (View Public) -> permBits = 1
     const publicAcl = await AclEntry.findOne({ resourceId: agent._id, principalType: 'public' });
     if (!publicAcl) {
       const newPublicAcl = new AclEntry({
@@ -367,7 +384,6 @@ ${cleanContent}
         updatedAt: new Date()
       });
       await newPublicAcl.save();
-      console.log(`     🌐 ACL Pública creada para "${val.name}" (¡Ya es visible!)`);
     }
   }
 
