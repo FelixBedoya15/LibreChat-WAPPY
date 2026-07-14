@@ -37,7 +37,10 @@ const sendEmailViaMailgun = async ({ to, from, subject, html, attachments }) => 
 
   if (attachments && Array.isArray(attachments)) {
     attachments.forEach((att) => {
-      formData.append('attachment', att.content, att.filename);
+      formData.append('attachment', att.content, {
+        filename: att.filename,
+        contentType: att.contentType || 'application/octet-stream',
+      });
     });
   }
 

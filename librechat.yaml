@@ -531,6 +531,7 @@ webSearch:
   # Timeouts
   scraperTimeout: 45000 # 45 seconds (give Firecrawl enough time to scrape heavy/slow pages)
 
+
 # Memory configuration for user memories
 memory:
   # (optional) Disable memory functionality

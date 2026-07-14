@@ -682,18 +682,22 @@ const startServer = async () => {
       const emailAttachments = [];
 
       if (pdfBase64 && pdfFilename) {
+        const mime = pdfBase64.match(/data:([^;]+);base64/)?.[1] || 'application/pdf';
         emailAttachments.push({
           filename: pdfFilename,
           content: Buffer.from(pdfBase64.split(';base64,').pop(), 'base64'),
+          contentType: mime,
         });
       }
 
       if (attachments && Array.isArray(attachments)) {
         attachments.forEach((att) => {
           if (att.base64 && att.filename) {
+            const mime = att.base64.match(/data:([^;]+);base64/)?.[1] || 'application/octet-stream';
             emailAttachments.push({
               filename: att.filename,
               content: Buffer.from(att.base64.split(';base64,').pop(), 'base64'),
+              contentType: mime,
             });
           }
         });
