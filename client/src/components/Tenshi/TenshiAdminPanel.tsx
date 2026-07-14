@@ -2,8 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastContext } from '@librechat/client';
-import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle } from 'lucide-react';
+import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle, Cpu, Check } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+
+interface Skill {
+    id: string;
+    name: string;
+    description: string;
+    triggers: string[];
+}
 import { useGetEndpointsQuery } from '~/data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { createProviderOption } from '~/utils';
@@ -26,7 +33,8 @@ export default function TenshiAdminPanel() {
         location: 'bottom-right',
         isActive: true,
         extraKnowledge: '',
-        systemPrompt: ''
+        systemPrompt: '',
+        skills: [] as string[]
     });
 
     const { data: endpointsConfig } = useGetEndpointsQuery();
@@ -68,6 +76,15 @@ export default function TenshiAdminPanel() {
         refetchOnWindowFocus: false,
     });
 
+    const { data: availableSkills } = useQuery(['availableSkills', token], async () => {
+        const res = await axios.get<Skill[]>('/api/agents/skills', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        return res.data;
+    }, {
+        refetchOnWindowFocus: false,
+    });
+
     useEffect(() => {
         if (config) {
             setFormData({
@@ -79,9 +96,18 @@ export default function TenshiAdminPanel() {
                 isActive: config.isActive !== false,
                 extraKnowledge: config.extraKnowledge || '',
                 systemPrompt: config.systemPrompt || '',
+                skills: config.skills || []
             });
         }
     }, [config]);
+
+    const handleToggleSkill = (skillId: string) => {
+        const current = formData.skills || [];
+        const updated = current.includes(skillId)
+            ? current.filter(id => id !== skillId)
+            : [...current, skillId];
+        setFormData(prev => ({ ...prev, skills: updated }));
+    };
 
     const updateConfig = useMutation(
         async (newConfig: typeof formData) => {
@@ -221,6 +247,77 @@ export default function TenshiAdminPanel() {
                                 <textarea name="extraKnowledge" value={formData.extraKnowledge} onChange={handleChange} rows={4} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-900" />
                             </div>
                         </div>
+                    </div>
+
+                    {/* Habilidades Especiales (Skills) */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h2 className="text-xl font-semibold mb-2 flex items-center gap-2 text-gray-900 dark:text-white">
+                            <Cpu className="w-5 h-5 text-emerald-500" /> Habilidades Especiales (Skills)
+                        </h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                            Habilita capacidades dinámicas que se inyectarán en el prompt de Tenshi automáticamente al detectar palabras clave (triggers) en la consulta del usuario.
+                        </p>
+
+                        {!availableSkills || availableSkills.length === 0 ? (
+                            <div className="text-center p-6 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">No hay skills disponibles en el sistema.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {availableSkills.map((skill) => {
+                                    const isActive = formData.skills?.includes(skill.id);
+                                    return (
+                                        <div
+                                            key={skill.id}
+                                            onClick={() => handleToggleSkill(skill.id)}
+                                            className={`p-4 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                                                isActive
+                                                    ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm ring-1 ring-emerald-500/20'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                                            }`}
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between gap-2 mb-2">
+                                                    <span className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                        <span className="text-emerald-500 font-bold">⚡</span>
+                                                        {skill.name}
+                                                    </span>
+                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                                                        isActive
+                                                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                            : 'border-gray-300 dark:border-gray-600'
+                                                    }`}>
+                                                        {isActive && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                                    </div>
+                                                </div>
+                                                {skill.description && (
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
+                                                        {skill.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {skill.triggers && skill.triggers.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-auto">
+                                                    {skill.triggers.slice(0, 4).map((t, idx) => (
+                                                        <span
+                                                            key={idx}
+                                                            className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                                        >
+                                                            {t}
+                                                        </span>
+                                                    ))}
+                                                    {skill.triggers.length > 4 && (
+                                                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                            +{skill.triggers.length - 4}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
 

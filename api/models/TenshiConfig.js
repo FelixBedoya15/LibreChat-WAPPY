@@ -34,6 +34,10 @@ const tenshiConfigSchema = mongoose.Schema(
         provider: {
             type: String,
             default: 'google', // 'google', 'openai', 'anthropic', etc. Used to know which client to instantiate.
+        },
+        skills: {
+            type: [String],
+            default: [],
         }
     },
     { timestamps: true }

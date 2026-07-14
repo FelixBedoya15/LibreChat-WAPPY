@@ -115,7 +115,7 @@ export default function RolePermissionsTable() {
     if (loading) return <div>Cargando permisos...</div>;
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-light">
+        <div className="overflow-x-auto rounded-lg border border-light custom-admin-scrollbar">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-surface-secondary">
                     <tr>

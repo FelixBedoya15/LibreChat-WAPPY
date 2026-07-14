@@ -36,9 +36,29 @@ export default function Admin() {
                     <p className="text-text-secondary">{localize('com_ui_admin_panel_description')}</p>
                 </div>
 
-                <div className="flex items-center justify-between overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="flex items-center justify-between overflow-x-auto pb-2 admin-nav-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <style>{`
-                        div::-webkit-scrollbar { display: none; }
+                        .admin-nav-scrollbar::-webkit-scrollbar { display: none; }
+                        .custom-admin-scrollbar::-webkit-scrollbar {
+                            height: 8px;
+                            width: 8px;
+                        }
+                        .custom-admin-scrollbar::-webkit-scrollbar-track {
+                            background: transparent;
+                        }
+                        .custom-admin-scrollbar::-webkit-scrollbar-thumb {
+                            background: #cbd5e1;
+                            border-radius: 9999px;
+                        }
+                        .dark .custom-admin-scrollbar::-webkit-scrollbar-thumb {
+                            background: #4b5563;
+                        }
+                        .custom-admin-scrollbar::-webkit-scrollbar-thumb:hover {
+                            background: #9ca3af;
+                        }
+                        .dark .custom-admin-scrollbar::-webkit-scrollbar-thumb:hover {
+                            background: #6b7280;
+                        }
                     `}</style>
                     <div className="flex space-x-4 whitespace-nowrap">
                         <button

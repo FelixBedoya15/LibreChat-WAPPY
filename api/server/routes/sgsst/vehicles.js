@@ -5,6 +5,8 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstVehicleData = require('../../../models/SgsstVehicleData');
 const { logger } = require('~/config');
+const { generateWithKeyRotation } = require('./sgsstGemini');
+const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
 
@@ -192,5 +194,86 @@ function parseDateString(dateStr) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+// ─── POST /generate ───────────────────────────────────────────────────────
+router.post('/generate', requireJwtAuth, async (req, res) => {
+  try {
+    const { 
+      placa, marca, referencia, modelo, anio, tipo,
+      conductorNombre, soatVencimiento, tecnomecanicaVencimiento,
+      ultimoMantenimiento, proximoMantenimiento, kilometrajeActual, inspecciones,
+      modelName 
+    } = req.body;
+
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    let loadedCompanyInfo = null;
+    try {
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    } catch (e) {
+      logger.warn('Failed to load company info for Vehicles');
+    }
+
+    const currentDate = new Date().toLocaleDateString('es-CO', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    const headerHTML = buildStandardHeader({
+      title: 'INFORME DE CONTROL OPERACIONAL Y HOJA DE VIDA DE VEHÍCULO (PESV)',
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm: 'Ley 1503 de 2011 / Decreto 1072 de 2015 / Resolución 20223040040595 de 2022',
+      responsibleName: req.user?.name,
+    });
+
+    const inspectionsStr = (inspecciones || []).map(ins => 
+      `- Fecha: ${ins.fecha} | Kilometraje: ${ins.kilometraje || 'N/A'} | Conductor: ${ins.conductorNombre || conductorNombre || 'N/A'} | Resultado: ${ins.resultado} | Firma: ${ins.firmaConductor ? 'FIRMADO' : 'PENDIENTE'}`
+    ).join('\n') || '[Sin inspecciones registradas]';
+
+    const promptText = `
+${headerHTML}
+Eres un Experto Técnico Senior en Seguridad Vial y Seguridad y Salud en el Trabajo (SST), especializado en el Plan Estratégico de Seguridad Vial (PESV) colombiano.
+Tu objetivo es redactar un **INFORME DE CONTROL OPERACIONAL Y HOJA DE VIDA DE VEHÍCULO** estructurado y profesional.
+
+**DATOS DEL VEHÍCULO:**
+- Placa: ${placa}
+- Marca / Referencia: ${marca} ${referencia || ''}
+- Modelo / Año: ${modelo} / ${anio || 'N/A'}
+- Tipo de Vehículo: ${tipo || 'No especificado'}
+- Conductor Asignado: ${conductorNombre || 'No asignado'}
+- Kilometraje Actual: ${kilometrajeActual || 'N/A'}
+
+**VENCIMIENTOS LEGALES:**
+- SOAT Vencimiento: ${soatVencimiento || 'N/A'}
+- Revisión Técnico-Mecánica Vencimiento: ${tecnomecanicaVencimiento || 'N/A'}
+- Mantenimiento: Último: ${ultimoMantenimiento || 'N/A'} | Próximo: ${proximoMantenimiento || 'N/A'}
+
+**HISTORIAL DE INSPECCIONES PRE-OPERACIONALES:**
+${inspectionsStr}
+
+**INSTRUCCIONES DE REDACCIÓN:**
+1. Genera un informe técnico completo en formato HTML que continúe después del encabezado anterior.
+2. Usa tablas HTML estructuradas y estilos CSS inline modernos y profesionales (sin repetir etiquetas HTML o HEAD, solo estructura de cuerpo o contenedores div y table).
+3. Incluye las siguientes secciones:
+   - **Diagnóstico General de Cumplimiento**: Evaluación del estado documental del vehículo (SOAT, RTM, mantenimientos).
+   - **Auditoría de Inspecciones**: Análisis de los registros de inspecciones diarias e indicación de si existen hallazgos críticos de seguridad (ej. inspecciones rechazadas).
+   - **Plan de Acción y Recomendaciones (PESV)**: Medidas preventivas de seguridad vial tanto para la organización como para el conductor asignado.
+4. NUNCA inventes inspecciones, placas, fechas o firmas que no estén listados en los datos.
+`;
+
+    const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
+    res.json({ report: result.response.text() });
+  } catch (error) {
+    logger.error('[SGSST Vehicles Generate] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al generar informe del vehículo' });
+  }
+});
 
 module.exports = router;

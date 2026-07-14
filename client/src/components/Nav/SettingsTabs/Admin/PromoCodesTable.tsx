@@ -151,7 +151,7 @@ export default function PromoCodesTable() {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-border-light shadow-sm">
+            <div className="overflow-x-auto rounded-xl border border-border-light shadow-sm custom-admin-scrollbar">
                 <table className="w-full text-left text-sm text-text-secondary">
                     <thead className="bg-surface-secondary text-xs uppercase text-text-primary">
                         <tr>

@@ -5,6 +5,8 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstHeightsData = require('../../../models/SgsstHeightsData');
 const { logger } = require('~/config');
+const { generateWithKeyRotation } = require('./sgsstGemini');
+const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
 
@@ -172,5 +174,72 @@ function parseDateString(dateStr) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+// ─── POST /generate ───────────────────────────────────────────────────────
+router.post('/generate', requireJwtAuth, async (req, res) => {
+  try {
+    const { workerId, nombreTrabajador, cargo, equipos, modelName } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    let loadedCompanyInfo = null;
+    try {
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    } catch (e) {
+      logger.warn('Failed to load company info for Heights');
+    }
+
+    const currentDate = new Date().toLocaleDateString('es-CO', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    const headerHTML = buildStandardHeader({
+      title: 'INFORME TÉCNICO Y CONTROL DE EQUIPOS DE ALTURAS (ARNESES Y ESLINGAS)',
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm: 'Resolución 4272 de 2021 (Reglamento de Alturas en Colombia) / Decreto 1072 de 2015',
+      responsibleName: req.user?.name,
+    });
+
+    const equiposStr = (equipos || []).map(eq => 
+      `- Equipo: ${eq.nombre} | Marca/Ref: ${eq.marca} ${eq.referencia || ''} | Serial: ${eq.serial} | Fabricación: ${eq.fechaFabricacion || 'N/A'} | Última Inspección: ${eq.fechaUltimaInspeccion || 'N/A'} | Próxima Inspección: ${eq.fechaProximaInspeccion || 'N/A'} | Estado: ${eq.estado} | Resultado: ${eq.resultadoInspeccion}`
+    ).join('\n') || '[Sin equipos de alturas registrados]';
+
+    const promptText = `
+${headerHTML}
+Eres un Experto Técnico Senior en Trabajo Seguro en Alturas y Seguridad y Salud en el Trabajo (SST), certificado según la Resolución 4272 de 2021 en Colombia.
+Tu objetivo es redactar un **INFORME TÉCNICO Y CONTROL DE EQUIPOS DE ALTURAS (CICLO DE VIDA Y CERTIFICACIONES)** estructurado y sumamente detallado.
+
+**DATOS DEL TRABAJADOR ASIGNADO:**
+- Nombre: ${nombreTrabajador}
+- Cargo: ${cargo || 'No asignado'}
+- Empresa: ${loadedCompanyInfo?.companyName || 'No registrada'}
+
+**HISTORIAL DE EQUIPOS DE ALTURAS ASIGNADOS Y CERTIFICADOS:**
+${equiposStr}
+
+**INSTRUCCIONES DE REDACCIÓN:**
+1. Genera un informe técnico completo en formato HTML que continúe después del encabezado anterior.
+2. Usa tablas HTML estructuradas y estilos CSS inline modernos y profesionales (sin repetir etiquetas HTML o HEAD, solo estructura de cuerpo o contenedores div y table).
+3. Incluye las siguientes secciones:
+   - **Diagnóstico General de Cumplimiento Normativo (Res. 4272/2021)**: Evaluación del estado de inspección anual obligatoria y vida útil de los equipos (arneses, eslingas, conectores).
+   - **Auditoría de Integridad y Trazabilidad**: Análisis del estado y vida de cada serial e indicación de si existen equipos vencidos, no certificados o que deban ser retirados de servicio inmediatamente.
+   - **Recomendaciones de Seguridad y Plan de Inspección**: Directrices para el almacenamiento adecuado, limpieza, pre-uso diario y retiro de equipos de protección contra caídas.
+4. NUNCA inventes equipos, seriales, fechas o firmas que no estén listados en los datos.
+`;
+
+    const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
+    res.json({ report: result.response.text() });
+  } catch (error) {
+    logger.error('[SGSST Heights Generate] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al generar informe de equipos de alturas' });
+  }
+});
 
 module.exports = router;

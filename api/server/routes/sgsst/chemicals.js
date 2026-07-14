@@ -5,6 +5,8 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstChemicalData = require('../../../models/SgsstChemicalData');
 const { logger } = require('~/config');
+const { generateWithKeyRotation } = require('./sgsstGemini');
+const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
 
@@ -170,5 +172,109 @@ async function syncChemicalsWithIpevar(userId, companyId, productosList) {
     logger.error('[SGSST Chemicals Sync] Error syncing chemicals with IPEVAR:', err.message);
   }
 }
+
+// ─── POST /generate ───────────────────────────────────────────────────────
+router.post('/generate', requireJwtAuth, async (req, res) => {
+  try {
+    const { selectedProduct, chemicals, modelName } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const finalModelName = modelName || preferredModel;
+
+    let loadedCompanyInfo = null;
+    try {
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    } catch (e) {
+      logger.warn('Failed to load company info for Chemicals');
+    }
+
+    const currentDate = new Date().toLocaleDateString('es-CO', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    const isSingleProduct = !!selectedProduct;
+    const reportTitle = isSingleProduct 
+      ? `FICHA DE SEGURIDAD Y COMPATIBILIDAD - ${selectedProduct.nombre.toUpperCase()}`
+      : 'INFORME DE COMPATIBILIDAD Y AUDITORÍA DE PRODUCTOS QUÍMICOS';
+
+    const headerHTML = buildStandardHeader({
+      title: reportTitle,
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm: 'Decreto 1496 de 2018 (SGA en Colombia) / Resolución 0312 de 2019',
+      responsibleName: req.user?.name,
+    });
+
+    let promptText = '';
+
+    if (isSingleProduct) {
+      const p = selectedProduct;
+      const pictosStr = (p.pictogramasSga || []).join(', ') || 'Ninguno';
+      const incompatStr = (p.incompatibilidades || []).join(', ') || 'Ninguna registrada';
+
+      promptText = `
+${headerHTML}
+Eres un Experto Técnico Senior en Higiene Industrial, Sustancias Químicas y Seguridad y Salud en el Trabajo (SST), especializado en el Sistema Globalmente Armonizado (SGA / GHS) y la normativa del Decreto 1496 de 2018 en Colombia.
+Tu objetivo es redactar una **FICHA TÉCNICA DE SEGURIDAD Y ANÁLISIS DE RIESGO DE PRODUCTO QUÍMICO** exhaustiva y profesional.
+
+**DATOS DEL PRODUCTO SELECCIONADO:**
+- Nombre Comercial: ${p.nombre}
+- Fabricante / Proveedor: ${p.fabricante || 'N/A'}
+- Estado Físico: ${p.estadoFisico || 'Líquido'}
+- Ubicación / Almacenamiento: ${p.ubicacion || 'No especificado'}
+- Cantidad Almacenada: ${p.cantidadAlmacenada || 'N/A'}
+- Clasificación ONU (Clase de Peligro): ${p.claseOnu || 'N/A'}
+- Pictogramas SGA Aplicables: ${pictosStr}
+- Dispone de Ficha de Datos de Seguridad (FDS): ${p.tieneFds}
+- Dispone de Rotulado SGA en envase: ${p.tieneRotuloSga}
+- Requisitos de Almacenamiento Indicados: ${p.requisitosAlmacenamiento || 'No especificado'}
+- Incompatibilidades Químicas Conocidas: ${incompatStr}
+
+**INSTRUCCIONES DE REDACCIÓN:**
+1. Genera una Ficha de Seguridad Técnica en formato HTML que continúe después del encabezado anterior.
+2. Usa tablas HTML estructuradas y estilos CSS inline discretos y modernos (sin repetir etiquetas HTML o HEAD, solo estructura de cuerpo o contenedores div y table).
+3. Incluye las siguientes secciones obligatorias:
+   - **Identificación de Peligros (SGA/GHS)**: Explicación de cada uno de los pictogramas indicados y la clase de peligro ONU.
+   - **Medidas de Almacenamiento Seguro e Incompatibilidades**: Análisis detallado de las reglas de segregación y almacenamiento de acuerdo con las incompatibilidades indicadas.
+   - **Control de Exposición y Protección Personal**: Medidas de control técnico e individual (EPPs recomendados como respiradores, guantes, gafas de seguridad) para los operarios expuestos.
+4. NUNCA inventes productos, fabricantes, seriales o datos que no estén listados.
+`;
+    } else {
+      const inventoryStr = (chemicals || []).map(p => 
+        `- Producto: ${p.nombre} | Fabricante: ${p.fabricante || 'N/A'} | Ubicación: ${p.ubicacion || 'N/A'} | Cantidad: ${p.cantidadAlmacenada || 'N/A'} | FDS: ${p.tieneFds} | Rotulado SGA: ${p.tieneRotuloSga} | Pictogramas: ${(p.pictogramasSga || []).join(', ') || 'Ninguno'}`
+      ).join('\n') || '[Sin productos químicos registrados en el inventario]';
+
+      promptText = `
+${headerHTML}
+Eres un Experto Técnico Senior en Higiene Industrial, Sustancias Químicas y Seguridad y Salud en el Trabajo (SST), especializado en el Sistema Globalmente Armonizado (SGA / GHS) y la normativa del Decreto 1496 de 2018 en Colombia.
+Tu objetivo es redactar un **INFORME DE COMPATIBILIDAD Y AUDITORÍA DE ALMACENAMIENTO DE SUSTANCIAS QUÍMICAS** consolidado para toda la organización.
+
+**INVENTARIO DE SUSTANCIAS QUÍMICAS REGISTRADAS:**
+${inventoryStr}
+
+**INSTRUCCIONES DE REDACCIÓN:**
+1. Genera un Informe Técnico de Auditoría Química en formato HTML que continúe después del encabezado anterior.
+2. Usa tablas HTML estructuradas y estilos CSS inline modernos y profesionales (sin repetir etiquetas HTML o HEAD, solo estructura de cuerpo o contenedores div y table).
+3. Incluye las siguientes secciones:
+   - **Resumen del Inventario Químico**: Resumen analítico de las sustancias químicas almacenadas, cantidad y nivel de riesgo.
+   - **Análisis de Cumplimiento Documental**: Evaluación cuantitativa de FDS y Rotulado SGA (porcentaje de cumplimiento, brechas de seguridad).
+   - **Matriz de Compatibilidad de Almacenamiento**: Recomendaciones de segregación química basadas en las propiedades incompatibles.
+   - **Plan de Acción y Controles de Ingeniería**: Recomendaciones sobre duchas lavaojos, ventilación, kit contra derrames y EPPs.
+4. NUNCA inventes productos, ubicaciones o datos que no estén listados en el inventario aportado.
+`;
+    }
+
+    const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
+    res.json({ report: result.response.text() });
+  } catch (error) {
+    logger.error('[SGSST Chemicals Generate] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al generar informe químico' });
+  }
+});
 
 module.exports = router;

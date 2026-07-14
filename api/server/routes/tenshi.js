@@ -16,6 +16,7 @@ const CompanyInfo = require('../../models/CompanyInfo');
 const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
+const { getActiveSkillInstructions } = require('~/server/services/skillRouter');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
@@ -257,6 +258,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             logger.warn('[Tenshi] Error fetching company info:', e.message);
         }
 
+        const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);
+
         let systemMessage = `${config.systemPrompt}
 
 Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
@@ -309,6 +312,10 @@ Catálogo de Especialistas oficiales disponibles en el sistema:
 ### 📋 REGLAS DE FORMATO Y PRESENTACIÓN
 1. Saluda cordial y alegremente llamando al usuario por su nombre.
 2. Usa viñetas estructuradas y emojis (🚀, ✨, 🔥, 🏢, 💪) para presentar datos e informes de forma clara y profesional.`;
+
+        if (skillInstructions) {
+            systemMessage += `\n\n${skillInstructions}`;
+        }
 
         if (browserState) {
             systemMessage += `\n\n### 🌐 ESTADO VISUAL DE LA PÁGINA ACTUAL (DEL NAVEGADOR DEL USUARIO)

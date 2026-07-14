@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -21,12 +21,18 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
-  X
+  X,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel } from './exportEpp';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar } from './SGSSTToolbar';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import { UpgradeWall } from './UpgradeWall';
 
 interface EppItem {
   id: string;
@@ -71,7 +77,7 @@ interface CargoProfile {
 }
 
 export default function EPPWorkspace() {
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
   const { showToast } = useToastContext();
 
   // State
@@ -90,6 +96,146 @@ export default function EPPWorkspace() {
   const [isCargoExpanded, setIsCargoExpanded] = useState(true);
   const [isAlturasExpanded, setIsAlturasExpanded] = useState(true);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
+
+  // AI Report States
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
+  const editorContentRef = useRef<string | null>(null);
+
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+
+  const handleGenerate = useCallback(async () => {
+    if (!selectedWorker) {
+      showToast({ message: 'Seleccione un trabajador primero', status: 'warning' });
+      return;
+    }
+    const isNew = !conversationId || conversationId === 'new';
+    if (!isPro && isNew) {
+      try {
+        const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-epp`, { headers: { Authorization: `Bearer ${token}` } });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/sgsst/epp/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ 
+          workerId: selectedWorker.id, 
+          nombreTrabajador: selectedWorker.nombre, 
+          cargo: selectedWorker.cargo, 
+          entregas: selectedDoc?.entregas || [], 
+          modelName: selectedModel 
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Error al generar el informe');
+      }
+      const data = await response.json();
+      setGeneratedReport(data.report);
+      editorContentRef.current = data.report;
+      liveEditorRef.current?.setHTML(data.report);
+      setConversationId(null);
+      setReportMessageId(null);
+      showToast({ message: 'Informe generado exitosamente', status: 'success' });
+    } catch (error: any) {
+      showToast({ message: error.message || 'Error al generar informe', status: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [selectedWorker, selectedDoc, selectedModel, token, isPro, conversationId, showToast]);
+
+  const handleSave = useCallback(async () => {
+    const contentToSave = editorContentRef.current || generatedReport;
+    if (!contentToSave || !token) return;
+
+    const isNew = !conversationId || conversationId === 'new';
+    if (!isPro && isNew) {
+      try {
+        const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-epp`, { headers: { Authorization: `Bearer ${token}` } });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    try {
+      if (conversationId && conversationId !== 'new' && reportMessageId) {
+        const res = await fetch('/api/sgsst/diagnostico/save-report', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
+        });
+        if (res.ok) { 
+          setRefreshTrigger(p => p + 1); 
+          showToast({ message: 'Informe actualizado exitosamente', status: 'success' }); 
+        }
+        return;
+      }
+      const res = await fetch('/api/sgsst/diagnostico/save-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          content: contentToSave,
+          title: `Informe EPP - ${selectedWorker?.nombre} - ${new Date().toLocaleDateString('es-CO')}`,
+          tags: ['sgsst-epp'],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConversationId(data.conversationId);
+        setReportMessageId(data.messageId);
+        setRefreshTrigger(p => p + 1);
+        showToast({ message: 'Guardado exitosamente', status: 'success' });
+      }
+    } catch (error: any) {
+      showToast({ message: `Error: ${error.message}`, status: 'error' });
+    }
+  }, [generatedReport, conversationId, reportMessageId, token, isPro, selectedWorker, showToast]);
+
+  const handleSelectReport = useCallback(async (selectedConvoId: string) => {
+    if (!selectedConvoId) return;
+    try {
+      const res = await fetch(`/api/messages/${selectedConvoId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const messages = await res.json();
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.text) {
+        setGeneratedReport(lastMsg.text);
+        editorContentRef.current = lastMsg.text;
+        liveEditorRef.current?.setHTML(lastMsg.text);
+        setConversationId(selectedConvoId);
+        setReportMessageId(lastMsg.messageId);
+        showToast({ message: 'Informe cargado correctamente', status: 'success' });
+      }
+    } catch (e) {
+      showToast({ message: 'Error al cargar el informe', status: 'error' });
+    }
+    setIsHistoryOpen(false);
+  }, [token, showToast]);
 
   // New EPP Form state
   const [formEppName, setFormEppName] = useState('');
@@ -532,6 +678,10 @@ export default function EPPWorkspace() {
                 onClick={() => {
                   setSelectedWorker(w);
                   resetForm();
+                  setGeneratedReport(null);
+                  editorContentRef.current = null;
+                  setConversationId(null);
+                  setReportMessageId(null);
                 }}
                 className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
                   isSelected 
@@ -583,6 +733,10 @@ export default function EPPWorkspace() {
 
               <div className="-my-2">
                 <SGSSTToolbar
+                  onAnalyze={handleGenerate}
+                  isAnalyzing={isGenerating}
+                  selectedModel={selectedModel}
+                  onSelectModel={setSelectedModel}
                   exportContent={selectedDoc && selectedDoc.entregas && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
                     selectedWorker,
                     selectedDoc,
@@ -778,6 +932,34 @@ export default function EPPWorkspace() {
                   </div>
                 )}
               </div>
+
+              {/* Editor de Informe de EPP */}
+              <CollapsibleReportBox
+                onSave={handleSave}
+                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                isHistoryOpen={isHistoryOpen}
+                title="Informe IA - Entrega de EPP"
+                icon={<ShieldAlert className="h-5 w-5" />}
+                actions={
+                  <ExportDropdown
+                    content={editorContentRef.current || generatedReport || ''}
+                    fileName={`Informe_EPP_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
+                    reportType="general"
+                  />
+                }
+              >
+                <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                  <div style={{ minWidth: '900px', padding: '16px' }}>
+                    <LiveEditor
+                      ref={liveEditorRef}
+                      initialContent={generatedReport}
+                      onUpdate={(html) => { editorContentRef.current = html; }}
+                      reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+                    />
+                  </div>
+                </div>
+              </CollapsibleReportBox>
+
             </div>
 
           </div>
@@ -1092,6 +1274,32 @@ export default function EPPWorkspace() {
         onSave={setFormSignature}
         title={`Firma de Conformidad: ${selectedWorker?.nombre}`}
       />
+
+      <ReportHistory 
+        onSelectReport={handleSelectReport} 
+        isOpen={isHistoryOpen} 
+        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} 
+        refreshTrigger={refreshTrigger} 
+        tags={['sgsst-epp']} 
+      />
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowUpgradeModal(false)} 
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+            >
+              Cerrar [X]
+            </button>
+            <UpgradeWall 
+              isCompact={true}
+              title="Actualizar a Somos SST Pro"
+              description="Has alcanzado el límite de 1 informe gratuito en el plan básico. Actualiza a Pro para generar informes ilimitados con Inteligencia Artificial."
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

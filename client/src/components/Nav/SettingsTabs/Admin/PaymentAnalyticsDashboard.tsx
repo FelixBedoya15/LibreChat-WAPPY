@@ -212,7 +212,7 @@ export default function PaymentAnalyticsDashboard() {
             {/* Daily Chart (CSS Bar Chart) */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <h3 className="mb-6 text-lg font-bold text-gray-900 dark:text-white">Tendencia de Ingresos (Últimos 30 días)</h3>
-                <div className="flex h-48 items-end gap-1 overflow-x-auto pb-2">
+                <div className="flex h-48 items-end gap-1 overflow-x-auto pb-2 custom-admin-scrollbar">
                     {data.dailyRevenue.length === 0 ? (
                         <p className="w-full text-center text-sm text-gray-500 pt-20">Sin datos para la gráfica</p>
                     ) : (
@@ -244,7 +244,7 @@ export default function PaymentAnalyticsDashboard() {
             {/* Recent Events Table */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <h3 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Actividad Reciente</h3>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-admin-scrollbar">
                     <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
                         <thead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
                             <tr>
