@@ -550,6 +550,16 @@ class AgentClient extends BaseClient {
       delete llmConfig.customHeaders['authorization'];
     }
 
+    console.log('[FORENSIC MEMORY LOG]', {
+      provider: agent.provider,
+      model: agent.model,
+      hasApiKey: !!llmConfig.apiKey,
+      apiKeyLength: llmConfig.apiKey ? llmConfig.apiKey.length : 0,
+      customHeadersKeys: llmConfig.customHeaders ? Object.keys(llmConfig.customHeaders) : null,
+      envGoogleKeyExists: !!process.env.GOOGLE_KEY,
+      envGoogleApiKeyExists: !!process.env.GOOGLE_API_KEY,
+    });
+
     /** @type {import('@librechat/api').MemoryConfig} */
     const config = {
       validKeys: memoryConfig.validKeys,
