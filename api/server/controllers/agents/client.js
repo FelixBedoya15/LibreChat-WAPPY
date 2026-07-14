@@ -529,13 +529,31 @@ class AgentClient extends BaseClient {
     }
 
     let apiKey = undefined;
+    let isServiceAccount = false;
+    let serviceKey = undefined;
+
     if (agent.provider === 'google') {
-      apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_KEY;
-      if (apiKey && apiKey.includes(',')) {
-        apiKey = apiKey.split(',')[0].trim();
+      const googleKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_KEY;
+      if (googleKey) {
+        try {
+          const parsed = JSON.parse(googleKey);
+          if (parsed && parsed.project_id) {
+            isServiceAccount = true;
+            serviceKey = parsed;
+          }
+        } catch (e) {
+          // Not a JSON
+        }
       }
-      if (apiKey) {
-        process.env.GOOGLE_API_KEY = apiKey;
+
+      if (!isServiceAccount) {
+        apiKey = googleKey;
+        if (apiKey && apiKey.includes(',')) {
+          apiKey = apiKey.split(',')[0].trim();
+        }
+        if (apiKey) {
+          process.env.GOOGLE_API_KEY = apiKey;
+        }
       }
     } else if (agent.provider === 'openai') {
       apiKey = process.env.OPENAI_API_KEY;
@@ -553,20 +571,20 @@ class AgentClient extends BaseClient {
       agent.model_parameters,
     );
 
-    if (agent.provider === 'google' && llmConfig.customHeaders) {
-      llmConfig.customHeaders = { ...llmConfig.customHeaders };
-      delete llmConfig.customHeaders['Authorization'];
-      delete llmConfig.customHeaders['authorization'];
+    if (agent.provider === 'google') {
+      if (isServiceAccount) {
+        llmConfig.provider = 'vertexai';
+        llmConfig.authOptions = {
+          credentials: { ...serviceKey },
+          projectId: serviceKey.project_id,
+        };
+        llmConfig.location = process.env.GOOGLE_LOC || 'us-central1';
+      } else if (llmConfig.customHeaders) {
+        llmConfig.customHeaders = { ...llmConfig.customHeaders };
+        delete llmConfig.customHeaders['Authorization'];
+        delete llmConfig.customHeaders['authorization'];
+      }
     }
-
-    console.log('[DEBUG_FORENSIC_MEMORY_2]', {
-      provider: agent.provider,
-      model: agent.model,
-      apiKeyLength: llmConfig.apiKey ? llmConfig.apiKey.length : 0,
-      customHeadersKeys: llmConfig.customHeaders ? Object.keys(llmConfig.customHeaders) : null,
-      envGoogleKeyExists: !!process.env.GOOGLE_KEY,
-      envGoogleApiKey: process.env.GOOGLE_API_KEY ? process.env.GOOGLE_API_KEY.substring(0, 5) + '...' : null,
-    });
 
 
 
