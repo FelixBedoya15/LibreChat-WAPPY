@@ -54,55 +54,7 @@ async function cleanExistingMeetLinks() {
 // Run cleanup immediately on load
 cleanExistingMeetLinks();
 
-async function sendMassEmailInvitations(event) {
-  try {
-    const mongoose = require('mongoose');
-    const User = mongoose.models.User || mongoose.model('User');
-    
-    // Mark as sent immediately to prevent parallel triggers
-    event.massInvitationSent = true;
-    await event.save();
-    
-    // Fetch all users with email
-    const users = await User.find({ email: { $exists: true, $ne: null } }).lean();
-    console.log(`[EventsMassMail] Starting mass email invitations for event: ${event.title} to ${users.length} users.`);
-    
-    const eventDateFormatted = new Date(event.dateTime).toLocaleString('es-CO', {
-      timeZone: 'America/Bogota',
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    for (const user of users) {
-      try {
-        const userName = user.name || user.username || 'Usuario';
-        await sendEmail({
-          email: user.email,
-          subject: `Invitación a Evento Virtual: ${event.title}`,
-          template: 'eventMassInvitation.handlebars',
-          from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-          payload: {
-            name: userName,
-            eventTitle: event.title,
-            dateTime: eventDateFormatted,
-            description: event.description || '',
-            tags: event.tags ? event.tags.join(', ') : '',
-            year: new Date().getFullYear(),
-          },
-        });
-      } catch (mailError) {
-        console.error(`[EventsMassMail] Failed to send email to ${user.email}:`, mailError);
-      }
-    }
-    console.log(`[EventsMassMail] Finished sending mass email invitations for event: ${event.title}`);
-  } catch (error) {
-    console.error('[EventsMassMail] Error in sendMassEmailInvitations:', error);
-  }
-}
+// Mass email sending has been removed to prevent mail server rate limiting / blocking.
 
 // 1. GET /api/events - Get published events (authenticated or anonymous)
 router.get('/', checkJwtAuth, async (req, res) => {
@@ -293,12 +245,7 @@ router.post('/admin', requireJwtAuth, requireAdmin, async (req, res) => {
 
     await event.save();
 
-    // Trigger mass email invitations if published
-    if (event.isPublished) {
-      sendMassEmailInvitations(event).catch(err => {
-        console.error('[EventsMassMail] Error triggering mass email on create:', err);
-      });
-    }
+
 
     res.status(201).json(event);
   } catch (error) {
@@ -332,12 +279,7 @@ router.put('/admin/:id', requireJwtAuth, requireAdmin, async (req, res) => {
 
     await event.save();
 
-    // Trigger mass email if published and not sent yet
-    if (event.isPublished && !event.massInvitationSent) {
-      sendMassEmailInvitations(event).catch(err => {
-        console.error('[EventsMassMail] Error triggering mass email on update:', err);
-      });
-    }
+
 
     res.status(200).json(event);
   } catch (error) {
