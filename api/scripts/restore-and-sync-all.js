@@ -265,6 +265,11 @@ ${cleanContent}
 
     const mdContent = fs.readFileSync(filePath, 'utf8');
     
+    // Inyectar reglas de oro globales a todos los agentes
+    const searchWebRule = `\n\n⚠️ REGLA DE ORO DE BÚSQUEDA WEB: Al usar la búsqueda en la web, NUNCA busques con términos individuales o palabras sueltas (ej: "decreto", "incapacidad"). Debes redactar consultas específicas y compuestas en lenguaje natural que relacionen el contexto exacto (ej: "Decreto 780 de 2016 pago de incapacidades comunes colombia" o "estabilidad laboral reforzada Sentencia SU-111 de 2025"). No realices búsquedas en bucle de forma redundante; si tras 2 intentos no encuentras el dato específico, continúa con tu conocimiento y base interna.`;
+    const wappyCardRule = `\n\n⚠️ REGLA DE ORO DE TARJETAS (wappy-card): Si decides presentar información estructurada dentro del bloque de código especial \`wappy-card\`, el contenido interno del bloque de código debe ser ÚNICAMENTE un objeto JSON válido y estructurado conforme al esquema de la tarjeta (con llaves {}, "title", "layout", "items"). Está estrictamente prohibido usar viñetas (-), listas de tareas o cualquier formato Markdown dentro del bloque de código \`wappy-card\`, ya que esto romperá el renderizado en la interfaz.`;
+    const finalInstructions = mdContent + searchWebRule + wappyCardRule;
+    
     let tools = [...DEFAULT_TOOLS];
     
     // Asignación granular de herramientas específicas por especialidad
@@ -332,7 +337,7 @@ ${cleanContent}
         id: agentId,
         name: val.name,
         description: val.desc,
-        instructions: mdContent,
+        instructions: finalInstructions,
         provider: 'google',
         model: defaultModel,
         tools,
@@ -344,7 +349,7 @@ ${cleanContent}
         versions: [{
           name: val.name,
           description: val.desc,
-          instructions: mdContent,
+          instructions: finalInstructions,
           provider: 'google',
           model: defaultModel,
           tools,
@@ -361,7 +366,7 @@ ${cleanContent}
         {
           $set: {
             description: val.desc,
-            instructions: mdContent,
+            instructions: finalInstructions,
             category: val.category,
             model: defaultModel,
             tools: tools,
@@ -371,7 +376,7 @@ ${cleanContent}
             versions: [{
               name: val.name,
               description: val.desc,
-              instructions: mdContent,
+              instructions: finalInstructions,
               provider: 'google',
               model: defaultModel,
               tools,
