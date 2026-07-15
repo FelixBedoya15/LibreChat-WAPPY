@@ -66,10 +66,11 @@ const getGmailClient = async (userId, companyId = null) => {
 /**
  * Helper to encode email message in RFC 822 format base64url.
  */
-const makeRawEmail = ({ to, subject, body, cc, bcc }) => {
+const makeRawEmail = ({ from, to, subject, body, cc, bcc }) => {
   const str = [
     'Content-Type: text/html; charset="UTF-8"\r\n',
     'MIME-Version: 1.0\r\n',
+    from ? `From: ${from}\r\n` : '',
     `To: ${to}\r\n`,
     cc ? `Cc: ${cc}\r\n` : '',
     bcc ? `Bcc: ${bcc}\r\n` : '',
@@ -94,7 +95,8 @@ const sendEmail = async (userId, { to, subject, body, cc, bcc }, companyId = nul
       throw new Error('Google Workspace no está conectado o autorizado.');
     }
 
-    const raw = makeRawEmail({ to, subject, body, cc, bcc });
+    const fromEmail = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
+    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc });
     const res = await gmail.users.messages.send({
       userId: 'me',
       requestBody: { raw },
@@ -122,7 +124,8 @@ const createDraft = async (userId, { to, subject, body, cc, bcc }, companyId = n
       throw new Error('Google Workspace no está conectado o autorizado.');
     }
 
-    const raw = makeRawEmail({ to, subject, body, cc, bcc });
+    const fromEmail = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
+    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc });
     const res = await gmail.users.drafts.create({
       userId: 'me',
       requestBody: {
