@@ -519,17 +519,10 @@ endpoints:
 
 # Web Search Configuration (optional)
 webSearch:
-  # Search providers
-  searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
-  searchProvider: "searxng"
-  
-  # Content scrapers
-  # firecrawlApiKey: '${FIRECRAWL_API_KEY}'
-  # firecrawlApiUrl: '${FIRECRAWL_API_URL}'
-  # firecrawlVersion: '${FIRECRAWL_VERSION:-v1}'
-  
-  # Timeouts
-  # scraperTimeout: 45000
+  searchProvider: "tavily"
+  tavilyApiKey: "local-dummy-key"
+  tavilySearchUrl: "http://tavily:3000/search"
+  tavilyExtractUrl: "http://tavily:3000/extract"
 
 
 # Memory configuration for user memories
