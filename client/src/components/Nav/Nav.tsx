@@ -281,10 +281,7 @@ const Nav = memo(
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
-                        {/* Events Meet icon */}
-                          <Suspense fallback={null}>
-                            <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
+
 
                         {/* Bookmarks icon */}
 
@@ -337,6 +334,10 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
+                        {/* Events Meet icon */}
+                        <Suspense fallback={null}>
+                          <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -367,9 +368,7 @@ const Nav = memo(
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
-                                  <Suspense fallback={null}>
-                                    <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
+
 
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
@@ -410,6 +409,10 @@ const Nav = memo(
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+                                {/* Events Meet icon */}
+                                <Suspense fallback={null}>
+                                  <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
                               </div>
                             </>
