@@ -524,12 +524,12 @@ webSearch:
   searchProvider: "searxng"
   
   # Content scrapers
-  firecrawlApiKey: '${FIRECRAWL_API_KEY}'
-  firecrawlApiUrl: '${FIRECRAWL_API_URL}'
-  firecrawlVersion: '${FIRECRAWL_VERSION:-v1}'
+  # firecrawlApiKey: '${FIRECRAWL_API_KEY}'
+  # firecrawlApiUrl: '${FIRECRAWL_API_URL}'
+  # firecrawlVersion: '${FIRECRAWL_VERSION:-v1}'
   
   # Timeouts
-  scraperTimeout: 45000 # 45 seconds (give Firecrawl enough time to scrape heavy/slow pages)
+  # scraperTimeout: 45000
 
 
 # Memory configuration for user memories
