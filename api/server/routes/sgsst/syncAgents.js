@@ -9,6 +9,17 @@ const { Agent, Project, AclEntry } = require('~/db/models');
 const { logger } = require('~/config');
 const mongoose = require('mongoose');
 
+function preprocessInstructions(mdContent) {
+  const searchWebRule = `\n\n⚠️ REGLA DE ORO DE BÚSQUEDA WEB: Al usar la búsqueda en la web, NUNCA busques con términos individuales o palabras sueltas (ej: "decreto", "incapacidad"). Debes redactar consultas específicas y compuestas en lenguaje natural que relacionen el contexto exacto (ej: "Decreto 780 de 2016 pago de incapacidades comunes colombia" o "estabilidad laboral reforzada Sentencia SU-111 de 2025"). No realices búsquedas en bucle de forma redundante; si tras 2 intentos no encuentras el dato específico, continúa con tu conocimiento y base interna.`;
+  const wappyCardRule = `\n\n⚠️ REGLA DE ORO DE TARJETAS (wappy-card): Si decides presentar información estructurada dentro del bloque de código especial \`wappy-card\`, el contenido interno del bloque de código debe ser ÚNICAMENTE un objeto JSON válido y estructurado conforme al esquema de la tarjeta (con llaves {}, "title", "layout", "items"). Está estrictamente prohibido usar viñetas (-), listas de tareas o cualquier formato Markdown dentro del bloque de código \`wappy-card\`, ya que esto romperá el renderizado en la interfaz.`;
+  const formatVisualRule = `\n\n🔹 11. Reglas de Formato Visual (Tablas, Tarjetas y Documentos):
+- **Tablas de Datos / Matrices:** Utiliza SIEMPRE tablas en formato Markdown estándar (ej: \`| Hito | Acción |\`). Está terminantemente PROHIBIDO escribir objetos JSON o bloques de código marcados con \`json\` para pintar tablas de filas y columnas, ya que no se renderizan y rompen la estética.
+- **Tarjetas Interactivas (wappy-card):** Utiliza la estructura \`wappy-card\` en bloques de código ÚNICAMENTE para checklists interactivas (\`"layout": "checklist"\`), resúmenes en cuadrícula (\`"layout": "grid"\`), listas simples (\`"layout": "list"\`) o métricas (\`"layout": "metrics"\`). El contenido del bloque debe ser exclusivamente JSON válido y estructurado (con llaves {}, "title", "layout", "items"), sin texto Markdown ni viñetas en su interior.
+- **Documentos y Cartas Formales:** Cuando redactes actas, reglamentos o cartas extensas, utiliza la herramienta \`[Editor Live]\` para crearlas y cargarlas en el editor lateral. Evita redactar texto plano largo de cartas directamente en el chat.`;
+  
+  return mdContent + searchWebRule + wappyCardRule + formatVisualRule;
+}
+
 // Exact mapping between local markdown filenames (without .md) and database Agent names.
 const AGENT_FILE_MAP = {
   'abogado_laboral': 'Abogado Laboral',
@@ -258,14 +269,15 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
 
       try {
         const mdContent = fs.readFileSync(filePath, 'utf8');
+        const finalInstructions = preprocessInstructions(mdContent);
         
         // Find corresponding agent in MongoDB or create if missing
-        const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
+        const agent = await ensureAgentExists(dbName, fileBasename, finalInstructions, req.user.id);
 
         const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
 
         // Check if there is actual difference in instructions and category to avoid unnecessary saves
-        if (agent.instructions === mdContent && agent.category === targetCategory) {
+        if (agent.instructions === finalInstructions && agent.category === targetCategory) {
           results.push({
             file: `${fileBasename}.md`,
             agentName: dbName,
@@ -281,7 +293,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
           {
             name: agent.name || dbName,
             description: agent.description || `Agente SST: ${dbName}`,
-            instructions: mdContent,
+            instructions: finalInstructions,
             provider: agent.provider || 'google',
             model: agent.model || 'gemini-3.5-flash',
             tools: agent.tools || [],
@@ -293,7 +305,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
           { id: agent.id },
           {
             $set: {
-              instructions: mdContent,
+              instructions: finalInstructions,
               category: targetCategory,
               versions: updatedVersions
             }
@@ -454,11 +466,12 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
         }
 
         // ── Step 2: Sync cleaned content to MongoDB or create if missing ──────
-        const agent = await ensureAgentExists(dbName, fileBasename, mdContent, req.user.id);
+        const finalInstructions = preprocessInstructions(mdContent);
+        const agent = await ensureAgentExists(dbName, fileBasename, finalInstructions, req.user.id);
 
         const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
 
-        if (agent.instructions === mdContent && agent.category === targetCategory) {
+        if (agent.instructions === finalInstructions && agent.category === targetCategory) {
           results.push({ file: `${fileBasename}.md`, agentName: dbName, status: 'NO_CHANGE', message: 'Las instrucciones y categoría ya coinciden.' });
           continue;
         }
@@ -468,7 +481,7 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
           {
             name: agent.name || dbName,
             description: agent.description || `Agente SST: ${dbName}`,
-            instructions: mdContent,
+            instructions: finalInstructions,
             provider: agent.provider || 'google',
             model: agent.model || 'gemini-3.5-flash',
             tools: agent.tools || [],
@@ -480,7 +493,7 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
           { _id: agent._id },
           {
             $set: {
-              instructions: mdContent,
+              instructions: finalInstructions,
               category: targetCategory,
               versions: updatedVersions
             }

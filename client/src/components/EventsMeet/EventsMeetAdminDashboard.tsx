@@ -5,6 +5,21 @@ import { useToastContext } from '@librechat/client';
 import { Plus, ArrowLeft, Edit2, Trash2, Calendar, Video, ShieldAlert, Users, Award, Eye, EyeOff } from 'lucide-react';
 import EventFormModal from './EventFormModal';
 
+const cleanMeetLink = (link?: string) => {
+  if (!link) return '#';
+  let url = link.trim();
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const match = url.match(urlRegex);
+  if (match && match[0]) {
+    url = match[0];
+  }
+  url = url.replace(/[.,;)"'>]+$/, '');
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  return url;
+};
+
 export default function EventsMeetAdminDashboard() {
   const { showToast } = useToastContext();
   const navigate = useNavigate();
@@ -177,7 +192,7 @@ export default function EventsMeetAdminDashboard() {
                         </td>
                         <td className="px-6 py-4 max-w-xs truncate">
                           <a
-                            href={evt.meetLink}
+                            href={cleanMeetLink(evt.meetLink)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline flex items-center gap-1"

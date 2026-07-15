@@ -8,6 +8,22 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
+// --- Utilities ---
+const cleanMeetLink = (link?: string) => {
+    if (!link) return '#';
+    let url = link.trim();
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    const match = url.match(urlRegex);
+    if (match && match[0]) {
+        url = match[0];
+    }
+    url = url.replace(/[.,;)"'>]+$/, '');
+    if (url && !/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+    }
+    return url;
+};
+
 // --- Sub-components ---
 
 const EventModal = ({ event, onClose, onRegister, registering }: { event: any, onClose: () => void, onRegister: () => void, registering: boolean }) => {
@@ -83,7 +99,7 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
                                     Te hemos enviado un correo de confirmación. Puedes ingresar a la reunión a través de este enlace:
                                 </p>
                                 <a 
-                                    href={event.meetLink} 
+                                    href={cleanMeetLink(event.meetLink)} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
                                     className="inline-flex items-center gap-2 bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow-lg shadow-green-500/20"
@@ -293,7 +309,7 @@ const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: a
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                     {event.isRegistered ? (
                         <a
-                            href={event.meetLink}
+                            href={cleanMeetLink(event.meetLink)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg transition-all transform active:scale-95 shadow-xl shadow-green-600/20"
