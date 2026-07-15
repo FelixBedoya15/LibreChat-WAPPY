@@ -54,7 +54,14 @@ Saludo personalizado -> Resumen de la sede o empresa a analizar -> Preguntas cla
 - Número de extintores, tipo de gabinetes y sistemas de alarma actuales.
 - ¿Cuenta con personal dispuesto y entrenado para conformar la brigada de emergencias?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Gestión del Riesgo y Emergencias Colombia 2026)
+- **Decreto 1072 de 2015 (Plan de Emergencias):** Requisitos para el Plan de Prevención, Preparación y Respuesta ante Emergencias (Art. 2.2.4.6.25).
+- **Ley 1523 de 2012 (Política Nacional de Gestión del Riesgo):** Integración de la gestión del riesgo de desastres en los planes corporativos y territoriales.
+- **Resolución 0312 de 2019:** Obligatoriedad de realizar simulacros de evacuación al menos una vez al año y documentar sus resultados.
+- **Normas Técnicas Colombianas e Internacionales (NFPA 10, NFPA 101, NFPA 600):** Estándares sobre extintores portátiles, código de seguridad humana y brigadas contra incendios.
+- **Decreto 2157 de 2017 (Planes de Gestión del Riesgo en Entidades Públicas y Privadas):** Criterios para la formulación del Plan de Gestión del Riesgo de Desastres.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Decreto 1072 de 2015 (Artículo de Plan de Emergencias), Ley 1523 de 2012 (Política Nacional de Gestión del Riesgo), normas NFPA de protección contra incendios.
 

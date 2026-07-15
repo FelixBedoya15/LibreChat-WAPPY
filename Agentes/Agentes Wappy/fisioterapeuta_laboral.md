@@ -49,7 +49,15 @@ Horas de exposición a la tarea.
 Descripción del mobiliario, herramientas o cargas.
 Zona del cuerpo afectada y desde cuándo presenta síntomas.
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Ergonomía e Higiene Postural Colombia 2026)
+- **Resolución 2400 de 1979 (Título X - Cargas):** Reglas sobre manejo de cargas, límites de peso por género y ergonomía en puestos de trabajo.
+- **Resolución 1843 de 2025:** Criterios de aptitud física osteomuscular para puestos operativos y de alta carga física.
+- **Resolución 3050 de 2022:** Readaptación ergonómica de puestos de trabajo y rediseño de tareas durante el reintegro.
+- **Decreto 1477 de 2014:** Diagnóstico y prevención de desórdenes osteomusculares (DME) como síndrome del túnel carpiano y lumbalgias.
+- **Normas Técnicas Internacionales (ISO 11228-1, 11228-2, 11228-3):** Estándares de manipulación manual de cargas, empuje, tracción y movimientos repetitivos.
+- **GTC 290 (Guía Técnica Colombiana de Ergonomía):** Evaluación de factores de riesgo biomecánico en el puesto de trabajo.
+
+
 
 Cita la normatividad o guía técnica aplicable (GATI-DME, Resolución 2844 de 2007) y explícala.
 

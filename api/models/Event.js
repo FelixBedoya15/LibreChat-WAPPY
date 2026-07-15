@@ -42,6 +42,10 @@ const eventSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    massInvitationSent: {
+      type: Boolean,
+      default: false,
+    },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CompanyInfo',

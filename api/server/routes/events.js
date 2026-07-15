@@ -54,6 +54,56 @@ async function cleanExistingMeetLinks() {
 // Run cleanup immediately on load
 cleanExistingMeetLinks();
 
+async function sendMassEmailInvitations(event) {
+  try {
+    const mongoose = require('mongoose');
+    const User = mongoose.models.User || mongoose.model('User');
+    
+    // Mark as sent immediately to prevent parallel triggers
+    event.massInvitationSent = true;
+    await event.save();
+    
+    // Fetch all users with email
+    const users = await User.find({ email: { $exists: true, $ne: null } }).lean();
+    console.log(`[EventsMassMail] Starting mass email invitations for event: ${event.title} to ${users.length} users.`);
+    
+    const eventDateFormatted = new Date(event.dateTime).toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    for (const user of users) {
+      try {
+        const userName = user.name || user.username || 'Usuario';
+        await sendEmail({
+          email: user.email,
+          subject: `Invitación a Evento Virtual: ${event.title}`,
+          template: 'eventMassInvitation.handlebars',
+          from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+          payload: {
+            name: userName,
+            eventTitle: event.title,
+            dateTime: eventDateFormatted,
+            description: event.description || '',
+            tags: event.tags ? event.tags.join(', ') : '',
+            year: new Date().getFullYear(),
+          },
+        });
+      } catch (mailError) {
+        console.error(`[EventsMassMail] Failed to send email to ${user.email}:`, mailError);
+      }
+    }
+    console.log(`[EventsMassMail] Finished sending mass email invitations for event: ${event.title}`);
+  } catch (error) {
+    console.error('[EventsMassMail] Error in sendMassEmailInvitations:', error);
+  }
+}
+
 // 1. GET /api/events - Get published events (authenticated or anonymous)
 router.get('/', checkJwtAuth, async (req, res) => {
   try {
@@ -242,6 +292,14 @@ router.post('/admin', requireJwtAuth, requireAdmin, async (req, res) => {
     });
 
     await event.save();
+
+    // Trigger mass email invitations if published
+    if (event.isPublished) {
+      sendMassEmailInvitations(event).catch(err => {
+        console.error('[EventsMassMail] Error triggering mass email on create:', err);
+      });
+    }
+
     res.status(201).json(event);
   } catch (error) {
     console.error('Error in POST /api/events/admin:', error);
@@ -255,22 +313,30 @@ router.put('/admin/:id', requireJwtAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    if (updates.dateTime) {
-      updates.dateTime = new Date(updates.dateTime);
-    }
-
-    if (updates.meetLink) {
-      updates.meetLink = cleanMeetLink(updates.meetLink);
-    }
-
-    const event = await Event.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
+    const event = await Event.findById(id);
     if (!event) {
       return res.status(404).json({ message: 'Evento no encontrado.' });
+    }
+
+    // Apply updates
+    if (updates.title !== undefined) event.title = updates.title;
+    if (updates.description !== undefined) event.description = updates.description;
+    if (updates.thumbnail !== undefined) event.thumbnail = updates.thumbnail;
+    if (updates.tags !== undefined) event.tags = updates.tags;
+    if (updates.dateTime !== undefined) event.dateTime = new Date(updates.dateTime);
+    if (updates.meetLink !== undefined) event.meetLink = cleanMeetLink(updates.meetLink);
+    if (updates.meetPassword !== undefined) event.meetPassword = updates.meetPassword;
+    if (updates.isPublished !== undefined) event.isPublished = updates.isPublished;
+    if (updates.isFeatured !== undefined) event.isFeatured = updates.isFeatured;
+    if (updates.companyId !== undefined) event.companyId = updates.companyId || undefined;
+
+    await event.save();
+
+    // Trigger mass email if published and not sent yet
+    if (event.isPublished && !event.massInvitationSent) {
+      sendMassEmailInvitations(event).catch(err => {
+        console.error('[EventsMassMail] Error triggering mass email on update:', err);
+      });
     }
 
     res.status(200).json(event);

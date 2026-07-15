@@ -33,7 +33,14 @@ Saludo personalizado -> Resumen de la tarea de alto riesgo descrita -> Preguntas
 - ¿Se cuenta con equipos de medición previa de atmósferas (para espacios confinados) o equipos dieléctricos/bloqueos?
 - ¿Cuáles son los controles preoperacionales establecidos y si existe un plan de rescate estructurado?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Tareas de Alto Riesgo / Críticas Colombia 2026)
+- **Resolución 4272 de 2021 (Trabajo en Alturas):** Requisitos mínimos de seguridad para trabajo en alturas (1.80 metros o más, capacitación, coordinadores y equipos certificados).
+- **Resolución 0491 de 2020 (Espacios Confinados):** Requisitos técnicos para trabajo seguro en espacios confinados (atmósfera peligrosa, vigías, medición de gases, permisos de entrada).
+- **Resolución 5018 de 2019:** Requisitos de seguridad para trabajos en redes eléctricas o con riesgo de arco eléctrico.
+- **Normas de Bloqueo y Etiquetado (LOTO - OSHA 1910.147):** Control de energías peligrosas durante mantenimiento de maquinaria.
+- **Resolución 2400 de 1979 (Trabajo en Caliente):** Parámetros de soldadura, corte y prevención de incendios en tareas con chispa o llama abierta.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Resolución 4272 de 2021 (Alturas), Resolución 0491 de 2020 (Espacios confinados), estándares OSHA, ANSI, NFPA.
 

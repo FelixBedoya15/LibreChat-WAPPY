@@ -33,7 +33,13 @@ Saludo personalizado -> Resumen de los productos químicos manipulados -> Pregun
 - ¿Cómo se realiza el almacenamiento actual? ¿Están rotulados bajo pictogramas SGA?
 - Descripción del área de trabajo (¿Hay ventilación forzada, campanas extractoras, EPP específicos?).
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Seguridad Química y SGA Colombia 2026)
+- **Decreto 1496 de 2018 (Sistema Globalmente Armonizado - SGA):** Obligatoriedad del etiquetado, fichas de datos de seguridad (FDS/MSDS de 16 secciones) y rotulación SGA en Colombia.
+- **Ley 55 de 1993 (Seguridad en el Uso de Productos Químicos):** Convenio 170 de la OIT sobre responsabilidades de fabricantes, importadores y empleadores en el uso de sustancias químicas.
+- **Leyes de Restricción de Contaminantes (Ley 1968 de 2019 - Prohibición de Asbesto y Ley 2041 de 2020 - Plomo):** Restricciones de uso y comercialización de materiales peligrosos.
+- **Libro Púrpura de las Naciones Unidas (SGA):** Clasificación de peligros físicos, a la salud y al medio ambiente de mezclas y sustancias químicas.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Decreto 1496 de 2018 (Adopción del Sistema Globalmente Armonizado en Colombia), Ley 55 de 1993, normas de higiene industrial para valores límites permisibles (TLV).
 

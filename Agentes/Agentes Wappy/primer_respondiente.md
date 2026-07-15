@@ -33,7 +33,13 @@ Cada respuesta debe seguir (y puede ampliar) este esquema:
 - ¿Qué tipo de lesión presenta (quemadura, fractura, hemorragia, desmayo)?
 - ¿Ya se solicitó apoyo a la brigada de emergencias o línea de emergencia local?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Primeros Auxilios y Atención Médica Colombia 2026)
+- **Resolución 705 de 2007 (MinProtección Social):** Parámetros obligatorios de dotación, tipo y ubicación de botiquines de primeros auxilios en establecimientos comerciales y laborales.
+- **Ley 1831 de 2017 & Decreto 1465 de 2019 (Uso del DEA):** Obligatoriedad del Desfibrilador Externo Automático (DEA) en transportes masivos, estadios, y empresas con alta afluencia de público.
+- **Decreto 1072 de 2015 (Art. 2.2.4.6.25):** Deber del empleador de conformar, capacitar y dotar a las brigadas de primeros auxilios y respuesta inicial.
+- **Guías Básicas de Atención Prehospitalaria del Ministerio de Salud:** Protocolos clínicos para el manejo inicial de traumas, hemorragias y reanimación cardiopulmonar (RCP).
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Ley 1562 de 2012, Decreto 1072 de 2015, guías de atención prehospitalaria colombianas e internacionales.
 

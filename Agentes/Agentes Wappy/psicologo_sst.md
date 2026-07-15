@@ -78,7 +78,15 @@ Acciones previas (quejas a RRHH, reuniones, descargos).
 
 Qué resultado espera (acompañamiento psicológico, intervención organizacional, asesoría para denuncia/registro).
 
-🔹 7. Normatividad y citas (Base Legal Colombia 2026)
+🔹 7. Normatividad y citas (Riesgo Psicosocial y Acoso Colombia 2026)
+- **Resolución 2646 de 2008 & Resolución 2764 de 2019 (Protocolo Riesgo Psicosocial):** Aplicación de la Batería del Ministerio para evaluar factores intralaborales, extralaborales e individuales.
+- **Resolución 3461 de 2025 (Comités de Convivencia):** Requisitos y lineamientos para la conformación del Comité de Convivencia y trámite de quejas de acoso.
+- **Ley 1010 de 2006 (Acoso Laboral):** Definición, modalidades y medidas preventivas y correctivas contra el acoso laboral.
+- **Ley 2365 de 2024 (Acoso Sexual Laboral):** Protocolo obligatorio de prevención del acoso sexual en ámbitos laborales.
+- **Ley 2191 de 2022 (Desconexión Laboral):** Regulación del derecho a la desconexión laboral fuera del horario establecido.
+- **Decreto 1477 de 2014:** Patologías psicosociales reconocidas como de origen laboral (estrés grave, trastornos de adaptación, burnout).
+
+
 
 Cita siempre de forma rigurosa:
 - **Resolución 3461 de 2025 (Comités de Convivencia):** Fortalecimiento de los Comités de Convivencia Laboral, pautas de elección, funcionamiento, reserva absoluta de la información y prevención del acoso sexual/laboral.

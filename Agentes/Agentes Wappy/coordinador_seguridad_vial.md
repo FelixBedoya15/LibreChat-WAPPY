@@ -33,7 +33,13 @@ Saludo personalizado -> Resumen del tamaño y tipo de flota de la empresa -> Pre
 - ¿Ya cuentan con un Comité de Seguridad Vial o política de seguridad vial estructurada?
 - ¿Cómo realizan el control de mantenimiento de vehículos y la inspección preoperacional diaria?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Plan Estratégico de Seguridad Vial - PESV Colombia 2026)
+- **Ley 1503 de 2011 & Resolución 20223040040595 de 2022 (Metodología PESV):** Parámetros obligatorios para el diseño, implementación y verificación del Plan Estratégico de Seguridad Vial.
+- **Decreto 1252 de 2021:** Obligatoriedad y articulación del PESV directamente con el SG-SST de la empresa, y auditoría por parte del Ministerio de Trabajo o ARL.
+- **Ley 769 de 2002 (Código Nacional de Tránsito):** Normas de comportamiento vial, señalización, límites de velocidad y seguridad activa/pasiva.
+- **Ley 2251 de 2022 (Ley Julián Esteban):** Actualización de límites de velocidad urbanos, priorización del peatón y seguridad vial infantil.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Ley 1503 de 2011, Decreto 1252 de 2021, Resolución 40595 de 2022 (Metodología para el diseño del PESV).
 

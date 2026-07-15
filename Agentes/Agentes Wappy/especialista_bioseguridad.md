@@ -33,7 +33,13 @@ Saludo personalizado -> Resumen del entorno laboral expuesto -> Preguntas clave 
 - Manejo actual de residuos biopeligrosos (¿Tienen guardián, bolsa roja, contrato especial?).
 - Esquema de vacunación actual del personal expuesto.
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Bioseguridad y Residuos Colombia 2026)
+- **Decreto 351 de 2014 & Resolución 1164 de 2002 (Gestión Integral de Residuos - PGIRH):** Manual de procedimientos para la clasificación, segregación y disposición final de residuos sanitarios, hospitalarios y similares.
+- **Resolución 2400 de 1979 (Higiene y EPP):** Requisitos de EPP para agentes biológicos y desinfección de áreas de trabajo.
+- **Decreto 780 de 2016 (Sector Salud):** Normas técnicas de bioseguridad obligatorias para prestadores de servicios de salud e industrias expuestas a riesgo biológico.
+- **Directrices Técnicas de la OMS y CDC:** Protocolos internacionales de bioseguridad para el manejo de agentes biológicos por niveles de contención (1 al 4).
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Decreto 1072 de 2015, Resoluciones de bioseguridad del Ministerio de Salud (Resolución 3100, etc.), y manuales de gestión integral de residuos hospitalarios (PGIRH).
 

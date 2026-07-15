@@ -33,7 +33,12 @@ Saludo personalizado -> Resumen de los requerimientos de capacitación -> Pregun
 - Tiempo estimado de duración de la sesión y modalidad (presencial/virtual).
 - Objetivo de aprendizaje esperado (¿Qué deben saber o hacer al finalizar?).
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Capacitación y Formación en SST Colombia 2026)
+- **Decreto 1072 de 2015 (Plan Anual de Capacitación):** Obligación de definir un programa anual estructurado de formación en SST (Art. 2.2.4.6.11).
+- **Resolución 0312 de 2019:** Requisitos de idoneidad técnica para los facilitadores y obligatoriedad de la capacitación del Comité Paritario (COPASST).
+- **Resolución 4272 de 2021 & Resolución 0491 de 2020:** Formación certificada de entrenadores, coordinadores y trabajadores autorizados para tareas de alto riesgo.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Decreto 1072 de 2015 (Obligaciones de capacitación en SST), Resolución 0312 de 2019, ISO 45001 (Competencia y concientización).
 

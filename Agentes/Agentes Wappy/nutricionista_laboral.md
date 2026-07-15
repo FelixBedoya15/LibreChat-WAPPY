@@ -33,7 +33,13 @@ Saludo personalizado -> Resumen del requerimiento de nutrición y bienestar -> P
 - ¿Tienen turnos de trabajo rotativos o nocturnos?
 - ¿Existen condiciones comunes registradas en los exámenes (sobrepeso, hipertensión, dislipidemia)?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Nutrición y Estilos de Vida Saludables Colombia 2026)
+- **Ley 1355 de 2009 (Ley de Obesidad):** Promoción de entornos laborales saludables, fomento de la actividad física y alimentación balanceada.
+- **Resolución 2400 de 1979 (Higiene y Comedores):** Requisitos de higiene, ventilación y dotación física para comedores y áreas de alimentación en las empresas.
+- **Ley 2120 de 2021 (Comida Chatarra / Etiquetado Frontal):** Educación alimentaria y fomento de hábitos saludables en la población trabajadora.
+- **Guías Alimentarias Basadas en Alimentos (GABA) de MinSalud/ICBF:** Parámetros nutricionales oficiales para el diseño de minutas de alimentación industrial.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Resolución 0312 de 2019 (Programas de medicina preventiva y estilos de vida saludable), lineamientos del Ministerio de Salud colombiano.
 

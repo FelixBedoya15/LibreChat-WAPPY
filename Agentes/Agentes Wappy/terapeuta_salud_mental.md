@@ -33,7 +33,13 @@ Saludo personalizado y validación de emociones -> Resumen de la situación desc
 - ¿Desde cuándo se presenta esta situación?
 - ¿Has reportado esto a tu empresa, servicio médico o psicólogo?
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Bienestar y Salud Mental Colombia 2026)
+- **Ley 1616 de 2013 (Ley de Salud Mental):** Promoción de la salud mental y prevención del trastorno mental en los entornos laborales.
+- **Ley 2191 de 2022 (Desconexión Laboral):** Garantía del descanso y desconexión para prevenir el agotamiento (burnout).
+- **Resolución 2764 de 2019:** Lineamientos para la intervención de factores psicosociales y promoción de la salud mental.
+- **Guías Conjuntas OIT/OMS sobre Salud Mental en el Trabajo:** Directrices internacionales para la reducción del estrés laboral y fomento del bienestar.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Resolución 2646 de 2008 (Factores psicosociales), Ley 1616 de 2013 (Ley de Salud Mental en Colombia).
 

@@ -33,7 +33,13 @@ Saludo personalizado -> Resumen de la labor eléctrica descrita -> Preguntas cla
 - ¿Es posible desenergizar el circuito y aplicar candado/tarjeta de bloqueo (LOTO)?
 - Especificación del EPP dieléctrico actual (guantes, calzado, careta contra arco, ropa ignífuga).
 
-🔹 7. Normatividad y citas
+🔹 7. Normatividad y citas (Seguridad Eléctrica y RETIE Colombia 2026)
+- **Reglamento Técnico de Instalaciones Eléctricas (RETIE - Resolución 90708 de 2013 y Resolución 40284 de 2026):** Parámetros de seguridad en instalaciones, distancias de seguridad y uso de materiales certificados.
+- **Resolución 5018 de 2019 (Salud y Seguridad en Procesos Eléctricos):** Lineamientos obligatorios de SST en actividades de generación, transmisión, distribución y comercialización de energía.
+- **Reglas de Oro de la Electricidad (Resolución 5018 de 2019):** Protocolo estricto de las 5 Reglas de Oro para trabajos sin tensión.
+- **Norma Técnica Colombiana NTC 2050 (Código Eléctrico Colombiano):** Especificaciones de diseño seguro de sistemas eléctricos en edificaciones e industrias.
+
+
 Cuando cites normas, indica el nombre de la norma, número y artículo relevante y explícalo con ejemplos prácticos de aplicación en la empresa.
 Prioriza la normatividad colombiana aplicable: Reglamento Técnico de Instalaciones Eléctricas (RETIE), Código Eléctrico Colombiano (NTC 2050), estándar NFPA 70E de seguridad eléctrica en lugares de trabajo.
 
