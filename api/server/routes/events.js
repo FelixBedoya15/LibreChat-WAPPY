@@ -16,6 +16,44 @@ async function getActiveCompanyId(userId) {
   return active ? active._id : null;
 }
 
+function cleanMeetLink(link) {
+  if (!link) return '';
+  let url = link.trim();
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const match = url.match(urlRegex);
+  if (match && match[0]) {
+    url = match[0];
+  }
+  
+  // Clean any trailing punctuation
+  url = url.replace(/[.,;)"'>]+$/, '');
+  
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  
+  return url;
+}
+
+async function cleanExistingMeetLinks() {
+  try {
+    const events = await Event.find({});
+    for (const event of events) {
+      const cleaned = cleanMeetLink(event.meetLink);
+      if (cleaned !== event.meetLink) {
+        event.meetLink = cleaned;
+        await event.save();
+        console.log(`[EventsMigration] Cleaned meetLink for event: ${event.title} -> ${cleaned}`);
+      }
+    }
+  } catch (err) {
+    console.error('[EventsMigration] Error cleaning existing meetLinks:', err);
+  }
+}
+
+// Run cleanup immediately on load
+cleanExistingMeetLinks();
+
 // 1. GET /api/events - Get published events (authenticated or anonymous)
 router.get('/', checkJwtAuth, async (req, res) => {
   try {
@@ -196,7 +234,7 @@ router.post('/admin', requireJwtAuth, requireAdmin, async (req, res) => {
       thumbnail,
       tags: tags || [],
       dateTime: new Date(dateTime),
-      meetLink,
+      meetLink: cleanMeetLink(meetLink),
       meetPassword,
       isPublished: isPublished || false,
       isFeatured: isFeatured || false,
@@ -219,6 +257,10 @@ router.put('/admin/:id', requireJwtAuth, requireAdmin, async (req, res) => {
 
     if (updates.dateTime) {
       updates.dateTime = new Date(updates.dateTime);
+    }
+
+    if (updates.meetLink) {
+      updates.meetLink = cleanMeetLink(updates.meetLink);
     }
 
     const event = await Event.findByIdAndUpdate(
