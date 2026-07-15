@@ -533,9 +533,9 @@ class AgentClient extends BaseClient {
     let serviceKey = undefined;
 
     if (agent.provider === 'google') {
-      const googleKey = process.env.GOOGLE_API_KEY || 
+      const googleKey = (agent.model_parameters && agent.model_parameters.apiKey) ||
+                        process.env.GOOGLE_API_KEY || 
                         process.env.GEMINI_API_KEY || 
-                        (agent.model_parameters && agent.model_parameters.apiKey) || 
                         process.env.GOOGLE_KEY;
       if (googleKey && googleKey !== 'user_provided') {
         try {
@@ -554,12 +554,9 @@ class AgentClient extends BaseClient {
         if (apiKey && apiKey.includes(',')) {
           apiKey = apiKey.split(',')[0].trim();
         }
-        if (apiKey) {
-          process.env.GOOGLE_API_KEY = apiKey;
-        }
       }
     } else if (agent.provider === 'openai') {
-      apiKey = process.env.OPENAI_API_KEY || (agent.model_parameters && agent.model_parameters.apiKey);
+      apiKey = (agent.model_parameters && agent.model_parameters.apiKey) || process.env.OPENAI_API_KEY;
       if (apiKey && apiKey.includes(',')) {
         apiKey = apiKey.split(',')[0].trim();
       }
