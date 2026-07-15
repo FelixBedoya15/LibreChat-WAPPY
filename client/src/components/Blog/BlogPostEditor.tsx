@@ -7,8 +7,9 @@ import { ArrowLeft, Save, Sparkles, Loader2, Link as LinkIcon, FileText, Plus, T
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 
-export default function BlogPostEditor() {
-    const { id } = useParams();
+export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: string; onClose?: () => void; onSaved?: () => void }) {
+    const { id: paramId } = useParams();
+    const id = postId || paramId;
     const isNew = id === 'new';
     const navigate = useNavigate();
     const { showToast } = useToastContext();
@@ -88,9 +89,10 @@ export default function BlogPostEditor() {
                     setTagsText(post.tags ? post.tags.join(', ') : '');
                     setIsPublished(post.isPublished || false);
                 } catch (error) {
-                    console.error('Error fetching blog post:', error);
-                    showToast({ message: 'Error cargando la publicación', status: 'error' });
-                    navigate('/blog/admin');
+                    console.error('Error fetching post:', error);
+                    showToast({ message: 'Error al cargar la publicación.', status: 'error' });
+                    if (onClose) onClose();
+                    else navigate('/blog/admin');
                 } finally {
                     setLoading(false);
                 }
@@ -117,11 +119,14 @@ export default function BlogPostEditor() {
             };
 
             if (isNew) {
-                await axios.post('/api/blog/create', payload);
-                showToast({ message: 'Publicación creada exitosamente', status: 'success' });
+                const response = await axios.post('/api/blog/create', payload);
+                showToast({ message: 'Publicación creada exitosamente.', status: 'success' });
+                if (onSaved) onSaved();
+                else navigate(`/blog/admin/posts/${response.data._id}`);
             } else {
                 await axios.put(`/api/blog/${id}`, payload);
-                showToast({ message: 'Publicación actualizada exitosamente', status: 'success' });
+                showToast({ message: 'Publicación actualizada.', status: 'success' });
+                if (onSaved) onSaved();
             }
 
             setIsPublished(publish);
@@ -194,13 +199,15 @@ export default function BlogPostEditor() {
         );
     }
 
-    return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    const isModal = typeof onClose === 'function';
+
+    const element = (
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 w-full">
             {/* Header */}
             <div className="flex-none p-4 md:p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/blog/admin')}
+                        onClick={() => onClose ? onClose() : navigate('/blog/admin')}
                         className="group flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
                         aria-label="Volver"
                     >
@@ -427,4 +434,21 @@ export default function BlogPostEditor() {
             </div>
         </div>
     );
+
+    if (isModal) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+                <div 
+                    className="bg-white dark:bg-gray-900 border border-border-medium rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col h-[90vh] overflow-hidden animate-fade-in"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex-1 overflow-y-auto">
+                        {element}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return element;
 }

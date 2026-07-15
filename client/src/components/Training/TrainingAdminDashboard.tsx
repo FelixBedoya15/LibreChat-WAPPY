@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, Eye, Star } from 'lucide-react';
 import { sanitizeSlug } from '~/utils/slug';
+import CourseEditor from './CourseEditor';
 
 export default function TrainingAdminDashboard() {
     const [courses, setCourses] = useState([]);
@@ -11,6 +12,8 @@ export default function TrainingAdminDashboard() {
     const [settingFeatured, setSettingFeatured] = useState<string | null>(null);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
+    const [isCourseEditorOpen, setIsCourseEditorOpen] = useState(false);
+    const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
 
     const fetchCourses = async () => {
         try {
@@ -95,7 +98,10 @@ export default function TrainingAdminDashboard() {
                     </div>
 
                     <button
-                        onClick={() => navigate('/training/admin/courses/new')}
+                        onClick={() => {
+                            setEditingCourseId('new');
+                            setIsCourseEditorOpen(true);
+                        }}
                         className="group flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm self-start sm:self-auto"
                     >
                         <Plus className="w-5 h-5 flex-shrink-0" />
@@ -211,7 +217,10 @@ export default function TrainingAdminDashboard() {
                                                             </span>
                                                         </button>
                                                         <button
-                                                            onClick={() => navigate(`/training/admin/courses/${course._id}`)}
+                                                            onClick={() => {
+                                                                setEditingCourseId(course._id);
+                                                                setIsCourseEditorOpen(true);
+                                                            }}
                                                             className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
                                                         >
                                                             <Edit className="w-4 h-4 flex-shrink-0" />
@@ -239,6 +248,20 @@ export default function TrainingAdminDashboard() {
                     </div>
                 </div>
             </div>
+            {isCourseEditorOpen && (
+                <CourseEditor
+                    courseId={editingCourseId || undefined}
+                    onClose={() => {
+                        setIsCourseEditorOpen(false);
+                        setEditingCourseId(null);
+                    }}
+                    onSaved={() => {
+                        setIsCourseEditorOpen(false);
+                        setEditingCourseId(null);
+                        fetchCourses();
+                    }}
+                />
+            )}
         </div>
     );
 }

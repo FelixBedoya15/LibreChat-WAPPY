@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { Newspaper, Shield, Edit, Trash2, Plus, ArrowLeft, Star } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import BlogPostEditor from './BlogPostEditor';
 
 export default function BlogAdminDashboard() {
     const [posts, setPosts] = useState([]);
@@ -12,6 +13,8 @@ export default function BlogAdminDashboard() {
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const isAdmin = user?.role === 'ADMIN';
 
     useEffect(() => {
@@ -105,7 +108,10 @@ export default function BlogAdminDashboard() {
                     </div>
 
                     <button
-                        onClick={() => navigate('/blog/admin/posts/new')}
+                        onClick={() => {
+                            setEditingPostId('new');
+                            setIsEditorOpen(true);
+                        }}
                         className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-sm self-start md:self-auto"
                     >
                         <Plus className="w-5 h-5 flex-shrink-0" />
@@ -193,7 +199,10 @@ export default function BlogAdminDashboard() {
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button
-                                                        onClick={() => navigate(`/blog/admin/posts/${post._id}`)}
+                                                        onClick={() => {
+                                                            setEditingPostId(post._id);
+                                                            setIsEditorOpen(true);
+                                                        }}
                                                         className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/40"
                                                         title="Editar"
                                                     >
@@ -216,6 +225,20 @@ export default function BlogAdminDashboard() {
                     </div>
                 </div>
             </div>
+            {isEditorOpen && (
+                <BlogPostEditor
+                    postId={editingPostId || undefined}
+                    onClose={() => {
+                        setIsEditorOpen(false);
+                        setEditingPostId(null);
+                    }}
+                    onSaved={() => {
+                        setIsEditorOpen(false);
+                        setEditingPostId(null);
+                        fetchPosts();
+                    }}
+                />
+            )}
         </div>
     );
 }

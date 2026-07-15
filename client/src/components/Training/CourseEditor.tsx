@@ -10,8 +10,9 @@ import remarkGfm from 'remark-gfm';
 import ExamEditorModal, { Exam } from './ExamEditorModal';
 import ModelSelector from '../SGSST/ModelSelector';
 
-export default function CourseEditor() {
-    const { id } = useParams();
+export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?: string; onClose?: () => void; onSaved?: () => void }) {
+    const { id: paramId } = useParams();
+    const id = courseId || paramId;
     const isNew = id === 'new';
     const navigate = useNavigate();
     const { showToast } = useToastContext();
@@ -141,7 +142,8 @@ export default function CourseEditor() {
         } catch (error) {
             console.error('Error fetching course:', error);
             showToast({ message: 'Error al cargar el curso.', status: 'error' });
-            navigate('/training/admin');
+            if (onClose) onClose();
+            else navigate('/training/admin');
         } finally {
             setLoading(false);
         }
@@ -167,10 +169,12 @@ export default function CourseEditor() {
             if (isNew) {
                 const response = await axios.post('/api/training/admin/courses', payload);
                 showToast({ message: 'Curso creado exitosamente.', status: 'success' });
-                navigate(`/training/admin/courses/${response.data._id}`);
+                if (onSaved) onSaved();
+                else navigate(`/training/admin/courses/${response.data._id}`);
             } else {
                 await axios.put(`/api/training/admin/courses/${id}`, payload);
                 showToast({ message: 'Curso actualizado.', status: 'success' });
+                if (onSaved) onSaved();
             }
         } catch (error) {
             console.error('Error saving course:', error);
@@ -238,8 +242,10 @@ export default function CourseEditor() {
 
     if (loading) return <div className="p-8 text-center text-gray-500">Cargando editor...</div>;
 
-    return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    const isModal = typeof onClose === 'function';
+
+    const element = (
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 w-full text-text-primary">
             <div className="flex-1 overflow-y-auto p-4 md:p-8">
                 <div className="w-full max-w-4xl mx-auto space-y-6">
 
@@ -247,7 +253,7 @@ export default function CourseEditor() {
                     <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => navigate('/training/admin')}
+                                onClick={() => onClose ? onClose() : navigate('/training/admin')}
                                 className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
                                 aria-label="Back"
                             >
@@ -757,4 +763,21 @@ export default function CourseEditor() {
             />
         </div>
     );
+
+    if (isModal) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+                <div 
+                    className="bg-white dark:bg-gray-900 border border-border-medium rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col h-[90vh] overflow-hidden animate-fade-in"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex-1 overflow-y-auto">
+                        {element}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return element;
 }
