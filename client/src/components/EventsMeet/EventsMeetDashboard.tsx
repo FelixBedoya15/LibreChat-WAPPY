@@ -138,11 +138,13 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
 };
 
 const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }) => {
-    const formattedDate = new Date(event.dateTime).toLocaleDateString('es-CO', {
+    const formattedDate = new Date(event.dateTime).toLocaleString('es-CO', {
+        weekday: 'short',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
+        hour12: true,
     });
 
     return (
@@ -170,18 +172,17 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
 
             {/* Content Overlay */}
             <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-end transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                <div className="flex items-center gap-2 mb-1">
-                    {event.isRegistered ? (
-                        <span className="bg-[#10b981] text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
-                            <CheckCircle size={8} /> Inscrito
-                        </span>
-                    ) : (
-                        <span className="bg-blue-500 text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
-                            <Clock size={8} /> {formattedDate}
+                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                    <span className="bg-blue-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
+                        <Clock size={10} /> {formattedDate}
+                    </span>
+                    {event.isRegistered && (
+                        <span className="bg-[#10b981] text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
+                            <CheckCircle size={10} /> Inscrito
                         </span>
                     )}
                     {event.tags && event.tags[0] && (
-                        <span className="bg-white/20 backdrop-blur-md text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                        <span className="bg-white/20 backdrop-blur-md text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">
                             {event.tags[0]}
                         </span>
                     )}
