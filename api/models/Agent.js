@@ -210,6 +210,32 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     }
   }
 
+  // Auto-activación inteligente de Canvas y Gmail basada en la consulta del usuario
+  let userQuery = (req.body?.text || '').toLowerCase();
+  if (!userQuery && Array.isArray(req.body?.messages) && req.body.messages.length > 0) {
+    const lastMsg = req.body.messages[req.body.messages.length - 1];
+    userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
+  }
+
+  if (userQuery) {
+    const canvasKeywords = ['redactar', 'redacte', 'crear carta', 'crea una carta', 'crear acta', 'crea un acta', 'crear documento', 'crea un documento', 'crear contrato', 'crea un contrato', 'crear plantilla', 'crea una plantilla', 'diseñar plantilla', 'diseña una plantilla', 'en el canvas', 'en canvas', 'lienzo', 'lienzo de word'];
+    if (canvasKeywords.some(kw => userQuery.includes(kw))) {
+      if (!agent.tools.includes('canvas')) {
+        agent.tools.push('canvas');
+      }
+      if (!agent.tools.includes('editor_live')) {
+        agent.tools.push('editor_live');
+      }
+    }
+
+    const gmailKeywords = ['enviar correo', 'envia correo', 'envía correo', 'enviar email', 'envia email', 'envía email', 'manda un correo', 'mandar correo', 'manda correo', 'notificar por correo', 'enviar por correo', 'gmail'];
+    if (gmailKeywords.some(kw => userQuery.includes(kw))) {
+      if (!agent.tools.includes('google_gmail')) {
+        agent.tools.push('google_gmail');
+      }
+    }
+  }
+
   return agent;
 };
 
