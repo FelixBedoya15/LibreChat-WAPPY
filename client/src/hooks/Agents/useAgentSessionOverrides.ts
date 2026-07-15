@@ -113,7 +113,8 @@ export default function useAgentSessionOverrides({
               'editor_live', 'matriz_ipevar', 'matriz_compatibilidad', 'matriz_pesv',
               'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial',
               'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
-              'google_gmail', 'google_slides', 'google_docs', 'google_sheets', 'context'
+              'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
+              'consultar_agente_especializado', 'context'
             ]);
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
@@ -127,7 +128,8 @@ export default function useAgentSessionOverrides({
               'editor_live', 'editor_rit', 'canvas', 'matriz_ipevar', 'matriz_compatibilidad',
               'matriz_pesv', 'somos_sst', 'consultar_analitica_psicosocial',
               'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
-              'google_gmail', 'google_slides', 'google_docs', 'google_sheets', 'context'
+              'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
+              'consultar_agente_especializado', 'context'
             ]);
             const prevTools = (prevExt?.tools ?? []).filter((t) => {
               if (!PANEL_TOOLS_SET.has(t)) return true; // Always keep non-panel tools
