@@ -359,7 +359,17 @@ const THEMES = {
 
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const data = parseTolerantJson(content);
+  const rawData = parseTolerantJson(content);
+  const data = rawData ? {
+    ...rawData,
+    items: Array.isArray(rawData.items)
+      ? rawData.items.map((item: any) => {
+          const title = item.title ?? item.tarea ?? item.item ?? item.Evento ?? item.name ?? item.text ?? item.label ?? '';
+          const description = item.description ?? item.descripcion ?? item.descripción ?? item.Acción ?? item.accion ?? item.detalles ?? item.details ?? '';
+          return { ...item, title, description };
+        })
+      : []
+  } : null;
 
   const { messageId, conversationId, isSubmitting } = useMessageContext();
   const { getMessages, setMessages } = useMessagesOperations();
