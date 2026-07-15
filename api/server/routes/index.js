@@ -49,10 +49,10 @@ const whatsapp = require('./whatsapp');
 const referrals = require('./referrals');
 const comunidad = require('./comunidad');
 const rutaAprendizaje = require('./rutaAprendizaje');
+const events = require('./events');
 
 module.exports = {
   auth,
-
   keys,
   user,
   search,
@@ -103,6 +103,7 @@ module.exports = {
   referrals,
   comunidad,
   rutaAprendizaje,
+  events,
   chatSST: require('./chatSST'),
 };
 

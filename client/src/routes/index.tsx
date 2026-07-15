@@ -49,6 +49,8 @@ import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
 import ChatSSTView from '~/components/ChatSST/ChatSSTView';
+import EventsMeetDashboard from '~/components/EventsMeet/EventsMeetDashboard';
+import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDashboard';
 
 import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosDashboard';
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
@@ -338,6 +340,14 @@ export const router = createBrowserRouter(
             {
               path: 'chat-sst',
               element: <ChatSSTView />,
+            },
+            {
+              path: 'events-meet',
+              element: <EventsMeetDashboard />,
+            },
+            {
+              path: 'events-meet/admin',
+              element: <EventsMeetAdminDashboard />,
             },
 
             {

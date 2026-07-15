@@ -36,6 +36,7 @@ const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const KanbanButton = lazy(() => import('./KanbanButton'));
 const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
+const EventsMeetButton = lazy(() => import('./EventsMeetButton'));
 
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -280,6 +281,10 @@ const Nav = memo(
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
+                        {/* Events Meet icon */}
+                          <Suspense fallback={null}>
+                            <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
 
                         {/* Bookmarks icon */}
 
@@ -361,6 +366,9 @@ const Nav = memo(
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                  <Suspense fallback={null}>
+                                    <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
 
                                 {hasAccessToBookmarks && (
