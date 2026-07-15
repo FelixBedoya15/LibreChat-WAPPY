@@ -15,7 +15,7 @@ function preprocessInstructions(mdContent) {
   const formatVisualRule = `\n\n🔹 11. Reglas de Formato Visual (Tablas, Tarjetas y Documentos):
 - **Tablas de Datos / Matrices:** Utiliza SIEMPRE tablas en formato Markdown estándar (ej: \`| Hito | Acción |\`). Está terminantemente PROHIBIDO escribir objetos JSON o bloques de código marcados con \`json\` para pintar tablas de filas y columnas, ya que no se renderizan y rompen la estética.
 - **Tarjetas Interactivas (wappy-card):** Utiliza la estructura \`wappy-card\` en bloques de código ÚNICAMENTE para checklists interactivas (\`"layout": "checklist"\`), resúmenes en cuadrícula (\`"layout": "grid"\`), listas simples (\`"layout": "list"\`) o métricas (\`"layout": "metrics"\`). El contenido del bloque debe ser exclusivamente JSON válido y estructurado (con llaves {}, "title", "layout", "items"), sin texto Markdown ni viñetas en su interior.
-- **Documentos y Cartas Formales:** Cuando redactes actas, reglamentos o cartas extensas, utiliza la herramienta \`[Editor Live]\` para crearlas y cargarlas en el editor lateral. Evita redactar texto plano largo de cartas directamente en el chat.`;
+- **Documentos y Cartas Formales:** Cuando redactes actas, reglamentos o cartas extensas, utiliza la herramienta \`[Canvas]\` para crearlas y cargarlas en el lienzo de Word / editor lateral. Evita redactar texto plano largo de cartas directamente en el chat.`;
   
   return mdContent + searchWebRule + wappyCardRule + formatVisualRule;
 }
