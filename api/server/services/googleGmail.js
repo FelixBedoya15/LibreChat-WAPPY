@@ -68,12 +68,12 @@ const getGmailClient = async (userId, companyId = null) => {
  */
 const makeRawEmail = ({ to, subject, body, cc, bcc }) => {
   const str = [
-    'Content-Type: text/html; charset="UTF-8"\n',
-    'MIME-Version: 1.0\n',
-    `To: ${to}\n`,
-    cc ? `Cc: ${cc}\n` : '',
-    bcc ? `Bcc: ${bcc}\n` : '',
-    `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=\n\n`,
+    'Content-Type: text/html; charset="UTF-8"\r\n',
+    'MIME-Version: 1.0\r\n',
+    `To: ${to}\r\n`,
+    cc ? `Cc: ${cc}\r\n` : '',
+    bcc ? `Bcc: ${bcc}\r\n` : '',
+    `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=\r\n\r\n`,
     body || '',
   ].join('');
 
