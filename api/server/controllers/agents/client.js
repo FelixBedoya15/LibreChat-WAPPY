@@ -759,25 +759,21 @@ class AgentClient extends BaseClient {
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('UNAVAILABLE');
 
-            if ((isQuota || isGenericQuota || isInvalidKey) && ki < memKeys.length - 1) {
-              logger.warn(
-                `[MemoryAgent] Error (${isInvalidKey ? 'Clave inválida' : 'Rate limit'}). Rotando a clave ${ki + 2}...`,
-              );
-              continue; // Next key, same model
-            } else if (isQuota || isGenericQuota || isInvalidKey) {
-              logger.warn(
-                `[MemoryAgent] Todas las claves agotadas para "${currentMemModel}". Rotando al siguiente modelo...`,
-              );
-              rotateToNextModel = true;
-              break;
-            } else if (isServiceUnavailable) {
-              logger.warn(`[MemoryAgent] Modelo "${currentMemModel}" no disponible (503). Intentando siguiente modelo...`);
-              rotateToNextModel = true;
-              break;
+            if ((isQuota || isGenericQuota || isInvalidKey || isServiceUnavailable) && ki < memKeys.length - 1) {
+               logger.warn(
+                 `[MemoryAgent] Error (${isInvalidKey ? 'Clave inválida' : isServiceUnavailable ? 'Modelo sobrecargado (503)' : 'Rate limit'}). Rotando a clave ${ki + 2}...`,
+               );
+               continue; // Next key, same model
+            } else if (isQuota || isGenericQuota || isInvalidKey || isServiceUnavailable) {
+               logger.warn(
+                 `[MemoryAgent] Todas las claves agotadas o modelo no disponible para "${currentMemModel}". Rotando al siguiente modelo...`,
+               );
+               rotateToNextModel = true;
+               break;
             } else {
-              // Non-recoverable — log and exit quietly (memory is non-critical)
-              logger.error('[MemoryAgent] Error no recuperable al procesar memoria:', err?.message);
-              return;
+               // Non-recoverable — log and exit quietly (memory is non-critical)
+               logger.error('[MemoryAgent] Error no recuperable al procesar memoria:', err?.message);
+               return;
             }
           }
         }
@@ -1226,18 +1222,14 @@ class AgentClient extends BaseClient {
               logger.error('Failed to send clear_step_maps event', e);
             }
 
-            if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
-              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+            if ((isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable) && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
               continue; // Try next key, same model
-            } else if (isQuotaEvent || isGenericQuota || isInvalidKey) {
-              // Last key also failed with quota/rate-limit → rotate to next model
-              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted (quota/rate-limit) for model "${currentModel}". Rotating to next model...`);
+            } else if (isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable) {
+              // Last key also failed or model unavailable → rotate to next model
+              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted or model unavailable for "${currentModel}". Rotating to next model...`);
               rotateToNextModel = true;
               break; // Break key loop → outer loop advances to next model
-            } else if (isServiceUnavailable) {
-              logger.warn(`[AgentClient] Model "${currentModel}" unavailable (503). Will try next model fallback...`);
-              rotateToNextModel = true;
-              break; // Break key loop to trigger model fallback
             } else {
               break; // Non-recoverable error, stop all retries
             }
