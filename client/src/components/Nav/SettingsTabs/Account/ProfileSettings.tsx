@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRecoilState } from 'recoil';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Copy } from 'lucide-react';
 import {
     OGDialog,
     OGDialogContent,
@@ -22,6 +22,8 @@ const ProfileSettings: React.FC = () => {
     const { showToast } = useToastContext();
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showToken, setShowToken] = useState(false);
+    const [token, setToken] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         username: '',
@@ -30,6 +32,13 @@ const ProfileSettings: React.FC = () => {
         inactiveAt: '',
         phoneNumber: '',
     });
+
+    useEffect(() => {
+        const savedToken = localStorage.getItem('token');
+        if (savedToken) {
+            setToken(savedToken);
+        }
+    }, []);
 
     useEffect(() => {
         if (user && isDialogOpen) {
@@ -166,6 +175,47 @@ const ProfileSettings: React.FC = () => {
                                 : formData.inactiveAt
                                     ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
                                     : localize('com_ui_account_active_indefinitely')}
+                    </div>
+
+                    <div className="border-t border-gray-200 dark:border-gray-700 py-3">
+                        <Label htmlFor="mcpToken" className="font-semibold text-sm">
+                            Token de Seguridad (JWT) para Agente Local
+                        </Label>
+                        <div className="relative mt-1 flex gap-2">
+                            <div className="relative flex-1">
+                                <Input
+                                    id="mcpToken"
+                                    type={showToken ? 'text' : 'password'}
+                                    value={token}
+                                    readOnly
+                                    className="pr-10 font-mono text-xs select-all bg-gray-50 dark:bg-gray-900"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowToken(!showToken)}
+                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    {showToken ? (
+                                        <EyeOff className="h-5 w-5" />
+                                    ) : (
+                                        <Eye className="h-5 w-5" />
+                                    )}
+                                </button>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(token);
+                                    showToast({ message: 'Token copiado al portapapeles', status: 'success' });
+                                }}
+                            >
+                                <Copy className="h-4 w-4 mr-1" />
+                                Copiar
+                            </Button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Copia este token para conectarlo en el aplicativo de sincronización en tu computadora.
                         </p>
                     </div>
 
