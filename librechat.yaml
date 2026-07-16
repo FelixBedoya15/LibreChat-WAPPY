@@ -543,4 +543,7 @@ memory:
       temperature: 0.1
 
 # Habilitar soporte de Model Context Protocol (MCP)
-mcpConfig: {}
+mcpConfig:
+  local-files:
+    type: "stdio"
+    command: "echo"
