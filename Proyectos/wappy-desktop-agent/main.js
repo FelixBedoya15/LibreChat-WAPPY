@@ -101,7 +101,8 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
         
         // Handle JSON-RPC request from WAPPY
         let response = await handleMcpRequest(rpcRequest, folderPath);
-        if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        // Solo responder si no es una notificación (null = sin respuesta)
+        if (response !== null && wsClient && wsClient.readyState === WebSocket.OPEN) {
           wsClient.send(JSON.stringify(response));
         }
       } catch (err) {
@@ -139,7 +140,30 @@ ipcMain.on('disconnect-websocket', () => {
 async function handleMcpRequest(rpc, sharedFolder) {
   const { method, params, id } = rpc;
 
-  // 1. Tool Listing Handlers
+  // 1. MCP Handshake - Initialize
+  if (method === 'initialize') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: { listChanged: false }
+        },
+        serverInfo: {
+          name: 'local-files',
+          version: '1.0.0'
+        }
+      }
+    };
+  }
+
+  // Notifications don't need a response
+  if (method === 'notifications/initialized') {
+    return null;
+  }
+
+  // 2. Tool Listing Handlers
   if (method === 'tools/list') {
     return {
       jsonrpc: '2.0',
