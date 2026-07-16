@@ -541,3 +541,6 @@ memory:
     model: "gemini-3.1-flash-lite"
     model_parameters:
       temperature: 0.1
+
+# Habilitar soporte de Model Context Protocol (MCP)
+mcpConfig: {}
