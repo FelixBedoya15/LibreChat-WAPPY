@@ -175,6 +175,7 @@ const ProfileSettings: React.FC = () => {
                                 : formData.inactiveAt
                                     ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
                                     : localize('com_ui_account_active_indefinitely')}
+                        </p>
                     </div>
 
                     <div className="border-t border-gray-200 dark:border-gray-700 py-3">

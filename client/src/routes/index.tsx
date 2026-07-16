@@ -56,6 +56,7 @@ import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosD
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import InspeccionDashboard from '~/components/InspeccionMinTrabajo/InspeccionDashboard';
 import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
+import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
@@ -357,6 +358,10 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst/animo',
               element: <MoodAnalyticsDashboard />,
+            },
+            {
+              path: 'sgsst/automatizaciones',
+              element: <Automatizaciones />,
             },
             {
               /* Redirect old GTC-45 workspace URLs to the equivalent native chat */

@@ -153,5 +153,7 @@ module.exports = {
   ChatSSTMessage: require('./ChatSSTMessage'),
   ChatSSTGroup: require('./ChatSSTGroup'),
   ChatSSTGroupInvitation: require('./ChatSSTGroupInvitation'),
+  Automation: require('./Automation'),
+  AutomationLog: require('./AutomationLog'),
 };
 

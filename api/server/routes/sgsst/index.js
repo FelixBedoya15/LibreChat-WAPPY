@@ -74,5 +74,6 @@ module.exports = {
     chemicals: require('./chemicals'),
     kanban: require('./kanban'),
     investigacionProfunda,
+    automatizaciones: require('./automatizaciones'),
 };
 

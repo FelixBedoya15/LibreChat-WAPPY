@@ -196,7 +196,8 @@ module.exports = {
         'sgsst-responsable',
         'sgsst-objetivos',
         'sgsst-reporte-actos',
-        'sgsst-ats'
+        'sgsst-ats',
+        'sgsst-automation'
       ];
       filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
     }

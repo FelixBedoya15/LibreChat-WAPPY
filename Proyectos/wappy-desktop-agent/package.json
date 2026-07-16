@@ -1,0 +1,47 @@
+{
+  "name": "somos-sst-wappyclub",
+  "version": "1.0.0",
+  "description": "Aplicativo de escritorio para sincronizar carpetas locales con Somos SST - WappyClub por WebSocket.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "keywords": [
+    "wappy",
+    "mcp",
+    "desktop",
+    "sst"
+  ],
+  "author": "Somos SST - WappyClub",
+  "license": "ISC",
+  "dependencies": {
+    "docx": "^8.5.0",
+    "exceljs": "^4.4.0",
+    "officeparser": "^3.0.0",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.wappyclub.somossst",
+    "productName": "Somos SST - WappyClub",
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

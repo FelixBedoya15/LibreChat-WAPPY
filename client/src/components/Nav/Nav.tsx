@@ -37,6 +37,7 @@ const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const KanbanButton = lazy(() => import('./KanbanButton'));
 const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
 const EventsMeetButton = lazy(() => import('./EventsMeetButton'));
+const AutomatizacionesButton = lazy(() => import('./AutomatizacionesButton'));
 
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -320,6 +321,12 @@ const Nav = memo(
                           <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         )}
                         </Suspense>
+                        {/* Automatizaciones */}
+                        <Suspense fallback={null}>
+                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                          <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        )}
+                        </Suspense>
                         {/* Aula Estudio */}
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -397,6 +404,12 @@ const Nav = memo(
                                 <Suspense fallback={null}>
                                 {user?.role === 'ADMIN' && (
                                   <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                )}
+                                </Suspense>
+                                {/* Automatizaciones */}
+                                <Suspense fallback={null}>
+                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                  <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 )}
                                 </Suspense>
                                 <Suspense fallback={null}>

@@ -111,6 +111,22 @@ const startServer = async () => {
   app.use(staticCache(appConfig.paths.assets));
   app.use('/Agentes', staticCache(path.resolve(__dirname, '../../Agentes'), { skipGzipScan: true }));
 
+  app.get('/download/somos-sst-wappyclub', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isMac = /macintosh|mac os x/i.test(userAgent);
+    const installersDir = path.resolve(__dirname, '../../uploads/installers');
+    let fileName = 'SomosSST-WappyClub-Setup.exe';
+    if (isMac) {
+      fileName = 'SomosSST-WappyClub.dmg';
+    }
+    const filePath = path.join(installersDir, fileName);
+    res.download(filePath, fileName, (err) => {
+      if (err) {
+        res.status(404).send(`El aplicativo "Somos SST - WappyClub" aún se está empaquetando en el servidor para su sistema operativo. Por favor, vuelva a intentarlo en unos minutos o contacte al administrador.`);
+      }
+    });
+  });
+
   if (!ALLOW_SOCIAL_LOGIN) {
     console.warn('Social logins are disabled. Set ALLOW_SOCIAL_LOGIN=true to enable them.');
   }
@@ -261,6 +277,7 @@ const startServer = async () => {
   app.use('/api/sgsst/heights', routes.sgsst.heights);
   app.use('/api/sgsst/chemicals', routes.sgsst.chemicals);
   app.use('/api/sgsst/kanban', routes.sgsst.kanban);
+  app.use('/api/sgsst/automatizaciones', routes.sgsst.automatizaciones);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);
@@ -945,6 +962,10 @@ const startServer = async () => {
     // Start background job for daily plan & SST expiration notifications
     const { startNotificationScheduler } = require('./services/notificationScheduler');
     startNotificationScheduler();
+
+    // Start background agent automations scheduler
+    const { startAutomationScheduler } = require('./services/automationScheduler');
+    startAutomationScheduler();
 
     // Boot WhatsApp Sessions OpenClaw Architecture — DESACTIVADO TEMPORALMENTE
     // Para reactivar: descomenta las dos líneas de abajo

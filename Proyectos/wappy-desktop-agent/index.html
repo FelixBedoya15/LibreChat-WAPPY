@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Somos SST - WappyClub</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <!-- Icono simplificado usando SVG inline de nube conectada -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v8M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+      <h1>Somos SST - WappyClub</h1>
+    </header>
+
+    <main>
+      <!-- Token JWT Field -->
+      <div class="input-group">
+        <label for="token-input">Token de Seguridad (JWT) de WAPPY</label>
+        <input type="password" id="token-input" placeholder="Pega tu Token JWT copiado de tu perfil de WAPPY aquí">
+      </div>
+
+      <!-- Shared Folder Field -->
+      <div class="input-group">
+        <label for="folder-input">Carpeta Local Sincronizada</label>
+        <div class="folder-row">
+          <input type="text" id="folder-input" readonly placeholder="Ninguna carpeta seleccionada">
+          <button type="button" class="btn-select" id="btn-select-folder">Seleccionar...</button>
+        </div>
+      </div>
+
+      <!-- Control Area (Status Indicator + Connect Switch) -->
+      <div class="action-center">
+        <div class="status-indicator">
+          <div class="status-dot" id="status-dot"></div>
+          <span class="status-text" id="status-text">Desconectado</span>
+        </div>
+        <button type="button" class="btn-connect" id="btn-connect">Conectar</button>
+      </div>
+
+      <!-- Live Logs Console -->
+      <div class="console-container">
+        <label>Registro de Actividad</label>
+        <div class="console-box" id="console-box">Listo para iniciar. Por favor configure su token y carpeta.</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('token-input');
+    const folderInput = document.getElementById('folder-input');
+    const btnSelectFolder = document.getElementById('btn-select-folder');
+    const btnConnect = document.getElementById('btn-connect');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const consoleBox = document.getElementById('console-box');
+
+    let isConnected = false;
+    let selectedFolderPath = '';
+
+    // Load saved settings on startup
+    window.api.getConfig().then(config => {
+      if (config) {
+        if (config.token) tokenInput.value = config.token;
+        if (config.folderPath) {
+          selectedFolderPath = config.folderPath;
+          folderInput.value = config.folderPath;
+        }
+      }
+    });
+
+    // Select Folder Event
+    btnSelectFolder.addEventListener('click', async () => {
+      const folderPath = await window.api.selectFolder();
+      if (folderPath) {
+        selectedFolderPath = folderPath;
+        folderInput.value = folderPath;
+        logMessage(`📂 Carpeta seleccionada: ${folderPath}`);
+        saveSettings();
+      }
+    });
+
+    // Save configuration utility
+    function saveSettings() {
+      window.api.saveConfig({
+        token: tokenInput.value.trim(),
+        folderPath: selectedFolderPath
+      });
+    }
+
+    // Auto save token when changed
+    tokenInput.addEventListener('change', saveSettings);
+
+    // Connect/Disconnect toggle
+    btnConnect.addEventListener('click', () => {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        alert('Por favor ingrese su Token de Seguridad (JWT) para iniciar la conexión.');
+        return;
+      }
+      if (!selectedFolderPath) {
+        alert('Por favor seleccione una carpeta local para compartir con el agente.');
+        return;
+      }
+
+      if (isConnected) {
+        // Disconnect action
+        window.api.disconnect();
+      } else {
+        // Connect action
+        saveSettings();
+        window.api.connect({
+          token: token,
+          folderPath: selectedFolderPath
+        });
+      }
+    });
+
+    // Handle Connection Status Updates
+    window.api.onStatusChange((status) => {
+      if (status === 'connected') {
+        isConnected = true;
+        btnConnect.innerText = 'Desconectar';
+        btnConnect.classList.add('connected');
+        statusDot.classList.add('connected');
+        statusText.innerText = 'Conectado a WAPPY';
+        tokenInput.disabled = true;
+        btnSelectFolder.disabled = true;
+      } else if (status === 'disconnected') {
+        isConnected = false;
+        btnConnect.innerText = 'Conectar';
+        btnConnect.classList.remove('connected');
+        statusDot.classList.remove('connected');
+        statusText.innerText = 'Desconectado';
+        tokenInput.disabled = false;
+        btnSelectFolder.disabled = false;
+      }
+    });
+
+    // Handle Live Console Logs
+    window.api.onLog((message) => {
+      logMessage(message);
+    });
+
+    function logMessage(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      consoleBox.innerText += `\n[${timestamp}] ${message}`;
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>

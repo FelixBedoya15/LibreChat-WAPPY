@@ -273,6 +273,19 @@ function Account() {
                   Copiar
                 </Button>
               </div>
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-green-600/30 bg-green-500/5 hover:bg-green-500/10 text-green-600 dark:text-green-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer w-fit"
+                  onClick={() => {
+                    window.open('/download/somos-sst-wappyclub', '_blank');
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Descargar Aplicativo "Somos SST - WappyClub"
+                </Button>
+              </div>
             </div>
           </div>
         </div>
