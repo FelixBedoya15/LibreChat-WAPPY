@@ -317,14 +317,7 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
               {fileSearchEnabled && <FileSearch agent_id={agent_id} files={knowledge_files} />}
             </div>
           )}
-        {/* MCP Section */}
-        {startupConfig?.mcpServers != null && (
-          <MCPTools
-            agentId={agent_id}
-            mcpServerNames={mcpServerNames}
-            setShowMCPToolDialog={setShowMCPToolDialog}
-          />
-        )}
+        {/* MCP Section movido debajo de Herramientas */}
         {/* Agent Tools & Actions */}
         <div className="mb-4">
           <label className={labelClass}>
@@ -391,6 +384,12 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
             </div>
           </div>
         </div>
+        {/* MCP Section */}
+        <MCPTools
+          agentId={agent_id}
+          mcpServerNames={mcpServerNames}
+          setShowMCPToolDialog={setShowMCPToolDialog}
+        />
         {/* Agent Skills */}
         <div className="mb-4">
           <label className={labelClass}>
@@ -530,17 +529,13 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
         isOpen={showSkillDialog}
         setIsOpen={setShowSkillDialog}
       />
-      {
-        startupConfig?.mcpServers != null && (
-          <MCPToolSelectDialog
-            agentId={agent_id}
-            isOpen={showMCPToolDialog}
-            mcpServerNames={mcpServerNames}
-            setIsOpen={setShowMCPToolDialog}
-            endpoint={EModelEndpoint.agents}
-          />
-        )
-      }
+      <MCPToolSelectDialog
+        agentId={agent_id}
+        isOpen={showMCPToolDialog}
+        mcpServerNames={mcpServerNames}
+        setIsOpen={setShowMCPToolDialog}
+        endpoint={EModelEndpoint.agents}
+      />
     </>
   );
 }
