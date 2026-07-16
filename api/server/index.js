@@ -797,6 +797,10 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../camaracomercioguajira.html'));
   });
 
+  app.get(['/presentacionsura', '/presentacion_arl_sura.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../presentacion_arl_sura.html'));
+  });
+
   app.post('/api/proposals/accept', async (req, res) => {
     try {
       const { signerName, signerRole, signerNit, signerEmail, proposalName, signatureImg, date } = req.body;

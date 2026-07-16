@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wappy IA & ARL SURA - Presentación Comercial Premium</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config for Branding (Wappy Green + SURA Blue) -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['"Outfit"', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        code: ['"Fira Code"', 'monospace'],
+                    },
+                    colors: {
+                        wappy: {
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        sura: {
+                            500: '#00aec7', /* SURA Cyan */
+                            600: '#007a87',
+                            900: '#0033a0', /* SURA Deep Blue */
+                        },
+                        darkBg: '#030712',
+                        darkCard: 'rgba(17, 24, 39, 0.7)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 174, 199, 0.15);
+        }
+        
+        .glow-bg {
+            position: absolute;
+            width: 45vw;
+            height: 45vw;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(150px);
+            z-index: 0;
+            opacity: 0.15;
+            transition: all 1s ease-in-out;
+        }
+
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(40px) scale(0.97);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) scale(1);
+            z-index: 2;
+        }
+
+        .slide.previous {
+            transform: translateX(-40px) scale(0.97);
+        }
+
+        /* Nav Bullet Active Animation */
+        .bullet-active {
+            width: 1.75rem !important;
+            background: #22c55e !important;
+        }
+
+        /* Teleprompter Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 174, 199, 0.3);
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #00aec7;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 font-sans min-h-screen overflow-hidden relative select-none">
+
+    <!-- Ambient Glows -->
+    <div class="glow-bg bg-sura-900 top-[-10%] right-[-10%]"></div>
+    <div class="glow-bg bg-wappy-500 bottom-[-10%] left-[-10%]"></div>
+
+    <!-- Presentation Viewport Container -->
+    <div id="mainContainer" class="relative z-10 grid grid-cols-1 grid-rows-[auto_1fr_auto] h-screen w-screen transition-all duration-500">
+        
+        <!-- HEADER -->
+        <header class="px-8 py-4 flex justify-between items-center border-b border-slate-800 bg-darkBg/85 backdrop-blur-md">
+            <!-- Left: Logos -->
+            <div class="flex items-center gap-4">
+                <!-- Wappy Logo -->
+                <div class="flex items-center gap-2">
+                    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#header-logo-gradient)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <defs>
+                            <linearGradient id="header-logo-gradient" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#22c55e" />
+                                <stop offset="1" stop-color="#00aec7" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="font-heading font-black text-lg tracking-tight text-white">WAPPY<span class="text-wappy-500">IA</span></span>
+                </div>
+                <!-- Separator -->
+                <div class="h-5 w-[1px] bg-slate-700"></div>
+                <!-- SURA Partner Tag -->
+                <span class="px-2.5 py-0.5 rounded bg-sura-900/40 border border-sura-500/30 text-sura-500 text-[10px] font-extrabold uppercase tracking-widest font-heading">
+                    Alianza Estratégica ARL SURA
+                </span>
+            </div>
+
+            <!-- Right: Interactive Presenter Tools -->
+            <div class="flex items-center gap-3">
+                <!-- 1-Hour Timer Helper -->
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-semibold text-slate-350">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 text-sura-500"></i>
+                    <span id="meetingTimer">60:00</span>
+                </div>
+                <!-- Notes / Teleprompter Toggle -->
+                <button onclick="toggleNotesPanel()" id="btnToggleNotes" class="flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-700 bg-slate-900/40 hover:bg-sura-500/10 hover:border-sura-500 text-xs font-semibold text-slate-300 transition-all">
+                    <i data-lucide="menu" class="w-3.5 h-3.5"></i>
+                    <span>Notas del Expositor (Teleprompter)</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- CORE CONTENT GRID (Slides View + Optional SlidePanel) -->
+        <div class="relative overflow-hidden grid grid-cols-1 transition-all duration-500" id="contentLayout">
+            
+            <!-- Slides Viewport -->
+            <div class="relative flex justify-center items-center p-6 lg:p-12 overflow-hidden">
+                <div class="relative w-full h-full max-w-6xl max-h-[640px]">
+                    
+                    <!-- SLIDE 1: PORTADA -->
+                    <div id="slide-1" class="slide active">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-center relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(0,174,199,0.06),transparent_55%)] pointer-events-none"></div>
+                            
+                            <div class="space-y-6 max-w-4xl">
+                                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wappy-500/10 border border-wappy-500/30 text-wappy-500 text-xs font-bold uppercase tracking-wider">
+                                    <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i> Propuesta de Innovación Digital
+                                </span>
+                                <h1 class="font-heading font-black text-4xl lg:text-6xl text-white leading-tight">
+                                    Copiloto de Inteligencia Artificial para la Gestión de <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 via-sura-500 to-sura-900">Riesgos Laborales</span>
+                                </h1>
+                                <p class="text-lg lg:text-xl text-slate-350 font-light leading-relaxed max-w-2xl">
+                                    Cómo Wappy IA potencia la prevención de accidentes y optimiza el cumplimiento normativo en las empresas de ARL SURA.
+                                </p>
+                                <div class="pt-6 flex items-center gap-4">
+                                    <div class="px-5 py-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+                                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-heading font-bold">Presentado por:</p>
+                                        <p class="text-sm font-bold text-white mt-1">Wappy IA (Medellín, Colombia)</p>
+                                    </div>
+                                    <div class="px-5 py-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+                                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-heading font-bold">Dirigido a:</p>
+                                        <p class="text-sm font-bold text-sura-500 mt-1">Gerencia General ARL SURA</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 2: EL PROBLEMA & RELEVANCIA SST -->
+                    <div id="slide-2" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <span class="text-sura-500 uppercase tracking-widest text-xs font-bold block">El Contexto Actual</span>
+                                <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">El Desafío de la SST en las Empresas</h2>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
+                                <div class="space-y-4 p-5 rounded-2xl bg-slate-900/30 border border-rose-500/10">
+                                    <div class="flex items-center gap-3 text-rose-500">
+                                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                                        <h3 class="font-bold text-lg text-white">Carga Documental Ineficiente</h3>
+                                    </div>
+                                    <p class="text-sm text-slate-350 leading-relaxed">
+                                        Los prevencionistas dedican el 80% de su jornada laboral a diligenciar plantillas de Excel, redactar informes legales (COPASST) y archivar carpetas, restando tiempo a las visitas reales de prevención.
+                                    </p>
+                                </div>
+                                <div class="space-y-4 p-5 rounded-2xl bg-slate-900/30 border border-wappy-500/10">
+                                    <div class="flex items-center gap-3 text-wappy-500">
+                                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                                        <h3 class="font-bold text-lg text-white">La Solución Wappy IA</h3>
+                                    </div>
+                                    <p class="text-sm text-slate-350 leading-relaxed">
+                                        Automatización inmediata de entregables obligatorios (Decreto 1072 & Resolución 0312), diagnósticos predictivos e inspecciones inteligentes basadas en visión por cámara para posturas (OWAS) y alturas.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-slate-800 pt-4 text-xs text-slate-500">
+                                Reducción garantizada de hasta 12 horas semanales de carga burocrática por prevencionista.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 3: SEGURIDAD Y PRIVACIDAD DE DATOS -->
+                    <div id="slide-3" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <span class="text-rose-500 uppercase tracking-widest text-xs font-bold block">Seguridad del Sistema</span>
+                                <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">Privacidad y Protección de Datos</h2>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-auto">
+                                <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
+                                    <div class="w-9 h-9 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500">
+                                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-base text-white">Cumplimiento Habeas Data</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        Alineado estrictamente con la <strong>Ley 1581 de 2012 de Colombia</strong>. Wappy actúa como Encargado del Tratamiento mediante políticas estrictas de privacidad aceptadas al registrarse.
+                                    </p>
+                                </div>
+                                <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
+                                    <div class="w-9 h-9 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500">
+                                        <i data-lucide="lock" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-base text-white">Infraestructura y Aislamiento</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        Hosting en la nube con cifrado SSL/TLS de extremo a extremo. Los datos y documentos de cada empresa se encuentran aislados a nivel lógico en bases de datos con accesos parametrizados.
+                                    </p>
+                                </div>
+                                <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
+                                    <div class="w-9 h-9 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500">
+                                        <i data-lucide="eye-off" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-base text-white">Privacidad de la IA</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        Wappy utiliza conexiones de API privadas con proveedores de Modelos de IA. Los datos, actas y respuestas <strong>nunca se utilizan para entrenar modelos públicos</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-slate-800 pt-4 text-xs text-slate-500 flex justify-between">
+                                <span>Respaldos diarios automáticos y control de acceso por roles.</span>
+                                <span class="font-code text-sura-500 font-bold">100% Cifrado</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 4: MODELO COMERCIAL - CÓMO SE OFRECE -->
+                    <div id="slide-4" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">Estrategia Comercial</span>
+                                <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">¿Cómo Ofrecemos Wappy?</h2>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
+                                <div class="space-y-4">
+                                    <h3 class="font-bold text-lg text-slate-200">El "Gancho" de Riesgos Laborales (ARL)</h3>
+                                    <p class="text-sm text-slate-400 leading-relaxed">
+                                        El software Wappy se financia de forma indirecta mediante el esquema de <strong>corretaje de ARL</strong>. Dependiendo de la cotización que la empresa realice al sistema de riesgos:
+                                    </p>
+                                    <ul class="space-y-2 text-xs text-slate-300">
+                                        <li class="flex items-center gap-2">
+                                            <i data-lucide="check" class="w-4 h-4 text-wappy-500 shrink-0"></i>
+                                            <span><strong>Licenciamiento Gratis:</strong> Wappy Vital o Pro costo $0 de software.</span>
+                                        </li>
+                                        <li class="flex items-center gap-2">
+                                            <i data-lucide="check" class="w-4 h-4 text-wappy-500 shrink-0"></i>
+                                            <span>Subvencionado por la prima mensual ARL del cliente.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="p-6 rounded-2xl bg-sura-900/10 border border-sura-500/20 space-y-4">
+                                    <h4 class="font-heading font-bold text-base text-white">Estructura de Alianza B2B</h4>
+                                    <div class="grid grid-cols-2 gap-3 text-xs">
+                                        <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                                            <span class="text-slate-500 block">Licencia Directa</span>
+                                            <strong class="text-white mt-1 block">B2C / Venta Consultora</strong>
+                                        </div>
+                                        <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                                            <span class="text-slate-500 block">Intermediación</span>
+                                            <strong class="text-sura-500 mt-1 block">Modelo Core ARL</strong>
+                                        </div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">
+                                        Ofrecemos la plataforma como valor agregado para atraer nuevas afiliaciones de empresas a SURA, convirtiendo la prevención en un servicio tecnológico premium.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-slate-800 pt-4 text-xs text-slate-500">
+                                Modelo ganar-ganar: SURA adquiere cotizantes fieles y Wappy expande su licenciamiento.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 5: DIVULGACIÓN Y RESPONSABILIDADES -->
+                    <div id="slide-5" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <span class="text-sura-500 uppercase tracking-widest text-xs font-bold block">Implementación de Campaña</span>
+                                <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">Estrategia de Divulgación y Roles</h2>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
+                                <div class="p-5 rounded-2xl bg-sura-900/5 border border-sura-500/10 space-y-3">
+                                    <div class="flex items-center gap-2 text-sura-500">
+                                        <i data-lucide="award" class="w-4 h-4"></i>
+                                        <h3 class="font-bold text-sm uppercase tracking-wider">Rol de ARL SURA (Canalizador)</h3>
+                                    </div>
+                                    <ul class="space-y-2 text-xs text-slate-300">
+                                        <li class="flex items-start gap-1.5">
+                                            <span class="w-1 h-1 rounded-full bg-sura-500 mt-1.5"></span>
+                                            <span><strong>Promoción y Apertura:</strong> Envío de campañas de email corporativas a prevencionistas afiliados.</span>
+                                        </li>
+                                        <li class="flex items-start gap-1.5">
+                                            <span class="w-1 h-1 rounded-full bg-sura-500 mt-1.5"></span>
+                                            <span><strong>Red de Asesores:</strong> Capacitación básica a asesores comerciales de ARL para ofrecer Wappy.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="p-5 rounded-2xl bg-wappy-500/5 border border-wappy-500/10 space-y-3">
+                                    <div class="flex items-center gap-2 text-wappy-500">
+                                        <i data-lucide="cpu" class="w-4 h-4"></i>
+                                        <h3 class="font-bold text-sm uppercase tracking-wider">Rol de WAPPY (Operador Técnico)</h3>
+                                    </div>
+                                    <ul class="space-y-2 text-xs text-slate-300">
+                                        <li class="flex items-start gap-1.5">
+                                            <span class="w-1 h-1 rounded-full bg-wappy-500 mt-1.5"></span>
+                                            <span><strong>Charlas y Concienciación:</strong> Charlas gratuitas virtuales sobre el impacto de la IA en SST.</span>
+                                        </li>
+                                        <li class="flex items-start gap-1.5">
+                                            <span class="w-1 h-1 rounded-full bg-wappy-500 mt-1.5"></span>
+                                            <span><strong>Soporte & Onboarding:</strong> 2 sesiones personalizadas de configuración por empresa registrada.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-slate-800 pt-4 text-xs text-slate-500">
+                                SURA aporta el canal y los clientes; Wappy ejecuta la tecnología y el servicio.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 6: ALIANZA SURA INNOVA & DEMO EN VIVO -->
+                    <div id="slide-6" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">Paso a la Acción</span>
+                                <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">Propuesta de Siguiente Paso</h2>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
+                                <div class="space-y-4">
+                                    <h3 class="font-bold text-lg text-white">Plan Piloto de 30 Días</h3>
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        Proponemos iniciar con un piloto enfocado en 10 empresas seleccionadas afiliadas a SURA para medir impacto, reducción de tiempos documentales e interactividad con la IA.
+                                    </p>
+                                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-[11px] text-slate-300">
+                                        <strong>Regalo de Lanzamiento:</strong> Charla técnica virtual o presencial sobre "Impacto de la Inteligencia Artificial en la SST" a las empresas piloto.
+                                    </div>
+                                </div>
+                                <div class="flex flex-col justify-center items-center p-6 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-4">
+                                    <div class="w-12 h-12 rounded-full bg-sura-500/10 flex items-center justify-center text-sura-500">
+                                        <i data-lucide="play-circle" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-sm text-white">Demostración Rápida</h4>
+                                        <p class="text-xs text-slate-400 mt-1">Veamos cómo interactúan los Agentes IA especializados de Wappy en tiempo real.</p>
+                                    </div>
+                                    <a href="/portafolio" target="_blank" class="px-5 py-2.5 rounded-full bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-105 transition-all">
+                                        Iniciar Demostración
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-slate-800 pt-4 text-xs text-slate-500">
+                                Tiempo estimado de demo: 15 minutos en vivo.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Notes Panel / Teleprompter (Hidden by default, slides on grid) -->
+            <div id="notesPanel" class="border-l border-slate-800 bg-slate-950/70 backdrop-blur-lg p-6 flex flex-col justify-between hidden">
+                <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-sura-500"></i>
+                        <h3 class="font-heading font-bold text-sm text-white uppercase tracking-wider">Teleprompter de la Diapositiva</h3>
+                    </div>
+                    <button onclick="toggleNotesPanel()" class="text-slate-400 hover:text-white">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Live Notes Content Box -->
+                <div class="flex-1 py-4 overflow-y-auto custom-scroll pr-1 text-slate-300 space-y-4 text-sm" id="teleprompterText">
+                    <!-- Script loaded dynamically -->
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
+                    <span>💡 Usa las flechas teclado <strong>← / →</strong> para navegar.</span>
+                    <button onclick="copyCurrentScript()" class="hover:text-white flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Notas
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- FOOTER / CONTROLS -->
+        <footer class="px-8 py-4 flex justify-between items-center border-t border-slate-800 bg-darkBg/85 backdrop-blur-md">
+            <!-- Left: Page Progress -->
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-semibold text-slate-400 font-code" id="progressText">Diapositiva 1 de 6</span>
+                <div class="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="progressBarFill" class="h-full bg-gradient-to-r from-wappy-500 to-sura-500 transition-all duration-300" style="width: 16.66%;"></div>
+                </div>
+            </div>
+
+            <!-- Center: Navigation Bullets -->
+            <div class="flex gap-2" id="navDots">
+                <!-- Dots generated by JS -->
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-2">
+                <button onclick="prevSlide()" id="btnPrev" class="p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                </button>
+                <button onclick="nextSlide()" id="btnNext" class="p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Presentation Controller Logic -->
+    <script>
+        const totalSlides = 6;
+        let currentSlideIndex = 0;
+
+        // Teleprompter / Speaker Notes tailored specifically for ARL Sura meeting (approx 1 hr)
+        const teleprompterScripts = [
+            // Slide 1 Notes
+            `<strong>Diapositiva 1: Portada y Bienvenida (5 mins)</strong><br><br>
+            • Iniciar saludando cordialmente al Gerente de ARL SURA y directivos.<br>
+            • Plantear el objetivo de la reunión de hoy: Presentar Wappy IA como una alianza tecnológica clave para acelerar la digitalización y prevención de riesgos laborales en sus empresas afiliadas.<br>
+            • Mencionar que esta es una oportunidad para que SURA lidere el mercado nacional de riesgos incorporando Inteligencia Artificial avanzada que alivie la fatiga administrativa del prevencionista.`,
+            
+            // Slide 2 Notes
+            `<strong>Diapositiva 2: El Reto y Propuesta de Valor (10 mins)</strong><br><br>
+            • Resaltar el dolor común del prevencionista corporativo colombiano: el papeleo y la burocracia de las Resoluciones y Decretos consumen hasta el 80% de su tiempo productivo.<br>
+            • Explicar que la IA de Wappy actúa como un redactor automático que elabora actas de comités, actas de COPASST, informes técnicos de ausentismo e incluso matrices GTC-45 estructuradas en minutos.<br>
+            • Enfatizar que Wappy incluye visión por computadora mediante la cámara del móvil o PC para medir posturas corporales (método OWAS), previniendo desórdenes biomecánicos de forma proactiva.`,
+            
+            // Slide 3 Notes
+            `<strong>Diapositiva 3: Respuesta a Dudas de Seguridad de Datos (10 mins)</strong><br><br>
+            • <strong>Duda Frecuente: ¿Cómo protegemos los datos de los usuarios?</strong><br>
+            • Explicar que Wappy está diseñado bajo el estándar de la Ley de Habeas Data colombiana (Ley 1581 de 2012).<br>
+            • Explicar la arquitectura de aislamiento: Cada empresa registrada posee un contenedor lógico exclusivo, evitando fugas cruzadas.<br>
+            • Detallar el acuerdo de privacidad de los datos cargados a la IA: Usamos conexiones mediante APIs empresariales seguras de OpenAI/Anthropic/Google, lo que garantiza por contrato que la información confidencial de las empresas de SURA **jamás se utilizará para entrenar modelos públicos**.`,
+            
+            // Slide 4 Notes
+            `<strong>Diapositiva 4: Modelo Comercial y de Corretaje (10 mins)</strong><br><br>
+            • <strong>Duda Frecuente: ¿Cómo le ofrecemos la plataforma a las empresas?</strong><br>
+            • Explicar el modelo de Wappy: Wappy opera como un canal de valor agregado conectado a la intermediación de riesgos (corretaje ARL).<br>
+            • <strong>Gancho Estratégico:</strong> Cuando una empresa se afilia o traslada su ARL a SURA a través de Wappy, Wappy le regala la licencia de software (Plan Vital o Plan Pro Anual exento de costo) como valor agregado, el cual se sostiene con la cotización recurrente de ARL.<br>
+            • Mostrar que es una excelente manera para que los consultores de SST independientes (los Embajadores Wappy) atraigan empresas masivamente a SURA, incentivados por una retribución justa de acompañamiento del 70% o 30% según el modelo técnico de soporte.`,
+            
+            // Slide 5 Notes
+            `<strong>Diapositiva 5: Estrategia de Divulgación y Responsabilidad (10 mins)</strong><br><br>
+            • <strong>Duda Frecuente: ¿Quién es el responsable de difundir Wappy y cómo se hará?</strong><br>
+            • <strong>ARL SURA (Promotor de Canal):</strong> SURA facilita la divulgación a gran escala enviando boletines de innovación, organizando webinars y capacitando a su fuerza comercial para presentar Wappy como la herramienta de valor agregado de la ARL.<br>
+            • <strong>Wappy (Operador Técnico y Logístico):</strong> Wappy es el único responsable de configurar las cuentas de las empresas que decidan vincularse, dar soporte técnico premium (vía WhatsApp y correo en menos de 4 horas) y realizar las 2 sesiones personalizadas de onboarding.<br>
+            • Proponer campañas de capacitaciones conjuntas sobre "IA Aplicada a la Seguridad y Salud en el Trabajo" para incentivar el registro masivo.`,
+            
+            // Slide 6 Notes
+            `<strong>Diapositiva 6: Cierre y Demostración en Vivo (15 mins)</strong><br><br>
+            • Proponer el lanzamiento de un **Plan Piloto de 30 días** con 10 empresas medianas de SURA.<br>
+            • Resaltar el obsequio: Wappy dictará una conferencia técnica para las empresas piloto de SURA.<br>
+            • Invitar al Gerente a ver la herramienta funcionando en vivo haciendo clic en el botón "Iniciar Demostración" para interactuar con los agentes expertos pre-entrenados.`
+        ];
+
+        // Initialize elements
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initDots();
+            updateView();
+            startMeetingTimer();
+        });
+
+        // Initialize Navigation Dots
+        function initDots() {
+            const dotsContainer = document.getElementById('navDots');
+            dotsContainer.innerHTML = '';
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement('button');
+                dot.className = `w-2.5 h-2.5 rounded-full bg-slate-700 transition-all duration-300 dot-${i}`;
+                dot.onclick = () => goToSlide(i);
+                dotsContainer.appendChild(dot);
+            }
+        }
+
+        // Toggle Speaker Notes / Teleprompter
+        function toggleNotesPanel() {
+            const panel = document.getElementById('notesPanel');
+            const layout = document.getElementById('contentLayout');
+            const btn = document.getElementById('btnToggleNotes');
+            
+            panel.classList.toggle('hidden');
+            if (panel.classList.contains('hidden')) {
+                layout.className = "relative overflow-hidden grid grid-cols-1 transition-all duration-500";
+                btn.classList.remove('bg-sura-500/10', 'border-sura-500', 'text-sura-500');
+            } else {
+                layout.className = "relative overflow-hidden grid grid-cols-[1fr_360px] transition-all duration-500";
+                btn.classList.add('bg-sura-500/10', 'border-sura-500', 'text-sura-500');
+            }
+            
+            // Force redraw/realign canvas or items if needed
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+        }
+
+        // Slide Navigation functions
+        function updateView() {
+            // Disable navigation buttons appropriately
+            document.getElementById('btnPrev').disabled = currentSlideIndex === 0;
+            document.getElementById('btnNext').disabled = currentSlideIndex === totalSlides - 1;
+            
+            // Slide active toggle
+            for (let i = 1; i <= totalSlides; i++) {
+                const slide = document.getElementById(`slide-${i}`);
+                if (i === currentSlideIndex + 1) {
+                    slide.classList.add('active');
+                    slide.classList.remove('previous');
+                } else if (i < currentSlideIndex + 1) {
+                    slide.classList.remove('active');
+                    slide.classList.add('previous');
+                } else {
+                    slide.classList.remove('active', 'previous');
+                }
+            }
+
+            // Progress bar and text
+            const percent = ((currentSlideIndex + 1) / totalSlides) * 100;
+            document.getElementById('progressBarFill').style.width = `${percent}%`;
+            document.getElementById('progressText').textContent = `Diapositiva ${currentSlideIndex + 1} de ${totalSlides}`;
+            
+            // Dots highlighting
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.querySelector(`.dot-${i}`);
+                if (dot) {
+                    if (i === currentSlideIndex) {
+                        dot.className = `w-6 h-2.5 rounded-full bg-sura-500 transition-all duration-300 dot-${i}`;
+                    } else {
+                        dot.className = `w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-600 transition-all duration-300 dot-${i}`;
+                    }
+                }
+            }
+
+            // Load Teleprompter notes
+            document.getElementById('teleprompterText').innerHTML = teleprompterScripts[currentSlideIndex];
+        }
+
+        function nextSlide() {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                updateView();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                updateView();
+            }
+        }
+
+        function goToSlide(index) {
+            currentSlideIndex = index;
+            updateView();
+        }
+
+        // Timer Helper (60:00 countdown for meeting speed management)
+        let timerDuration = 60 * 60; // 60 minutes
+        function startMeetingTimer() {
+            const timerEl = document.getElementById('meetingTimer');
+            const interval = setInterval(() => {
+                let minutes = Math.floor(timerDuration / 60);
+                let seconds = timerDuration % 60;
+                
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                
+                timerEl.textContent = `${minutes}:${seconds}`;
+                
+                if (timerDuration <= 0) {
+                    clearInterval(interval);
+                    timerEl.textContent = "¡Tiempo concluido!";
+                    timerEl.classList.add('text-rose-500');
+                }
+                timerDuration--;
+            }, 1000);
+        }
+
+        // Copy Speaker Notes to clipboard helper
+        function copyCurrentScript() {
+            const rawText = teleprompterScripts[currentSlideIndex].replace(/<[^>]*>/g, '');
+            navigator.clipboard.writeText(rawText).then(() => {
+                alert('Notas de la diapositiva copiadas al portapapeles.');
+            });
+        }
+
+        // Keyboard Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+    </script>
+</body>
+</html>
