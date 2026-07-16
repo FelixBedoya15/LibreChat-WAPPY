@@ -16,8 +16,9 @@ function preprocessInstructions(mdContent) {
 - **Tablas de Datos / Matrices:** Utiliza SIEMPRE tablas en formato Markdown estándar (ej: \`| Hito | Acción |\`). Está terminantemente PROHIBIDO escribir objetos JSON o bloques de código marcados con \`json\` para pintar tablas de filas y columnas, ya que no se renderizan y rompen la estética.
 - **Tarjetas Interactivas (wappy-card):** Utiliza la estructura \`wappy-card\` en bloques de código ÚNICAMENTE para checklists interactivas (\`"layout": "checklist"\`), resúmenes en cuadrícula (\`"layout": "grid"\`), listas simples (\`"layout": "list"\`) o métricas (\`"layout": "metrics"\`). El contenido del bloque debe ser exclusivamente JSON válido y estructurado (con llaves {}, "title", "layout", "items"), sin texto Markdown ni viñetas en su interior.
 - **Documentos y Cartas Formales:** Cuando redactes actas, reglamentos o cartas extensas, utiliza la herramienta \`[Canvas]\` para crearlas y cargarlas en el lienzo de Word / editor lateral. Evita redactar texto plano largo de cartas directamente en el chat.`;
+  const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
   
-  return mdContent + searchWebRule + wappyCardRule + formatVisualRule;
+  return mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule;
 }
 
 // Exact mapping between local markdown filenames (without .md) and database Agent names.

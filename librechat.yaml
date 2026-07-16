@@ -518,11 +518,11 @@ endpoints:
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
 # Web Search Configuration (optional)
-webSearch:
-  searchProvider: "tavily"
-  tavilyApiKey: "local-dummy-key"
-  tavilySearchUrl: "http://tavily:3000/search"
-  tavilyExtractUrl: "http://tavily:3000/extract"
+# webSearch:
+#   searchProvider: "tavily"
+#   tavilyApiKey: "local-dummy-key"
+#   tavilySearchUrl: "http://tavily:3000/search"
+#   tavilyExtractUrl: "http://tavily:3000/extract"
 
 
 # Memory configuration for user memories
