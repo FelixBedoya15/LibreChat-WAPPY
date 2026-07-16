@@ -947,8 +947,10 @@ const startServer = async () => {
   // Setup WebSocket server for voice conversations
   const setupVoiceWebSocket = require('./voiceWebSocket');
   const setupLiveAnalysisWebSocket = require('./liveAnalysisWebSocket');
+  const setupMcpWebSocket = require('./mcpWebSocket');
   setupVoiceWebSocket(server);
   setupLiveAnalysisWebSocket(server);
+  setupMcpWebSocket(server);
 };
 
 startServer();

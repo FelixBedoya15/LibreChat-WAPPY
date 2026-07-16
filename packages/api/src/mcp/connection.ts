@@ -25,6 +25,78 @@ import { mcpConfig } from './mcpConfig';
 
 type FetchLike = (url: string | URL, init?: RequestInit) => Promise<Response>;
 
+export class WebSocketGatewayRegistry {
+  private static sockets = new Map<string, any>(); // userId -> WebSocket
+
+  static register(userId: string, ws: any) {
+    this.sockets.set(userId, ws);
+  }
+
+  static unregister(userId: string) {
+    this.sockets.delete(userId);
+  }
+
+  static get(userId: string) {
+    return this.sockets.get(userId);
+  }
+}
+
+export class WebSocketGatewayTransport implements Transport {
+  private userId: string;
+  private ws: any;
+  private onMessageListener?: (message: any) => void;
+  public onclose?: () => void;
+  public onerror?: (error: Error) => void;
+  public onmessage?: (message: JSONRPCMessage) => void;
+
+  constructor(userId: string) {
+    this.userId = userId;
+  }
+
+  async start(): Promise<void> {
+    const ws = WebSocketGatewayRegistry.get(this.userId);
+    if (!ws || ws.readyState !== 1) { // 1 = OPEN
+      throw new Error(`No active WebSocket connection for user: ${this.userId}`);
+    }
+    this.ws = ws;
+
+    this.onMessageListener = (parsedMessage: any) => {
+      if (this.onmessage) {
+        this.onmessage(parsedMessage);
+      }
+    };
+
+    this.ws.on('jsonrpc-message', this.onMessageListener);
+
+    this.ws.on('close', () => {
+      if (this.onclose) {
+        this.onclose();
+      }
+    });
+
+    this.ws.on('error', (err: Error) => {
+      if (this.onerror) {
+        this.onerror(err);
+      }
+    });
+  }
+
+  async send(message: JSONRPCMessage): Promise<void> {
+    const ws = WebSocketGatewayRegistry.get(this.userId);
+    if (!ws || ws.readyState !== 1) {
+      throw new Error(`Cannot send message. User ${this.userId} is offline.`);
+    }
+    ws.send(JSON.stringify(message));
+  }
+
+  async close(): Promise<void> {
+    if (this.ws && this.onMessageListener) {
+      this.ws.off('jsonrpc-message', this.onMessageListener);
+    }
+  }
+}
+
+
 function isStdioOptions(options: t.MCPOptions): options is t.StdioOptions {
   return 'command' in options;
 }
@@ -198,8 +270,10 @@ export class MCPConnection extends EventEmitter {
 
   private constructTransport(options: t.MCPOptions): Transport {
     try {
-      let type: t.MCPOptions['type'];
-      if (isStdioOptions(options)) {
+      let type: t.MCPOptions['type'] | 'websocket-gateway';
+      if ((options as any).type === 'websocket-gateway') {
+        type = 'websocket-gateway';
+      } else if (isStdioOptions(options)) {
         type = 'stdio';
       } else if (isWebSocketOptions(options)) {
         type = 'websocket';
@@ -215,6 +289,13 @@ export class MCPConnection extends EventEmitter {
       }
 
       switch (type) {
+        case 'websocket-gateway': {
+          const userId = (options as any).userId;
+          if (!userId) {
+            throw new Error('Invalid options for websocket-gateway: userId is required.');
+          }
+          return new WebSocketGatewayTransport(userId);
+        }
         case 'stdio':
           if (!isStdioOptions(options)) {
             throw new Error('Invalid options for stdio transport.');
