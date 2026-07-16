@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Propuesta Comercial Aceptada!</title>
+  <style>
+    body { margin:0; padding:0; background:#f4f7f4; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#1a2e1a; }
+    .wrapper { width:100%; background:#f4f7f4; padding:36px 0; }
+    .card { max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #d4e8d4; box-shadow:0 4px 24px rgba(0,0,0,.07); }
+    .header { background:linear-gradient(135deg,#166435 0%,#22c55e 100%); padding:36px 32px 28px; text-align:center; }
+    .header .emoji { font-size:40px; margin-bottom:10px; display:block; }
+    .header h1 { margin:0; font-size:22px; color:#ffffff; font-weight:800; letter-spacing:-.02em; }
+    .header p { margin:8px 0 0; font-size:14px; color:rgba(255,255,255,.85); }
+    .body { padding:28px 32px; }
+    .welcome-text { font-size:15px; line-height:1.7; color:#2d4a2d; margin-bottom:20px; }
+    .welcome-text strong { color:#166435; }
+    .cert-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin:20px 0; }
+    .cert-box h3 { margin:0 0 14px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#5a8a5a; }
+    .cert-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #d4f0d4; font-size:13.5px; }
+    .cert-row:last-child { border-bottom:none; }
+    .cert-row .lbl { color:#5a8a5a; font-weight:600; }
+    .cert-row .val { color:#1a2e1a; font-weight:500; text-align:right; max-width:55%; word-break:break-word; }
+    
+    .signature-container {
+      background:#ffffff;
+      border:1px solid #cbd5e1;
+      border-radius:10px;
+      padding:16px;
+      text-align:center;
+      margin:20px 0;
+    }
+    .signature-image {
+      max-height:80px;
+      display:block;
+      margin:0 auto 8px;
+    }
+    .signature-label {
+      font-size:11px;
+      color:#64748b;
+      border-top:1px solid #e2e8f0;
+      padding-top:6px;
+      margin-top:6px;
+    }
+
+    .cta-btn { display:block; background:#22c55e; color:#ffffff; text-decoration:none; text-align:center; padding:14px 28px; border-radius:10px; font-weight:700; font-size:15px; margin:24px 0; }
+    .legal-note { font-size:11.5px; color:#7a9a7a; background:#f8fbf8; border-radius:8px; padding:12px 14px; line-height:1.6; }
+    .footer { background:#f0fdf4; border-top:1px solid #d4e8d4; padding:18px 32px; text-align:center; font-size:12px; color:#5a8a5a; }
+    .footer strong { color:#166435; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="header">
+        <span class="emoji">✍️</span>
+        <h1>¡Propuesta Comercial Aceptada!</h1>
+        <p>Ecopiloto IA de Seguridad y Salud en el Trabajo</p>
+      </div>
+      <div class="body">
+        <p class="welcome-text">Hola <strong>{{signerName}}</strong>,<br><br>
+        Confirmamos que has aceptado y firmado la propuesta comercial de **Wappy IA** para la **{{proposalName}}**.</p>
+
+        <div class="cert-box">
+          <h3>📜 Detalles del Aceptante</h3>
+          <div class="cert-row"><span class="lbl">Nombre del Firmante</span><span class="val">{{signerName}}</span></div>
+          <div class="cert-row"><span class="lbl">Cargo</span><span class="val">{{signerRole}}</span></div>
+          <div class="cert-row"><span class="lbl">NIT o Documento</span><span class="val">{{signerNit}}</span></div>
+          <div class="cert-row"><span class="lbl">Fecha de Firma</span><span class="val">{{date}}</span></div>
+          <div class="cert-row"><span class="lbl">Correo Electrónico</span><span class="val">{{signerEmail}} ✓</span></div>
+        </div>
+
+        <div class="cert-box" style="background:#e0f2fe; border-color:#bae6fd;">
+          <h3 style="color:#0369a1;">💰 Resumen de la Inversión</h3>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Servicio</span><span class="val">Licencia Wappy Pro Anual</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Soporte Técnico</span><span class="val">Premium Incluido</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Acompañamiento</span><span class="val">2 Sesiones (Bonificado)</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Charla / Conferencia</span><span class="val">Obsequiada (Impacto IA)</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe; font-weight:bold; font-size:15px;"><span class="lbl" style="color:#0369a1;">Inversión Neta Anual</span><span class="val" style="color:#0369a1;">$1.200.000 COP</span></div>
+        </div>
+
+        <div class="signature-container">
+          <img src="cid:signatureImage" alt="Firma Electrónica" class="signature-image">
+          <div class="signature-label">Firma Electrónica Registrada de {{signerName}}</div>
+        </div>
+
+        <div class="steps">
+          <h3 style="color:#1e3a8a;">🚀 Próximos pasos</h3>
+          <div class="welcome-text" style="font-size:13.5px; line-height:1.6;">
+            1. Un asesor comercial de Wappy se pondrá en contacto contigo para coordinar la facturación. <br>
+            2. Recibirás tu factura exenta de IVA por transferencia o link de pago.<br>
+            3. Una vez registrado el pago, programaremos las 2 sesiones de onboarding y activaremos tu entorno.
+          </div>
+        </div>
+
+        <a class="cta-btn" href="https://wappy.club">Ir a la plataforma WAPPY →</a>
+
+        <div class="legal-note">
+          ⚖️ <strong>Nota legal:</strong> Este correo es tu constancia de aceptación de propuesta comercial digital. La aceptación se realizó de manera consciente y voluntaria por el representante legal o persona autorizada, con firma gráfica autógrafa digitalizada.
+        </div>
+      </div>
+      <div class="footer">
+        <strong>WAPPY LTDA</strong> — NIT 901437310 — Medellín, Colombia<br>
+        Soporte técnico: <strong>soporte@wappy.club</strong>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

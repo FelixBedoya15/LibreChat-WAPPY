@@ -770,6 +770,83 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../Agentes/mauricioposada.html'));
   });
 
+  app.get(['/camaracomercioguajira', '/camaracomercioguajira.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../camaracomercioguajira.html'));
+  });
+
+  app.post('/api/proposals/accept', async (req, res) => {
+    try {
+      const { signerName, signerRole, signerNit, signerEmail, proposalName, signatureImg, date } = req.body;
+      
+      if (!signerName || !signerEmail || !signatureImg) {
+        return res.status(400).json({ message: 'Faltan datos obligatorios (nombre, correo, firma).' });
+      }
+
+      const sendEmail = require('./utils/sendEmail');
+      
+      // Extract base64 image data
+      const matches = signatureImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        return res.status(400).json({ message: 'Formato de firma no válido.' });
+      }
+      
+      const mimeType = matches[1];
+      const bufferData = Buffer.from(matches[2], 'base64');
+
+      const payload = {
+        name: signerName,
+        signerName,
+        signerRole,
+        signerNit,
+        signerEmail,
+        proposalName: proposalName || 'Cámara de Comercio de la Guajira',
+        date: date || new Date().toLocaleDateString('es-CO')
+      };
+
+      // Attach signature image inline using CID
+      const attachments = [{
+        filename: 'signature.png',
+        content: bufferData,
+        contentType: mimeType,
+        cid: 'signatureImage'
+      }];
+
+      // Send email to client
+      await sendEmail({
+        email: signerEmail,
+        subject: `📝 Propuesta Firmada y Aceptada — ${payload.proposalName}`,
+        payload,
+        template: 'propuestaAceptada.handlebars',
+        attachments
+      });
+
+      // Send email to support/admin
+      const supportEmails = [
+        process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
+        'wappyinteractivo@gmail.com'
+      ];
+
+      for (const supportEmail of supportEmails) {
+        try {
+          await sendEmail({
+            email: supportEmail,
+            subject: `🔔 Nueva Propuesta Aceptada por Cliente — ${payload.proposalName}`,
+            payload,
+            template: 'propuestaAceptada.handlebars',
+            attachments
+          });
+        } catch (supportErr) {
+          logger.error(`[Proposals] Error sending notification to support (${supportEmail}):`, supportErr);
+        }
+      }
+
+      res.json({ message: 'Aceptación registrada y correos enviados exitosamente.' });
+    } catch (err) {
+      logger.error('[Proposals] Error al procesar aceptación:', err);
+      res.status(500).json({ message: 'Error interno del servidor.', error: err.message });
+    }
+  });
+
   app.get('/api/embajadores/notes', (req, res) => {
     const fs = require('fs');
     const path = require('path');
