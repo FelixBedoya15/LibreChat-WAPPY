@@ -111,18 +111,24 @@ const startServer = async () => {
   app.use(staticCache(appConfig.paths.assets));
   app.use('/Agentes', staticCache(path.resolve(__dirname, '../../Agentes'), { skipGzipScan: true }));
 
-  app.get('/download/somos-sst-wappyclub', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isMac = /macintosh|mac os x/i.test(userAgent);
+  app.get('/download/somos-sst-wappyclub/windows', (req, res) => {
     const installersDir = path.resolve(__dirname, '../../uploads/installers');
-    let fileName = 'SomosSST-WappyClub-Setup.exe';
-    if (isMac) {
-      fileName = 'SomosSST-WappyClub.dmg';
-    }
+    const fileName = 'SomosSST-WappyClub-Setup.exe';
     const filePath = path.join(installersDir, fileName);
     res.download(filePath, fileName, (err) => {
       if (err) {
-        res.status(404).send(`El aplicativo "Somos SST - WappyClub" aún se está empaquetando en el servidor para su sistema operativo. Por favor, vuelva a intentarlo en unos minutos o contacte al administrador.`);
+        res.status(404).send(`El instalador de Windows de "Somos SST - WappyClub" aún se está empaquetando en el servidor. Por favor, intente de nuevo en unos minutos.`);
+      }
+    });
+  });
+
+  app.get('/download/somos-sst-wappyclub/mac', (req, res) => {
+    const installersDir = path.resolve(__dirname, '../../uploads/installers');
+    const fileName = 'SomosSST-WappyClub.dmg';
+    const filePath = path.join(installersDir, fileName);
+    res.download(filePath, fileName, (err) => {
+      if (err) {
+        res.status(404).send(`El instalador de macOS de "Somos SST - WappyClub" aún se está empaquetando en el servidor. Por favor, intente de nuevo en unos minutos.`);
       }
     });
   });

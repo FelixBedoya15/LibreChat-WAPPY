@@ -278,6 +278,12 @@ const Nav = memo(
                             </button>
                           }
                         />
+                        {/* Automatizaciones */}
+                        <Suspense fallback={null}>
+                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                          <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        )}
+                        </Suspense>
                         {/* Chat SST icon */}
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -319,12 +325,6 @@ const Nav = memo(
                         <Suspense fallback={null}>
                         {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
                           <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        )}
-                        </Suspense>
-                        {/* Automatizaciones */}
-                        <Suspense fallback={null}>
-                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                          <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         )}
                         </Suspense>
                         {/* Aula Estudio */}
@@ -372,6 +372,12 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                {/* Automatizaciones */}
+                                <Suspense fallback={null}>
+                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                  <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                )}
+                                </Suspense>
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
@@ -404,12 +410,6 @@ const Nav = memo(
                                 <Suspense fallback={null}>
                                 {user?.role === 'ADMIN' && (
                                   <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                )}
-                                </Suspense>
-                                {/* Automatizaciones */}
-                                <Suspense fallback={null}>
-                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                                  <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 )}
                                 </Suspense>
                                 <Suspense fallback={null}>

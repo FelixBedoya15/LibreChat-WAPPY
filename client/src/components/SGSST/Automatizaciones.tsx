@@ -64,7 +64,7 @@ interface AutomationLog {
 
 export default function Automatizaciones() {
   const { showToast } = useToastContext();
-  const { data: agentsData } = useListAgentsQuery();
+  const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const agents = agentsData?.data || [];
 
   const [automations, setAutomations] = useState<Automation[]>([]);
