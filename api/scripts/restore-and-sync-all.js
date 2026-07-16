@@ -288,16 +288,6 @@ ${cleanContent}
       tools.push('matriz_ipevar');
     }
     
-    const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
-    if (PESV_AGENTS.includes(key)) {
-      tools.push('matriz_pesv');
-    }
-    
-    const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_tareas_criticas'];
-    if (COMPATIBILIDAD_AGENTS.includes(key)) {
-      tools.push('matriz_compatibilidad');
-    }
-    
     if (key === 'abogado_laboral') {
       tools.push('editor_rit');
     }
@@ -314,11 +304,6 @@ ${cleanContent}
     const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
     if (ACTOS_AGENTS.includes(key)) {
       tools.push('consultar_analitica_actos_condiciones');
-    }
-
-    const EDITOR_LIVE_AGENTS = ['abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_emergencias', 'coordinador_capacitaciones', 'redactor_creativo', 'psicologo_sst'];
-    if (EDITOR_LIVE_AGENTS.includes(key)) {
-      tools.push('editor_live');
     }
 
     tools = [...new Set(tools)];
@@ -444,6 +429,18 @@ ${cleanContent}
       { $addToSet: { agentIds: { $each: allAgentIds } } }
     );
     console.log(`   🌐 Vinculados los 22 agentes al proyecto Global.`);
+  }
+
+  // Pull deactivated tools from all agents in the database
+  try {
+    const pullRes = await Agent.updateMany({}, {
+      $pull: {
+        tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
+      }
+    });
+    console.log(`   🗑️ Removidas herramientas desactivadas (matriz_pesv, matriz_compatibilidad, editor_live) de todos los agentes en la BD: ${pullRes.modifiedCount} modificados.`);
+  } catch (err) {
+    console.error('⚠️ Error eliminando herramientas desactivadas:', err);
   }
 
   await mongoose.disconnect();

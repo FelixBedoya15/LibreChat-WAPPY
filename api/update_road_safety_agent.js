@@ -16,7 +16,10 @@ async function run() {
     // 1. Update tools array for 'Especialista en Riesgo Vial'
     const updateResult = await collection.updateOne(
       { name: 'Especialista en Riesgo Vial' },
-      { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+      { 
+        $addToSet: { tools: { $each: ['canvas', 'context'] } },
+        $pull: { tools: 'matriz_pesv' }
+      }
     );
     console.log(`Updated tools for Especialista en Riesgo Vial. Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`);
 

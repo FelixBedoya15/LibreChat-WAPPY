@@ -907,15 +907,23 @@ const startServer = async () => {
       if (Agent) {
         await Agent.findOneAndUpdate(
           { name: 'Especialista en Riesgo Vial' },
-          { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+          { $addToSet: { tools: { $each: ['canvas', 'context'] } } }
         );
         logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Vial');
 
         await Agent.findOneAndUpdate(
           { name: 'Especialista en Riesgo Químico' },
-          { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+          { $addToSet: { tools: { $each: ['canvas'] } } }
         );
         logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Químico');
+
+        // Pull deactivated tools from all agents
+        await Agent.updateMany({}, {
+          $pull: {
+            tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
+          }
+        });
+        logger.info('[Startup] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents');
       }
     } catch (err) {
       logger.error('[Startup] Failed to automatically update agent tools:', err);

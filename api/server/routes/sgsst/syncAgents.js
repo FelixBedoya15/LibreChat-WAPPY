@@ -98,16 +98,6 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     tools.push('matriz_ipevar');
   }
 
-  const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
-  if (PESV_AGENTS.includes(fileBasename)) {
-    tools.push('matriz_pesv');
-  }
-
-  const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_tareas_criticas'];
-  if (COMPATIBILIDAD_AGENTS.includes(fileBasename)) {
-    tools.push('matriz_compatibilidad');
-  }
-
   if (fileBasename === 'abogado_laboral') {
     tools.push('editor_rit');
   }
@@ -124,11 +114,6 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
   if (ACTOS_AGENTS.includes(fileBasename)) {
     tools.push('consultar_analitica_actos_condiciones');
-  }
-
-  const EDITOR_LIVE_AGENTS = ['abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'coordinador_emergencias', 'coordinador_capacitaciones', 'redactor_creativo', 'psicologo_sst'];
-  if (EDITOR_LIVE_AGENTS.includes(fileBasename)) {
-    tools.push('editor_live');
   }
 
   const timestamp = new Date();
@@ -343,29 +328,38 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error adding psicosocial tool to agent:', err);
     }
 
-    // Ensure the Road Safety agent has the matriz_pesv, canvas and context tools
+    // Ensure the Road Safety agent has canvas and context tools
     try {
       await Agent.findOneAndUpdate(
         { name: 'Coordinador de Seguridad Vial' },
-        { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+        { $addToSet: { tools: { $each: ['canvas', 'context'] } } }
       );
-      logger.info('[SyncAgents] Added matriz_pesv, canvas, and context tools to Coordinador de Seguridad Vial');
+      logger.info('[SyncAgents] Added canvas and context tools to Coordinador de Seguridad Vial');
     } catch (err) {
       logger.error('[SyncAgents] Error adding road safety tools to agent:', err);
     }
 
-    // Ensure the Chemical Risk agent has canvas and pull out matriz_compatibilidad (to avoid autostart)
+    // Ensure the Chemical Risk agent has canvas
     try {
       await Agent.findOneAndUpdate(
         { name: 'Ingeniero Químico SST' },
-        { 
-          $addToSet: { tools: 'canvas' },
-          $pull: { tools: 'matriz_compatibilidad' }
-        }
+        { $addToSet: { tools: 'canvas' } }
       );
-      logger.info('[SyncAgents] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Ingeniero Químico SST');
+      logger.info('[SyncAgents] Updated tools to include canvas for Ingeniero Químico SST');
     } catch (err) {
       logger.error('[SyncAgents] Error updating tools for Ingeniero Químico SST:', err);
+    }
+
+    // Pull deactivated tools from all agents
+    try {
+      await Agent.updateMany({}, {
+        $pull: {
+          tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
+        }
+      });
+      logger.info('[SyncAgents] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents in database');
+    } catch (err) {
+      logger.error('[SyncAgents] Error pulling deactivated tools:', err);
     }
 
     return res.json({
@@ -532,29 +526,38 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.error('[CleanupSync] Error adding actos_condiciones tool to agent:', err);
     }
 
-    // Ensure the Road Safety agent has the matriz_pesv, canvas and context tools
+    // Ensure the Road Safety agent has canvas and context tools
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Vial' },
-        { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
+        { $addToSet: { tools: { $each: ['canvas', 'context'] } } }
       );
-      logger.info('[CleanupSync] Added matriz_pesv, canvas, and context tools to Especialista en Riesgo Vial');
+      logger.info('[CleanupSync] Added canvas and context tools to Especialista en Riesgo Vial');
     } catch (err) {
       logger.error('[CleanupSync] Error adding road safety tools to agent:', err);
     }
 
-    // Ensure the Chemical Risk agent has canvas and pull out matriz_compatibilidad (to avoid autostart)
+    // Ensure the Chemical Risk agent has canvas
     try {
       await Agent.findOneAndUpdate(
         { name: 'Especialista en Riesgo Químico' },
-        { 
-          $addToSet: { tools: 'canvas' },
-          $pull: { tools: 'matriz_compatibilidad' }
-        }
+        { $addToSet: { tools: 'canvas' } }
       );
-      logger.info('[CleanupSync] Updated tools to exclude matriz_compatibilidad (prevent auto-start) for Especialista en Riesgo Químico');
+      logger.info('[CleanupSync] Updated tools to include canvas for Especialista en Riesgo Químico');
     } catch (err) {
       logger.error('[CleanupSync] Error updating tools for Especialista en Riesgo Químico:', err);
+    }
+
+    // Pull deactivated tools from all agents
+    try {
+      await Agent.updateMany({}, {
+        $pull: {
+          tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
+        }
+      });
+      logger.info('[CleanupSync] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents in database');
+    } catch (err) {
+      logger.error('[CleanupSync] Error pulling deactivated tools:', err);
     }
 
     return res.json({
