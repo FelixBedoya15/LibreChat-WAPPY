@@ -27,6 +27,7 @@ function createWindow() {
     resizable: false,
     autoHideMenuBar: true,
     title: 'Somos SST - WappyClub',
+    icon: path.join(__dirname, 'build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -81,7 +82,7 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
   }
 
   // Pre-configured WAPPY production WebSocket URL
-  const serverUrl = 'wss://ia.wappy.club/ws/mcp';
+  const serverUrl = 'wss://wappy.club/ws/mcp';
   sendLog(`🔌 Conectando con ${serverUrl}...`);
 
   try {
