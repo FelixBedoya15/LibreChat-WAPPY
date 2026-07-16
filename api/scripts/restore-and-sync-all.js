@@ -267,11 +267,20 @@ ${cleanContent}
     
     // Inyectar reglas de oro globales a todos los agentes
     const searchWebRule = `\n\n⚠️ REGLA DE ORO DE BÚSQUEDA WEB: Al usar la búsqueda en la web, NUNCA busques con términos individuales o palabras sueltas (ej: "decreto", "incapacidad"). Debes redactar consultas específicas y compuestas en lenguaje natural que relacionen el contexto exacto (ej: "Decreto 780 de 2016 pago de incapacidades comunes colombia" o "estabilidad laboral reforzada Sentencia SU-111 de 2025"). No realices búsquedas en bucle de forma redundante; si tras 2 intentos no encuentras el dato específico, continúa con tu conocimiento y base interna.`;
-    const wappyCardRule = `\n\n⚠️ REGLA DE ORO DE TARJETAS (wappy-card): Si decides presentar información estructurada dentro del bloque de código especial \`wappy-card\`, el contenido interno del bloque de código debe ser ÚNICAMENTE un objeto JSON válido y estructurado conforme al esquema de la tarjeta (con llaves {}, "title", "layout", "items"). Está estrictamente prohibido usar viñetas (-), listas de tareas o cualquier formato Markdown dentro del bloque de código \`wappy-card\`, ya que esto romperá el renderizado en la interfaz.`;
+    const wappyCardRule = `\n\n⚠️ REGLA DE ORO DE TARJETAS (wappy-card): Si decides presentar información estructurada (como listas de chequeo, planes de acción, resúmenes o métricas), DEBES utilizar estrictamente un bloque de código marcado exclusivamente con la etiqueta de lenguaje \`wappy-card\` (es decir, iniciando con \`\`\`wappy-card y cerrando con \`\`\`). El contenido de este bloque debe ser ÚNICAMENTE un objeto JSON válido y estructurado. Está estrictamente PROHIBIDO escribir la palabra "wappy-card" dentro del JSON o usar cualquier formato Markdown (como viñetas, guiones o negritas) dentro del bloque de código. Ejemplo de formato correcto:
+\`\`\`wappy-card
+{
+  "title": "Plan de Acción",
+  "layout": "checklist",
+  "items": [
+    { "label": "Revisar planta de personal", "checked": false }
+  ]
+}
+\`\`\``;
     const formatVisualRule = `\n\n🔹 11. Reglas de Formato Visual (Tablas, Tarjetas y Documentos):
 - **Tablas de Datos / Matrices:** Utiliza SIEMPRE tablas en formato Markdown estándar (ej: \`| Hito | Acción |\`). Está terminantemente PROHIBIDO escribir objetos JSON o bloques de código marcados con \`json\` para pintar tablas de filas y columnas, ya que no se renderizan y rompen la estética.
-- **Tarjetas Interactivas (wappy-card):** Utiliza la estructura \`wappy-card\` en bloques de código ÚNICAMENTE para checklists interactivas (\`"layout": "checklist"\`), resúmenes en cuadrícula (\`"layout": "grid"\`), listas simples (\`"layout": "list"\`) o métricas (\`"layout": "metrics"\`). El contenido del bloque debe ser exclusivamente JSON válido y estructurado (con llaves {}, "title", "layout", "items"), sin texto Markdown ni viñetas en su interior.
-- **Documentos y Cartas Formales:** Cuando redactes actas, reglamentos o cartas extensas, utiliza la herramienta \`[Canvas]\` para crearlas y cargarlas en el lienzo de Word / editor lateral. Evita redactar texto plano largo de cartas directamente en el chat.`;
+- **Tarjetas Interactivas (wappy-card):** Para checklists, cuadrículas, listas y métricas, utiliza exclusivamente el bloque de código \`wappy-card\` (con el JSON exacto en su interior como se indica en su regla de oro). NUNCA utilices el lenguaje de código \`json\` para englobar una tarjeta wappy-card.
+- **Documentos y Cartas Formales:** Cuando la respuesta requiera redactar actas, reglamentos, contratos, citaciones a descargos o cartas extensas, está terminantemente PROHIBIDO escribir el documento extenso directamente en el chat de texto. En su lugar, DEBES llamar de manera autónoma a la herramienta \`canvas\` para crear o actualizar el documento en el editor lateral derecho. En el chat del usuario, limítate a resumir brevemente la acción realizada y los puntos clave.`;
     const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
     
     const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule;
