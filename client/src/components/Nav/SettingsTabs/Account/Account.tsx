@@ -21,12 +21,11 @@ import ReferralPanel from './ReferralPanel';
 
 function Account() {
   const localize = useLocalize();
-  const { user, setUser } = useAuthContext();
+  const { user, setUser, token } = useAuthContext();
   const { showToast } = useToastContext();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showToken, setShowToken] = useState(false);
-  const [token, setToken] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -35,13 +34,6 @@ function Account() {
     inactiveAt: '',
     phoneNumber: '',
   });
-
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-      setToken(savedToken);
-    }
-  }, []);
 
   useEffect(() => {
     if (user) {
