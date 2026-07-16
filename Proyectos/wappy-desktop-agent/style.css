@@ -1,5 +1,55 @@
-/* Modern WAPPY Dark Theme Design System */
+/* Modern WAPPY Dark/Light Theme Design System */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap');
+
+:root {
+  /* LIGHT MODE (Default) */
+  --bg-color: #f9fafb;
+  --text-color: #111827;
+  --container-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --input-bg: #f9fafb;
+  --input-border: #d1d5db;
+  --input-text: #111827;
+  --btn-select-bg: #f3f4f6;
+  --btn-select-border: #d1d5db;
+  --btn-select-text: #374151;
+  --btn-select-hover: #e5e7eb;
+  --header-bg: #f3f4f6;
+  --header-text: #111827;
+  --action-bg: rgba(16, 185, 129, 0.05);
+  --action-border: rgba(16, 185, 129, 0.3);
+  --status-text: #374151;
+  --logo-filter: none;
+  --console-bg: #111827;
+  --console-text: #10B981;
+  --console-border: #1f2937;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* DARK MODE */
+    --bg-color: #0d0e12;
+    --text-color: #f3f4f6;
+    --container-bg: #0d0e12;
+    --border-color: #1f2937;
+    --input-bg: #15171e;
+    --input-border: #374151;
+    --input-text: #f3f4f6;
+    --btn-select-bg: #1f2937;
+    --btn-select-border: #374151;
+    --btn-select-text: #f3f4f6;
+    --btn-select-hover: #374151;
+    --header-bg: rgba(13, 14, 18, 0.8);
+    --header-text: #f3f4f6;
+    --action-bg: rgba(16, 185, 129, 0.03);
+    --action-border: rgba(16, 185, 129, 0.2);
+    --status-text: #d1d5db;
+    --logo-filter: brightness(0) invert(1);
+    --console-bg: #050608;
+    --console-text: #10b981;
+    --console-border: #1f2937;
+  }
+}
 
 * {
   box-sizing: border-box;
@@ -10,25 +60,25 @@
 }
 
 body {
-  background-color: #0d0e12;
-  color: #f3f4f6;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 40%),
-              radial-gradient(circle at bottom left, rgba(29, 78, 216, 0.05), transparent 40%),
-              #0d0e12;
-  border: 1px solid #1f2937;
+  background: var(--container-bg);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* Header */
@@ -37,23 +87,24 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid #1f2937;
-  background: rgba(13, 14, 18, 0.8);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--header-bg);
   backdrop-filter: blur(10px);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 header img {
   width: 32px;
   height: 32px;
+  filter: var(--logo-filter);
+  transition: filter 0.3s ease;
 }
 
 header h1 {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #f3f4f6, #a7f3d0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-color);
 }
 
 /* Content Area */
@@ -83,10 +134,10 @@ label {
 input {
   width: 100%;
   padding: 12px 16px;
-  background-color: #15171e;
-  border: 1px solid #374151;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 12px;
-  color: #f3f4f6;
+  color: var(--input-text);
   font-size: 0.875rem;
   transition: all 0.2s ease;
   outline: none;
@@ -105,10 +156,10 @@ input:focus {
 
 .btn-select {
   padding: 12px 20px;
-  background-color: #1f2937;
-  border: 1px solid #374151;
+  background-color: var(--btn-select-bg);
+  border: 1px solid var(--btn-select-border);
   border-radius: 12px;
-  color: #f3f4f6;
+  color: var(--btn-select-text);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -117,8 +168,7 @@ input:focus {
 }
 
 .btn-select:hover {
-  background-color: #374151;
-  border-color: #4b5563;
+  background-color: var(--btn-select-hover);
 }
 
 /* Action Center */
@@ -128,9 +178,10 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: rgba(16, 185, 129, 0.03);
-  border: 1px dashed rgba(16, 185, 129, 0.2);
+  background: var(--action-bg);
+  border: 1px dashed var(--action-border);
   border-radius: 16px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .status-indicator {
@@ -156,7 +207,7 @@ input:focus {
 .status-text {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #d1d5db;
+  color: var(--status-text);
 }
 
 .btn-connect {
@@ -198,14 +249,15 @@ input:focus {
 
 .console-box {
   flex: 1;
-  background-color: #050608;
-  border: 1px solid #1f2937;
+  background-color: var(--console-bg);
+  border: 1px solid var(--console-border);
   border-radius: 12px;
   padding: 12px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
-  color: #10b981;
+  color: var(--console-text);
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }

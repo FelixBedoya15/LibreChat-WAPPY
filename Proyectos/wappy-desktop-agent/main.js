@@ -109,8 +109,9 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
       }
     });
 
-    wsClient.on('close', () => {
-      sendLog('🔴 Conexión cerrada con el servidor WAPPY.');
+    wsClient.on('close', (code, reason) => {
+      const reasonStr = reason ? reason.toString() : 'Sin especificar';
+      sendLog(`🔴 Conexión cerrada con el servidor WAPPY. Código: ${code}, Razón: ${reasonStr}`);
       mainWindow.webContents.send('status-change', 'disconnected');
       wsClient = null;
     });
