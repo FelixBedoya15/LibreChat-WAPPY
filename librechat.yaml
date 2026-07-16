@@ -547,4 +547,5 @@ mcpServers:
   local-files:
     type: "stdio"
     command: "echo"
+    args: []
     startup: false
