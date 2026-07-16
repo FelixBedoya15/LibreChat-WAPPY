@@ -229,15 +229,16 @@ IMPORTANTE:
 - ¡ATENCIÓN! Ya existe un documento activo cargado en el Canvas del usuario:
   * Título actual: "${session.title}"
   * Tipo de archivo: "${session.fileType}"
-  * Longitud del contenido: ${session.content ? session.content.length : 0} caracteres.
-- **DIRECTRICES DE TRABAJO OBLIGATORIAS**:
-  * Si el usuario te pide continuar, rellenar, modificar, auditar o completar este documento preexistente, **NO DEBES crear un nuevo documento ni sobrescribir el actual** con la acción \`crear\` o \`actualizar\`.
-  * En su lugar, usa primero la acción \`leer\` para inspeccionar el contenido completo y luego aplica cambios específicos y enfocados usando exclusivamente las acciones granulares \`buscar_reemplazar\`, \`editar_seccion\` o \`insertar\`. Esto garantiza que no se borre el diseño premium ni la estructura legal de la plantilla preestablecida.
+  * Contenido previo:
+\`\`\`
+${session.content && typeof session.content === 'object' ? JSON.stringify(session.content) : (session.content || '')}
+\`\`\`
+- Si el usuario te pide continuar, rellenar, modificar, auditar o completar este documento preexistente, debes generar el bloque completo \`:::canvas\` con las actualizaciones aplicadas.
 `;
         } else {
           canvasStatusPrompt = `
 # ESTADO ACTUAL DEL CANVAS (LIENZO):
-- El Canvas está actualmente vacío para esta conversación. Si necesitas producir un informe, política, contrato u otro documento, puedes inicializarlo usando la acción \`crear\` de la herramienta \`canvas\`.
+- El Canvas está actualmente vacío para esta conversación. Si necesitas producir un informe, política, contrato u otro documento, puedes inicializarlo usando la directiva \`:::canvas\`.
 `;
         }
       } catch (err) {
@@ -250,12 +251,33 @@ IMPORTANTE:
     }
 
     const canvasPrompt = `
-# REGLAS CRÍTICAS DE USO DE CANVAS:
-1. **SIEMPRE LEER ANTES DE EDITAR**: Si vas a modificar un Canvas que ya tiene contenido o que fue cargado desde una plantilla predefinida (por ejemplo, un "Procedimiento Sancionatorio"), primero DEBES usar la acción \`leer\` para inspeccionar el contenido completo actual del Canvas.
-2. **EDICIONES GRANULARES Y PRESERVACIÓN**: Queda estrictamente prohibido usar \`actualizar\` o \`crear\` para reemplazar un documento existente con un bloque pequeño o incompleto. Para realizar cambios o personalizaciones (por ejemplo, rellenar datos de la empresa, agregar cláusulas o nombres), DEBES usar exclusivamente acciones precisas y granulares como \`buscar_reemplazar\`, \`editar_seccion\` o \`insertar\`. Debes mantener intacto el diseño, las cabeceras, pies de página, estilos y la estructura del documento.
-3. **RESPUESTAS CONVERSACIONALES Y LIMPIEZA EN EL CHAT**: No imprimas bloques de código HTML, CSS, tablas extensas, marcas JSON o código Markdown del documento en la ventana de chat. Toda la edición debe realizarse silenciosamente llamando a la herramienta \`canvas\`. En tu mensaje de chat, describe de manera breve, limpia y conversacional los cambios específicos que realizaste en el Canvas, sin saturar la conversación con el código fuente del documento.
+# INSTRUCCIONES DEL CANVAS (LIENZO DE TRABAJO DERECHO):
+El Canvas permite mostrar al usuario documentos, hojas de cálculo, diapositivas o código interactivo en un panel lateral derecho.
+Para crear, inicializar o actualizar el Canvas, debes generar un bloque especial en tu respuesta de texto con la siguiente sintaxis de Markdown:
+
+:::canvas{identifier="unique-id" fileType="text|excel|presentation|html" title="Título del Documento"}
+[Tu contenido aquí en formato crudo sin comillas escapadas ni formateo JSON]
+:::
+
+## Reglas de Formato de Contenido según 'fileType':
+1. **fileType="text"** (Word/Documentos tradicionales - Prioridad por defecto): El contenido dentro del bloque debe ser texto formateado con Markdown estándar (títulos, listas, negritas, tablas). Úsalo para políticas, reglamentos, contratos, cartas, planes, actas, informes, manuales.
+2. **fileType="excel"** (Hojas de cálculo): El contenido debe ser una grilla en JSON stringificado o array bidimensional directo de datos, ej:
+   [["Columna 1", "Columna 2"], ["Dato A1", "Dato A2"]]
+3. **fileType="presentation"** (Diapositivas): El contenido debe ser un array de objetos JSON representando las diapositivas, ej:
+   [{"title": "Diapositiva 1", "bullets": ["Punto A", "Punto B"]}]
+4. **fileType="html"** (Aplicaciones/Código interactivo): El contenido debe ser código HTML/CSS/JS plano (puedes usar Tailwind CDN: <script src="https://cdn.tailwindcss.com"></script>).
+
+## Reglas Críticas de Generación:
+- Usa un \`identifier\` único y consistente en kebab-case para el documento (ej. "politica-de-induccion"). Si estás actualizando el documento actual, usa el mismo identificador.
+- **NO ESCAPES las comillas ni los saltos de línea dentro del bloque :::canvas.** Escribe el código HTML o el texto Markdown de forma natural.
+- **NO imprimas el contenido del documento en el chat normal.** Todo el contenido del documento debe ir dentro del bloque \`:::canvas\`. En tu chat normal de respuesta, da un saludo o resumen breve y conversacional sobre lo que creaste o modificaste.
 `;
     agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
+  }
+
+  // Filter out the canvas tool from being registered as a structured tool call for the LLM
+  if (Array.isArray(tools)) {
+    tools = tools.filter((tool) => tool.name !== 'canvas');
   }
 
   return {

@@ -603,6 +603,29 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     return header + parsedBody + signature;
   }, []);
 
+  // ── Sync streaming content in real-time ───────────────────────────────────
+  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
+
+  useEffect(() => {
+    if (streamingCanvas) {
+      const rawContent = streamingCanvas.content;
+      // Convert markdown → HTML for text documents
+      const htmlContent =
+        streamingCanvas.fileType === 'text'
+          ? markdownToHtml(rawContent)
+          : rawContent;
+
+      setContent(htmlContent);
+      contentRef.current = htmlContent;
+
+      setFileType(streamingCanvas.fileType);
+      fileTypeRef.current = streamingCanvas.fileType;
+
+      setTitle(streamingCanvas.title);
+      titleRef.current = streamingCanvas.title;
+    }
+  }, [streamingCanvas, markdownToHtml]);
+
   // ── Fetch session from database ──────────────────────────────────────────
   const fetchSession = useCallback(
     async (isInitial = false) => {

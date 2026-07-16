@@ -10,6 +10,7 @@ import remarkDirective from 'remark-directive';
 import type { Pluggable } from 'unified';
 import { Citation, CompositeCitation, HighlightedText } from '~/components/Web/Citation';
 import { Artifact, artifactPlugin } from '~/components/Artifacts/Artifact';
+import { CanvasDirective, canvasPlugin } from '~/components/Canvas/CanvasDirective';
 import { ArtifactProvider } from '~/Providers/ArtifactContext';
 import { CodeBlockProvider } from '~/Providers/CodeBlockContext';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
@@ -54,6 +55,7 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
     remarkGfm,
     remarkDirective,
     artifactPlugin,
+    canvasPlugin,
     [remarkMath, { singleDollarTextMath: false }],
     unicodeCitation,
   ];
@@ -83,6 +85,7 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
                 a,
                 p,
                 artifact: Artifact,
+                canvas: CanvasDirective,
                 citation: Citation,
                 'highlighted-text': HighlightedText,
                 'composite-citation': CompositeCitation,

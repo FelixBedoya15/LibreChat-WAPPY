@@ -141,12 +141,11 @@ router.get('/', async function (req, res) {
         if (appConfig?.mcpConfig == null) {
           return;
         }
-        const mcpManager = getMCPManager();
-        if (!mcpManager) {
-          return;
-        }
+        // Lee directamente del registry sin depender de que MCPManager esté activo.
+        // Esto incluye servidores con startup:false (sharedUserServers) que nunca
+        // inicializan el MCPManager pero sí deben aparecer en la interfaz.
         const mcpServers = await mcpServersRegistry.getAllServerConfigs();
-        if (!mcpServers) return;
+        if (!mcpServers || Object.keys(mcpServers).length === 0) return;
         for (const serverName in mcpServers) {
           if (!payload.mcpServers) {
             payload.mcpServers = {};

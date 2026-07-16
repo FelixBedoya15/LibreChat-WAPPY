@@ -62,6 +62,20 @@ const canvasMaximized = atom<boolean>({
   default: false,
 });
 
+export interface StreamingCanvas {
+  id: string;
+  title: string;
+  fileType: 'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones';
+  content: string;
+  messageId: string;
+  isStreaming: boolean;
+}
+
+const streamingCanvasState = atom<StreamingCanvas | null>({
+  key: 'streamingCanvasState',
+  default: null,
+});
+
 const isChemicalCompatibilityActive = atom<boolean>({
   key: 'isChemicalCompatibilityActive',
   default: false,
@@ -85,6 +99,7 @@ export default {
   isEditorLiveActive,
   isCanvasActive,
   canvasMaximized,
+  streamingCanvasState,
   isChemicalCompatibilityActive,
   chemicalCompatibilityMaximized,
 };
