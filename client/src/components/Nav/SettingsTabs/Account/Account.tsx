@@ -26,6 +26,7 @@ function Account() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [desktopToken, setDesktopToken] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -45,6 +46,20 @@ function Account() {
         inactiveAt: formatDateForInput(user.inactiveAt),
         phoneNumber: user.phoneNumber || '',
       });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchDesktopToken = async () => {
+      try {
+        const response = await axios.get('/api/sgsst/canvas/desktop-token');
+        setDesktopToken(response.data.token);
+      } catch (error) {
+        console.error('Error fetching desktop token:', error);
+      }
+    };
+    if (user) {
+      fetchDesktopToken();
     }
   }, [user]);
 
@@ -248,7 +263,7 @@ function Account() {
                   <Input
                     id="mcpToken"
                     type={showToken ? 'text' : 'password'}
-                    value={token}
+                    value={desktopToken || token}
                     readOnly
                     className="pr-10 font-mono text-xs select-all bg-surface-secondary text-text-secondary"
                   />
@@ -265,7 +280,7 @@ function Account() {
                   variant="outline"
                   className="border-border-light hover:bg-surface-secondary flex items-center gap-1.5"
                   onClick={() => {
-                    navigator.clipboard.writeText(token);
+                    navigator.clipboard.writeText(desktopToken || token);
                     showToast({ message: 'Token copiado al portapapeles', status: 'success' });
                   }}
                 >

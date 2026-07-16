@@ -200,6 +200,23 @@ async function processTextDocument(content, fileType, title, userId, existingCon
 }
 
 /**
+ * GET /api/sgsst/canvas/desktop-token
+ * Genera un token JWT de larga duración (365 días) para el aplicativo de escritorio.
+ */
+router.get('/desktop-token', requireJwtAuth, async (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const userId = req.user.id;
+    // Firmar token que dura 365 días usando JWT_SECRET
+    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '365d' });
+    return res.status(200).json({ token });
+  } catch (error) {
+    logger.error('[desktop-token] Error generating token:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/sgsst/canvas/history
  * Obtiene el historial de todos los documentos canvas de la empresa.
  */
