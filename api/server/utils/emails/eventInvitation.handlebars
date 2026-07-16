@@ -159,11 +159,16 @@
               {{/if}}
             </div>
             
-            <p class="content-text">Para unirte a la reunión en la fecha y hora indicadas, haz clic en el siguiente enlace de Google Meet:</p>
+            <p class="content-text" style="text-align: center;">Para agregar este evento a tu calendario y recibir recordatorios, haz clic en el siguiente botón:</p>
 
             <div class="btn-container">
-              <a href="{{meetLink}}" target="_blank" class="btn">Unirse a Google Meet</a>
+              <a href="{{calendarLink}}" target="_blank" class="btn">Agendar en Google Calendar</a>
             </div>
+
+            <p class="content-text" style="font-size: 13px; text-align: center; color: #94a3b8; margin-top: 15px;">
+              O utiliza el enlace directo a Meet cuando inicie la sesión:<br>
+              <a href="{{meetLink}}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{{meetLink}}</a>
+            </p>
 
             <p class="content-text" style="font-size: 13px; color: #64748b; text-align: center;">
               También hemos registrado esta actividad en tu <strong>Centro de Control ACPM</strong> para que puedas tenerla en tu radar de tareas.

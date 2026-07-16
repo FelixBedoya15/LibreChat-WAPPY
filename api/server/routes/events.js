@@ -54,6 +54,28 @@ async function cleanExistingMeetLinks() {
 // Run cleanup immediately on load
 cleanExistingMeetLinks();
 
+function getGoogleCalendarLink(event) {
+  const startDate = new Date(event.dateTime);
+  // Add 1 hour duration as standard default
+  const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+  const formatToUTC = (date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+
+  const dates = `${formatToUTC(startDate)}/${formatToUTC(endDate)}`;
+  const text = encodeURIComponent(event.title);
+  
+  let detailsText = `Evento virtual organizado por WAPPY IA.\n\nEnlace de Google Meet: ${event.meetLink}`;
+  if (event.meetPassword) {
+    detailsText += `\nClave de conexión: ${event.meetPassword}`;
+  }
+  const details = encodeURIComponent(detailsText);
+  const location = encodeURIComponent(event.meetLink);
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`;
+}
+
 // Mass email sending has been removed to prevent mail server rate limiting / blocking.
 
 // 1. GET /api/events - Get published events (authenticated or anonymous)
@@ -146,6 +168,7 @@ router.post('/:id/register', requireJwtAuth, async (req, res) => {
           eventTitle: event.title,
           dateTime: eventDateFormatted,
           meetLink: event.meetLink,
+          calendarLink: getGoogleCalendarLink(event),
           meetPassword: event.meetPassword || '',
           year: new Date().getFullYear(),
         },
