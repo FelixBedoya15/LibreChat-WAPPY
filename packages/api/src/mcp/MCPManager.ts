@@ -228,12 +228,21 @@ Please follow these instructions when using tools from the respective MCP server
         connection.setRequestHeaders(currentOptions.headers || {});
       }
 
+      let targetToolName = toolName;
+      let targetArguments = toolArguments;
+
+      if (toolName === 'gestionar_archivos_locales' && toolArguments && typeof toolArguments.accion === 'string') {
+        targetToolName = toolArguments.accion;
+        targetArguments = { ...toolArguments };
+        delete targetArguments.accion;
+      }
+
       const result = await connection.client.request(
         {
           method: 'tools/call',
           params: {
-            name: toolName,
-            arguments: toolArguments,
+            name: targetToolName,
+            arguments: targetArguments,
           },
         },
         CallToolResultSchema,

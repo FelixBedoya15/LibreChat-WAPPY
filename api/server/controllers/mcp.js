@@ -12,6 +12,52 @@ const {
 const { getMCPManager } = require('~/config');
 const { mcpServersRegistry, MCPConnectionFactory, MCPServerInspector } = require('@librechat/api');
 
+const staticLocalFilesTools = {
+  'gestionar_archivos_locales::local-files': {
+    function: {
+      name: 'gestionar_archivos_locales',
+      description: 'Gestiona archivos y carpetas en tu computadora local (leer, escribir, listar, procesar Word/Excel).',
+      parameters: {
+        type: 'object',
+        properties: {
+          accion: {
+            type: 'string',
+            enum: ['list_directory', 'read_file', 'write_file', 'read_excel_file', 'write_excel_file', 'read_docx_file', 'write_docx_file'],
+            description: 'Acción a realizar sobre los archivos locales.'
+          },
+          relative_path: { type: 'string', description: 'Ruta relativa del archivo o carpeta.' },
+          content: { type: 'string', description: 'Contenido de texto plano para escribir un archivo (solo para write_file).' },
+          sheets: {
+            type: 'array',
+            description: 'Hojas y filas para escribir un archivo Excel (solo para write_excel_file).',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } }
+              },
+              required: ['name', 'rows']
+            }
+          },
+          paragraphs: {
+            type: 'array',
+            description: 'Párrafos y títulos para escribir un archivo Word (solo para write_docx_file).',
+            items: {
+              type: 'object',
+              properties: {
+                type: { type: 'string', enum: ['heading1', 'heading2', 'text'] },
+                text: { type: 'string' }
+              },
+              required: ['type', 'text']
+            }
+          }
+        },
+        required: ['accion']
+      }
+    }
+  }
+};
+
 /**
  * Get all MCP tools available to the user
  */
@@ -33,6 +79,11 @@ const getMCPTools = async (req, res) => {
     const privateServers = Object.keys(allRegistryServers).filter(
       (name) => !staticServers.includes(name),
     );
+
+    // Garantizar que 'local-files' esté SIEMPRE listado para que el administrador pueda configurarlo
+    if (!privateServers.includes('local-files') && !staticServers.includes('local-files')) {
+      privateServers.push('local-files');
+    }
 
     const configuredServers = [...staticServers, ...privateServers];
 
@@ -76,10 +127,15 @@ const getMCPTools = async (req, res) => {
             cacheMCPServerTools({ userId, serverName, serverTools }).catch((err) =>
               logger.error(`[getMCPTools] Failed to cache gateway tools for ${serverName}:`, err),
             );
+          } else if (serverName === 'local-files') {
+            serverToolsMap.set(serverName, staticLocalFilesTools);
           }
           await connection.disconnect();
         } catch (gatewayErr) {
           logger.warn(`[getMCPTools] Could not load tools from gateway server ${serverName}:`, gatewayErr.message);
+          if (serverName === 'local-files') {
+            serverToolsMap.set(serverName, staticLocalFilesTools);
+          }
         }
         continue;
       }
@@ -98,6 +154,11 @@ const getMCPTools = async (req, res) => {
           logger.error(`[getMCPTools] Failed to cache tools for ${serverName}:`, err),
         );
       }
+    }
+
+    // Asegurar que local-files esté en el mapa con herramientas estáticas si no se cargó de otra forma
+    if (!serverToolsMap.has('local-files')) {
+      serverToolsMap.set('local-files', staticLocalFilesTools);
     }
 
     // Process each configured server
