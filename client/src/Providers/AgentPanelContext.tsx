@@ -38,17 +38,24 @@ export function AgentPanelProvider({ children }: { children: React.ReactNode }) 
   const { data: regularTools } = useAvailableToolsQuery(EModelEndpoint.agents);
 
   const { data: mcpData } = useMCPToolsQuery({
-    enabled: !isEphemeralAgent(agent_id) && startupConfig?.mcpServers != null,
+    // Siempre habilitado: los servidores privados del usuario (desktop)
+    // se registran dinamicamente via WebSocket y no dependen de startupConfig.mcpServers
+    enabled: !isEphemeralAgent(agent_id),
   });
 
   const { agentsConfig, endpointsConfig } = useGetAgentsConfig();
-  const mcpServerNames = useMemo(
-    () => Object.keys(startupConfig?.mcpServers ?? {}),
-    [startupConfig],
-  );
+
+  // mcpServerNames incluye tanto los servidores estaticos del yaml como los
+  // servidores privados del usuario (desktop) que llegan via mcpData
+  const mcpServerNames = useMemo(() => {
+    const staticNames = Object.keys(startupConfig?.mcpServers ?? {});
+    const dynamicNames = mcpData?.servers ? Object.keys(mcpData.servers) : [];
+    return Array.from(new Set([...staticNames, ...dynamicNames]));
+  }, [startupConfig, mcpData]);
 
   const { connectionStatus } = useMCPConnectionStatus({
-    enabled: !isEphemeralAgent(agent_id) && mcpServerNames.length > 0,
+    // Habilitar cuando haya cualquier servidor disponible
+    enabled: !isEphemeralAgent(agent_id),
   });
 
   const mcpServersMap = useMemo(() => {

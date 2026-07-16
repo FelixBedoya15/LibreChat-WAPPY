@@ -277,21 +277,6 @@ Para crear, inicializar o actualizar el Canvas con contenido nuevo, **NO uses la
     agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
   }
 
-  // Redefine canvas tool schema to only expose the "leer" action, preventing freezing writes
-  if (Array.isArray(tools)) {
-    const canvasTool = tools.find((tool) => tool.name === 'canvas');
-    if (canvasTool) {
-      const { z } = require('zod');
-      canvasTool.schema = z.object({
-        accion: z
-          .enum(['leer'])
-          .describe(
-            'Acción a realizar: "leer" para inspeccionar el estado y contenido actual del Canvas.',
-          ),
-      });
-      canvasTool.description =
-        'Herramienta interactiva de pantalla dividida (Canvas). Úsala ÚNICAMENTE con la acción "leer" para inspeccionar y consultar el contenido actual del documento cargado en el Canvas del usuario.';
-    }
   }
 
   return {

@@ -5,6 +5,8 @@ export * from './auth';
 /* MCP */
 export * from './mcp/registry/MCPServersRegistry';
 export * from './mcp/MCPManager';
+export * from './mcp/MCPConnectionFactory';
+export * from './mcp/registry/MCPServerInspector';
 export * from './mcp/connection';
 export * from './mcp/oauth';
 export * from './mcp/auth';

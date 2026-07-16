@@ -10,7 +10,7 @@ const {
   getAppConfig,
 } = require('~/server/services/Config');
 const { getMCPManager } = require('~/config');
-const { mcpServersRegistry } = require('@librechat/api');
+const { mcpServersRegistry, MCPConnectionFactory, MCPServerInspector } = require('@librechat/api');
 
 /**
  * Get all MCP tools available to the user
@@ -24,12 +24,29 @@ const getMCPTools = async (req, res) => {
     }
 
     const appConfig = req.config ?? (await getAppConfig({ role: req.user?.role }));
-    if (!appConfig?.mcpConfig) {
+
+    // Servidores estaticos del YAML
+    const staticServers = appConfig?.mcpConfig ? Object.keys(appConfig.mcpConfig) : [];
+
+    // Servidores privados del usuario (desktop conectado via WebSocket)
+    const allRegistryServers = await mcpServersRegistry.getAllServerConfigs(userId);
+    const privateServers = Object.keys(allRegistryServers).filter(
+      (name) => !staticServers.includes(name),
+    );
+
+    const configuredServers = [...staticServers, ...privateServers];
+
+    if (configuredServers.length === 0) {
       return res.status(200).json({ servers: {} });
     }
 
-    const mcpManager = getMCPManager();
-    const configuredServers = Object.keys(appConfig.mcpConfig);
+    let mcpManager = null;
+    try {
+      mcpManager = getMCPManager();
+    } catch (e) {
+      // MCPManager puede no existir si no hay servidores estaticos activos
+    }
+
     const mcpServers = {};
 
     const cachePromises = configuredServers.map((serverName) =>
@@ -44,6 +61,30 @@ const getMCPTools = async (req, res) => {
         continue;
       }
 
+      // Para servidores websocket-gateway (desktop conectado) crear conexion temporal
+      const serverConfig = allRegistryServers[serverName];
+      if (serverConfig && serverConfig.type === 'websocket-gateway') {
+        try {
+          logger.debug(`[getMCPTools] Connecting to websocket-gateway server ${serverName} for user ${userId}`);
+          const connection = await MCPConnectionFactory.create({
+            serverName,
+            serverConfig,
+          });
+          const serverTools = await MCPServerInspector.getToolFunctions(serverName, connection);
+          if (serverTools && Object.keys(serverTools).length > 0) {
+            serverToolsMap.set(serverName, serverTools);
+            cacheMCPServerTools({ userId, serverName, serverTools }).catch((err) =>
+              logger.error(`[getMCPTools] Failed to cache gateway tools for ${serverName}:`, err),
+            );
+          }
+          await connection.disconnect();
+        } catch (gatewayErr) {
+          logger.warn(`[getMCPTools] Could not load tools from gateway server ${serverName}:`, gatewayErr.message);
+        }
+        continue;
+      }
+
+      if (!mcpManager) continue;
       const serverTools = await mcpManager.getServerToolFunctions(userId, serverName);
       if (!serverTools) {
         logger.debug(`[getMCPTools] No tools found for server ${serverName}`);
@@ -64,8 +105,8 @@ const getMCPTools = async (req, res) => {
       try {
         const serverTools = serverToolsMap.get(serverName);
 
-        // Get server config once
-        const serverConfig = appConfig.mcpConfig[serverName];
+        // Get server config once - buscar tanto en estaticos como en privados
+        const serverConfig = appConfig?.mcpConfig?.[serverName];
         const rawServerConfig = await mcpServersRegistry.getServerConfig(serverName, userId);
 
         // Initialize server object with all server-level data
