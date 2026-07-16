@@ -163,6 +163,32 @@ async function handleMcpRequest(rpc, sharedFolder) {
     return null;
   }
 
+  // 1.1 Support MCP ping request to prevent connection timeouts/failures
+  if (method === 'ping') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: {}
+    };
+  }
+
+  // 1.2 Support empty resources/list and prompts/list to satisfy client capabilities check
+  if (method === 'resources/list') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: { resources: [] }
+    };
+  }
+
+  if (method === 'prompts/list') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: { prompts: [] }
+    };
+  }
+
   // 2. Tool Listing Handlers
   if (method === 'tools/list') {
     return {
