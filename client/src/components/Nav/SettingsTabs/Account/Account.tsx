@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { Input, Label, Button, useToastContext } from '@librechat/client';
-import { Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, MessageSquare, Copy } from 'lucide-react';
 import axios from 'axios';
 import { formatDateForInput } from '~/utils/dateHelpers';
 
@@ -25,6 +25,8 @@ function Account() {
   const { showToast } = useToastContext();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [token, setToken] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -33,6 +35,13 @@ function Account() {
     inactiveAt: '',
     phoneNumber: '',
   });
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      setToken(savedToken);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -93,36 +102,7 @@ function Account() {
         <div className="py-2"><DisplayUsernameMessages /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><EmailNotificationsToggle /></div>
-        <div className="h-px bg-border-light w-full my-1"></div>
-        <div className="py-2"><GoogleAIConnect /></div>
-        <div className="h-px bg-border-light w-full my-1"></div>
-        <div className="py-2"><GoogleDriveConnect /></div>
-        <div className="h-px bg-border-light w-full my-1"></div>
-        <div className="py-2"><OneDriveConnect /></div>
-
-        {user?.provider === 'local' && (
-          <>
-            <div className="h-px bg-border-light w-full my-1"></div>
-            <div className="py-2"><EnableTwoFactorItem /></div>
-            {user?.twoFactorEnabled && (
-              <div className="pb-2">
-                <BackupCodesItem />
-              </div>
-            )}
-            
-            {user?.role === 'ADMIN' && (
-              <>
-                <div className="h-px bg-border-light w-full my-1"></div>
-                <div className="py-2"><WhatsAppConnect /></div>
-              </>
-            )}
-          </>
-        )}
       </div>
-
-      {/* REFERRAL & PARTNERS SYSTEM */}
-      <ReferralPanel />
-
 
       {/* MIDDLE: Editar Perfil */}
       <div className="flex flex-col gap-6 p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm h-fit">
@@ -254,6 +234,84 @@ function Account() {
           </div>
         </form>
       </div>
+
+      {/* CONNECTIONS AND INTEGRATIONS */}
+      <div className="flex flex-col gap-1 p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+        <h3 className="text-base font-bold text-text-primary mb-1 pb-3 border-b border-border-light">Conexiones e Integraciones</h3>
+        <div className="py-2"><GoogleAIConnect /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        
+        {/* Token de Seguridad (JWT) para Agente Local */}
+        <div className="py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+            <div className="flex flex-col gap-1 flex-1">
+              <Label className="text-sm font-bold text-text-primary">
+                Token de Seguridad (JWT) para Agente Local
+              </Label>
+              <p className="text-xs text-text-secondary">
+                Usa este token para conectar las carpetas de tu computadora con WAPPY de forma segura.
+              </p>
+              <div className="relative mt-2 flex gap-2 max-w-xl">
+                <div className="relative flex-1">
+                  <Input
+                    id="mcpToken"
+                    type={showToken ? 'text' : 'password'}
+                    value={token}
+                    readOnly
+                    className="pr-10 font-mono text-xs select-all bg-surface-secondary text-text-secondary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-tertiary hover:text-text-primary"
+                  >
+                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-border-light hover:bg-surface-secondary flex items-center gap-1.5"
+                  onClick={() => {
+                    navigator.clipboard.writeText(token);
+                    showToast({ message: 'Token copiado al portapapeles', status: 'success' });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                  Copiar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><GoogleDriveConnect /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><OneDriveConnect /></div>
+
+        {user?.provider === 'local' && (
+          <>
+            <div className="h-px bg-border-light w-full my-1"></div>
+            <div className="py-2"><EnableTwoFactorItem /></div>
+            {user?.twoFactorEnabled && (
+              <div className="pb-2">
+                <BackupCodesItem />
+              </div>
+            )}
+            
+            {user?.role === 'ADMIN' && (
+              <>
+                <div className="h-px bg-border-light w-full my-1"></div>
+                <div className="py-2"><WhatsAppConnect /></div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* REFERRAL & PARTNERS SYSTEM */}
+      <ReferralPanel />
 
       {/* BOTTOM: Zona de Peligro */}
       <div className="flex flex-col gap-2 p-5 rounded-2xl border border-red-500/20 bg-red-500/5 shadow-sm h-fit">
