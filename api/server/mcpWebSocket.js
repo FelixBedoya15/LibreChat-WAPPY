@@ -24,7 +24,14 @@ function setupMcpWebSocket(server) {
 
     try {
       const params = url.parse(request.url, true).query;
-      const token = params.token || request.headers['sec-websocket-protocol'];
+      let token = params.token || request.headers['sec-websocket-protocol'];
+
+      if (!token && request.headers['authorization']) {
+        const authHeader = request.headers['authorization'];
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7);
+        }
+      }
 
       if (!token) {
         logger.warn('[MCP WS Gateway] Connection rejected: No token provided');

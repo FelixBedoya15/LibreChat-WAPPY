@@ -82,15 +82,11 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
   }
 
   // Pre-configured WAPPY production WebSocket URL
-  const serverUrl = 'wss://wappy.club/ws/mcp';
-  sendLog(`🔌 Conectando con ${serverUrl}...`);
+  const serverUrl = `wss://wappy.club/ws/mcp?token=${encodeURIComponent(token)}`;
+  sendLog('🔌 Conectando con wss://wappy.club/ws/mcp...');
 
   try {
-    wsClient = new WebSocket(serverUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    wsClient = new WebSocket(serverUrl);
 
     wsClient.on('open', () => {
       sendLog('🟢 Conexión WebSocket establecida con el servidor WAPPY.');
