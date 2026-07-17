@@ -72,11 +72,11 @@
 
         <div class="cert-box" style="background:#e0f2fe; border-color:#bae6fd;">
           <h3 style="color:#0369a1;">💰 Resumen de la Inversión</h3>
-          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Servicio</span><span class="val">Licencia Wappy Pro Anual</span></div>
-          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Soporte Técnico</span><span class="val">Premium Incluido</span></div>
-          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Acompañamiento</span><span class="val">2 Sesiones (Bonificado)</span></div>
-          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Charla / Conferencia</span><span class="val">Obsequiada (Impacto IA)</span></div>
-          <div class="cert-row" style="border-color:#e0f2fe; font-weight:bold; font-size:15px;"><span class="lbl" style="color:#0369a1;">Inversión Neta Anual</span><span class="val" style="color:#0369a1;">$1.200.000 COP</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Servicio</span><span class="val">{{#if serviceName}}{{serviceName}}{{else}}Licencia Wappy Pro Anual{{/if}}</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Soporte Técnico</span><span class="val">{{#if supportName}}{{supportName}}{{else}}Premium Incluido{{/if}}</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Acompañamiento</span><span class="val">{{#if onboardingName}}{{onboardingName}}{{else}}2 Sesiones (Bonificado){{/if}}</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe;"><span class="lbl" style="color:#0369a1;">Charla / Conferencia</span><span class="val">{{#if conferenceName}}{{conferenceName}}{{else}}Obsequiada (Impacto IA){{/if}}</span></div>
+          <div class="cert-row" style="border-color:#e0f2fe; font-weight:bold; font-size:15px;"><span class="lbl" style="color:#0369a1;">Inversión Neta Anual</span><span class="val" style="color:#0369a1;">{{#if investmentAmount}}{{investmentAmount}}{{else}}$1.200.000 COP{{/if}}</span></div>
         </div>
 
         <div class="signature-container">
