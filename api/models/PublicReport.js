@@ -9,8 +9,6 @@ const PublicReportSchema = new mongoose.Schema({
   expiresAt: { type: Date }, // Optional: set an expiration if needed
 });
 
-PublicReportSchema.index({ id: 1 });
-
 const PublicReport = mongoose.models.PublicReport || mongoose.model('PublicReport', PublicReportSchema);
 
 module.exports = PublicReport;
