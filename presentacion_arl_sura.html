@@ -587,10 +587,10 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10 space-y-1">
                                 <span class="text-[10px] text-rose-500 font-bold uppercase tracking-wider block">Servicio Tradicional</span>
-                                <h4 class="font-bold text-sm text-slate-900 dark:text-white">1 Capacitación Básica (2 Horas)</h4>
-                                <div class="text-xl font-black font-heading text-rose-600 dark:text-rose-400 mt-1">$120.000 COP</div>
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-white">1 Hora de Asesoría Consultor SG-SST</h4>
+                                <div class="text-xl font-black font-heading text-rose-600 dark:text-rose-400 mt-1">$60.000 COP</div>
                                 <p class="text-[10px] text-slate-500 leading-normal">
-                                    Pago promedio por instructor externo ($60.000/hora con un mínimo de 2 horas requeridas).
+                                    Valor hora promedio de consultoría externa contratada en el mercado para asistencia técnica.
                                 </p>
                             </div>
 
@@ -599,7 +599,7 @@
                                 <h4 class="font-bold text-sm text-slate-900 dark:text-white">Licencia Corporativa en Volumen</h4>
                                 <div class="text-xl font-black font-heading text-wappy-500 mt-1">$35.000 - $68.000 COP</div>
                                 <p class="text-[10px] text-slate-500 leading-normal">
-                                    Costo mensual por empresa. Incluye 22 Agentes, Aula de Estudio y actualizaciones recurrentes de contenido.
+                                    Costo mensual por empresa. Equivalente a asesoría ilimitada 24/7 de nuestros 22 Agentes y Aula de Estudio.
                                 </p>
                             </div>
                         </div>
@@ -630,7 +630,7 @@
                             <h4 class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-1.5">
                                 <i data-lucide="calculator" class="w-4 h-4 text-sura-500"></i> Calculadora de Ahorro & ROI
                             </h4>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">Ajusta las variables para simular el ahorro frente al costo de capacitación física.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Ajusta las variables para simular el ahorro frente al costo de asesoría física por horas.</p>
                             
                             <!-- Slider 1: Empresas -->
                             <div class="space-y-2">
@@ -644,10 +644,10 @@
                             <!-- Slider 2: Capacitaciones -->
                             <div class="space-y-2 pt-2">
                                 <div class="flex justify-between text-xs font-semibold">
-                                    <span>Capacitaciones al Año (por empresa):</span>
-                                    <span class="text-sura-500 font-bold text-sm" id="capVal">8</span>
+                                    <span>Horas de Asesoría al Año (por empresa):</span>
+                                    <span class="text-sura-500 font-bold text-sm" id="capVal">12</span>
                                 </div>
-                                <input type="range" min="1" max="24" value="8" class="w-full h-1 bg-slate-250 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="capRange" oninput="calculateInversion()">
+                                <input type="range" min="1" max="48" value="12" class="w-full h-1 bg-slate-250 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="capRange" oninput="calculateInversion()">
                             </div>
                         </div>
 
@@ -662,12 +662,12 @@
                                 <span class="text-slate-800 dark:text-white font-bold" id="onbUnico">$5.000.000 COP</span>
                             </div>
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (<span id="capLabel">8</span> caps. × $120.000):</span>
-                                <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$480.000.000 COP</span>
+                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (<span id="capLabel">12</span> horas × $60.000):</span>
+                                <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$360.000.000 COP</span>
                             </div>
-                            <div class="flex justify-between text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
-                                <span class="text-slate-500 dark:text-slate-400">Costo Unitario por Sesión (Wappy vs. Tradic.):</span>
-                                <span class="text-slate-800 dark:text-white font-bold"><span class="text-wappy-500 font-bold" id="costoUnitarioWappy">$42.500 COP</span> vs. <span class="text-rose-600 font-bold">$120.000 COP</span></span>
+                            <div class="flex justify-between text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-850">
+                                <span class="text-slate-500 dark:text-slate-400">Costo Unitario por Hora (Wappy vs. Tradic.):</span>
+                                <span class="text-slate-800 dark:text-white font-bold"><span class="text-wappy-500 font-bold" id="costoUnitarioWappy">$42.500 COP</span> vs. <span class="text-rose-600 font-bold">$60.000 COP</span></span>
                             </div>
                             <div class="flex justify-between border-t border-slate-200 dark:border-slate-850 pt-3 text-sm">
                                 <span class="text-slate-900 dark:text-white font-bold">Ahorro Neto Anual SURA:</span>
@@ -857,13 +857,13 @@
             const onboardingVal = Math.round(val * 0.1) * 100000;
             const wappyTotal = softwareAnualVal + onboardingVal;
 
-            // Traditional Cost equivalent (caps * Y empresas * $120.000 COP)
-            const traditionalEquiv = val * caps * 120000;
+            // Traditional Cost equivalent (caps * Y empresas * $60.000 COP)
+            const traditionalEquiv = val * caps * 60000;
 
             // Net Savings
             const savingsVal = traditionalEquiv - wappyTotal;
 
-            // Unit cost per session with Wappy (wappyTotal / (val * caps))
+            // Unit cost per hour with Wappy (wappyTotal / (val * caps))
             const totalSessions = val * caps;
             const unitCostWappyVal = Math.round(wappyTotal / totalSessions);
             const costoUnitarioWappy = document.getElementById('costoUnitarioWappy');
@@ -1037,7 +1037,7 @@
             const onboardingCost = document.getElementById('onbUnico').textContent;
             const savings = document.getElementById('totalAno1').textContent;
 
-            const investmentText = `${wappyCost} anuales (+ ${onboardingCost} onboarding) para ${empCount} empresas reemplazando ${capCount} capacitaciones físicas/año. Ahorro estimado: ${savings}.`;
+            const investmentText = `${wappyCost} anuales (+ ${onboardingCost} onboarding) para ${empCount} empresas reemplazando ${capCount} horas de asesoría física/año. Ahorro estimado: ${savings}.`;
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span>Enviando propuesta...</span>';
