@@ -801,6 +801,63 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../presentacion_arl_sura.html'));
   });
 
+  app.post('/api/presentacion/solicitar-demo', async (req, res) => {
+    try {
+      const { nombreContacto, emailContacto, telefonoContacto, nombreEmpresa, fechaHora, modalidad } = req.body;
+
+      if (!nombreContacto || !emailContacto || !nombreEmpresa) {
+        return res.status(400).json({ message: 'Faltan datos obligatorios (nombre, correo y empresa).' });
+      }
+
+      const sendEmail = require('./utils/sendEmail');
+      const payload = {
+        signerName: nombreContacto,
+        signerRole: modalidad || 'Virtual',
+        signerNit: telefonoContacto || 'No especificado',
+        signerEmail: emailContacto,
+        proposalName: `Solicitud de Demostración Presencial/Virtual - ${nombreEmpresa}`,
+        date: fechaHora || 'Por acordar',
+        serviceName: 'Demo Técnica de Wappy IA',
+        supportName: 'Programación de Reunión',
+        onboardingName: `Modalidad: ${modalidad}`,
+        conferenceName: `Fecha sugerida: ${fechaHora}`,
+        investmentAmount: 'N/A'
+      };
+
+      // Send email to support
+      const supportEmails = [
+        process.env.SUPPORT_EMAIL || 'soporte@wappy.club',
+        'wappyinteractivo@gmail.com'
+      ];
+
+      for (const supportEmail of supportEmails) {
+        try {
+          await sendEmail({
+            email: supportEmail,
+            subject: `📅 [NUEVO EVENTO] Solicitud de Demo con ${nombreEmpresa}`,
+            payload,
+            template: 'propuestaAceptada.handlebars'
+          });
+        } catch (supportErr) {
+          logger.error(`[Demo] Error sending notification to support (${supportEmail}):`, supportErr);
+        }
+      }
+
+      // Send confirmation to client
+      await sendEmail({
+        email: emailContacto,
+        subject: `📅 Confirmación de Solicitud de Demostración — Wappy IA`,
+        payload,
+        template: 'propuestaAceptada.handlebars'
+      });
+
+      res.json({ success: true, message: 'Solicitud de demostración enviada con éxito.' });
+    } catch (err) {
+      logger.error('[Demo Request] Error al procesar:', err);
+      res.status(500).json({ success: false, message: 'Error interno del servidor.', error: err.message });
+    }
+  });
+
   app.post('/api/proposals/accept', async (req, res) => {
     try {
       const { 
