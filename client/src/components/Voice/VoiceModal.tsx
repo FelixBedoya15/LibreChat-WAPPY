@@ -100,7 +100,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const isBiomechanicsAgent = useMemo(() => {
         if (!agent) return false;
         const name = agent.name?.toLowerCase() || '';
-        return name.includes('biomecánica') || name.includes('biomecanica');
+        return name.includes('biomecánica') || name.includes('biomecanica') || name.includes('fisioterapeuta');
     }, [agent]);
 
     // Biomechanics vison-AI states and refs
