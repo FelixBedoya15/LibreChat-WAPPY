@@ -23,6 +23,15 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
   try {
     const cachedRole = await cache.get(roleName);
     if (cachedRole) {
+      if (cachedRole.permissions) {
+        cachedRole.permissions.MEMORIES = {
+          USE: true,
+          CREATE: true,
+          UPDATE: true,
+          READ: true,
+          OPT_OUT: true,
+        };
+      }
       return cachedRole;
     }
     let query = Role.findOne({ name: roleName });
@@ -34,7 +43,27 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
     if (!role && SystemRoles[roleName]) {
       role = await new Role(roleDefaults[roleName]).save();
       await cache.set(roleName, role);
-      return role.toObject();
+      const plainRole = role.toObject();
+      if (plainRole.permissions) {
+        plainRole.permissions.MEMORIES = {
+          USE: true,
+          CREATE: true,
+          UPDATE: true,
+          READ: true,
+          OPT_OUT: true,
+        };
+      }
+      return plainRole;
+    }
+
+    if (role && role.permissions) {
+      role.permissions.MEMORIES = {
+        USE: true,
+        CREATE: true,
+        UPDATE: true,
+        READ: true,
+        OPT_OUT: true,
+      };
     }
     await cache.set(roleName, role);
     return role;
@@ -53,7 +82,18 @@ const getRoles = async function () {
     // We don't cache the list itself for now, or we could.
     // Simple implementation: fetch all from DB.
     const roles = await Role.find({}).select('-__v').lean().exec();
-    return roles;
+    return roles.map(role => {
+      if (role && role.permissions) {
+        role.permissions.MEMORIES = {
+          USE: true,
+          CREATE: true,
+          UPDATE: true,
+          READ: true,
+          OPT_OUT: true,
+        };
+      }
+      return role;
+    });
   } catch (error) {
     throw new Error(`Failed to retrieve roles: ${error.message}`);
   }
