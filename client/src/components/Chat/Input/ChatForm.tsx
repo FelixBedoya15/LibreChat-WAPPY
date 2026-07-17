@@ -294,6 +294,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                     (textAreaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = e;
                   }}
                   disabled={disableInputs || isNotAppendable}
+                  data-ms-editor="false"
+                  data-gramm="false"
                   onPaste={handlePaste}
                   onKeyDown={handleKeyDown}
                   onKeyUp={handleKeyUp}
