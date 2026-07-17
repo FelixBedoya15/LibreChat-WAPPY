@@ -1,13 +1,13 @@
 ---
 name: skill-planes-de-emergencia
-description: Skill de ACCIÓN. Se activa cuando el usuario pide que Tenshi ejecute directamente acciones relacionadas con emergencias, como registrar el análisis de vulnerabilidad en Somos SST o llamar al Experto en Emergencias para apoyo técnico.
+description: Skill de ACCIÓN. Se activa cuando el usuario pide que Tenshi ejecute directamente acciones relacionadas con emergencias, como registrar el análisis de vulnerabilidad en Somos SST o llamar al Coordinador de Emergencias para apoyo técnico.
 scope: tenshi
 triggers:
   - haz el plan de emergencia
   - registra la vulnerabilidad
   - actualiza el análisis de vulnerabilidad
-  - llama al experto en emergencias
-  - consulta el experto en emergencias
+  - llama al coordinador de emergencias
+  - consulta el coordinador de emergencias
   - haz el análisis de vulnerabilidad
   - registra el simulacro
   - registra la emergencia
@@ -20,8 +20,8 @@ Esta skill se activa cuando el usuario pide una **acción directa** relacionada 
 
 ## Acciones disponibles
 
-**Si el usuario pide que Tenshi llame al Experto en Emergencias:**
-→ Usar `consultar_agente_especializado` con `nombre_especialista: "Experto en Emergencias"` y pasar la consulta completa del usuario.
+**Si el usuario pide que Tenshi llame al Coordinador de Emergencias:**
+→ Usar `consultar_agente_especializado` con `nombre_especialista: "Coordinador de Emergencias"` y pasar la consulta completa del usuario.
 
 **Si el usuario pide registrar o actualizar el Análisis de Vulnerabilidad en Somos SST:**
 → Usar `somos_sst` con `accion: "editar_cualquier_aplicativo"` y `nombre_aplicativo: "vulnerabilidad"`.

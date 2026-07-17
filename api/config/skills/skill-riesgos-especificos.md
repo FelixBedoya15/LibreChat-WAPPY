@@ -24,6 +24,12 @@ triggers:
   - virus
   - bacteria
   - accidente vial
+  - riesgo climático
+  - estrés térmico
+  - calor extremo
+  - cambio climático
+  - radiación solar
+  - temperatura extrema
 ---
 
 # Skill: Riesgos Específicos en WAPPY IA
@@ -36,11 +42,12 @@ Cuando el usuario menciona un tipo de riesgo específico, **Tenshi SIEMPRE llama
 
 | Tipo de riesgo detectado | Agente a llamar |
 |---|---|
-| Sustancias químicas, HDS/FDS, derrames, almacenamiento, EPP químico | `"Especialista en Riesgo Químico"` |
-| Instalaciones eléctricas, cortocircuitos, RETIE, trabajos eléctricos | `"Especialista en Riesgo Eléctrico"` |
-| Agentes biológicos, virus, bacterias, bioseguridad, EPIs biológicos | `"Especialista en Riesgo Biológico"` |
-| Seguridad vial, conductores, PESV, accidentes de tránsito, flotas | `"Especialista en Riesgo Vial"` |
-| Minería subterránea, túneles, explosivos, ventilación en minas | `"Experto en Minería Subterránea"` |
+| Sustancias químicas, HDS/FDS, derrames, almacenamiento, EPP químico | `"Ingeniero Químico SST"` |
+| Instalaciones eléctricas, cortocircuitos, RETIE, trabajos eléctricos | `"Ingeniero Electricista SST"` |
+| Agentes biológicos, virus, bacterias, bioseguridad, EPIs biológicos | `"Especialista en Bioseguridad"` |
+| Seguridad vial, conductores, PESV, accidentes de tránsito, flotas | `"Coordinador de Seguridad Vial"` |
+| Minería subterránea, túneles, explosivos, ventilación en minas | `"Ingeniero de Minas SST"` |
+| Riesgo climático, estrés térmico, calor extremo, UV solar | `"Especialista en Riesgo Climático"` |
 
 ---
 
@@ -53,7 +60,8 @@ Cuando el usuario menciona un tipo de riesgo específico, **Tenshi SIEMPRE llama
 ---
 
 ## Normatividad clave por riesgo
-- **Químico**: Ley 55 de 1993, NTC-ISO 11014, Decreto 1609 de 2002
-- **Eléctrico**: RETIE (Resolución 90708 de 2013), NTC 2050
-- **Biológico**: Resolución 2003 de 2014 (bioseguridad)
-- **Vial**: Ley 1503 de 2011, Resolución 1565 de 2014 (PESV)
+- **Químico**: Decreto 1496 de 2018 (SGA), Ley 55 de 1993
+- **Eléctrico**: RETIE (Resolución 90708 de 2013 y Resolución 40284 de 2026), NTC 2050
+- **Biológico**: Decreto 351 de 2014, Resolución 1164 de 2002
+- **Vial**: Ley 1503 de 2011, Resolución 20223040040595 de 2022 (PESV)
+- **Climático**: Ley 1931 de 2018, norma ISO 7243 (Estrés Térmico)

@@ -72,30 +72,28 @@ WAPPY IA (wappy.club)
 
 | Área | Agente | Para qué sirve |
 |---|---|---|
-| Clínica y salud | Consultor Médico Ocupacional | Exámenes médicos, incapacidades, restricciones, profesiogramas |
-| Salud mental | Especialista en Riesgo Psicosocial | Batería psicosocial, factores intralaborales/extralaborales |
-| Salud mental | Consultor de Bienestar y Salud Mental | Programas de bienestar, pausas activas, estrés |
-| Rehabilitación | Especialista en Biomecánica Laboral | Lesiones musculoesqueléticas, adaptación de puesto, fisioterapia |
-| Ergonomía | Analista Ergonómico ROSA | Evaluación de puestos de trabajo con metodología ROSA |
-| Nutrición | Asistente en Nutrición | Hábitos alimenticios, comedores industriales |
-| Primeros auxilios | Asistente en Primeros Auxilios | Atención de urgencias básicas, botiquín |
-| Emergencias | Experto en Emergencias | Plan de emergencias, simulacros, brigadas, geolocalización de recursos |
-| Riesgo eléctrico | Especialista en Riesgo Eléctrico | RETIE, trabajos eléctricos, instalaciones |
-| Riesgo biológico | Especialista en Riesgo Biológico | Agentes biológicos, bioseguridad, EPIs |
-| Riesgo químico | Especialista en Riesgo Químico | HDS/FDS, derrames, almacenamiento químico |
-| Riesgo vial | Especialista en Riesgo Vial | PESV, conductores, accidentes de tránsito |
-| Tareas críticas | Experto en Tareas de Alto Riesgo | Espacios confinados, trabajo en caliente, excavaciones |
-| Minería | Experto en Minería Subterránea | Túneles, explosivos, ventilación en minas |
-| Legal laboral | Consultor Jurídico Laboral | Despidos, contratos, reforma laboral 2026, fueros |
-| Legal RIT | Consultor Jurídico RIT | Reglamento Interno de Trabajo, jornada 42 horas |
-| Disciplinario | Abogado de Procesos Disciplinarios | Sanciones, memorandos, debido proceso |
-| Acoso | Abogado de Acoso Sexual | Acoso sexual y violencia laboral |
-| Investigación AT | Asistente de Investigación de AT | Árbol de causas, 5 porqués, formato FURAT/FUREL |
-| Investigación EL | Asistente de Investigación de EL | Investigación de enfermedades laborales |
-| Capacitación | Asistente en Capacitaciones | Diseño de programas y cronogramas de formación SST |
-| Matrices | Especialista GTC-45 / Agente IPEVAR | Generación y análisis de Matriz de Peligros GTC-45 con IA |
-| Auditoría | Auditor Integral SG-SST | Auditoría interna, diagnóstico Resolución 0312 |
-| SST General | Profesional SST | Consultoría general en gestión SST |
+| SST General | Consultor SG-SST | Consultoría general en gestión SST |
+| SST Campo | Profesional SST | Implementación y control operativo en campo |
+| Auditoría | Auditor SG-SST | Auditoría interna, diagnóstico Resolución 0312 |
+| Clínica y salud | Médico Laboral | Exámenes médicos, incapacidades, restricciones, profesiogramas |
+| Salud mental | Psicólogo SST | Batería psicosocial, factores intralaborales/extralaborales, COPASST |
+| Bienestar | Terapeuta en Salud Mental | Programas de bienestar, estrés, desconexión laboral |
+| Rehabilitación | Fisioterapeuta Laboral | Lesiones musculoesqueléticas, adaptación de puesto, ROSA/OWAS |
+| Nutrición | Nutricionista Laboral | Hábitos alimenticios, comedores industriales |
+| Primeros auxilios | Primer Respondiente | Atención de urgencias básicas, botiquín, brigadas |
+| Emergencias | Coordinador de Emergencias | Plan de emergencias, simulacros, brigadas, geolocalización de recursos |
+| Riesgo eléctrico | Ingeniero Electricista SST | RETIE, trabajos eléctricos, instalaciones, 5 Reglas de Oro |
+| Riesgo biológico | Especialista en Bioseguridad | Agentes biológicos, bioseguridad, EPIs, residuos peligrosos |
+| Riesgo químico | Ingeniero Químico SST | HDS/FDS, derrames, almacenamiento químico, SGA |
+| Riesgo vial | Coordinador de Seguridad Vial | PESV, conductores, accidentes de tránsito |
+| Riesgo climático | Especialista en Riesgo Climático | Estrés térmico, UV solar, adaptación climática |
+| Tareas críticas | Coordinador de Tareas Críticas | Alturas, espacios confinados, trabajos en caliente, LOTO |
+| Minería | Ingeniero de Minas SST | Túneles, explosivos, ventilación en minas |
+| Legal laboral | Abogado Laboral | Despidos, contratos, reforma laboral 2026, fueros |
+| Capacitación | Coordinador de Capacitaciones | Diseño de programas y cronogramas de formación SST |
+| Ambiental | Ingeniero Ambiental | Gestión ambiental, residuos, ISO 14001 |
+| Investigación AT | Simulador de Accidentes SST | Árbol de fallas, 5 porqués, análisis de accidentalidad |
+| Contenidos | Redactor Creativo | Blog SST, artículos técnicos, SEO |
 
 ### ¿Cómo se hacen los planes de emergencias y documentos largos en el Chat?
 Los documentos extensos (planes de emergencias, políticas, reglamentos) se construyen dentro del chat con el agente correspondiente usando la herramienta **Canvas**. Canvas abre un editor interactivo en la pantalla dividida (derecha) donde el agente redacta el documento colaborativamente. El resultado se puede exportar a Word o PDF.

@@ -27,8 +27,8 @@ triggers:
 
 **Si el usuario pide orientación, consulta técnica o quiere hablar con el especialista** (ejemplo: "¿cómo aplico la batería psicosocial?", "habla con el psicólogo"):
 → Tenshi **llama al agente** con `consultar_agente_especializado`:
-- `"Especialista en Riesgo Psicosocial"` → batería de riesgo psicosocial, factores intralaborales y extralaborales
-- `"Consultor de Bienestar y Salud Mental"` → programas de bienestar, salud mental organizacional
+- `"Psicólogo SST"` → batería de riesgo psicosocial, factores intralaborales y extralaborales, COPASST
+- `"Terapeuta en Salud Mental"` → programas de bienestar, salud mental organizacional, desconexión laboral
 
 **Si el usuario pide actualizar o consultar datos del Termómetro Psicosocial** (ejemplo: "registra el resultado del termómetro", "¿cómo va el termómetro de la empresa?"):
 → Tenshi usa `somos_sst` con `accion: "editar_cualquier_aplicativo"` para acceder al módulo correspondiente.
@@ -38,8 +38,8 @@ triggers:
 ## Dónde vive esta información en WAPPY IA
 
 ### En el Chat Principal — Agentes Especializados
-- **Especialista en Riesgo Psicosocial**: Orientación en aplicación e interpretación de la Batería de Riesgo Psicosocial MinTrabajo.
-- **Consultor de Bienestar y Salud Mental**: Programas de bienestar, pausas activas, estrategias de manejo del estrés.
+- **Psicólogo SST**: Orientación en aplicación e interpretación de la Batería de Riesgo Psicosocial MinTrabajo, evaluación del COPASST.
+- **Terapeuta en Salud Mental**: Programas de bienestar, pausas activas, estrategias de manejo del estrés, desconexión laboral.
 
 ### En Somos SST — Módulo disponible
 - **Termómetro Psicosocial**: Herramienta de medición del estado psicosocial de la empresa. Existe tanto como módulo en Somos SST como herramienta dentro del chat con el agente especialista.

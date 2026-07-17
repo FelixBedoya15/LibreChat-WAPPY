@@ -30,8 +30,10 @@ triggers:
 
 **Si el usuario pregunta cómo hacer una evaluación ergonómica o necesita orientación técnica** (ejemplo: "¿cómo aplico el método ROSA?", "¿qué evalúa el OWAS?"):
 → Tenshi **indica la ruta en WAPPY IA** y puede **llamar al especialista** con `consultar_agente_especializado`:
-- `"Especialista en Biomecánica Laboral"` → para lesiones musculoesqueléticas, reincorporación, fisioterapia ocupacional
-- `"Analista Ergonómico ROSA"` → para evaluación específica de puestos de trabajo con el método ROSA
+- `"Fisioterapeuta Laboral"` → para lesiones musculoesqueléticas, reincorporación, fisioterapia ocupacional, evaluación ergonómica ROSA/OWAS
+
+**Si el usuario pide el análisis en vivo con cámara o con exoesqueleto luminoso:**
+→ Indicar al usuario que acceda a **Análisis en Vivo** → seleccionar el modo **"Biomécanico (Visión IA)"** para la telemetría articular con exoesqueleto luminoso en tiempo real.
 
 ---
 
@@ -42,8 +44,11 @@ triggers:
 - **Perfil Sociodemográfico** (`/sgsst/perfiles-sociodemograficos`): Contiene datos de condiciones de salud que pueden correlacionarse con riesgos ergonómicos.
 
 ### En el Chat Principal — Agentes Especializados
-- **Especialista en Biomecánica Laboral**: Fisioterapeuta ocupacional. Analiza lesiones, adaptación de puesto, recomendaciones de rehabilitación.
-- **Analista Ergonómico ROSA**: Aplica metodología ROSA para evaluación de puestos de trabajo con pantallas, sillas, teclados y mouse.
+- **Fisioterapeuta Laboral**: Fisioterapeuta ocupacional. Analiza lesiones, adaptación de puesto, recomendaciones de rehabilitación, evaluaciones ergonómicas ROSA y OWAS.
+
+### Análisis en Vivo con Cámara (Exoesqueleto Luminoso)
+- **Modo Biomécanico Cualitativo** (`Riesgo Biomécanico`): Revisión visual de posturas, cargas y movimientos repetitivos.
+- **Modo Biomécanico con Visión IA** (`Biomécanico (Visión IA)`): Telemetría articular en tiempo real con exoesqueleto luminoso. Mide ángulos de cuello, espalda y brazos según criterios RULA/REBA. Acceder desde: Chat → Botón **Análisis en Vivo** → Modo **Biomécanico (Visión IA)**.
 
 ---
 
