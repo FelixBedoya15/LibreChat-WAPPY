@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wappy IA × Alfredo López & CIA / Consulting AND Outsourcing Services</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['"Outfit"', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        code: ['"Fira Code"', 'monospace'],
+                    },
+                    colors: {
+                        wappy: {
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        client: {
+                            500: '#6366f1', /* Indigo corporativo para la firma */
+                            600: '#4f46e5',
+                            900: '#1e1b4b',
+                        },
+                        darkBg: '#030712',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        .glass-panel-green {
+            background: rgba(17, 24, 39, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .glow-bg {
+            position: absolute;
+            width: 45vw;
+            height: 45vw;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(150px);
+            z-index: 0;
+            opacity: 0.12;
+            transition: all 1s ease-in-out;
+        }
+
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(40px) scale(0.97);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) scale(1);
+            z-index: 2;
+        }
+
+        .slide.previous {
+            transform: translateX(-40px) scale(0.97);
+        }
+
+        .bullet-active {
+            width: 1.75rem !important;
+            background: #22c55e !important;
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.25rem 0.7rem;
+            border-radius: 50px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #94a3b8;
+        }
+
+        .tag-green {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+
+        .tag-indigo {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #818cf8;
+        }
+
+        .agente-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .agente-chip .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #22c55e;
+            flex-shrink: 0;
+        }
+
+        .agente-chip.cyan .dot { background: #06b6d4; }
+        .agente-chip.cyan { border-color: rgba(6, 182, 212, 0.15); }
+
+        .hito-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+        }
+
+        .hito-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1.5px solid #22c55e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 0.7rem;
+            color: #22c55e;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 8px rgba(34, 197, 94, 0.3); }
+            to { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
+        }
+    </style>
+</head>
+
+<body class="bg-darkBg text-slate-100 font-sans min-h-screen overflow-hidden relative select-none">
+
+    <!-- Ambient Glows -->
+    <div class="glow-bg bg-client-900 top-[-10%] right-[-10%]"></div>
+    <div class="glow-bg bg-wappy-500 bottom-[-10%] left-[-10%]"></div>
+
+    <!-- Main Presentation Container -->
+    <div id="mainContainer" class="relative z-10 grid grid-cols-1 grid-rows-[auto_1fr_auto] h-screen w-screen transition-all duration-500">
+
+        <!-- HEADER -->
+        <header class="px-8 py-3.5 flex justify-between items-center border-b border-slate-800 bg-darkBg/85 backdrop-blur-md">
+            <div class="flex items-center gap-4">
+                <!-- Wappy Logo -->
+                <div class="flex items-center gap-2">
+                    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#hdr-grad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="hdr-grad" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#22c55e"/>
+                                <stop offset="1" stop-color="#6366f1"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="font-heading font-black text-lg tracking-tight text-white">WAPPY<span class="text-wappy-500">IA</span></span>
+                </div>
+                <div class="h-5 w-[1px] bg-slate-700"></div>
+                <span class="px-2.5 py-0.5 rounded bg-client-900/40 border border-client-500/30 text-indigo-300 text-[10px] font-extrabold uppercase tracking-widest font-heading">
+                    Alfredo López & CIA · Consulting AND Outsourcing Services
+                </span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-semibold text-slate-400">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span id="meetingTimer">45:00</span>
+                </div>
+                <button onclick="toggleNotesPanel()" id="btnToggleNotes" class="flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-700 bg-slate-900/40 hover:bg-client-500/10 hover:border-client-500 text-xs font-semibold text-slate-300 transition-all">
+                    <i data-lucide="menu" class="w-3.5 h-3.5"></i>
+                    <span>Notas del Expositor</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- CONTENT GRID -->
+        <div class="relative overflow-hidden grid grid-cols-1 transition-all duration-500" id="contentLayout">
+
+            <!-- Slides Viewport -->
+            <div class="relative flex justify-center items-center p-6 lg:p-10 overflow-hidden">
+                <div class="relative w-full h-full max-w-6xl max-h-[640px]">
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 1: PORTADA
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-1" class="slide active">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-center relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.07),transparent_55%)] pointer-events-none"></div>
+                            <div class="absolute bottom-0 left-0 w-64 h-64 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.05),transparent_55%)] pointer-events-none"></div>
+
+                            <div class="space-y-5 max-w-4xl">
+                                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wappy-500/10 border border-wappy-500/30 text-wappy-500 text-xs font-bold uppercase tracking-wider">
+                                    <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i>
+                                    Su Aliado Tecnológico en Inteligencia Artificial
+                                </span>
+                                <h1 class="font-heading font-black text-4xl lg:text-5xl text-white leading-tight">
+                                    Automaticemos el SG-SST de <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 via-indigo-400 to-client-500">Alfredo López & CIA</span> y Consulting AND Outsourcing Services
+                                </h1>
+                                <p class="text-lg text-slate-400 font-light leading-relaxed max-w-2xl">
+                                    Cómo Wappy IA encaja en el día a día de su firma de asesoría legal, tributaria y de cumplimiento normativo — liberando horas para la labor que realmente importa.
+                                </p>
+                                <div class="pt-4 flex flex-wrap items-center gap-3">
+                                    <span class="tag-badge tag-green">~70 Colaboradores</span>
+                                    <span class="tag-badge tag-green">ARL SURA · Riesgo 1</span>
+                                    <span class="tag-badge tag-green">PESV Misionalidad 2</span>
+                                    <span class="tag-badge tag-green">ISO 9001:2015 · 12+ años</span>
+                                    <span class="tag-badge tag-green">60 Estándares SG-SST</span>
+                                    <span class="tag-badge tag-indigo">Cali · Bogotá · Nacional</span>
+                                </div>
+                                <div class="pt-4 flex items-center gap-4">
+                                    <div class="px-4 py-2.5 rounded-2xl bg-slate-900/60 border border-slate-800">
+                                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-heading font-bold">Presentado por:</p>
+                                        <p class="text-sm font-bold text-white mt-0.5">Wappy IA — wappy.club</p>
+                                    </div>
+                                    <div class="px-4 py-2.5 rounded-2xl bg-slate-900/60 border border-slate-800">
+                                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-heading font-bold">Dirigido a:</p>
+                                        <p class="text-sm font-bold text-indigo-300 mt-0.5">Equipo Directivo · Alfredo López & CIA / COS</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 2: CONOCEMOS SU EMPRESA
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-2" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-indigo-400 uppercase tracking-widest text-xs font-bold block">Su Perfil Empresarial</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Los conocemos — y hemos construido Wappy para empresas como la suya</h2>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-auto">
+                                <!-- Card 1 -->
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                        <i data-lucide="building-2" class="w-4 h-4"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Grupo Empresarial</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Dos razones sociales: <strong class="text-slate-200">Alfredo López y CIA SAS BIC</strong> y <strong class="text-slate-200">Consulting AND Outsourcing Services SAS</strong>. Cobertura nacional con sede en Cali y Bogotá.</p>
+                                </div>
+                                <!-- Card 2 -->
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500">
+                                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">SST & Certificaciones</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">ISO 9001:2015 por más de 12 años. Administración de <strong class="text-slate-200">60 estándares</strong> del SG-SST (21 mínimos + 39 adicionales). ARL SURA, Riesgo 1.</p>
+                                </div>
+                                <!-- Card 3 -->
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
+                                        <i data-lucide="car" class="w-4 h-4"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Riesgos Clave</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Riesgo <strong class="text-slate-200">Psicosocial</strong>, Biomecánico y Condiciones de Seguridad (accidente de tránsito/público). PESV <strong class="text-slate-200">Misionalidad 2</strong>: asesores en campo en todo el país.</p>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 flex flex-wrap gap-2 items-center">
+                                <span class="text-xs text-slate-500 mr-1">Servicios que prestan:</span>
+                                <span class="tag-badge">Asesoría Legal</span>
+                                <span class="tag-badge">Tributaria</span>
+                                <span class="tag-badge">Contable y Financiero</span>
+                                <span class="tag-badge">SARLAFT · SAGRILAFT · PTEE</span>
+                                <span class="tag-badge">BPO</span>
+                                <span class="tag-badge">Revisoría Fiscal</span>
+                                <span class="tag-badge">Auditoría Interna</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 3: EL DOLOR OCULTO
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-3" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-rose-400 uppercase tracking-widest text-xs font-bold block">El Reto Real</span>
+                                <h2 class="font-heading font-black text-3xl text-white">El dolor oculto de gestionar el SST en una firma de consultoría</h2>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 my-auto">
+                                <div class="space-y-3">
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/10">
+                                        <i data-lucide="file-x" class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">60 estándares = 60 documentos activos</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">Matrices GTC-45, planes de trabajo, actas de COPASST, registros PESV… cada uno con vigencia, firma y seguimiento separado.</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/10">
+                                        <i data-lucide="brain" class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">Riesgo Psicosocial sin medición continua</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">Sus asesores atienden clientes de alta tensión (procesos legales, tributarios). La carga emocional se acumula sin seguimiento sistemático.</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/10">
+                                        <i data-lucide="map-pin" class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">Desplazamientos nacionales sin PESV activo</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">Asesores viajando a clientes en todo el país = riesgo vial constante. El PESV Misionalidad 2 requiere documentación y seguimiento continuo.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                                        <i data-lucide="clock" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">80% del tiempo en burocracia SST</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">El responsable SST invierte la mayor parte de su jornada redactando y archivando, no en prevención real.</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                                        <i data-lucide="layers" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">Dos empresas — doble documentación</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">Alfredo López y COS son personas jurídicas separadas: cada una requiere su propio SG-SST, RIT, políticas y registros.</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl bg-wappy-500/5 border border-wappy-500/20">
+                                        <p class="text-xs font-bold text-wappy-500 mb-1">💡 La IA no reemplaza a su equipo.</p>
+                                        <p class="text-xs text-slate-400">El prevencionista que la use resolverá en horas lo que antes le tomaba semanas — y con mayor calidad técnica.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500">
+                                Reducción estimada de hasta <strong class="text-wappy-500">12 horas semanales</strong> de carga documental por responsable SST.
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 4: QUÉ ES WAPPY IA
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-4" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">La Plataforma</span>
+                                <h2 class="font-heading font-black text-3xl text-white">¿Qué es Wappy IA?</h2>
+                                <p class="text-sm text-slate-400">El ecosistema especializado en el SG-SST colombiano. Automatiza, redacta y predice — adaptado a las normas locales.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-auto">
+                                <!-- Tenshi -->
+                                <div class="p-4 rounded-2xl border-2 border-wappy-500/40 bg-wappy-500/5 space-y-2 relative overflow-hidden">
+                                    <div class="absolute top-2 right-2 text-[10px] font-black uppercase tracking-wider text-wappy-500 bg-wappy-500/10 px-2 py-0.5 rounded-full">IA Estrella</div>
+                                    <div class="w-9 h-9 rounded-full bg-wappy-500/15 flex items-center justify-center text-wappy-500 text-xl font-black">T</div>
+                                    <h4 class="font-bold text-sm text-white">Tenshi — Asistente Virtual 24/7</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Orquesta todo el sistema. Consulta su base de datos en tiempo real, automatiza tareas, navega módulos y ejecuta acciones complejas con una sola conversación.</p>
+                                    <div class="font-code text-[10px] bg-black/30 border-l-2 border-wappy-500 px-2 py-1 rounded-r text-green-300 leading-snug">"Tenshi, genera el acta de COPASST de este mes y actualiza el Centro de Control ACPM…"</div>
+                                </div>
+
+                                <!-- Somos SST -->
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Somos SST — La Plataforma Base</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Sistema completo con <strong class="text-slate-200">Motor Bio-Individual</strong> (cada trabajador) y <strong class="text-slate-200">Salud Organizacional</strong> (su empresa). Cubre los 60 estándares que ya gestionan.</p>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        <span class="tag-badge tag-green text-[9px]">Res. 0312</span>
+                                        <span class="tag-badge tag-green text-[9px]">Dec. 1072</span>
+                                        <span class="tag-badge text-[9px]">ISO 9001</span>
+                                    </div>
+                                </div>
+
+                                <!-- +25 Agentes -->
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500">
+                                        <i data-lucide="users" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">+25 Agentes IA Especializados</h4>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Cada tarea crítica tiene su agente experto, pre-entrenado con normatividad colombiana:</p>
+                                    <div class="flex flex-col gap-1 mt-1">
+                                        <div class="agente-chip"><span class="dot"></span>Abogado Laboral</div>
+                                        <div class="agente-chip cyan"><span class="dot cyan"></span>Psicólogo SST</div>
+                                        <div class="agente-chip"><span class="dot"></span>Experto Riesgo Vial (PESV)</div>
+                                        <div class="agente-chip cyan"><span class="dot cyan"></span>Auditor SG-SST (Res. 0312)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500 flex justify-between items-center">
+                                <span>Tecnología: Modelos Gemini · Datos 100% privados — nunca usados para entrenar IA pública</span>
+                                <span class="font-code text-wappy-500 font-bold">wappy.club</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 5: MOTOR BIO-INDIVIDUAL (SOMOS SST)
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-5" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">Somos SST — Motor Bio-Individual</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Prevención personalizada para cada asesor de su firma</h2>
+                                <p class="text-sm text-slate-400">Sus colaboradores atienden clientes complejos: alta carga cognitiva, estrés, viajes. Wappy evalúa a <em>cada persona</em>.</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 my-auto">
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="text-wappy-500 font-heading font-black text-xs uppercase">Hito 1</div>
+                                    <h5 class="text-sm font-bold text-white">Huella Biocéntrica</h5>
+                                    <p class="text-xs text-slate-400">Perfiles de cargo, perfil sociodemográfico, informe condiciones de salud.</p>
+                                    <span class="tag-badge tag-green text-[9px]">Oráculo Predictivo H1</span>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="text-indigo-400 font-heading font-black text-xs uppercase">Hito 2</div>
+                                    <h5 class="text-sm font-bold text-white">Núcleo Bio-Evaluativo</h5>
+                                    <p class="text-xs text-slate-400">Termómetro Psicosocial anónimo y Matriz Bio-IPEVAR (GTC-45) individual.</p>
+                                    <span class="tag-badge tag-indigo text-[9px]">Riesgo Psicosocial</span>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="text-wappy-500 font-heading font-black text-xs uppercase">Hito 3</div>
+                                    <h5 class="text-sm font-bold text-white">Dinámica de Exposición</h5>
+                                    <p class="text-xs text-slate-400">ATS, programa de capacitación, método OWAS, ruta de aprendizaje, reporte de actos inseguros.</p>
+                                    <span class="tag-badge tag-green text-[9px]">Prevención Activa</span>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="text-indigo-400 font-heading font-black text-xs uppercase">Hito 5</div>
+                                    <h5 class="text-sm font-bold text-white">Oráculo Predictivo</h5>
+                                    <p class="text-xs text-slate-400">Mapeo IA que cruza esferas de vida del empleado. Actúa <strong>antes</strong> del accidente.</p>
+                                    <span class="tag-badge tag-indigo text-[9px]">Centro de Inteligencia</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-xl bg-wappy-500/5 border border-wappy-500/15 flex items-start gap-3">
+                                <i data-lucide="heart-pulse" class="w-5 h-5 text-wappy-500 flex-shrink-0 mt-0.5"></i>
+                                <p class="text-xs text-slate-300"><strong class="text-white">Para su equipo de asesores:</strong> el Termómetro Psicosocial mide el estado mental diario de forma anónima — ideal dado que el riesgo psicosocial es uno de los predominantes en su firma.</p>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 6: SALUD ORGANIZACIONAL + PESV
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-6" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-indigo-400 uppercase tracking-widest text-xs font-bold block">Somos SST — Salud Organizacional + PESV</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Sus 60 estándares automatizados — y el PESV cubierto</h2>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 my-auto">
+                                <!-- Salud Org -->
+                                <div class="space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">🏢 Salud Organizacional (sus 2 empresas)</h3>
+                                    <div class="hito-row">
+                                        <div class="hito-num">01</div>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">Cimiento del Cuidado</p>
+                                            <p class="text-xs text-slate-400">Diagnóstico inicial (Res. 0312), Política SST, Objetivos SST, Matriz Legal, Análisis de Vulnerabilidad, RIT, Centro de Control ACPM, Aula de Estudio y App Builder.</p>
+                                        </div>
+                                    </div>
+                                    <div class="hito-row">
+                                        <div class="hito-num" style="border-color: #6366f1; color: #6366f1;">02</div>
+                                        <div>
+                                            <p class="text-sm font-bold text-white">Liderazgo Consciente</p>
+                                            <p class="text-xs text-slate-400">Informe de Gestión y Revisión por la Alta Dirección — documenta el compromiso gerencial exigido por ISO 9001 y la Resolución 0312.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15 mt-1">
+                                        <p class="text-xs text-slate-300"><strong class="text-indigo-300">Centro de Control ACPM:</strong> Programación inteligente de actividades con alertas de vencimiento. Nunca más un estándar vencido sin aviso previo.</p>
+                                    </div>
+                                </div>
+
+                                <!-- PESV -->
+                                <div class="space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">🚗 Agente Riesgo Vial (PESV)</h3>
+                                    <div class="p-4 rounded-xl bg-slate-900/40 border border-rose-500/15 space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <i data-lucide="car" class="w-4 h-4 text-rose-400"></i>
+                                            <p class="text-sm font-bold text-white">Misionalidad 2 — Asesores en Campo</p>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Sus asesores se desplazan a clientes en todo el territorio nacional. El Agente Experto en Riesgo Vial (Resolución 40595) estructura la <strong class="text-slate-200">Matriz de Evaluación de Riesgos Viales</strong>, documentación de conductores y planes de acción PESV.</p>
+                                        <div class="font-code text-[10px] bg-black/30 border-l-2 border-rose-500 px-2 py-1 rounded-r text-rose-200 leading-snug mt-2">"Estructura la matriz de evaluación de riesgos viales para conductores operativos según el PESV de nuestra empresa…"</div>
+                                    </div>
+
+                                    <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800">
+                                        <p class="text-xs text-slate-400"><strong class="text-slate-200">Herramienta Matriz PESV Vial</strong> — integrada en el chat: el agente detecta factores de riesgo en rutas y vehículos y automatiza los planes viales requeridos.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500">
+                                Compatible con la estructura ISO 9001:2015 que ya tienen certificada. No reemplaza sus procesos — los potencia.
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 7: AGENTES RELEVANTES PARA SU FIRMA
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-7" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">+25 Agentes Especializados</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Los agentes que trabajan <em>exactamente</em> para su sector</h2>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 my-auto">
+                                <!-- Abogado Laboral -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center text-indigo-400 text-xs font-black">⚖️</div>
+                                        <p class="text-xs font-bold text-white">Abogado Laboral</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">Derecho laboral ocupacional, estabilidad laboral reforzada, fueros de salud — ideal para su firma de asesoría legal.</p>
+                                </div>
+                                <!-- Abogado RIT -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center text-indigo-400 text-xs">📋</div>
+                                        <p class="text-xs font-bold text-white">Abogado Laboral RIT</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">Reglamentos Internos de Trabajo y jornada 42 horas (Ley 2101). Genera RITs para sus 2 empresas y sus clientes BPO.</p>
+                                </div>
+                                <!-- Psicólogo -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-wappy-500/20 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-wappy-500/15 flex items-center justify-center text-wappy-500 text-xs">🧠</div>
+                                        <p class="text-xs font-bold text-white">Psicólogo Especialista SST</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">Riesgo psicosocial, clima laboral y Termómetro Psicosocial. <strong class="text-slate-200">Riesgo #1 de su firma.</strong></p>
+                                </div>
+                                <!-- Auditor -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center text-indigo-400 text-xs">🔍</div>
+                                        <p class="text-xs font-bold text-white">Auditor SG-SST</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">Audita los 60 estándares de la Res. 0312 y redacta planes de acción correctiva y mejora continua.</p>
+                                </div>
+                                <!-- Riesgo Vial -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-rose-500/15 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-rose-500/15 flex items-center justify-center text-rose-400 text-xs">🚗</div>
+                                        <p class="text-xs font-bold text-white">Experto Riesgo Vial (PESV)</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">PESV bajo Res. 40595, inspección de flota y rutas. Crítico para Misionalidad 2.</p>
+                                </div>
+                                <!-- Acoso Laboral -->
+                                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 text-xs">🤝</div>
+                                        <p class="text-xs font-bold text-white">Prevención Acoso Laboral</p>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">Comité de Convivencia (Ley 1010), protocolos de atención y actas de instalación.</p>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500 flex items-center justify-between">
+                                <span>También disponibles: Médico Laboral · Fisioterapeuta · Investigador AT/EL · Experto Emergencias · OWAS/ROSA · y más</span>
+                                <span class="tag-badge tag-green text-[9px]">+25 Agentes totales</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 8: HERRAMIENTAS AVANZADAS
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-8" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-indigo-400 uppercase tracking-widest text-xs font-bold block">Herramientas Avanzadas</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Sus agentes no solo responden — <em>ejecutan</em></h2>
+                                <p class="text-sm text-slate-400">Modifican documentos, actualizan datos y estructuran su sistema en tiempo real.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-auto">
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500">
+                                        <i data-lucide="table-2" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Matriz IPEVAR Automática</h4>
+                                    <p class="text-xs text-slate-400">Los agentes inyectan, evalúan y actualizan filas de peligros en la matriz GTC-45 en tiempo real — interactiva en el mismo chat.</p>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Editor RIT y Políticas</h4>
+                                    <p class="text-xs text-slate-400">Reglamento Interno de Trabajo con plantilla legal estructurada según el CST y Ley 2101 (42 horas). Genera el RIT para <em>cada</em> razón social.</p>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500">
+                                        <i data-lucide="clock" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Centro de Control ACPM</h4>
+                                    <p class="text-xs text-slate-400">Programación inteligente de los 60 estándares con alertas de vencimiento tempranas. Nunca un pendiente sin detectar.</p>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-rose-500/15 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
+                                        <i data-lucide="car" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Herramienta Matriz PESV Vial</h4>
+                                    <p class="text-xs text-slate-400">Detecta factores de riesgo vial para asesores en desplazamiento. Automatiza los planes de acción del PESV Misionalidad 2.</p>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                        <i data-lucide="video" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Análisis en Vivo por Cámara</h4>
+                                    <p class="text-xs text-slate-400">Abre la cámara del celular y audita en tiempo real riesgos ergonómicos (OWAS/ROSA), ausencia de EPP y condiciones inseguras.</p>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                    <div class="w-9 h-9 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500">
+                                        <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white">Aula de Estudio + Ruta de Aprendizaje</h4>
+                                    <p class="text-xs text-slate-400">Plataforma de formación para todo el equipo con cursos, evaluaciones y certificados. Ruta generada automáticamente por empresa.</p>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500">
+                                Canvas completo: documentos Word, hojas de cálculo y presentaciones — generados por IA y descargables en PDF.
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 9: SEGURIDAD Y PLANES
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-9" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-10 h-full flex flex-col justify-between">
+                            <div class="space-y-2">
+                                <span class="text-wappy-500 uppercase tracking-widest text-xs font-bold block">Seguridad & Planes</span>
+                                <h2 class="font-heading font-black text-3xl text-white">Privacidad certificada — Planes para su escala</h2>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-auto">
+                                <!-- Seguridad -->
+                                <div class="space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">🔒 Seguridad de la Información</h3>
+                                    <div class="space-y-2">
+                                        <div class="flex items-start gap-2.5">
+                                            <i data-lucide="shield-check" class="w-4 h-4 text-wappy-500 flex-shrink-0 mt-0.5"></i>
+                                            <p class="text-xs text-slate-400"><strong class="text-slate-200">Habeas Data (Ley 1581/2012):</strong> Wappy actúa como Encargado del Tratamiento con políticas de privacidad estrictas.</p>
+                                        </div>
+                                        <div class="flex items-start gap-2.5">
+                                            <i data-lucide="lock" class="w-4 h-4 text-wappy-500 flex-shrink-0 mt-0.5"></i>
+                                            <p class="text-xs text-slate-400"><strong class="text-slate-200">Aislamiento Lógico:</strong> Los datos de cada empresa son completamente independientes. Sus clientes BPO no pueden ver sus datos y viceversa.</p>
+                                        </div>
+                                        <div class="flex items-start gap-2.5">
+                                            <i data-lucide="eye-off" class="w-4 h-4 text-wappy-500 flex-shrink-0 mt-0.5"></i>
+                                            <p class="text-xs text-slate-400"><strong class="text-slate-200">Privacidad de IA:</strong> Conexiones via API empresarial privada. Sus datos <strong>jamás</strong> se usan para entrenar modelos públicos.</p>
+                                        </div>
+                                        <div class="flex items-start gap-2.5">
+                                            <i data-lucide="server" class="w-4 h-4 text-wappy-500 flex-shrink-0 mt-0.5"></i>
+                                            <p class="text-xs text-slate-400"><strong class="text-slate-200">Cifrado SSL/TLS</strong> de extremo a extremo. Compatible con requisitos de confidencialidad de firmas de asesoría legal.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Planes -->
+                                <div class="space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">📦 Planes Disponibles</h3>
+                                    <!-- Vital -->
+                                    <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-sm font-bold text-white">Wappy Vital</p>
+                                            <span class="text-[10px] text-slate-400 font-code">Acceso de por Vida</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Hasta 20 chats activos, +25 agentes, Matriz IPEVAR, Editor RIT, Canvas completo, videollamada con agente biomecánico.</p>
+                                    </div>
+                                    <!-- Pro -->
+                                    <div class="p-4 rounded-xl bg-wappy-500/5 border-2 border-wappy-500/40 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-sm font-bold text-white">Wappy Pro <span class="text-[10px] bg-wappy-500 text-black px-2 py-0.5 rounded-full ml-1">Recomendado</span></p>
+                                            <span class="text-[10px] text-slate-400 font-code">Suscripción Anual</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Todo Vital + Somos SST completo (todos los hitos), Termómetro Psicosocial, Análisis en Vivo avanzado, Creación de Agentes propios, chats ilimitados.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-800 pt-3 text-xs text-slate-500">
+                                Creado por Felix Bedoya — Psicólogo Especialista SST y Desarrollador Senior · +8 años de experiencia en el sector colombiano.
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- ═══════════════════════════════════════════════════
+                         SLIDE 10: PRÓXIMOS PASOS / CTA
+                    ════════════════════════════════════════════════════ -->
+                    <div id="slide-10" class="slide">
+                        <div class="glass-panel rounded-3xl p-8 lg:p-12 h-full flex flex-col justify-center relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.06),transparent_55%)] pointer-events-none"></div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                                <div class="space-y-5">
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wappy-500/10 border border-wappy-500/30 text-wappy-500 text-xs font-bold uppercase tracking-wider">
+                                        <i data-lucide="rocket" class="w-3.5 h-3.5"></i>
+                                        Próximos Pasos
+                                    </span>
+                                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-white leading-tight">
+                                        Iniciemos un <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-indigo-400">Piloto de 30 Días</span>
+                                    </h2>
+                                    <p class="text-sm text-slate-400 leading-relaxed">
+                                        Registramos <strong class="text-slate-200">Alfredo López y CIA</strong> y <strong class="text-slate-200">Consulting AND Outsourcing Services</strong> en Wappy IA. En 2 sesiones de onboarding su equipo estará operando con total autonomía.
+                                    </p>
+                                    <ul class="space-y-2 text-xs text-slate-300">
+                                        <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-wappy-500 flex-shrink-0"></i> Acceso inmediato a los +25 Agentes IA especializados</li>
+                                        <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-wappy-500 flex-shrink-0"></i> Somos SST configurado para sus 2 razones sociales</li>
+                                        <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-wappy-500 flex-shrink-0"></i> Termómetro Psicosocial activo para sus ~70 colaboradores</li>
+                                        <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-wappy-500 flex-shrink-0"></i> PESV Misionalidad 2 estructurado con el agente especializado</li>
+                                        <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-wappy-500 flex-shrink-0"></i> Soporte por WhatsApp en menos de 4 horas</li>
+                                    </ul>
+                                </div>
+
+                                <div class="flex flex-col gap-4">
+                                    <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 space-y-3 text-center">
+                                        <div class="w-12 h-12 rounded-full bg-wappy-500/10 flex items-center justify-center text-wappy-500 mx-auto">
+                                            <i data-lucide="play-circle" class="w-7 h-7"></i>
+                                        </div>
+                                        <h4 class="font-bold text-white">Demo en Vivo Ahora</h4>
+                                        <p class="text-xs text-slate-400">Veamos cómo interactúan los agentes especializados en tiempo real con un caso real de su firma.</p>
+                                        <a href="https://wappy.club" target="_blank" class="block w-full px-5 py-2.5 rounded-full bg-gradient-to-r from-wappy-500 to-indigo-500 text-slate-950 font-bold text-xs hover:scale-105 transition-all text-center">
+                                            Iniciar Demostración → wappy.club
+                                        </a>
+                                    </div>
+
+                                    <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
+                                        <p class="text-xs font-bold text-slate-300 text-center">Contacto Directo</p>
+                                        <a href="https://wa.me/573102913651" target="_blank" class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-full border border-green-500/30 bg-green-500/5 text-green-400 text-xs font-bold hover:bg-green-500/10 transition-all">
+                                            <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                            WhatsApp: +57 310 291 3651
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /slides wrapper -->
+            </div><!-- /slides viewport -->
+
+            <!-- Notes Panel / Teleprompter -->
+            <div id="notesPanel" class="border-l border-slate-800 bg-slate-950/70 backdrop-blur-lg p-6 flex flex-col justify-between hidden">
+                <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-indigo-400"></i>
+                        <h3 class="font-heading font-bold text-sm text-white uppercase tracking-wider">Teleprompter</h3>
+                    </div>
+                    <button onclick="toggleNotesPanel()" class="text-slate-400 hover:text-white">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="flex-1 py-4 overflow-y-auto custom-scroll pr-1 text-slate-300 space-y-4 text-sm" id="teleprompterText"></div>
+                <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
+                    <span>💡 Usa <strong>← / →</strong> del teclado para navegar.</span>
+                    <button onclick="copyCurrentScript()" class="hover:text-white flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
+                    </button>
+                </div>
+            </div>
+
+        </div><!-- /content grid -->
+
+        <!-- FOOTER -->
+        <footer class="px-8 py-3.5 flex justify-between items-center border-t border-slate-800 bg-darkBg/85 backdrop-blur-md">
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-semibold text-slate-400 font-code" id="progressText">Diapositiva 1 de 10</span>
+                <div class="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="progressBarFill" class="h-full bg-gradient-to-r from-wappy-500 to-indigo-500 transition-all duration-300" style="width: 10%;"></div>
+                </div>
+            </div>
+            <div class="flex gap-2" id="navDots"></div>
+            <div class="flex items-center gap-2">
+                <button onclick="prevSlide()" id="btnPrev" class="p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                </button>
+                <button onclick="nextSlide()" id="btnNext" class="p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </footer>
+
+    </div><!-- /mainContainer -->
+
+    <script>
+        const totalSlides = 10;
+        let currentSlideIndex = 0;
+
+        // TELEPROMPTER SCRIPTS — Notas del expositor por diapositiva
+        const teleprompterScripts = [
+            // Slide 1: Portada
+            `<strong>Slide 1: Portada y Bienvenida (3 mins)</strong><br><br>
+            • Presentarse cordialmente y agradecer el espacio.<br>
+            • "Hoy queremos mostrarles cómo Wappy IA puede transformar la gestión del SG-SST de su firma, haciéndoles la vida más sencilla a su responsable de SST y a sus ~70 colaboradores."<br>
+            • Destacar que ya conocemos su contexto: dos razones sociales, ARL SURA, PESV Misionalidad 2, 60 estándares activos, certificados ISO 9001.`,
+
+            // Slide 2: Perfil
+            `<strong>Slide 2: Conocemos su Empresa (5 mins)</strong><br><br>
+            • Mostrar que Wappy fue pensado para firmas exactamente como la suya: consultoría especializada con múltiples empresas, cobertura nacional y normatividad exigente.<br>
+            • Resaltar que sus servicios de asesoría legal, SARLAFT, SAGRILAFT y PTEE implican clientes con alta demanda documental — justo como su SST interno.<br>
+            • "El mismo rigor con el que ustedes asesoran a sus clientes, Wappy lo aplica al SST de su propio equipo."`,
+
+            // Slide 3: Dolor
+            `<strong>Slide 3: El Dolor Oculto (5 mins)</strong><br><br>
+            • Clave: validar con ellos si se identifican con los dolores descritos. Preguntar: "¿Cuántas horas a la semana dedica su responsable SST a documentar vs. a hacer prevención real?"<br>
+            • Enfatizar la doble carga de tener dos razones sociales con SG-SST separados.<br>
+            • El riesgo psicosocial es crítico: sus asesores manejan procesos legales y tributarios complejos de clientes — estrés permanente que rara vez se mide.`,
+
+            // Slide 4: Qué es Wappy
+            `<strong>Slide 4: ¿Qué es Wappy IA? (5 mins)</strong><br><br>
+            • Presentar los tres pilares: Tenshi (asistente 24/7), la plataforma Somos SST (con todos los hitos) y el Mercado de +25 Agentes Especializados.<br>
+            • Tenshi es la estrella: "Con una sola conversación, puede pedirle que actualice el ACPM, genere el acta de COPASST y le envíe un resumen de los vencimientos del mes."<br>
+            • Destacar que los modelos son Gemini y que los datos de la firma son completamente privados.`,
+
+            // Slide 5: Motor Bio
+            `<strong>Slide 5: Motor Bio-Individual (5 mins)</strong><br><br>
+            • Este módulo es especialmente relevante dado el riesgo psicosocial de su firma.<br>
+            • El Termómetro Psicosocial permite que cada asesor reporte su estado de bienestar de forma anónima — sin intermediarios.<br>
+            • El Oráculo Predictivo cruza factores de vida del trabajador para anticiparse al accidente o la enfermedad laboral antes de que ocurra.`,
+
+            // Slide 6: Salud Org + PESV
+            `<strong>Slide 6: Salud Organizacional + PESV (5 mins)</strong><br><br>
+            • El Centro de Control ACPM es el gran aliado para los 60 estándares: nunca más un vencimiento por descuido.<br>
+            • Para el PESV Misionalidad 2: el Agente Experto en Riesgo Vial estructura la documentación exigida por la Resolución 40595 — para vehículos propios, taxis o vehículos de los asesores.<br>
+            • Compatible con ISO 9001:2015 — no sustituye, complementa y potencia lo que ya tienen certificado.`,
+
+            // Slide 7: Agentes
+            `<strong>Slide 7: Agentes para su Sector (5 mins)</strong><br><br>
+            • Hacer clic en los agentes más relevantes para su firma: Abogado Laboral, Psicólogo SST, Auditor SG-SST y Experto Riesgo Vial.<br>
+            • Mostrar un ejemplo del snippet de prompt para que vean cómo interactúan.<br>
+            • "Cada agente está pre-entrenado con normatividad colombiana vigente — no es un ChatGPT genérico, es un especialista virtual de su sector."`,
+
+            // Slide 8: Herramientas
+            `<strong>Slide 8: Herramientas Avanzadas (5 mins)</strong><br><br>
+            • Demostrar (si hay laptop disponible) el Editor RIT para una de sus dos empresas.<br>
+            • Mostrar cómo el Análisis en Vivo por Cámara funciona en el celular — útil para las inspecciones que hacen sus asesores en instalaciones de clientes.<br>
+            • El Aula de Estudio es ideal para cumplir con el programa de capacitación anual de los 70 colaboradores.`,
+
+            // Slide 9: Seguridad y Planes
+            `<strong>Slide 9: Seguridad y Planes (3 mins)</strong><br><br>
+            • Anticipar posible pregunta: "¿Nuestros datos como firma de asesoría legal son seguros?" — Respuesta directa: aislamiento lógico total, cifrado SSL/TLS, datos nunca usados para entrenar IA pública.<br>
+            • Plan recomendado: Wappy Pro (Suscripción Anual) dado que necesitan Somos SST completo con Termómetro Psicosocial y manejo de las dos empresas.<br>
+            • Para los precios exactos, dirigir a wappy.club/planes.`,
+
+            // Slide 10: CTA
+            `<strong>Slide 10: Cierre y Próximos Pasos (4 mins)</strong><br><br>
+            • Proponer el piloto de 30 días para las dos razones sociales simultáneamente.<br>
+            • Oferta de valor: 2 sesiones de onboarding incluidas + soporte WhatsApp en menos de 4 horas.<br>
+            • Invitar a una demo en vivo ahora mismo: abrir wappy.club y mostrar a Tenshi en acción con un caso real de su contexto.<br>
+            • Cerrar con: "¿Por dónde les gustaría empezar? ¿Por el Termómetro Psicosocial o por el Centro de Control ACPM con los 60 estándares?"`
+        ];
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initDots();
+            updateView();
+            startMeetingTimer();
+        });
+
+        function initDots() {
+            const container = document.getElementById('navDots');
+            container.innerHTML = '';
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement('button');
+                dot.className = `w-2.5 h-2.5 rounded-full bg-slate-700 transition-all duration-300 dot-${i}`;
+                dot.onclick = () => goToSlide(i);
+                container.appendChild(dot);
+            }
+        }
+
+        function toggleNotesPanel() {
+            const panel = document.getElementById('notesPanel');
+            const layout = document.getElementById('contentLayout');
+            const btn = document.getElementById('btnToggleNotes');
+            panel.classList.toggle('hidden');
+            if (panel.classList.contains('hidden')) {
+                layout.className = 'relative overflow-hidden grid grid-cols-1 transition-all duration-500';
+                btn.classList.remove('bg-client-500/10', 'border-client-500', 'text-indigo-400');
+            } else {
+                layout.className = 'relative overflow-hidden grid grid-cols-[1fr_360px] transition-all duration-500';
+                btn.classList.add('bg-client-500/10', 'border-client-500', 'text-indigo-400');
+            }
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+        }
+
+        function updateView() {
+            document.getElementById('btnPrev').disabled = currentSlideIndex === 0;
+            document.getElementById('btnNext').disabled = currentSlideIndex === totalSlides - 1;
+
+            for (let i = 1; i <= totalSlides; i++) {
+                const slide = document.getElementById(`slide-${i}`);
+                if (i === currentSlideIndex + 1) {
+                    slide.classList.add('active');
+                    slide.classList.remove('previous');
+                } else if (i < currentSlideIndex + 1) {
+                    slide.classList.remove('active');
+                    slide.classList.add('previous');
+                } else {
+                    slide.classList.remove('active', 'previous');
+                }
+            }
+
+            const percent = ((currentSlideIndex + 1) / totalSlides) * 100;
+            document.getElementById('progressBarFill').style.width = `${percent}%`;
+            document.getElementById('progressText').textContent = `Diapositiva ${currentSlideIndex + 1} de ${totalSlides}`;
+
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.querySelector(`.dot-${i}`);
+                if (dot) {
+                    if (i === currentSlideIndex) {
+                        dot.className = `w-6 h-2.5 rounded-full bg-wappy-500 transition-all duration-300 dot-${i}`;
+                    } else {
+                        dot.className = `w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-600 transition-all duration-300 dot-${i}`;
+                    }
+                }
+            }
+
+            document.getElementById('teleprompterText').innerHTML = teleprompterScripts[currentSlideIndex];
+        }
+
+        function nextSlide() {
+            if (currentSlideIndex < totalSlides - 1) { currentSlideIndex++; updateView(); }
+        }
+
+        function prevSlide() {
+            if (currentSlideIndex > 0) { currentSlideIndex--; updateView(); }
+        }
+
+        function goToSlide(index) {
+            currentSlideIndex = index;
+            updateView();
+        }
+
+        // Timer 45 min
+        let timerDuration = 45 * 60;
+        function startMeetingTimer() {
+            const el = document.getElementById('meetingTimer');
+            const interval = setInterval(() => {
+                let m = Math.floor(timerDuration / 60);
+                let s = timerDuration % 60;
+                m = m < 10 ? '0' + m : m;
+                s = s < 10 ? '0' + s : s;
+                el.textContent = `${m}:${s}`;
+                if (timerDuration <= 0) {
+                    clearInterval(interval);
+                    el.textContent = '¡Tiempo!';
+                    el.classList.add('text-rose-500');
+                }
+                timerDuration--;
+            }, 1000);
+        }
+
+        function copyCurrentScript() {
+            const raw = teleprompterScripts[currentSlideIndex].replace(/<[^>]*>/g, '');
+            navigator.clipboard.writeText(raw).then(() => alert('Notas copiadas al portapapeles.'));
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            else if (e.key === 'ArrowLeft') prevSlide();
+        });
+    </script>
+
+</body>
+</html>

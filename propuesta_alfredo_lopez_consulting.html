@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Comercial - WAPPY IA para Alfredo López & CIA / COS SAS</title>
+    
+    <!-- Google Fonts: Outfit (headings) & Plus Jakarta Sans (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config for Wappy & Brand Theme Customization -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['"Outfit"', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        wappy: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e', /* Main Wappy Green */
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        client: {
+                            500: '#6366f1', /* Indigo corporativo */
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        accent: {
+                            500: '#06b6d4', /* Cyan */
+                            600: '#0891b2',
+                            700: '#0e7490',
+                        },
+                        darkBg: '#060913',
+                        darkCard: 'rgba(15, 23, 42, 0.55)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+        
+        .glass-card {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Ambient Glow Background Elements */
+        .ambient-glow {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(140px);
+            z-index: 0;
+            opacity: 0.12;
+            transition: all 1s ease-in-out;
+        }
+        
+        .light .ambient-glow {
+            opacity: 0.04;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #060913;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6366f1;
+        }
+
+        /* CSS for printing and PDF generation */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                font-size: 11pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-card {
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+                transform: none !important;
+                page-break-inside: avoid;
+            }
+            .print-text-dark {
+                color: #0f172a !important;
+            }
+            .print-text-muted {
+                color: #475569 !important;
+            }
+            .ambient-glow {
+                display: none !important;
+            }
+            header, footer {
+                position: static !important;
+                background: #ffffff !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+            }
+            h1, h2, h3, h4 {
+                color: #0f172a !important;
+                page-break-after: avoid;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-darkBg dark:text-slate-100 font-sans min-h-screen relative overflow-x-hidden transition-colors duration-300 selection:bg-client-500 selection:text-white">
+
+    <!-- Ambient Glow Backgrounds -->
+    <div class="ambient-glow bg-client-500 w-[50vw] h-[50vw] top-[-10%] right-[-10%] no-print"></div>
+    <div class="ambient-glow bg-wappy-500 w-[50vw] h-[50vw] bottom-[-10%] left-[-10%] no-print"></div>
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-50 bg-white/80 dark:bg-slate-955/80 backdrop-blur-md border-b border-slate-200 dark:border-client-500/10 no-print transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+            <!-- Left: Logo -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center">
+                    <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="url(#header-logo-gradient)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <defs>
+                            <linearGradient id="header-logo-gradient" x1="4" y1="8" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#22c55e" />
+                                <stop offset="1" stop-color="#6366f1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="font-heading font-extrabold text-xl tracking-tight text-slate-955 dark:text-white">WAPPY<span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">IA</span></span>
+            </div>
+
+            <!-- Right: Action Buttons & Theme Switcher -->
+            <div class="flex items-center gap-3">
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleTheme()" class="p-2.5 rounded-full border border-slate-200 dark:border-client-500/20 bg-white dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-client-500/10 text-slate-700 dark:text-slate-300 transition-all" aria-label="Cambiar tema">
+                    <!-- Sun Icon -->
+                    <svg class="sun-icon hidden dark:block w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <!-- Moon Icon -->
+                    <svg class="moon-icon block dark:hidden w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+                
+                <!-- Print/PDF Button -->
+                <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 dark:border-client-500/20 bg-white dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-client-500/10 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-semibold transition-all">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Imprimir / PDF</span>
+                </button>
+                
+                <!-- Call to Action -->
+                <a href="#inversion" class="px-5 py-2.5 rounded-full bg-gradient-to-r from-wappy-500 to-client-500 hover:from-wappy-400 hover:to-client-600 text-white dark:text-slate-955 text-xs sm:text-sm font-bold shadow-lg shadow-client-500/25 dark:shadow-wappy-500/10 transition-all transform hover:-translate-y-0.5">
+                    Aceptar Propuesta
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-12 space-y-24">
+
+        <!-- 1. PORTADA / HERO SECTION -->
+        <section id="portada" class="min-h-[60vh] flex flex-col justify-center items-center text-center relative py-12">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.04),transparent_50%)] no-print"></div>
+            
+            <div class="space-y-6 max-w-4xl relative z-10">
+                <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 dark:border-client-500/30 bg-slate-100 dark:bg-client-500/5 text-client-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-widest no-print">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i> Propuesta de Innovación y Copiloto de SST
+                </span>
+                
+                <h1 class="font-heading font-black text-4xl sm:text-6xl lg:text-7.5xl leading-tight text-slate-900 dark:text-white">
+                    SST Inteligente y Autónomo
+                </h1>
+                
+                <p class="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
+                    Ecosistema digital de Inteligencia Artificial diseñado para optimizar el SG-SST, mitigar el riesgo vial (PESV) y cuidar la salud psicosocial del equipo de consultoría.
+                </p>
+
+                <!-- Document details card -->
+                <div class="mt-12 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-client-500/10 bg-white/80 dark:bg-slate-900/40 backdrop-blur-md max-w-lg mx-auto print-card">
+                    <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-left text-sm sm:text-base">
+                        <span class="text-slate-500 dark:text-slate-400 print-text-muted">Destinatario:</span>
+                        <span class="font-bold text-slate-955 dark:text-white print-text-dark font-heading">
+                            Alfredo López y CIA SAS BIC<br>
+                            & Consulting AND Outsourcing Services SAS
+                        </span>
+                        
+                        <span class="text-slate-500 dark:text-slate-400 print-text-muted">Plan Propuesto:</span>
+                        <span class="font-bold text-wappy-600 dark:text-wappy-400">Wappy Pro (Multi-Empresa)</span>
+                        
+                        <span class="text-slate-500 dark:text-slate-400 print-text-muted">Alcance:</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">~70 Colaboradores (Nacional)</span>
+                        
+                        <span class="text-slate-500 dark:text-slate-400 print-text-muted">Fecha Emisión:</span>
+                        <span class="font-semibold text-slate-800 dark:text-slate-200 print-text-dark" id="currentDate">17 de Julio de 2026</span>
+                        
+                        <span class="text-slate-500 dark:text-slate-400 print-text-muted">Vigencia:</span>
+                        <span class="inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping no-print"></span> 30 Días Calendario
+                        </span>
+                    </div>
+                </div>
+
+                <div class="pt-8 no-print">
+                    <a href="#introduccion" class="inline-flex items-center justify-center w-12 h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-955/60 hover:border-client-500/50 hover:text-client-600 dark:hover:text-indigo-400 transition-all">
+                        <i data-lucide="chevron-down" class="w-6 h-6 animate-bounce"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. CARTA DE BIENVENIDA DEL FUNDADOR -->
+        <section id="introduccion" class="scroll-mt-24">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-4 space-y-4">
+                    <span class="text-client-600 dark:text-indigo-400 uppercase tracking-widest text-xs font-bold block">Presentación Oficial</span>
+                    <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-slate-955 dark:text-white">Carta de <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">Bienvenida</span></h2>
+                    <p class="text-slate-555 dark:text-slate-400 text-sm leading-relaxed print-text-muted">
+                        Un mensaje de nuestro fundador, estructurado específicamente para atender las necesidades del grupo empresarial.
+                    </p>
+                </div>
+                <div class="lg:col-span-8 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-client-500/10 bg-white/80 dark:bg-slate-900/30 backdrop-blur-sm print-card">
+                    <div class="space-y-6 text-slate-600 dark:text-slate-300 print-text-dark leading-relaxed text-sm sm:text-base">
+                        <p class="font-semibold text-slate-955 dark:text-white print-text-dark text-lg">Estimado equipo directivo de Alfredo López & CIA SAS BIC y Consulting AND Outsourcing Services SAS,</p>
+                        
+                        <p>
+                            En el sector de la consultoría legal, tributaria y de cumplimiento, ustedes conocen mejor que nadie el peso de la carga administrativa. Sin embargo, en el día a día, la gestión interna de la Seguridad y Salud en el Trabajo (SST) y el Plan Estratégico de Seguridad Vial (PESV) a menudo se convierten en cuellos de botella documentales, consumiendo tiempo valioso que su equipo de prevencionistas y administradores de riesgos podría usar en campo y prevención activa.
+                        </p>
+                        
+                        <p>
+                            Con una estructura de <strong class="text-slate-955 dark:text-white print-text-dark font-semibold">dos razones sociales</strong>, más de <strong class="text-slate-955 dark:text-white print-text-dark font-semibold">70 colaboradores</strong> y desplazamientos de visitas a clientes en todo el país (PESV Misionalidad 2), su empresa gestiona un volumen normativo exigente: administra cerca de <strong class="text-slate-955 dark:text-white print-text-dark font-semibold">60 estándares del SG-SST</strong> bajo ARL SURA, garantizando su certificación ISO 9001:2015 desde hace más de 12 años.
+                        </p>
+                        
+                        <p>
+                            Por ello diseñamos <strong class="text-slate-955 dark:text-white print-text-dark font-semibold">WAPPY IA</strong>. No como una simple base de datos o archivador, sino como un copiloto inteligente pre-entrenado en la normatividad colombiana (Resolución 0312 y Decreto 1072) y las metodologías del PESV. Nuestro sistema cuenta con agentes inteligentes y herramientas avanzadas que inyectan datos de matrices en vivo, evalúan posturas ergonómicas en campo por cámara y miden de forma continua y anónima el <strong class="text-wappy-600 dark:text-wappy-400 font-semibold">clima y riesgo psicosocial</strong> de sus asesores.
+                        </p>
+                        
+                        <p>
+                            Esta propuesta detalla las opciones de vinculación para Wappy Pro Multi-Empresa, incluyendo nuestro modelo de <strong class="text-wappy-600 dark:text-wappy-400 font-semibold">subvención ARL SURA (Costo $0 de software)</strong> y el licenciamiento directo corporativo con un programa de acompañamiento integral de <strong class="text-client-600 dark:text-indigo-400 font-semibold">2 sesiones de onboarding práctico</strong>.
+                        </p>
+                        
+                        <div class="pt-6 border-t border-slate-200 dark:border-slate-800 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full border border-wappy-500 bg-white dark:bg-darkBg overflow-hidden flex items-end justify-center">
+                                <img src="Agentes/Miniaturas/Avatar%20/Avatar1.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix1'" class="w-10 h-10 object-contain">
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-955 dark:text-white print-text-dark text-sm sm:text-base">Felix Bedoya Ocampo</h4>
+                                <p class="text-slate-555 dark:text-slate-400 text-xs print-text-muted">Psicólogo Especialista SST | Desarrollador Senior | Fundador de Wappy IA</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. RETOS DE SU DÍA A DÍA VS LA SOLUCIÓN WAPPY -->
+        <section id="retos" class="scroll-mt-24 space-y-12">
+            <div class="text-center space-y-4">
+                <span class="text-client-600 dark:text-indigo-400 uppercase tracking-widest text-xs font-bold block">Enfoque de Prevención</span>
+                <h2 class="font-heading font-extrabold text-3xl sm:text-5xl text-slate-955 dark:text-white">Los Retos de su Firma vs El Enfoque <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">Wappy IA</span></h2>
+                <p class="text-slate-555 dark:text-slate-400 max-w-2xl mx-auto print-text-muted text-sm sm:text-base">
+                    Cómo encaja exactamente Wappy en la operación real de Alfredo López y CIA & Consulting AND Outsourcing Services.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Reto 1: Carga Documental -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 backdrop-blur-sm print-card space-y-4 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-10 h-10 rounded-xl bg-client-500/10 flex items-center justify-center text-client-600 dark:text-indigo-400">
+                            <i data-lucide="layers" class="w-5 h-5"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl text-slate-955 dark:text-white print-text-dark">60 Estándares y 2 Razones Sociales</h3>
+                        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            La gestión independiente del SG-SST para Alfredo López y CIA y para COS SAS genera duplicación de formatos, actas de COPASST y planes de trabajo anuales bajo la norma ISO 9001:2015.
+                        </p>
+                    </div>
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-wappy-600 dark:text-wappy-400">
+                        <strong class="font-bold">Solución Wappy:</strong> Agentes IA redactan de forma autónoma actas, RIT ajustados a la Ley 2101 (reducción de jornada a 42h) y planes para ambas empresas.
+                    </div>
+                </div>
+
+                <!-- Reto 2: Riesgo Vial (Misionalidad 2) -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 backdrop-blur-sm print-card space-y-4 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl text-slate-955 dark:text-white print-text-dark">Desplazamientos y PESV Vial</h3>
+                        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            Los consultores y asesores realizan constantes viajes y desplazamientos de visitas a clientes a nivel nacional. La Misionalidad 2 del PESV exige control exhaustivo de vehículos y rutas frecuentes.
+                        </p>
+                    </div>
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-wappy-600 dark:text-wappy-400">
+                        <strong class="font-bold">Solución Wappy:</strong> Herramienta Matriz PESV Vial integrada en el chat de IA para evaluar factores de riesgo de transporte e inspección de vehículos al instante.
+                    </div>
+                </div>
+
+                <!-- Reto 3: Riesgo Psicosocial -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 backdrop-blur-sm print-card space-y-4 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center text-accent-500">
+                            <i data-lucide="brain" class="w-5 h-5"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl text-slate-955 dark:text-white print-text-dark">Riesgos Psicosociales</h3>
+                        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            El personal de consultoría atiende requerimientos tributarios, legales y contables complejos bajo estrictos plazos de cumplimiento, lo que eleva la exposición a estrés laboral y burnout.
+                        </p>
+                    </div>
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-wappy-600 dark:text-wappy-400">
+                        <strong class="font-bold">Solución Wappy:</strong> Termómetro Psicosocial para reportes de estado mental y clima en tiempo real de forma anónima, con planes de bienestar inmediatos.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. DETALLE TÉCNICO DE LA PROPUESTA -->
+        <section id="alcance" class="scroll-mt-24 space-y-12">
+            <div class="text-center space-y-4">
+                <span class="text-client-600 dark:text-indigo-400 uppercase tracking-widest text-xs font-bold block">Ecosistema Completo</span>
+                <h2 class="font-heading font-extrabold text-3xl sm:text-5xl text-slate-955 dark:text-white">Alcance de <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">Wappy Pro</span></h2>
+                <p class="text-slate-555 dark:text-slate-400 max-w-2xl mx-auto print-text-muted text-sm sm:text-base">
+                    Funcionalidades de por vida y anuales para la automatización e innovación de la SST.
+                </p>
+            </div>
+
+            <!-- Grid de Módulos Reales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Tenshi -->
+                <div class="p-6 rounded-3xl border border-wappy-500/20 bg-wappy-500/5 dark:bg-wappy-950/5 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-wappy-500/10 flex items-center justify-center text-wappy-600 dark:text-wappy-400">
+                        <i data-lucide="bot" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Tenshi — Asistente IA</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        La IA estrella que orquesta el sistema de gestión. Consulta la base de datos de perfiles y vencimientos de forma interactiva y genera documentación en segundos con tono ágil.
+                    </p>
+                </div>
+
+                <!-- Somos SST -->
+                <div class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-client-500/10 flex items-center justify-center text-client-600 dark:text-indigo-400">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Somos SST (Hitos 1 al 5)</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Dividido en Motor Bio-Individual (Huella Biocéntrica, Núcleo Bio-Evaluativo, Método OWAS) y Salud Organizacional (Diagnóstico 0312, políticas, matriz legal, revisiones gerenciales).
+                    </p>
+                </div>
+
+                <!-- Termómetro Psicosocial -->
+                <div class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center text-accent-600 dark:text-accent-400">
+                        <i data-lucide="smile" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Termómetro Psicosocial</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Módulo de medición anónima del estado mental de los trabajadores. Facilita la recolección periódica del estado del clima laboral y reporta directamente alertas de bienestar al COPASST.
+                    </p>
+                </div>
+
+                <!-- Visión por Cámara -->
+                <div class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-350">
+                        <i data-lucide="video" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Análisis en Vivo por Cámara</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Visión computacional integrada para abrir en dispositivos móviles o portátiles. Identifica en tiempo real peligros físicos y ergonómicos por postura física en campo (método ergonómico OWAS y ROSA).
+                    </p>
+                </div>
+
+                <!-- Herramientas Integradas -->
+                <div class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-350">
+                        <i data-lucide="wrench" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Herramientas Avanzadas</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Matriz IPEVAR GTC-45 dinámica (inyecta y edita filas con IA), Editor legal del RIT, Centro de Control ACPM para vencimiento de actividades y Matriz de compatibilidad química SGA.
+                    </p>
+                </div>
+
+                <!-- Formación y Cursos -->
+                <div class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/20 glass-card space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-350">
+                        <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-heading font-bold text-lg text-slate-955 dark:text-white">Formación Continua</h4>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Aula de Estudio interactiva con cursos y charlas de capacitación. Ruta de aprendizaje personalizada que genera evaluaciones y certificados oficiales de capacitación para los 70 colaboradores.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Soporte Técnico Sub-card -->
+            <div class="p-6 sm:p-8 rounded-3xl border border-client-500/20 bg-client-500/5 dark:bg-client-950/5 print-card">
+                <div class="flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 text-client-600 dark:text-indigo-400">
+                            <i data-lucide="headphones" class="w-5 h-5"></i>
+                            <span class="font-bold text-sm uppercase tracking-wider">Servicio Técnico Incluido</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl sm:text-2xl text-slate-955 dark:text-white print-text-dark">Soporte Técnico Premium Dedicado</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-3xl print-text-muted">
+                            Canal de atención ágil y prioritario por correo y WhatsApp con el equipo de soporte de Wappy IA para la carga inicial de archivos del SG-SST de sus 2 empresas, asesoría técnica y configuraciones.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 shrink-0">
+                        <span class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">Respuesta &lt; 4 Horas</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">WhatsApp Dedicado</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">Soporte Multi-Empresa</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. PROGRAMA DE ACOMPAÑAMIENTO -->
+        <section id="acompanamiento" class="scroll-mt-24 space-y-12 page-break">
+            <div class="text-center space-y-4">
+                <span class="text-client-600 dark:text-indigo-400 uppercase tracking-widest text-xs font-bold block">Entrenamiento y Éxito</span>
+                <h2 class="font-heading font-extrabold text-3xl sm:text-5xl text-slate-955 dark:text-white">Programa de <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">Acompañamiento</span></h2>
+                <p class="text-slate-555 dark:text-slate-400 max-w-2xl mx-auto print-text-muted text-sm sm:text-base">
+                    Dos sesiones personalizadas uno a uno para capacitar a los prevencionistas y personal clave de la firma.
+                </p>
+            </div>
+
+            <!-- Sessions grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Sesión 1 -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-client-500/10 bg-white dark:bg-slate-900/40 hover:border-client-500/30 transition-all flex flex-col justify-between print-card relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-client-500/5 rounded-bl-full flex items-center justify-center text-client-500/20 group-hover:text-client-500/30 transition-colors font-heading font-black text-4xl">01</div>
+                    <div class="space-y-4 relative z-10">
+                        <span class="px-3 py-1 rounded-full bg-client-500/10 text-client-600 dark:text-indigo-400 text-xs font-bold">Sesión 1 (Duración: 1.5 horas)</span>
+                        <h3 class="font-heading font-bold text-2xl text-slate-955 dark:text-white print-text-dark">Configuración Integral y Onboarding Inicial</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-muted">
+                            Sesión enfocada en sentar las bases operativas de las 2 cuentas empresariales y dominar los módulos principales del ecosistema.
+                        </p>
+                        
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Temas Clave:</span>
+                            <ul class="space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-muted">
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Creación e independencia de perfiles para Alfredo López & COS SAS.</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Carga masiva de la información sociodemográfica de los ~70 colaboradores.</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Activación inicial del Termómetro Psicosocial (anónimo).</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Configuración del Centro de Control ACPM para los 60 estándares de SST.</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="pt-6">
+                        <span class="text-xs font-semibold text-client-600 dark:text-indigo-400 flex items-center gap-1">
+                            <i data-lucide="video" class="w-3.5 h-3.5"></i> Modalidad: Virtual (Meet / Teams)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Sesión 2 -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-client-500/10 bg-white dark:bg-slate-900/40 hover:border-client-500/30 transition-all flex flex-col justify-between print-card relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-client-500/5 rounded-bl-full flex items-center justify-center text-client-500/20 group-hover:text-client-500/30 transition-colors font-heading font-black text-4xl">02</div>
+                    <div class="space-y-4 relative z-10">
+                        <span class="px-3 py-1 rounded-full bg-client-500/10 text-client-600 dark:text-indigo-400 text-xs font-bold">Sesión 2 (Duración: 1.5 horas)</span>
+                        <h3 class="font-heading font-bold text-2xl text-slate-955 dark:text-white print-text-dark">PESV Vial y Análisis Postural por Cámara</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-muted">
+                            Sesión enfocada en estructurar el plan de seguridad vial (PESV) y dominar la visión computacional en vivo.
+                        </p>
+                        
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Temas Clave:</span>
+                            <ul class="space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-muted">
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Estructuración de la Matriz de Evaluación de Riesgo Vial bajo Resol. 40595.</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Control documental del PESV para los asesores con desplazamientos nacionales.</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Entrenamiento práctico en la apertura de cámara para análisis postural ergonómico.</span>
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                    <span>Personalización de agentes de IA y carga de políticas internas del grupo empresarial.</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="pt-6">
+                        <span class="text-xs font-semibold text-client-600 dark:text-indigo-400 flex items-center gap-1">
+                            <i data-lucide="video" class="w-3.5 h-3.5"></i> Modalidad: Virtual (Meet / Teams)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. PROPUESTA ECONÓMICA (INVERSIÓN) -->
+        <section id="inversion" class="scroll-mt-24 space-y-12 page-break">
+            <div class="text-center space-y-4">
+                <span class="text-client-600 dark:text-indigo-400 uppercase tracking-widest text-xs font-bold block">Opciones Comerciales</span>
+                <h2 class="font-heading font-extrabold text-3xl sm:text-5xl text-slate-955 dark:text-white">Propuesta Económica e <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500">Inversión</span></h2>
+                <p class="text-slate-555 dark:text-slate-400 max-w-2xl mx-auto print-text-muted text-sm sm:text-base">
+                    Hemos estructurado dos alternativas de contratación para adaptarnos a su modelo financiero y de corretaje ARL.
+                </p>
+            </div>
+
+            <!-- Grid de Opciones -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                
+                <!-- OPCIÓN A: SUBVENCIONADA POR CORRETAJE ARL SURA -->
+                <div class="p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 bg-emerald-500/5 dark:bg-emerald-950/5 flex flex-col justify-between print-card relative">
+                    <span class="absolute top-4 right-4 bg-emerald-500 text-slate-955 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">Más Recomendado</span>
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                            <h3 class="font-heading font-black text-2xl text-slate-955 dark:text-white print-text-dark">Opción A: Subvención ARL SURA</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Licenciamiento Wappy Pro subvencionado a través del traslado o manejo de la intermediación de riesgos.</p>
+                        </div>
+                        
+                        <div class="py-4 border-y border-emerald-500/20 text-center">
+                            <span class="font-heading font-black text-3xl sm:text-5xl text-emerald-600 dark:text-emerald-400">$0 COP</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400 block mt-1">Costo de software anual</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-dark">
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+                                <span><strong>Licencias Multi-Empresa Wappy Pro Gratis:</strong> Licencia anual exenta de costo de software para sus dos razones sociales.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+                                <span><strong>Financiado por Prima ARL:</strong> Se sostiene directamente con la prima recurrente de ARL SURA aportada a través de la intermediación de riesgos manejada por Wappy.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+                                <span><strong>2 Sesiones de Onboarding Incluidas:</strong> Bonificación total del 100% de la configuración y entrenamiento práctico de la plataforma.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+                                <span><strong>Charla de Obsequio:</strong> Conferencia virtual o presencial para sus ~70 colaboradores sobre "Productividad y Prevención de Riesgos con Inteligencia Artificial" (viáticos asumidos por la firma).</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="pt-6">
+                        <button onclick="selectOption('ARL')" class="w-full py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-955 font-bold text-sm transition-all text-center">
+                            Seleccionar Opción ARL
+                        </button>
+                    </div>
+                </div>
+
+                <!-- OPCIÓN B: LICENCIAMIENTO DIRECTO CORPORATIVO -->
+                <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-client-500/20 bg-white dark:bg-slate-900/40 flex flex-col justify-between print-card relative">
+                    <span class="absolute top-4 right-4 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Pago Directo</span>
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                            <h3 class="font-heading font-black text-2xl text-slate-955 dark:text-white print-text-dark">Opción B: Licencia Directa</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Contratación directa corporativa independiente de la intermediación de ARL, con tarifa especial grupal.</p>
+                        </div>
+                        
+                        <div class="py-4 border-y border-slate-200 dark:border-slate-800 text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs line-through text-slate-400 dark:text-slate-500">Tarifa Regular: $2.400.000 COP</span>
+                                <span class="font-heading font-black text-3xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500 print:text-indigo-600 print:bg-none">$1.800.000 COP</span>
+                                <span class="text-[10px] text-slate-450 dark:text-slate-500 uppercase tracking-widest mt-1">Inversión Total Neta Anual (+ IVA)</span>
+                            </div>
+                        </div>
+
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-dark">
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                <span><strong>Descuento del 25%:</strong> Tarifa preferencial por contratar el licenciamiento Wappy Pro para dos empresas de forma unificada.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                <span><strong>Soporte Premium Incluido:</strong> Canal directo vía correo y WhatsApp con respuesta garantizada en menos de 4 horas.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                <span><strong>2 Sesiones de Onboarding Incluidas:</strong> Sesiones personalizadas con ingenieros de Wappy para la carga masiva y configuración inicial del sistema.</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
+                                <span><strong>Acceso a Módulos Completos:</strong> Motor Bio-Individual, Termómetro Psicosocial, herramientas de matrices y visión ergonómica por cámara.</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="pt-6">
+                        <button onclick="selectOption('Direct')" class="w-full py-3 rounded-full bg-slate-900 dark:bg-slate-800 border border-slate-700 hover:border-client-500 text-slate-300 hover:text-white font-bold text-sm transition-all text-center">
+                            Seleccionar Opción Directa
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 7. FIRMAS Y CONTRATACIÓN -->
+        <section id="firmas" class="scroll-mt-24 space-y-12 page-break">
+            <div class="border-t border-slate-200 dark:border-slate-800 pt-12">
+                <div class="text-center space-y-2 mb-8">
+                    <h3 class="font-heading font-extrabold text-2xl text-slate-955 dark:text-white">Registro de Firmas y Compromiso</h3>
+                    <p class="text-xs text-slate-550 dark:text-slate-400">Esta propuesta comercial se formaliza digitalmente una vez seleccionada la opción e ingresados los datos.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mt-8">
+                    <!-- Firmante Wappy -->
+                    <div class="space-y-6 flex flex-col items-center justify-between h-48 print-card text-center">
+                        <p class="text-xs text-slate-500 uppercase tracking-widest">Por la Empresa Proponente:</p>
+                        <div class="space-y-2 flex flex-col items-center">
+                            <div class="h-16 flex items-end justify-center">
+                                <span class="font-mono text-sm text-client-600 dark:text-indigo-400 italic">Felix Bedoya Ocampo</span>
+                            </div>
+                            <div class="border-t border-slate-200 dark:border-slate-700 w-64 pt-2 text-center">
+                                <h4 class="font-bold text-slate-955 dark:text-white print-text-dark text-sm sm:text-base">Felix Mauricio Bedoya Ocampo</h4>
+                                <p class="text-slate-555 dark:text-slate-400 text-xs print-text-muted">Representante Legal | WAPPY LTDA</p>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-500">NIT: 901.437.310-9</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Firmante Cliente -->
+                    <div class="space-y-6 flex flex-col items-center justify-between h-48 print-card text-center">
+                        <p class="text-xs text-slate-500 uppercase tracking-widest">Por la Entidad Cliente:</p>
+                        <div class="space-y-2 flex flex-col items-center justify-end">
+                            <div class="h-16 w-64 bg-white rounded-xl border border-slate-200 dark:border-slate-355 overflow-hidden flex items-center justify-center shadow-inner" id="signatureSpace">
+                                <span class="text-slate-450 text-xs italic no-print">(Firma digital al aceptar propuesta)</span>
+                            </div>
+                            <div class="border-t border-slate-200 dark:border-slate-700 w-64 pt-2 mt-2 text-center">
+                                <h4 class="font-bold text-slate-955 dark:text-white print-text-dark text-sm sm:text-base">Representante Legal</h4>
+                                <p class="text-slate-555 dark:text-slate-400 text-xs print-text-muted font-heading" id="selectedCompanyTag">Alfredo López & CIA / COS</p>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-500" id="selectedPlanTag">Plan Seleccionado: [Por definir]</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/80 backdrop-blur-md py-12 mt-12 relative z-10 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6 text-slate-500 dark:text-slate-400 text-sm">
+            <div class="flex justify-center items-center gap-3">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 8L10.5 24L16 12L21.5 24L28 8" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                <span class="font-heading font-extrabold text-slate-955 dark:text-white text-base">WAPPY<span class="text-wappy-500">IA</span></span>
+            </div>
+            <p>© 2026 WAPPY LTDA. Todos los derechos reservados. Medellín, Colombia.</p>
+            <p class="text-xs text-slate-450 dark:text-slate-650">
+                Esta propuesta es confidencial y para uso exclusivo del grupo empresarial. Válida por 30 días calendario a partir de su emisión.
+            </p>
+        </div>
+    </footer>
+
+    <!-- INTERACTIVE ACCEPTANCE MODAL -->
+    <div id="acceptModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-darkBg/80 backdrop-blur-md p-4 hidden no-print">
+        <div class="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-client-500/20 bg-white dark:bg-slate-900 p-6 sm:p-8 space-y-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+            <!-- Close Button -->
+            <button onclick="closeAcceptModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+
+            <div class="text-center space-y-2">
+                <h3 class="font-heading font-extrabold text-2xl text-slate-955 dark:text-white">¡Aceptación de Propuesta!</h3>
+                <p class="text-xs sm:text-sm text-slate-550 dark:text-slate-400">Por favor, rellene los campos para registrar la firma de la propuesta comercial.</p>
+            </div>
+
+            <form id="acceptForm" class="space-y-4" onsubmit="handleAcceptSubmit(event)">
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-350">Plan Seleccionado</label>
+                    <input type="text" id="signerPlan" class="w-full px-4 py-2.5 rounded-xl border border-slate-350 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 text-slate-955 dark:text-white text-sm font-semibold focus:outline-none" readonly>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-350">Nombre del Firmante / Representante</label>
+                    <input required type="text" id="signerName" placeholder="Ej. Alfredo López" class="w-full px-4 py-2.5 rounded-xl border border-slate-350 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-955 dark:text-white text-sm focus:outline-none focus:border-client-500 transition-colors">
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-350">Cargo del Firmante</label>
+                    <input required type="text" id="signerRole" placeholder="Ej. Gerente General / Representante Legal" class="w-full px-4 py-2.5 rounded-xl border border-slate-355 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-955 dark:text-white text-sm focus:outline-none focus:border-client-500 transition-colors">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-350">Razón Social Principal</label>
+                    <select required id="signerCompany" class="w-full px-4 py-2.5 rounded-xl border border-slate-355 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-955 dark:text-white text-sm focus:outline-none focus:border-client-500 transition-colors">
+                        <option value="Alfredo López y CIA SAS BIC">Alfredo López y CIA SAS BIC</option>
+                        <option value="Consulting AND Outsourcing Services SAS">Consulting AND Outsourcing Services SAS</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-355">NIT o Documento</label>
+                    <input required type="text" id="signerNit" placeholder="Ej. 900.123.456-7" class="w-full px-4 py-2.5 rounded-xl border border-slate-355 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-955 dark:text-white text-sm focus:outline-none focus:border-client-500 transition-colors">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-355">Correo Electrónico de Contacto</label>
+                    <input required type="email" id="signerEmail" placeholder="Ej. gerencia@alfredolopez.co" class="w-full px-4 py-2.5 rounded-xl border border-slate-355 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-955 dark:text-white text-sm focus:outline-none focus:border-client-500 transition-colors">
+                </div>
+
+                <!-- Interactive Canvas Signature -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-semibold text-slate-600 dark:text-slate-355">Firme en el recuadro a continuación</label>
+                        <button type="button" onclick="clearSignature()" class="text-[10px] text-rose-500 hover:text-rose-600 font-bold uppercase tracking-wider">Limpiar</button>
+                    </div>
+                    <div class="border border-slate-350 dark:border-slate-700 bg-white rounded-2xl overflow-hidden h-32 relative shadow-inner">
+                        <canvas id="signatureCanvas" class="w-full h-full cursor-crosshair"></canvas>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4 space-y-4">
+                    <div class="p-4 rounded-xl border border-client-500/10 bg-client-500/5 text-xs text-slate-655 dark:text-slate-300 space-y-1">
+                        <p class="font-bold text-slate-955 dark:text-white">Proceso de Aceptación:</p>
+                        <p>Al firmar la propuesta, recibirá un correo electrónico con el soporte firmado. En caso de seleccionar la opción ARL, el equipo de Wappy se contactará para tramitar el traslado o designación de corretaje de ARL SURA y habilitar el software inmediatamente.</p>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-3.5 rounded-full bg-gradient-to-r from-wappy-500 to-client-500 hover:from-wappy-400 hover:to-client-600 text-white dark:text-slate-955 font-bold transition-all shadow-lg shadow-client-500/10 text-center">
+                        Confirmar y Firmar Propuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script for Interactive Elements -->
+    <script>
+        // Set date
+        document.addEventListener('DOMContentLoaded', () => {
+            const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const d = new Date();
+            const dateStr = `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+            document.getElementById('currentDate').innerText = dateStr;
+            
+            // Create icons
+            lucide.createIcons();
+            
+            // Setup canvas
+            setupSignatureCanvas();
+
+            // Load saved theme on startup
+            const savedTheme = localStorage.getItem('theme');
+            const htmlElement = document.documentElement;
+            if (savedTheme === 'light') {
+                htmlElement.classList.remove('dark');
+            } else {
+                htmlElement.classList.add('dark');
+            }
+        });
+
+        // Theme Toggle Logic
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            htmlElement.classList.toggle('dark');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Selection variables
+        let selectedPlan = '';
+
+        function selectOption(optionType) {
+            if (optionType === 'ARL') {
+                selectedPlan = 'Wappy Pro (Subvencionado ARL SURA - $0)';
+            } else {
+                selectedPlan = 'Wappy Pro Directo (Pago Corporativo - $1.800.000 COP)';
+            }
+            openAcceptModal();
+        }
+
+        // Signature modal functions
+        function openAcceptModal() {
+            document.getElementById('signerPlan').value = selectedPlan;
+            document.getElementById('acceptModal').classList.remove('hidden');
+            
+            // Resize canvas on open
+            const canvas = document.getElementById('signatureCanvas');
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+            
+            setupCanvasContext();
+        }
+
+        function closeAcceptModal() {
+            document.getElementById('acceptModal').classList.add('hidden');
+        }
+
+        // Canvas drawing script
+        let canvas, ctx;
+        let drawing = false;
+
+        function setupSignatureCanvas() {
+            canvas = document.getElementById('signatureCanvas');
+            
+            // Mouse events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }, { passive: false });
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                const mouseEvent = new MouseEvent('mouseup', {});
+                canvas.dispatchEvent(mouseEvent);
+            }, { passive: false });
+        }
+
+        function setupCanvasContext() {
+            ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#0f172a'; // stroke color
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+        }
+
+        // Stop Drawing
+        function stopDrawing() {
+            drawing = false;
+        }
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Handle signature submission
+        function handleAcceptSubmit(event) {
+            event.preventDefault();
+            const name = document.getElementById('signerName').value;
+            const role = document.getElementById('signerRole').value;
+            const company = document.getElementById('signerCompany').value;
+            const nit = document.getElementById('signerNit').value;
+            const email = document.getElementById('signerEmail').value;
+
+            // Generate signature image from canvas
+            const signatureImg = canvas.toDataURL();
+            
+            // Insert signature into the document
+            const sigSpace = document.getElementById('signatureSpace');
+            sigSpace.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <img src="${signatureImg}" alt="Firma" class="h-12 object-contain print:h-10">
+                    <span class="text-[8px] text-slate-555 dark:text-slate-500">Firmado el ${new Date().toLocaleDateString()}</span>
+                </div>
+            `;
+            
+            // Update firmante card text
+            document.getElementById('selectedCompanyTag').innerText = `${company}`;
+            document.getElementById('selectedPlanTag').innerText = `Plan: ${selectedPlan} | NIT: ${nit}`;
+            
+            const firmanteCard = sigSpace.parentElement;
+            firmanteCard.querySelector('h4').innerText = name;
+
+            closeAcceptModal();
+            
+            // Send to backend API
+            fetch('/api/proposals/accept', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    signerName: name,
+                    signerRole: role,
+                    signerCompany: company,
+                    signerNit: nit,
+                    signerEmail: email,
+                    proposalName: 'Alfredo Lopez & COS SAS Group',
+                    signatureImg: signatureImg,
+                    planSelected: selectedPlan,
+                    date: new Date().toLocaleDateString('es-CO')
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No se pudo enviar la notificación.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Notificación enviada con éxito:', data);
+                alert(`¡Propuesta aceptada con éxito por ${name} (${role})!\nPlan: ${selectedPlan}\nSe ha enviado un correo de confirmación a ${email} y a soporte@wappy.club.`);
+            })
+            .catch(err => {
+                console.log('Aceptación registrada localmente:', err);
+                alert(`¡Propuesta aceptada y firmada con éxito por ${name}!\nPlan: ${selectedPlan}\n\nNota: La firma se guardó en este documento, pero no se pudo enviar el email debido al entorno de pruebas.`);
+            });
+        }
+    </script>
+</body>
+</html>
