@@ -37,7 +37,7 @@ index 48c6de6..81f7f15 100644
          return 'LibreChatGoogleGenerativeAI';
      }
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-index 450e0d6..d8bf6a1 100644
+index 450e0d6..45e2c8f 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 @@ -329,13 +329,21 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
@@ -55,10 +55,10 @@ index 450e0d6..d8bf6a1 100644
 +            const resultFunc = {
 +                name: tc.name,
 +                args: tc.args,
-             };
++            };
 +            const part = {
 +                functionCall: resultFunc,
-+            };
+             };
 +            if (sigs && sigs[idx]) {
 +                part.thought_signature = sigs[idx];
 +            } else if (tc.signature) {
@@ -68,7 +68,50 @@ index 450e0d6..d8bf6a1 100644
          });
      }
      return [...messageParts, ...functionCalls];
-@@ -458,6 +466,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+@@ -350,13 +358,23 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
+             throw new Error('System message should be the first one');
+         }
+         const role = convertAuthorToRole(author);
+-        const prevContent = acc.content?.[acc.content.length];
+-        if (!acc.mergeWithPreviousContent &&
+-            prevContent &&
+-            prevContent.role === role) {
+-            throw new Error('Google Generative AI requires alternate messages between authors');
++        
++        let actualRole = role;
++        if (actualRole === 'system' && !convertSystemMessageToHumanContent) {
++            actualRole = 'user';
+         }
++
+         const parts = convertMessageContentToParts(message, isMultimodalModel, messages$1.slice(0, index));
++
++        const prevContent = acc.content?.[acc.content.length - 1];
++        if (prevContent && prevContent.role === actualRole) {
++            prevContent.parts.push(...parts);
++            return {
++                mergeWithPreviousContent: acc.mergeWithPreviousContent,
++                content: acc.content,
++            };
++        }
++
+         if (acc.mergeWithPreviousContent) {
+             const prevContent = acc.content?.[acc.content.length - 1];
+             if (!prevContent) {
+@@ -368,12 +386,7 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
+                 content: acc.content,
+             };
+         }
+-        let actualRole = role;
+-        if (actualRole === 'function' ||
+-            (actualRole === 'system' && !convertSystemMessageToHumanContent)) {
+-            // GenerativeAI API will throw an error if the role is not "user" or "model."
+-            actualRole = 'user';
+-        }
++
+         const content = {
+             role: actualRole,
+             parts,
+@@ -458,6 +471,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
          })));
      }
      const additional_kwargs = {};
@@ -170,6 +213,53 @@ index f936ded..1aa6088 100644
      static lc_name() {
          return 'LibreChatGoogleGenerativeAI';
      }
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
+index 02305d8..3085870 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
+@@ -348,13 +348,23 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
+             throw new Error('System message should be the first one');
+         }
+         const role = convertAuthorToRole(author);
+-        const prevContent = acc.content?.[acc.content.length];
+-        if (!acc.mergeWithPreviousContent &&
+-            prevContent &&
+-            prevContent.role === role) {
+-            throw new Error('Google Generative AI requires alternate messages between authors');
++        
++        let actualRole = role;
++        if (actualRole === 'system' && !convertSystemMessageToHumanContent) {
++            actualRole = 'user';
+         }
++
+         const parts = convertMessageContentToParts(message, isMultimodalModel, messages.slice(0, index));
++
++        const prevContent = acc.content?.[acc.content.length - 1];
++        if (prevContent && prevContent.role === actualRole) {
++            prevContent.parts.push(...parts);
++            return {
++                mergeWithPreviousContent: acc.mergeWithPreviousContent,
++                content: acc.content,
++            };
++        }
++
+         if (acc.mergeWithPreviousContent) {
+             const prevContent = acc.content?.[acc.content.length - 1];
+             if (!prevContent) {
+@@ -366,12 +376,7 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
+                 content: acc.content,
+             };
+         }
+-        let actualRole = role;
+-        if (actualRole === 'function' ||
+-            (actualRole === 'system' && !convertSystemMessageToHumanContent)) {
+-            // GenerativeAI API will throw an error if the role is not "user" or "model."
+-            actualRole = 'user';
+-        }
++
+         const content = {
+             role: actualRole,
+             parts,
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
 index bf47fd9..abf44d5 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
@@ -234,6 +324,61 @@ index 2ab8c94..6e2954a 100644
    static lc_name(): 'LibreChatGoogleGenerativeAI' {
      return 'LibreChatGoogleGenerativeAI';
    }
+diff --git a/node_modules/@librechat/agents/src/llm/google/utils/common.ts b/node_modules/@librechat/agents/src/llm/google/utils/common.ts
+index ccf070c..a6c3dca 100644
+--- a/node_modules/@librechat/agents/src/llm/google/utils/common.ts
++++ b/node_modules/@librechat/agents/src/llm/google/utils/common.ts
+@@ -442,15 +442,11 @@ export function convertBaseMessagesToContent(
+       }
+       const role = convertAuthorToRole(author);
+ 
+-      const prevContent = acc.content?.[acc.content.length];
++      let actualRole = role;
+       if (
+-        !acc.mergeWithPreviousContent &&
+-        prevContent &&
+-        prevContent.role === role
++        actualRole === 'system' && !convertSystemMessageToHumanContent
+       ) {
+-        throw new Error(
+-          'Google Generative AI requires alternate messages between authors'
+-        );
++        actualRole = 'user';
+       }
+ 
+       const parts = convertMessageContentToParts(
+@@ -459,6 +455,15 @@ export function convertBaseMessagesToContent(
+         messages.slice(0, index)
+       );
+ 
++      const prevContent = acc.content?.[acc.content.length - 1];
++      if (prevContent && prevContent.role === actualRole) {
++        prevContent.parts.push(...parts);
++        return {
++          mergeWithPreviousContent: acc.mergeWithPreviousContent,
++          content: acc.content,
++        };
++      }
++
+       if (acc.mergeWithPreviousContent) {
+         const prevContent = acc.content?.[acc.content.length - 1];
+         if (!prevContent) {
+@@ -473,14 +478,7 @@ export function convertBaseMessagesToContent(
+           content: acc.content,
+         };
+       }
+-      let actualRole = role;
+-      if (
+-        actualRole === 'function' ||
+-        (actualRole === 'system' && !convertSystemMessageToHumanContent)
+-      ) {
+-        // GenerativeAI API will throw an error if the role is not "user" or "model."
+-        actualRole = 'user';
+-      }
++
+       const content: Content = {
+         role: actualRole,
+         parts,
 diff --git a/node_modules/@librechat/agents/src/tools/search/schema.ts b/node_modules/@librechat/agents/src/tools/search/schema.ts
 index 9a39d88..10ac23b 100644
 --- a/node_modules/@librechat/agents/src/tools/search/schema.ts
