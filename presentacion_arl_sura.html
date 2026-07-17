@@ -201,7 +201,7 @@
                 </nav>
 
                 <!-- Shortcut Box -->
-                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-3 shadow-sm dark:shadow-none">
+                <div id="adminTipBox" class="p-4 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-3 shadow-sm dark:shadow-none hidden">
                     <div class="font-bold text-slate-800 dark:text-white">💡 Tip para la Reunión</div>
                     <p class="leading-relaxed">Haz clic en cualquier sección para saltar directamente a ella. Muestra el sistema en vivo en la sección 5.</p>
                 </div>
@@ -1051,11 +1051,27 @@
             }
         }
 
+        // Check if the logged-in user is an admin to display the "Tip para la Reunión" box
+        async function checkAdminStatus() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    const user = await response.json();
+                    if (user && user.role === 'ADMIN') {
+                        document.getElementById('adminTipBox').classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.log('Error verifying admin status:', err);
+            }
+        }
+
         // Initialize Lucide icons on load
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             startTimer();
             calculateInversion();
+            checkAdminStatus();
         });
     </script>
 </body>
