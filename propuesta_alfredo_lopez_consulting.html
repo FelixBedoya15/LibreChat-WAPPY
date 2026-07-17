@@ -611,8 +611,9 @@
                         
                         <div class="py-4 border-y border-slate-200 dark:border-slate-800 text-center">
                             <div class="flex flex-col items-center">
-                                <span class="text-xs line-through text-slate-400 dark:text-slate-500">Tarifa Regular: $2.400.000 COP</span>
-                                <span class="font-heading font-black text-3xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500 print:text-indigo-600 print:bg-none">$1.800.000 COP</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">Plan Base (1ª Empresa): $1.200.000 / año</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400 mb-1">Empresa Adicional: $350.000 / año</span>
+                                <span class="font-heading font-black text-3xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 to-client-500 print:text-indigo-600 print:bg-none">$1.550.000 COP</span>
                                 <span class="text-[10px] text-slate-450 dark:text-slate-500 uppercase tracking-widest mt-1">Inversión Total Neta Anual (+ IVA)</span>
                             </div>
                         </div>
@@ -620,7 +621,7 @@
                         <ul class="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 print-text-dark">
                             <li class="flex items-start gap-2.5">
                                 <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
-                                <span><strong>Descuento del 25%:</strong> Tarifa preferencial por contratar el licenciamiento Wappy Pro para dos empresas de forma unificada.</span>
+                                <span><strong>Tarifa Especial Multi-Empresa:</strong> Plan base de $1.200.000 COP + $350.000 COP por la segunda razón social (Ahorro de $850.000 COP frente a dos licencias individuales).</span>
                             </li>
                             <li class="flex items-start gap-2.5">
                                 <i data-lucide="check" class="w-4 h-4 text-client-600 dark:text-indigo-400 shrink-0"></i>
@@ -818,7 +819,7 @@
             if (optionType === 'ARL') {
                 selectedPlan = 'Wappy Pro (Subvencionado ARL SURA - $0)';
             } else {
-                selectedPlan = 'Wappy Pro Directo (Pago Corporativo - $1.800.000 COP)';
+                selectedPlan = 'Wappy Pro Directo (Pago Corporativo - $1.550.000 COP)';
             }
             openAcceptModal();
         }
