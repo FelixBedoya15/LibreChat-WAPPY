@@ -665,6 +665,10 @@
                                 <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (<span id="capLabel">8</span> caps. × $120.000):</span>
                                 <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$480.000.000 COP</span>
                             </div>
+                            <div class="flex justify-between text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-500 dark:text-slate-400">Costo Unitario por Sesión (Wappy vs. Tradic.):</span>
+                                <span class="text-slate-800 dark:text-white font-bold"><span class="text-wappy-500 font-bold" id="costoUnitarioWappy">$42.500 COP</span> vs. <span class="text-rose-600 font-bold">$120.000 COP</span></span>
+                            </div>
                             <div class="flex justify-between border-t border-slate-200 dark:border-slate-850 pt-3 text-sm">
                                 <span class="text-slate-900 dark:text-white font-bold">Ahorro Neto Anual SURA:</span>
                                 <span class="text-wappy-500 font-black text-base" id="totalAno1">$67.000.000 COP</span>
@@ -858,6 +862,12 @@
 
             // Net Savings
             const savingsVal = traditionalEquiv - wappyTotal;
+
+            // Unit cost per session with Wappy (wappyTotal / (val * caps))
+            const totalSessions = val * caps;
+            const unitCostWappyVal = Math.round(wappyTotal / totalSessions);
+            const costoUnitarioWappy = document.getElementById('costoUnitarioWappy');
+            costoUnitarioWappy.textContent = `$${unitCostWappyVal.toLocaleString('es-CO')} COP`;
 
             licAnual.textContent = `$${softwareAnualVal.toLocaleString('es-CO')} COP`;
             onbUnico.textContent = `$${onboardingVal.toLocaleString('es-CO')} COP`;
