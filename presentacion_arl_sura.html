@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="scroll-smooth">
+<html lang="es" class="scroll-smooth dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,9 +48,15 @@
     
     <style>
         .glass-panel {
-            background: rgba(17, 24, 39, 0.65);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 174, 199, 0.15);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
+            transition: all 0.3s ease;
+        }
+
+        .dark .glass-panel {
+            background: rgba(17, 24, 39, 0.65);
             border: 1px solid rgba(0, 174, 199, 0.12);
         }
         
@@ -62,6 +68,11 @@
             pointer-events: none;
             filter: blur(140px);
             z-index: 0;
+            opacity: 0.05;
+            transition: all 0.5s ease;
+        }
+
+        .dark .glow-bg {
             opacity: 0.12;
         }
 
@@ -77,10 +88,13 @@
             width: 8px;
         }
         ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .dark ::-webkit-scrollbar-track {
             background: #030712;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(0, 174, 199, 0.2);
+            background: rgba(0, 174, 199, 0.3);
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
@@ -88,30 +102,38 @@
         }
     </style>
 </head>
-<body class="bg-darkBg text-slate-100 font-sans min-h-screen relative overflow-x-hidden">
+<body class="bg-slate-50 text-slate-800 dark:bg-darkBg dark:text-slate-100 font-sans min-h-screen relative overflow-x-hidden transition-colors duration-300">
 
     <!-- Ambient Glows -->
     <div class="glow-bg bg-sura-900 top-0 right-0"></div>
     <div class="glow-bg bg-wappy-500 bottom-0 left-0"></div>
 
     <!-- HEADER / NAVIGATION -->
-    <header class="sticky top-0 z-50 px-8 py-4 flex justify-between items-center border-b border-slate-800/80 bg-darkBg/80 backdrop-blur-md">
+    <header class="sticky top-0 z-50 px-8 py-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-800/80 bg-white/85 dark:bg-darkBg/80 backdrop-blur-md transition-colors duration-300">
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
-                <img src="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png" alt="Wappy Logo" class="h-8 w-auto">
-                <span class="font-heading font-black text-xl tracking-tight text-white">WAPPY<span class="text-wappy-500">IA</span></span>
+                <!-- Wappy logo adapts to dark/light mode -->
+                <img src="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png" alt="Wappy Logo" class="h-8 w-auto dark:brightness-200 dark:contrast-100 transition-all">
+                <span class="font-heading font-black text-xl tracking-tight text-slate-900 dark:text-white">WAPPY<span class="text-wappy-500">IA</span></span>
             </div>
-            <div class="h-6 w-[1px] bg-slate-700"></div>
+            <div class="h-6 w-[1px] bg-slate-300 dark:bg-slate-700"></div>
             <!-- Dynamic partner logo embedding -->
-            <img src="https://www.sura.co/documents/445280/0/Logo-SURA-blanco+%281%29.svg/c9b33167-c441-e5ed-e380-6e4a18062d43?version=1.0&t=1708032816729" alt="SURA Logo" class="h-5 w-auto opacity-90">
+            <img src="https://www.sura.co/documents/445280/0/Logo-SURA-blanco+%281%29.svg/c9b33167-c441-e5ed-e380-6e4a18062d43?version=1.0&t=1708032816729" alt="SURA Logo" class="h-5 w-auto opacity-90 dark:opacity-100 filter invert dark:filter-none">
         </div>
 
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-4">
             <!-- 30-Min Live Countdown Timer -->
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-semibold text-slate-350">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-650 dark:text-slate-350">
                 <i data-lucide="clock" class="w-3.5 h-3.5 text-sura-500"></i>
                 <span id="meetingTimer">30:00</span>
             </div>
+
+            <!-- Light/Dark Mode Toggle Button -->
+            <button onclick="toggleTheme()" class="p-2 rounded-full border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all text-slate-600 dark:text-slate-300" aria-label="Toggle theme">
+                <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+                <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+            </button>
+
             <a href="#piloto" class="px-5 py-2 rounded-full bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-105 transition-all">
                 Iniciar Alianza
             </a>
@@ -124,20 +146,22 @@
         <!-- SIDEBAR STICKY NAVIGATION -->
         <aside class="hidden lg:block">
             <div class="sticky top-28 space-y-6">
-                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-heading font-bold mb-4">Secciones de la Propuesta</div>
-                <nav class="flex flex-col border-l border-slate-800 gap-1 text-sm font-medium">
-                    <a href="#inicio" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">01. Contexto y Dolor</a>
-                    <a href="#validacion" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">02. Validación Real</a>
-                    <a href="#alcance" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">03. Alcance de Plataforma</a>
-                    <a href="#creador" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">04. El Creador</a>
-                    <a href="#agentes" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">05. Ecosistema de Agentes</a>
-                    <a href="#propuesta" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">06. Propuesta Económica</a>
-                    <a href="#piloto" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-400 hover:text-white transition-all">07. Plan Piloto</a>
+                <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-heading font-bold mb-4">Secciones de la Propuesta</div>
+                <nav class="flex flex-col border-l border-slate-200 dark:border-slate-800 gap-1 text-sm font-medium">
+                    <a href="#inicio" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">01. Contexto y Dolor</a>
+                    <a href="#validacion" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">02. Validación Real</a>
+                    <a href="#alcance" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">03. Alcance de Plataforma</a>
+                    <a href="#creador" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">04. El Creador</a>
+                    <a href="#agentes" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">05. Ecosistema de Agentes</a>
+                    <a href="#seguridad" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">06. Seguridad y Soporte</a>
+                    <a href="#divulgacion" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">07. Plan de Divulgación</a>
+                    <a href="#propuesta" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">08. Propuesta Económica</a>
+                    <a href="#piloto" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-sura-500 dark:hover:text-white transition-all">09. Plan Piloto</a>
                 </nav>
 
                 <!-- Shortcut Box -->
-                <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-xs text-slate-400 space-y-3">
-                    <div class="font-bold text-white">💡 Tip para la Reunión</div>
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-3 shadow-sm dark:shadow-none">
+                    <div class="font-bold text-slate-800 dark:text-white">💡 Tip para la Reunión</div>
                     <p class="leading-relaxed">Haz clic en cualquier sección para saltar directamente a ella. Muestra el sistema en vivo en la sección 5.</p>
                 </div>
             </div>
@@ -148,30 +172,30 @@
 
             <!-- SECTION 1: INICIO (CONTEXTO Y DOLOR) -->
             <section id="inicio" class="scroll-mt-24 space-y-8">
-                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-sm dark:shadow-2xl">
                     <div class="space-y-6 max-w-4xl relative z-10">
-                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold uppercase tracking-wider">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider">
                             <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> El Reto del Acompañamiento a Escala
                         </span>
                         
-                        <h1 class="font-heading font-black text-4xl lg:text-5.5xl text-white leading-tight">
+                        <h1 class="font-heading font-black text-4xl lg:text-5.5xl text-slate-900 dark:text-white leading-tight">
                             SURA lidera el mercado.<br>Pero liderar exige <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 via-sura-500 to-sura-900">herramientas que hoy no existen.</span>
                         </h1>
 
-                        <p class="text-base lg:text-lg text-slate-350 leading-relaxed font-light">
+                        <p class="text-base lg:text-lg text-slate-650 dark:text-slate-350 leading-relaxed font-light">
                             ARL SURA es la administradora de riesgos laborales más grande de Colombia. Sin embargo, este liderazgo impone un reto logístico masivo: acompañar a miles de mipymes y pequeñas empresas que a menudo se sienten desatendidas o no reciben la suficiente asesoría técnica debido a la escala del mercado, mientras competidores agresivos están siempre al acecho.
                         </p>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                            <div class="p-5 rounded-2xl bg-slate-900/30 border border-slate-800/80 space-y-2">
-                                <h4 class="font-bold text-white text-sm">El Diagnóstico Interno de SURA</h4>
-                                <p class="text-xs text-slate-400 leading-relaxed">
-                                    Hace dos años se presentó Wappy a SURA. El área de segmentación concluyó de manera unánime la necesidad de una plataforma de acompañamiento masiva, aunque por temas del área de sistemas el proceso no concluyó.
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                                <h4 class="font-bold text-slate-800 dark:text-white text-sm">El Diagnóstico Interno de SURA</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    Hace dos años se presentó Wappy a SURA. Los líderes de las áreas de grandes, medianas y pequeñas empresas concluyeron de manera unánime la necesidad de una plataforma de acompañamiento masiva, aunque por temas del área de sistemas el proceso no concluyó.
                                 </p>
                             </div>
-                            <div class="p-5 rounded-2xl bg-slate-900/30 border border-slate-800/80 space-y-2">
-                                <h4 class="font-bold text-white text-sm">La IA como Diferenciador Inmediato</h4>
-                                <p class="text-xs text-slate-400 leading-relaxed">
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                                <h4 class="font-bold text-slate-800 dark:text-white text-sm">La IA como Diferenciador Inmediato</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                                     La inteligencia artificial llegó para quedarse. Las ARL que primero empoderen a sus empresas con IA y automatizaciones de SST liderarán la retención y adquisición del sector.
                                 </p>
                             </div>
@@ -184,30 +208,30 @@
             <section id="validacion" class="scroll-mt-24 space-y-8">
                 <div class="space-y-4">
                     <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Validación en Campo</span>
-                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-white">Mientras SURA evaluaba, Wappy crecía.</h2>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Mientras SURA evaluaba, Wappy crecía.</h2>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="glass-panel p-6 rounded-2xl space-y-3">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
                         <div class="text-3xl font-black font-heading text-wappy-500">+200</div>
-                        <h4 class="font-bold text-sm text-white">Usuarios Activos</h4>
-                        <p class="text-xs text-slate-400 leading-relaxed">
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Usuarios Activos</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
                             Probado y validado en producción. Operando de forma diaria con empresas colombianas de todos los sectores.
                         </p>
                     </div>
 
-                    <div class="glass-panel p-6 rounded-2xl space-y-3">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
                         <div class="text-3xl font-black font-heading text-wappy-500">Servicio Externo</div>
-                        <h4 class="font-bold text-sm text-white">Adopción por Valor Propio</h4>
-                        <p class="text-xs text-slate-400 leading-relaxed">
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Adopción por Valor Propio</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
                             Gran parte de nuestros clientes pagan directamente la suscripción sin tener Wappy como intermediario de ARL, confirmando el valor independiente del software.
                         </p>
                     </div>
 
-                    <div class="glass-panel p-6 rounded-2xl space-y-3">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
                         <div class="text-3xl font-black font-heading text-sura-500">Únicos en el Mercado</div>
-                        <h4 class="font-bold text-sm text-white">Validación Internacional</h4>
-                        <p class="text-xs text-slate-400 leading-relaxed">
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Validación Internacional</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
                             Investigación en campo en España (viaje a Europa) confirma que no existe una herramienta igual ni en Colombia, Latam o España.
                         </p>
                     </div>
@@ -218,51 +242,51 @@
             <section id="alcance" class="scroll-mt-24 space-y-8">
                 <div class="space-y-4">
                     <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Solución Multidimensional</span>
-                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-white">Un solo ecosistema para todo tamaño de empresa</h2>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Un solo ecosistema para todo tamaño de empresa</h2>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <!-- Column 1: Core Target -->
-                    <div class="glass-panel p-8 rounded-3xl space-y-6">
-                        <h3 class="font-heading font-bold text-xl text-white border-b border-slate-800 pb-4">Acompañamiento Corporativo</h3>
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">Acompañamiento Corporativo</h3>
                         
                         <div class="space-y-4">
                             <div class="flex gap-4">
                                 <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0 font-bold">1</div>
                                 <div>
-                                    <h4 class="font-bold text-sm text-white">Mipymes: El asesor que nunca tuvieron</h4>
-                                    <p class="text-xs text-slate-400 mt-1">Soporte automático 24/7. Generación instantánea de actas de COPASST, matrices de riesgos y políticas sin requerir visitas presenciales costosas.</p>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Mipymes: El asesor que nunca tuvieron</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Soporte automático 24/7. Generación instantánea de actas de COPASST, matrices de riesgos y políticas sin requerir visitas presenciales costosas.</p>
                                 </div>
                             </div>
                             
                             <div class="flex gap-4">
                                 <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0 font-bold">2</div>
                                 <div>
-                                    <h4 class="font-bold text-sm text-white">Grandes Empresas: Automatización y Visión</h4>
-                                    <p class="text-xs text-slate-400 mt-1">Análisis ergonómico postural mediante cámara (OWAS) y herramientas avanzadas de auditoría para el prevencionista in-situ.</p>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Grandes Empresas: Automatización y Visión</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Análisis ergonómico postural mediante cámara (OWAS) y herramientas avanzadas de auditoría para el prevencionista in-situ.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Column 2: Value for SURA -->
-                    <div class="glass-panel p-8 rounded-3xl space-y-6">
-                        <h3 class="font-heading font-bold text-xl text-white border-b border-slate-800 pb-4">El Arma Comercial de la ARL</h3>
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">El Arma Comercial de la ARL</h3>
                         
                         <div class="space-y-4">
                             <div class="flex gap-4">
                                 <div class="w-8 h-8 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500 shrink-0 font-bold">A</div>
                                 <div>
-                                    <h4 class="font-bold text-sm text-white">Atracción de Afiliados Exponencial</h4>
-                                    <p class="text-xs text-slate-400 mt-1">Wappy es un argumento de ventas único en licitaciones de ARL. Ofrecer IA para SST como beneficio inclina la balanza de inmediato.</p>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Atracción de Afiliados Exponencial</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Wappy es un argumento de ventas único en licitaciones de ARL. Ofrecer IA para SST como beneficio inclina la balanza de inmediato.</p>
                                 </div>
                             </div>
 
                             <div class="flex gap-4">
                                 <div class="w-8 h-8 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500 shrink-0 font-bold">B</div>
                                 <div>
-                                    <h4 class="font-bold text-sm text-white">Protección frente a la Siniestralidad</h4>
-                                    <p class="text-xs text-slate-400 mt-1">Menos accidentes reportados gracias a capacitaciones guiadas y diagnósticos de cumplimiento normativo inmediatos.</p>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Protección frente a la Siniestralidad</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Menos accidentes reportados gracias a capacitaciones guiadas y diagnósticos de cumplimiento normativo inmediatos.</p>
                                 </div>
                             </div>
                         </div>
@@ -272,39 +296,36 @@
 
             <!-- SECTION 4: EL CREADOR -->
             <section id="creador" class="scroll-mt-24 space-y-8">
-                <div class="glass-panel rounded-3xl p-8 lg:p-12">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 shadow-sm dark:shadow-none">
                     <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-12 items-center">
                         <div class="space-y-6">
                             <span class="text-wappy-500 uppercase tracking-widest text-xs font-extrabold block">La Diferencia es el Conocimiento del Dolor</span>
-                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">Wappy no lo creó un programador que estudió SST. Lo creó un prevencionista que aprendió a programar.</h2>
-                            <p class="text-slate-350 leading-relaxed font-light text-sm">
+                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-slate-900 dark:text-white">Wappy no lo creó un programador que estudió SST. Lo creó un prevencionista que aprendió a programar.</h2>
+                            <p class="text-slate-650 dark:text-slate-350 leading-relaxed font-light text-sm">
                                 "Otros desarrolladores con más recursos y equipos grandes no han llegado a construir Wappy. La razón es simple: no viven en campo, no han auditado constructoras gigantes como Capital o Contex, ni han visto a un prevencionista ahogado en planillas Excel a las 11 PM antes de una visita de ARL. Yo sí."
                             </p>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                                <div class="p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
-                                    <div class="font-bold text-white text-xs">SENA</div>
+                            <!-- Visual credentials grid updated (no Hidroituango item) -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">SENA</div>
                                     <div class="text-[10px] text-slate-500 mt-0.5">Tecnólogo Salud Ocupacional</div>
                                 </div>
-                                <div class="p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
-                                    <div class="font-bold text-white text-xs">Psicólogo</div>
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">Psicólogo</div>
                                     <div class="text-[10px] text-slate-500 mt-0.5">Especialista en SST</div>
                                 </div>
-                                <div class="p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
-                                    <div class="font-bold text-white text-xs">8+ Años SURA</div>
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">8+ Años SURA</div>
                                     <div class="text-[10px] text-slate-500 mt-0.5">Experiencia previa Rave</div>
-                                </div>
-                                <div class="p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
-                                    <div class="font-bold text-white text-xs">Hidroituango</div>
-                                    <div class="text-[10px] text-slate-500 mt-0.5">Gestión de Alto Riesgo</div>
                                 </div>
                             </div>
                         </div>
                         <div class="flex justify-center">
                             <div class="w-64 h-64 rounded-2xl bg-gradient-to-tr from-wappy-500 to-sura-500 p-[2px] shadow-2xl">
-                                <div class="w-full h-full bg-slate-950 rounded-2xl flex flex-col justify-center items-center p-6 text-center space-y-4">
+                                <div class="w-full h-full bg-white dark:bg-slate-950 rounded-2xl flex flex-col justify-center items-center p-6 text-center space-y-4 transition-colors">
                                     <img src="Agentes/Miniaturas/AvataresAgentes/tenshi.png" alt="Creador Wappy Avatar" class="w-24 h-24 rounded-full border-2 border-sura-500 object-cover shadow-lg">
                                     <div>
-                                        <h4 class="font-bold text-white text-base">Felix Bedoya</h4>
+                                        <h4 class="font-bold text-slate-800 dark:text-white text-base">Felix Bedoya</h4>
                                         <p class="text-xs text-sura-500 font-semibold mt-0.5">Fundador & Desarrollador Senior</p>
                                     </div>
                                 </div>
@@ -319,37 +340,37 @@
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                     <div class="space-y-4">
                         <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Herramientas Operativas</span>
-                        <h2 class="font-heading font-black text-3xl lg:text-4xl text-white">22 Copilotos IA Especializados</h2>
+                        <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">22 Agentes IA Especializados</h2>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="filterAgents('todos')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-sura-500 text-slate-950 font-bold text-xs">Todos</button>
-                        <button onclick="filterAgents('prevencion')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white">Prevención</button>
-                        <button onclick="filterAgents('salud')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white">Salud</button>
-                        <button onclick="filterAgents('legal')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white">Legal</button>
+                        <button onclick="filterAgents('prevencion')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Prevención</button>
+                        <button onclick="filterAgents('salud')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Salud</button>
+                        <button onclick="filterAgents('legal')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Legal</button>
                     </div>
                 </div>
 
                 <!-- NEW CORE FEATURES ROW -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 flex gap-4">
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
                         <div class="w-10 h-10 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500 shrink-0"><i data-lucide="layout-dashboard"></i></div>
                         <div>
-                            <h4 class="font-bold text-sm text-white">Centro de Control ACPM</h4>
-                            <p class="text-xs text-slate-400 mt-1">Monitoreo de tareas y acciones correctivas en tiempo real desde un solo tablero.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Centro de Control ACPM</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitoreo de tareas y acciones correctivas en tiempo real desde un solo tablero.</p>
                         </div>
                     </div>
-                    <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 flex gap-4">
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
                         <div class="w-10 h-10 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0"><i data-lucide="cloud"></i></div>
                         <div>
-                            <h4 class="font-bold text-sm text-white">Google Workspace Link</h4>
-                            <p class="text-xs text-slate-400 mt-1">Conexión con Slides, Docs, Sheets, Gmail, Calendar y Drive del cliente.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Google Workspace Link</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Conexión con Slides, Docs, Sheets, Gmail, Calendar y Drive del cliente.</p>
                         </div>
                     </div>
-                    <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 flex gap-4">
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
                         <div class="w-10 h-10 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500 shrink-0"><i data-lucide="bell"></i></div>
                         <div>
-                            <h4 class="font-bold text-sm text-white">Notificaciones Inteligentes</h4>
-                            <p class="text-xs text-slate-400 mt-1">Alertas en tiempo real ante vencimientos y auditorías inminentes.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Notificaciones Inteligentes</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Alertas en tiempo real ante vencimientos y auditorías inminentes.</p>
                         </div>
                     </div>
                 </div>
@@ -357,168 +378,242 @@
                 <!-- AGENTS GRID -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="agentsGrid">
                     <!-- Tenshi -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="prevencion">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
                         <img src="Agentes/Miniaturas/AvataresAgentes/tenshi.png" alt="Tenshi" class="w-12 h-12 rounded-full border border-wappy-500 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Tenshi (Orquestador)</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Asistente principal del sistema. Conecta con el centro de control y orquesta las tareas críticas del SG-SST.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Tenshi (Orquestador)</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asistente principal del sistema. Conecta con el centro de control y orquesta las tareas críticas del SG-SST.</p>
                         </div>
                     </div>
                     <!-- Consultor SG-SST -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="prevencion">
-                        <img src="Agentes/Miniaturas/AvataresAgentes/profesional_sst.png" alt="Consultor" class="w-12 h-12 rounded-full border border-slate-700 shrink-0">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/profesional_sst.png" alt="Consultor" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Consultor SG-SST</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Asesor general de implementación. Resuelve normativas, estándares de ARL y auditorías de la Res. 0312.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Consultor SG-SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asesor general de implementación. Resuelve normativas, estándares de ARL y auditorías de la Res. 0312.</p>
                         </div>
                     </div>
                     <!-- Auditor SG-SST -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="prevencion">
-                        <img src="Agentes/Miniaturas/AvataresAgentes/auditor_sg_sst.png" alt="Auditor" class="w-12 h-12 rounded-full border border-slate-700 shrink-0">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/auditor_sg_sst.png" alt="Auditor" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Auditoría SG-SST</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Identificación y simulación de riesgos ante inspecciones regulatorias en Colombia.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Auditoría SG-SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Identificación y simulación de riesgos ante inspecciones regulatorias en Colombia.</p>
                         </div>
                     </div>
                     <!-- Abogado Laboral -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="legal">
-                        <img src="Agentes/Miniaturas/AvataresAgentes/abogado_laboral.png" alt="Abogado" class="w-12 h-12 rounded-full border border-slate-700 shrink-0">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="legal">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/abogado_laboral.png" alt="Abogado" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Abogado Laboral</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Asesoría jurídica y régimen de contratación laboral según normativas colombianas vigentes.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Abogado Laboral</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asesoría jurídica y régimen de contratación laboral según normativas colombianas vigentes.</p>
                         </div>
                     </div>
                     <!-- Médico Laboral -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="salud">
-                        <img src="Agentes/Miniaturas/AvataresAgentes/medico_laboral.png" alt="Médico" class="w-12 h-12 rounded-full border border-slate-700 shrink-0">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="salud">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/medico_laboral.png" alt="Médico" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Médico Laboral</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Evaluación de aptitud clínica ocupacional, restricciones médicas y programas de reintegro laboral.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Médico Laboral</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Evaluación de aptitud clínica ocupacional, restricciones médicas y programas de reintegro laboral.</p>
                         </div>
                     </div>
                     <!-- Psicólogo SST -->
-                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start" data-category="salud">
-                        <img src="Agentes/Miniaturas/AvataresAgentes/psicologo_sst.png" alt="Psicólogo" class="w-12 h-12 rounded-full border border-slate-700 shrink-0">
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="salud">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/psicologo_sst.png" alt="Psicólogo" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
                         <div>
-                            <h4 class="font-bold text-sm text-white">Psicólogo SST</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Gestión de riesgos psicosociales y planes de intervención para el clima organizacional de la empresa.</p>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Psicólogo SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Gestión de riesgos psicosociales y planes de intervención para el clima organizacional de la empresa.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- Updated Button redirecting to home wappy.club -->
                 <div class="text-center pt-4">
-                    <a href="/portafolio" target="_blank" class="btn-outline px-6 py-2.5 rounded-full border border-slate-700 text-xs font-bold hover:border-sura-500 hover:text-sura-500 transition-all inline-flex items-center gap-2">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Ver todos los 22 copilotos de Wappy
+                    <a href="https://wappy.club" target="_blank" class="btn-outline px-6 py-2.5 rounded-full border border-slate-300 dark:border-slate-700 text-xs font-bold hover:border-sura-500 hover:text-sura-500 transition-all inline-flex items-center gap-2">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Ver todos los 22 agentes de Wappy
                     </a>
                 </div>
             </section>
 
-            <!-- SECTION 6: PROPUESTA ECONÓMICA -->
+            <!-- NEW SECTION 6: SEGURIDAD, HABEAS DATA Y SOPORTE -->
+            <section id="seguridad" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Garantía Corporativa</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Soberanía de Datos y Soporte Técnico</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Data & AI Privacy -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                            <i data-lucide="shield-check" class="text-wappy-500"></i> Protección y Soberanía de Datos
+                        </h3>
+                        <div class="space-y-4 text-xs leading-relaxed text-slate-650 dark:text-slate-455">
+                            <p>
+                                <strong>Arquitectura de Aislamiento Lógico:</strong> La información y base de datos de cada empresa afiliada a SURA se encuentra separada lógicamente. Ninguna organización puede acceder a los datos de otra.
+                            </p>
+                            <p>
+                                <strong>La IA la Pone el Usuario (API Keys):</strong> El cliente conecta directamente sus credenciales empresariales de servicios de IA (ej: Google Gemini, OpenAI). Esto garantiza que la información corporativa se rija bajo el acuerdo privado de privacidad de su propia empresa con el proveedor de IA.
+                            </p>
+                            <p>
+                                <strong>No Entrenamiento de Modelos:</strong> Los datos, matrices y actas generadas por Wappy nunca son usados por los proveedores de IA para entrenamiento de modelos públicos. Cumplimiento estricto de la <strong>Ley 1581 de 2012 (Habeas Data)</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Technical Support -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                            <i data-lucide="help-circle" class="text-sura-500"></i> Soporte y Acompañamiento Técnico
+                        </h3>
+                        <div class="space-y-4 text-xs leading-relaxed text-slate-650 dark:text-slate-455">
+                            <p>
+                                <strong>Respuesta en menos de 4 Horas:</strong> Soporte premium especializado disponible vía WhatsApp y correo electrónico para resolver incidencias técnicas y dudas en el uso diario de la plataforma.
+                            </p>
+                            <p>
+                                <strong>Programa de Onboarding Incluido (2 Sesiones):</strong> 
+                                <br>• <em>Sesión 1:</em> Diagnóstico inicial del SG-SST de la empresa y configuración de perfiles.
+                                <br>• <em>Sesión 2:</em> Creación personalizada de Agentes IA específicos de la empresa y capacitación de uso en vivo.
+                            </p>
+                            <p>
+                                <strong>Operación 100% Wappy:</strong> Wappy LTDA asume toda la carga del soporte y capacitación, liberando a ARL SURA de cualquier esfuerzo logístico o técnico.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NEW SECTION 7: PLAN DE DIVULGACIÓN -->
+            <section id="divulgacion" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Estrategia de Rollout</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Cómo llegaremos a todas las empresas de SURA</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500"><i data-lucide="mail"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Boletines de Innovación ARL</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Envío de campañas informativas oficiales desde SURA directamente a los correos de los prevencionistas y representantes legales de las empresas.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500"><i data-lucide="tv"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Webinars y Talleres Masivos</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Sesiones de capacitación conjunta de Wappy y SURA sobre el impacto de la Inteligencia Artificial aplicada a la Seguridad Industrial.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-sura-500/10 flex items-center justify-center text-sura-500"><i data-lucide="briefcase"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Capacitación Comercial a Asesores</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Formación y entrega de kits de Wappy a la fuerza comercial de SURA para usarlo como gancho de fidelización y atracción de nuevas empresas.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 8: PROPUESTA ECONÓMICA -->
             <section id="propuesta" class="scroll-mt-24 space-y-8">
                 <div class="space-y-4">
                     <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Acuerdo Comercial</span>
-                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-white">Modelo de Licenciamiento por Volumen B2B</h2>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Modelo de Licenciamiento por Volumen B2B</h2>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
                     <!-- Details -->
-                    <div class="glass-panel p-8 rounded-3xl space-y-6">
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
                         <div class="space-y-2">
-                            <h3 class="font-heading font-bold text-xl text-white">Financiado por el Presupuesto P&P de la ARL</h3>
-                            <p class="text-xs text-slate-400 leading-relaxed">
-                                De acuerdo con el marco legal colombiano, las ARL deben destinar un porcentaje obligatorio de su recaudo a Promoción y Prevención (P&P). Wappy se enmarca perfectamente dentro de este presupuesto para mejorar la cobertura de acompañamiento a mipymes.
+                            <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white">Financiado por el Presupuesto P&P de la ARL</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                De acuerdo con el marco legal colombiano, las ARL deben destinar un porcentaje obligatorio de su recaudo a Promoción y Prevención (P&P). Wappy se enmarca perfectamente dentro de este presupuesto para mejorar la cobertura de acompañamiento a las empresas afiliadas.
                             </p>
                         </div>
 
                         <!-- Price cards -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                                <div class="text-xs text-slate-400 font-bold">Licencia mensual / empresa</div>
+                            <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                                <div class="text-xs text-slate-500 dark:text-slate-400 font-bold">Licencia mensual / empresa</div>
                                 <div class="text-2xl font-black font-heading text-wappy-500 mt-1">$8.000 COP</div>
-                                <p class="text-[10px] text-slate-500 mt-1">Costo de software recurrente.</p>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-505 mt-1">Costo de software recurrente.</p>
                             </div>
-                            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                                <div class="text-xs text-slate-400 font-bold">Onboarding (pago único)</div>
+                            <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                                <div class="text-xs text-slate-500 dark:text-slate-400 font-bold">Onboarding (pago único)</div>
                                 <div class="text-2xl font-black font-heading text-sura-500 mt-1">$100.000 COP</div>
-                                <p class="text-[10px] text-slate-500 mt-1">2 sesiones completas de setup.</p>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-505 mt-1">2 sesiones completas de setup.</p>
                             </div>
-                        </div>
-
-                        <div class="p-4 rounded-2xl bg-wappy-500/5 border border-wappy-500/10">
-                            <div class="flex items-center gap-2 text-xs font-bold text-wappy-500 mb-1">
-                                <i data-lucide="shield-check" class="w-4 h-4"></i> Privacidad Soberana (API Keys del Cliente)
-                            </div>
-                            <p class="text-[11px] text-slate-400 leading-relaxed">
-                                Cada empresa ingresa su propio token de OpenAI/Google/Anthropic. La información viaja directamente desde sus perfiles hacia los servidores del proveedor de IA bajo sus propios contratos corporativos de privacidad. Wappy no almacena ni lee esos datos.
-                            </p>
                         </div>
                     </div>
 
                     <!-- Calculator -->
-                    <div class="glass-panel p-6 rounded-3xl space-y-6 flex flex-col justify-between">
+                    <div class="glass-panel p-6 rounded-3xl space-y-6 flex flex-col justify-between shadow-sm dark:shadow-none">
                         <div class="space-y-4">
-                            <h4 class="font-bold text-white text-base">Calculadora de Licencias</h4>
-                            <p class="text-xs text-slate-400">Desliza para calcular la inversión estimada en el primer año.</p>
+                            <h4 class="font-bold text-slate-800 dark:text-white text-base">Calculadora de Licencias</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Desliza para calcular la inversión estimada en el primer año.</p>
                             
                             <div class="space-y-2">
                                 <div class="flex justify-between text-xs font-semibold">
                                     <span>Empresas Activas:</span>
                                     <span class="text-sura-500 font-bold" id="rangeVal">500</span>
                                 </div>
-                                <input type="range" min="10" max="5000" value="500" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="empRange" oninput="calculateInversion()">
+                                <input type="range" min="10" max="5000" value="500" class="w-full h-1 bg-slate-250 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="empRange" oninput="calculateInversion()">
                             </div>
                         </div>
 
-                        <div class="space-y-4 pt-4 border-t border-slate-850">
+                        <div class="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-850">
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-400">Inversión Licencias / Año:</span>
-                                <span class="text-white font-bold" id="licAnual">$48.000.000 COP</span>
+                                <span class="text-slate-500 dark:text-slate-400">Inversión Licencias / Año:</span>
+                                <span class="text-slate-800 dark:text-white font-bold" id="licAnual">$48.000.000 COP</span>
                             </div>
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-400">Inversión Onboarding (pago único):</span>
-                                <span class="text-white font-bold" id="onbUnico">$50.000.000 COP</span>
+                                <span class="text-slate-500 dark:text-slate-400">Inversión Onboarding (pago único):</span>
+                                <span class="text-slate-800 dark:text-white font-bold" id="onbUnico">$50.000.000 COP</span>
                             </div>
-                            <div class="flex justify-between border-t border-slate-850 pt-3 text-sm">
-                                <span class="text-white font-bold">Inversión Año 1 Total:</span>
+                            <div class="flex justify-between border-t border-slate-200 dark:border-slate-850 pt-3 text-sm">
+                                <span class="text-slate-800 dark:text-white font-bold">Inversión Año 1 Total:</span>
                                 <span class="text-wappy-500 font-black" id="totalAno1">$98.000.000 COP</span>
                             </div>
                         </div>
 
-                        <p class="text-[9px] text-slate-500 leading-normal text-center">
+                        <p class="text-[9px] text-slate-500 leading-normal text-center font-medium">
                             *Nota: El cobro por software solo se realiza si la empresa activa e ingresa su API Key. Si una empresa se afilia pero no la usa, el cobro es de $0 COP.
                         </p>
                     </div>
                 </div>
             </section>
 
-            <!-- SECTION 7: PLAN PILOTO -->
+            <!-- SECTION 9: PLAN PILOTO -->
             <section id="piloto" class="scroll-mt-24 space-y-8">
-                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-sm dark:shadow-2xl">
                     <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 items-center">
                         <div class="space-y-6">
                             <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Acuerdo de Cierre</span>
-                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-white">¿Cuál es el siguiente paso?</h2>
-                            <p class="text-slate-350 leading-relaxed font-light text-sm">
+                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-slate-900 dark:text-white">¿Cuál es el siguiente paso?</h2>
+                            <p class="text-slate-650 dark:text-slate-350 leading-relaxed font-light text-sm">
                                 Proponemos estructurar un plan piloto controlado de 30 días con 10 o 20 empresas medianas y pequeñas de SURA para validar el ahorro de tiempo, reducción de riesgos y la satisfacción de los prevencionistas afiliados.
                             </p>
                             
-                            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-xs">
+                            <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs">
                                 <span class="font-bold text-wappy-500 flex items-center gap-1.5 mb-1">
                                     <i data-lucide="gift" class="w-4 h-4"></i> Regalo de Lanzamiento
                                 </span>
-                                Dictamos una charla virtual o presencial (empresa anfitriona asume viáticos y estadía en caso presencial) sobre "Impacto de la Inteligencia Artificial en la Seguridad y Salud en el Trabajo" para incentivar la participación del bloque inicial de empresas piloto.
+                                Dictamos una charla virtual o presencial (empresa anfitriona asume viáticos y estadía en caso presencial) sobre "Impacto de la Inteligencia Artificial en la Seguridad y Salud en el Trabajo" para incentivar la participación del bloque de empresas piloto.
                             </div>
                         </div>
 
-                        <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
-                            <h4 class="font-bold text-white text-sm text-center">Carta de Intención</h4>
-                            <p class="text-[11px] text-slate-400 leading-relaxed text-center">Firma de intención para realizar el piloto de 30 días de forma conjunta.</p>
+                        <div class="p-6 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 space-y-4">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm text-center">Carta de Intención</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-center font-medium">Firma de intención para realizar el piloto de 30 días de forma conjunta.</p>
                             
                             <div class="space-y-2">
                                 <button class="w-full py-2.5 rounded-lg bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-[1.02] transition-all">
                                     Confirmar Piloto
                                 </button>
-                                <button class="w-full py-2.5 rounded-lg border border-slate-700 text-slate-300 font-semibold text-xs hover:bg-slate-800/50 transition-all">
+                                <button class="w-full py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-800/50 transition-all">
                                     Descargar Presentación PDF
                                 </button>
                             </div>
@@ -555,6 +650,26 @@
             }, 1000);
         }
 
+        // Light/Dark Theme Switcher
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Apply saved theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
+        }
+
         // Pricing Calculator Logic
         function calculateInversion() {
             const range = document.getElementById('empRange');
@@ -580,9 +695,9 @@
             const cards = document.querySelectorAll('#agentsGrid > div');
             const buttons = document.querySelectorAll('.agent-filter-btn');
 
-            // Reset active button class
+            // Reset active button class to fit both light and dark mode beautifully
             buttons.forEach(btn => {
-                btn.className = "agent-filter-btn px-4 py-1.5 rounded-full bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white";
+                btn.className = "agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
             });
 
             // Set current active button
