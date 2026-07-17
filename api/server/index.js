@@ -803,7 +803,10 @@ const startServer = async () => {
 
   app.post('/api/proposals/accept', async (req, res) => {
     try {
-      const { signerName, signerRole, signerNit, signerEmail, proposalName, signatureImg, date } = req.body;
+      const { 
+        signerName, signerRole, signerNit, signerEmail, proposalName, signatureImg, date,
+        serviceName, supportName, onboardingName, conferenceName, investmentAmount
+      } = req.body;
       
       if (!signerName || !signerEmail || !signatureImg) {
         return res.status(400).json({ message: 'Faltan datos obligatorios (nombre, correo, firma).' });
@@ -827,7 +830,12 @@ const startServer = async () => {
         signerNit,
         signerEmail,
         proposalName: proposalName || 'Cámara de Comercio de la Guajira',
-        date: date || new Date().toLocaleDateString('es-CO')
+        date: date || new Date().toLocaleDateString('es-CO'),
+        serviceName,
+        supportName,
+        onboardingName,
+        conferenceName,
+        investmentAmount
       };
 
       // Attach signature image inline using CID

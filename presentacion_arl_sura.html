@@ -100,6 +100,47 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #00aec7;
         }
+
+        /* Print styles to generate clean B2B pitch PDF */
+        @media print {
+            header, aside, button, input[type="range"], .tip-box, .btn, .no-print, nav, #meetingTimer, .agent-filter-btn {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: #0f172a !important;
+            }
+            main {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            section {
+                page-break-after: always;
+                page-break-inside: avoid;
+                margin-top: 0 !important;
+                padding: 1.5rem 0 !important;
+            }
+            .glass-panel {
+                background: white !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                color: #0f172a !important;
+                backdrop-filter: none !important;
+            }
+            h1, h2, h3, h4 {
+                color: #0f172a !important;
+            }
+            p, span, li, div {
+                color: #334155 !important;
+            }
+            .text-transparent {
+                background: none !important;
+                -webkit-background-clip: unset !important;
+                -webkit-text-fill-color: initial !important;
+                color: #00aec7 !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-darkBg dark:text-slate-100 font-sans min-h-screen relative overflow-x-hidden transition-colors duration-300">
@@ -651,10 +692,10 @@
                             <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-center font-medium">Firma de intención para realizar el piloto de 30 días de forma conjunta.</p>
                             
                             <div class="space-y-2">
-                                <button class="w-full py-2.5 rounded-lg bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-[1.02] transition-all">
+                                <button onclick="openPilotModal()" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-[1.02] transition-all">
                                     Confirmar Piloto
                                 </button>
-                                <button class="w-full py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-800/50 transition-all">
+                                <button onclick="window.print()" class="w-full py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-800/50 transition-all">
                                     Descargar Presentación PDF
                                 </button>
                             </div>
@@ -665,6 +706,64 @@
 
         </main>
 
+    </div>
+
+    <!-- PILOT CONFIRMATION MODAL -->
+    <div id="pilotModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden no-print">
+        <div class="glass-panel max-w-lg w-full p-8 rounded-3xl space-y-6 shadow-2xl relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mx-4">
+            <button onclick="closePilotModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="text-center space-y-2">
+                <h3 class="font-heading font-black text-2xl text-slate-900 dark:text-white">✍️ Firmar Acuerdo de Piloto</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Completa la firma digitalizada para formalizar el inicio de la prueba de 30 días.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Empresa</label>
+                        <input type="text" id="signerCompany" value="ARL SURA" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sura-500" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NIT / Documento</label>
+                        <input type="text" id="signerNit" placeholder="890900350-1" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sura-500" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Firmante</label>
+                        <input type="text" id="signerName" placeholder="Nombre completo" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sura-500" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cargo</label>
+                        <input type="text" id="signerRole" value="Gerente General" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sura-500" />
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico (Notificaciones)</label>
+                    <input type="email" id="signerEmail" placeholder="contacto@sura.com" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sura-500" />
+                </div>
+
+                <!-- Signature Pad -->
+                <div class="space-y-1">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Firma Gráfica Digital</label>
+                        <button onclick="clearSignature()" class="text-[10px] text-sura-500 hover:text-sura-600 font-bold transition-all">Limpiar panel</button>
+                    </div>
+                    <div class="relative w-full h-32 bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-850 rounded-lg overflow-hidden cursor-crosshair">
+                        <canvas id="signatureCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="submitPilotSignature()" id="submitBtn" class="w-full py-3 rounded-lg bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
+                <span>Firmar y Enviar Solicitud</span>
+            </button>
+        </div>
     </div>
 
     <!-- Live Counter and Calculator Logic -->
@@ -799,6 +898,158 @@
                 }
             });
         });
+
+        // Modal Control Functions
+        function openPilotModal() {
+            document.getElementById('pilotModal').classList.remove('hidden');
+            initCanvas();
+        }
+
+        function closePilotModal() {
+            document.getElementById('pilotModal').classList.add('hidden');
+        }
+
+        // Canvas signature logic
+        let canvas, ctx;
+        let isDrawing = false;
+
+        function initCanvas() {
+            canvas = document.getElementById('signatureCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Adjust canvas resolution
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#ffffff' : '#0f172a';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Mouse Events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Touch Events (for mobile/tablet)
+            canvas.addEventListener('touchstart', startDrawingTouch);
+            canvas.addEventListener('touchmove', drawTouch);
+            canvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+
+        function startDrawingTouch(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            e.preventDefault();
+        }
+
+        function drawTouch(e) {
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignature() {
+            if (ctx && canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        async function submitPilotSignature() {
+            const company = document.getElementById('signerCompany').value.trim();
+            const name = document.getElementById('signerName').value.trim();
+            const role = document.getElementById('signerRole').value.trim();
+            const email = document.getElementById('signerEmail').value.trim();
+            const nit = document.getElementById('signerNit').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!name || !email || !company) {
+                alert('Por favor completa los campos requeridos (Empresa, Nombre y Correo electrónico).');
+                return;
+            }
+
+            // Get canvas base64 image data URL
+            const signatureImg = canvas.toDataURL('image/png');
+
+            // Simple validation: check if canvas is blank
+            const buffer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const isBlank = !buffer.data.some(color => color !== 0);
+            if (isBlank) {
+                alert('Por favor dibuja tu firma digital en el cuadro correspondiente.');
+                return;
+            }
+
+            // Get slider calculated metrics
+            const empCount = document.getElementById('rangeVal').textContent;
+            const wappyCost = document.getElementById('licAnual').textContent;
+            const onboardingCost = document.getElementById('onbUnico').textContent;
+            const savings = document.getElementById('totalAno1').textContent;
+
+            const investmentText = `${wappyCost} anuales (+ ${onboardingCost} onboarding) para ${empCount} empresas. Ahorro estimado: ${savings}.`;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Enviando propuesta...</span>';
+
+            try {
+                const response = await fetch('/api/proposals/accept', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        signerName: name,
+                        signerRole: role,
+                        signerNit: nit || 'No especificado',
+                        signerEmail: email,
+                        proposalName: `Piloto de Alianza Estratégica con ${company}`,
+                        signatureImg: signatureImg,
+                        date: new Date().toLocaleDateString('es-CO'),
+                        serviceName: "Licenciamiento B2B Wappy IA (Volumen ARL)",
+                        supportName: "Premium (SLA < 4h) vía WhatsApp/Email",
+                        onboardingName: "Diferenciado (Grandes: 2 sesiones / Pymes: Aula de Estudio)",
+                        conferenceName: "Obsequiada (Impacto de la IA en la SST)",
+                        investmentAmount: investmentText
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert('¡Propuesta firmada y aceptada con éxito! Recibirás los correos de confirmación en breve.');
+                    closePilotModal();
+                } else {
+                    alert('Error al procesar la firma: ' + data.message);
+                }
+            } catch (err) {
+                alert('No se pudo enviar la solicitud por red. Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Firmar y Enviar Solicitud</span>';
+            }
+        }
 
         // Initialize Lucide icons on load
         document.addEventListener('DOMContentLoaded', () => {
