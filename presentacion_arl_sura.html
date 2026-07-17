@@ -630,14 +630,24 @@
                             <h4 class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-1.5">
                                 <i data-lucide="calculator" class="w-4 h-4 text-sura-500"></i> Calculadora de Ahorro & ROI
                             </h4>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">Desliza la barra para estimar el impacto en la escala de SURA.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Ajusta las variables para simular el ahorro frente al costo de capacitación física.</p>
                             
+                            <!-- Slider 1: Empresas -->
                             <div class="space-y-2">
                                 <div class="flex justify-between text-xs font-semibold">
                                     <span>Empresas Afiliadas Activas:</span>
                                     <span class="text-sura-500 font-bold text-sm" id="rangeVal">500</span>
                                 </div>
                                 <input type="range" min="10" max="5000" value="500" class="w-full h-1 bg-slate-250 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="empRange" oninput="calculateInversion()">
+                            </div>
+
+                            <!-- Slider 2: Capacitaciones -->
+                            <div class="space-y-2 pt-2">
+                                <div class="flex justify-between text-xs font-semibold">
+                                    <span>Capacitaciones al Año (por empresa):</span>
+                                    <span class="text-sura-500 font-bold text-sm" id="capVal">8</span>
+                                </div>
+                                <input type="range" min="1" max="24" value="8" class="w-full h-1 bg-slate-250 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sura-500" id="capRange" oninput="calculateInversion()">
                             </div>
                         </div>
 
@@ -652,7 +662,7 @@
                                 <span class="text-slate-800 dark:text-white font-bold" id="onbUnico">$5.000.000 COP</span>
                             </div>
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (8 capacitaciones/año):</span>
+                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (<span id="capLabel">8</span> caps. × $120.000):</span>
                                 <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$480.000.000 COP</span>
                             </div>
                             <div class="flex justify-between border-t border-slate-200 dark:border-slate-850 pt-3 text-sm">
@@ -662,7 +672,7 @@
                         </div>
 
                         <p class="text-[9px] text-slate-500 leading-normal text-center font-medium">
-                            *Nota: El cálculo tradicional asume 8 capacitaciones básicas de 2 horas al año por empresa contratando un proveedor tradicional ($960.000 COP anuales por empresa).
+                            *Nota: El cálculo tradicional asume el valor promedio de una capacitación básica (2 horas) contratada con proveedor externo ($120.000 COP).
                         </p>
                     </div>
                 </div>
@@ -814,6 +824,9 @@
         function calculateInversion() {
             const range = document.getElementById('empRange');
             const rangeVal = document.getElementById('rangeVal');
+            const capRange = document.getElementById('capRange');
+            const capVal = document.getElementById('capVal');
+            const capLabel = document.getElementById('capLabel');
             const licAnual = document.getElementById('licAnual');
             const onbUnico = document.getElementById('onbUnico');
             const costoTradicional = document.getElementById('costoTradicional');
@@ -821,6 +834,10 @@
 
             const val = parseInt(range.value);
             rangeVal.textContent = val.toLocaleString('es-CO');
+
+            const caps = parseInt(capRange.value);
+            capVal.textContent = caps;
+            capLabel.textContent = caps;
 
             // Tiered volume pricing per company/month (Updated Premium Tiers)
             let pricePerCompany = 68000; // 10-500
@@ -836,8 +853,8 @@
             const onboardingVal = Math.round(val * 0.1) * 100000;
             const wappyTotal = softwareAnualVal + onboardingVal;
 
-            // Traditional Cost equivalent (8 training sessions of 2 hours per year = 8 * $120.000 = $960.000 COP)
-            const traditionalEquiv = val * 960000;
+            // Traditional Cost equivalent (caps * Y empresas * $120.000 COP)
+            const traditionalEquiv = val * caps * 120000;
 
             // Net Savings
             const savingsVal = traditionalEquiv - wappyTotal;
@@ -1005,11 +1022,12 @@
 
             // Get slider calculated metrics
             const empCount = document.getElementById('rangeVal').textContent;
+            const capCount = document.getElementById('capVal').textContent;
             const wappyCost = document.getElementById('licAnual').textContent;
             const onboardingCost = document.getElementById('onbUnico').textContent;
             const savings = document.getElementById('totalAno1').textContent;
 
-            const investmentText = `${wappyCost} anuales (+ ${onboardingCost} onboarding) para ${empCount} empresas. Ahorro estimado: ${savings}.`;
+            const investmentText = `${wappyCost} anuales (+ ${onboardingCost} onboarding) para ${empCount} empresas reemplazando ${capCount} capacitaciones físicas/año. Ahorro estimado: ${savings}.`;
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span>Enviando propuesta...</span>';
