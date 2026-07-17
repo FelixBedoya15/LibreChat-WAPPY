@@ -597,9 +597,9 @@
                             <div class="p-4 rounded-2xl bg-wappy-500/5 border border-wappy-500/10 space-y-1">
                                 <span class="text-[10px] text-wappy-500 font-bold uppercase tracking-wider block">Ecosistema Wappy IA</span>
                                 <h4 class="font-bold text-sm text-slate-900 dark:text-white">Licencia Corporativa en Volumen</h4>
-                                <div class="text-xl font-black font-heading text-wappy-500 mt-1">$12.000 - $25.000 COP</div>
+                                <div class="text-xl font-black font-heading text-wappy-500 mt-1">$35.000 - $68.000 COP</div>
                                 <p class="text-[10px] text-slate-500 leading-normal">
-                                    Costo mensual por empresa. Incluye 22 Agentes y acceso ilimitado al <strong>Aula de Estudio</strong>.
+                                    Costo mensual por empresa. Incluye 22 Agentes, Aula de Estudio y actualizaciones recurrentes de contenido.
                                 </p>
                             </div>
                         </div>
@@ -610,15 +610,15 @@
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
                                 <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
                                     <div class="text-[10px] text-slate-500 font-bold uppercase">100 a 500 Empresas</div>
-                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$25.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$68.000 <span class="text-xs font-normal">COP/mes</span></div>
                                 </div>
                                 <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl border-sura-500/40">
                                     <div class="text-[10px] text-sura-500 font-bold uppercase">501 a 2.000 Empresas</div>
-                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$18.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$48.000 <span class="text-xs font-normal">COP/mes</span></div>
                                 </div>
                                 <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
                                     <div class="text-[10px] text-slate-500 font-bold uppercase">2.001+ Empresas</div>
-                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$12.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$35.000 <span class="text-xs font-normal">COP/mes</span></div>
                                 </div>
                             </div>
                         </div>
@@ -645,24 +645,24 @@
                         <div class="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-850">
                             <div class="flex justify-between text-xs">
                                 <span class="text-slate-500 dark:text-slate-400">Inversión Anual Wappy IA:</span>
-                                <span class="text-slate-800 dark:text-white font-bold" id="licAnual">$150.000.000 COP</span>
+                                <span class="text-slate-800 dark:text-white font-bold" id="licAnual">$408.000.000 COP</span>
                             </div>
                             <div class="flex justify-between text-xs">
                                 <span class="text-slate-500 dark:text-slate-400">Onboarding Grandes Empresas (10%):</span>
                                 <span class="text-slate-800 dark:text-white font-bold" id="onbUnico">$5.000.000 COP</span>
                             </div>
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (4 capacitaciones/año):</span>
-                                <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$240.000.000 COP</span>
+                                <span class="text-slate-550 dark:text-slate-400">Costo Tradicional Equiv. (8 capacitaciones/año):</span>
+                                <span class="text-rose-600 dark:text-rose-400 font-bold" id="costoTradicional">$480.000.000 COP</span>
                             </div>
                             <div class="flex justify-between border-t border-slate-200 dark:border-slate-850 pt-3 text-sm">
                                 <span class="text-slate-900 dark:text-white font-bold">Ahorro Neto Anual SURA:</span>
-                                <span class="text-wappy-500 font-black text-base" id="totalAno1">$85.000.000 COP</span>
+                                <span class="text-wappy-500 font-black text-base" id="totalAno1">$67.000.000 COP</span>
                             </div>
                         </div>
 
                         <p class="text-[9px] text-slate-500 leading-normal text-center font-medium">
-                            *Nota: El cálculo tradicional asume 4 capacitaciones básicas de 2 horas al año por empresa contratando un proveedor tradicional ($480.000 COP anuales por empresa).
+                            *Nota: El cálculo tradicional asume 8 capacitaciones básicas de 2 horas al año por empresa contratando un proveedor tradicional ($960.000 COP anuales por empresa).
                         </p>
                     </div>
                 </div>
@@ -822,12 +822,12 @@
             const val = parseInt(range.value);
             rangeVal.textContent = val.toLocaleString('es-CO');
 
-            // Tiered volume pricing per company/month
-            let pricePerCompany = 25000; // 10-500
+            // Tiered volume pricing per company/month (Updated Premium Tiers)
+            let pricePerCompany = 68000; // 10-500
             if (val > 500 && val <= 2000) {
-                pricePerCompany = 18000;
+                pricePerCompany = 48000;
             } else if (val > 2000) {
-                pricePerCompany = 12000;
+                pricePerCompany = 35000;
             }
 
             const softwareAnualVal = val * pricePerCompany * 12;
@@ -836,8 +836,8 @@
             const onboardingVal = Math.round(val * 0.1) * 100000;
             const wappyTotal = softwareAnualVal + onboardingVal;
 
-            // Traditional Cost equivalent (4 training sessions of 2 hours per year = 4 * $120.000 = $480.000 COP)
-            const traditionalEquiv = val * 480000;
+            // Traditional Cost equivalent (8 training sessions of 2 hours per year = 8 * $120.000 = $960.000 COP)
+            const traditionalEquiv = val * 960000;
 
             // Net Savings
             const savingsVal = traditionalEquiv - wappyTotal;
