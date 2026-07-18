@@ -1287,9 +1287,9 @@ class BaseClient {
 
   async processAttachments(message, attachments) {
     const pdfFiles = attachments.filter((file) => file?.type === 'application/pdf');
-    if (pdfFiles.length > 0) {
+    const pdfFileIds = pdfFiles.map((file) => file.file_id).filter(Boolean);
+    if (pdfFileIds.length > 0) {
       try {
-        const pdfFileIds = pdfFiles.map((file) => file.file_id);
         const childImages = await getFiles({
           'metadata.parent_pdf': { $in: pdfFileIds },
           type: 'image/png',
