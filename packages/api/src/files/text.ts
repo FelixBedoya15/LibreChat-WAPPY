@@ -115,6 +115,10 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
     file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     originalName.endsWith('.docx');
 
+  const isPdf =
+    file.mimetype === 'application/pdf' ||
+    originalName.endsWith('.pdf');
+
   let text: string;
   if (isExcel) {
     try {
@@ -152,6 +156,8 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
       });
       text = content;
     }
+  } else if (isPdf) {
+    throw new Error('RAG API is required to parse PDF files, but the connection failed or RAG is not running. Please check if the RAG API container is healthy.');
   } else {
     const { content } = await readFileAsString(file.path, {
       fileSize: file.size,

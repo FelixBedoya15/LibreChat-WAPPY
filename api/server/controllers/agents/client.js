@@ -1205,7 +1205,14 @@ class AgentClient extends BaseClient {
               err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') ||
               err?.message?.includes('UNAVAILABLE') || err?.message?.includes('Failed to parse stream') ||
               err?.message?.includes('parse stream') || err?.message?.includes('Failed to parse');
+            const isNetworkError = err?.message?.includes('fetch failed') ||
+              err?.message?.includes('ECONNRESET') ||
+              err?.message?.includes('ETIMEDOUT') ||
+              err?.message?.includes('ENOTFOUND') ||
+              err?.message?.includes('socket hang up') ||
+              err?.message?.includes('undici');
 
+            const isRetryable = isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError;
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
 
@@ -1222,12 +1229,12 @@ class AgentClient extends BaseClient {
               logger.error('Failed to send clear_step_maps event', e);
             }
 
-            if ((isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable) && i < keys.length - 1) {
-              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+            if (isRetryable && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
               continue; // Try next key, same model
-            } else if (isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable) {
+            } else if (isRetryable) {
               // Last key also failed or model unavailable → rotate to next model
-              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted or model unavailable for "${currentModel}". Rotating to next model...`);
+              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
               rotateToNextModel = true;
               break; // Break key loop → outer loop advances to next model
             } else {
