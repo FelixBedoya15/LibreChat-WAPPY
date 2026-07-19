@@ -36,6 +36,7 @@ const {
   removeNullishValues,
 } = require('librechat-data-provider');
 const { initializeAgent } = require('~/server/services/Endpoints/agents/agent');
+const { getUserKey } = require('~/server/services/UserService');
 const { spendTokens, spendStructuredTokens } = require('~/models/spendTokens');
 const { getFormattedMemories, deleteMemory, setMemory } = require('~/models');
 const { encodeAndFormat } = require('~/server/services/Files/images/encode');
@@ -533,10 +534,24 @@ class AgentClient extends BaseClient {
     let serviceKey = undefined;
 
     if (agent.provider === 'google') {
-      const googleKey = (agent.model_parameters && agent.model_parameters.apiKey) ||
+      let googleKey = (agent.model_parameters && agent.model_parameters.apiKey) ||
                         process.env.GOOGLE_API_KEY || 
                         process.env.GEMINI_API_KEY || 
                         process.env.GOOGLE_KEY;
+
+      // If system key is 'user_provided', fall back to the active user's saved Google key
+      if (!googleKey || googleKey === 'user_provided') {
+        try {
+          const userGoogleKey = await getUserKey({ userId: this.options.req.user.id, name: EModelEndpoint.google });
+          if (userGoogleKey && userGoogleKey !== 'user_provided') {
+            googleKey = userGoogleKey;
+            logger.debug('[useMemory] Using user\'s own Google API key for Memory Agent');
+          }
+        } catch (e) {
+          logger.debug('[useMemory] Could not load user Google key for Memory Agent:', e.message);
+        }
+      }
+
       if (googleKey && googleKey !== 'user_provided') {
         try {
           const parsed = JSON.parse(googleKey);
@@ -545,7 +560,7 @@ class AgentClient extends BaseClient {
             serviceKey = parsed;
           }
         } catch (e) {
-          // Not a JSON
+          // Not a JSON — plain API key
         }
       }
 
