@@ -3,6 +3,7 @@
 import os
 import codecs
 import tempfile
+import threading
 
 from typing import Iterator, List, Optional
 import chardet
@@ -215,6 +216,9 @@ def process_documents(documents: List[Document]) -> str:
     return processed_text.strip()
 
 
+pdf_extraction_lock = threading.Lock()
+
+
 class SafePyPDFLoader:
     """
     A wrapper around PyPDFLoader that handles image extraction failures gracefully.
@@ -228,43 +232,44 @@ class SafePyPDFLoader:
         self._temp_filepath = None  # For compatibility with cleanup function
 
     def lazy_load(self) -> Iterator[Document]:
-        # 1. Try PyMuPDFLoader first (fastest and handles formatting well)
-        try:
-            from langchain_community.document_loaders import PyMuPDFLoader
-            loader = PyMuPDFLoader(self.filepath)
-            pages = list(loader.lazy_load())
-            if pages:
-                yield from pages
-                return
-        except Exception as e:
-            logger.warning(
-                f"PyMuPDFLoader failed for {self.filepath}: {e}. Trying PyPDFLoader fallback."
-            )
+        with pdf_extraction_lock:
+            # 1. Try PyMuPDFLoader first (fastest and handles formatting well)
+            try:
+                from langchain_community.document_loaders import PyMuPDFLoader
+                loader = PyMuPDFLoader(self.filepath)
+                pages = list(loader.lazy_load())
+                if pages:
+                    yield from pages
+                    return
+            except Exception as e:
+                logger.warning(
+                    f"PyMuPDFLoader failed for {self.filepath}: {e}. Trying PyPDFLoader fallback."
+                )
 
-        # 2. Try PyPDFLoader (pure Python, highly reliable)
-        try:
-            from langchain_community.document_loaders import PyPDFLoader
-            loader = PyPDFLoader(self.filepath)
-            pages = list(loader.lazy_load())
-            if pages:
-                yield from pages
-                return
-        except Exception as e:
-            logger.warning(
-                f"PyPDFLoader failed for {self.filepath}: {e}. Trying Unstructured fallback."
-            )
+            # 2. Try PyPDFLoader (pure Python, highly reliable)
+            try:
+                from langchain_community.document_loaders import PyPDFLoader
+                loader = PyPDFLoader(self.filepath)
+                pages = list(loader.lazy_load())
+                if pages:
+                    yield from pages
+                    return
+            except Exception as e:
+                logger.warning(
+                    f"PyPDFLoader failed for {self.filepath}: {e}. Trying Unstructured fallback."
+                )
 
-        # 3. Try UnstructuredPDFLoader
-        try:
-            from langchain_community.document_loaders import UnstructuredPDFLoader
-            loader = UnstructuredPDFLoader(self.filepath)
-            pages = list(loader.lazy_load())
-            if pages:
-                yield from pages
-                return
-        except Exception as e:
-            logger.error(f"All PDF loading strategies failed for {self.filepath}: {e}")
-            raise
+            # 3. Try UnstructuredPDFLoader
+            try:
+                from langchain_community.document_loaders import UnstructuredPDFLoader
+                loader = UnstructuredPDFLoader(self.filepath)
+                pages = list(loader.lazy_load())
+                if pages:
+                    yield from pages
+                    return
+            except Exception as e:
+                logger.error(f"All PDF loading strategies failed for {self.filepath}: {e}")
+                raise
 
     def load(self) -> List[Document]:
         return list(self.lazy_load())
