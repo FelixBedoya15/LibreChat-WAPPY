@@ -126,15 +126,27 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
       }
 
       const formattedResults = validResults
-        .flatMap((result, fileIndex) =>
-          result.data.map(([docInfo, distance]) => ({
-            filename: docInfo.metadata.source.split('/').pop(),
-            content: docInfo.page_content,
-            distance,
-            file_id: files[fileIndex]?.file_id,
-            page: docInfo.metadata.page || null,
-          })),
-        )
+        .flatMap((result, fileIndex) => {
+          const targetFile = files[fileIndex];
+          if (!result || !result.data || !targetFile) {
+            return [];
+          }
+          return result.data
+            .filter(([docInfo]) => {
+              const chunkFileId = docInfo?.metadata?.file_id;
+              // Strict isolation validation: chunk must belong to the requested file
+              return chunkFileId === targetFile.file_id;
+            })
+            .map(([docInfo, distance]) => ({
+              filename: docInfo.metadata?.source
+                ? docInfo.metadata.source.split('/').pop()
+                : (docInfo.metadata?.filename || targetFile.filename),
+              content: docInfo.page_content,
+              distance,
+              file_id: targetFile.file_id,
+              page: docInfo.metadata?.page || null,
+            }));
+        })
         // TODO: results should be sorted by relevance, not distance
         .sort((a, b) => a.distance - b.distance)
         // TODO: make this configurable
