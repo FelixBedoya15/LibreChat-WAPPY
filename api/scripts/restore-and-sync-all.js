@@ -455,6 +455,16 @@ ${cleanContent}
 
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
+
+  // Ejecutar restauración de imágenes de cursos y blog
+  try {
+    const { execSync } = require('child_process');
+    console.log('🔄 Ejecutando restauración de imágenes de LMS y Blog...');
+    execSync(`node "${path.join(__dirname, 'restore-lms-images.js')}"`, { stdio: 'inherit' });
+  } catch (err) {
+    console.error('⚠️ Error ejecutando la restauración de imágenes de LMS y Blog:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 
