@@ -709,6 +709,19 @@ class AgentClient extends BaseClient {
 
       const filteredMessages = messagesToProcess.map((msg) => this.filterImageUrls(msg));
       const bufferString = getBufferString(filteredMessages);
+
+      // ─── Guard: skip memory if buffer is too large (PDF content) ──────────
+      // 15,000 chars ≈ 4-5k tokens. If the buffer exceeds this, it almost
+      // certainly contains extracted PDF text that should NOT be memorized.
+      // Sending it to the Memory Agent wastes quota and triggers 429 errors.
+      const MEMORY_BUFFER_CHAR_LIMIT = 15000;
+      if (bufferString.length > MEMORY_BUFFER_CHAR_LIMIT) {
+        logger.debug(
+          `[runMemory] Buffer too large (${bufferString.length} chars > ${MEMORY_BUFFER_CHAR_LIMIT}). Skipping memory to avoid quota exhaustion.`,
+        );
+        return;
+      }
+
       const bufferMessage = new HumanMessage(`# Current Chat:\n\n${bufferString}`);
 
       // ─── Dual-axis rotation for Memory Agent (same as main agent) ───────────
