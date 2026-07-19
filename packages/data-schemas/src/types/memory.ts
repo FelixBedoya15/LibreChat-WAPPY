@@ -3,6 +3,7 @@ import type { Types, Document } from 'mongoose';
 // Base memory interfaces
 export interface IMemoryEntry extends Document {
   userId: Types.ObjectId;
+  agentId?: string;
   key: string;
   value: string;
   tokenCount?: number;
@@ -12,6 +13,7 @@ export interface IMemoryEntry extends Document {
 export interface IMemoryEntryLean {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  agentId?: string;
   key: string;
   value: string;
   tokenCount?: number;
@@ -22,6 +24,7 @@ export interface IMemoryEntryLean {
 // Method parameter interfaces
 export interface SetMemoryParams {
   userId: string | Types.ObjectId;
+  agentId?: string;
   key: string;
   value: string;
   tokenCount?: number;
@@ -29,11 +32,13 @@ export interface SetMemoryParams {
 
 export interface DeleteMemoryParams {
   userId: string | Types.ObjectId;
+  agentId?: string;
   key: string;
 }
 
 export interface GetFormattedMemoriesParams {
   userId: string | Types.ObjectId;
+  agentId?: string;
 }
 
 // Result interfaces

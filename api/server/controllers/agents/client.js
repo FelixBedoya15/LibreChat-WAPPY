@@ -10,9 +10,9 @@ const {
   sanitizeTitle,
   resolveHeaders,
   getBalanceConfig,
-  memoryInstructions,
   getTransactionsConfig,
   createMemoryProcessor,
+  createRecallMemoryTool,
 } = require('@librechat/api');
 const {
   Callback,
@@ -256,11 +256,25 @@ class AgentClient extends BaseClient {
       .join('\n')
       .trim();
 
-    // ✅ FIX 1: Load memory BEFORE building the payload/context strategy
-    // This ensure memory instructions are available for the model params
-    const withoutKeys = await this.useMemory();
-    if (withoutKeys) {
-      systemContent += `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`;
+    // ✅ FIX: Set up memory as an on-demand tool (recall_memory) instead of unconditionally
+    // injecting all user memories into the system prompt on every message.
+    // This prevents the agent from using historical memories about other clients/companies
+    // when the user asks an unrelated question (e.g. "what are these documents about?").
+    const agentId = this.options.agent?.id ?? 'global';
+    await this.useMemory();
+
+    // Register the recall_memory tool so the agent can retrieve memories on-demand
+    const recallTool = createRecallMemoryTool({
+      userId: this.options.req.user.id + '',
+      agentId,
+      getFormattedMemories,
+    });
+    if (!this.options.agent.tools) {
+      this.options.agent.tools = [];
+    }
+    // Only add if not already registered
+    if (!this.options.agent.tools.some((t) => t && (t.name === 'recall_memory' || t === 'recall_memory'))) {
+      this.options.agent.tools.push(recallTool);
     }
 
     if (systemContent) {
@@ -619,8 +633,10 @@ class AgentClient extends BaseClient {
     const userId = this.options.req.user.id + '';
     const messageId = this.responseMessageId + '';
     const conversationId = this.conversationId + '';
-    const [withoutKeys, processMemory] = await createMemoryProcessor({
+    const agentId = this.options.agent?.id ?? 'global';
+    const [, processMemory] = await createMemoryProcessor({
       userId,
+      agentId,
       config,
       messageId,
       conversationId,
@@ -633,7 +649,7 @@ class AgentClient extends BaseClient {
     });
 
     this.processMemory = processMemory;
-    return withoutKeys;
+    return '';
   }
 
   /**

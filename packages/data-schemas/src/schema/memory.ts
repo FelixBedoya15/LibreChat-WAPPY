@@ -5,8 +5,11 @@ const MemoryEntrySchema: Schema<IMemoryEntry> = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    index: true,
     required: true,
+  },
+  agentId: {
+    type: String,
+    default: 'global',
   },
   key: {
     type: String,
@@ -30,4 +33,8 @@ const MemoryEntrySchema: Schema<IMemoryEntry> = new Schema({
   },
 });
 
+// Compound index for fast per-agent queries
+MemoryEntrySchema.index({ userId: 1, agentId: 1 });
+
 export default MemoryEntrySchema;
+

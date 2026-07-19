@@ -75,12 +75,14 @@ When in doubt, and the user hasn't asked to remember or forget anything, END THE
  */
 export const createMemoryTool = ({
   userId,
+  agentId = 'global',
   setMemory,
   validKeys,
   tokenLimit,
   totalTokens = 0,
 }: {
   userId: string | ObjectId;
+  agentId?: string;
   setMemory: MemoryMethods['setMemory'];
   validKeys?: string[];
   tokenLimit?: number;
@@ -151,7 +153,7 @@ export const createMemoryTool = ({
           },
         };
 
-        const result = await setMemory({ userId, key, value, tokenCount });
+        const result = await setMemory({ userId, agentId, key, value, tokenCount });
         if (result.ok) {
           logger.debug(`Memory set for key "${key}" (${tokenCount} tokens) for user "${userId}"`);
           return [`Memory set for key "${key}" (${tokenCount} tokens)`, artifact];
@@ -190,10 +192,12 @@ export const createMemoryTool = ({
  */
 const createDeleteMemoryTool = ({
   userId,
+  agentId = 'global',
   deleteMemory,
   validKeys,
 }: {
   userId: string | ObjectId;
+  agentId?: string;
   deleteMemory: MemoryMethods['deleteMemory'];
   validKeys?: string[];
 }) => {
@@ -271,6 +275,7 @@ export class BasicToolEndHandler implements EventHandler {
 export async function processMemory({
   res,
   userId,
+  agentId = 'global',
   setMemory,
   deleteMemory,
   messages,
@@ -287,6 +292,7 @@ export async function processMemory({
   setMemory: MemoryMethods['setMemory'];
   deleteMemory: MemoryMethods['deleteMemory'];
   userId: string | ObjectId;
+  agentId?: string;
   memory: string;
   messageId: string;
   conversationId: string;
@@ -300,6 +306,7 @@ export async function processMemory({
   try {
     const memoryTool = createMemoryTool({
       userId,
+      agentId,
       tokenLimit,
       setMemory,
       validKeys,
@@ -307,6 +314,7 @@ export async function processMemory({
     });
     const deleteMemoryTool = createDeleteMemoryTool({
       userId,
+      agentId,
       validKeys,
       deleteMemory,
     });
@@ -409,9 +417,52 @@ ${memory ?? 'No existing memories'}`;
   }
 }
 
+/**
+ * Creates an on-demand recall_memory tool that the main agent can invoke
+ * when it determines that personalized user context is needed.
+ * This avoids unconditionally injecting all memories into the system prompt.
+ */
+export function createRecallMemoryTool({
+  userId,
+  agentId = 'global',
+  getFormattedMemories,
+}: {
+  userId: string | ObjectId;
+  agentId?: string;
+  getFormattedMemories: RequiredMemoryMethods['getFormattedMemories'];
+}) {
+  return tool(
+    async () => {
+      try {
+        const { withoutKeys } = await getFormattedMemories({ userId, agentId });
+        if (!withoutKeys) {
+          return 'No personalized memories found for this user.';
+        }
+        return withoutKeys;
+      } catch (error) {
+        logger.error('[recall_memory] Failed to retrieve memories', error);
+        return 'Error retrieving memories.';
+      }
+    },
+    {
+      name: 'recall_memory',
+      description: `Retrieves personalized context and memories saved about this user.
+ONLY call this tool when:
+- The user references a past conversation, saved preference, or personal detail
+- The query requires knowing the user's name, company, role, or prior context
+- The user says "as I mentioned before", "remember when", or similar
+DO NOT call this for generic questions about uploaded documents or general topics.
+DO NOT call this unless the query clearly requires personalized user context.`,
+      schema: z.object({}),
+      responseFormat: 'content',
+    },
+  );
+}
+
 export async function createMemoryProcessor({
   res,
   userId,
+  agentId = 'global',
   messageId,
   memoryMethods,
   conversationId,
@@ -421,23 +472,29 @@ export async function createMemoryProcessor({
   messageId: string;
   conversationId: string;
   userId: string | ObjectId;
+  agentId?: string;
   memoryMethods: RequiredMemoryMethods;
   config?: MemoryConfig;
 }): Promise<[string, (messages: BaseMessage[]) => Promise<(TAttachment | null)[] | undefined>]> {
   const { validKeys, instructions, llmConfig, tokenLimit } = config;
   const finalInstructions = instructions || getDefaultInstructions(validKeys, tokenLimit);
 
-  const { withKeys, withoutKeys, totalTokens } = await memoryMethods.getFormattedMemories({
+  // Only retrieve current memory for the memory-update agent (post-response)
+  // The main agent uses recall_memory tool on-demand instead
+  const { withKeys, totalTokens } = await memoryMethods.getFormattedMemories({
     userId,
+    agentId,
   });
 
   return [
-    withoutKeys,
+    // Return empty string — main agent no longer gets pre-injected memory
+    '',
     async function (messages: BaseMessage[]): Promise<(TAttachment | null)[] | undefined> {
       try {
         return await processMemory({
           res,
           userId,
+          agentId,
           messages,
           validKeys,
           llmConfig,
