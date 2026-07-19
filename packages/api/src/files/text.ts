@@ -85,6 +85,9 @@ export async function parseText({
       source: FileSources.text,
     };
   } catch (error) {
+    if (error.response?.data) {
+      logger.error('[parseText] RAG API Error Response Data:', JSON.stringify(error.response.data));
+    }
     logAxiosError({
       message: '[parseText] RAG API text parsing failed, falling back to native parsing',
       error,

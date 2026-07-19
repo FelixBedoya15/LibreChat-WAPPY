@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import sqlalchemy
 from typing import Optional, Any, Dict, List, Union
 from sqlalchemy import event
 from sqlalchemy import delete
@@ -238,3 +239,66 @@ class ExtendedPgVector(PGVector):
                 (Document(page_content=r.document, metadata=r.cmetadata or {}), 0.0)
                 for r in results
             ]
+
+    def _query_collection(
+        self,
+        embedding: List[float],
+        k: int = 4,
+        filter: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        """Query the collection with robust file_id metadata filtering."""
+        with Session(self._bind) as session:
+            collection = self.get_collection(session)
+            if not collection:
+                raise ValueError("Collection not found")
+
+            filter_by = [self.EmbeddingStore.collection_id == collection.uuid]
+            
+            if filter:
+                # Custom robust parsing of file_id metadata filtering
+                # This bypasses langchain's version-dependent filter translation bugs
+                if "file_id" in filter:
+                    file_id_val = filter["file_id"]
+                    if isinstance(file_id_val, dict):
+                        # Handle {"$eq": "val"}
+                        if "$eq" in file_id_val:
+                            filter_by.append(
+                                self.EmbeddingStore.cmetadata.op('->>')('file_id') == file_id_val["$eq"]
+                            )
+                        # Handle {"$in": ["val1", "val2"]}
+                        elif "$in" in file_id_val:
+                            filter_by.append(
+                                self.EmbeddingStore.cmetadata.op('->>')('file_id').in_(file_id_val["$in"])
+                            )
+                    else:
+                        # Handle plain value
+                        filter_by.append(
+                            self.EmbeddingStore.cmetadata.op('->>')('file_id') == str(file_id_val)
+                        )
+                else:
+                    # Fallback to langchain's default filter translation for other fields
+                    if self.use_jsonb:
+                        filter_clauses = self._create_filter_clause(filter)
+                        if filter_clauses is not None:
+                            filter_by.append(filter_clauses)
+                    else:
+                        filter_clauses = self._create_filter_clause_json_deprecated(filter)
+                        filter_by.extend(filter_clauses)
+
+            results: List[Any] = (
+                session.query(
+                    self.EmbeddingStore,
+                    self.distance_strategy(embedding).label("distance"),
+                )
+                .filter(*filter_by)
+                .order_by(sqlalchemy.asc("distance"))
+                .join(
+                    self.CollectionStore,
+                    self.EmbeddingStore.collection_id == self.CollectionStore.uuid,
+                )
+                .limit(k)
+                .all()
+            )
+
+        return results
+
