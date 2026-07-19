@@ -8,7 +8,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { saveConvo } = require('~/models/Conversation');
-const { saveMessage, updateMessageText } = require('~/models/Message');
+const { saveMessage, updateMessageText, getMessage } = require('~/models/Message');
 const CompanyInfo = require('~/models/CompanyInfo');
 const Notification = require('~/models/Notification');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
@@ -227,8 +227,7 @@ Genera un informe formal en formato HTML. El diseño debe ser premium, elegante 
 router.get('/status/:conversationId/:messageId', requireJwtAuth, async (req, res) => {
     try {
         const { conversationId, messageId } = req.params;
-        const Message = require('~/models/Message');
-        const msg = await Message.findOne({ conversationId, messageId }).lean();
+        const msg = await getMessage({ conversationId, messageId });
         if (!msg) {
             return res.status(404).json({ error: 'Mensaje no encontrado' });
         }
