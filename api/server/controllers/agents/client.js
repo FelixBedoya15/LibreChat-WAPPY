@@ -707,18 +707,37 @@ class AgentClient extends BaseClient {
         }
       }
 
-      const filteredMessages = messagesToProcess.map((msg) => this.filterImageUrls(msg));
+      // ─── Strip file/document content before building memory buffer ─────────
+      // Messages with attachments have their content as an array where:
+      //   content[0] = the text the user typed (what we WANT)
+      //   content[1..n] = extracted file/document text (what we DON'T WANT)
+      // We only keep the first text block of each message so memory never
+      // stores document content — only actual conversation text.
+      const textOnlyMessages = messagesToProcess.map((msg) => {
+        if (!Array.isArray(msg.content)) {
+          // Already a plain string — nothing to strip
+          return msg;
+        }
+        // Find the first text-type block (what was manually typed)
+        const firstText = msg.content.find(
+          (part) => part.type === ContentTypes.TEXT || part.type === 'text',
+        );
+        const plainText = firstText
+          ? (firstText[ContentTypes.TEXT] ?? firstText.text ?? '')
+          : '';
+
+        const MessageClass = msg.constructor;
+        return new MessageClass({
+          content: plainText,
+          additional_kwargs: msg.additional_kwargs ?? {},
+        });
+      });
+
+      const filteredMessages = textOnlyMessages.map((msg) => this.filterImageUrls(msg));
       const bufferString = getBufferString(filteredMessages);
 
-      // ─── Guard: skip memory if buffer is too large (PDF content) ──────────
-      // 15,000 chars ≈ 4-5k tokens. If the buffer exceeds this, it almost
-      // certainly contains extracted PDF text that should NOT be memorized.
-      // Sending it to the Memory Agent wastes quota and triggers 429 errors.
-      const MEMORY_BUFFER_CHAR_LIMIT = 15000;
-      if (bufferString.length > MEMORY_BUFFER_CHAR_LIMIT) {
-        logger.debug(
-          `[runMemory] Buffer too large (${bufferString.length} chars > ${MEMORY_BUFFER_CHAR_LIMIT}). Skipping memory to avoid quota exhaustion.`,
-        );
+      // Skip if there's nothing meaningful to memorize
+      if (!bufferString.trim()) {
         return;
       }
 
