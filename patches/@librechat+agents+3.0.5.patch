@@ -37,7 +37,7 @@ index 48c6de6..81f7f15 100644
          return 'LibreChatGoogleGenerativeAI';
      }
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-index 450e0d6..45e2c8f 100644
+index 450e0d6..f3fe3ec 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 @@ -329,13 +329,21 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
@@ -55,10 +55,10 @@ index 450e0d6..45e2c8f 100644
 +            const resultFunc = {
 +                name: tc.name,
 +                args: tc.args,
-+            };
+             };
 +            const part = {
 +                functionCall: resultFunc,
-             };
++            };
 +            if (sigs && sigs[idx]) {
 +                part.thought_signature = sigs[idx];
 +            } else if (tc.signature) {
@@ -68,7 +68,7 @@ index 450e0d6..45e2c8f 100644
          });
      }
      return [...messageParts, ...functionCalls];
-@@ -350,13 +358,23 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
+@@ -350,13 +358,24 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
              throw new Error('System message should be the first one');
          }
          const role = convertAuthorToRole(author);
@@ -79,7 +79,8 @@ index 450e0d6..45e2c8f 100644
 -            throw new Error('Google Generative AI requires alternate messages between authors');
 +        
 +        let actualRole = role;
-+        if (actualRole === 'system' && !convertSystemMessageToHumanContent) {
++        if (actualRole === 'function' ||
++            (actualRole === 'system' && !convertSystemMessageToHumanContent)) {
 +            actualRole = 'user';
          }
 +
@@ -97,7 +98,7 @@ index 450e0d6..45e2c8f 100644
          if (acc.mergeWithPreviousContent) {
              const prevContent = acc.content?.[acc.content.length - 1];
              if (!prevContent) {
-@@ -368,12 +386,7 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
+@@ -368,12 +387,7 @@ function convertBaseMessagesToContent(messages$1, isMultimodalModel, convertSyst
                  content: acc.content,
              };
          }
@@ -111,7 +112,7 @@ index 450e0d6..45e2c8f 100644
          const content = {
              role: actualRole,
              parts,
-@@ -458,6 +471,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+@@ -458,6 +472,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
          })));
      }
      const additional_kwargs = {};
@@ -214,10 +215,10 @@ index f936ded..1aa6088 100644
          return 'LibreChatGoogleGenerativeAI';
      }
 diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
-index 02305d8..3085870 100644
+index 02305d8..0eb8cd6 100644
 --- a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
-@@ -348,13 +348,23 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
+@@ -348,13 +348,24 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
              throw new Error('System message should be the first one');
          }
          const role = convertAuthorToRole(author);
@@ -228,7 +229,8 @@ index 02305d8..3085870 100644
 -            throw new Error('Google Generative AI requires alternate messages between authors');
 +        
 +        let actualRole = role;
-+        if (actualRole === 'system' && !convertSystemMessageToHumanContent) {
++        if (actualRole === 'function' ||
++            (actualRole === 'system' && !convertSystemMessageToHumanContent)) {
 +            actualRole = 'user';
          }
 +
@@ -246,7 +248,7 @@ index 02305d8..3085870 100644
          if (acc.mergeWithPreviousContent) {
              const prevContent = acc.content?.[acc.content.length - 1];
              if (!prevContent) {
-@@ -366,12 +376,7 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
+@@ -366,12 +377,7 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
                  content: acc.content,
              };
          }
@@ -325,10 +327,10 @@ index 2ab8c94..6e2954a 100644
      return 'LibreChatGoogleGenerativeAI';
    }
 diff --git a/node_modules/@librechat/agents/src/llm/google/utils/common.ts b/node_modules/@librechat/agents/src/llm/google/utils/common.ts
-index ccf070c..a6c3dca 100644
+index ccf070c..0e823ae 100644
 --- a/node_modules/@librechat/agents/src/llm/google/utils/common.ts
 +++ b/node_modules/@librechat/agents/src/llm/google/utils/common.ts
-@@ -442,15 +442,11 @@ export function convertBaseMessagesToContent(
+@@ -442,15 +442,12 @@ export function convertBaseMessagesToContent(
        }
        const role = convertAuthorToRole(author);
  
@@ -338,7 +340,8 @@ index ccf070c..a6c3dca 100644
 -        !acc.mergeWithPreviousContent &&
 -        prevContent &&
 -        prevContent.role === role
-+        actualRole === 'system' && !convertSystemMessageToHumanContent
++        actualRole === 'function' ||
++        (actualRole === 'system' && !convertSystemMessageToHumanContent)
        ) {
 -        throw new Error(
 -          'Google Generative AI requires alternate messages between authors'
@@ -347,7 +350,7 @@ index ccf070c..a6c3dca 100644
        }
  
        const parts = convertMessageContentToParts(
-@@ -459,6 +455,15 @@ export function convertBaseMessagesToContent(
+@@ -459,6 +456,15 @@ export function convertBaseMessagesToContent(
          messages.slice(0, index)
        );
  
@@ -363,7 +366,7 @@ index ccf070c..a6c3dca 100644
        if (acc.mergeWithPreviousContent) {
          const prevContent = acc.content?.[acc.content.length - 1];
          if (!prevContent) {
-@@ -473,14 +478,7 @@ export function convertBaseMessagesToContent(
+@@ -473,14 +479,7 @@ export function convertBaseMessagesToContent(
            content: acc.content,
          };
        }
