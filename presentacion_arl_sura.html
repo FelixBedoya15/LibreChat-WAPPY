@@ -150,32 +150,32 @@
     <div class="glow-bg bg-wappy-500 bottom-0 left-0"></div>
 
     <!-- HEADER / NAVIGATION -->
-    <header class="sticky top-0 z-50 px-8 py-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-800/80 bg-white/85 dark:bg-darkBg/80 backdrop-blur-md transition-colors duration-300">
-        <div class="flex items-center gap-4">
+    <header class="sticky top-0 z-50 px-4 sm:px-8 py-3.5 flex justify-between items-center border-b border-slate-200 dark:border-slate-800/80 bg-white/85 dark:bg-darkBg/80 backdrop-blur-md transition-colors duration-300">
+        <div class="flex items-center gap-3 sm:gap-4">
             <div class="flex items-center gap-2">
                 <!-- Wappy logo adapts to dark/light mode -->
-                <img src="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png" alt="Wappy Logo" class="h-8 w-auto dark:brightness-200 dark:contrast-100 transition-all">
-                <span class="font-heading font-black text-xl tracking-tight text-slate-900 dark:text-white">WAPPY<span class="text-wappy-500">IA</span></span>
+                <img src="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png" alt="Wappy Logo" class="h-7 sm:h-8 w-auto dark:brightness-200 dark:contrast-100 transition-all">
+                <span class="font-heading font-black text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">WAPPY<span class="text-wappy-500">IA</span></span>
             </div>
-            <div class="h-6 w-[1px] bg-slate-300 dark:bg-slate-700"></div>
+            <div class="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
             <!-- Dynamic partner logo embedding -->
-            <img src="https://www.sura.co/documents/445280/0/Logo-SURA-blanco+%281%29.svg/c9b33167-c441-e5ed-e380-6e4a18062d43?version=1.0&t=1708032816729" alt="SURA Logo" class="h-5 w-auto opacity-90 dark:opacity-100 filter invert dark:filter-none">
+            <img src="https://www.sura.co/documents/445280/0/Logo-SURA-blanco+%281%29.svg/c9b33167-c441-e5ed-e380-6e4a18062d43?version=1.0&t=1708032816729" alt="SURA Logo" class="h-4.5 sm:h-5 w-auto opacity-90 dark:opacity-100 filter invert dark:filter-none hidden sm:block">
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 sm:gap-4">
             <!-- 30-Min Live Countdown Timer -->
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-650 dark:text-slate-350">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-650 dark:text-slate-350">
                 <i data-lucide="clock" class="w-3.5 h-3.5 text-sura-500"></i>
                 <span id="meetingTimer">30:00</span>
             </div>
 
             <!-- Light/Dark Mode Toggle Button -->
-            <button onclick="toggleTheme()" class="p-2 rounded-full border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all text-slate-600 dark:text-slate-300" aria-label="Toggle theme">
+            <button onclick="toggleTheme()" class="p-1.5 sm:p-2 rounded-full border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all text-slate-600 dark:text-slate-300" aria-label="Toggle theme">
                 <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
                 <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
             </button>
 
-            <a href="#piloto" class="px-5 py-2 rounded-full bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-xs hover:scale-105 transition-all">
+            <a href="#piloto" class="px-4 py-1.5 sm:px-5 sm:py-2 rounded-full bg-gradient-to-r from-wappy-500 to-sura-500 text-slate-950 font-bold text-[10px] sm:text-xs hover:scale-105 transition-all hidden sm:inline-block">
                 Iniciar Alianza
             </a>
         </div>
@@ -219,7 +219,7 @@
                             <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> El Reto del Acompañamiento a Escala
                         </span>
                         
-                        <h1 class="font-heading font-black text-4xl lg:text-5.5xl text-slate-900 dark:text-white leading-tight">
+                        <h1 class="font-heading font-black text-3xl sm:text-4xl lg:text-5.5xl text-slate-900 dark:text-white leading-tight">
                             SURA lidera el mercado.<br>Pero liderar exige <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 via-sura-500 to-sura-900">herramientas que hoy no existen.</span>
                         </h1>
 
@@ -383,7 +383,7 @@
                         <span class="text-sura-500 uppercase tracking-widest text-xs font-extrabold block">Herramientas Operativas</span>
                         <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">22 Agentes IA Especializados</h2>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-wrap gap-2">
                         <button onclick="filterAgents('todos')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-sura-500 text-slate-950 font-bold text-xs">Todos</button>
                         <button onclick="filterAgents('prevencion')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Prevención</button>
                         <button onclick="filterAgents('salud')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Salud</button>
@@ -644,7 +644,7 @@
                                     <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 100 Empresas</span>
                                     <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px]">$82k/mes</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
                                     <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$99.4M/año*</span></div>
                                     <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$72.0M/año</span></div>
                                 </div>
@@ -659,7 +659,7 @@
                                     <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 500 Empresas</span>
                                     <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px]">$82k/mes</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
                                     <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$497.0M/año*</span></div>
                                     <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$360.0M/año</span></div>
                                 </div>
@@ -674,7 +674,7 @@
                                     <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 1.000 Empresas</span>
                                     <span class="px-2 py-0.5 rounded-full bg-wappy-500/10 text-wappy-500 font-bold text-[9px]">$72k/mes</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
                                     <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$874.0M/año*</span></div>
                                     <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$720.0M/año</span></div>
                                 </div>
@@ -689,7 +689,7 @@
                                     <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 3.000 Empresas</span>
                                     <span class="px-2 py-0.5 rounded-full bg-sura-500/10 text-sura-500 font-bold text-[9px]">$62k/mes</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
                                     <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$2.262M/año*</span></div>
                                     <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$2.160M/año</span></div>
                                 </div>
