@@ -380,7 +380,8 @@ export default function MarketingPortal() {
                 onChange={(e) => setModel(e.target.value)}
                 className="rounded-md border border-gray-300 bg-surface-primary px-2 py-1 text-xs text-text-primary focus:outline-none dark:border-gray-600"
               >
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite (Default)</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                 <option value="gemini-3.1-flash-lite">Gemini 3.1 Lite</option>
               </select>

@@ -214,14 +214,15 @@ endpoints:
     apiKey: "${GOOGLE_KEY}"
     models:
       default:
+        - "gemini-3.5-flash-lite"
+        - "gemini-3.6-flash"
         - "gemini-3.5-flash"
         - "gemini-3.1-flash-lite"
-        - "gemini-2.5-flash"
         - "gemini-3.1-flash-live-preview"
         - "gemini-2.5-flash-native-audio-preview-12-2025"
         - "gemini-2.5-flash-native-audio-preview-09-2025"
       fetch: false
-    titleModel: "gemini-3.1-flash-lite"
+    titleModel: "gemini-3.5-flash-lite"
   # assistants:
   #   disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
   #   pollIntervalMs: 3000  # Polling interval for checking assistant updates
@@ -253,7 +254,7 @@ endpoints:
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
       capabilities: ["execute_code", "file_search", "actions", "tools", "artifacts", "context", "ocr", "chain", "web_search"]
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite"
+      titleModel: "gemini-3.5-flash-lite"
   custom:
     - name: "Ollama"
       apiKey: "ollama"
@@ -270,7 +271,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite"
+      titleModel: "gemini-3.5-flash-lite"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -294,7 +295,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite"
+      titleModel: "gemini-3.5-flash-lite"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -538,7 +539,7 @@ memory:
   # Memory agent configuration - using Google Gemini inline (no separate agent needed)
   agent:
     provider: "google"
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     model_parameters:
       temperature: 0.1
 

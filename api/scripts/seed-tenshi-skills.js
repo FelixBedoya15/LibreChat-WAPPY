@@ -16,7 +16,7 @@ const tenshiConfigSchema = new mongoose.Schema(
   {
     name: { type: String, default: 'Tenshi' },
     description: { type: String, default: 'Asistente virtual de WAPPY' },
-    model: { type: String, default: 'gemini-2.5-flash' },
+    model: { type: String, default: 'gemini-3.1-flash-lite' },
     systemPrompt: { type: String, default: '' },
     extraKnowledge: { type: String, default: '' },
     location: { type: String, default: 'bottom-right' },

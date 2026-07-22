@@ -7,9 +7,10 @@ const { getUserKey } = require('../server/services/UserService');
 
 // Modelos exactos configurados en el sistema WAPPY (coincidentes con sgsstGemini.js)
 const SYSTEM_GOOGLE_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
   'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
-  'gemini-2.5-flash',
 ];
 
 class WappyQueueService {

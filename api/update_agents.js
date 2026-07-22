@@ -8,17 +8,17 @@ async function run() {
     const db = client.db();
     
     const result = await db.collection('agents').updateMany(
-      { model: 'gemini-2.5-flash' },
-      { $set: { model: 'gemini-3.5-flash' } }
+      { model: { $in: ['gemini-2.5-flash', 'gemini-3.5-flash'] } },
+      { $set: { model: 'gemini-3.5-flash-lite' } }
     );
-    console.log(`Updated ${result.modifiedCount} agents from 2.5-flash to 3.5-flash.`);
+    console.log(`Updated ${result.modifiedCount} agents to 3.5-flash-lite.`);
     
     // Check if there are other models being used by Google provider that we should also update
     const result2 = await db.collection('agents').updateMany(
-      { provider: 'google', model: { $ne: 'gemini-3.5-flash' } },
-      { $set: { model: 'gemini-3.5-flash' } }
+      { provider: 'google', model: { $ne: 'gemini-3.5-flash-lite' } },
+      { $set: { model: 'gemini-3.5-flash-lite' } }
     );
-    console.log(`Updated ${result2.modifiedCount} other google agents to 3.5-flash.`);
+    console.log(`Updated ${result2.modifiedCount} other google agents to 3.5-flash-lite.`);
     
   } catch (err) {
     console.error(err);

@@ -107,10 +107,11 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
+        'gemini-3.5-flash-lite',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
         'gemini-3.1-flash-lite',
         'gemini-3.1-flash-live-preview',
-        'gemini-2.5-flash',
         'gemini-2.5-flash-native-audio-preview-12-2025',
         'gemini-2.5-flash-native-audio-preview-09-2025'
       ];

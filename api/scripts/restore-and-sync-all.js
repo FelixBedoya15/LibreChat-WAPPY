@@ -318,7 +318,7 @@ ${cleanContent}
 
     tools = [...new Set(tools)];
 
-    const defaultModel = key === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+    const defaultModel = 'gemini-3.5-flash-lite';
 
     let agent = await Agent.findOne({ name: val.name });
     const isNewAgent = !agent; // Indicador para saber si el agente es nuevo

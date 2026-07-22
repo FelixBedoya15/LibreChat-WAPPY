@@ -141,7 +141,7 @@ async function main() {
       tools.push('canvas');
     }
 
-    const defaultModel = fileBasename === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+    const defaultModel = 'gemini-3.5-flash-lite';
 
     // Buscar si ya existe
     let agent = await Agent.findOne({ name: dbName });
