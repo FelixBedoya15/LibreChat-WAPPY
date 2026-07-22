@@ -521,7 +521,7 @@ endpoints:
 # Web Search Configuration (SearXNG / Sear-Crawl4AI Dokploy Container)
 webSearch:
   searchProvider: "searxng"
-  searxngInstanceUrl: "http://librechat-tavily-wte5j0:3000/search"
+  searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
 
 
 # Memory configuration for user memories
