@@ -518,12 +518,10 @@ endpoints:
 #     quality: 0.92  # JPEG quality for compression (0.0-1.0, default: 0.92)
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
-# Web Search Configuration (Dokploy Tavily Container)
+# Web Search Configuration (SearXNG / Sear-Crawl4AI Dokploy Container)
 webSearch:
-  searchProvider: "tavily"
-  tavilyApiKey: "local-dummy-key"
-  tavilySearchUrl: "http://librechat-tavily-wte5j0-bc2676-72-60-124-130.traefik.me/search"
-  tavilyExtractUrl: "http://librechat-tavily-wte5j0-bc2676-72-60-124-130.traefik.me/extract"
+  searchProvider: "searxng"
+  searxngInstanceUrl: "http://librechat-tavily-wte5j0-bc2676-72-60-124-130.traefik.me/search"
 
 
 # Memory configuration for user memories
