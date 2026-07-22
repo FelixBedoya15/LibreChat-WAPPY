@@ -60,7 +60,7 @@ const EstadisticasATEL = () => {
         return initial;
     });
 
-    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash-lite');
     
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

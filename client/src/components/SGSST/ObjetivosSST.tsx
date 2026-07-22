@@ -40,7 +40,7 @@ const ObjetivosSST = () => {
     const [additionalNorms, setAdditionalNorms] = useState('');
     const [previousObjectives, setPreviousObjectives] = useState('');
     const [yearPlan, setYearPlan] = useState('');
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash-lite');
 
     React.useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

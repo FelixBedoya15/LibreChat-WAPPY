@@ -191,7 +191,7 @@ const AnalisisVulnerabilidad = () => {
 
   const [selectedModel, setSelectedModel] = React.useState(
     user?.personalization?.geminiModels?.sstManagement ||
-    (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim()
+    (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim()
   );
 
   React.useEffect(() => {

@@ -44,7 +44,7 @@ const ResponsableSGSST = () => {
     const [courseStatus, setCourseStatus] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
     const [selectedModel, setSelectedModel] = useState<string>(() => {
-        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash';
+        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash-lite';
     });
 
     // Generated document

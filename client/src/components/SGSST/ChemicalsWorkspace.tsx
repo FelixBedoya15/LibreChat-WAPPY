@@ -75,7 +75,7 @@ export default function ChemicalsWorkspace() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash-lite');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
