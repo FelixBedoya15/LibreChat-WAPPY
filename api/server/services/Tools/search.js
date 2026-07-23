@@ -23,7 +23,7 @@ function createOnSearchResults(res) {
    */
   function onSearchResults(results, runnableConfig) {
     logger.info(
-      `[TAVILY SEARCH SUCCESS] Search results received from Tavily API container. results.success: ${results.success}`,
+      `[WEB SEARCH SUCCESS] Search results received. results.success: ${results.success}`,
     );
     logger.info(
       `[onSearchResults] user: ${runnableConfig.metadata.user_id} | thread_id: ${runnableConfig.metadata.thread_id} | run_id: ${runnableConfig.metadata.run_id}`,
