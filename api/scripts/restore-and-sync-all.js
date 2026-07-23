@@ -466,6 +466,18 @@ ${cleanContent}
     console.error('⚠️ Error ejecutando la restauración de imágenes de LMS y Blog:', err.message);
   }
 
+  // Ejecutar limpieza de memorias empresa_sgsst duplicadas
+  try {
+    const { execSync } = require('child_process');
+    const cleanupScript = path.resolve(__dirname, '../../scripts/fix-duplicate-empresa-memories.js');
+    if (require('fs').existsSync(cleanupScript)) {
+      console.log('🧹 Ejecutando limpieza de memorias empresa_sgsst duplicadas...');
+      execSync(`node "${cleanupScript}"`, { stdio: 'inherit' });
+    }
+  } catch (err) {
+    console.error('⚠️ Error ejecutando la limpieza de memorias duplicadas:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 
