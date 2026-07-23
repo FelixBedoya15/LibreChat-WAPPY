@@ -169,17 +169,17 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     // Built-in tool toggles
     if (ephemeralAgent.web_search === true) {
       toolSet.add(Tools.web_search);
-    } else if (ephemeralAgent.web_search === false) {
+    } else if (ephemeralAgent.web_search === false && agent_id === EPHEMERAL_AGENT_ID) {
       toolSet.delete(Tools.web_search);
     }
     if (ephemeralAgent.file_search === true) {
       toolSet.add(Tools.file_search);
-    } else if (ephemeralAgent.file_search === false) {
+    } else if (ephemeralAgent.file_search === false && agent_id === EPHEMERAL_AGENT_ID) {
       toolSet.delete(Tools.file_search);
     }
     if (ephemeralAgent.execute_code === true) {
       toolSet.add(Tools.execute_code);
-    } else if (ephemeralAgent.execute_code === false) {
+    } else if (ephemeralAgent.execute_code === false && agent_id === EPHEMERAL_AGENT_ID) {
       toolSet.delete(Tools.execute_code);
     }
 

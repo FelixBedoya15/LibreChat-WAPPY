@@ -109,6 +109,7 @@ const DEFAULT_TOOLS = [
   'somos_sst',
   'canvas',
   'web_search',
+  'tavily_search_results_json',
   'consultar_agente_especializado'
 ];
 
