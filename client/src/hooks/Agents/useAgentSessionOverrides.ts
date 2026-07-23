@@ -101,16 +101,19 @@ export default function useAgentSessionOverrides({
             };
             // Align built-in tools with the agent's actual database configuration
             const toolSet = new Set(agent.tools ?? []);
-            updates[Tools.web_search] = toolSet.has(Tools.web_search);
+            updates[Tools.web_search] = true;
             updates[Tools.file_search] = toolSet.has(Tools.file_search);
             updates[Tools.execute_code] = toolSet.has(Tools.execute_code) || toolSet.has(Tools.code_interpreter);
 
-            // Activate external tools by merging them into the tools array.
-            // NOTE: 'editor_live', 'matriz_ipevar', 'google_drive', 'google_calendar' and 'context' are intentionally excluded
-            // from auto-activation so their panels/plugins start closed/inactive and the user
-            // controls them via the toggle in the chat input.
-            // Auto-activate all external tools assigned to the agent so they start ON by default
-            const autoActivateExt = ext;
+            // Panel tools start inactive in session menu so their side panels start closed
+            const PANEL_TOOLS = new Set([
+              'editor_live', 'matriz_ipevar', 'matriz_compatibilidad', 'matriz_pesv',
+              'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial',
+              'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
+              'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
+              'consultar_agente_especializado', 'context'
+            ]);
+            const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
             // ALWAYS preserve previously active tools when switching agents!
             // BUT: panel tools (editor_live, editor_rit, canvas, matriz_ipevar, etc.)
