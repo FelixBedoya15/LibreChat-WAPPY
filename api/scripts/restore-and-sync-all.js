@@ -468,8 +468,10 @@ ${cleanContent}
   // Ejecutar limpieza de memorias empresa_sgsst duplicadas
   try {
     const { execSync } = require('child_process');
-    const cleanupScript = path.resolve(__dirname, '../../scripts/fix-duplicate-empresa-memories.js');
-    if (require('fs').existsSync(cleanupScript)) {
+    const localScript = path.resolve(__dirname, 'fix-duplicate-empresa-memories.js');
+    const rootScript = path.resolve(__dirname, '../../scripts/fix-duplicate-empresa-memories.js');
+    const cleanupScript = fs.existsSync(localScript) ? localScript : (fs.existsSync(rootScript) ? rootScript : null);
+    if (cleanupScript) {
       console.log('🧹 Ejecutando limpieza de memorias empresa_sgsst duplicadas...');
       execSync(`node "${cleanupScript}"`, { stdio: 'inherit' });
     }
