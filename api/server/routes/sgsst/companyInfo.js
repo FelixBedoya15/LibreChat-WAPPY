@@ -108,13 +108,16 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
         const memoryKey = 'empresa_sgsst';
         const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
         
-        // FIX: Use agentId='global' explicitly so the single empresa_sgsst memory is shared
-        // across ALL agents. setMemory uses upsert internally — no if/else needed.
-        // Previous code omitted agentId, causing duplicates when different agents
-        // wrote with their own agentId vs the implicit 'global' default.
+        // Wipe ALL previous empresa_sgsst entries for this user (regardless of agentId)
+        // to guarantee there is ONLY EVER ONE active company memory entry.
+        const MemoryEntry = mongoose.models.MemoryEntry;
+        if (MemoryEntry) {
+            await MemoryEntry.deleteMany({ userId, key: memoryKey });
+        }
+        
         await setMemory({ userId, agentId: 'global', key: memoryKey, value: memoryContentFinal, tokenCount });
 
-        logger.debug(`[SGSST CompanyInfo] Synced empresa_sgsst memory for user ${userId} (agentId=global)`);
+        logger.debug(`[SGSST CompanyInfo] Synced single empresa_sgsst memory for user ${userId} (agentId=global)`);
     } catch (memError) {
         logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
     }

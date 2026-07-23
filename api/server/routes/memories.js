@@ -50,7 +50,34 @@ router.use(requireJwtAuth);
  */
 router.get('/', checkMemoryRead, configMiddleware, async (req, res) => {
   try {
-    const memories = await getAllUserMemories(req.user.id);
+    const rawMemories = await getAllUserMemories(req.user.id);
+
+    // Deduplicate by key: keep only the newest entry for each key
+    const uniqueMap = new Map();
+    const duplicateIds = [];
+
+    const sortedRaw = rawMemories.sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
+
+    for (const mem of sortedRaw) {
+      if (!uniqueMap.has(mem.key)) {
+        uniqueMap.set(mem.key, mem);
+      } else {
+        if (mem._id) duplicateIds.push(mem._id);
+      }
+    }
+
+    const memories = Array.from(uniqueMap.values());
+
+    // Asynchronously delete duplicate entries from DB if any were found
+    if (duplicateIds.length > 0) {
+      const mongoose = require('mongoose');
+      const MemoryEntry = mongoose.models.MemoryEntry;
+      if (MemoryEntry) {
+        MemoryEntry.deleteMany({ _id: { $in: duplicateIds } }).catch(() => {});
+      }
+    }
 
     const sortedMemories = memories.sort(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
@@ -283,10 +310,20 @@ router.delete('/:key', checkMemoryDelete, async (req, res) => {
   const { key } = req.params;
 
   try {
-    const result = await deleteMemory({ userId: req.user.id, key });
+    const mongoose = require('mongoose');
+    const MemoryEntry = mongoose.models.MemoryEntry;
+    let deletedCount = 0;
 
-    if (!result.ok) {
-      return res.status(404).json({ error: 'Memory not found.' });
+    if (MemoryEntry) {
+      const resDel = await MemoryEntry.deleteMany({ userId: req.user.id, key });
+      deletedCount = resDel.deletedCount || 0;
+    }
+
+    if (deletedCount === 0) {
+      const result = await deleteMemory({ userId: req.user.id, key });
+      if (!result.ok) {
+        return res.status(404).json({ error: 'Memory not found.' });
+      }
     }
 
     res.json({ deleted: true });

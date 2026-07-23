@@ -93,8 +93,12 @@ export function createMemoryMethods(mongoose: typeof import('mongoose')) {
   async function deleteMemory({ userId, agentId = 'global', key }: t.DeleteMemoryParams): Promise<t.MemoryResult> {
     try {
       const MemoryEntry = mongoose.models.MemoryEntry;
-      const result = await MemoryEntry.findOneAndDelete({ userId, agentId, key });
-      return { ok: !!result };
+      const filter: Record<string, unknown> = { userId, key };
+      if (agentId && agentId !== 'global') {
+        filter.agentId = agentId;
+      }
+      const result = await MemoryEntry.deleteMany(filter);
+      return { ok: (result?.deletedCount ?? 0) > 0 };
     } catch (error) {
       throw new Error(
         `Failed to delete memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
