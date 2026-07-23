@@ -3,7 +3,7 @@ const router = express.Router();
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { getAllUserMemories, createMemory, setMemory, deleteMemory } = require('~/models');
+const { setMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 const mongoose = require('mongoose');
 const UserPlan = require('~/db/models/UserPlan');
@@ -72,6 +72,8 @@ async function migrateLegacyData(userId, firstCompanyId) {
 
 /**
  * Syncs the AI automated memory for a given company data.
+ * ALWAYS uses agentId='global' so the memory is visible to ALL agents.
+ * Uses a single atomic setMemory (upsert) to prevent duplicate empresa_sgsst entries.
  */
 async function syncCompanyMemory(userId, companyData) {
     try {
@@ -106,14 +108,13 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
         const memoryKey = 'empresa_sgsst';
         const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
         
-        const memories = await getAllUserMemories(userId);
-        const existingMemory = memories.find((m) => m.key === memoryKey);
+        // FIX: Use agentId='global' explicitly so the single empresa_sgsst memory is shared
+        // across ALL agents. setMemory uses upsert internally — no if/else needed.
+        // Previous code omitted agentId, causing duplicates when different agents
+        // wrote with their own agentId vs the implicit 'global' default.
+        await setMemory({ userId, agentId: 'global', key: memoryKey, value: memoryContentFinal, tokenCount });
 
-        if (existingMemory) {
-            await setMemory({ userId, key: memoryKey, value: memoryContentFinal, tokenCount });
-        } else {
-            await createMemory({ userId, key: memoryKey, value: memoryContentFinal, tokenCount });
-        }
+        logger.debug(`[SGSST CompanyInfo] Synced empresa_sgsst memory for user ${userId} (agentId=global)`);
     } catch (memError) {
         logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
     }

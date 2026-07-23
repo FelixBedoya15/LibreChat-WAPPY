@@ -263,6 +263,34 @@ class AgentClient extends BaseClient {
     const agentId = this.options.agent?.id ?? 'global';
     await this.useMemory();
 
+    // ✅ FIX #2 — SST AGENTS: Inject empresa_sgsst directly into system prompt.
+    // SST agents need company context for EVERY technical question (risk level, workers,
+    // ARL, etc.). Relying on recall_memory (on-demand) is unreliable because the LLM
+    // often doesn't infer it needs personalized context for normative SST queries.
+    // Solution: Always inject empresa_sgsst (agentId='global') at the top of the system prompt
+    // for any SST-domain agent.
+    const agentName = this.options.agent?.name ?? '';
+    const agentInstructions = this.options.agent?.instructions ?? '';
+    const SST_KEYWORDS = ['SG-SST', 'SST', 'IPEVAR', 'GTC-45', 'Salud en el Trabajo', 'Seguridad y Salud', 'PESV', 'ARL', 'Riesgo Laboral', 'Emergencias', 'Ergon'];
+    const isSSTagent = SST_KEYWORDS.some((kw) =>
+      agentName.includes(kw) || agentInstructions.slice(0, 500).includes(kw)
+    );
+
+    if (isSSTagent) {
+      try {
+        const { withoutKeys: companyContext } = await getFormattedMemories({
+          userId: this.options.req.user.id + '',
+          agentId: 'global',
+        });
+        if (companyContext) {
+          systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA (DATOS REALES - NO VOLVER A PREGUNTAR):\n${companyContext}\n\n---\n\n` + systemContent;
+          logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${agentName}" system prompt`);
+        }
+      } catch (memErr) {
+        logger.warn('[buildMessages] Could not inject empresa_sgsst into SST agent:', memErr.message);
+      }
+    }
+
     // Register the recall_memory tool so the agent can retrieve memories on-demand
     const recallTool = createRecallMemoryTool({
       userId: this.options.req.user.id + '',

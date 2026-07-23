@@ -109,20 +109,12 @@ export default function useAgentSessionOverrides({
             // NOTE: 'editor_live', 'matriz_ipevar', 'google_drive', 'google_calendar' and 'context' are intentionally excluded
             // from auto-activation so their panels/plugins start closed/inactive and the user
             // controls them via the toggle in the chat input.
-            const PANEL_TOOLS = new Set([
-              'editor_live', 'matriz_ipevar', 'matriz_compatibilidad', 'matriz_pesv',
-              'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial',
-              'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
-              'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
-              'consultar_agente_especializado', 'context'
-            ]);
-            const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
+            // Auto-activate all external tools assigned to the agent so they start ON by default
+            const autoActivateExt = ext;
             
             // ALWAYS preserve previously active tools when switching agents!
             // BUT: panel tools (editor_live, editor_rit, canvas, matriz_ipevar, etc.)
             // must only be preserved if the NEW agent explicitly supports them.
-            // Without this filter, stale editor_live/editor_rit from a previous
-            // session block the Canvas panel even when the agent only has canvas.
             const newAgentToolSet = new Set(agent.tools ?? []);
             const PANEL_TOOLS_SET = new Set([
               'editor_live', 'editor_rit', 'canvas', 'matriz_ipevar', 'matriz_compatibilidad',
