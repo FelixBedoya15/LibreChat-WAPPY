@@ -91,6 +91,7 @@ const AGENT_MAPS = {
 
 // Skills globales que aplican a TODOS los 22 agentes
 const GLOBAL_SKILLS = [
+  'wappy-cards',
   'skill-rag-documental-gemini',
   'skill-analitica-bigquery-stats',
   'skill-vision-ocr-gemini',

@@ -202,6 +202,12 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
       }
     }
 
+    if (Array.isArray(ephemeralAgent.mcp)) {
+      for (const mcpServer of ephemeralAgent.mcp) {
+        toolSet.add(`${Constants.mcp_server}${Constants.mcp_delimiter}${mcpServer}`);
+      }
+    }
+
     agent.tools = [...toolSet];
 
     // Session model override
