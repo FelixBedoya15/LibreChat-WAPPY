@@ -606,6 +606,26 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
             </div>
           )}
 
+          {/* PROGRESS BAR */}
+          {(data.progress !== undefined || (data as any).progreso !== undefined) && (
+            <div className="mb-4 rounded-xl border border-black/5 bg-white/50 p-3 dark:border-white/10 dark:bg-zinc-900/50">
+              <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
+                <span className="text-gray-700 dark:text-gray-300">
+                  {data.progressLabel || (data as any).progresoLabel || 'Avance del Proceso'}
+                </span>
+                <span className="font-extrabold text-teal-600 dark:text-teal-400">
+                  {data.progress ?? (data as any).progreso}%
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, Number(data.progress ?? (data as any).progreso)))}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* RENDER ITEMS */}
           {data.items && data.items.length > 0 && (
             <>
@@ -812,6 +832,29 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                           >
                             {item.description}
                           </div>
+
+                          {/* Item-level Action Buttons */}
+                          {(item as any).actions && Array.isArray((item as any).actions) && (item as any).actions.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5 pt-1">
+                              {(item as any).actions.map((act: any, actIdx: number) => {
+                                const ActIcon = getIcon(act.icon || 'Zap');
+                                return (
+                                  <button
+                                    key={actIdx}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSuggestionClick(act.trigger || act.prompt || act.label || '');
+                                    }}
+                                    className="flex items-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-800 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-teal-500/20 active:translate-y-0 dark:border-teal-400/30 dark:bg-teal-500/20 dark:text-teal-200 dark:hover:bg-teal-500/30"
+                                  >
+                                    <ActIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-300" />
+                                    <span>{act.label || act.title}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -891,6 +934,26 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                   </a>
                 );
               })}
+            </div>
+          {/* RENDER INTERACTIVE SUGGESTION CHIPS */}
+          {suggestionsList.length > 0 && (
+            <div className="mt-3 border-t border-black/5 pt-3 dark:border-white/10">
+              <div className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                ⚡ Acciones Rápidas Disponibles
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestionsList.map((sug, sugIdx) => (
+                  <button
+                    key={sugIdx}
+                    type="button"
+                    onClick={() => handleSuggestionClick(sug)}
+                    className="flex items-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-50/80 px-3 py-1.5 text-xs font-semibold text-teal-900 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-100 hover:shadow-md dark:border-teal-500/40 dark:bg-teal-950/60 dark:text-teal-100 dark:hover:bg-teal-900/80"
+                  >
+                    <Zap className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>{sug}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
