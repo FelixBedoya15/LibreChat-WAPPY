@@ -914,27 +914,47 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
 
           {/* RENDER LINKS / ACTIONS */}
           {data.links && data.links.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-t border-black/5 pt-2 dark:border-white/10">
+            <div className="mt-3 flex flex-wrap gap-2 border-t border-black/5 pt-3 dark:border-white/10">
               {data.links.map((link, idx) => {
-                const LinkIcon = getIcon(link.icon || 'ExternalLink');
+                const LinkIcon = getIcon(link.icon || 'Zap');
+                const isRealExternalUrl = link.url && (link.url.startsWith('http://') || link.url.startsWith('https://'));
+
+                if (isRealExternalUrl) {
+                  return (
+                    <a
+                      key={idx}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 rounded-xl border border-teal-500/30 bg-white/80 px-3.5 py-2 text-xs font-bold text-teal-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-50 hover:shadow-md dark:border-teal-500/30 dark:bg-zinc-800/90 dark:text-teal-200 dark:hover:bg-zinc-700"
+                    >
+                      <LinkIcon className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                      <span>{link.label}</span>
+                    </a>
+                  );
+                }
+
+                // Interactive action button staying inside the current chat
+                const actionPrompt = (link as any).trigger || (link as any).prompt || link.label;
                 return (
-                  <a
+                  <button
                     key={idx}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200',
-                      'border-gray-200 bg-white/80 text-gray-700 shadow-sm hover:border-gray-300 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-gray-200 dark:hover:border-zinc-600',
-                      'hover:-translate-y-0.5 active:translate-y-0',
-                    )}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSuggestionClick(actionPrompt);
+                    }}
+                    className="flex items-center gap-2 rounded-xl border border-teal-500/40 bg-gradient-to-r from-teal-500/10 to-emerald-500/10 px-3.5 py-2 text-xs font-bold text-teal-900 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-500/20 hover:shadow-md active:translate-y-0 dark:border-teal-400/40 dark:from-teal-500/20 dark:to-emerald-500/20 dark:text-teal-100 dark:hover:bg-teal-500/30"
                   >
-                    <LinkIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                    <LinkIcon className="h-4 w-4 text-teal-600 dark:text-teal-300" />
                     <span>{link.label}</span>
-                  </a>
+                  </button>
                 );
               })}
             </div>
+          )}
+
           {/* RENDER INTERACTIVE SUGGESTION CHIPS */}
           {suggestionsList.length > 0 && (
             <div className="mt-3 border-t border-black/5 pt-3 dark:border-white/10">
