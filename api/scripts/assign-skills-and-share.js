@@ -24,6 +24,15 @@ const ProjectSchema = new mongoose.Schema({
 const Agent = mongoose.models.Agent || mongoose.model('Agent', AgentSchema);
 const Project = mongoose.models.Project || mongoose.model('Project', ProjectSchema);
 
+// Skills globales que aplican a TODOS los agentes
+const GLOBAL_SKILLS = [
+  'skill-rag-documental-gemini',
+  'skill-analitica-bigquery-stats',
+  'skill-vision-ocr-gemini',
+  'skill-google-sheets-sync',
+  'skill-google-docs-slides'
+];
+
 // Mapeo exacto de las skills asignadas a cada agente
 const AGENT_SKILLS_MAP = {
   'Abogado Laboral': [
@@ -98,13 +107,10 @@ async function main() {
       console.log(`  📝 Actualizando descripción de "${agent.name}"`);
     }
 
-    // Asignar las skills correspondientes
-    if (AGENT_SKILLS_MAP[agent.name]) {
-      updates.skills = AGENT_SKILLS_MAP[agent.name];
-      console.log(`  ⚡ Asignando skills a "${agent.name}":`, updates.skills);
-    } else {
-      updates.skills = []; // resetear si no tiene skills asignadas
-    }
+    // Asignar las skills correspondientes (específicas + globales)
+    const specificSkills = AGENT_SKILLS_MAP[agent.name] || [];
+    updates.skills = Array.from(new Set([...specificSkills, ...GLOBAL_SKILLS]));
+    console.log(`  ⚡ Asignando skills a "${agent.name}":`, updates.skills);
 
     // Vincular al proyecto Global
     if (!agent.projectIds || !agent.projectIds.includes(globalProjectId)) {

@@ -89,7 +89,16 @@ const AGENT_MAPS = {
   'coordinador_capacitaciones': { name: 'Coordinador de Capacitaciones', category: 'gestion_consultoria_sg_sst', avatar: 'capacitaciones.png', desc: 'Soy tu Coordinador de Capacitaciones. Te asesoro en el diseño del Plan Anual de Capacitación (PAC), inducciones, charlas de 5 minutos y registro de asistencia.', firstLine: 'Eres el Coordinador de Capacitaciones de WAPPY IA...' }
 };
 
-// Asignación de Skills a los agentes maestros
+// Skills globales que aplican a TODOS los 22 agentes
+const GLOBAL_SKILLS = [
+  'skill-rag-documental-gemini',
+  'skill-analitica-bigquery-stats',
+  'skill-vision-ocr-gemini',
+  'skill-google-sheets-sync',
+  'skill-google-docs-slides'
+];
+
+// Asignación de Skills específicas adicionales a los agentes maestros
 const AGENT_SKILLS_MAP = {
   'Abogado Laboral': ['skill-acoso-sexual-violencia', 'skill-procesos-disciplinarios', 'skill-reglamento-interno-trabajo'],
   'Psicólogo SST': ['skill-acoso-sexual-violencia'],
@@ -343,7 +352,7 @@ ${cleanContent}
         tools,
         category: val.category,
         author: authorId,
-        skills: AGENT_SKILLS_MAP[val.name] || [],
+        skills: Array.from(new Set([...(AGENT_SKILLS_MAP[val.name] || []), ...GLOBAL_SKILLS])),
         avatar: finalAvatar,
         projectIds: globalProjectId ? [globalProjectId] : [],
         versions: [{
@@ -370,7 +379,7 @@ ${cleanContent}
             category: val.category,
             model: defaultModel,
             tools: tools,
-            skills: AGENT_SKILLS_MAP[val.name] || [],
+            skills: Array.from(new Set([...(AGENT_SKILLS_MAP[val.name] || []), ...GLOBAL_SKILLS])),
             avatar: finalAvatar,
             projectIds: globalProjectId ? [globalProjectId] : [],
             versions: [{
