@@ -127,7 +127,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   }
 
   const timestamp = new Date();
-  const defaultModel = fileBasename === 'psicologo_sst' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+  const defaultModel = 'gemini-3.6-flash';
   const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
   const agentData = {
     id: agentId,

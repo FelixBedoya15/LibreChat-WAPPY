@@ -400,8 +400,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
             // Dual-axis rotation: keys first, then model fallback (503 Service Unavailable)
-            const primaryModel = 'gemini-3.5-flash-lite';
-            const modelFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+            const modelFallbacks = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
             // Build history once (reusable across all retries), cleaning up old DOM states to save tokens and prevent context clutter
             const rawHistory = messages.slice(0, -1);
