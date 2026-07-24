@@ -183,20 +183,8 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
       toolSet.delete(Tools.execute_code);
     }
 
-    // External tool overrides: replace the non-builtin tools with the session selection
+    // External tool overrides: combine session selection with saved agent tools from DB
     if (Array.isArray(ephemeralAgent.tools)) {
-      const builtinTools = new Set([
-        Tools.web_search,
-        Tools.file_search,
-        Tools.execute_code,
-        Tools.code_interpreter,
-        Tools.memory,
-      ]);
-      for (const t of [...toolSet]) {
-        if (!builtinTools.has(t)) {
-          toolSet.delete(t);
-        }
-      }
       for (const t of ephemeralAgent.tools) {
         toolSet.add(t);
       }
