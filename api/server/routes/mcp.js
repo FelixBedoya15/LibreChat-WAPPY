@@ -418,7 +418,15 @@ router.get('/connection/status', requireJwtAuth, async (req, res) => {
     );
     const connectionStatus = {};
 
-    for (const [serverName] of Object.entries(mcpConfig)) {
+    const { mcpServersRegistry } = require('@librechat/api');
+    const privateConfigs = (await mcpServersRegistry.getAllServerConfigs(user.id)) || {};
+    const allServerNames = new Set([
+      ...Object.keys(mcpConfig || {}),
+      'local-files',
+      ...Object.keys(privateConfigs),
+    ]);
+
+    for (const serverName of allServerNames) {
       connectionStatus[serverName] = await getServerConnectionStatus(
         user.id,
         serverName,

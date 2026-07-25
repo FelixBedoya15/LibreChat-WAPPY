@@ -536,6 +536,15 @@ async function getServerConnectionStatus(
   userConnections,
   oauthServers,
 ) {
+  const { WebSocketGatewayRegistry } = require('@librechat/api');
+  const ws = WebSocketGatewayRegistry.get(userId);
+  if (ws && ws.readyState === 1 && (serverName === 'local-files' || serverName.startsWith('local-'))) {
+    return {
+      requiresOAuth: false,
+      connectionState: 'connected',
+    };
+  }
+
   const getConnectionState = () =>
     appConnections.get(serverName)?.connectionState ??
     userConnections.get(serverName)?.connectionState ??
