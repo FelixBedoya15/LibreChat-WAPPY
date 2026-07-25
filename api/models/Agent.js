@@ -241,6 +241,14 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     }
   }
 
+  const mcpLocalFilesRule = `\n\n[REGLA DE HERRAMIENTAS LOCALES DE ARCHIVOS - LOCAL-FILES]\nCuando el usuario solicite acceder, listar, leer, escribir, crear o analizar la carpeta de su PC, disco duro, equipo o archivos locales, debes utilizar EXCLUSIVAMENTE las herramientas del servidor local de archivos 'local-files' (list_directory, read_file, write_file, read_excel_file, write_excel_file, read_docx_file, write_docx_file). NO utilices Google Drive ni Google Workspace a menos que el usuario mencione explícitamente la palabra 'Drive' o 'Google Drive'.`;
+
+  if (!agent.instructions) {
+    agent.instructions = mcpLocalFilesRule;
+  } else if (!agent.instructions.includes('[REGLA DE HERRAMIENTAS LOCALES DE ARCHIVOS - LOCAL-FILES]')) {
+    agent.instructions += mcpLocalFilesRule;
+  }
+
   return agent;
 };
 
