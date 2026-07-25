@@ -228,6 +228,17 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
         agent.tools.push('google_gmail');
       }
     }
+
+    const localFilesKeywords = ['carpeta de mi pc', 'carpeta mi pc', 'mi pc', 'archivos de mi pc', 'mi computador', 'archivos locales', 'carpeta local', 'mi disco duro', 'en mi pc', 'en mi equipo', 'mi escritorio', 'equipo local', 'pc', 'sgsst'];
+    const { WebSocketGatewayRegistry } = require('@librechat/api');
+    const isWebSocketConnected = req.user?.id ? Boolean(WebSocketGatewayRegistry.get(req.user.id)) : false;
+
+    if (isWebSocketConnected || localFilesKeywords.some(kw => userQuery.includes(kw))) {
+      const localFilesKey = `${Constants.mcp_server}${Constants.mcp_delimiter}local-files`;
+      if (!agent.tools.includes(localFilesKey)) {
+        agent.tools.push(localFilesKey);
+      }
+    }
   }
 
   return agent;
