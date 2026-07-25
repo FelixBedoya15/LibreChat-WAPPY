@@ -223,8 +223,21 @@ async function reconnectServer({ res, user, index, signal, serverName, userMCPAu
  * @returns { Promise<Array<typeof tool | { _call: (toolInput: Object | string) => unknown}>> } An object with `_call` method to execute the tool input.
  */
 async function createMCPTools({ res, user, index, signal, serverName, provider, userMCPAuthMap }) {
-  const result = await reconnectServer({ res, user, index, signal, serverName, userMCPAuthMap });
-  if (!result || !result.tools) {
+  let result = await reconnectServer({ res, user, index, signal, serverName, userMCPAuthMap });
+  if ((!result || !result.tools) && serverName === 'local-files') {
+    result = {
+      availableTools: {},
+      tools: [
+        { name: 'list_directory' },
+        { name: 'read_file' },
+        { name: 'write_file' },
+        { name: 'read_excel_file' },
+        { name: 'write_excel_file' },
+        { name: 'read_docx_file' },
+        { name: 'write_docx_file' }
+      ]
+    };
+  } else if (!result || !result.tools) {
     logger.warn(`[MCP][${serverName}] Failed to reinitialize MCP server.`);
     return;
   }
@@ -288,6 +301,40 @@ async function createMCPTool({
       userMCPAuthMap,
     });
     toolDefinition = result?.availableTools?.[toolKey]?.function;
+  }
+
+  if (!toolDefinition && serverName === 'local-files') {
+    const defaultSchemas = {
+      list_directory: {
+        description: 'Lista el contenido de la carpeta compartida en tu computadora local.',
+        parameters: { type: 'object', properties: {} }
+      },
+      read_file: {
+        description: 'Lee el contenido de un archivo de texto dentro de la carpeta compartida.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string', description: 'Ruta relativa del archivo a leer.' } }, required: ['relative_path'] }
+      },
+      write_file: {
+        description: 'Lee o escribe archivos dentro de la carpeta compartida en tu computadora local.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string' }, content: { type: 'string' } }, required: ['relative_path', 'content'] }
+      },
+      read_excel_file: {
+        description: 'Lee el contenido de un archivo Excel (.xlsx, .xls) en la carpeta compartida.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string' } }, required: ['relative_path'] }
+      },
+      write_excel_file: {
+        description: 'Escribe un archivo Excel (.xlsx) en la carpeta compartida.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string' }, sheets: { type: 'array' } }, required: ['relative_path', 'sheets'] }
+      },
+      read_docx_file: {
+        description: 'Lee el contenido de un documento Word (.docx) en la carpeta compartida.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string' } }, required: ['relative_path'] }
+      },
+      write_docx_file: {
+        description: 'Escribe un documento Word (.docx) en la carpeta compartida.',
+        parameters: { type: 'object', properties: { relative_path: { type: 'string' }, paragraphs: { type: 'array' } }, required: ['relative_path', 'paragraphs'] }
+      }
+    };
+    toolDefinition = defaultSchemas[toolName] || defaultSchemas.list_directory;
   }
 
   if (!toolDefinition) {
