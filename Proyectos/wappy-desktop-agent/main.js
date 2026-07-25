@@ -75,13 +75,21 @@ function sendLog(message) {
   }
 }
 
-// WebSocket Connection Manager
-ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
+let isManualDisconnect = false;
+let activeToken = null;
+let activeFolderPath = null;
+let reconnectTimer = null;
+
+function connectWebSocket(token, folderPath) {
+  activeToken = token;
+  activeFolderPath = folderPath;
+
   if (wsClient) {
-    wsClient.close();
+    wsClient.removeAllListeners();
+    try { wsClient.close(); } catch (e) {}
+    wsClient = null;
   }
 
-  // Pre-configured WAPPY production WebSocket URL
   const serverUrl = `wss://wappy.club/ws/mcp?token=${encodeURIComponent(token)}`;
   sendLog('🔌 Conectando con wss://wappy.club/ws/mcp...');
 
@@ -91,6 +99,10 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
     wsClient.on('open', () => {
       sendLog('🟢 Conexión WebSocket establecida con el servidor WAPPY.');
       mainWindow.webContents.send('status-change', 'connected');
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
     });
 
     wsClient.on('message', async (data) => {
@@ -99,9 +111,7 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
         let rpcRequest = JSON.parse(rawMsg);
         sendLog(`📥 Solicitud del agente recibida: ${rpcRequest.method}`);
         
-        // Handle JSON-RPC request from WAPPY
-        let response = await handleMcpRequest(rpcRequest, folderPath);
-        // Solo responder si no es una notificación (null = sin respuesta)
+        let response = await handleMcpRequest(rpcRequest, activeFolderPath || folderPath);
         if (response !== null && wsClient && wsClient.readyState === WebSocket.OPEN) {
           wsClient.send(JSON.stringify(response));
         }
@@ -115,6 +125,13 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
       sendLog(`🔴 Conexión cerrada con el servidor WAPPY. Código: ${code}, Razón: ${reasonStr}`);
       mainWindow.webContents.send('status-change', 'disconnected');
       wsClient = null;
+
+      if (!isManualDisconnect && activeToken && activeFolderPath) {
+        sendLog('🔄 Reconectando automáticamente en 3 segundos...');
+        reconnectTimer = setTimeout(() => {
+          connectWebSocket(activeToken, activeFolderPath);
+        }, 3000);
+      }
     });
 
     wsClient.on('error', (err) => {
@@ -126,13 +143,25 @@ ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
   } catch (err) {
     sendLog(`❌ Excepción al conectar: ${err.message}`);
   }
+}
+
+// WebSocket Connection Manager
+ipcMain.on('connect-websocket', (event, { token, folderPath }) => {
+  isManualDisconnect = false;
+  connectWebSocket(token, folderPath);
 });
 
 // Disconnect IPC
 ipcMain.on('disconnect-websocket', () => {
+  isManualDisconnect = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (wsClient) {
     sendLog('🔌 Desconectando de forma manual...');
     wsClient.close();
+    wsClient = null;
   }
 });
 
