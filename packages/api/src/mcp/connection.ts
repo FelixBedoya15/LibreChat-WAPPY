@@ -529,11 +529,23 @@ export class MCPConnection extends EventEmitter {
         if (this.transport) {
           try {
             await this.client.close();
-            this.transport = null;
           } catch (error) {
             logger.warn(`${this.getLogPrefix()} Error closing connection:`, error);
           }
+          this.transport = null;
         }
+
+        /** Re-create Client instance because MCP SDK Client cannot reconnect after close() */
+        this.client = new Client(
+          {
+            name: '@librechat/api-client',
+            version: '1.2.3',
+          },
+          {
+            capabilities: {},
+          },
+        );
+        this.subscribeToResources();
 
         this.transport = this.constructTransport(this.options);
         this.setupTransportDebugHandlers();

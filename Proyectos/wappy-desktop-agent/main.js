@@ -333,10 +333,11 @@ async function handleMcpRequest(rpc, sharedFolder) {
   // 2. Tool Execution Handlers
   if (method === 'tools/call') {
     const { name, arguments: args } = params;
-    const targetPath = args && args.relative_path ? path.resolve(sharedFolder, args.relative_path) : '';
+    const relPath = args?.relative_path || args?.path || args?.filePath || (args?.input && args.input !== '.' ? args.input : '') || '';
+    const targetPath = relPath ? path.resolve(sharedFolder, relPath) : sharedFolder;
     
     // Strict Directory Sandbox Security Verification
-    if (targetPath && !targetPath.startsWith(sharedFolder)) {
+    if (!targetPath.startsWith(sharedFolder)) {
       return {
         jsonrpc: '2.0',
         id: id,
@@ -346,14 +347,19 @@ async function handleMcpRequest(rpc, sharedFolder) {
 
     try {
       if (name === 'list_directory') {
-        const files = fs.readdirSync(sharedFolder);
+        const folderToScan = fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory() ? targetPath : sharedFolder;
+        const files = fs.readdirSync(folderToScan);
         const fileDetails = files.map(file => {
-          const stats = fs.statSync(path.join(sharedFolder, file));
-          return {
-            name: file,
-            type: stats.isDirectory() ? 'directory' : 'file',
-            size: stats.size
-          };
+          try {
+            const stats = fs.statSync(path.join(folderToScan, file));
+            return {
+              name: file,
+              type: stats.isDirectory() ? 'directory' : 'file',
+              size: stats.size
+            };
+          } catch (e) {
+            return { name: file, type: 'unknown', size: 0 };
+          }
         });
         return createRpcResponse(id, { content: [{ type: 'text', text: JSON.stringify(fileDetails, null, 2) }] });
       }
