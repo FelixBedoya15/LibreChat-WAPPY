@@ -556,7 +556,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 contents: [...this._history, newContent]
                             };
 
-                            const result = await this.model.generateContent(generateContentReq, requestOptions);
+                            const result = await geminiModel.generateContent(generateContentReq, requestOptions);
 
                             this._history.push(newContent);
                             if (result.response && result.response.candidates && result.response.candidates[0] && result.response.candidates[0].content) {
