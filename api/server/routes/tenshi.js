@@ -530,6 +530,46 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             generationConfig: { temperature: 1.0 }
                         });
                         const chat = geminiModel.startChat({ history });
+
+                        // Sobrescribir chat.sendMessage para prevenir que el SDK de @google/generative-ai genere el rol inválido 'function'
+                        chat.sendMessage = async function(request, requestOptions) {
+                            if (this._history) {
+                                this._history.forEach(h => { if (h.role === 'function') h.role = 'user'; });
+                            }
+                            let parts = [];
+                            if (typeof request === 'string') {
+                                parts = [{ text: request }];
+                            } else if (Array.isArray(request)) {
+                                parts = request;
+                            } else {
+                                parts = [request];
+                            }
+                            const newContent = { role: 'user', parts };
+
+                            const generateContentReq = {
+                                safetySettings: this.params?.safetySettings,
+                                generationConfig: this.params?.generationConfig,
+                                tools: this.params?.tools,
+                                toolConfig: this.params?.toolConfig,
+                                systemInstruction: this.params?.systemInstruction,
+                                cachedContent: this.params?.cachedContent,
+                                contents: [...this._history, newContent]
+                            };
+
+                            const result = await this.model.generateContent(generateContentReq, requestOptions);
+
+                            this._history.push(newContent);
+                            if (result.response && result.response.candidates && result.response.candidates[0] && result.response.candidates[0].content) {
+                                const responseContent = {
+                                    role: 'model',
+                                    parts: result.response.candidates[0].content.parts || []
+                                };
+                                this._history.push(responseContent);
+                            }
+
+                            return result;
+                        };
+
                         logger.info(`[Tenshi Backend] Sending request to Gemini with message: "${messages[messages.length - 1].content}"`);
                         let responseResult = await chat.sendMessage(messages[messages.length - 1].content);
 
