@@ -165,9 +165,13 @@ ipcMain.on('disconnect-websocket', () => {
   }
 });
 
-// --- CUSTOM MCP SERVER ENGINE WITH DOCX AND EXCEL CAPABILITIES ---
 async function handleMcpRequest(rpc, sharedFolder) {
   const { method, params, id } = rpc;
+
+  // JSON-RPC Notifications do not have an 'id' and MUST NOT receive a response
+  if (id === undefined || id === null || method?.startsWith('notifications/')) {
+    return null;
+  }
 
   // 1. MCP Handshake - Initialize
   if (method === 'initialize') {
@@ -177,7 +181,10 @@ async function handleMcpRequest(rpc, sharedFolder) {
       result: {
         protocolVersion: '2024-11-05',
         capabilities: {
-          tools: { listChanged: false }
+          tools: { listChanged: false },
+          resources: {},
+          prompts: {},
+          roots: { listChanged: false }
         },
         serverInfo: {
           name: 'local-files',
@@ -185,11 +192,6 @@ async function handleMcpRequest(rpc, sharedFolder) {
         }
       }
     };
-  }
-
-  // Notifications don't need a response
-  if (method === 'notifications/initialized') {
-    return null;
   }
 
   // 1.1 Support MCP ping request to prevent connection timeouts/failures
@@ -201,7 +203,7 @@ async function handleMcpRequest(rpc, sharedFolder) {
     };
   }
 
-  // 1.2 Support empty resources/list and prompts/list to satisfy client capabilities check
+  // 1.2 Support empty resources/list, prompts/list, roots/list, and logging/setLevel
   if (method === 'resources/list') {
     return {
       jsonrpc: '2.0',
@@ -215,6 +217,22 @@ async function handleMcpRequest(rpc, sharedFolder) {
       jsonrpc: '2.0',
       id: id,
       result: { prompts: [] }
+    };
+  }
+
+  if (method === 'roots/list') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: { roots: [] }
+    };
+  }
+
+  if (method === 'logging/setLevel') {
+    return {
+      jsonrpc: '2.0',
+      id: id,
+      result: {}
     };
   }
 
@@ -469,11 +487,11 @@ async function handleMcpRequest(rpc, sharedFolder) {
     }
   }
 
-  // Not handled
+  // Not handled - return neutral result for unknown protocol messages to avoid handshake failure
   return {
     jsonrpc: '2.0',
     id: id,
-    error: { code: -32601, message: 'Operación no implementada en el Agente Local.' }
+    result: {}
   };
 }
 
