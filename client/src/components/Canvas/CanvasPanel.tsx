@@ -574,6 +574,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           );
         });
 
+        // Pre-process: split squished numbered headings (e.g., "... (SURA)1. OBJETIVOEstablecer ...")
+        parsed = parsed
+          .replace(/([a-zA-Z0-9\.\)])(\d+\.\s+[A-ZÁÉÍÓÚÑ]{3,})/g, '$1\n\n### $2\n\n')
+          .replace(/(\d+\.\s+[A-ZÁÉÍÓÚÑ]{3,})([A-ZÁÉÍÓÚÑa-záéíóúñ])/g, '$1\n\n$2');
+
         // Parse remaining markdown
         return parsed
           .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')

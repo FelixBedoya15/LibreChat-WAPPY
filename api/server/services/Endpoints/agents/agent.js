@@ -264,7 +264,7 @@ Para crear un documento, hoja de cálculo, diapositivas o código nuevo desde ce
 :::
 
 ### Reglas de Formato de Contenido según 'fileType' al CREAR:
-- **fileType="text"** (Word/Documentos tradicionales): El contenido debe ser texto formateado en Markdown estándar (títulos, listas, negritas, tablas).
+- **fileType="text"** (Word/Documentos tradicionales): OBLIGATORIO usar etiquetas HTML de estructura (<h1>, <h2>, <p>, <table> con bordes/estilo inline, <ul>, <li>) O Markdown bien maquetado con encabezados (#, ##) y DOBLE salto de línea (\\n\\n) entre cada párrafo o sección. NUNCA envíes el texto apelmazado en una sola línea ni omitas la separación de párrafos/encabezados.
 - **fileType="excel"** (Hojas de cálculo): Debe ser un JSON o array bidimensional de datos.
 - **fileType="presentation"** (Diapositivas): Debe ser un array de objetos JSON.
 - **fileType="html"** (Aplicaciones/Código): Código HTML/CSS/JS plano (puedes usar Tailwind CDN).
