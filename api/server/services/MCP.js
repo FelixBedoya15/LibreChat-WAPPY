@@ -286,22 +286,7 @@ async function createMCPTool({
 }) {
   const [toolName, serverName] = toolKey.split(Constants.mcp_delimiter);
 
-  /** @type {LCTool | undefined} */
   let toolDefinition = availableTools?.[toolKey]?.function;
-  if (!toolDefinition) {
-    logger.warn(
-      `[MCP][${serverName}][${toolName}] Requested tool not found in available tools, re-initializing MCP server.`,
-    );
-    const result = await reconnectServer({
-      res,
-      user,
-      index,
-      signal,
-      serverName,
-      userMCPAuthMap,
-    });
-    toolDefinition = result?.availableTools?.[toolKey]?.function;
-  }
 
   if (!toolDefinition && serverName === 'local-files') {
     const defaultSchemas = {
@@ -335,6 +320,21 @@ async function createMCPTool({
       }
     };
     toolDefinition = defaultSchemas[toolName] || defaultSchemas.list_directory;
+  }
+
+  if (!toolDefinition) {
+    logger.warn(
+      `[MCP][${serverName}][${toolName}] Requested tool not found in available tools, re-initializing MCP server.`,
+    );
+    const result = await reconnectServer({
+      res,
+      user,
+      index,
+      signal,
+      serverName,
+      userMCPAuthMap,
+    });
+    toolDefinition = result?.availableTools?.[toolKey]?.function;
   }
 
   if (!toolDefinition) {
@@ -440,6 +440,10 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
         `[MCP][${serverName}][${toolName}][User: ${userId}] Error calling MCP tool:`,
         error,
       );
+
+      if (serverName === 'local-files' && (error.message?.includes('Connection closed') || error.message?.includes('offline') || error.message?.includes('32601') || error.message?.includes('failed to connect'))) {
+        return "Atención: La aplicación de escritorio 'Somos SST - WappyClub' en tu computadora se encuentra desconectada. Por favor abre la app en tu Mac y haz clic en 'Conectar' para habilitar el acceso a tus archivos locales.";
+      }
 
       /** OAuth error, provide a helpful message */
       const isOAuthError =
