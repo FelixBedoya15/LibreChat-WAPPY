@@ -17,19 +17,34 @@ const BlogPostSchema = new mongoose.Schema({
   thumbnail: String
 }, { strict: false, collection: 'blogposts' });
 
+const EventSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  thumbnail: String,
+  tags: [String],
+  dateTime: Date,
+  meetLink: String,
+  isPublished: Boolean,
+  isFeatured: Boolean,
+  massInvitationSent: Boolean
+}, { strict: false, collection: 'events' });
+
 const Course = mongoose.models.Course || mongoose.model('Course', CourseSchema);
 const BlogPost = mongoose.models.BlogPost || mongoose.model('BlogPost', BlogPostSchema);
+const Event = mongoose.models.Event || mongoose.model('Event', EventSchema);
 
 const SRC_COURSES_DIR = path.resolve(__dirname, '../../Agentes/Miniaturas/Cursos');
 const SRC_BLOG_DIR = path.resolve(__dirname, '../../Agentes/Miniaturas/Blog');
+const SRC_EVENTS_DIR = path.resolve(__dirname, '../../Agentes/Miniaturas/Eventos');
 
 const DEST_COURSES_DIR = path.resolve(__dirname, '../../client/public/images/cursos');
 const DEST_BLOG_DIR = path.resolve(__dirname, '../../client/public/images/blog');
+const DEST_EVENTS_DIR = path.resolve(__dirname, '../../client/public/images/events');
 
 const USER_IMAGES_DIR = path.resolve(__dirname, '../../client/public/images/6921e15be5ed2f3ebc3cde7a');
 
 async function main() {
-  console.log('🏁 Iniciando proceso de restauración de miniaturas (Cursos y Blog)...');
+  console.log('🏁 Iniciando proceso de restauración de miniaturas y creación de eventos (Cursos, Blog y Eventos Meet)...');
 
   // 1. Asegurar directorios de destino
   if (!fs.existsSync(DEST_COURSES_DIR)) {
@@ -39,6 +54,10 @@ async function main() {
   if (!fs.existsSync(DEST_BLOG_DIR)) {
     fs.mkdirSync(DEST_BLOG_DIR, { recursive: true });
     console.log('📁 Creado directorio de destino para blog.');
+  }
+  if (!fs.existsSync(DEST_EVENTS_DIR)) {
+    fs.mkdirSync(DEST_EVENTS_DIR, { recursive: true });
+    console.log('📁 Creado directorio de destino para eventos.');
   }
 
   // 2. Copiar imágenes desde el repositorio a la carpeta pública del cliente
@@ -58,6 +77,16 @@ async function main() {
       if (file.endsWith('.jpg') || file.endsWith('.png') || file.endsWith('.webp')) {
         fs.copyFileSync(path.join(SRC_BLOG_DIR, file), path.join(DEST_BLOG_DIR, file));
         console.log(`   ✅ Copiado blog miniatura: ${file}`);
+      }
+    });
+  }
+
+  if (fs.existsSync(SRC_EVENTS_DIR)) {
+    const eventFiles = fs.readdirSync(SRC_EVENTS_DIR);
+    eventFiles.forEach(file => {
+      if (file.endsWith('.jpg') || file.endsWith('.png') || file.endsWith('.webp')) {
+        fs.copyFileSync(path.join(SRC_EVENTS_DIR, file), path.join(DEST_EVENTS_DIR, file));
+        console.log(`   ✅ Copiado evento miniatura: ${file}`);
       }
     });
   }
@@ -82,7 +111,7 @@ async function main() {
     });
   }
 
-  // 4. Conectar a MongoDB y actualizar rutas de imágenes
+  // 4. Conectar a MongoDB y actualizar registros
   console.log('🔌 Conectando a MongoDB...');
   await mongoose.connect(MONGO_URI);
   console.log('✅ Conectado a MongoDB.');
@@ -111,8 +140,6 @@ async function main() {
     { title: 'Circular 0048 de 2026 - Debido Proceso Disciplinario en Empresas Privadas', path: '/images/blog/blog_circular_0048.png' },
     { title: 'Circular 0049 de 2026 - Terminación de Contrato con Estabilidad Reforzada ', path: '/images/blog/blog_circular_0049.png' },
     { title: '¿Adaptación o Desplazamiento? El ultimátum de la IA que los profesionales de SST no pueden ignorar.', path: '/images/blog/blog_adaptacion.png' },
-    
-    // Fallbacks para los posts que no tienen imagen cargada físicamente (mientras la cuota de la IA se resetea)
     { title: 'Decreto No. 0223  de 2026', path: '/images/blog/blog_estabilidad_laboral.png' },
     { title: 'Circular 087 de 2026', path: '/images/blog/blog_circular_0049.png' },
     { title: 'Discapacidad en el Entorno Laboral ', path: '/images/blog/blog_estabilidad_laboral.png' }
@@ -127,9 +154,50 @@ async function main() {
     }
   }
 
+  // 5. Creación / Actualización de los 2 eventos de agosto en la colección `events`
+  console.log('📅 Creando/Actualizando eventos de Agosto en la Base de Datos...');
+
+  const AugustEvents = [
+    {
+      title: 'EL PERFIL DEL CARGO: PILAR FUNDAMENTAL SG-SST',
+      description: 'Evento en vivo sobre la importancia estratégica del Perfil del Cargo como pilar fundamental en la prevención de riesgos y cumplimiento del SG-SST.',
+      thumbnail: '/images/events/evento_perfil_cargo.jpg',
+      dateTime: new Date('2026-08-04T14:00:00-05:00'), // Martes, 4 agosto · 2:00 – 4:00pm (America/Bogota)
+      meetLink: 'https://meet.google.com/oxy-geos-pey',
+      isPublished: true,
+      isFeatured: true,
+      tags: ['SG-SST', 'Perfil del Cargo', 'Wappy IA']
+    },
+    {
+      title: 'DEL RIESGO INVISIBLE A LA IA EN SG-SST',
+      description: 'Descubre cómo la Inteligencia Artificial transforma la percepción del riesgo y potencia la cultura de seguridad en tu organización.',
+      thumbnail: '/images/events/evento_percepcion_riesgo_ia.jpg',
+      dateTime: new Date('2026-08-06T08:00:00-05:00'), // Jueves, 6 agosto · 8:00 – 10:00am (America/Bogota)
+      meetLink: 'https://meet.google.com/kvj-jdbq-onx',
+      isPublished: true,
+      isFeatured: true,
+      tags: ['Inteligencia Artificial', 'Percepción del Riesgo', 'SG-SST', 'Wappy IA']
+    }
+  ];
+
+  for (const ev of AugustEvents) {
+    const res = await Event.updateOne(
+      { title: ev.title },
+      { $set: ev },
+      { upsert: true }
+    );
+    if (res.upsertedCount > 0) {
+      console.log(`   ✨ Creado nuevo evento en BD: "${ev.title}" (Fecha: ${ev.dateTime.toLocaleString('es-CO')})`);
+    } else if (res.modifiedCount > 0) {
+      console.log(`   ✏️ Actualizado evento existente en BD: "${ev.title}"`);
+    } else {
+      console.log(`   ℹ️ Evento al día en BD: "${ev.title}"`);
+    }
+  }
+
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
-  console.log('🎉 PROCESO DE RESTAURACIÓN COMPLETADO CON ÉXITO.');
+  console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 
 main().catch(err => {

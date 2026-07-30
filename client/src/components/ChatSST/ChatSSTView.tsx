@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X, RefreshCw, Plus } from 'lucide-react';
+import { MessageCircle, Send, Users, ShieldCheck, Bot, Sparkles, Clock, AtSign, Loader2, Trash2, Edit2, Check, X, RefreshCw, Plus, ArrowLeft } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { request } from 'librechat-data-provider';
@@ -33,6 +33,7 @@ export default function ChatSSTView() {
   // Estados de grupos
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('general');
+  const [mobileView, setMobileView] = useState<'channels' | 'chat'>('channels');
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [userSearchText, setUserSearchText] = useState('');
@@ -127,6 +128,7 @@ export default function ChatSSTView() {
     setMessages([]);
     setLoading(true);
     isUserScrolledUp.current = false;
+    setMobileView('chat');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,6 +261,7 @@ export default function ChatSSTView() {
       if (res && res.success && res.data) {
         setGroups(prev => [...prev, res.data]);
         setSelectedGroupId(res.data._id);
+        setMobileView('chat');
         setShowCreateGroupModal(false);
         setNewGroupName('');
         setInvitedUsers([]);
@@ -313,7 +316,7 @@ export default function ChatSSTView() {
     <div className="flex h-full w-full bg-[#f0f2f5] dark:bg-zinc-900 font-sans relative overflow-hidden">
       
       {/* Sidebar de Canales y Grupos (WhatsApp Style) */}
-      <div className="w-80 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0 z-10">
+      <div className={`w-full md:w-80 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0 z-10 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
           <span className="font-bold text-zinc-800 dark:text-zinc-200 text-sm flex items-center gap-2">
             <Users className="h-4.5 w-4.5 text-emerald-500" /> Salas y Canales SST
@@ -372,30 +375,38 @@ export default function ChatSSTView() {
       </div>
 
       {/* Main Chat Container */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${mobileView === 'channels' ? 'hidden md:flex' : 'flex'}`}>
         
         {/* Header del Grupo Seleccionado */}
-        <div className="flex h-16 items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6 shadow-sm z-10">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full text-white shadow-sm font-bold uppercase ${selectedGroupId === 'general' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
-              {selectedGroupId === 'general' ? <MessageCircle className="h-6 w-6" /> : selectedGroup.name.substring(0, 2)}
+        <div className="flex h-16 items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 sm:px-6 shadow-sm z-10">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Botón Volver a Canales en celular */}
+            <button
+              onClick={() => setMobileView('channels')}
+              className="p-1.5 -ml-1 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 md:hidden shrink-0 flex items-center gap-1"
+              title="Volver a canales SST"
+            >
+              <ArrowLeft className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </button>
+            <div className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-white shadow-sm font-bold uppercase shrink-0 ${selectedGroupId === 'general' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+              {selectedGroupId === 'general' ? <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> : selectedGroup.name.substring(0, 2)}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{selectedGroup.name}</h1>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 truncate">{selectedGroup.name}</h1>
                 {selectedGroupId === 'general' && (
-                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 shrink-0">
                     Oficial
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                <Users className="h-3 w-3 inline" /> {selectedGroupId === 'general' ? 'Comunidad Pro & Vital' : `${selectedGroup.members?.length || 1} participantes`} • <Bot className="h-3 w-3 inline text-emerald-500" /> Agente @wappy activo
+              <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 truncate">
+                <Users className="h-3 w-3 inline shrink-0" /> <span className="truncate">{selectedGroupId === 'general' ? 'Comunidad Pro & Vital' : `${selectedGroup.members?.length || 1} part.`}</span> • <Bot className="h-3 w-3 inline text-emerald-500 shrink-0" /> <span className="hidden sm:inline">Agente </span>@wappy
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
               <ShieldCheck className="h-4 w-4 text-emerald-500" /> {isAdmin ? 'Modo Administrador' : 'Modo Pruebas'}
             </div>
@@ -403,13 +414,13 @@ export default function ChatSSTView() {
         </div>
 
         {/* Banner de Mención e Indicador de Cola */}
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-200/60 dark:border-emerald-900/50 px-6 py-2 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-200/60 dark:border-emerald-900/50 px-3 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 gap-1">
+          <div className="flex items-start sm:items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-pulse shrink-0 mt-0.5 sm:mt-0" />
             <span>Menciona a <strong>@wappy</strong> para consultas SST con respuesta inteligente y búsqueda web.</span>
           </div>
-          <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
-            <Clock className="h-3.5 w-3.5" /> Atención en orden de llegada (FIFO)
+          <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400 text-[10px] sm:text-xs shrink-0 self-end sm:self-auto">
+            <Clock className="h-3.5 w-3.5" /> FIFO
           </div>
         </div>
 
@@ -417,17 +428,17 @@ export default function ChatSSTView() {
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]"
+          className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]"
         >
           {loading && messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-zinc-400 gap-2">
+            <div className="flex h-full items-center justify-center text-zinc-400 gap-2 text-xs sm:text-sm">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-500" /> Cargando historial del Chat...
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-zinc-400 gap-2">
+            <div className="flex h-full flex-col items-center justify-center text-zinc-400 gap-2 px-4 text-center">
               <Bot className="h-10 w-10 text-emerald-500/50" />
-              <p className="text-sm font-medium">No hay mensajes aún en esta sala de chat.</p>
-              <p className="text-xs text-zinc-500">¡Sé el primero en saludar o hacer una consulta a @wappy!</p>
+              <p className="text-xs sm:text-sm font-medium">No hay mensajes aún en esta sala de chat.</p>
+              <p className="text-[11px] sm:text-xs text-zinc-500">¡Sé el primero en saludar o hacer una consulta a @wappy!</p>
             </div>
           ) : (
             messages.map((msg, index) => {
@@ -449,7 +460,7 @@ export default function ChatSSTView() {
                   className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group relative`}
                 >
                   <div
-                    className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-4 shadow-xs relative ${
+                    className={`max-w-[90%] sm:max-w-[75%] md:max-w-[70%] rounded-2xl p-3 sm:p-4 shadow-xs relative ${
                       isMe
                         ? 'bg-emerald-600 text-white rounded-tr-xs'
                         : isBot
@@ -457,7 +468,7 @@ export default function ChatSSTView() {
                         : 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tl-xs border border-zinc-200 dark:border-zinc-700'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-4 mb-1">
+                    <div className="flex items-center justify-between gap-2 sm:gap-4 mb-1">
                       <span
                         className={`text-xs font-bold flex items-center gap-1 ${
                           isMe
@@ -470,7 +481,7 @@ export default function ChatSSTView() {
                         {isBot && <Bot className="h-3.5 w-3.5" />}
                         {msg.senderName}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <span
                           className={`text-[10px] ${
                             isMe ? 'text-emerald-200' : 'text-zinc-400'
@@ -481,7 +492,7 @@ export default function ChatSSTView() {
 
                         {/* Acciones para mensajes de Usuario */}
                         {canManageUserMsg && !isBot && editingId !== msgId && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-1 sm:ml-2">
                             {isMe && (
                               <button
                                 onClick={() => startEdit(msg)}
@@ -503,7 +514,7 @@ export default function ChatSSTView() {
 
                         {/* Acciones especiales de Administrador para respuestas del Bot (@wappy) */}
                         {canManageBotMsg && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-1 sm:ml-2">
                             <button
                               onClick={() => handleRegenerate(msgId)}
                               disabled={regeneratingId === msgId}
@@ -534,7 +545,7 @@ export default function ChatSSTView() {
                           type="text"
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
-                          className="flex-1 px-2 py-1 text-sm rounded border border-white/30 bg-black/20 text-white focus:outline-none"
+                          className="flex-1 px-2 py-1 text-xs sm:text-sm rounded border border-white/30 bg-black/20 text-white focus:outline-none"
                         />
                         <button
                           onClick={() => handleSaveEdit(msgId)}
@@ -552,7 +563,7 @@ export default function ChatSSTView() {
                         </button>
                       </div>
                     ) : (
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4 prose-a:text-emerald-600 dark:prose-a:text-emerald-400 font-semibold prose-a:hover:underline">
+                      <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden prose-p:my-0 prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4 prose-a:text-emerald-600 dark:prose-a:text-emerald-400 font-semibold prose-a:hover:underline">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
@@ -568,7 +579,7 @@ export default function ChatSSTView() {
 
         {/* Auto-suggest Menciones Popup */}
         {showMentions && filteredMentions.length > 0 && (
-          <div className="absolute bottom-20 left-6 z-20 w-64 max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl">
+          <div className="absolute bottom-16 sm:bottom-20 left-3 right-3 sm:left-6 sm:right-auto sm:w-64 max-h-52 sm:max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl z-20">
             <div className="px-3 py-2 text-xs font-semibold text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-1 sticky top-0 bg-white dark:bg-zinc-900">
               <AtSign className="h-3.5 w-3.5 text-emerald-500" /> Mencionar...
             </div>
@@ -576,10 +587,10 @@ export default function ChatSSTView() {
               <button
                 key={opt.name}
                 onClick={() => insertMention(`@${opt.name}`)}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors text-zinc-800 dark:text-zinc-200 border-b border-zinc-50 dark:border-zinc-800/40 last:border-b-0"
+                className="w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors text-zinc-800 dark:text-zinc-200 border-b border-zinc-50 dark:border-zinc-800/40 last:border-b-0"
               >
-                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-white ${opt.type === 'bot' ? 'bg-emerald-600' : 'bg-blue-600 font-bold text-xs'}`}>
-                  {opt.type === 'bot' ? <Bot className="h-4 w-4" /> : opt.name[0].toUpperCase()}
+                <div className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full flex items-center justify-center text-white shrink-0 ${opt.type === 'bot' ? 'bg-emerald-600' : 'bg-blue-600 font-bold text-xs'}`}>
+                  {opt.type === 'bot' ? <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : opt.name[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-xs truncate">@{opt.name}</div>
@@ -591,21 +602,21 @@ export default function ChatSSTView() {
         )}
 
         {/* Formulario de envío / Input estilo WhatsApp */}
-        <div className="p-3 sm:p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="p-2.5 sm:p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
           <form onSubmit={handleSend} className="flex items-center gap-2 max-w-5xl mx-auto">
             <input
               type="text"
               value={input}
               onChange={handleInputChange}
               placeholder="Escribe un mensaje o menciona a alguien con @..."
-              className="flex-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-zinc-400"
+              className="flex-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3.5 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-zinc-400"
             />
             <button
               type="submit"
               disabled={!input.trim() || sending}
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white shadow-md transition-all shrink-0"
+              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white shadow-md transition-all shrink-0"
             >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              {sending ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Send className="h-4 w-4 sm:h-5 sm:w-5" />}
             </button>
           </form>
         </div>
