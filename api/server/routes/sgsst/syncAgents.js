@@ -26,8 +26,9 @@ function preprocessInstructions(mdContent) {
 - **Tarjetas Interactivas (wappy-card):** Para checklists, cuadrículas, listas y métricas, utiliza exclusivamente el bloque de código \`wappy-card\` (con el JSON exacto en su interior como se indica en su regla de oro). NUNCA utilices el lenguaje de código \`json\` para englobar una tarjeta wappy-card.
 - **Documentos y Cartas Formales:** Cuando la respuesta requiera redactar actas, reglamentos, contratos, citaciones a descargos o cartas extensas, está terminantemente PROHIBIDO escribir el documento extenso directamente en el chat de texto. En su lugar, DEBES llamar de manera autónoma a la herramienta \`canvas\` para crear o actualizar el documento en el editor lateral derecho. En el chat del usuario, limítate a resumir brevemente la acción realizada y los puntos clave.`;
   const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
+  const activeCompanyRule = `\n\n⚠️ REGLA DE ORO DE EMPRESA ACTIVA: Toda la información corporativa de la organización (razón social, NIT, ARL, representante legal, número de trabajadores, etc.) debe tomarse prioritariamente del contexto de la Empresa Activa registrado en el sistema (\`empresa_sgsst\`). NUNCA inventes o utilices datos de empresas inactivas si existe información registrada en la empresa activa.`;
   
-  return mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule;
+  return mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + activeCompanyRule;
 }
 
 // Exact mapping between local markdown filenames (without .md) and database Agent names.

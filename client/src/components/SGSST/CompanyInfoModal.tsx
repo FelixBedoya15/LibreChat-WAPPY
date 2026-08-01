@@ -445,6 +445,12 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 localStorage.removeItem(draftKey);
 
                 if (data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
+                    if (data.companyName) localStorage.setItem('wappy_active_company_name', data.companyName);
+                    if (data.nit) localStorage.setItem('wappy_active_company_nit', data.nit);
+                    if (data.arl) localStorage.setItem('wappy_active_company_arl', data.arl);
+                    if (data.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(data.workerCount));
+                    if (data.riskLevel) localStorage.setItem('wappy_active_company_risk', data.riskLevel);
+
                     if (data.logoBase64) {
                         localStorage.setItem('wappy_sst_global_logo', data.logoBase64);
                     } else {

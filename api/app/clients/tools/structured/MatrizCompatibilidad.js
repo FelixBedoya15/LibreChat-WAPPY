@@ -88,7 +88,8 @@ class MatrizCompatibilidad extends Tool {
         let payload = {};
 
         if (CompanyInfo) {
-          const companyConf = await CompanyInfo.findOne({ user: userId }).lean();
+          let companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+          if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId }).lean();
           if (companyConf) {
             payload.informacion_empresa = {
               nombre: companyConf.companyName || 'N/A',

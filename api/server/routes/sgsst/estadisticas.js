@@ -173,7 +173,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         let companyContext = '';
         let ci = null;
         try {
-            ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+              || await CompanyInfo.findOne({ user: req.user.id }).lean();
             if (ci) {
                 companyName = ci.companyName || 'EMPRESA';
                 companyNit = ci.nit || 'NIT';

@@ -119,9 +119,10 @@ class MatrizIPEVAR extends Tool {
          let payload = {};
 
          // Extraer Macro Empresa
-         if (CompanyInfo) {
-             const companyConf = await CompanyInfo.findOne({ user: userId }).lean();
-             if (companyConf) {
+          if (CompanyInfo) {
+              let companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+              if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId }).lean();
+              if (companyConf) {
                  payload.informacion_empresa = {
                      nombre: companyConf.companyName || 'N/A',
                      nit: companyConf.nit || 'N/A',

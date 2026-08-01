@@ -239,7 +239,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
     let loadedCompanyInfo = null;
     try {
-      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: req.user.id }).lean();
     } catch (e) {
       logger.warn('Failed to load company info for EPP');
     }

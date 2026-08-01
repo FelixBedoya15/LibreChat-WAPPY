@@ -1302,16 +1302,22 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
         }
 
         function bindDocHeaderToUI() {
-            document.getElementById('app-document-title').innerText = appDocHeader.appTitle || "Análisis de Trabajo Seguro (ATS)";
+            const activeCompName = localStorage.getItem('wappy_active_company_name') || "";
+            const activeCompNit = localStorage.getItem('wappy_active_company_nit') || "";
+            const activeCompArl = localStorage.getItem('wappy_active_company_arl') || "";
+            const activeCompWorkers = localStorage.getItem('wappy_active_company_workers') || "";
+            const activeCompRisk = localStorage.getItem('wappy_active_company_risk') || "";
+
+            document.getElementById('app-document-title').innerText = appDocHeader.companyName ? appDocHeader.appTitle || "Análisis de Trabajo Seguro (ATS)" : (appDocHeader.appTitle || "Análisis de Trabajo Seguro (ATS)");
             document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO";
             document.getElementById('app-document-desc').innerText = appDocHeader.appDesc || "Documento Corporativo Oficial - Conforme a la Normatividad Vigente";
             document.getElementById('app-document-badge').innerText = appDocHeader.appBadge || "PROCESO: SG-SST | V.02";
 
-            document.getElementById('company-name').innerText = appDocHeader.companyName || "WAPPY SA";
-            document.getElementById('company-nit').innerText = appDocHeader.companyNit || "NIT: 901437310";
-            document.getElementById('company-arl').innerText = appDocHeader.companyArl || "Colmena";
-            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers || "30";
-            document.getElementById('company-risk').innerText = appDocHeader.companyRisk || "Clase III";
+            document.getElementById('company-name').innerText = appDocHeader.companyName || activeCompName || "EMPRESA";
+            document.getElementById('company-nit').innerText = appDocHeader.companyNit || activeCompNit || "NIT";
+            document.getElementById('company-arl').innerText = appDocHeader.companyArl || activeCompArl || "ARL";
+            document.getElementById('company-workers').innerText = appDocHeader.companyWorkers || activeCompWorkers || "N/A";
+            document.getElementById('company-risk').innerText = appDocHeader.companyRisk || activeCompRisk || "N/A";
             document.getElementById('change-code').innerText = appDocHeader.changeCode || "GC-SST-AT-ATS-01";
             document.getElementById('last-updated-text').innerText = appDocHeader.lastUpdated || "2026-05-29";
 

@@ -456,7 +456,8 @@ Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECT
 
     let loadedCompanyInfo = null;
     try {
-      loadedCompanyInfo = await CompanyInfo.findOne({ user: userId }).lean();
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: userId }).lean();
     } catch (e) {
       logger.warn('[GTC45] Could not load CompanyInfo', e);
     }

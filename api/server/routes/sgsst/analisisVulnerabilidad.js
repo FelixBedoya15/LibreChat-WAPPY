@@ -124,7 +124,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
     let loadedCompanyInfo = null;
-    try { loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean(); }
+    try { 
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: req.user.id }).lean(); 
+    }
     catch (e) {}
 
     const headerHTML = buildStandardHeader({

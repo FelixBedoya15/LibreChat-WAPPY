@@ -575,8 +575,8 @@ router.get('/plan-trabajador', requireJwtAuth, async (req, res) => {
       };
     });
 
-    // --- DEBUG: Find ALL workers for this user regardless of companyId
-    const allUserWorkers = await SgsstWorker.find({ user: req.user.id }).select('_id nombre companyId documento').lean();
+    // --- DEBUG: Find workers for active companyId
+    const allUserWorkers = await SgsstWorker.find({ user: req.user.id, companyId }).select('_id nombre companyId documento').lean();
 
     res.json({
       trabajadores: trabajadoresConPlan,
