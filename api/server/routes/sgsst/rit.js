@@ -143,7 +143,8 @@ Instrucciones Críticas de Contenido y Formato:
 
 router.post('/generate-signature', requireJwtAuth, async (req, res) => {
     try {
-        const companyInfo = await CompanyInfo.findOne({ user: req.user.id });
+        let companyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true });
+        if (!companyInfo) companyInfo = await CompanyInfo.findOne({ user: req.user.id });
         if (!companyInfo) {
             return res.status(404).json({ error: 'Company information not found.' });
         }

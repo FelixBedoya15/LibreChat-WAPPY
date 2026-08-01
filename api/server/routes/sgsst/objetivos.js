@@ -76,7 +76,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         let companyInfoBlock = '';
         let loadedCompanyInfo = null;
         try {
-            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
                 companyInfoBlock = buildCompanyContextString(ci);

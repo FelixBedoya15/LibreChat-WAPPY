@@ -10,7 +10,8 @@ router.get('/', requireJwtAuth, async (req, res) => {
         const signatures = {};
         
         // 1. Fetch Company Info
-        const info = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        let info = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        if (!info) info = await CompanyInfo.findOne({ user: req.user.id }).lean();
         if (info) {
             if (info.legalRepConsent === 'Sí' && info.legalRepSignature && info.legalRepresentative) {
                 signatures[info.legalRepresentative.trim().toUpperCase()] = info.legalRepSignature;

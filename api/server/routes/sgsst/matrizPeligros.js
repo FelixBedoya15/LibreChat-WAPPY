@@ -319,7 +319,8 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
         // Get company info for context
         let companyContext = '';
         try {
-            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             if (ci && ci.companyName) {
                 companyContext = buildCompanyContextString(ci);
             }
@@ -538,7 +539,8 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
         if (!apiKey) return res.status(400).json({ error: 'No API Key' });
 
         let companyContext = '';
-        const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
         if (ci) companyContext = buildCompanyContextString(ci);
 
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -837,7 +839,8 @@ router.post('/autofill-proceso', requireJwtAuth, async (req, res) => {
 
         let loadedCompanyInfo = null;
         try {
-            loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+                || await CompanyInfo.findOne({ user: req.user.id }).lean();
         } catch (ciErr) {
             logger.warn('[SGSST MatrizPeligros] Error loading company info:', ciErr.message);
         }

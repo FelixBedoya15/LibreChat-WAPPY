@@ -1562,7 +1562,8 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
     if (!apiKey) return res.status(400).json({ error: 'No API Key' });
 
     let companyContext = '';
-    const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+    if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
     if (ci) {
       companyContext = `Empresa: ${ci.companyName || 'Empresa'}\\nActividad: ${ci.economicActivity || 'General'}`;
     }
@@ -1634,7 +1635,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
     let loadedCompanyInfo = null;
     try {
-      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: req.user.id }).lean();
     } catch (ciErr) {
       logger.warn('[SGSST PerfilSociodemografico] Error loading company info:', ciErr.message);
     }

@@ -176,7 +176,8 @@ router.post('/generate-acta', requireJwtAuth, async (req, res) => {
         loadedCompanyInfo = await CompanyInfo.findOne({ _id: activeCompanyId, user: req.user.id }).lean();
       }
       if (!loadedCompanyInfo) {
-        loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+          || await CompanyInfo.findOne({ user: req.user.id }).lean();
       }
     } catch (e) {
       logger.warn('Failed to load company info for Acta');
@@ -628,7 +629,8 @@ router.post('/generate-programa', requireJwtAuth, async (req, res) => {
         companyInfo = await CompanyInfo.findOne({ _id: companyId, user: req.user.id }).lean();
       }
       if (!companyInfo) {
-        companyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        companyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()
+          || await CompanyInfo.findOne({ user: req.user.id }).lean();
       }
     } catch (e) {}
 
