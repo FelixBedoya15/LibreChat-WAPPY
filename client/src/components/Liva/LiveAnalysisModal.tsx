@@ -640,6 +640,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         changeVoice,
         getInputVolume,
         sendEvidenceImage,
+        sendInterrupt,
     } = useLiveAnalysisSession(sessionOptions);
 
     const onPoseResults = useCallback((results: any) => {
@@ -978,6 +979,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     };
 
     const toggleMute = () => {
+        if (status === 'speaking') {
+            console.log('[LiveAnalysisModal] User tapped mic button during AI speech -> triggering immediate interrupt');
+            sendInterrupt();
+            stopAudioPlayback();
+            setIsMuted(false);
+            setMuted(false);
+            return;
+        }
         const newMuted = !isMuted;
         setIsMuted(newMuted);
         setMuted(newMuted);

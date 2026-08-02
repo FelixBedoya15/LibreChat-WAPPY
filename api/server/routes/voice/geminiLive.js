@@ -277,6 +277,10 @@ class GeminiLiveClient extends EventEmitter {
                                - Si te preguntan "¿Qué ves?", responde desde una perspectiva de seguridad y prevención.
                                - NUNCA digas que no puedes ver.
 
+                            3. **MANEJO DE INTERRUPCIONES Y COMANDOS DE CORTE:**
+                               - Si el usuario te interrumpe, habla mientras respondes o te dice "para", "detente", "espera", "silencio" o "cállate", DETÉN INMEDIATAMENTE la explicación actual sin completarla.
+                               - Atiende la nueva orden del usuario de forma directa y concisa.
+
                             Responde SIEMPRE en español.
                             
                             ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`,
