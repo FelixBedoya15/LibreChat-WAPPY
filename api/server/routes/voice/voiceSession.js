@@ -326,6 +326,17 @@ class VoiceSession {
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
+        // Listen for Interrupted (User Barge-In)
+        this.geminiClient.on('interrupted', () => {
+            logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
+            this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
+            this.sendToClient({ type: 'interrupted', data: {} });
+            // Reset temporary AI response buffers for this turn
+            this.aiResponseText = '';
+            this.aiTranscriptionBuffer = '';
+            this.aiAudioChunkCount = 0;
+        });
+
         // Handle Gemini connection close/error to avoid zombie state
         this.geminiClient.on('close', (code, reason) => {
             logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reason}`);
@@ -549,8 +560,12 @@ class VoiceSession {
 
             case 'interrupt':
                 // User interrupted, stop current Gemini response
-                // TODO: Implement interrupt logic
+                logger.info('[VoiceSession] Manual interrupt command received from client');
                 this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
+                this.sendToClient({ type: 'interrupted', data: {} });
+                this.aiResponseText = '';
+                this.aiTranscriptionBuffer = '';
+                this.aiAudioChunkCount = 0;
                 break;
 
             default:

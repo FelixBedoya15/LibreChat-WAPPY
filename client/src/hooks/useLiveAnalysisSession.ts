@@ -333,18 +333,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 if (message.data.audioData) {
                     optionsRef.current.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
-
-                    console.log('[LiveAnalysisSession] AI speaking - auto-muting microphone');
-                    isMutedRef.current = true;
-
-                    if (autoMuteTimeoutRef.current) {
-                        clearTimeout(autoMuteTimeoutRef.current);
-                    }
-                    autoMuteTimeoutRef.current = setTimeout(() => {
-                        console.log('[LiveAnalysisSession] Safety auto-unmute timeout');
-                        isMutedRef.current = false;
-                        autoMuteTimeoutRef.current = null;
-                    }, 10000);
+                    // Mantenemos el micrófono abierto para permitir que el motor VAD de Gemini detecte cuando el usuario interrumpe (Full-Duplex Barge-In real).
                 }
                 break;
 
@@ -374,8 +363,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 setStatus(newStatus);
                 optionsRef.current.onStatusChange?.(newStatus);
 
-                if (newStatus === 'listening' || newStatus === 'turn_complete') {
-                    console.log('[LiveAnalysisSession] AI finished speaking - auto-unmuting microphone');
+                if (newStatus === 'listening' || newStatus === 'turn_complete' || newStatus === 'interrupted') {
                     isMutedRef.current = false;
                     if (autoMuteTimeoutRef.current) {
                         clearTimeout(autoMuteTimeoutRef.current);
@@ -385,6 +373,8 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 break;
 
             case 'interrupted':
+                console.log('[LiveAnalysisSession] Interruption event received from server');
+                isMutedRef.current = false;
                 setStatus('listening');
                 optionsRef.current.onStatusChange?.('interrupted');
                 break;
@@ -497,6 +487,17 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         }));
     }, []);
 
+    /**
+     * Send Interrupt message to stop AI response
+     */
+    const sendInterrupt = useCallback(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'interrupt',
+            data: {}
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -509,5 +510,6 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         getInputVolume,
         setMuted,
         sendEvidenceImage,
+        sendInterrupt,
     };
 };

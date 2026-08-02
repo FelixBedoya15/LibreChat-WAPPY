@@ -190,6 +190,12 @@ class GeminiLiveClient extends EventEmitter {
                                 logger.info('[GeminiLive] ===== TURN COMPLETE =====');
                                 this.emit('turnComplete');
                             }
+
+                            // 5. Handle INTERRUPTED (when user speaks while AI was generating)
+                            if (response.serverContent.interrupted) {
+                                logger.info('[GeminiLive] ===== INTERRUPTED BY USER =====');
+                                this.emit('interrupted');
+                            }
                         }
 
                         // 5. Handle TOOL CALL

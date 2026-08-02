@@ -116,6 +116,26 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const nextStartTimeRef = useRef<number>(0);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+
+    const stopAudioPlayback = useCallback(() => {
+        if (activeSourcesRef.current.length > 0) {
+            activeSourcesRef.current.forEach((src) => {
+                try {
+                    src.stop();
+                    src.disconnect();
+                } catch (e) {
+                    // Ignorar si ya se había detenido
+                }
+            });
+            activeSourcesRef.current = [];
+        }
+        if (audioContextRef.current) {
+            nextStartTimeRef.current = audioContextRef.current.currentTime;
+        } else {
+            nextStartTimeRef.current = 0;
+        }
+    }, []);
 
     // Toast control Ref
     const prevHasReport = useRef(false);
@@ -353,6 +373,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
+        activeSourcesRef.current.push(source);
+        source.onended = () => {
+            activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
+        };
 
         if (!outputAnalyserRef.current) {
             const analyser = audioContextRef.current.createAnalyser();
@@ -590,6 +614,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         setStatusText('Listo');
                     }
                     break;
+                case 'interrupted':
+                    setStatusText('Listo');
+                    stopAudioPlayback();
+                    break;
                 default:
                     setStatusText(newStatus);
             }
@@ -598,7 +626,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate, handleAudioReceived, captureSnapshot, onConversationUpdated]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel, selectedTemplate, handleAudioReceived, captureSnapshot, onConversationUpdated, stopAudioPlayback]);
 
     const {
         isConnected,
