@@ -36,6 +36,10 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
     const isMutedRef = useRef(false);
     const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
+    const statusRef = useRef(status);
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
 
     /**
@@ -191,6 +195,32 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
         return Math.min(1, (average / 128));
     }, []);
+
+    // Local VAD: Detecta voz del usuario mientras la IA habla y dispara la interrupción de inmediato
+    const vadSpeechCountRef = useRef(0);
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (statusRef.current === 'speaking' && inputAnalyserRef.current) {
+                const volume = getInputVolume();
+                if (volume > 0.14) {
+                    vadSpeechCountRef.current += 1;
+                    if (vadSpeechCountRef.current >= 2) {
+                        console.log('[LiveAnalysisSession] Local VAD detected speech during AI response -> Triggering barge-in interrupt');
+                        sendInterrupt();
+                        setStatus('listening');
+                        optionsRef.current.onStatusChange?.('interrupted');
+                        vadSpeechCountRef.current = 0;
+                    }
+                } else {
+                    vadSpeechCountRef.current = Math.max(0, vadSpeechCountRef.current - 1);
+                }
+            } else {
+                vadSpeechCountRef.current = 0;
+            }
+        }, 80);
+
+        return () => clearInterval(interval);
+    }, [getInputVolume, sendInterrupt]);
 
     /**
      * Stop Audio Capture

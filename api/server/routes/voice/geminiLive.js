@@ -360,6 +360,25 @@ class GeminiLiveClient extends EventEmitter {
     }
 
     /**
+     * Force interrupt current turn generation on Gemini
+     */
+    interrupt() {
+        logger.info('[GeminiLive] Sending interrupt signal to Gemini Live API');
+        const message = {
+            clientContent: {
+                turns: [
+                    {
+                        role: 'user',
+                        parts: [{ text: ' ' }]
+                    }
+                ],
+                turnComplete: true
+            }
+        };
+        this.send(message);
+    }
+
+    /**
      * Send both an image and text to Gemini as a user turn
      * @param {string} base64Image - Base64 encoded JPEG image
      * @param {string} text - Text to send with the image

@@ -561,6 +561,9 @@ class VoiceSession {
             case 'interrupt':
                 // User interrupted, stop current Gemini response
                 logger.info('[VoiceSession] Manual interrupt command received from client');
+                if (this.geminiClient) {
+                    this.geminiClient.interrupt();
+                }
                 this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
                 this.sendToClient({ type: 'interrupted', data: {} });
                 this.aiResponseText = '';
