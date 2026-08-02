@@ -117,6 +117,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+    const statusRef = useRef<string>('idle');
 
     const stopAudioPlayback = useCallback(() => {
         if (activeSourcesRef.current.length > 0) {
@@ -430,6 +431,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         selectedModel,
         template: selectedTemplate || 'general',
         onAudioReceived: (audioData: string) => {
+            if (statusRef.current !== 'speaking') {
+                console.log('[LiveAnalysisModal] Discarding residual server audio packet because status is:', statusRef.current);
+                return;
+            }
             handleAudioReceived(audioData);
         },
         onTextReceived: (text: string) => {
@@ -642,6 +647,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         sendEvidenceImage,
         sendInterrupt,
     } = useLiveAnalysisSession(sessionOptions);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     const onPoseResults = useCallback((results: any) => {
         const canvas = canvasRef.current;
