@@ -186,6 +186,17 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
     };
 
     /**
+     * Send Interrupt message to stop AI response
+     */
+    const sendInterrupt = useCallback(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'interrupt',
+            data: {}
+        }));
+    }, []);
+
+    /**
      * Get current input volume (0-1)
      */
     const getInputVolume = useCallback(() => {
@@ -517,16 +528,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         }));
     }, []);
 
-    /**
-     * Send Interrupt message to stop AI response
-     */
-    const sendInterrupt = useCallback(() => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        wsRef.current.send(JSON.stringify({
-            type: 'interrupt',
-            data: {}
-        }));
-    }, []);
+
 
     return {
         isConnected,
