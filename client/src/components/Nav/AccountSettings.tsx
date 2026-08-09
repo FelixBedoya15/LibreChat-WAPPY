@@ -4,7 +4,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell, Map } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell, Map, Award } from 'lucide-react';
 import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
@@ -255,6 +255,16 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
             >
               <Bot className="icon-md" aria-hidden="true" />
               Configurar Tenshi
+            </Select.SelectItem>
+          )}
+          {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+            <Select.SelectItem
+              value=""
+              onClick={() => navigate('/embajadores/dashboard')}
+              className="select-item text-sm text-teal-600 dark:text-teal-400 font-medium"
+            >
+              <Award className="icon-md" aria-hidden="true" />
+              Métricas & Embajadores
             </Select.SelectItem>
           )}
           <DropdownMenuSeparator />

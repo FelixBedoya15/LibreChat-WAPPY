@@ -60,6 +60,7 @@ import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
+import AmbassadorDashboard from '~/components/Ambassadors/AmbassadorDashboard';
 import RoadmapPage from '~/components/Roadmap/RoadmapPage';
 import Search from './Search';
 import Root from './Root';
@@ -436,6 +437,14 @@ export const router = createBrowserRouter(
             {
               path: 'kanban',
               element: <KanbanDashboard />,
+            },
+            {
+              path: 'embajadores/dashboard',
+              element: <AmbassadorDashboard />,
+            },
+            {
+              path: 'embajadores',
+              element: <AmbassadorDashboard />,
             },
             {
               path: 'editor-archivos/:id',

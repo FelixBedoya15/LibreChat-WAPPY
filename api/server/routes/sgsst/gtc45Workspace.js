@@ -603,14 +603,14 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     const cleanedRows = cleanRawRows(rawRows);
 
-    const CHUNK_SIZE = 200;
+    const CHUNK_SIZE = 50;
     const chunks = [];
     for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
       chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
     }
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
-    logger.info(`[GTC45/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks`);
+    logger.info(`[GTC45/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks (chunk size ${CHUNK_SIZE})`);
 
     const combinedRows = [];
 
@@ -672,8 +672,22 @@ ${JSON.stringify(chunk, null, 2)}
       try {
         parsed = JSON.parse(text);
       } catch (err) {
-        logger.error(`[GTC45/ai-parse-matrix] JSON parse error in chunk ${chunkIdx}:`, err.message, 'Raw:', text.slice(0, 500));
-        throw new Error('La IA devolvió un formato JSON inválido para uno de los lotes. Por favor, intenta de nuevo.');
+        logger.warn(`[GTC45/ai-parse-matrix] Direct JSON parse failed for chunk ${chunkIdx + 1}, attempting repair:`, err.message);
+        const startIdx = text.indexOf('[');
+        if (startIdx !== -1) {
+          let arrayStr = text.slice(startIdx);
+          const lastObjEnd = arrayStr.lastIndexOf('}');
+          if (lastObjEnd !== -1) {
+            try {
+              parsed = JSON.parse(arrayStr.slice(0, lastObjEnd + 1) + ']');
+            } catch (e2) {
+              logger.error(`[GTC45/ai-parse-matrix] JSON repair failed in chunk ${chunkIdx + 1}:`, e2.message);
+            }
+          }
+        }
+        if (!parsed) {
+          throw new Error('La IA devolvió un formato JSON inválido para uno de los lotes. Por favor, intenta de nuevo.');
+        }
       }
 
       if (!Array.isArray(parsed)) {

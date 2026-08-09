@@ -38,6 +38,7 @@ const KanbanButton = lazy(() => import('./KanbanButton'));
 const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
 const EventsMeetButton = lazy(() => import('./EventsMeetButton'));
 const AutomatizacionesButton = lazy(() => import('./AutomatizacionesButton'));
+const AmbassadorsButton = lazy(() => import('./AmbassadorsButton'));
 
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -345,6 +346,12 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
+                        {/* Métricas & Embajadores */}
+                        <Suspense fallback={null}>
+                          {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                            <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          )}
+                        </Suspense>
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -426,6 +433,12 @@ const Nav = memo(
                                 {/* Events Meet icon */}
                                 <Suspense fallback={null}>
                                   <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+                                {/* Métricas & Embajadores */}
+                                <Suspense fallback={null}>
+                                  {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                    <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  )}
                                 </Suspense>
                               </div>
                             </>

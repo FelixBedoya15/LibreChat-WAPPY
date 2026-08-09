@@ -13,7 +13,6 @@ function calculateNextRun(scheduleType, config) {
   
   const hour = config?.hour ?? 8;
   const minute = config?.minute ?? 0;
-  const dayOfWeek = config?.dayOfWeek ?? 1; // 1 = Monday, 0 = Sunday
   const dayOfMonth = config?.dayOfMonth ?? 1;
   const intervalHours = config?.intervalHours ?? 1;
 
@@ -26,12 +25,23 @@ function calculateNextRun(scheduleType, config) {
     }
   } else if (scheduleType === 'weekly') {
     next.setHours(hour, minute, 0, 0);
-    const currentDay = now.getDay();
-    let daysToAdd = (dayOfWeek - currentDay + 7) % 7;
-    if (daysToAdd === 0 && next <= now) {
-      daysToAdd = 7;
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    let rawDays = config?.dayOfWeek ?? 1;
+    let daysOfWeek = Array.isArray(rawDays) ? rawDays : [rawDays];
+    if (daysOfWeek.length === 0) daysOfWeek = [1];
+
+    let minDaysToAdd = Infinity;
+    for (const d of daysOfWeek) {
+      let targetDay = Number(d);
+      let daysToAdd = (targetDay - currentDay + 7) % 7;
+      if (daysToAdd === 0 && next <= now) {
+        daysToAdd = 7;
+      }
+      if (daysToAdd < minDaysToAdd) {
+        minDaysToAdd = daysToAdd;
+      }
     }
-    next.setDate(next.getDate() + daysToAdd);
+    next.setDate(next.getDate() + minDaysToAdd);
   } else if (scheduleType === 'monthly') {
     next.setHours(hour, minute, 0, 0);
     next.setDate(dayOfMonth);
@@ -61,6 +71,13 @@ async function runAutomation(automation, isManual = false) {
     prompt: automation.prompt,
     status: 'running'
   });
+
+  const prelimAbortController = new AbortController();
+  // 10 minutes timeout (600,000 ms) safety measure
+  const timeoutId = setTimeout(() => {
+    console.warn(`[AutomationScheduler] Automation "${automation.name}" timed out after 10 minutes. Aborting execution.`);
+    prelimAbortController.abort();
+  }, 600000);
 
   try {
     // 1. Fetch app config
@@ -110,8 +127,6 @@ async function runAutomation(automation, isManual = false) {
 
     req.body.endpointOption = endpointOption;
 
-    const prelimAbortController = new AbortController();
-
     // 5. Initialize agent client
     const { client, userMCPAuthMap } = await initializeClient({
       req,
@@ -124,7 +139,7 @@ async function runAutomation(automation, isManual = false) {
     const messageOptions = {
       user: automation.user.toString(),
       getReqData: (data) => {
-        if (data.conversationId) {
+        if (data?.conversationId) {
           generatedConvoId = data.conversationId;
         }
       },
@@ -137,7 +152,7 @@ async function runAutomation(automation, isManual = false) {
     // 7. Execute agent call
     const response = await client.sendMessage(automation.prompt, messageOptions);
 
-    if (response.databasePromise) {
+    if (response?.databasePromise) {
       await response.databasePromise;
     }
 
@@ -151,20 +166,18 @@ async function runAutomation(automation, isManual = false) {
 
     // 9. Update Log to success
     log.status = 'success';
-    log.result = response.text || '(Sin respuesta del agente)';
+    log.result = (response?.text || '').trim() || '(Sin respuesta del agente)';
     log.conversationId = generatedConvoId;
     await log.save();
 
-    // 10. Update Automation next run and last run stats
-    const nextRun = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
+    // 10. Update Automation status and result
     await Automation.updateOne(
       { _id: automation._id },
       {
         $set: {
           lastRunAt: new Date(),
           lastRunStatus: 'success',
-          lastRunResult: (response.text || '').substring(0, 500),
-          nextRunAt: nextRun,
+          lastRunResult: (response?.text || '').substring(0, 500),
           conversationId: generatedConvoId
         }
       }
@@ -180,29 +193,30 @@ async function runAutomation(automation, isManual = false) {
     log.error = err.message || 'Error desconocido';
     await log.save();
 
-    // Update Automation next run and last run stats
-    const nextRun = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
+    // Update Automation last run stats
     await Automation.updateOne(
       { _id: automation._id },
       {
         $set: {
           lastRunAt: new Date(),
           lastRunStatus: 'failed',
-          lastRunResult: `Error: ${err.message}`,
-          nextRunAt: nextRun
+          lastRunResult: `Error: ${err.message}`
         }
       }
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
 async function checkAndRunAutomations() {
   try {
     const now = new Date();
-    // Buscar automatizaciones activas cuya fecha de próxima ejecución sea menor o igual a ahora
-    // o que no tengan fecha de próxima ejecución asignada (se ejecutarán de inmediato en su primer ciclo)
+    // Buscar automatizaciones activas que NO estén ya corriendo y cuya próxima fecha sea <= ahora
+    // o que no tengan fecha asignada (primer ciclo)
     const pendingAutomations = await Automation.find({
       status: 'active',
+      lastRunStatus: { $ne: 'running' },
       $or: [
         { nextRunAt: { $lte: now } },
         { nextRunAt: null }
@@ -214,10 +228,17 @@ async function checkAndRunAutomations() {
     console.log(`[AutomationScheduler] Found ${pendingAutomations.length} pending automations to execute.`);
 
     for (const automation of pendingAutomations) {
-      // Marcar temporalmente como corriendo para evitar doble ejecución si toma tiempo
+      // Calcular e indicar de inmediato la fecha del PRÓXIMO ciclo para evitar que el poller de 1 min la vuelva a tomar
+      const nextRun = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
+      
       await Automation.updateOne(
         { _id: automation._id },
-        { $set: { lastRunStatus: 'running' } }
+        { 
+          $set: { 
+            lastRunStatus: 'running',
+            nextRunAt: nextRun 
+          } 
+        }
       );
       
       // Correr de forma asíncrona sin bloquear el loop principal

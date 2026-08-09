@@ -488,14 +488,14 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
     const cleanedRows = cleanRawRows(rawRows);
 
-    const CHUNK_SIZE = 200;
+    const CHUNK_SIZE = 50;
     const chunks = [];
     for (let i = 0; i < cleanedRows.length; i += CHUNK_SIZE) {
       chunks.push(cleanedRows.slice(i, i + CHUNK_SIZE));
     }
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
-    logger.info(`[ChemicalCompatibility/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks`);
+    logger.info(`[ChemicalCompatibility/ai-parse-matrix] Processing ${cleanedRows.length} rows for user ${userId} in ${chunks.length} chunks (chunk size ${CHUNK_SIZE})`);
 
     const parsedRows = [];
 
@@ -530,20 +530,38 @@ FORMATO EXIGIDO PARA CADA ITEM EN EL ARREGLO JSON:
 }
 
 REGLAS EXTREMAS:
-- Responde ÚNICAMENTE con un arreglo JSON válido conteniendo los objetos mapeados. NO incluyas markdown, código ni explicaciones.
+- Responde ÚNICAMENTE con un arreglo JSON válido conteniendo los objetos mapeados. NO incluyes markdown, código ni explicaciones.
 - Si no encuentras un valor para algún campo, estima un valor adecuado según el nombre del producto o usa valores por defecto razonables en lugar de dejarlos vacíos.`;
 
       const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
       let text = result.response.text().trim();
       text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
+      let parsed;
       try {
-        const rows = JSON.parse(text);
-        if (Array.isArray(rows)) {
-          parsedRows.push(...rows);
-        }
+        parsed = JSON.parse(text);
       } catch (err) {
-        logger.error('[ChemicalCompatibility/ai-parse-matrix] Chunk parse error:', err.message);
+        logger.warn(`[ChemicalCompatibility/ai-parse-matrix] Direct JSON parse failed for chunk ${chunkIdx + 1}, attempting repair:`, err.message);
+        const startIdx = text.indexOf('[');
+        if (startIdx !== -1) {
+          let arrayStr = text.slice(startIdx);
+          const lastObjEnd = arrayStr.lastIndexOf('}');
+          if (lastObjEnd !== -1) {
+            try {
+              parsed = JSON.parse(arrayStr.slice(0, lastObjEnd + 1) + ']');
+            } catch (e2) {
+              logger.error(`[ChemicalCompatibility/ai-parse-matrix] JSON repair failed in chunk ${chunkIdx + 1}:`, e2.message);
+            }
+          }
+        }
+      }
+
+      if (parsed) {
+        if (Array.isArray(parsed)) {
+          parsedRows.push(...parsed);
+        } else if (typeof parsed === 'object') {
+          parsedRows.push(parsed);
+        }
       }
     }
 

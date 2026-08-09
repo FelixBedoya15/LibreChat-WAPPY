@@ -32,7 +32,7 @@ import { useToastContext } from '@librechat/client';
 interface ScheduleConfig {
   hour: number;
   minute: number;
-  dayOfWeek?: number;
+  dayOfWeek?: number | number[];
   dayOfMonth?: number;
   intervalHours?: number;
 }
@@ -94,6 +94,7 @@ export default function Automatizaciones() {
   const [formHour, setFormHour] = useState(8);
   const [formMinute, setFormMinute] = useState(0);
   const [formDayOfWeek, setFormDayOfWeek] = useState(1); // Lunes
+  const [formDaysOfWeek, setFormDaysOfWeek] = useState<number[]>([1]); // Selección múltiple de días
   const [formDayOfMonth, setFormDayOfMonth] = useState(1);
   const [formIntervalHours, setFormIntervalHours] = useState(1);
   const [formEmailsStr, setFormEmailsStr] = useState('');
@@ -215,6 +216,7 @@ export default function Automatizaciones() {
     setFormHour(8);
     setFormMinute(0);
     setFormDayOfWeek(1);
+    setFormDaysOfWeek([1]);
     setFormDayOfMonth(1);
     setFormIntervalHours(1);
     setFormEmailsStr('');
@@ -233,7 +235,19 @@ export default function Automatizaciones() {
     setFormScheduleType(automation.scheduleType);
     setFormHour(automation.scheduleConfig?.hour ?? 8);
     setFormMinute(automation.scheduleConfig?.minute ?? 0);
-    setFormDayOfWeek(automation.scheduleConfig?.dayOfWeek ?? 1);
+    
+    const rawDay = automation.scheduleConfig?.dayOfWeek;
+    if (Array.isArray(rawDay)) {
+      setFormDaysOfWeek(rawDay.map(Number));
+      setFormDayOfWeek(rawDay[0] ?? 1);
+    } else if (typeof rawDay === 'number') {
+      setFormDaysOfWeek([rawDay]);
+      setFormDayOfWeek(rawDay);
+    } else {
+      setFormDaysOfWeek([1]);
+      setFormDayOfWeek(1);
+    }
+
     setFormDayOfMonth(automation.scheduleConfig?.dayOfMonth ?? 1);
     setFormIntervalHours(automation.scheduleConfig?.intervalHours ?? 1);
     setFormEmailsStr(automation.emails?.join(', ') || '');
@@ -265,7 +279,7 @@ export default function Automatizaciones() {
     const scheduleConfig: ScheduleConfig = {
       hour: Number(formHour),
       minute: Number(formMinute),
-      dayOfWeek: Number(formDayOfWeek),
+      dayOfWeek: formDaysOfWeek,
       dayOfMonth: Number(formDayOfMonth),
       intervalHours: Number(formIntervalHours)
     };
@@ -376,6 +390,19 @@ export default function Automatizaciones() {
         return `Diario a las ${time}`;
       case 'weekly':
         const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayOfWeekVal = config.dayOfWeek;
+        if (Array.isArray(dayOfWeekVal)) {
+          if (dayOfWeekVal.length === 7) {
+            return `Todos los días a las ${time}`;
+          }
+          const sortedDays = [...dayOfWeekVal].sort((a, b) => {
+            const valA = Number(a) === 0 ? 7 : Number(a);
+            const valB = Number(b) === 0 ? 7 : Number(b);
+            return valA - valB;
+          });
+          const dayStrings = sortedDays.map(d => days[Number(d)]);
+          return `Semanal los ${dayStrings.join(', ')} a las ${time}`;
+        }
         return `Semanal los ${days[config.dayOfWeek ?? 1]} a las ${time}`;
       case 'monthly':
         return `El día ${config.dayOfMonth ?? 1} de cada mes a las ${time}`;
@@ -1084,53 +1111,51 @@ export default function Automatizaciones() {
                   )}
                 </div>
 
-                {/* Additional Weekly Option */}
+                {/* Additional Weekly Option (Calendar / Multi-day badge selector) */}
                 {formScheduleType === 'weekly' && (
-                  <div className="relative mt-2">
-                    <label className="block text-[10px] text-gray-500 mb-1">Día de la Semana</label>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setIsDayOpen(!isDayOpen); }}
-                      className="w-full flex items-center justify-between px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white text-left"
-                    >
-                      <span>
-                        {formDayOfWeek === 1 ? 'Lunes' :
-                         formDayOfWeek === 2 ? 'Martes' :
-                         formDayOfWeek === 3 ? 'Miércoles' :
-                         formDayOfWeek === 4 ? 'Jueves' :
-                         formDayOfWeek === 5 ? 'Viernes' :
-                         formDayOfWeek === 6 ? 'Sábado' :
-                         formDayOfWeek === 0 ? 'Domingo' : 'Lunes'}
-                      </span>
-                      <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                    </button>
-                    {isDayOpen && (
-                      <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {[
-                          { id: 1, name: 'Lunes' },
-                          { id: 2, name: 'Martes' },
-                          { id: 3, name: 'Miércoles' },
-                          { id: 4, name: 'Jueves' },
-                          { id: 5, name: 'Viernes' },
-                          { id: 6, name: 'Sábado' },
-                          { id: 0, name: 'Domingo' }
-                        ].map((day) => (
+                  <div className="mt-3">
+                    <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                      Días de la Semana (Selección Múltiple)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 1, label: 'L', name: 'Lunes' },
+                        { id: 2, label: 'M', name: 'Martes' },
+                        { id: 3, label: 'M', name: 'Miércoles' },
+                        { id: 4, label: 'J', name: 'Jueves' },
+                        { id: 5, label: 'V', name: 'Viernes' },
+                        { id: 6, label: 'S', name: 'Sábado' },
+                        { id: 0, label: 'D', name: 'Domingo' }
+                      ].map((day) => {
+                        const isSelected = formDaysOfWeek.includes(day.id);
+                        return (
                           <button
                             key={day.id}
                             type="button"
                             onClick={() => {
-                              setFormDayOfWeek(day.id);
-                              setIsDayOpen(false);
+                              if (isSelected) {
+                                if (formDaysOfWeek.length > 1) {
+                                  setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day.id));
+                                }
+                              } else {
+                                setFormDaysOfWeek([...formDaysOfWeek, day.id]);
+                              }
                             }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
-                              formDayOfWeek === day.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
+                            className={`w-9 h-9 flex items-center justify-center text-xs font-extrabold rounded-full border transition-all duration-200 cursor-pointer ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-transparent text-white shadow-md scale-105'
+                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-750'
                             }`}
+                            title={day.name}
                           >
-                            {day.name}
+                            {day.label}
                           </button>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1.5 italic">
+                      Selecciona uno o más días en que debe ejecutarse la automatización.
+                    </p>
                   </div>
                 )}
 

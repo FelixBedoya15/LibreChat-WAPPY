@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contrato Corretaje WAPPY IA — Edgar Alonso Galvis Mora</title>
+  <meta name="description" content="Contrato de Corretaje Comercial Independiente de Software WAPPY IA entre WAPPY LTDA y Edgar Alonso Galvis Mora."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #22c55e;
+      --primary-dark: #16a34a;
+      --primary-glow: rgba(34, 197, 94, 0.25);
+      --bg: #050e0a;
+      --bg2: #091810;
+      --surface: rgba(255, 255, 255, 0.04);
+      --border: rgba(34, 197, 94, 0.2);
+      --border-bright: rgba(34, 197, 94, 0.45);
+      --text: #f0fdf4;
+      --text-muted: rgba(240, 253, 244, 0.65);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      padding-bottom: 4rem;
+    }
+
+    .page-header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand span {
+      color: var(--primary);
+    }
+
+    .hdrbadge {
+      background: var(--primary-glow);
+      border: 1px solid var(--border-bright);
+      color: var(--primary);
+      padding: 0.3rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #022c10;
+      border: none;
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background: #4ade80;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px var(--primary-glow);
+    }
+
+    .btn-outline {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border-bright);
+    }
+
+    .btn-outline:hover {
+      background: var(--primary-glow);
+      color: var(--primary);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 2.5rem auto 0;
+      padding: 0 1.5rem;
+    }
+
+    .contract-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 3rem;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .doc-header {
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .doc-header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .doc-header p {
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .doc-body h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .doc-body h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .doc-body p, .doc-body li {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      text-align: justify;
+    }
+
+    .doc-body strong {
+      color: var(--text);
+    }
+
+    .doc-body ul, .doc-body ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .doc-body li {
+      margin-bottom: 0.5rem;
+    }
+
+    .highlight-box {
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-sm);
+      padding: 1.25rem;
+      margin: 1.25rem 0;
+    }
+
+    .highlight-box h4 {
+      color: var(--primary);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .signatures-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      margin-top: 3.5rem;
+      padding-top: 2rem;
+      border-top: 2px solid var(--border);
+    }
+
+    .sig-block {
+      text-align: center;
+    }
+
+    .sig-line {
+      border-bottom: 1px solid var(--text-muted);
+      height: 60px;
+      margin-bottom: 1rem;
+    }
+
+    .sig-title {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .sig-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+      }
+      .page-header, .header-actions {
+        display: none !important;
+      }
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      .contract-card {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        background: transparent;
+      }
+      .doc-header h1 {
+        color: #000000;
+      }
+      .doc-header p, .doc-body h2, .highlight-box h4 {
+        color: #16a34a;
+      }
+      .doc-body p, .doc-body li, .sig-sub {
+        color: #333333;
+      }
+      .doc-body strong, .sig-title {
+        color: #000000;
+      }
+      .highlight-box {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <div class="brand">
+      WAPPY <span>IA</span>
+    </div>
+    <span class="hdrbadge">Contrato Oficial Wappy</span>
+    <div class="header-actions">
+      <button class="btn btn-outline" onclick="window.print()">
+        🖨️ Imprimir / PDF
+      </button>
+      <button class="btn" onclick="descargarPDF()">
+        📥 Descargar PDF
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <article class="contract-card" id="contrato-content">
+      
+      <header class="doc-header">
+        <h1>CONTRATO DE CORRETAJE COMERCIAL INDEPENDIENTE</h1>
+        <p>SOFTWARE Y SOLUCIONES DE INTELIGENCIA ARTIFICIAL (WAPPY IA)</p>
+      </header>
+
+      <section class="doc-body">
+        <p>Entre los suscritos a saber:</p>
+        <ol>
+          <li>
+            <strong>WAPPY LTDA</strong>, sociedad comercial legalmente constituida en Colombia, identificada con <strong>NIT 901437310</strong>, con domicilio principal en la ciudad de Medellín, Antioquia, representada legalmente por <strong>Felix Mauricio Bedoya Ocampo</strong>, identificado con C.C. 1.037.589.726, y a quien en adelante se denominará simplemente <strong>WAPPY</strong> o la <strong>COMPAÑÍA</strong>; y
+          </li>
+          <li>
+            <strong>EDGAR ALONSO GALVIS MORA</strong>, persona natural, mayor de edad, identificado con Cédula de Ciudadanía No. <strong>70.556.652</strong> expedida en Envigado, Antioquia, domiciliado en Envigado / Medellín, Antioquia, con correo electrónico <code>edalgamo1@hotmail.com</code> y teléfono (604) 334 03 88, actuando en su propio nombre y representación en calidad de contratista e intermediario independiente, y a quien en adelante se denominará <strong>EDGAR ALONSO GALVIS MORA</strong> o el <strong>CORREDOR INDEPENDIENTE</strong>;
+          </li>
+        </ol>
+
+        <p>Las partes acuerdan celebrar el presente <strong>CONTRATO DE CORRETAJE COMERCIAL INDEPENDIENTE DE SOFTWARE Y SOLUCIONES DE INTELIGENCIA ARTIFICIAL</strong>, el cual se regirá por las normas comerciales vigentes en la República de Colombia (especialmente los Artículos 1340 a 1346 del Código de Comercio), y por las cláusulas detalladas a continuación:</p>
+
+        <h2>CONSIDERACIONES</h2>
+        <ol>
+          <li><strong>WAPPY</strong> es una compañía legalmente constituida dedicada al desarrollo, licenciamiento y comercialización de soluciones tecnológicas avanzadas basadas en Inteligencia Artificial aplicadas a la Seguridad y Salud en el Trabajo (SST), denominadas comercialmente <strong>WAPPY IA</strong>.</li>
+          <li><strong>EDGAR ALONSO GALVIS MORA</strong> es un profesional e intermediario comercial independiente con amplio conocimiento del mercado corporativo, quien cuenta con la capacidad idónea para promover, gestionar y acompañar el cierre de acuerdos comerciales de licencias de software y soluciones de <strong>WAPPY IA</strong> ante empresas privadas, proveedores de gran escala y Administradoras de Riesgos Laborales (ARL).</li>
+          <li><strong>Clarificación Exclusiva:</strong> Las partes aclaran expresamente que el objeto de este contrato se limita de manera exclusiva a la comercialización e intermediación mercantil del software y herramientas tecnológicas <strong>WAPPY IA</strong>, y <strong>NO constituye intermediación de pólizas o riesgos seguros en la rama de Riesgos Laborales (ARL)</strong>.</li>
+        </ol>
+
+        <h2>CLÁUSULAS</h2>
+
+        <h3>CLÁUSULA PRIMERA: OBJETO DEL CONTRATO</h3>
+        <p>El objeto del presente contrato es definir las condiciones bajo las cuales <strong>EDGAR ALONSO GALVIS MORA</strong>, actuando de manera independiente, autónoma y sin exclusividad, promoverá, referenciará, gestionará y acompañará el cierre comercial de la adquisición de licencias, módulos y soluciones de software de la plataforma <strong>WAPPY IA</strong> ante:</p>
+        <ul>
+          <li>Empresas independientes del sector privado.</li>
+          <li>Proveedores o aliados comerciales de gran escala en el mercado.</li>
+          <li>Administradoras de Riesgos Laborales (ARL).</li>
+        </ul>
+        <p>A cambio de la gestión comercial efectiva, <strong>WAPPY</strong> pagará las comisiones pactadas en la Cláusula Tercera del presente documento.</p>
+
+        <h3>CLÁUSULA SEGUNDA: NATURALEZA JURÍDICA Y AUTONOMÍA</h3>
+        <p>1. <strong>Independencia Civil y Comercial:</strong> El presente contrato es de naturaleza estrictamente comercial y civil. <strong>EDGAR ALONSO GALVIS MORA</strong> ejecutará sus actividades con sus propios medios, de manera independiente, con plena autonomía técnica, administrativa y directiva, sin estar sujeto a subordinación laboral, horarios, ni reglamentos internos de la COMPAÑÍA.</p>
+        <p>2. <strong>Seguridad Social (PILA):</strong> Al no existir vínculo ni subordinación laboral, <strong>EDGAR ALONSO GALVIS MORA</strong> es el único responsable de sus aportes al Sistema de Seguridad Social Integral (Salud, Pensión y ARL) en calidad de trabajador independiente. Cuando sus comisiones mensuales liquidadas sean iguales o superiores a un (1) Salario Mínimo Mensual Legal Vigente (SMMLV), adjuntará la planilla de pago de Seguridad Social (PILA) correspondiente junto con su cuenta de cobro.</p>
+
+        <h3>CLÁUSULA TERCERA: ESQUEMA DE COMISIONES POR VENTA DE WAPPY IA</h3>
+        <p>Por la venta directa, gestión e intermediación mercantil de las soluciones y licencias de la plataforma <strong>WAPPY IA</strong>, se causarán y pagarán las siguientes comisiones comerciales a <strong>EDGAR ALONSO GALVIS MORA</strong>:</p>
+
+        <div class="highlight-box">
+          <h4>💡 RESUMEN DEL ESQUEMA DE COMISIONES</h4>
+          <ul>
+            <li><strong>20% (Ventas a Empresas Independientes):</strong> Recurrente sobre el valor neto facturado y recaudado por licencias directas vendidas a empresas del sector privado.</li>
+            <li><strong>25% (Proveedores Grandes y Nuevos Convenios ARL):</strong> Sobre el valor neto recaudado en acuerdos comerciales con grandes proveedores del mercado o convenios ARL gestionados directamente por él.</li>
+            <li><strong>10% (Cierre Acompañado en Negociaciones ARL Adelantadas):</strong> Sobre el valor neto recaudado en convenios ARL donde WAPPY LTDA ya cuente con avance o negociación previa, y EDGAR ALONSO GALVIS MORA acompañe hasta el cierre efectivo.</li>
+          </ul>
+        </div>
+
+        <h3>CLÁUSULA CUARTA: CONDICIONES Y FECHAS DE PAGO</h3>
+        <p>1. <strong>Causación del Derecho:</strong> Las comisiones se causarán únicamente una vez el cliente final, proveedor o ARL haya efectuado el pago efectivo y correspondiente a <strong>WAPPY LTDA</strong> por las soluciones de software contratadas.</p>
+        <p>2. <strong>Ciclo de Liquidación:</strong> Las comisiones se liquidarán quincenalmente los días <strong>cinco (5) y veinticinco (25) de cada mes</strong>.</p>
+        <p>3. <strong>Requisitos para el Desembolso:</strong> <strong>EDGAR ALONSO GALVIS MORA</strong> deberá presentar su copia del RUT actualizado, cuenta de cobro correspondiente (o factura electrónica si es obligado a facturar), y soporte de pago de Seguridad Social cuando legalmente aplique.</p>
+
+        <h3>CLÁUSULA QUINTA: PROHIBICIÓN DE RECAUDO Y REPRESENTACIÓN LEGAL</h3>
+        <p>1. <strong>EDGAR ALONSO GALVIS MORA</strong> actúa como un canalizador e intermediario mercantil independiente. No tiene facultad ni representación legal para firmar contratos a nombre de WAPPY LTDA, ni para contraer obligaciones financieras a su cargo.</p>
+        <p>2. <strong>Prohibición de Recaudo:</strong> Queda estrictamente prohibido a <strong>EDGAR ALONSO GALVIS MORA</strong> recibir pagos en efectivo, cheques o transferencias a sus cuentas personales por concepto de compras o licencias de WAPPY IA. Todos los pagos del cliente deberán realizarse directamente a través de las cuentas bancarias o pasarelas oficiales de <strong>WAPPY LTDA</strong>.</p>
+
+        <h3>CLÁUSULA SÉPTIMA: USO Y LICENCIA DE LA MARCA WAPPY IA</h3>
+        <p>1. WAPPY otorga a <strong>EDGAR ALONSO GALVIS MORA</strong> una autorización limitada, no exclusiva e intransferible para utilizar la marca, logotipos y material comercial de <strong>WAPPY IA</strong> únicamente para los fines de promoción objeto de este contrato.</p>
+        <p>2. <strong>Propiedad Intelectual:</strong> Todo el software, código fuente, algoritmos de Inteligencia Artificial, marcas, diseños, metodologías y desarrollos de Wappy IA son propiedad intelectual exclusiva de <strong>WAPPY LTDA</strong>.</p>
+
+        <h3>CLÁUSULA OCTAVA: CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS (HABEAS DATA)</h3>
+        <p>1. <strong>Reserva de Información:</strong> <strong>EDGAR ALONSO GALVIS MORA</strong> mantendrá bajo estricta reserva toda la información técnica, financiera, comercial, bases de datos y secretos empresariales de WAPPY a los que tenga acceso. Esta obligación perdurará durante la vigencia del contrato y por cinco (5) años posteriores a su terminación.</p>
+        <p>2. <strong>Habeas Data:</strong> En cumplimiento de la Ley 1581 de 2012 de Colombia, las bases de datos de clientes e información de SST de WAPPY son de propiedad exclusiva de la COMPAÑÍA.</p>
+
+        <h3>CLÁUSULA DÉCIMA: DURACIÓN Y TERMINACIÓN</h3>
+        <p>1. <strong>Duración:</strong> El presente contrato tendrá una duración de un (1) año contado a partir de la fecha de su firma, renovable automáticamente por periodos iguales salvo comunicación en contrario con 30 días de antelación.</p>
+        <p>2. <strong>Terminación Unilateral:</strong> Cualquiera de las partes podrá dar por terminado el contrato dando preaviso escrito con treinta (30) días calendario de antelación.</p>
+
+        <h3>CLÁUSULA DÉCIMA PRIMERA: LEY APLICABLE Y SOLUCIÓN DE CONTROVERSIAS</h3>
+        <p>El presente contrato se rige por las leyes comerciales de la República de Colombia. Cualquier diferencia que surja entre las partes se resolverá en primera instancia mediante arreglo directo o ante un Centro de Conciliación en derecho autorizado en la ciudad de Medellín o Envigado, Antioquia.</p>
+
+        <p style="margin-top: 2rem; text-align: center;">Para constancia de lo anterior, las partes lo firman en dos (2) ejemplares del mismo tenor y efecto, a los <strong>04</strong> días del mes de <strong>Agosto</strong> del año <strong>2026</strong>.</p>
+
+        <div class="signatures-grid">
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-title">WAPPY LTDA (NIT 901437310)</div>
+            <div class="sig-sub">Representante Legal: Felix Mauricio Bedoya Ocampo<br/>C.C. 1.037.589.726</div>
+          </div>
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-title">EDGAR ALONSO GALVIS MORA</div>
+            <div class="sig-sub">C.C. 70.556.652 de Envigado<br/>Corredor Comercial Independiente WAPPY IA</div>
+          </div>
+        </div>
+
+      </section>
+    </article>
+  </main>
+
+  <script>
+    function descargarPDF() {
+      window.print();
+    }
+  </script>
+</body>
+</html>

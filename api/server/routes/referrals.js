@@ -484,4 +484,292 @@ router.post('/partner/withdraw', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/referrals/dashboard
+ * Comprehensive metrics dashboard endpoint for Admins and Ambassadors/Partners
+ */
+router.get('/dashboard', async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        const Partner = mongoose.model('Partner');
+        const PartnerCommission = mongoose.model('PartnerCommission');
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const User = mongoose.model('User');
+        const UserPlan = mongoose.model('UserPlan');
+
+        const partner = await Partner.findOne({ userId }).lean();
+        const isEmbajador = !!partner || req.user.role === 'EMBAJADOR' || req.user.role === 'EMBAJADOR_LIDER';
+        const isLeader = isAdmin || (partner && partner.type === 'embajador') || req.user.role === 'EMBAJADOR_LIDER';
+
+        if (!isAdmin && !isEmbajador) {
+            return res.status(403).json({ error: 'Acceso restringido a Administradores y Embajadores.' });
+        }
+
+        const now = new Date();
+
+        // 1. Fetch Referral Records
+        let queryFilter = {};
+        if (!isAdmin) {
+            if (partner) {
+                queryFilter = { $or: [{ referredByPartner: partner._id }, { referredByUser: userId }] };
+            } else {
+                queryFilter = { referredByUser: userId };
+            }
+        }
+
+        const allReferrals = await ReferralRecord.find(queryFilter).sort({ createdAt: -1 }).lean();
+        const referredUserIds = allReferrals.map(r => r.referredUserId);
+
+        // Fetch user data & plans
+        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone role accountStatus createdAt updatedAt').lean();
+        const userPlans = await UserPlan.find({ userId: { $in: referredUserIds } }).lean();
+        const partnersMap = new Map();
+
+        const partnerIdsInRefs = allReferrals.map(r => r.referredByPartner).filter(Boolean);
+        if (partnerIdsInRefs.length > 0) {
+            const partnerDocs = await Partner.find({ _id: { $in: partnerIdsInRefs } }).populate('userId', 'name email').lean();
+            partnerDocs.forEach(p => partnersMap.set(String(p._id), p));
+        }
+
+        const usersMap = new Map(users.map(u => [String(u._id), u]));
+        const plansMap = new Map(userPlans.map(p => [String(p.userId), p]));
+
+        // Calculate referred users metrics & traffic lights
+        let activeProCount = 0;
+        let expiringSoonCount = 0;
+        let missingPhoneCount = 0;
+        let inactiveCount = 0;
+
+        const referredUsersList = allReferrals.map(rec => {
+            const u = usersMap.get(String(rec.referredUserId)) || {};
+            const plan = plansMap.get(String(rec.referredUserId));
+            const partnerDoc = rec.referredByPartner ? partnersMap.get(String(rec.referredByPartner)) : null;
+
+            const regDate = rec.createdAt || u.createdAt || now;
+            const lastActivity = u.updatedAt || regDate;
+            const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
+
+            const isPro = u.role === 'USER_PRO' || (plan && plan.plan === 'pro');
+            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : null;
+            let daysToExpiry = null;
+
+            if (expiresAt) {
+                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+
+            if (isPro) activeProCount++;
+            if (daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30) expiringSoonCount++;
+            if (!u.phone || u.phone.trim() === '') missingPhoneCount++;
+            if (daysInactive > 30) inactiveCount++;
+
+            // Traffic light determination
+            // 🟢 Verde: Usuario activo, pago al día, actividad reciente (<= 30 días)
+            // 🟡 Amarillo: Vencimiento 8-30 días / sin actividad 30-90 días
+            // 🔴 Rojo: Vencido / sin actividad > 90 días / pending > 7 días
+            // ⚪ Gris: Freemium sin pago registrado
+            // 🟣 Morado: Comisión pendiente de pago
+            let trafficLight = 'gray';
+            if (isPro) {
+                if (daysToExpiry !== null && daysToExpiry <= 7) {
+                    trafficLight = 'red';
+                } else if (daysToExpiry !== null && daysToExpiry <= 30) {
+                    trafficLight = 'yellow';
+                } else if (daysInactive <= 30) {
+                    trafficLight = 'green';
+                } else {
+                    trafficLight = 'yellow';
+                }
+            } else if (daysInactive > 90 || u.accountStatus === 'pending') {
+                trafficLight = 'red';
+            } else if (daysInactive > 30) {
+                trafficLight = 'yellow';
+            }
+
+            return {
+                id: rec._id,
+                userId: u._id,
+                name: u.name || u.username || 'Usuario Wappy',
+                email: u.email || 'Sin correo',
+                phone: u.phone || '',
+                role: u.role || 'USER',
+                accountStatus: u.accountStatus || 'active',
+                registrationDate: regDate,
+                lastActivity,
+                daysInactive,
+                subscriptionType: plan?.plan || (isPro ? 'pro' : 'freemium'),
+                paymentStatus: isPro ? (daysToExpiry !== null && daysToExpiry < 0 ? 'expired' : 'paid') : 'unpaid',
+                planExpiresAt: expiresAt,
+                daysToExpiry,
+                trafficLight,
+                ambassadorName: partnerDoc ? (partnerDoc.userId?.name || partnerDoc.slug) : 'Sin embajador',
+                ambassadorSlug: partnerDoc?.slug || null,
+                ambassadorId: partnerDoc?._id || null,
+            };
+        });
+
+        // 2. Fetch Commissions
+        let commQuery = {};
+        if (!isAdmin && partner) {
+            commQuery = { partnerId: partner._id };
+        }
+
+        const rawCommissions = await PartnerCommission.find(commQuery).sort({ createdAt: -1 }).lean();
+        let totalCommissionsEarned = 0;
+        let totalCommissionsPending = 0;
+        let totalCommissionsPaid = 0;
+
+        const commissionsList = rawCommissions.map(c => {
+            const refUser = usersMap.get(String(c.referredUserId));
+            if (c.status !== 'cancelled') totalCommissionsEarned += c.commissionAmount || 0;
+            if (c.status === 'pending') totalCommissionsPending += c.commissionAmount || 0;
+            if (c.status === 'paid') totalCommissionsPaid += c.commissionAmount || 0;
+
+            return {
+                id: c._id,
+                referredUserName: refUser?.name || 'Usuario',
+                referredUserEmail: refUser?.email || '',
+                amount: c.amount,
+                commissionRate: c.commissionRate,
+                commissionAmount: c.commissionAmount,
+                status: c.status, // pending, approved, requested, paid, cancelled
+                createdAt: c.createdAt,
+            };
+        });
+
+        // 3. Network Metrics (for Leaders / Admin)
+        let networkStats = [];
+        let topAmbassador = null;
+        let inactiveAmbassadorsCount = 0;
+
+        if (isLeader) {
+            const allPartners = await Partner.find({ status: 'approved' }).populate('userId', 'name email username updatedAt').lean();
+
+            networkStats = await Promise.all(allPartners.map(async p => {
+                const pRefs = await ReferralRecord.countDocuments({ referredByPartner: p._id });
+                const pComms = await PartnerCommission.aggregate([
+                    { $match: { partnerId: p._id, status: { $ne: 'cancelled' } } },
+                    { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+                ]);
+                const totalComm = pComms.length > 0 ? pComms[0].total : 0;
+
+                const lastRef = await ReferralRecord.findOne({ referredByPartner: p._id }).sort({ createdAt: -1 }).lean();
+                const daysSinceLastRef = lastRef ? Math.floor((now.getTime() - new Date(lastRef.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+                if (daysSinceLastRef > 30) inactiveAmbassadorsCount++;
+
+                return {
+                    partnerId: p._id,
+                    name: p.userId?.name || p.userId?.username || p.slug,
+                    email: p.userId?.email || '',
+                    slug: p.slug,
+                    type: p.type || 'partner',
+                    commissionRate: p.commissionRate || 0.20,
+                    totalReferrals: pRefs,
+                    totalCommission: totalComm,
+                    daysSinceLastReferral: daysSinceLastRef === 999 ? 'Sin registros' : `${daysSinceLastRef} días`,
+                };
+            }));
+
+            networkStats.sort((a, b) => b.totalReferrals - a.totalReferrals);
+            if (networkStats.length > 0) {
+                topAmbassador = networkStats[0];
+            }
+        }
+
+        // Total system stats overview
+        const totalRegisteredUsers = isAdmin ? await User.countDocuments() : referredUsersList.length;
+        const totalGrowth7Days = referredUsersList.filter(u => (now.getTime() - new Date(u.registrationDate).getTime()) <= 7 * 24 * 60 * 60 * 1000).length;
+
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
+        const myReferralLink = partner ? `${origin}/?ref=${partner.slug}` : `${origin}/?ref=${req.user.username || userId}`;
+
+        return res.json({
+            userRole: req.user.role,
+            isAdmin,
+            isLeader,
+            isPartner: !!partner,
+            partner,
+            myReferralLink,
+            kpis: {
+                totalRegisteredUsers,
+                totalReferred: referredUsersList.length,
+                totalGrowth7Days,
+                activeProCount,
+                expiringSoonCount,
+                missingPhoneCount,
+                inactiveCount,
+                totalCommissionsEarned,
+                totalCommissionsPending,
+                totalCommissionsPaid,
+                inactiveAmbassadorsCount,
+                topAmbassadorName: topAmbassador?.name || 'N/A',
+            },
+            referredUsers: referredUsersList,
+            commissions: commissionsList,
+            networkStats,
+        });
+
+    } catch (err) {
+        logger.error('[ReferralsDashboard] Error:', err);
+        return res.status(500).json({ error: 'Error al obtener el dashboard de métricas' });
+    }
+});
+
+/**
+ * POST /api/referrals/attribute
+ * Assign or update ambassador attribution for a user (Admin only)
+ */
+router.post('/attribute', async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo los administradores pueden cambiar la atribución de embajadores.' });
+        }
+
+        const { targetUserId, partnerId } = req.body;
+        if (!targetUserId) {
+            return res.status(400).json({ error: 'El ID de usuario objetivo es requerido.' });
+        }
+
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const Partner = mongoose.model('Partner');
+
+        let partnerObj = null;
+        if (partnerId) {
+            partnerObj = await Partner.findById(partnerId);
+            if (!partnerObj) {
+                return res.status(404).json({ error: 'El embajador seleccionado no existe.' });
+            }
+        }
+
+        let refRecord = await ReferralRecord.findOne({ referredUserId: targetUserId });
+        if (!refRecord) {
+            refRecord = new ReferralRecord({
+                referredUserId: targetUserId,
+                referredByPartner: partnerObj ? partnerObj._id : null,
+                referredByUser: partnerObj ? partnerObj.userId : null,
+                status: 'registered'
+            });
+        } else {
+            refRecord.referredByPartner = partnerObj ? partnerObj._id : null;
+            refRecord.referredByUser = partnerObj ? partnerObj.userId : null;
+        }
+
+        await refRecord.save();
+
+        logger.info(`[ReferralsAttribute] Admin ${req.user.email} assigned User ${targetUserId} to Partner ${partnerObj ? partnerObj.slug : 'None'}`);
+
+        return res.json({
+            success: true,
+            message: 'Atribución actualizada exitosamente.',
+            refRecord
+        });
+    } catch (err) {
+        logger.error('[ReferralsAttribute] Error:', err);
+        return res.status(500).json({ error: 'Error al actualizar la atribución del usuario' });
+    }
+});
+
 module.exports = router;
+

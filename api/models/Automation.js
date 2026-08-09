@@ -39,7 +39,7 @@ const automationSchema = new mongoose.Schema(
     scheduleConfig: {
       hour: { type: Number, default: 8 },
       minute: { type: Number, default: 0 },
-      dayOfWeek: { type: Number, default: 1 }, // 0 = Sunday, 1 = Monday, etc.
+      dayOfWeek: { type: mongoose.Schema.Types.Mixed, default: 1 }, // 0 = Sunday, 1 = Monday, or array of numbers [1, 3, 5]
       dayOfMonth: { type: Number, default: 1 },
       intervalHours: { type: Number, default: 1 },
     },
