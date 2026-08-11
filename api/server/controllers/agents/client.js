@@ -1284,8 +1284,22 @@ class AgentClient extends BaseClient {
           } catch (err) {
             lastErr = err;
             logger.error(`[AgentClient ERROR DUMP] [Key ${i}] Name: ${err?.name}, Status: ${err?.status}, Message: ${err?.message}`);
-            // If the error has a stack or raw response, print it to debug this
-            if (err?.response) logger.error(`[AgentClient RESPONSE DUMP]: ${JSON.stringify(err.response.data || err.response)}`);
+            if (err?.response) {
+              try {
+                let dump = '';
+                if (err.response.data) {
+                  const dataStr = typeof err.response.data === 'string'
+                    ? err.response.data
+                    : JSON.stringify(err.response.data);
+                  dump = dataStr.length > 2000 ? dataStr.substring(0, 2000) + '... [truncated]' : dataStr;
+                } else {
+                  dump = '[No response data]';
+                }
+                logger.error(`[AgentClient RESPONSE DUMP]: status=${err.response.status} data=${dump}`);
+              } catch (logErr) {
+                logger.error(`[AgentClient RESPONSE DUMP]: status=${err?.response?.status || 'unknown'} (unserializable response: ${logErr.message})`);
+              }
+            }
 
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
