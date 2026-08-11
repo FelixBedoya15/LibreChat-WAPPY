@@ -1285,21 +1285,24 @@ class BaseClient {
 
   async processAttachments(message, attachments) {
     const pdfFiles = attachments.filter((file) => file?.type === 'application/pdf');
-    const pdfFileIds = pdfFiles
-      .map((file) => file.file_id)
-      .filter((id) => id && id !== 'undefined' && id !== 'null' && id !== '');
-    if (pdfFileIds.length > 0) {
-      try {
-        const childImages = await getFiles({
-          'metadata.parent_pdf': { $in: pdfFileIds },
-          type: 'image/png',
-        });
+    const pdfsWithoutText = pdfFiles.filter((file) => !file.text || file.text.trim().length === 0);
+    if (pdfsWithoutText.length > 0) {
+      const pdfFileIds = pdfsWithoutText
+        .map((file) => file.file_id)
+        .filter((id) => id && id !== 'undefined' && id !== 'null' && id !== '');
+      if (pdfFileIds.length > 0) {
+        try {
+          const childImages = await getFiles({
+            'metadata.parent_pdf': { $in: pdfFileIds },
+            type: 'image/png',
+          });
 
-        if (childImages && childImages.length > 0) {
-          attachments = [...attachments, ...childImages];
+          if (childImages && childImages.length > 0) {
+            attachments = [...attachments, ...childImages];
+          }
+        } catch (err) {
+          logger.error('[BaseClient] Error retrieving child page images for PDFs:', err);
         }
-      } catch (err) {
-        logger.error('[BaseClient] Error retrieving child page images for PDFs:', err);
       }
     }
 
