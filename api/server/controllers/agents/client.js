@@ -356,17 +356,19 @@ class AgentClient extends BaseClient {
         assistantName: this.options?.modelLabel,
       });
 
-      if (message.fileContext && i !== orderedMessages.length - 1) {
+      if (message.fileContext) {
         if (typeof formattedMessage.content === 'string') {
           formattedMessage.content = message.fileContext + '\n' + formattedMessage.content;
-        } else {
-          const textPart = formattedMessage.content.find((part) => part.type === 'text');
+        } else if (Array.isArray(formattedMessage.content)) {
+          const textPart = formattedMessage.content.find((part) => part && part.type === 'text');
           textPart
             ? (textPart.text = message.fileContext + '\n' + textPart.text)
             : formattedMessage.content.unshift({ type: 'text', text: message.fileContext });
         }
-      } else if (message.fileContext && i === orderedMessages.length - 1) {
-        systemContent = [systemContent, message.fileContext].join('\n');
+        if (i === orderedMessages.length - 1) {
+          systemContent = [systemContent, message.fileContext].join('\n');
+          this.options.agent.instructions = systemContent;
+        }
       }
 
       const needsTokenCount =
