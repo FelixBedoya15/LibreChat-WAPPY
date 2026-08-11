@@ -162,13 +162,15 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
   } else if (isPdf) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pdf = require('pdf-parse');
+      const { PDFParse } = require('pdf-parse');
       const dataBuffer = await fsPromises.readFile(file.path);
-      const pdfData = await pdf(dataBuffer);
-      text = pdfData.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+      const parser = new PDFParse({ data: dataBuffer });
+      const pdfData = await parser.getText();
+      text = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
       if (!text) {
         text = 'Empty PDF document';
       }
+      await parser.destroy();
     } catch (pdfError) {
       logger.error(`[parseTextNative] Error parsing PDF file ${file.path}:`, pdfError);
       throw new Error('RAG API is required to parse PDF files, but the connection failed or RAG is not running. Please check if the RAG API container is healthy.');

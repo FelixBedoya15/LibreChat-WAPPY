@@ -61,6 +61,13 @@ export async function encodeAndFormatDocuments(
     }
 
     if (file.type === 'application/pdf' && isDocumentSupportedProvider(provider)) {
+      // If text has already been extracted into file.text, skip inline Base64 document duplication
+      // to prevent Multi-Agent Handoff Graph payload inflation and V8 'Invalid string length' errors.
+      if (file.text && file.text.trim().length > 0 && provider !== Providers.ANTHROPIC) {
+        result.files.push(metadata);
+        continue;
+      }
+
       const pdfBuffer = Buffer.from(content, 'base64');
       const validation = await validatePdf(pdfBuffer, pdfBuffer.length, provider);
 
