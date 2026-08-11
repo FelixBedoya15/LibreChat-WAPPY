@@ -17,6 +17,28 @@ index 1ebb7f6..acbea50 100644
          if (metadata.ls_provider === 'FakeListChatModel') {
              return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
          }
+diff --git a/node_modules/@librechat/agents/dist/cjs/graphs/MultiAgentGraph.cjs b/node_modules/@librechat/agents/dist/cjs/graphs/MultiAgentGraph.cjs
+index 702a29d..4e48e88 100644
+--- a/node_modules/@librechat/agents/dist/cjs/graphs/MultiAgentGraph.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/graphs/MultiAgentGraph.cjs
+@@ -163,7 +163,7 @@ class MultiAgentGraph extends Graph.StandardGraph {
+                 });
+                 return new langgraph.Command({
+                     goto: destination,
+-                    update: { messages: state.messages.concat(toolMessage) },
++                    update: { messages: [toolMessage] },
+                     graph: langgraph.Command.PARENT,
+                 });
+             }, {
+@@ -207,7 +207,7 @@ class MultiAgentGraph extends Graph.StandardGraph {
+                     const state = langgraph.getCurrentTaskInput();
+                     return new langgraph.Command({
+                         goto: destination,
+-                        update: { messages: state.messages.concat(toolMessage) },
++                        update: { messages: [toolMessage] },
+                         graph: langgraph.Command.PARENT,
+                     });
+                 }, {
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 index 48c6de6..81f7f15 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
@@ -195,6 +217,28 @@ index 7f57687..94fa4f0 100644
                  safesearch: safeSearch,
                  engines: 'google,bing,duckduckgo',
              };
+diff --git a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
+index 2ce0a08..9bd5b62 100644
+--- a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
++++ b/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
+@@ -161,7 +161,7 @@ class MultiAgentGraph extends StandardGraph {
+                 });
+                 return new Command({
+                     goto: destination,
+-                    update: { messages: state.messages.concat(toolMessage) },
++                    update: { messages: [toolMessage] },
+                     graph: Command.PARENT,
+                 });
+             }, {
+@@ -205,7 +205,7 @@ class MultiAgentGraph extends StandardGraph {
+                     const state = getCurrentTaskInput();
+                     return new Command({
+                         goto: destination,
+-                        update: { messages: state.messages.concat(toolMessage) },
++                        update: { messages: [toolMessage] },
+                         graph: Command.PARENT,
+                     });
+                 }, {
 diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
 index f936ded..1aa6088 100644
 --- a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
@@ -306,6 +350,28 @@ index 62b7ecf..51bf791 100644
                  safesearch: safeSearch,
                  engines: 'google,bing,duckduckgo',
              };
+diff --git a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts b/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
+index 8bcddd9..b2a3452 100644
+--- a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
++++ b/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
+@@ -197,7 +197,7 @@ export class MultiAgentGraph extends StandardGraph {
+ 
+             return new Command({
+               goto: destination,
+-              update: { messages: state.messages.concat(toolMessage) },
++              update: { messages: [toolMessage] },
+               graph: Command.PARENT,
+             });
+           },
+@@ -256,7 +256,7 @@ export class MultiAgentGraph extends StandardGraph {
+ 
+               return new Command({
+                 goto: destination,
+-                update: { messages: state.messages.concat(toolMessage) },
++                update: { messages: [toolMessage] },
+                 graph: Command.PARENT,
+               });
+             },
 diff --git a/node_modules/@librechat/agents/src/llm/google/index.ts b/node_modules/@librechat/agents/src/llm/google/index.ts
 index 2ab8c94..6e2954a 100644
 --- a/node_modules/@librechat/agents/src/llm/google/index.ts

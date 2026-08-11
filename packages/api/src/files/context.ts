@@ -41,8 +41,7 @@ export async function extractFileContext({
   let resultText = '';
 
   for (const file of attachments) {
-    const source = file.source ?? FileSources.local;
-    if (source === FileSources.text && file.text) {
+    if (file.text && file.text.trim().length > 0) {
       const { text: limitedText, wasTruncated } = await processTextWithTokenLimit({
         text: file.text,
         tokenLimit: fileTokenLimit,
