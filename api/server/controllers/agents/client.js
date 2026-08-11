@@ -232,7 +232,21 @@ class AgentClient extends BaseClient {
     });
 
     const lastUserMessage = orderedMessages[orderedMessages.length - 1];
-    const lastUserText = lastUserMessage ? lastUserMessage.text : '';
+    const currentIncomingMessage = Array.isArray(messages) && messages.length > 0 ? messages[messages.length - 1] : null;
+    let lastUserText = '';
+    if (currentIncomingMessage) {
+      if (typeof currentIncomingMessage.text === 'string' && currentIncomingMessage.text) {
+        lastUserText = currentIncomingMessage.text;
+      } else if (typeof currentIncomingMessage.content === 'string' && currentIncomingMessage.content) {
+        lastUserText = currentIncomingMessage.content;
+      } else if (Array.isArray(currentIncomingMessage.content)) {
+        const textObj = currentIncomingMessage.content.find((p) => p && (p.type === 'text' || p.text));
+        lastUserText = textObj ? (textObj.text || textObj[ContentTypes.TEXT] || '') : '';
+      }
+    }
+    if (!lastUserText && lastUserMessage) {
+      lastUserText = typeof lastUserMessage.text === 'string' ? lastUserMessage.text : '';
+    }
     const skillInstructions = getActiveSkillInstructions(lastUserText, this.options.agent?.skills);
 
     let payload;

@@ -11,7 +11,9 @@ const SKILLS_DIR = path.join(__dirname, '../../config/skills');
  * Lógica especial:
  * - La skill maestra 'skill-guia-plataforma-wappy' se inyecta SIEMPRE si está habilitada,
  *   sin necesidad de que el mensaje del usuario contenga un trigger específico.
- * - El resto de skills se activan solo si el mensaje contiene al menos un trigger.
+ * - El resto de skills se activan solo si el mensaje contiene al menos un trigger válido.
+ * - Se usan límites de palabra (\b) para triggers cortos (<= 4 letras) para evitar falsos
+ *   positivos masivos (ej: 'rit' coincidiendo dentro de 'escrita' o 'criterio').
  *
  * @param {string} lastUserMessageText
  * @param {string[]} agentSkills - Lista de nombres de skills habilitados para el agente.
@@ -24,9 +26,11 @@ function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
 
   const MASTER_SKILL = 'skill-guia-plataforma-wappy';
   const activatedBlocks = [];
+  const MAX_TRIGGER_SKILLS = 2; // Máximo 2 skills activadas por trigger para evitar desbordamiento de contexto
+  let triggerCount = 0;
 
   try {
-    const files = fs.readdirSync(SKILLS_DIR).filter(f => f.endsWith('.md'));
+    const files = fs.readdirSync(SKILLS_DIR).filter((f) => f.endsWith('.md'));
 
     for (const file of files) {
       const filePath = path.join(SKILLS_DIR, file);
@@ -59,13 +63,33 @@ function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
         continue;
       }
 
-      // 3. Para el resto de skills, verificar si el mensaje contiene algún trigger
-      if (!lastUserMessageText) continue;
-      const matchesTrigger = triggers.some(trigger =>
-        lastUserMessageText.toLowerCase().includes(trigger.toLowerCase())
-      );
+      // Limitar la cantidad máxima de skills por trigger para prevenir sataturación de prompt
+      if (triggerCount >= MAX_TRIGGER_SKILLS) continue;
+
+      // 3. Verificar si el mensaje del usuario coincide con algún trigger
+      if (!lastUserMessageText || typeof lastUserMessageText !== 'string') continue;
+      const cleanText = lastUserMessageText.trim();
+      if (!cleanText) continue;
+
+      const matchesTrigger = triggers.some((trigger) => {
+        if (!trigger || typeof trigger !== 'string') return false;
+        const cleanTrigger = trigger.trim();
+        if (!cleanTrigger) return false;
+
+        const escaped = cleanTrigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Para triggers cortos (<= 4 caracteres) exigir coincidencia de palabra completa (\b)
+        // para evitar falsos positivos como 'rit' dentro de 'escrita' o 'rag' dentro de 'estragos'.
+        if (cleanTrigger.length <= 4) {
+          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+          return regex.test(cleanText);
+        }
+
+        return cleanText.toLowerCase().includes(cleanTrigger.toLowerCase());
+      });
 
       if (matchesTrigger) {
+        triggerCount++;
         console.log(`[SkillRouter] Skill '${skillName}' activada por trigger en el mensaje.`);
         activatedBlocks.push(`\n\n# ⚡ SKILL ACTIVADA: ${skillName.toUpperCase()}\n${skillBody}`);
       }
