@@ -114,7 +114,7 @@ class BaseClient {
    * @returns {number}
    */
   getTokenCountForResponse(responseMessage) {
-    logger.debug('[BaseClient] `recordTokenUsage` not implemented.', responseMessage);
+    logger.debug('[BaseClient] `recordTokenUsage` not implemented.', { messageId: responseMessage?.messageId });
   }
 
   /**
@@ -589,7 +589,6 @@ class BaseClient {
 
     const promptTokens = this.maxContextTokens - remainingContextTokens;
 
-    logger.debug('[BaseClient] tokenCountMap:', tokenCountMap);
     logger.debug('[BaseClient]', {
       promptTokens,
       remainingContextTokens,
@@ -669,10 +668,9 @@ class BaseClient {
     );
 
     if (tokenCountMap) {
-      logger.debug('[BaseClient] tokenCountMap', tokenCountMap);
       if (tokenCountMap[userMessage.messageId]) {
         userMessage.tokenCount = tokenCountMap[userMessage.messageId];
-        logger.debug('[BaseClient] userMessage', userMessage);
+        logger.debug('[BaseClient] userMessage tokenCount updated:', { messageId: userMessage.messageId, tokenCount: userMessage.tokenCount });
       }
 
       this.handleTokenCountMap(tokenCountMap);
