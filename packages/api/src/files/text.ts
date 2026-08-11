@@ -1,6 +1,6 @@
 import axios from 'axios';
 import FormData from 'form-data';
-import { createReadStream } from 'fs';
+import { createReadStream, promises as fsPromises } from 'fs';
 import * as XLSX from 'xlsx';
 import * as mammoth from 'mammoth';
 import { logger } from '@librechat/data-schemas';
@@ -160,7 +160,19 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
       text = content;
     }
   } else if (isPdf) {
-    throw new Error('RAG API is required to parse PDF files, but the connection failed or RAG is not running. Please check if the RAG API container is healthy.');
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pdf = require('pdf-parse');
+      const dataBuffer = await fsPromises.readFile(file.path);
+      const pdfData = await pdf(dataBuffer);
+      text = pdfData.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+      if (!text) {
+        text = 'Empty PDF document';
+      }
+    } catch (pdfError) {
+      logger.error(`[parseTextNative] Error parsing PDF file ${file.path}:`, pdfError);
+      throw new Error('RAG API is required to parse PDF files, but the connection failed or RAG is not running. Please check if the RAG API container is healthy.');
+    }
   } else {
     const { content } = await readFileAsString(file.path, {
       fileSize: file.size,
