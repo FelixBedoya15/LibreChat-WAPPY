@@ -99,7 +99,7 @@ export async function encodeAndFormatDocuments(
         });
       } else if (provider === Providers.GOOGLE || provider === Providers.VERTEXAI) {
         result.documents.push({
-          type: 'document',
+          type: 'application/pdf',
           mimeType: 'application/pdf',
           data: content,
         });
