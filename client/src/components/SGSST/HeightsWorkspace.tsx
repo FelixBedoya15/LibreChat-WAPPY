@@ -662,34 +662,34 @@ export default function HeightsWorkspace() {
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* Editor de Informe de Alturas */}
-              <CollapsibleReportBox
-                onSave={handleSave}
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                isHistoryOpen={isHistoryOpen}
-                title="Informe IA - Control de Equipos de Alturas"
-                icon={<ShieldAlert className="h-5 w-5" />}
-                actions={
-                  <ExportDropdown
-                    content={editorContentRef.current || generatedReport || ''}
-                    fileName={`Informe_Alturas_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
-                    reportType="general"
-                  />
-                }
-              >
-                <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: '900px', padding: '16px' }}>
-                    <LiveEditor
-                      ref={liveEditorRef}
-                      initialContent={generatedReport}
-                      onUpdate={(html) => { editorContentRef.current = html; }}
-                      reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+                {/* Editor de Informe de Alturas */}
+                <CollapsibleReportBox
+                  onSave={handleSave}
+                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  isHistoryOpen={isHistoryOpen}
+                  title="Informe IA - Control de Equipos de Alturas"
+                  icon={<ShieldAlert className="h-5 w-5" />}
+                  actions={
+                    <ExportDropdown
+                      content={editorContentRef.current || generatedReport || ''}
+                      fileName={`Informe_Alturas_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
+                      reportType="general"
                     />
+                  }
+                >
+                  <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                    <div style={{ minWidth: '900px', padding: '16px' }}>
+                      <LiveEditor
+                        ref={liveEditorRef}
+                        initialContent={generatedReport}
+                        onUpdate={(html) => { editorContentRef.current = html; }}
+                        reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </CollapsibleReportBox>
+                </CollapsibleReportBox>
+              </div>
 
             </div>
           </div>

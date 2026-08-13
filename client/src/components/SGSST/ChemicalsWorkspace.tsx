@@ -740,34 +740,34 @@ export default function ChemicalsWorkspace() {
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* Editor de Informe de Químicos */}
-              <CollapsibleReportBox
-                onSave={handleSave}
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                isHistoryOpen={isHistoryOpen}
-                title="Informe IA - Control de Sustancias Químicas (SGA)"
-                icon={<ShieldAlert className="h-5 w-5" />}
-                actions={
-                  <ExportDropdown
-                    content={editorContentRef.current || generatedReport || ''}
-                    fileName={selectedProduct ? `Informe_Quimico_${selectedProduct.nombre.replace(/\s+/g, '_')}` : `Informe_Auditoria_Quimica`}
-                    reportType="general"
-                  />
-                }
-              >
-                <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: '900px', padding: '16px' }}>
-                    <LiveEditor
-                      ref={liveEditorRef}
-                      initialContent={generatedReport}
-                      onUpdate={(html) => { editorContentRef.current = html; }}
-                      reportSourceData={{ product: selectedProduct, allProducts: chemicals }}
+                {/* Editor de Informe de Químicos */}
+                <CollapsibleReportBox
+                  onSave={handleSave}
+                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  isHistoryOpen={isHistoryOpen}
+                  title="Informe IA - Control de Sustancias Químicas (SGA)"
+                  icon={<ShieldAlert className="h-5 w-5" />}
+                  actions={
+                    <ExportDropdown
+                      content={editorContentRef.current || generatedReport || ''}
+                      fileName={selectedProduct ? `Informe_Quimico_${selectedProduct.nombre.replace(/\s+/g, '_')}` : `Informe_Auditoria_Quimica`}
+                      reportType="general"
                     />
+                  }
+                >
+                  <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                    <div style={{ minWidth: '900px', padding: '16px' }}>
+                      <LiveEditor
+                        ref={liveEditorRef}
+                        initialContent={generatedReport}
+                        onUpdate={(html) => { editorContentRef.current = html; }}
+                        reportSourceData={{ product: selectedProduct, allProducts: chemicals }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </CollapsibleReportBox>
+                </CollapsibleReportBox>
+              </div>
 
             </div>
           </div>

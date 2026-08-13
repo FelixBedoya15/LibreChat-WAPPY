@@ -931,34 +931,34 @@ export default function EPPWorkspace() {
                     )}
                   </div>
                 )}
-              </div>
 
-              {/* Editor de Informe de EPP */}
-              <CollapsibleReportBox
-                onSave={handleSave}
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                isHistoryOpen={isHistoryOpen}
-                title="Informe IA - Entrega de EPP"
-                icon={<ShieldAlert className="h-5 w-5" />}
-                actions={
-                  <ExportDropdown
-                    content={editorContentRef.current || generatedReport || ''}
-                    fileName={`Informe_EPP_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
-                    reportType="general"
-                  />
-                }
-              >
-                <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: '900px', padding: '16px' }}>
-                    <LiveEditor
-                      ref={liveEditorRef}
-                      initialContent={generatedReport}
-                      onUpdate={(html) => { editorContentRef.current = html; }}
-                      reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+                {/* Editor de Informe de EPP */}
+                <CollapsibleReportBox
+                  onSave={handleSave}
+                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  isHistoryOpen={isHistoryOpen}
+                  title="Informe IA - Entrega de EPP"
+                  icon={<ShieldAlert className="h-5 w-5" />}
+                  actions={
+                    <ExportDropdown
+                      content={editorContentRef.current || generatedReport || ''}
+                      fileName={`Informe_EPP_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
+                      reportType="general"
                     />
+                  }
+                >
+                  <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                    <div style={{ minWidth: '900px', padding: '16px' }}>
+                      <LiveEditor
+                        ref={liveEditorRef}
+                        initialContent={generatedReport}
+                        onUpdate={(html) => { editorContentRef.current = html; }}
+                        reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </CollapsibleReportBox>
+                </CollapsibleReportBox>
+              </div>
 
             </div>
 

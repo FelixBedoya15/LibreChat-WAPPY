@@ -763,34 +763,34 @@ export default function VehiclesWorkspace() {
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* Editor de Informe de Vehículo */}
-              <CollapsibleReportBox
-                onSave={handleSave}
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                isHistoryOpen={isHistoryOpen}
-                title="Informe IA - Control Vehicular (PESV)"
-                icon={<ShieldAlert className="h-5 w-5" />}
-                actions={
-                  <ExportDropdown
-                    content={editorContentRef.current || generatedReport || ''}
-                    fileName={`Informe_Vehiculo_${selectedVehicle?.placa}`}
-                    reportType="general"
-                  />
-                }
-              >
-                <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: '900px', padding: '16px' }}>
-                    <LiveEditor
-                      ref={liveEditorRef}
-                      initialContent={generatedReport}
-                      onUpdate={(html) => { editorContentRef.current = html; }}
-                      reportSourceData={{ vehicle: selectedVehicle }}
+                {/* Editor de Informe de Vehículo */}
+                <CollapsibleReportBox
+                  onSave={handleSave}
+                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  isHistoryOpen={isHistoryOpen}
+                  title="Informe IA - Control Vehicular (PESV)"
+                  icon={<ShieldAlert className="h-5 w-5" />}
+                  actions={
+                    <ExportDropdown
+                      content={editorContentRef.current || generatedReport || ''}
+                      fileName={`Informe_Vehiculo_${selectedVehicle?.placa}`}
+                      reportType="general"
                     />
+                  }
+                >
+                  <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                    <div style={{ minWidth: '900px', padding: '16px' }}>
+                      <LiveEditor
+                        ref={liveEditorRef}
+                        initialContent={generatedReport}
+                        onUpdate={(html) => { editorContentRef.current = html; }}
+                        reportSourceData={{ vehicle: selectedVehicle }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </CollapsibleReportBox>
+                </CollapsibleReportBox>
+              </div>
 
             </div>
           </div>
