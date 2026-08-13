@@ -674,8 +674,9 @@ export default function HeightsWorkspace() {
           </div>
         )}
       </div>
+    </div>
 
-      {/* Editor de Informe de Alturas (Nivel Raíz — Siempre Visible) */}
+      {/* Editor de Informe de Alturas (Nivel Raíz — Siempre Visible a Todo Ancho) */}
       <CollapsibleReportBox
         onSave={handleSave}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -701,7 +702,6 @@ export default function HeightsWorkspace() {
           </div>
         </div>
       </CollapsibleReportBox>
-    </div>
 
       {/* Modal: Registrar Equipo */}
       {isModalOpen && selectedWorker && ReactDOM.createPortal(

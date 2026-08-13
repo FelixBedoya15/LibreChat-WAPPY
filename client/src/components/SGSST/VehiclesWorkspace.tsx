@@ -775,8 +775,9 @@ export default function VehiclesWorkspace() {
           </div>
         )}
       </div>
+    </div>
 
-      {/* Editor de Informe de Vehículo (Nivel Raíz — Siempre Visible) */}
+      {/* Editor de Informe de Vehículo (Nivel Raíz — Siempre Visible a Todo Ancho) */}
       <CollapsibleReportBox
         onSave={handleSave}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -802,7 +803,6 @@ export default function VehiclesWorkspace() {
           </div>
         </div>
       </CollapsibleReportBox>
-    </div>
 
       {/* Modal: Registrar Inspección Pre-operacional */}
       {isModalOpen && selectedVehicle && ReactDOM.createPortal(

@@ -945,8 +945,9 @@ export default function EPPWorkspace() {
           </div>
         )}
       </div>
+    </div>
 
-      {/* Editor de Informe de EPP (Nivel Raíz — Siempre Visible) */}
+      {/* Editor de Informe de EPP (Nivel Raíz — Siempre Visible a Todo Ancho) */}
       <CollapsibleReportBox
         onSave={handleSave}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -972,7 +973,6 @@ export default function EPPWorkspace() {
           </div>
         </div>
       </CollapsibleReportBox>
-    </div>
 
       {/* ── MODAL: REGISTRAR NUEVA ENTREGA ── */}
       {isModalOpen && selectedWorker && ReactDOM.createPortal(

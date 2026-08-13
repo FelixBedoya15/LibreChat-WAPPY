@@ -752,8 +752,9 @@ export default function ChemicalsWorkspace() {
           </div>
         )}
       </div>
+    </div>
 
-      {/* Editor de Informe de Químicos (Nivel Raíz — Siempre Visible) */}
+      {/* Editor de Informe de Químicos (Nivel Raíz — Siempre Visible a Todo Ancho) */}
       <CollapsibleReportBox
         onSave={handleSave}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -779,7 +780,6 @@ export default function ChemicalsWorkspace() {
           </div>
         </div>
       </CollapsibleReportBox>
-    </div>
 
       {/* Modal: Registrar/Editar Producto */}
       {isModalOpen && ReactDOM.createPortal(
