@@ -25,6 +25,7 @@ import { SGSSTToolbar } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import ExportDropdown from './ExportDropdown';
 import { UpgradeWall } from './UpgradeWall';
 
 interface ChemicalProduct {
