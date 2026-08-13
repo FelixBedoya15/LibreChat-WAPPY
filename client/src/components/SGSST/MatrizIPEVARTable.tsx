@@ -1116,7 +1116,7 @@ export default function MatrizIPEVARTable({
     return () => clearInterval(interval);
   }, [isSubmitting, actualConvoId, workerId]);
 
-  const saveMatrixData = async (rows: MatrixRow[]) => {
+  async function saveMatrixData(rows: MatrixRow[]) {
     const normalizedRows = rows.map((r) => ({
       ...r,
       proceso: toSentenceCase(r.proceso),

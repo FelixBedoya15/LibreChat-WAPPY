@@ -59,6 +59,8 @@ interface SGSSTToolbarProps {
   customSections?: React.ReactNode[];
 }
 
+const ToolbarSeparator = () => <div className="bg-border-medium/60 mx-1 h-6 w-px" />;
+
 export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
   historyButtons = [],
   aiButtons = [],
@@ -331,7 +333,5 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
     </motion.button>
   );
 };
-
-const ToolbarSeparator = () => <div className="bg-border-medium/60 mx-1 h-6 w-px" />;
 
 export default SGSSTToolbar;

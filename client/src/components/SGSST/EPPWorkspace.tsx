@@ -112,6 +112,14 @@ export default function EPPWorkspace() {
 
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
 
+  // Calculations for selected worker
+  const selectedDoc = eppDocs.find(doc => doc.workerId === selectedWorker?.id);
+  const activeCargoProfile = cargoProfiles.find(profile => 
+    profile.nombreCargo.toLowerCase().trim() === selectedWorker?.cargo?.toLowerCase()?.trim() ||
+    profile.id === selectedWorker?.id // fallback link
+  );
+  const recommendedEpps = activeCargoProfile?.eppSeleccionados || [];
+
   const handleGenerate = useCallback(async () => {
     if (!selectedWorker) {
       showToast({ message: 'Seleccione un trabajador primero', status: 'warning' });
@@ -290,15 +298,6 @@ export default function EPPWorkspace() {
     loadData();
   }, [token]);
 
-  // Calculations for selected worker
-  const selectedDoc = eppDocs.find(doc => doc.workerId === selectedWorker?.id);
-  const activeCargoProfile = cargoProfiles.find(profile => 
-    profile.nombreCargo.toLowerCase().trim() === selectedWorker?.cargo?.toLowerCase()?.trim() ||
-    profile.id === selectedWorker?.id // fallback link
-  );
-
-  const recommendedEpps = activeCargoProfile?.eppSeleccionados || [];
-
   // Autocomplete suggestions
   const standardEppSuggestions = [
     'Casco dieléctrico con barbuquejo',
@@ -455,7 +454,7 @@ export default function EPPWorkspace() {
     }
   };
 
-  const resetForm = () => {
+  function resetForm() {
     setFormEppName('');
     setFormTipo('Regular');
     setFormCantidad(1);

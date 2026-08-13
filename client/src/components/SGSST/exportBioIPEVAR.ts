@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { BioRiskRow } from './BioMatrizIPEVAR';
+import type { BioRiskRow } from './BioMatrizIPEVAR';
 
 export const exportBioIPEVARToExcel = async (
   matrixRows: BioRiskRow[],

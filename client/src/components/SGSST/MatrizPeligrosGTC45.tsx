@@ -348,7 +348,7 @@ const MatrizPeligrosGTC45 = () => {
         ));
     };
 
-    const updateProcesoField = (procesoId: string, field: keyof ProcesoEntry, value: any) => {
+    function updateProcesoField(procesoId: string, field: keyof ProcesoEntry, value: any) {
         setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
     };
 

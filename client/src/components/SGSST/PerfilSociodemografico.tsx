@@ -771,7 +771,7 @@ const PerfilSociodemografico = () => {
     };
 
     // ─── Bio-Fit Engine ──────────────────────────────────────────
-    const calculateBiocentricFit = (w: WorkerEntry) => {
+    function calculateBiocentricFit(w: WorkerEntry) {
         let score = 100;
         let alerts: string[] = [];
         let isLethal = false;
@@ -869,7 +869,7 @@ const PerfilSociodemografico = () => {
     }, []);
 
     // Load inbox
-    const handleLoadInbox = async (silent = false) => {
+    async function handleLoadInbox(silent = false) {
         if (!silent) setLoadingInbox(true);
         if (!silent) setShowInboxPerfil(true);
         try {

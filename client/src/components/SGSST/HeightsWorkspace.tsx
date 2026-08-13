@@ -94,6 +94,7 @@ export default function HeightsWorkspace() {
   const editorContentRef = useRef<string | null>(null);
 
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const selectedDoc = heightsDocs.find(d => d.workerId === selectedWorker?.id);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedWorker) {
@@ -263,8 +264,6 @@ export default function HeightsWorkspace() {
     loadData();
   }, [token]);
 
-  const selectedDoc = heightsDocs.find(d => d.workerId === selectedWorker?.id);
-
   const resetForm = () => {
     setFormNombre('Arnés de cuerpo entero (4 argollas)');
     setFormMarca('');
@@ -359,7 +358,7 @@ export default function HeightsWorkspace() {
     }
   };
 
-  const formFormularyProximaInspeccion = () => {
+  function formFormularyProximaInspeccion() {
     if (formFechaProximaInspeccion) return formFechaProximaInspeccion;
     if (formFechaUltimaInspeccion) {
       const d = new Date(formFechaUltimaInspeccion + 'T12:00:00');

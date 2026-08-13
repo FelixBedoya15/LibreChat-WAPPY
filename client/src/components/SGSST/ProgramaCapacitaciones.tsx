@@ -121,7 +121,7 @@ export default function ProgramaCapacitaciones() {
     fetchPlanData();
   }, [token]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setIsLoading(true);
     try {
       const res = await fetch('/api/sgsst/programa-capacitaciones/data', {
@@ -137,9 +137,9 @@ export default function ProgramaCapacitaciones() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const fetchPlanData = async () => {
+  async function fetchPlanData() {
     try {
       const res = await fetch('/api/sgsst/programa-capacitaciones/plan-trabajador', {
         headers: { Authorization: `Bearer ${token}` },

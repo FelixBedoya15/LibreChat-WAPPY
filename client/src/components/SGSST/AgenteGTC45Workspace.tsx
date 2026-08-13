@@ -130,7 +130,7 @@ export default function AgenteGTC45Workspace() {
     }
   }, [messages, matrixRows, currentConvoId]);
 
-  const saveMatrixData = async (convoId: string | null, rows: MatrixRow[], showNotification = false) => {
+  async function saveMatrixData(convoId: string | null, rows: MatrixRow[], showNotification = false) {
     if (!convoId) return;
     try {
       setIsSaving(true);

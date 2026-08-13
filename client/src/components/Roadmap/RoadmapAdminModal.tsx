@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RoadmapItem } from './RoadmapPage';
+import type { RoadmapItem } from './RoadmapPage';
 import { X, Save } from 'lucide-react';
 
 interface Props {

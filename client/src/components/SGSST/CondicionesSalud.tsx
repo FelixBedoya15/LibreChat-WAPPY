@@ -1034,7 +1034,7 @@ const CondicionesSalud = () => {
     }, []);
 
     // Load inbox
-    const handleLoadInbox = async (silent = false) => {
+    async function handleLoadInbox(silent = false) {
         if (!silent) setLoadingInbox(true);
         if (!silent) setShowInboxPerfil(true);
         try {

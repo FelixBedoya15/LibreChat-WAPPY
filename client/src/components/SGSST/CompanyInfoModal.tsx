@@ -267,7 +267,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         return () => clearTimeout(timer);
     }, [data, loading]);
 
-    const syncSignaturesToLocal = (info: CompanyInfoData) => {
+    function syncSignaturesToLocal(info: CompanyInfoData) {
         try {
             const namedSigsStr = localStorage.getItem('wappy_signatures');
             const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};

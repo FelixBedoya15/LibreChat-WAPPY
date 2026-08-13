@@ -132,7 +132,7 @@ export default function PublicParticipacionIPEVAR() {
         }
     };
 
-    const handleSubmit = async () => {
+    async function handleSubmit() {
         setIsSubmitting(true);
         setSubmitResult(null);
 
