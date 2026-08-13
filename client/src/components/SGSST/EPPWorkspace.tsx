@@ -632,7 +632,8 @@ export default function EPPWorkspace() {
   );
 
   return (
-    <div className="flex flex-col xl:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
+    <div className="w-full space-y-6">
+      <div className="flex flex-col xl:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* ── SECTOR IZQUIERDO: LISTA DE TRABAJADORES ── */}
       <div className="w-full xl:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0">
@@ -931,33 +932,6 @@ export default function EPPWorkspace() {
                     )}
                   </div>
                 )}
-
-                {/* Editor de Informe de EPP */}
-                <CollapsibleReportBox
-                  onSave={handleSave}
-                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                  isHistoryOpen={isHistoryOpen}
-                  title="Informe IA - Entrega de EPP"
-                  icon={<ShieldAlert className="h-5 w-5" />}
-                  actions={
-                    <ExportDropdown
-                      content={editorContentRef.current || generatedReport || ''}
-                      fileName={`Informe_EPP_${selectedWorker?.nombre.replace(/\s+/g, '_')}`}
-                      reportType="general"
-                    />
-                  }
-                >
-                  <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                    <div style={{ minWidth: '900px', padding: '16px' }}>
-                      <LiveEditor
-                        ref={liveEditorRef}
-                        initialContent={generatedReport}
-                        onUpdate={(html) => { editorContentRef.current = html; }}
-                        reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
-                      />
-                    </div>
-                  </div>
-                </CollapsibleReportBox>
               </div>
 
             </div>
@@ -971,6 +945,34 @@ export default function EPPWorkspace() {
           </div>
         )}
       </div>
+
+      {/* Editor de Informe de EPP (Nivel Raíz — Siempre Visible) */}
+      <CollapsibleReportBox
+        onSave={handleSave}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+        isHistoryOpen={isHistoryOpen}
+        title="Informe IA - Entrega de EPP"
+        icon={<ShieldAlert className="h-5 w-5" />}
+        actions={
+          <ExportDropdown
+            content={editorContentRef.current || generatedReport || ''}
+            fileName={`Informe_EPP_${selectedWorker?.nombre ? selectedWorker.nombre.replace(/\s+/g, '_') : 'General'}`}
+            reportType="general"
+          />
+        }
+      >
+        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+          <div style={{ minWidth: '900px', padding: '16px' }}>
+            <LiveEditor
+              ref={liveEditorRef}
+              initialContent={generatedReport}
+              onUpdate={(html) => { editorContentRef.current = html; }}
+              reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+            />
+          </div>
+        </div>
+      </CollapsibleReportBox>
+    </div>
 
       {/* ── MODAL: REGISTRAR NUEVA ENTREGA ── */}
       {isModalOpen && selectedWorker && ReactDOM.createPortal(
