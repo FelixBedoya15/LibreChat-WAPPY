@@ -660,6 +660,7 @@ export default function HeightsWorkspace() {
                           )}
                         </tbody>
                       </table>
+                    </div>
                   </div>
                 )}
               </div>
