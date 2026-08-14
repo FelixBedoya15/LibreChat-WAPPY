@@ -350,6 +350,15 @@ class AgentClient extends BaseClient {
     }
 
     const formattedMessages = orderedMessages.map((message, i) => {
+      if (Array.isArray(message.documents)) {
+        message.documents = message.documents.filter((d) => (d?.data?.length || d?.file_data?.length || 0) <= 3500000);
+      }
+      if (Array.isArray(message.image_urls)) {
+        message.image_urls = message.image_urls.filter((img) => {
+          const str = typeof img === 'string' ? img : (img?.image_url?.url || img?.url || '');
+          return str.length <= 3500000;
+        });
+      }
       const formattedMessage = formatMessage({
         message,
         userName: this.options?.name,
