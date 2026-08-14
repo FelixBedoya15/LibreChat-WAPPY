@@ -61,9 +61,13 @@ export async function encodeAndFormatDocuments(
     }
 
     if (file.type === 'application/pdf' && isDocumentSupportedProvider(provider)) {
-      // If text has already been extracted into file.text, skip inline Base64 document duplication
-      // to prevent Multi-Agent Handoff Graph payload inflation and V8 'Invalid string length' errors.
-      if (file.text && file.text.trim().length > 0 && provider !== Providers.ANTHROPIC) {
+      // If text has already been extracted into file.text, or if Base64 content exceeds 3.5M chars (~2.6MB PDF),
+      // skip raw Base64 document embedding to prevent V8 'Invalid string length' errors on JSON.stringify.
+      if ((file.text && file.text.trim().length > 0 && provider !== Providers.ANTHROPIC) || content.length > 3_500_000) {
+        if (!file.text || file.text.trim().length === 0) {
+          const approxMb = ((content.length * 0.75) / (1024 * 1024)).toFixed(1);
+          file.text = `[Documento: "${file.filename || 'PDF'}" (${approxMb} MB)]. Documento adjuntado.`;
+        }
         result.files.push(metadata);
         continue;
       }
