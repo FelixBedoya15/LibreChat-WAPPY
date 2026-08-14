@@ -1,3 +1,43 @@
+diff --git a/node_modules/@langchain/core/dist/tracers/base.cjs b/node_modules/@langchain/core/dist/tracers/base.cjs
+index 1af830e..d0ecea7 100644
+--- a/node_modules/@langchain/core/dist/tracers/base.cjs
++++ b/node_modules/@langchain/core/dist/tracers/base.cjs
+@@ -82,14 +82,28 @@ class BaseTracer extends base_js_1.BaseCallbackHandler {
+             : this.runMap.get(runId);
+     }
+     stringifyError(error) {
+-        // eslint-disable-next-line no-instanceof/no-instanceof
+-        if (error instanceof Error) {
+-            return error.message + (error?.stack ? `\n\n${error.stack}` : "");
+-        }
+-        if (typeof error === "string") {
+-            return error;
++        try {
++            let msg = "";
++            let stack = "";
++            // eslint-disable-next-line no-instanceof/no-instanceof
++            if (error instanceof Error) {
++                msg = typeof error.message === "string" ? error.message : String(error.message || "");
++                stack = typeof error.stack === "string" ? error.stack : "";
++            } else if (typeof error === "string") {
++                msg = error;
++            } else {
++                msg = String(error || "");
++            }
++            if (msg.length > 50000) {
++                msg = msg.substring(0, 50000) + "\n...[Mensaje de error truncado por tamaño]";
++            }
++            if (stack.length > 50000) {
++                stack = stack.substring(0, 50000) + "\n...[Stack de error truncado por tamaño]";
++            }
++            return msg + (stack ? `\n\n${stack}` : "");
++        } catch (e) {
++            return "Falló la conversión del mensaje de error";
+         }
+-        return `${error}`;
+     }
+     _addChildRun(parentRun, childRun) {
+         parentRun.child_runs.push(childRun);
 diff --git a/node_modules/@langchain/core/dist/tracers/event_stream.cjs b/node_modules/@langchain/core/dist/tracers/event_stream.cjs
 index 7e027e1..1652765 100644
 --- a/node_modules/@langchain/core/dist/tracers/event_stream.cjs
