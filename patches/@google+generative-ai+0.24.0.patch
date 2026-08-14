@@ -1,0 +1,72 @@
+diff --git a/node_modules/@google/generative-ai/dist/index.js b/node_modules/@google/generative-ai/dist/index.js
+index 61b2c39..8a3d419 100644
+--- a/node_modules/@google/generative-ai/dist/index.js
++++ b/node_modules/@google/generative-ai/dist/index.js
+@@ -859,13 +859,65 @@ function aggregateResponses(responses) {
+  * limitations under the License.
+  */
+ async function generateContentStream(apiKey, model, params, requestOptions) {
++    let body;
++    try {
++        body = JSON.stringify(params);
++    } catch (err) {
++        if (err.name === 'RangeError' || (err.message && err.message.includes('Invalid string length'))) {
++            const sanitizeObj = (obj) => {
++                if (!obj || typeof obj !== 'object') return obj;
++                if (Array.isArray(obj)) return obj.map(sanitizeObj);
++                const clean = {};
++                for (const key of Object.keys(obj)) {
++                    const val = obj[key];
++                    if (typeof val === 'string' && val.length > 1000000) {
++                        clean[key] = val.substring(0, 500000) + '\n\n[...Payload de gran tamaño omitido/truncado...]';
++                    } else if (typeof val === 'object' && val !== null) {
++                        clean[key] = sanitizeObj(val);
++                    } else {
++                        clean[key] = val;
++                    }
++                }
++                return clean;
++            };
++            body = JSON.stringify(sanitizeObj(params));
++        } else {
++            throw err;
++        }
++    }
+     const response = await makeModelRequest(model, Task.STREAM_GENERATE_CONTENT, apiKey, 
+-    /* stream */ true, JSON.stringify(params), requestOptions);
++    /* stream */ true, body, requestOptions);
+     return processStream(response);
+ }
+ async function generateContent(apiKey, model, params, requestOptions) {
++    let body;
++    try {
++        body = JSON.stringify(params);
++    } catch (err) {
++        if (err.name === 'RangeError' || (err.message && err.message.includes('Invalid string length'))) {
++            const sanitizeObj = (obj) => {
++                if (!obj || typeof obj !== 'object') return obj;
++                if (Array.isArray(obj)) return obj.map(sanitizeObj);
++                const clean = {};
++                for (const key of Object.keys(obj)) {
++                    const val = obj[key];
++                    if (typeof val === 'string' && val.length > 1000000) {
++                        clean[key] = val.substring(0, 500000) + '\n\n[...Payload de gran tamaño omitido/truncado...]';
++                    } else if (typeof val === 'object' && val !== null) {
++                        clean[key] = sanitizeObj(val);
++                    } else {
++                        clean[key] = val;
++                    }
++                }
++                return clean;
++            };
++            body = JSON.stringify(sanitizeObj(params));
++        } else {
++            throw err;
++        }
++    }
+     const response = await makeModelRequest(model, Task.GENERATE_CONTENT, apiKey, 
+-    /* stream */ false, JSON.stringify(params), requestOptions);
++    /* stream */ false, body, requestOptions);
+     const responseJson = await response.json();
+     const enhancedResponse = addHelpers(responseJson);
+     return {
