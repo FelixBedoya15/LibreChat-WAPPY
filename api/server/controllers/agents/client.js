@@ -1307,8 +1307,9 @@ class AgentClient extends BaseClient {
             success = true;
             break; // Exit key loop on success
           } catch (err) {
-            lastErr = err;
-            logger.error(`[AgentClient ERROR DUMP] [Key ${i}] Name: ${err?.name}, Status: ${err?.status}, Message: ${err?.message}\nSTACK: ${err?.stack}`);
+            const safeMsg = (err?.message || '').substring(0, 1000);
+            const safeStack = (err?.stack || '').substring(0, 2000);
+            logger.error(`[AgentClient ERROR DUMP] [Key ${i}] Name: ${err?.name}, Status: ${err?.status}, Message: ${safeMsg}\nSTACK: ${safeStack}`);
             if (err?.response) {
               try {
                 let dump = '';

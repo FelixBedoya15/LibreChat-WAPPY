@@ -31,12 +31,7 @@ export async function extractFileContext({
   }
 
   const fileConfig = mergeFileConfig(req?.config?.fileConfig);
-  const fileTokenLimit = req?.body?.fileTokenLimit ?? fileConfig.fileTokenLimit;
-
-  if (!fileTokenLimit) {
-    // If no token limit, return undefined (no processing)
-    return undefined;
-  }
+  const fileTokenLimit = req?.body?.fileTokenLimit ?? fileConfig?.fileTokenLimit ?? 50000;
 
   let resultText = '';
 

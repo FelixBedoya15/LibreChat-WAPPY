@@ -78,8 +78,10 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont
 WORKDIR /app
+COPY patches/ ./patches/
 # Install only production deps
 RUN npm ci --omit=dev
+RUN npx patch-package
 COPY api ./api
 COPY config ./config
 COPY --from=data-provider-build /app/packages/data-provider/dist ./packages/data-provider/dist
