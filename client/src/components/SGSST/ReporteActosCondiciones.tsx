@@ -168,9 +168,19 @@ const ReporteActosCondiciones = () => {
     const recognitionRef = useRef<any>(null);
 
     // Public Inbox State
+    const [companyInfo, setCompanyInfo] = useState<any>(null);
     const [inboxPublico, setInboxPublico] = useState<any[]>([]);
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+
+    React.useEffect(() => {
+        fetch('/api/sgsst/company-info', {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        .then(r => r.json())
+        .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+        .catch(() => {});
+    }, [token]);
 
     const downloadQR = (title: string, containerId: string) => {
         const svgElement = document.getElementById(containerId)?.querySelector('svg');
@@ -774,7 +784,7 @@ const ReporteActosCondiciones = () => {
 
                             <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
                                 <div id="reportar-portal-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/reportar/${companyInfo?._id || user?.id || user?._id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Reporte_Actos_Inseguros_SGSST", 'reportar-portal-qr-container')}
@@ -790,12 +800,12 @@ const ReporteActosCondiciones = () => {
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id || ''}`}
+                                        value={`${window.location.origin}/sgsst-public/reportar/${companyInfo?._id || user?.id || user?._id || ''}`}
                                         className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id || ''}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${companyInfo?._id || user?.id || user?._id || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"

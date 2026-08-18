@@ -198,9 +198,20 @@ const InvestigacionATEL = () => {
     });
     const [video, setVideo] = useState<string | null>(null);
     const [isVideoUploading, setIsVideoUploading] = useState(false);
+    const [companyInfo, setCompanyInfo] = useState<any>(null);
     const [inboxTestimonios, setInboxTestimonios] = useState<any[]>([]);
     const [showInbox, setShowInbox] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(r => r.json())
+        .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+        .catch(() => {});
+    }, [token]);
 
     const fetchInvestigationsList = async (selectId?: string) => {
         if (!token) return;
@@ -922,7 +933,7 @@ const InvestigacionATEL = () => {
 
                             <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
                                 <div id="atel-portal-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/atel-testimonio/${companyInfo?._id || user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Investigacion_ATEL_Testimonios_SGSST", 'atel-portal-qr-container')}
@@ -938,21 +949,21 @@ const InvestigacionATEL = () => {
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`}
+                                        value={`${window.location.origin}/sgsst-public/atel-testimonio/${companyInfo?._id || user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`}
                                         className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${companyInfo?._id || user?.id || user?._id || ''}?investigacionId=${activeInvestId || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >
                                         Copiar
                                     </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
                         {/* Modal Footer */}
                         <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-border-light dark:border-border-medium flex justify-end shrink-0">

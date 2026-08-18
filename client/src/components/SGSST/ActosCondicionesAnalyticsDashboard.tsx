@@ -83,9 +83,10 @@ export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { is
 
   // QR Code URL pointing to public reporting portal page
   const publicQrUrl = useMemo(() => {
-    if (!user?.id && !user?._id) return '';
-    return `${window.location.origin}/sgsst-public/reportar/${user.id || user._id}`;
-  }, [user]);
+    const targetId = companyInfo?._id || user?.id || user?._id;
+    if (!targetId) return '';
+    return `${window.location.origin}/sgsst-public/reportar/${targetId}`;
+  }, [user, companyInfo]);
 
   // QR API Endpoint
   const qrImageSrc = useMemo(() => {

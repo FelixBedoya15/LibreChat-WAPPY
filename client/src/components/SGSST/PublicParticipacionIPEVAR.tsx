@@ -102,7 +102,14 @@ export default function PublicParticipacionIPEVAR() {
 
         try {
             const payload = { cedula, nombre };
-            await axios.post(`/api/public-sgsst/validate-worker/${companyId}`, payload);
+            const res = await axios.post(`/api/public-sgsst/validate-worker/${companyId}`, payload);
+            if (res.data?.companyName) {
+                setCompany((prev: any) => ({
+                    ...prev,
+                    _id: res.data.companyId || prev?._id,
+                    companyName: res.data.companyName
+                }));
+            }
             setStep(2);
         } catch (error: any) {
             const errorMsg = error.response?.data?.error || "Error al validar la identidad en la base de datos de la empresa.";
@@ -151,7 +158,8 @@ export default function PublicParticipacionIPEVAR() {
                     sugeridoEPP
                 }
             };
-            const response = await axios.post(`/api/public-sgsst/participacion-ipevar/${companyId}`, payload);
+            const targetCompanyId = company?._id || companyId;
+            const response = await axios.post(`/api/public-sgsst/participacion-ipevar/${targetCompanyId}`, payload);
             setSubmitResult({ success: true, message: response.data.message });
             setStep(5);
         } catch (error: any) {

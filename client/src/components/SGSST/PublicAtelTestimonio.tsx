@@ -170,8 +170,9 @@ export default function PublicAtelTestimonio() {
           foto2,
         },
       };
+      const targetCompanyId = company?._id || companyId;
       const response = await axios.post(
-        `/api/public-sgsst/investigacion-atel/testimonio/${companyId}`,
+        `/api/public-sgsst/investigacion-atel/testimonio/${targetCompanyId}`,
         payload,
       );
       setSubmitResult({ success: true, message: response.data.message });

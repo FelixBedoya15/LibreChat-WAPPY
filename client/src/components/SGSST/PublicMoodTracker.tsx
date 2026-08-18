@@ -67,7 +67,8 @@ export default function PublicMoodTracker() {
     setSubmittingMood(true);
 
     try {
-      const res = await axios.post(`/api/public-sgsst/mood/${companyId}`, {
+      const targetCompanyId = company?._id || companyId;
+      const res = await axios.post(`/api/public-sgsst/mood/${targetCompanyId}`, {
         mood,
         department,
       });
@@ -101,12 +102,12 @@ export default function PublicMoodTracker() {
     try {
       await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
         stressors: selectedStressors,
-        details: 'El usuario decidió no iniciar el chat anónimo.',
+        details: 'El trabajador prefirió no iniciar el chat interactivo.',
       });
       setStep(4);
     } catch (error) {
-      console.error('Error updating stressors:', error);
-      setStep(4); // Proceed to success anyway
+      console.error('Error updating telemetry:', error);
+      setStep(4); // Non-blocking
     }
   };
 
@@ -115,7 +116,8 @@ export default function PublicMoodTracker() {
     setIsTyping(true);
 
     try {
-      const res = await axios.post(`/api/public-sgsst/mood/chat/${companyId}`);
+      const targetCompanyId = company?._id || companyId;
+      const res = await axios.post(`/api/public-sgsst/mood/chat/${targetCompanyId}`);
       if (res.data.success) {
         setChatToken(res.data.token);
         setAgentId(res.data.agentId);

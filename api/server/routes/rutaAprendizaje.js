@@ -499,6 +499,8 @@ router.get('/public/company/:companyId', async (req, res) => {
         }
 
         res.json({
+            _id: company._id,
+            user: company.user,
             companyName: company.companyName || 'Empresa Activa',
             nit: company.nit || '',
             logo: company.logoBase64 || null,

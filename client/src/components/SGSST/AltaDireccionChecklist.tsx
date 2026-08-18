@@ -58,9 +58,20 @@ export default function AltaDireccionChecklist() {
     );
 
     // QR Modal state
+    const [companyInfo, setCompanyInfo] = useState<any>(null);
     const [showQrModal, setShowQrModal] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState('');
     const [portalUrl, setPortalUrl] = useState('');
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(r => r.json())
+        .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+        .catch(() => {});
+    }, [token]);
 
     const downloadQR = (title: string) => {
         if (!qrDataUrl) return;
@@ -208,11 +219,12 @@ export default function AltaDireccionChecklist() {
     const handleShowQR = useCallback(async () => {
         try {
             const userId = (user as any)?.id || (user as any)?._id;
-            if (!userId) {
-                showToast({ message: 'Error: no se encontró ID de usuario', status: 'error' });
+            const targetId = companyInfo?._id || userId;
+            if (!targetId) {
+                showToast({ message: 'Error: no se encontró ID de empresa o usuario', status: 'error' });
                 return;
             }
-            const portalUrl = `${window.location.origin}/sgsst-public/alta-direccion/${userId}`;
+            const portalUrl = `${window.location.origin}/sgsst-public/alta-direccion/${targetId}`;
             const dataUrl = await QRCode.toDataURL(portalUrl, { width: 280, margin: 2, color: { dark: '#0f172a', light: '#ffffff' } });
             setPortalUrl(portalUrl);
             setQrDataUrl(dataUrl);
@@ -220,7 +232,7 @@ export default function AltaDireccionChecklist() {
         } catch (e) {
             showToast({ message: 'Error al generar código QR', status: 'error' });
         }
-    }, [user, showToast]);
+    }, [user, companyInfo, showToast]);
 
     // Load inbox
     const handleShowInbox = useCallback(async () => {

@@ -100,6 +100,13 @@ export default function PublicPerfilUpdate() {
         try {
             // Include cedula as query param just in case workerId is undefined
             const res = await axios.get(`/api/public-sgsst/perfil-update/${companyId}/${workerId}?cedula=${cedula}`);
+            if (res.data.companyName) {
+                setCompany({
+                    _id: res.data._id || company?._id || companyId,
+                    companyName: res.data.companyName,
+                    logo: res.data.logo
+                });
+            }
             const w: WorkerData = res.data.worker;
             
             // If we have a specific workerId in URL, still cross-check for extra security
@@ -144,8 +151,9 @@ export default function PublicPerfilUpdate() {
         setSubmitting(true);
         try {
             // Use URL param if available, otherwise fallback to workerData.id found during verification
+            const targetCompanyId = company?._id || companyId;
             const targetWorkerId = (workerId && workerId !== 'undefined') ? workerId : workerData?.id;
-            await axios.post(`/api/public-sgsst/perfil-update/${companyId}/${targetWorkerId}`, {
+            await axios.post(`/api/public-sgsst/perfil-update/${targetCompanyId}/${targetWorkerId}`, {
                 updates: formData,
                 cedula: cedula // Fallback for backend finding logic
             });

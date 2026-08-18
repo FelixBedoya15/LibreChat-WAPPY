@@ -86,7 +86,14 @@ export default function PublicAltaDireccion() {
         setIsValidating(true);
         setValidationError('');
         try {
-            await axios.post(`/api/public-sgsst/validate-alta-direccion/${companyId}`, { cedula, nombre });
+            const res = await axios.post(`/api/public-sgsst/validate-alta-direccion/${companyId}`, { cedula, nombre });
+            if (res.data?.companyName) {
+                setCompany((prev: any) => ({
+                    ...prev,
+                    _id: res.data.companyId || prev?._id,
+                    companyName: res.data.companyName
+                }));
+            }
             setStep(2);
         } catch (err: any) {
             setValidationError(err.response?.data?.error || 'Error al validar la identidad.');
@@ -104,7 +111,8 @@ export default function PublicAltaDireccion() {
         setIsSubmitting(true);
         setSubmitError('');
         try {
-            await axios.post(`/api/public-sgsst/alta-direccion/${companyId}`, {
+            const targetCompanyId = company?._id || companyId;
+            await axios.post(`/api/public-sgsst/alta-direccion/${targetCompanyId}`, {
                 cedula,
                 nombre,
                 data: { statusData: statuses }

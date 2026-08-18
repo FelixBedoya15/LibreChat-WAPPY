@@ -838,7 +838,8 @@ const CondicionesSalud = () => {
     // ─── QR: Portal de auto-actualización por el propio trabajador ───────
     const getUpdateQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
-        return `${base}/sgsst-public/perfil-update/${user?.id || ''}/${w.id}`;
+        const targetCompanyId = companyInfo?._id || user?.id || '';
+        return `${base}/sgsst-public/perfil-update/${targetCompanyId}/${w.id}`;
     };
 
     // ─── Bio-Fit Engine ──────────────────────────────────────────
@@ -1823,7 +1824,7 @@ const CondicionesSalud = () => {
 
                             <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
                                 <div id="portal-public-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Portal_Publico_SGSST", 'portal-public-qr-container')}
@@ -1839,12 +1840,12 @@ const CondicionesSalud = () => {
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`}
+                                        value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`}
                                         className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                         }}
                                         className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"
