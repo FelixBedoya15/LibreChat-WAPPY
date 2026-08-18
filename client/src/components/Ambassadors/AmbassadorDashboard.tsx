@@ -258,10 +258,16 @@ export default function AmbassadorDashboard() {
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
             <Award className="w-7 h-7 text-teal-500" />
-            Dashboard de Embajadores & Métricas del Sistema
+            {isAdmin 
+              ? 'Dashboard de Embajadores & Métricas del Sistema' 
+              : isLeader 
+                ? 'Dashboard de Líder de Embajadores WAPPY' 
+                : 'Dashboard de Embajador WAPPY — Mis Métricas y Referidos'}
           </h1>
           <p className="text-xs text-text-secondary mt-1">
-            Control de usuarios referidos, atribución de registros, estado de pagos y comisiones en tiempo real.
+            {isAdmin 
+              ? 'Control general de usuarios referidos, atribución de registros, estado de pagos y comisiones en tiempo real.'
+              : 'Haz seguimiento a tus usuarios registrados, estado de sus planes PRO y comisiones devengadas.'}
           </p>
         </div>
 
@@ -320,7 +326,9 @@ export default function AmbassadorDashboard() {
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-bl-full pointer-events-none group-hover:bg-teal-500/10 transition-colors"></div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Registros Referidos</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
+                  {isAdmin ? 'Registros Referidos' : 'Mis Usuarios Referidos'}
+                </span>
                 <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
@@ -370,18 +378,34 @@ export default function AmbassadorDashboard() {
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full pointer-events-none group-hover:bg-blue-500/10 transition-colors"></div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Líder & Red Embajadores</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
+                  {isAdmin || isLeader ? 'Líder & Red Embajadores' : 'Mi Nivel de Embajador'}
+                </span>
                 <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <UserCheck className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-lg font-extrabold text-text-primary truncate">
-                TOP: {kpis.topAmbassadorName}
-              </div>
-              <div className="flex items-center gap-2 mt-2 text-xs font-medium text-text-secondary">
-                <Clock className="w-3.5 h-3.5 text-amber-500" />
-                <span>{kpis.inactiveAmbassadorsCount} sin registros hace &gt; 30 días</span>
-              </div>
+              {isAdmin || isLeader ? (
+                <>
+                  <div className="text-lg font-extrabold text-text-primary truncate">
+                    TOP: {kpis.topAmbassadorName}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs font-medium text-text-secondary">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>{kpis.inactiveAmbassadorsCount} sin registros hace &gt; 30 días</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-extrabold text-text-primary">
+                    20% Comisión Directa
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Embajador Activo WAPPY</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -409,7 +433,7 @@ export default function AmbassadorDashboard() {
             }`}
           >
             <Users className="w-4 h-4 text-teal-500" />
-            Tabla de Usuarios Referidos ({referredUsers.length})
+            {isAdmin ? `Tabla de Usuarios Referidos (${referredUsers.length})` : `Mis Usuarios Referidos (${referredUsers.length})`}
           </button>
 
           <button
@@ -424,7 +448,7 @@ export default function AmbassadorDashboard() {
             Panel de Comisiones
           </button>
 
-          {isLeader && (
+          {(isAdmin || isLeader) && (
             <button
               onClick={() => setActiveTab('network')}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${

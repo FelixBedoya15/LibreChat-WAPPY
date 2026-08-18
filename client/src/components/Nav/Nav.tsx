@@ -11,6 +11,7 @@ import {
   useLocalStorage,
   useNavScrolling,
   useLocationSystem,
+  useAmbassadorAccess,
 } from '~/hooks';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { useConversationsInfiniteQuery } from '~/data-provider';
@@ -91,6 +92,7 @@ const Nav = memo(
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const hasAccessToLiveAnalysis = hasPermission(PermissionTypes.LIVE_ANALYSIS);
+    const { hasAmbassadorAccess } = useAmbassadorAccess();
     // SG-SST button is always visible for all users so they can input company config.
     // Upgrade limits are handled inside the SGSST module itself.
     const hasAccessToSGSST = true;
@@ -348,7 +350,7 @@ const Nav = memo(
                         </Suspense>
                         {/* Métricas & Embajadores */}
                         <Suspense fallback={null}>
-                          {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                          {hasAmbassadorAccess && (
                             <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           )}
                         </Suspense>
@@ -436,7 +438,7 @@ const Nav = memo(
                                 </Suspense>
                                 {/* Métricas & Embajadores */}
                                 <Suspense fallback={null}>
-                                  {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                  {hasAmbassadorAccess && (
                                     <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   )}
                                 </Suspense>

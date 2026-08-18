@@ -499,11 +499,25 @@ router.get('/dashboard', async (req, res) => {
         const User = mongoose.model('User');
         const UserPlan = mongoose.model('UserPlan');
 
-        const partner = await Partner.findOne({ userId }).lean();
+        let partner = await Partner.findOne({ userId }).lean();
+        if (!partner && req.user.email) {
+            const userDoc = await User.findById(userId).lean();
+            if (userDoc?.username) {
+                partner = await Partner.findOne({ slug: userDoc.username.toLowerCase() }).lean();
+            }
+        }
         const isEmbajador = !!partner || req.user.role === 'EMBAJADOR' || req.user.role === 'EMBAJADOR_LIDER';
         const isLeader = isAdmin || (partner && partner.type === 'embajador') || req.user.role === 'EMBAJADOR_LIDER';
 
-        if (!isAdmin && !isEmbajador) {
+        // Check if user has referrals even if not in Partner collection
+        const myReferralsCount = await ReferralRecord.countDocuments({
+            $or: [
+                { referredByUser: userId },
+                ...(partner ? [{ referredByPartner: partner._id }] : [])
+            ]
+        });
+
+        if (!isAdmin && !isEmbajador && myReferralsCount === 0) {
             return res.status(403).json({ error: 'Acceso restringido a Administradores y Embajadores.' });
         }
 

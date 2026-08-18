@@ -133,6 +133,12 @@ router.post('/:id/register', requireJwtAuth, async (req, res) => {
       return res.status(404).json({ message: 'El evento no existe o no está publicado.' });
     }
 
+    // Check if event has already passed (2 hours grace period after start)
+    const eventTime = new Date(event.dateTime).getTime();
+    if (Date.now() > eventTime + 2 * 60 * 60 * 1000) {
+      return res.status(400).json({ message: 'Este evento ya ha finalizado y no acepta nuevas inscripciones.' });
+    }
+
     // Check if already registered
     const existing = await EventRegistration.findOne({ event: id, user: userId });
     if (existing) {

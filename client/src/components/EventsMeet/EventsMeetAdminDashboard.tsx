@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { Plus, ArrowLeft, Edit2, Trash2, Calendar, Video, ShieldAlert, Users, Award, Eye, EyeOff } from 'lucide-react';
+import { Plus, ArrowLeft, Edit2, Trash2, Calendar, Video, ShieldAlert, Users, Award, Eye, EyeOff, History, Radio, Sparkles } from 'lucide-react';
 import EventFormModal from './EventFormModal';
 
 const cleanMeetLink = (link?: string) => {
@@ -20,11 +20,27 @@ const cleanMeetLink = (link?: string) => {
   return url;
 };
 
+const getEventTiming = (dateTime?: string | Date) => {
+  if (!dateTime) return { isLive: false, isPast: false, isUpcoming: true };
+  const eventTime = new Date(dateTime).getTime();
+  const now = Date.now();
+  const liveDuration = 2 * 60 * 60 * 1000;
+
+  if (now >= eventTime && now <= eventTime + liveDuration) {
+    return { isLive: true, isPast: false, isUpcoming: false };
+  }
+  if (now > eventTime + liveDuration) {
+    return { isLive: false, isPast: true, isUpcoming: false };
+  }
+  return { isLive: false, isPast: false, isUpcoming: true };
+};
+
 export default function EventsMeetAdminDashboard() {
   const { showToast } = useToastContext();
   const navigate = useNavigate();
 
   const [events, setEvents] = useState<any[]>([]);
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -128,6 +144,42 @@ export default function EventsMeetAdminDashboard() {
 
       {/* Main List */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              filter === 'all'
+                ? 'bg-[#10b981] text-white shadow-md'
+                : 'bg-white dark:bg-gray-800 text-text-secondary hover:text-text-primary border border-border-medium'
+            }`}
+          >
+            Todos ({events.length})
+          </button>
+          <button
+            onClick={() => setFilter('upcoming')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              filter === 'upcoming'
+                ? 'bg-[#10b981] text-white shadow-md'
+                : 'bg-white dark:bg-gray-800 text-text-secondary hover:text-text-primary border border-border-medium'
+            }`}
+          >
+            <Calendar size={13} />
+            Próximos / En Vivo ({events.filter(e => !getEventTiming(e.dateTime).isPast).length})
+          </button>
+          <button
+            onClick={() => setFilter('past')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              filter === 'past'
+                ? 'bg-slate-700 text-white shadow-md'
+                : 'bg-white dark:bg-gray-800 text-text-secondary hover:text-text-primary border border-border-medium'
+            }`}
+          >
+            <History size={13} />
+            Finalizados ({events.filter(e => getEventTiming(e.dateTime).isPast).length})
+          </button>
+        </div>
+
         {events.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 border border-border-medium rounded-2xl p-12 text-center flex flex-col items-center justify-center">
             <ShieldAlert size={48} className="text-amber-500 mb-3" />
@@ -145,19 +197,27 @@ export default function EventsMeetAdminDashboard() {
                     <th className="px-6 py-4">Portada</th>
                     <th className="px-6 py-4">Título</th>
                     <th className="px-6 py-4">Fecha y Hora</th>
+                    <th className="px-6 py-4 text-center">Tiempo</th>
                     <th className="px-6 py-4">Google Meet</th>
                     <th className="px-6 py-4 text-center">Inscritos</th>
-                    <th className="px-6 py-4 text-center">Estado</th>
+                    <th className="px-6 py-4 text-center">Publicación</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-medium text-sm">
-                  {events.map((evt) => {
+                  {events
+                    .filter(evt => {
+                      if (filter === 'upcoming') return !getEventTiming(evt.dateTime).isPast;
+                      if (filter === 'past') return getEventTiming(evt.dateTime).isPast;
+                      return true;
+                    })
+                    .map((evt) => {
                     const formattedDate = new Date(evt.dateTime).toLocaleString('es-CO', {
                       timeZone: 'America/Bogota',
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     });
+                    const { isLive, isPast } = getEventTiming(evt.dateTime);
 
                     return (
                       <tr key={evt._id} className="hover:bg-slate-50/50 dark:hover:bg-gray-800/20 transition-colors">
@@ -167,7 +227,7 @@ export default function EventsMeetAdminDashboard() {
                               <img
                                 src={evt.thumbnail.startsWith('http') || evt.thumbnail.startsWith('/') ? evt.thumbnail : `/images/${evt.thumbnail.split('/').pop()}`}
                                 alt=""
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover ${isPast ? 'filter grayscale-[25%]' : ''}`}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
@@ -189,6 +249,21 @@ export default function EventsMeetAdminDashboard() {
                             <Calendar size={14} />
                             {formattedDate}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                          {isPast ? (
+                            <span className="inline-flex items-center gap-1 text-slate-500 font-bold text-xs bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                              <History size={12} /> Finalizado
+                            </span>
+                          ) : isLive ? (
+                            <span className="inline-flex items-center gap-1 text-rose-600 font-bold text-xs bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-full animate-pulse">
+                              <Radio size={12} /> En Vivo
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full">
+                              <Sparkles size={12} /> Próximo
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 max-w-xs truncate">
                           <a

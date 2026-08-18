@@ -3,7 +3,22 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { Video, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Zap, X } from 'lucide-react';
+import { 
+    Video, 
+    CheckCircle, 
+    Clock, 
+    Shield, 
+    Info, 
+    ChevronLeft, 
+    ChevronRight, 
+    Zap, 
+    X, 
+    History, 
+    Radio, 
+    Calendar,
+    Sparkles,
+    Check
+} from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
@@ -24,10 +39,37 @@ const cleanMeetLink = (link?: string) => {
     return url;
 };
 
+export const getEventTiming = (dateTime?: string | Date) => {
+    if (!dateTime) return { isLive: false, isPast: false, isUpcoming: true };
+    const eventTime = new Date(dateTime).getTime();
+    const now = Date.now();
+    const liveDuration = 2 * 60 * 60 * 1000; // 2 hours live window
+
+    if (now >= eventTime && now <= eventTime + liveDuration) {
+        return { isLive: true, isPast: false, isUpcoming: false };
+    }
+    if (now > eventTime + liveDuration) {
+        return { isLive: false, isPast: true, isUpcoming: false };
+    }
+    return { isLive: false, isPast: false, isUpcoming: true };
+};
+
 // --- Sub-components ---
 
-const EventModal = ({ event, onClose, onRegister, registering }: { event: any, onClose: () => void, onRegister: () => void, registering: boolean }) => {
+const EventModal = ({ 
+    event, 
+    onClose, 
+    onRegister, 
+    registering 
+}: { 
+    event: any; 
+    onClose: () => void; 
+    onRegister: () => void; 
+    registering: boolean; 
+}) => {
     if (!event) return null;
+
+    const { isLive, isPast } = getEventTiming(event.dateTime);
 
     const formattedDate = new Date(event.dateTime).toLocaleString('es-CO', {
         timeZone: 'America/Bogota',
@@ -56,7 +98,7 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
                         <img 
                             src={event.thumbnail.startsWith('http') || event.thumbnail.startsWith('/') ? event.thumbnail : `/images/${event.thumbnail.split('/').pop()}`} 
                             alt={event.title} 
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover ${isPast ? 'filter grayscale-[20%]' : ''}`}
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-tertiary to-surface-secondary">
@@ -68,9 +110,23 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
 
                 {/* Content Section */}
                 <div className="w-full md:w-3/5 p-6 md:p-8 flex flex-col max-h-[80vh] md:max-h-[70vh]">
-                    <div className="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
+                        {isPast ? (
+                            <span className="bg-slate-500/20 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest border border-slate-500/30 flex items-center gap-1">
+                                <History size={12} /> Evento Finalizado
+                            </span>
+                        ) : isLive ? (
+                            <span className="bg-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md shadow-rose-500/30">
+                                <Radio size={12} /> En Vivo Ahora
+                            </span>
+                        ) : (
+                            <span className="bg-[#10b981]/15 text-[#10b981] text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest border border-[#10b981]/25 flex items-center gap-1">
+                                <Sparkles size={12} /> Próximo Evento
+                            </span>
+                        )}
+
                         {event.tags && event.tags.map((tag: string, i: number) => (
-                            <span key={i} className="bg-[#10b981]/10 text-[#10b981] text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-[#10b981]/20">
+                            <span key={i} className="bg-surface-tertiary text-text-secondary text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-border-light dark:border-white/5">
                                 {tag}
                             </span>
                         ))}
@@ -80,17 +136,31 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
                         {event.title}
                     </h2>
 
-                    <div className="text-sm font-bold text-green-500 mb-4 flex items-center gap-1.5 shrink-0">
+                    <div className={`text-sm font-bold mb-4 flex items-center gap-1.5 shrink-0 ${isPast ? 'text-text-tertiary' : isLive ? 'text-rose-500' : 'text-green-500'}`}>
                         <Clock size={16} />
                         {formattedDate}
                     </div>
                     
                     <div className="flex-1 overflow-y-auto pr-2 mb-6 no-scrollbar">
                         <p className="text-sm md:text-base text-text-secondary leading-relaxed whitespace-pre-wrap">
-                            {event.description || 'Te invitamos a participar en esta sesión virtual por Meet, donde abordaremos temáticas de SST. Inscríbete para reservar tu cupo.'}
+                            {event.description || 'Sesión virtual por Google Meet sobre temáticas clave de SST y prevención.'}
                         </p>
 
-                        {event.isRegistered && (
+                        {isPast && (
+                            <div className="mt-4 p-4 bg-slate-500/10 border border-slate-500/20 rounded-xl">
+                                <div className="text-xs font-bold text-text-secondary flex items-center gap-1.5 mb-1">
+                                    <History size={14} className="text-slate-400" />
+                                    Este evento ya fue realizado
+                                </div>
+                                <p className="text-xs text-text-tertiary">
+                                    {event.isRegistered 
+                                        ? 'Estuviste inscrito en este evento. ¡Gracias por tu participación!' 
+                                        : 'La fecha programada para este taller ha concluido y las inscripciones se encuentran cerradas.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {event.isRegistered && !isPast && (
                             <div className="mt-5 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
                                 <h4 className="text-sm font-bold text-[#10b981] mb-2 flex items-center gap-1.5">
                                     <CheckCircle size={16} /> ¡Ya estás inscrito!
@@ -115,21 +185,49 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
                         )}
                     </div>
 
-                    {!event.isRegistered && (
-                        <div className="mt-auto pt-5 border-t border-border-light dark:border-white/5 flex items-center justify-between shrink-0">
-                            <button 
-                                onClick={onRegister}
-                                disabled={registering}
-                                className="flex items-center gap-2 bg-[#10b981] text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#059669] disabled:bg-gray-400 transition-all hover:scale-105 shadow-lg shadow-[#10b981]/20"
-                            >
-                                <CheckCircle size={18} /> Registrarme en Meet
-                            </button>
-                            
-                            <p className="text-xs text-right text-text-tertiary max-w-[200px]">
-                                Recibirás la invitación por correo y se agendará en tu Centro de Control.
-                            </p>
-                        </div>
-                    )}
+                    <div className="mt-auto pt-5 border-t border-border-light dark:border-white/5 flex items-center justify-between shrink-0">
+                        {isPast ? (
+                            <div className="w-full flex items-center justify-between">
+                                <span className="inline-flex items-center gap-1.5 text-xs text-text-tertiary font-semibold">
+                                    <Check size={14} /> Inscripciones Cerradas
+                                </span>
+                                <button 
+                                    onClick={onClose}
+                                    className="bg-surface-secondary hover:bg-surface-hover text-text-primary px-5 py-2.5 rounded-xl font-bold text-sm transition-colors border border-border-light dark:border-white/10"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        ) : event.isRegistered ? (
+                            <div className="w-full flex items-center justify-between">
+                                <span className="inline-flex items-center gap-1.5 text-xs text-green-500 font-bold">
+                                    <CheckCircle size={14} /> Inscripción Confirmada
+                                </span>
+                                <a
+                                    href={cleanMeetLink(event.meetLink)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 bg-[#10b981] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#059669] transition-all shadow-md shadow-[#10b981]/20"
+                                >
+                                    <Video size={16} /> {isLive ? 'Entrar Ahora' : 'Ir a Sala Meet'}
+                                </a>
+                            </div>
+                        ) : (
+                            <>
+                                <button 
+                                    onClick={onRegister}
+                                    disabled={registering}
+                                    className="flex items-center gap-2 bg-[#10b981] text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#059669] disabled:bg-gray-400 transition-all hover:scale-105 shadow-lg shadow-[#10b981]/20"
+                                >
+                                    <CheckCircle size={18} /> Registrarme en Meet
+                                </button>
+                                
+                                <p className="text-xs text-right text-text-tertiary max-w-[200px]">
+                                    Recibirás la invitación por correo y se agendará en tu Centro de Control.
+                                </p>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>,
@@ -137,7 +235,9 @@ const EventModal = ({ event, onClose, onRegister, registering }: { event: any, o
     );
 };
 
-const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }) => {
+const EventCard = ({ event, onMoreInfo }: { event: any; onMoreInfo: () => void }) => {
+    const { isLive, isPast } = getEventTiming(event.dateTime);
+
     const formattedDate = new Date(event.dateTime).toLocaleString('es-CO', {
         weekday: 'short',
         month: 'short',
@@ -150,7 +250,13 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
     return (
         <div 
             onClick={onMoreInfo}
-            className="group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border border-border-light dark:border-white/5"
+            className={`group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border ${
+                isPast 
+                    ? 'border-border-light dark:border-white/5 opacity-80 hover:opacity-100' 
+                    : isLive 
+                        ? 'border-rose-500/50 shadow-rose-500/10' 
+                        : 'border-border-light dark:border-white/5 hover:border-[#10b981]/30'
+            }`}
         >
             {/* Thumbnail */}
             <div className="absolute inset-0 bg-surface-tertiary">
@@ -158,7 +264,7 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
                     <img 
                         src={event.thumbnail.startsWith('http') || event.thumbnail.startsWith('/') ? event.thumbnail : `/images/${event.thumbnail.split('/').pop()}`} 
                         alt={event.title} 
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${isPast ? 'filter grayscale-[25%]' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-tertiary to-surface-secondary">
@@ -168,25 +274,38 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
             </div>
 
             {/* Overlay Gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-85 group-hover:opacity-100 transition-opacity" />
 
             {/* Content Overlay */}
             <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-end transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                    <span className="bg-blue-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
-                        <Clock size={10} /> {formattedDate}
-                    </span>
+                    {isPast ? (
+                        <span className="bg-slate-700/90 text-gray-200 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1 backdrop-blur-sm">
+                            <History size={10} /> Finalizado
+                        </span>
+                    ) : isLive ? (
+                        <span className="bg-rose-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1 animate-pulse">
+                            <Radio size={10} /> En Vivo
+                        </span>
+                    ) : (
+                        <span className="bg-blue-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
+                            <Clock size={10} /> {formattedDate}
+                        </span>
+                    )}
+
                     {event.isRegistered && (
                         <span className="bg-[#10b981] text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
                             <CheckCircle size={10} /> Inscrito
                         </span>
                     )}
+
                     {event.tags && event.tags[0] && (
                         <span className="bg-white/20 backdrop-blur-md text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">
                             {event.tags[0]}
                         </span>
                     )}
                 </div>
+
                 <h3 className="text-white font-bold text-xs sm:text-sm md:text-base line-clamp-2 drop-shadow-md">
                     {event.title}
                 </h3>
@@ -194,9 +313,7 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
             
             {/* Hover Action Info */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div 
-                    className="bg-black/40 hover:bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/20 transition-colors"
-                >
+                <div className="bg-black/50 hover:bg-black/70 backdrop-blur-md p-1.5 rounded-full border border-white/20 transition-colors">
                     <Info size={14} className="text-white" />
                 </div>
             </div>
@@ -204,7 +321,19 @@ const EventCard = ({ event, onMoreInfo }: { event: any, onMoreInfo: () => void }
     );
 };
 
-const EventRow = ({ title, events, onMoreInfo }: { title: string, events: any[], onMoreInfo: (event: any) => void }) => {
+const EventRow = ({ 
+    title, 
+    subtitle,
+    events, 
+    onMoreInfo,
+    isPastRow = false 
+}: { 
+    title: string; 
+    subtitle?: string;
+    events: any[]; 
+    onMoreInfo: (event: any) => void;
+    isPastRow?: boolean;
+}) => {
     const rowRef = useRef<HTMLDivElement>(null);
 
     const scroll = (direction: 'left' | 'right') => {
@@ -219,21 +348,30 @@ const EventRow = ({ title, events, onMoreInfo }: { title: string, events: any[],
 
     return (
         <div className="mb-6 sm:mb-8 md:mb-12 group/row relative">
-            <h2 className="text-sm sm:text-lg md:text-2xl font-black text-text-primary mb-3 sm:mb-4 px-4 sm:px-6 md:px-12 tracking-tight flex items-center gap-2 sm:gap-3">
-                <span className="w-1 h-4 sm:w-1.5 sm:h-6 bg-[#10b981] rounded-full" />
-                {title}
-            </h2>
+            <div className="px-4 sm:px-6 md:px-12 mb-3 sm:mb-4">
+                <h2 className="text-sm sm:text-lg md:text-2xl font-black text-text-primary tracking-tight flex items-center gap-2 sm:gap-3">
+                    <span className={`w-1 h-4 sm:w-1.5 sm:h-6 rounded-full ${isPastRow ? 'bg-slate-400' : 'bg-[#10b981]'}`} />
+                    {title}
+                </h2>
+                {subtitle && (
+                    <p className="text-xs sm:text-sm text-text-secondary mt-0.5 ml-3 sm:ml-4 font-normal">
+                        {subtitle}
+                    </p>
+                )}
+            </div>
             
             {/* Scroll Buttons */}
             <button 
                 onClick={() => scroll('left')}
                 className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 opacity-0 group-hover/row:opacity-100 transition-all hover:bg-black/80 hover:scale-110 hidden sm:flex items-center justify-center text-white shadow-2xl"
+                aria-label="Scroll left"
             >
                 <ChevronLeft size={24} />
             </button>
             <button 
                 onClick={() => scroll('right')}
                 className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 opacity-0 group-hover/row:opacity-100 transition-all hover:bg-black/80 hover:scale-110 hidden sm:flex items-center justify-center text-white shadow-2xl"
+                aria-label="Scroll right"
             >
                 <ChevronRight size={24} />
             </button>
@@ -250,8 +388,20 @@ const EventRow = ({ title, events, onMoreInfo }: { title: string, events: any[],
     );
 };
 
-const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: any, onMoreInfo: () => void, onRegister: () => void, registering: boolean }) => {
+const FeaturedHero = ({ 
+    event, 
+    onMoreInfo, 
+    onRegister, 
+    registering 
+}: { 
+    event: any; 
+    onMoreInfo: () => void; 
+    onRegister: () => void; 
+    registering: boolean; 
+}) => {
     if (!event) return null;
+
+    const { isLive, isPast } = getEventTiming(event.dateTime);
 
     const formattedDate = new Date(event.dateTime).toLocaleString('es-CO', {
         timeZone: 'America/Bogota',
@@ -271,7 +421,7 @@ const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: a
                     <img 
                         src={event.thumbnail.startsWith('http') || event.thumbnail.startsWith('/') ? event.thumbnail : `/images/${event.thumbnail.split('/').pop()}`} 
                         alt={event.title} 
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${isPast ? 'filter grayscale-[20%]' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-full bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-primary" />
@@ -284,9 +434,20 @@ const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: a
             {/* Content */}
             <div className="relative px-4 sm:px-6 md:px-12 max-w-4xl z-10 pt-24">
                 <div className="flex items-center gap-2 mb-3 sm:mb-4 animate-fade-in">
-                    <span className="bg-[#10b981] text-white text-[8px] sm:text-[10px] md:text-xs font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase tracking-widest flex items-center gap-1 sm:gap-1.5 shadow-lg">
-                        <Zap size={12} className="fill-white hidden sm:block" /> PRÓXIMO EVENTO
-                    </span>
+                    {isPast ? (
+                        <span className="bg-slate-700 text-gray-200 text-[8px] sm:text-[10px] md:text-xs font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded uppercase tracking-widest flex items-center gap-1 sm:gap-1.5 shadow-lg border border-white/10">
+                            <History size={12} className="hidden sm:block" /> EVENTO REALIZADO
+                        </span>
+                    ) : isLive ? (
+                        <span className="bg-rose-600 text-white text-[8px] sm:text-[10px] md:text-xs font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded uppercase tracking-widest flex items-center gap-1 sm:gap-1.5 shadow-lg animate-pulse">
+                            <Radio size={12} className="hidden sm:block" /> EN VIVO AHORA
+                        </span>
+                    ) : (
+                        <span className="bg-[#10b981] text-white text-[8px] sm:text-[10px] md:text-xs font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase tracking-widest flex items-center gap-1 sm:gap-1.5 shadow-lg">
+                            <Zap size={12} className="fill-white hidden sm:block" /> PRÓXIMO EVENTO
+                        </span>
+                    )}
+
                     {event.tags && event.tags[0] && (
                         <span className="bg-white/10 backdrop-blur-md text-white text-[8px] sm:text-[10px] md:text-xs font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase tracking-widest border border-white/10 shadow-lg">
                             {event.tags[0]}
@@ -298,40 +459,54 @@ const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: a
                     {event.title}
                 </h1>
 
-                <div className="text-sm sm:text-base font-bold text-green-400 mb-4 flex items-center gap-1.5 shrink-0">
+                <div className={`text-sm sm:text-base font-bold mb-4 flex items-center gap-1.5 shrink-0 ${isPast ? 'text-gray-300' : isLive ? 'text-rose-400' : 'text-green-400'}`}>
                     <Clock size={16} />
                     {formattedDate}
                 </div>
                 
                 <p className="text-xs sm:text-base md:text-xl text-gray-200/90 mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-md max-w-2xl">
-                    {event.description || 'Regístrate para asegurar tu cupo al evento virtual por Google Meet y recibir los detalles de conexión por email.'}
+                    {event.description || (isPast 
+                        ? 'Este taller virtual ya fue realizado. Consulta más detalles o explora los próximos eventos de Wappy.' 
+                        : 'Regístrate para asegurar tu cupo al evento virtual por Google Meet y recibir los detalles de conexión por email.')}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                    {event.isRegistered ? (
+                    {isPast ? (
+                        <>
+                            <button 
+                                onClick={onMoreInfo}
+                                className="flex items-center justify-center gap-2 sm:gap-3 bg-white text-black px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-200 transition-all transform active:scale-95 shadow-xl"
+                            >
+                                <Info size={18} /> Ver Resumen del Evento
+                            </button>
+                        </>
+                    ) : event.isRegistered ? (
                         <a
                             href={cleanMeetLink(event.meetLink)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg transition-all transform active:scale-95 shadow-xl shadow-green-600/20"
                         >
-                            <Video size={18} /> Entrar a Google Meet
+                            <Video size={18} /> {isLive ? 'Entrar a Google Meet' : 'Ir al Enlace de Meet'}
                         </a>
                     ) : (
                         <button 
                             onClick={onRegister}
                             disabled={registering}
-                            className="flex items-center justify-center gap-2 sm:gap-3 bg-white text-black px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-200 disabled:bg-gray-400 transition-all transform active:scale-95 shadow-xl"
+                            className="flex items-center justify-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg disabled:bg-gray-400 transition-all transform active:scale-95 shadow-xl shadow-green-600/20"
                         >
                             <CheckCircle size={18} /> Inscribirme Ahora
                         </button>
                     )}
-                    <button 
-                        onClick={onMoreInfo}
-                        className="flex items-center justify-center gap-2 sm:gap-3 bg-gray-500/40 backdrop-blur-xl text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-500/60 transition-all border border-white/10 active:scale-95 shadow-xl"
-                    >
-                        <Info size={18} /> Ver Detalles
-                    </button>
+
+                    {!isPast && (
+                        <button 
+                            onClick={onMoreInfo}
+                            className="flex items-center justify-center gap-2 sm:gap-3 bg-gray-500/40 backdrop-blur-xl text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-500/60 transition-all border border-white/10 active:scale-95 shadow-xl"
+                        >
+                            <Info size={18} /> Ver Detalles
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -342,10 +517,13 @@ const FeaturedHero = ({ event, onMoreInfo, onRegister, registering }: { event: a
 
 export default function EventsMeetDashboard() {
     const [events, setEvents] = useState<any[]>([]);
-    const [categorizedEvents, setCategorizedEvents] = useState<Record<string, any[]>>({});
+    const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+    const [pastEvents, setPastEvents] = useState<any[]>([]);
+    const [categorizedUpcoming, setCategorizedUpcoming] = useState<Record<string, any[]>>({});
     const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
     const [featuredEvent, setFeaturedEvent] = useState<any>(null);
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
+    const [filterTab, setFilterTab] = useState<'all' | 'upcoming' | 'past'>('all');
     const [loading, setLoading] = useState(true);
     const [registering, setRegistering] = useState(false);
 
@@ -358,14 +536,34 @@ export default function EventsMeetDashboard() {
     const fetchEvents = async () => {
         try {
             const response = await axios.get('/api/events');
-            const data = response.data;
+            const data: any[] = response.data || [];
             setEvents(data);
 
-            // Categorize by tags
+            const upcoming: any[] = [];
+            const past: any[] = [];
+
+            data.forEach((evt: any) => {
+                const { isPast } = getEventTiming(evt.dateTime);
+                if (isPast) {
+                    past.push(evt);
+                } else {
+                    upcoming.push(evt);
+                }
+            });
+
+            // Upcoming sorted chronological (closest first)
+            upcoming.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+            // Past sorted reverse chronological (most recently completed first)
+            past.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
+            setUpcomingEvents(upcoming);
+            setPastEvents(past);
+
+            // Categorize ONLY UPCOMING events by tags/categories
             const categories: Record<string, any[]> = {};
             const order: string[] = [];
 
-            data.forEach((evt: any) => {
+            upcoming.forEach((evt: any) => {
                 const tags: string[] = evt.tags || [];
                 if (tags.length === 0) {
                     const key = 'General';
@@ -381,11 +579,17 @@ export default function EventsMeetDashboard() {
                 }
             });
 
-            setCategorizedEvents(categories);
+            setCategorizedUpcoming(categories);
             setCategoryOrder(order);
 
-            // Featured: isFeatured flag first, then fallback to first, or null
-            const featured = data.find((e: any) => e.isFeatured) || data[0] || null;
+            // Featured Hero: Priority 1: Upcoming featured, 2: Nearest upcoming, 3: Past featured, 4: Most recent past
+            const featured = 
+                upcoming.find((e: any) => e.isFeatured) || 
+                upcoming[0] || 
+                past.find((e: any) => e.isFeatured) || 
+                past[0] || 
+                null;
+                
             setFeaturedEvent(featured);
 
             // Keep selected event synced if open
@@ -486,16 +690,80 @@ export default function EventsMeetDashboard() {
                     </div>
                 )}
 
-                {/* Dynamic Rows */}
-                <div className="relative -mt-8 sm:-mt-16 md:-mt-24 pb-24 z-30">
-                    {categoryOrder.map(title => (
-                        <EventRow
-                            key={title}
-                            title={title}
-                            events={categorizedEvents[title] || []}
-                            onMoreInfo={setSelectedEvent}
-                        />
-                    ))}
+                {/* Filter Tabs & Content Section */}
+                <div className="relative -mt-8 sm:-mt-16 md:-mt-24 pb-24 z-30 space-y-6">
+                    {/* Filter Pills */}
+                    <div className="px-4 sm:px-6 md:px-12 flex flex-wrap items-center gap-2 mb-2">
+                        <button
+                            onClick={() => setFilterTab('all')}
+                            className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                filterTab === 'all'
+                                    ? 'bg-[#10b981] text-white shadow-lg shadow-[#10b981]/20 scale-105'
+                                    : 'bg-surface-primary/60 dark:bg-white/10 text-text-secondary hover:text-text-primary backdrop-blur-md border border-border-light dark:border-white/10'
+                            }`}
+                        >
+                            Todos los Eventos ({events.length})
+                        </button>
+                        <button
+                            onClick={() => setFilterTab('upcoming')}
+                            className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                filterTab === 'upcoming'
+                                    ? 'bg-[#10b981] text-white shadow-lg shadow-[#10b981]/20 scale-105'
+                                    : 'bg-surface-primary/60 dark:bg-white/10 text-text-secondary hover:text-text-primary backdrop-blur-md border border-border-light dark:border-white/10'
+                            }`}
+                        >
+                            <Calendar size={13} />
+                            Próximos en Vivo ({upcomingEvents.length})
+                        </button>
+                        <button
+                            onClick={() => setFilterTab('past')}
+                            className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                filterTab === 'past'
+                                    ? 'bg-slate-700 text-white shadow-lg scale-105'
+                                    : 'bg-surface-primary/60 dark:bg-white/10 text-text-secondary hover:text-text-primary backdrop-blur-md border border-border-light dark:border-white/10'
+                            }`}
+                        >
+                            <History size={13} />
+                            Eventos Realizados ({pastEvents.length})
+                        </button>
+                    </div>
+
+                    {/* UPCOMING EVENTS ROWS (Categorized) */}
+                    {(filterTab === 'all' || filterTab === 'upcoming') && (
+                        <>
+                            {categoryOrder.length > 0 ? (
+                                categoryOrder.map(title => (
+                                    <EventRow
+                                        key={title}
+                                        title={title}
+                                        events={categorizedUpcoming[title] || []}
+                                        onMoreInfo={setSelectedEvent}
+                                    />
+                                ))
+                            ) : filterTab === 'upcoming' ? (
+                                <div className="mx-4 sm:mx-6 md:mx-12 p-8 rounded-2xl bg-surface-secondary border border-border-medium text-center">
+                                    <Clock size={32} className="mx-auto text-text-tertiary mb-2" />
+                                    <h3 className="font-bold text-base text-text-primary">No hay eventos próximos agendados</h3>
+                                    <p className="text-xs text-text-secondary mt-1">
+                                        Próximamente anunciaremos nuevas sesiones y talleres virtuales.
+                                    </p>
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+
+                    {/* PAST / COMPLETED EVENTS ROW (Dedicated list for finished events) */}
+                    {(filterTab === 'all' || filterTab === 'past') && pastEvents.length > 0 && (
+                        <div className={`${filterTab === 'all' ? 'pt-4 border-t border-border-light dark:border-white/5' : ''}`}>
+                            <EventRow
+                                title="Eventos Realizados"
+                                subtitle="Consulta el historial de talleres y sesiones virtuales que ya se llevaron a cabo"
+                                events={pastEvents}
+                                onMoreInfo={setSelectedEvent}
+                                isPastRow={true}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

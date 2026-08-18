@@ -9,7 +9,7 @@ import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
 import { useAuthContext } from '~/hooks/AuthContext';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAmbassadorAccess } from '~/hooks';
 import Settings from './Settings';
 import store from '~/store';
 import axios from 'axios';
@@ -20,6 +20,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   const localize = useLocalize();
   const navigate = useNavigate();
   const { user, token, isAuthenticated, logout } = useAuthContext();
+  const { hasAmbassadorAccess } = useAmbassadorAccess();
   const { data: startupConfig } = useGetStartupConfig();
   const balanceQuery = useGetUserBalance({
     enabled: !!isAuthenticated && startupConfig?.balance?.enabled,
@@ -257,7 +258,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
               Configurar Tenshi
             </Select.SelectItem>
           )}
-          {(user?.role === 'ADMIN' || user?.role === 'EMBAJADOR' || user?.role === 'EMBAJADOR_LIDER' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+          {hasAmbassadorAccess && (
             <Select.SelectItem
               value=""
               onClick={() => navigate('/embajadores/dashboard')}
