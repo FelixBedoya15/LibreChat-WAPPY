@@ -475,10 +475,10 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setCommercialTier('none')}
-                                                                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                                                                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                                                                     commercialTier === 'none' 
                                                                         ? 'border-gray-400 bg-gray-100 dark:bg-gray-700 text-text-primary' 
-                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary'
+                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary hover:bg-gray-50'
                                                                 }`}
                                                             >
                                                                 No Socio (Asociado)
@@ -487,27 +487,39 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setCommercialTier('partner')}
-                                                                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                                                                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                                                                     commercialTier === 'partner' 
-                                                                        ? 'border-amber-500 bg-amber-500/10 text-amber-950 dark:text-amber-100' 
-                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary'
+                                                                        ? 'border-amber-500 bg-amber-500/10 text-amber-950 dark:text-amber-100 ring-2 ring-amber-500/20' 
+                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary hover:bg-gray-50'
                                                                 }`}
                                                             >
-                                                                Wappy Partner
+                                                                Embajador Estándar (20% - 25%)
                                                             </button>
 
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setCommercialTier('embajador')}
-                                                                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                                                                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                                                                     commercialTier === 'embajador' 
-                                                                        ? 'border-purple-500 bg-purple-500/10 text-purple-950 dark:text-purple-100' 
-                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary'
+                                                                        ? 'border-purple-500 bg-purple-500/10 text-purple-950 dark:text-purple-100 ring-2 ring-purple-500/20' 
+                                                                        : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary hover:bg-gray-50'
                                                                 }`}
                                                             >
-                                                                Wappy Embajador
+                                                                Embajador Líder (25% + 5% Red)
                                                             </button>
                                                         </div>
+
+                                                        {/* EXPLICACIÓN DE REGLAS DE COMISIÓN */}
+                                                        {commercialTier === 'partner' && (
+                                                            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-800 dark:text-amber-300 font-medium animate-fadeIn">
+                                                                <span className="font-bold">✨ Comisión Estándar:</span> 20% base en todas las ventas. Sube automáticamente al <span className="font-bold">25%</span> al lograr más de 3 ventas en el mismo mes de Wappy PRO Semestral o Anual.
+                                                            </div>
+                                                        )}
+                                                        {commercialTier === 'embajador' && (
+                                                            <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[11px] text-purple-800 dark:text-purple-300 font-medium animate-fadeIn">
+                                                                <span className="font-bold">👑 Comisión Líder:</span> 25% base en ventas directas + <span className="font-bold">5% adicional</span> sobre ventas de su red cuando el embajador estándar cumple la meta del mes.
+                                                            </div>
+                                                        )}
 
                                                         {/* CAMPOS COMERCIALES COMPLEMENTARIOS */}
                                                         {commercialTier !== 'none' && (

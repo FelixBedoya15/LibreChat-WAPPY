@@ -390,7 +390,7 @@ router.post('/partner/apply-new', async (req, res) => {
             // If rejected, let them resubmit
             existingPartner.slug = normalizedSlug;
             existingPartner.type = type === 'embajador' ? 'embajador' : 'partner';
-            existingPartner.commissionRate = type === 'embajador' ? 0.30 : 0.20;
+            existingPartner.commissionRate = type === 'embajador' ? 0.25 : 0.20;
             existingPartner.paymentDetails = paymentDetails ? paymentDetails.trim() : '';
             existingPartner.supportContact = supportContact ? supportContact.trim() : '';
             existingPartner.status = 'pending';
@@ -404,7 +404,7 @@ router.post('/partner/apply-new', async (req, res) => {
             userId,
             slug: normalizedSlug,
             type: type === 'embajador' ? 'embajador' : 'partner',
-            commissionRate: type === 'embajador' ? 0.30 : 0.20,
+            commissionRate: type === 'embajador' ? 0.25 : 0.20,
             active: false,
             status: 'pending',
             paymentDetails: paymentDetails ? paymentDetails.trim() : '',

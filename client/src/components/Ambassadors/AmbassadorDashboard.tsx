@@ -783,8 +783,12 @@ export default function AmbassadorDashboard() {
                           </td>
                           <td className="px-4 py-3 font-mono text-teal-600 font-semibold">{p.slug}</td>
                           <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700">
-                              {p.type === 'embajador' ? 'Líder (30%)' : 'Estándar (20%)'}
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                              p.type === 'embajador'
+                                ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20'
+                                : 'bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20'
+                            }`}>
+                              {p.type === 'embajador' ? 'Líder (25% + 5% Red)' : 'Estándar (20% → 25%)'}
                             </span>
                           </td>
                           <td className="px-4 py-3 font-bold text-text-primary">{p.totalReferrals}</td>

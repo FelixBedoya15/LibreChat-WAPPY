@@ -31,9 +31,30 @@ const processSuccessfulPurchase = async ({ userId, transactionId, planId, interv
         if (referral.referredByPartner) {
             const partner = await Partner.findById(referral.referredByPartner);
             if (partner && partner.active) {
-                // Default rates: 30% for embajador, 20% for partner
-                const defaultRate = partner.type === 'embajador' ? 0.30 : 0.20;
-                const commissionRate = partner.commissionRate !== undefined ? partner.commissionRate : defaultRate;
+                // Determine rate based on rules:
+                // Embajador Líder: 25% base
+                // Embajador Estándar: 20% base, sube a 25% si tiene más de 3 ventas en el mes de semestral o anual
+                let commissionRate = partner.type === 'embajador' ? 0.25 : 0.20;
+
+                if (partner.type !== 'embajador') {
+                    // Check monthly sales in current calendar month of semiannual / annual
+                    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+                    const monthlyLongTermSales = await PartnerCommission.countDocuments({
+                        partnerId: partner._id,
+                        status: { $ne: 'cancelled' },
+                        createdAt: { $gte: startOfMonth }
+                    });
+
+                    // If they have 3 or more long term sales in the month, or with this purchase
+                    if (monthlyLongTermSales >= 3 || ((interval === 'semiannual' || interval === 'annual') && monthlyLongTermSales >= 2)) {
+                        commissionRate = 0.25;
+                    }
+                }
+
+                if (partner.commissionRate && partner.commissionRate > commissionRate) {
+                    commissionRate = partner.commissionRate;
+                }
+
                 const commissionAmount = Math.round(amountInCents * commissionRate);
 
                 await PartnerCommission.create({
@@ -46,8 +67,8 @@ const processSuccessfulPurchase = async ({ userId, transactionId, planId, interv
                     status: 'pending'
                 });
 
-                const partnerTierName = partner.type === 'embajador' ? 'Wappy Embajador' : 'Wappy Partner';
-                logger.info(`[ReferralService] Generated pending commission for ${partnerTierName} ${partner.slug}: ${commissionAmount} cents (Tx: ${transactionId})`);
+                const partnerTierName = partner.type === 'embajador' ? 'Embajador Líder' : 'Embajador Estándar';
+                logger.info(`[ReferralService] Generated pending commission for ${partnerTierName} ${partner.slug}: ${commissionAmount} cents (${commissionRate * 100}%, Tx: ${transactionId})`);
 
                 // Notify the partner user in-app
                 try {
