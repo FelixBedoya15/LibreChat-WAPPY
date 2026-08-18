@@ -1,8 +1,8 @@
 diff --git a/node_modules/@google/generative-ai/dist/index.js b/node_modules/@google/generative-ai/dist/index.js
-index 61b2c39..8a3d419 100644
+index 61b2c39..9218ffa 100644
 --- a/node_modules/@google/generative-ai/dist/index.js
 +++ b/node_modules/@google/generative-ai/dist/index.js
-@@ -859,13 +859,65 @@ function aggregateResponses(responses) {
+@@ -859,13 +859,81 @@ function aggregateResponses(responses) {
   * limitations under the License.
   */
  async function generateContentStream(apiKey, model, params, requestOptions) {
@@ -13,12 +13,20 @@ index 61b2c39..8a3d419 100644
 +        if (err.name === 'RangeError' || (err.message && err.message.includes('Invalid string length'))) {
 +            const sanitizeObj = (obj) => {
 +                if (!obj || typeof obj !== 'object') return obj;
-+                if (Array.isArray(obj)) return obj.map(sanitizeObj);
++                if (Array.isArray(obj)) return obj.map(sanitizeObj).filter((item) => item !== null && item !== undefined);
 +                const clean = {};
 +                for (const key of Object.keys(obj)) {
 +                    const val = obj[key];
++                    if (key === 'inlineData' || key === 'inline_data') {
++                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 2000000) {
++                            continue;
++                        }
++                    }
++                    if (key === 'data' && typeof val === 'string' && val.length > 2000000) {
++                        continue;
++                    }
 +                    if (typeof val === 'string' && val.length > 1000000) {
-+                        clean[key] = val.substring(0, 500000) + '\n\n[...Payload de gran tamaño omitido/truncado...]';
++                        clean[key] = val.substring(0, 500000) + '\n\n[...Texto truncado por límite de tamaño...]';
 +                    } else if (typeof val === 'object' && val !== null) {
 +                        clean[key] = sanitizeObj(val);
 +                    } else {
@@ -45,12 +53,20 @@ index 61b2c39..8a3d419 100644
 +        if (err.name === 'RangeError' || (err.message && err.message.includes('Invalid string length'))) {
 +            const sanitizeObj = (obj) => {
 +                if (!obj || typeof obj !== 'object') return obj;
-+                if (Array.isArray(obj)) return obj.map(sanitizeObj);
++                if (Array.isArray(obj)) return obj.map(sanitizeObj).filter((item) => item !== null && item !== undefined);
 +                const clean = {};
 +                for (const key of Object.keys(obj)) {
 +                    const val = obj[key];
++                    if (key === 'inlineData' || key === 'inline_data') {
++                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 2000000) {
++                            continue;
++                        }
++                    }
++                    if (key === 'data' && typeof val === 'string' && val.length > 2000000) {
++                        continue;
++                    }
 +                    if (typeof val === 'string' && val.length > 1000000) {
-+                        clean[key] = val.substring(0, 500000) + '\n\n[...Payload de gran tamaño omitido/truncado...]';
++                        clean[key] = val.substring(0, 500000) + '\n\n[...Texto truncado por límite de tamaño...]';
 +                    } else if (typeof val === 'object' && val !== null) {
 +                        clean[key] = sanitizeObj(val);
 +                    } else {

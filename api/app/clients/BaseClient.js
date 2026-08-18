@@ -1298,7 +1298,7 @@ class BaseClient {
           });
 
           if (childImages && childImages.length > 0) {
-            attachments = [...attachments, ...childImages];
+            attachments = [...attachments, ...childImages.slice(0, 2)];
           }
         } catch (err) {
           logger.error('[BaseClient] Error retrieving child page images for PDFs:', err);

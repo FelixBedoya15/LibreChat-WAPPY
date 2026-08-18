@@ -40,7 +40,7 @@ index 702a29d..4e48e88 100644
                      });
                  }, {
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
-index 48c6de6..6ce7f4c 100644
+index 48c6de6..3df5c06 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 @@ -72,6 +72,14 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
@@ -65,14 +65,14 @@ index 48c6de6..6ce7f4c 100644
 +        if (Array.isArray(request.contents)) {
 +            for (const item of request.contents) {
 +                if (item && Array.isArray(item.parts)) {
-+                    item.parts = item.parts.map((part) => {
-+                        if (part && part.inlineData && typeof part.inlineData.data === 'string' && part.inlineData.data.length > 3500000) {
-+                            return { text: `[Adjunto omitido por tamaño excesivo (${(part.inlineData.data.length / 1000000).toFixed(1)} MB)]` };
++                    item.parts = item.parts.filter((part) => {
++                        if (part && part.inlineData && typeof part.inlineData.data === 'string' && part.inlineData.data.length > 2000000) {
++                            return false;
 +                        }
-+                        if (part && typeof part.text === 'string' && part.text.length > 1000000) {
-+                            return { text: part.text.substring(0, 500000) + '\n\n[...Texto truncado por límite de tamaño...]' };
++                        if (part && part.inline_data && typeof part.inline_data.data === 'string' && part.inline_data.data.length > 2000000) {
++                            return false;
 +                        }
-+                        return part;
++                        return true;
 +                    });
 +                }
 +            }
