@@ -1,3 +1,4 @@
+import fs, { promises as fsPromises } from 'fs';
 import { logger } from '@librechat/data-schemas';
 import { FileSources, mergeFileConfig } from 'librechat-data-provider';
 import type { fileConfigSchema } from 'librechat-data-provider';
@@ -36,21 +37,40 @@ export async function extractFileContext({
   let resultText = '';
 
   for (const file of attachments) {
-    if (file.text && file.text.trim().length > 0) {
-      const { text: limitedText, wasTruncated } = await processTextWithTokenLimit({
-        text: file.text,
-        tokenLimit: fileTokenLimit,
-        tokenCountFn,
-      });
-
-      if (wasTruncated) {
-        logger.debug(
-          `[extractFileContext] Text content truncated for file: ${file.filename} due to token limits`,
-        );
+    let fileText = file.text;
+    if (!fileText || fileText.trim().length === 0) {
+      if (file.filepath && fs.existsSync(file.filepath)) {
+        try {
+          if (file.type === 'application/pdf' || file.filename?.toLowerCase().endsWith('.pdf')) {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const pdf = require('pdf-parse');
+            const dataBuffer = await fsPromises.readFile(file.filepath);
+            const pdfData = await pdf(dataBuffer);
+            fileText = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+          }
+        } catch (e) {
+          logger.warn(`[extractFileContext] On-the-fly PDF extraction failed for ${file.filename}: ${e.message}`);
+        }
       }
-
-      resultText += `${!resultText ? 'Attached document(s):\n```md' : '\n\n---\n\n'}# "${file.filename}"\n${limitedText}\n`;
     }
+
+    if (!fileText || fileText.trim().length === 0) {
+      fileText = `[Documento adjunto: "${file.filename || 'Archivo'}"]`;
+    }
+
+    const { text: limitedText, wasTruncated } = await processTextWithTokenLimit({
+      text: fileText,
+      tokenLimit: fileTokenLimit,
+      tokenCountFn,
+    });
+
+    if (wasTruncated) {
+      logger.debug(
+        `[extractFileContext] Text content truncated for file: ${file.filename} due to token limits`,
+      );
+    }
+
+    resultText += `${!resultText ? 'Attached document(s):\n```md' : '\n\n---\n\n'}# "${file.filename}"\n${limitedText}\n`;
   }
 
   if (resultText) {
