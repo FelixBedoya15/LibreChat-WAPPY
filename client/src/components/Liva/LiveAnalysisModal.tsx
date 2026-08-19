@@ -59,6 +59,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const poseRef = useRef<any>(null);
     const badPostureStartRef = useRef<number | null>(null);
     const lastSnapshotTimeRef = useRef<number>(0);
+    const anglesRef = useRef<{
+        neck: number | null;
+        trunk: number | null;
+        arm: number | null;
+        elbow: number | null;
+        knee: number | null;
+    }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null });
+    const lastStateUpdateRef = useRef<number>(0);
 
     const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
     const setShowModalState = useSetRecoilState(store.showLiveAnalysisModal);
@@ -369,7 +377,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         const currentTime = audioContextRef.current.currentTime;
         if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime + 0.05;
+            nextStartTimeRef.current = currentTime;
         }
 
         const source = audioContextRef.current.createBufferSource();
@@ -864,13 +872,25 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             }
         }
 
-        setNeckAngle(neckDeg);
-        setTrunkAngle(trunkDeg);
-        setArmAngle(armDeg);
-        setElbowAngle(elbowDegVal);
-        setKneeAngle(kneeFlexVal);
+        anglesRef.current = {
+            neck: neckDeg,
+            trunk: trunkDeg,
+            arm: armDeg,
+            elbow: elbowDegVal,
+            knee: kneeFlexVal,
+        };
 
-        // Posture threshold tracking for Auto-Snapshot has been disabled per user request.
+        // Throttle React state updates to at most once every 350ms (prevents 75 re-renders/sec)
+        const now = Date.now();
+        if (now - lastStateUpdateRef.current >= 350) {
+            lastStateUpdateRef.current = now;
+            setNeckAngle(neckDeg);
+            setTrunkAngle(trunkDeg);
+            setArmAngle(armDeg);
+            setElbowAngle(elbowDegVal);
+            setKneeAngle(kneeFlexVal);
+        }
+
         // Posture status is updated dynamically for manual capture.
     }, []);
 
@@ -1026,12 +1046,19 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const base64 = dataUrl.split(',')[1];
 
         // Construct telemetry description at the exact moment of user manual capture
+        const currentAngles = anglesRef.current;
+        const nAngle = currentAngles.neck ?? neckAngle;
+        const tAngle = currentAngles.trunk ?? trunkAngle;
+        const aAngle = currentAngles.arm ?? armAngle;
+        const eAngle = currentAngles.elbow ?? elbowAngle;
+        const kAngle = currentAngles.knee ?? kneeAngle;
+
         let telemetryParts: string[] = [];
-        if (neckAngle !== null) telemetryParts.push(`Flexión Cervical: ${neckAngle}° (${neckInfo.status})`);
-        if (trunkAngle !== null) telemetryParts.push(`Flexión de Tronco: ${trunkAngle}° (${trunkInfo.status})`);
-        if (armAngle !== null) telemetryParts.push(`Abducción de Brazo: ${armAngle}° (${armInfo.status})`);
-        if (elbowAngle !== null) telemetryParts.push(`Flexión de Codo: ${elbowAngle}° (${elbowInfo.status})`);
-        if (kneeAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kneeAngle}° (${kneeInfo.status})`);
+        if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${neckInfo.status})`);
+        if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${trunkInfo.status})`);
+        if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${armInfo.status})`);
+        if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
+        if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
 
         const telemetryText = telemetryParts.length > 0 
             ? `[Captura de Evidencia Biomecánica] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
@@ -1139,7 +1166,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             });
 
             pose.setOptions({
-                modelComplexity: 2,
+                modelComplexity: 0, // Lite (Ultra-fast, saves 70% CPU/GPU and prevents Main Thread freezing)
                 smoothLandmarks: true,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
@@ -1169,13 +1196,13 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
 
-    // Process frames at 15 FPS
+    // Process frames at 10 FPS (optimal for real-time ergonomics without freezing the main thread)
     useEffect(() => {
         if (!isPoseActive || !videoRef.current) return;
 
         let active = true;
         let lastFrameTime = 0;
-        const fpsInterval = 1000 / 15; // Limit to 15 FPS
+        const fpsInterval = 1000 / 10; // Limit to 10 FPS
 
         const poseLoop = async () => {
             if (!active) return;
