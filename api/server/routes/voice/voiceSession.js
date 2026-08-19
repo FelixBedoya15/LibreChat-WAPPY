@@ -1681,18 +1681,23 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
+        let agentRolePrompt = '';
         let isBiomechanics = false;
         if (agentId) {
             try {
                 const { getAgent } = require('~/models/Agent');
                 const agent = await getAgent({ id: agentId });
-                if (agent && agent.instructions) {
-                    config.systemInstruction = agent.instructions;
+                if (agent) {
                     const agentName = (agent.name || '').toLowerCase();
                     if (agentName.includes('fisioterapeuta') || agentName.includes('biomecánica') || agentName.includes('biomecanica')) {
                         isBiomechanics = true;
                     }
-                    logger.info(`[VoiceSession] Synchronized session systemInstruction with Agent (${agent.name || agentId}) prompt (isBiomechanics: ${isBiomechanics})`);
+                    if (agent.instructions) {
+                        // Extract concise persona prompt, stripping massive markdown tables/html templates (kept for chat)
+                        agentRolePrompt = `Eres el asistente "${agent.name || 'Especialista SST'}" de WAPPY IA.\n` +
+                            agent.instructions.substring(0, 1500).replace(/<[^>]*>/g, '').trim();
+                    }
+                    logger.info(`[VoiceSession] Extracted live prompt for Agent (${agent.name || agentId}) (isBiomechanics: ${isBiomechanics})`);
                 }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
@@ -1703,31 +1708,22 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             isBiomechanics = true;
         }
 
-        // Live Voice & Video System Instructions Adaptation
-        let liveSkillContent = '';
-        if (isBiomechanics) {
-            liveSkillContent = `
-[DIRECTIVA ESPECIAL EN VIVO - FISIOTERAPEUTA Y BIOMECÁNICA]:
-- Estás en una videollamada interactiva en tiempo real viendo la cámara y la postura del usuario.
-- SALUDO INICIAL OBLIGATORIO: En tu primera respuesta saluda en una sola frase breve y directa (ej: "Hola, te estoy viendo en cámara. Dime qué postura, tarea o puesto de trabajo deseas que evaluemos juntos.").
-- PROHIBIDO hacer cuestionarios largos o pedir en voz alta tamaño de empresa, ARL, porcentaje de implementación o marco legal, a menos que el usuario lo solicite.
-- Mantén intervenciones habladas de máximo 1 a 2 oraciones para diálogo de baja latencia.
-- Cuando observes la postura del usuario, dale retroalimentación inmediata, amable y práctica (ej: cuello inclinado, espalda encorvada, distancia a la pantalla).
-`;
-        }
+        // Clean, lightweight Live Voice & Video System Instruction
+        config.systemInstruction = `
+${agentRolePrompt || 'Eres un Experto Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA.'}
 
-        // Adapt systemInstruction for voice/video session to prevent HTML/markdown issues
-        const voiceSystemInstructionSuffix = `
-[CRITICAL FOR VOICE/VIDEO SESSION]:
-- You are speaking via a real-time voice and video call.
-- NEVER output HTML tags, custom elements (like <wappy-card>), markdown formatting (such as bold **, headers, lists, bullet points), or backticks.
-- Speak in natural, fluent, conversational Spanish.
-- Do NOT list items with bullet points. Speak in short, natural conversational phrases (1 to 2 sentences per turn).
-- Avoid long monologues. Allow the user to speak and respond frequently.
-- If you need to request information, ask for only ONE simple detail at a time.
-${liveSkillContent}
-`;
-        config.systemInstruction = (config.systemInstruction || '') + voiceSystemInstructionSuffix;
+[DIRECTIVAS DE VOZ Y VIDEO EN VIVO]:
+- Estás en una videollamada interactiva en tiempo real viendo la cámara y escuchando la voz del usuario.
+- SALUDO INICIAL: Saluda en 1 sola frase breve y directa invitando a interactuar (ej: "Hola, te estoy viendo en cámara. Dime en qué te puedo colaborar hoy.").
+- Habla en español claro, fluido y natural.
+- Responde siempre de forma concisa (máximo 1 a 2 oraciones por intervención) para permitir un diálogo dinámico de ida y vuelta.
+- NUNCA uses etiquetas HTML, viñetas o monólogos largos.
+${isBiomechanics ? `
+[MODO BIOMECÁNICA Y ERGONOMÍA]:
+- Tienes capacidad visual activa en tiempo real: observa la postura del usuario y dale retroalimentación inmediata, amable y práctica (cuello, espalda, distancia y alineación).
+- PROHIBIDO realizar cuestionarios administrativos largos o pedir en voz alta tamaño de empresa, ARL o marco legal, a menos que el usuario lo pida.
+` : ''}
+`.trim();
         
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);

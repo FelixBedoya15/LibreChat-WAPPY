@@ -295,8 +295,8 @@ class GeminiLiveClient extends EventEmitter {
                 // outputAudioTranscription = transcribes AI's voice
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                // Add Tools support only if explicitly provided (no default googleSearch for zero-latency live voice)
-                ...(Array.isArray(this.config.tools) && this.config.tools.length > 0 ? { tools: this.config.tools } : {}),
+                // Standard Tools support
+                tools: this.config.tools || [{ googleSearch: {} }],
             },
         };
 
