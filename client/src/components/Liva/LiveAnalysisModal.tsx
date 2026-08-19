@@ -377,7 +377,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         const currentTime = audioContextRef.current.currentTime;
         if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime;
+            nextStartTimeRef.current = currentTime + 0.05;
         }
 
         const source = audioContextRef.current.createBufferSource();

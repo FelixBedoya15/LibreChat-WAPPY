@@ -39,8 +39,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const streamRef = useRef<MediaStream | null>(null);
     const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const isHardwareMutedRef = useRef(false);
+    const isAutoMutedRef = useRef(false);
     const isPlayingAudioRef = useRef(false);
     const serverFinishedRef = useRef(false);
+    const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
     const statusRef = useRef(status);
     useEffect(() => {
@@ -104,7 +106,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             // 3. Helper: enviar PCM int16 al servidor via WebSocket
             let sendCount = 0;
             const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current) return;
+                if (isHardwareMutedRef.current || isAutoMutedRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 const int16Data = new Int16Array(float32Array.length);
@@ -222,7 +224,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     };
 
     /**
-
      * Get current input volume (0-1)
      */
     const getInputVolume = useCallback(() => {
@@ -243,32 +244,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             data: {}
         }));
     }, []);
-
-    // Local VAD: Detecta voz del usuario mientras la IA habla y dispara la interrupción de inmediato
-    const vadSpeechCountRef = useRef(0);
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (statusRef.current === 'speaking' && inputAnalyserRef.current) {
-                const volume = getInputVolume();
-                if (volume > 0.14) {
-                    vadSpeechCountRef.current += 1;
-                    if (vadSpeechCountRef.current >= 2) {
-                        console.log('[VoiceSession] Local VAD detected speech during AI response -> Triggering barge-in interrupt');
-                        sendInterrupt();
-                        setStatus('listening');
-                        optionsRef.current.onStatusChange?.('interrupted');
-                        vadSpeechCountRef.current = 0;
-                    }
-                } else {
-                    vadSpeechCountRef.current = Math.max(0, vadSpeechCountRef.current - 1);
-                }
-            } else {
-                vadSpeechCountRef.current = 0;
-            }
-        }, 80);
-
-        return () => clearInterval(interval);
-    }, [getInputVolume, sendInterrupt]);
 
     /**
      * Stop Audio Capture
@@ -421,7 +396,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (message.data.audioData) {
                     optionsRef.current.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
+                    isAutoMutedRef.current = true;
                     serverFinishedRef.current = false;
+
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                    }
+                    autoMuteTimeoutRef.current = setTimeout(() => {
+                        console.log('[VoiceSession] Safety auto-unmute timeout');
+                        isAutoMutedRef.current = false;
+                        autoMuteTimeoutRef.current = null;
+                    }, 15000);
                 }
                 break;
 
@@ -454,6 +439,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
                     serverFinishedRef.current = true;
+                    if (!isPlayingAudioRef.current) {
+                        isAutoMutedRef.current = false;
+                        if (autoMuteTimeoutRef.current) {
+                            clearTimeout(autoMuteTimeoutRef.current);
+                            autoMuteTimeoutRef.current = null;
+                        }
+                    }
                 }
                 break;
 
@@ -463,6 +455,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 console.log('[VoiceSession] AI interrupted event from server');
                 serverFinishedRef.current = true;
                 isPlayingAudioRef.current = false;
+                isAutoMutedRef.current = false;
+                if (autoMuteTimeoutRef.current) {
+                    clearTimeout(autoMuteTimeoutRef.current);
+                    autoMuteTimeoutRef.current = null;
+                }
                 break;
 
             case 'error':
@@ -511,7 +508,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             wsRef.current = null;
         }
 
+        if (autoMuteTimeoutRef.current) {
+            clearTimeout(autoMuteTimeoutRef.current);
+            autoMuteTimeoutRef.current = null;
+        }
+
         isHardwareMutedRef.current = false;
+        isAutoMutedRef.current = false;
         isPlayingAudioRef.current = false;
         serverFinishedRef.current = false;
         inputAnalyserRef.current = null;
@@ -573,6 +576,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const setIsPlayingAudio = useCallback((isPlaying: boolean) => {
         isPlayingAudioRef.current = isPlaying;
         console.log('[VoiceSession] setIsPlayingAudio:', isPlaying, 'serverFinished:', serverFinishedRef.current);
+        if (!isPlaying && serverFinishedRef.current) {
+            console.log('[VoiceSession] Playback finished and server is done - unmuting microphone');
+            isAutoMutedRef.current = false;
+            if (autoMuteTimeoutRef.current) {
+                clearTimeout(autoMuteTimeoutRef.current);
+                autoMuteTimeoutRef.current = null;
+            }
+        }
     }, []);
 
     return {

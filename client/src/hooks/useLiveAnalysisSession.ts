@@ -207,32 +207,6 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
         return Math.min(1, (average / 128));
     }, []);
 
-    // Local VAD: Detecta voz del usuario mientras la IA habla y dispara la interrupción de inmediato
-    const vadSpeechCountRef = useRef(0);
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (statusRef.current === 'speaking' && inputAnalyserRef.current) {
-                const volume = getInputVolume();
-                if (volume > 0.14) {
-                    vadSpeechCountRef.current += 1;
-                    if (vadSpeechCountRef.current >= 2) {
-                        console.log('[LiveAnalysisSession] Local VAD detected speech during AI response -> Triggering barge-in interrupt');
-                        sendInterrupt();
-                        setStatus('listening');
-                        optionsRef.current.onStatusChange?.('interrupted');
-                        vadSpeechCountRef.current = 0;
-                    }
-                } else {
-                    vadSpeechCountRef.current = Math.max(0, vadSpeechCountRef.current - 1);
-                }
-            } else {
-                vadSpeechCountRef.current = 0;
-            }
-        }, 80);
-
-        return () => clearInterval(interval);
-    }, [getInputVolume, sendInterrupt]);
-
     /**
      * Stop Audio Capture
      */
@@ -378,7 +352,16 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 if (message.data.audioData) {
                     optionsRef.current.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
-                    // Mantenemos el micrófono abierto para permitir que el motor VAD de Gemini detecte cuando el usuario interrumpe (Full-Duplex Barge-In real).
+                    isMutedRef.current = true;
+
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                    }
+                    autoMuteTimeoutRef.current = setTimeout(() => {
+                        console.log('[LiveAnalysisSession] Safety auto-unmute timeout');
+                        isMutedRef.current = false;
+                        autoMuteTimeoutRef.current = null;
+                    }, 15000);
                 }
                 break;
 

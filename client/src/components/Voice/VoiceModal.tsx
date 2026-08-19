@@ -1120,7 +1120,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         const ctx = audioContextRef.current;
         const currentTime = ctx.currentTime;
         if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime;
+            nextStartTimeRef.current = currentTime + 0.05;
         }
         const source = ctx.createBufferSource();
         source.buffer = buffer;
