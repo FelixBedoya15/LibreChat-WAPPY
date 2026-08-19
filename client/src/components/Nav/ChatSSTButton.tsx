@@ -27,7 +27,7 @@ export default function ChatSSTButton({
     if (isCollapsed) {
         return (
             <TooltipAnchor
-              description="Chat SST"
+              description="Comunidad"
               side="right"
               render={
                 <motion.button
@@ -59,7 +59,7 @@ export default function ChatSSTButton({
             )}
         >
             <MessageCircle className="h-4 w-4 shrink-0 text-green-500" />
-            <span className="font-semibold text-text-primary text-[13px]">Chat SST</span>
+            <span className="font-semibold text-text-primary text-[13px]">Comunidad</span>
         </motion.button>
     );
 }

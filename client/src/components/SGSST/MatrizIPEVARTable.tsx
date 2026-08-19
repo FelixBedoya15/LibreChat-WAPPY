@@ -843,7 +843,7 @@ export default function MatrizIPEVARTable({
             }) &&
             keys.some(k => {
               const l = cleanKey(k);
-              return l === 'actividad' || l === 'actividades';
+              return l === 'actividad' || l === 'actividades' || l === 'tarea' || l === 'tareas' || l === 'cargo' || l === 'cargos';
             }) &&
             keys.some(k => {
               const l = cleanKey(k);
@@ -884,8 +884,8 @@ export default function MatrizIPEVARTable({
             };
 
             const newRows = allSheetRows.map((r: any) => {
-              const ndVal = mapND(getValueByKeys(r, ['niveldedeficienciand', 'nd', 'niveldedeficiencia']));
-              const neVal = mapNE(getValueByKeys(r, ['niveldeexposicionne', 'ne', 'niveldeexposicion']));
+              const ndVal = mapND(getValueByKeys(r, ['niveldeficiencia', 'niveldedeficienciand', 'nd', 'niveldedeficiencia']));
+              const neVal = mapNE(getValueByKeys(r, ['niveldeexposicion', 'niveldeexposicionne', 'ne', 'niveldeexposicion']));
               const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
               const npVal = ndVal * neVal;
               const nrVal = npVal * ncVal;
@@ -897,27 +897,27 @@ export default function MatrizIPEVARTable({
               else if (rawReq.includes('no')) mappedReq = 'No';
 
               return {
-                proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'cargo', 'cargos'])),
-                zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar'])),
-                actividad: getValueByKeys(r, ['actividad', 'actividades']),
-                tareas: getValueByKeys(r, ['tareas', 'tarea']),
-                rutinaria: getValueByKeys(r, ['rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
-                peligro_descripcion: getValueByKeys(r, ['descripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
-                peligro_clasificacion: getValueByKeys(r, ['clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
+                proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos'])),
+                zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta'])),
+                actividad: getValueByKeys(r, ['actividad', 'actividades', 'cargo', 'cargos', 'tarea', 'tareas']),
+                tareas: getValueByKeys(r, ['tareas', 'tarea', 'actividad', 'actividades']),
+                rutinaria: getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
+                peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
+                peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
                 efectos_posibles: getValueByKeys(r, ['efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo']),
-                controles_fuente: getValueByKeys(r, ['ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
-                controles_medio: getValueByKeys(r, ['ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
-                controles_individuo: getValueByKeys(r, ['ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
+                controles_fuente: getValueByKeys(r, ['fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
+                controles_medio: getValueByKeys(r, ['mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
+                controles_individuo: getValueByKeys(r, ['personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
                 nd: ndVal,
                 ne: neVal,
                 np: npVal,
                 interpretacion_np: getInterpretacionNP(npVal),
                 nc: ncVal,
                 nr: nrVal,
-                interpretacion_nr: getValueByKeys(r, ['interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo', 'interpretaciondelnr']),
+                interpretacion_nr: getValueByKeys(r, ['interpretaciondelnr', 'interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo']),
                 aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
-                nro_expuestos: Number(getValueByKeys(r, ['nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
-                peor_consecuencia: getValueByKeys(r, ['peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
+                nro_expuestos: Number(getValueByKeys(r, ['numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
+                peor_consecuencia: getValueByKeys(r, ['peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
                 requisito_legal: mappedReq,
                 medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
                 medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
