@@ -103,32 +103,31 @@ class VoiceSession {
      */
     async start() {
         try {
-            // FIX FASE 3 & 5: Cargar historial y último mensaje si es chat existente
+            // FIX FASE 3 & 5: Cargar historial y último mensaje si es chat existente (últimos 6 mensajes para contexto ligero)
             if (this.conversationId && this.conversationId !== 'new') {
                 try {
-                    // Cargar últimos 15 mensajes para contexto
                     const messages = await getMessages({
                         conversationId: this.conversationId,
                         user: this.userId
-                    }, null, { limit: 15, sort: { createdAt: -1 } });
+                    }, null, { limit: 6, sort: { createdAt: -1 } });
 
                     if (messages && messages.length > 0) {
                         // 1. Set lastMessageId (FASE 3 - Mensajes Verticales)
-                        // FIX: Asegurar que tomamos el mensaje más reciente absoluto
                         const sortedMessages = [...messages].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                         this.lastMessageId = sortedMessages[0].messageId;
                         logger.info(`[VoiceSession] Loaded lastMessageId: ${this.lastMessageId}`);
 
-                        // 2. Build Context (FASE 5 - Memoria)
+                        // 2. Build Context (FASE 5 - Memoria con ventana ligera)
                         const contextMessages = [...messages].reverse().map(msg => {
                             const role = msg.isCreatedByUser ? 'Usuario' : 'Asistente';
                             let text = msg.text;
                             if (!text && Array.isArray(msg.content)) {
                                 text = msg.content.map(c => c.text || '').join(' ');
                             }
-                            return `${role}: ${text || '[Contenido multimedia]'}`;
+                            return `${role}: ${(text || '[Contenido multimedia]').substring(0, 200)}`;
                         });
 
+                        this.conversationTurns = [...contextMessages];
                         this.config.conversationContext = contextMessages.join('\n');
                         logger.info(`[VoiceSession] Loaded context with ${messages.length} messages`);
                     }
@@ -833,24 +832,25 @@ class VoiceSession {
      * Stop the session
      */
     /**
-     * Correct user transcription using Gemini Flash
+     * Correct user transcription using Gemini Flash Lite
      */
     async correctTranscription(userText, aiResponseText) {
         try {
+            if (!userText || userText.trim().length <= 3) {
+                return userText;
+            }
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
             // Use Gemini 3.1 Flash Lite for high performance voice transcription corrections
             const correctionModelName = 'gemini-3.1-flash-lite';
-            logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
             Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
             Tu tarea es corregir y pulir los errores fonéticos o de puntuación de la transcripción de voz para hacerla fluida y profesional.
 
-            CONTEXTO (Anterior conversación):
+            ÚLTIMA INTERVENCIÓN:
             """
-            ${this.config.conversationContext || ''}
-            AI Last Response: ${aiResponseText}
+            ${(aiResponseText || '').substring(0, 250)}
             """
 
             TRANSCRIPCIÓN DE VOZ A CORREGIR:
@@ -860,7 +860,7 @@ class VoiceSession {
 
             REGLAS DE ORO:
             1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés.
-            2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP").
+            2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc.
             3. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
             4. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
             5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.
@@ -1485,8 +1485,16 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
         let isNewConversation = false;
 
         // FASE FAST-TRACK: TRIGGER REPORT GENERATION (Second Brain) IMMEDIATELY
-        const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
-        this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
+        const currentTurnContext = `Usuario: ${currentUserText}\nAsistente: ${currentAiText}`;
+        if (!this.conversationTurns) {
+            this.conversationTurns = [];
+        }
+        this.conversationTurns.push(currentTurnContext);
+        // Ventana deslizante: mantener solo los últimos 6 turnos en memoria activa
+        if (this.conversationTurns.length > 6) {
+            this.conversationTurns.shift();
+        }
+        this.config.conversationContext = this.conversationTurns.join('\n');
 
         if (this.isGeneratingReport) {
             logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
@@ -1673,17 +1681,39 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
+        let isBiomechanics = false;
         if (agentId) {
             try {
                 const { getAgent } = require('~/models/Agent');
                 const agent = await getAgent({ id: agentId });
                 if (agent && agent.instructions) {
                     config.systemInstruction = agent.instructions;
-                    logger.info(`[VoiceSession] Synchronized session systemInstruction with Agent (${agent.name || agentId}) prompt`);
+                    const agentName = (agent.name || '').toLowerCase();
+                    if (agentName.includes('fisioterapeuta') || agentName.includes('biomecánica') || agentName.includes('biomecanica')) {
+                        isBiomechanics = true;
+                    }
+                    logger.info(`[VoiceSession] Synchronized session systemInstruction with Agent (${agent.name || agentId}) prompt (isBiomechanics: ${isBiomechanics})`);
                 }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
+        }
+
+        if (config.template === 'biomecanico_mediapipe' || config.mode === 'live_analysis') {
+            isBiomechanics = true;
+        }
+
+        // Live Voice & Video System Instructions Adaptation
+        let liveSkillContent = '';
+        if (isBiomechanics) {
+            liveSkillContent = `
+[DIRECTIVA ESPECIAL EN VIVO - FISIOTERAPEUTA Y BIOMECÁNICA]:
+- Estás en una videollamada interactiva en tiempo real viendo la cámara y la postura del usuario.
+- SALUDO INICIAL OBLIGATORIO: En tu primera respuesta saluda en una sola frase breve y directa (ej: "Hola, te estoy viendo en cámara. Dime qué postura, tarea o puesto de trabajo deseas que evaluemos juntos.").
+- PROHIBIDO hacer cuestionarios largos o pedir en voz alta tamaño de empresa, ARL, porcentaje de implementación o marco legal, a menos que el usuario lo solicite.
+- Mantén intervenciones habladas de máximo 1 a 2 oraciones para diálogo de baja latencia.
+- Cuando observes la postura del usuario, dale retroalimentación inmediata, amable y práctica (ej: cuello inclinado, espalda encorvada, distancia a la pantalla).
+`;
         }
 
         // Adapt systemInstruction for voice/video session to prevent HTML/markdown issues
@@ -1692,9 +1722,10 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
 - You are speaking via a real-time voice and video call.
 - NEVER output HTML tags, custom elements (like <wappy-card>), markdown formatting (such as bold **, headers, lists, bullet points), or backticks.
 - Speak in natural, fluent, conversational Spanish.
-- Do NOT list items with bullet points. Instead, speak them as a natural, continuous paragraph (e.g. "Primero..., Segundo..., Además...").
-- Keep your responses short, conversational, and direct to ensure natural turn-taking.
-- If you need to request information, ask for it in a simple, friendly spoken question.
+- Do NOT list items with bullet points. Speak in short, natural conversational phrases (1 to 2 sentences per turn).
+- Avoid long monologues. Allow the user to speak and respond frequently.
+- If you need to request information, ask for only ONE simple detail at a time.
+${liveSkillContent}
 `;
         config.systemInstruction = (config.systemInstruction || '') + voiceSystemInstructionSuffix;
         

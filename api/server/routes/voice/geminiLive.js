@@ -295,8 +295,8 @@ class GeminiLiveClient extends EventEmitter {
                 // outputAudioTranscription = transcribes AI's voice
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                // Add Tools support
-                tools: this.config.tools || [{ googleSearch: {} }], // Default to Google Search enabled if not specified, or allow passing tools
+                // Add Tools support only if explicitly provided (no default googleSearch for zero-latency live voice)
+                ...(Array.isArray(this.config.tools) && this.config.tools.length > 0 ? { tools: this.config.tools } : {}),
             },
         };
 
@@ -367,15 +367,16 @@ class GeminiLiveClient extends EventEmitter {
      */
     interrupt() {
         logger.info('[GeminiLive] Sending interrupt signal to Gemini Live API');
+        // Setting turnComplete: false cuts off generation cleanly without triggering an unrequested new response
         const message = {
             clientContent: {
                 turns: [
                     {
                         role: 'user',
-                        parts: [{ text: ' ' }]
+                        parts: [{ text: '' }]
                     }
                 ],
-                turnComplete: true
+                turnComplete: false
             }
         };
         this.send(message);
