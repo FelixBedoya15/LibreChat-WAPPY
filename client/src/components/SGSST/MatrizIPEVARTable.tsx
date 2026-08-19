@@ -21,6 +21,7 @@ import {
   History,
   Upload,
   Download,
+  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -586,7 +587,20 @@ export default function MatrizIPEVARTable({
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
+  const [pendingDirectRows, setPendingDirectRows] = useState<MatrixRow[]>([]);
   const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+
+  const handleDirectImport = () => {
+    if (pendingDirectRows.length === 0) return;
+    setIsConfirmModalOpen(false);
+    const combined = [...matrixRows, ...pendingDirectRows];
+    setMatrixRows(combined);
+    isDirtyRef.current = true;
+    saveMatrixData(combined);
+    alert(`¡Éxito! Se importaron ${pendingDirectRows.length} riesgos directamente de tu archivo.`);
+    setPendingDirectRows([]);
+    setPendingRawRows([]);
+  };
 
   const handleAiImport = async () => {
     if (pendingRawRows.length === 0) return;
@@ -628,6 +642,7 @@ export default function MatrizIPEVARTable({
     } finally {
       setIsAiImportLoading(false);
       setPendingRawRows([]);
+      setPendingDirectRows([]);
     }
   };
 
@@ -683,32 +698,25 @@ export default function MatrizIPEVARTable({
               })
             );
 
-            if (isStandard) {
-              const withIds = parsed.map(r => ({
-                ...r,
-                proceso: toSentenceCase(r.proceso || r.Proceso || ''),
-                zona: toSentenceCase(r.zona || r.Zona || ''),
-                id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
-                nd: Number(r.nd) || 0,
-                ne: Number(r.ne) || 0,
-                np: Number(r.np) || 0,
-                nc: Number(r.nc) || 0,
-                nr: Number(r.nr) || 0,
-              }));
-              const combined = [...matrixRows, ...withIds];
-              setMatrixRows(combined);
-              isDirtyRef.current = false;
-              saveMatrixData(combined);
-              alert(`Importados ${withIds.length} riesgos exitosamente.`);
-            } else {
-              const preCleaned = parsed.map((r: any) => ({
-                ...r,
-                Proceso: toSentenceCase(r.Proceso || r.proceso || ''),
-                Zona: toSentenceCase(r.Zona || r.zona || ''),
-              }));
-              setPendingRawRows(preCleaned);
-              setIsConfirmModalOpen(true);
-            }
+            const withIds = parsed.map(r => ({
+              ...r,
+              proceso: toSentenceCase(r.proceso || r.Proceso || ''),
+              zona: toSentenceCase(r.zona || r.Zona || ''),
+              id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+              nd: Number(r.nd) || 0,
+              ne: Number(r.ne) || 0,
+              np: Number(r.np) || 0,
+              nc: Number(r.nc) || 0,
+              nr: Number(r.nr) || 0,
+            }));
+            const preCleaned = parsed.map((r: any) => ({
+              ...r,
+              Proceso: toSentenceCase(r.Proceso || r.proceso || ''),
+              Zona: toSentenceCase(r.Zona || r.zona || ''),
+            }));
+            setPendingDirectRows(withIds as MatrixRow[]);
+            setPendingRawRows(preCleaned);
+            setIsConfirmModalOpen(true);
           } else {
             alert('El archivo JSON debe contener un arreglo de objetos.');
           }
@@ -833,120 +841,96 @@ export default function MatrizIPEVARTable({
             return;
           }
 
-          const firstRow = allSheetRows[0] || {};
-          const keys = Object.keys(firstRow);
+          const mapND = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('muyalto')) return 10;
+            if (s.includes('alto')) return 6;
+            if (s.includes('medio')) return 2;
+            if (s.includes('bajo')) return 0;
+            return 0;
+          };
+          const mapNE = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('continua')) return 4;
+            if (s.includes('frecuente')) return 3;
+            if (s.includes('ocasional')) return 2;
+            if (s.includes('esporadica')) return 1;
+            return 0;
+          };
+          const mapNC = (val: string) => {
+            const n = Number(val);
+            if (!isNaN(n) && val !== '') return n;
+            const s = cleanKey(val);
+            if (s.includes('mortal') || s.includes('catastrofico')) return 100;
+            if (s.includes('muygrave')) return 60;
+            if (s.includes('grave')) return 25;
+            if (s.includes('leve')) return 10;
+            return 0;
+          };
 
-          const isStandard = (
-            keys.some(k => {
-              const l = cleanKey(k);
-              return l === 'proceso' || l === 'cargo' || l === 'cargos';
-            }) &&
-            keys.some(k => {
-              const l = cleanKey(k);
-              return l === 'actividad' || l === 'actividades' || l === 'tarea' || l === 'tareas' || l === 'cargo' || l === 'cargos';
-            }) &&
-            keys.some(k => {
-              const l = cleanKey(k);
-              return l.includes('peligro') || l.includes('riesgo');
-            })
-          );
+          const newRows = allSheetRows.map((r: any) => {
+            const ndVal = mapND(getValueByKeys(r, ['niveldeficiencia', 'niveldedeficienciand', 'nd', 'niveldedeficiencia']));
+            const neVal = mapNE(getValueByKeys(r, ['niveldeexposicion', 'niveldeexposicionne', 'ne', 'niveldeexposicion']));
+            const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
+            const npVal = ndVal * neVal;
+            const nrVal = npVal * ncVal;
+            
+            // Clean up legal requirement value: map "si"/"sí" to "Sí", "no" to "No", otherwise empty
+            const rawReq = String(getValueByKeys(r, ['existenciarequisitolegal', 'requisitolegal', 'requisitolegalasociado']) || '').trim().toLowerCase();
+            let mappedReq: 'Sí' | 'No' | '' = '';
+            if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
+            else if (rawReq.includes('no')) mappedReq = 'No';
 
-          if (isStandard) {
-            const mapND = (val: string) => {
-              const n = Number(val);
-              if (!isNaN(n) && val !== '') return n;
-              const s = cleanKey(val);
-              if (s.includes('muyalto')) return 10;
-              if (s.includes('alto')) return 6;
-              if (s.includes('medio')) return 2;
-              if (s.includes('bajo')) return 0;
-              return 0;
+            return {
+              proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos'])),
+              zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta'])),
+              actividad: getValueByKeys(r, ['actividad', 'actividades', 'cargo', 'cargos', 'tarea', 'tareas']),
+              tareas: getValueByKeys(r, ['tareas', 'tarea', 'actividad', 'actividades']),
+              rutinaria: getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
+              peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
+              peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
+              efectos_posibles: getValueByKeys(r, ['efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo']),
+              controles_fuente: getValueByKeys(r, ['fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
+              controles_medio: getValueByKeys(r, ['mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
+              controles_individuo: getValueByKeys(r, ['personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
+              nd: ndVal,
+              ne: neVal,
+              np: npVal,
+              interpretacion_np: getInterpretacionNP(npVal),
+              nc: ncVal,
+              nr: nrVal,
+              interpretacion_nr: getValueByKeys(r, ['interpretaciondelnr', 'interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo']),
+              aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
+              nro_expuestos: Number(getValueByKeys(r, ['numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
+              peor_consecuencia: getValueByKeys(r, ['peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
+              requisito_legal: mappedReq,
+              medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
+              medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
+              medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
+              medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
+              medida_eppu: getValueByKeys(r, ['equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
+              factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
+              nd_cualitativo: null,
+              id: Date.now().toString() + Math.random().toString(36).substring(7),
             };
-            const mapNE = (val: string) => {
-              const n = Number(val);
-              if (!isNaN(n) && val !== '') return n;
-              const s = cleanKey(val);
-              if (s.includes('continua')) return 4;
-              if (s.includes('frecuente')) return 3;
-              if (s.includes('ocasional')) return 2;
-              if (s.includes('esporadica')) return 1;
-              return 0;
-            };
-            const mapNC = (val: string) => {
-              const n = Number(val);
-              if (!isNaN(n) && val !== '') return n;
-              const s = cleanKey(val);
-              if (s.includes('mortal') || s.includes('catastrofico')) return 100;
-              if (s.includes('muygrave')) return 60;
-              if (s.includes('grave')) return 25;
-              if (s.includes('leve')) return 10;
-              return 0;
-            };
+          });
 
-            const newRows = allSheetRows.map((r: any) => {
-              const ndVal = mapND(getValueByKeys(r, ['niveldeficiencia', 'niveldedeficienciand', 'nd', 'niveldedeficiencia']));
-              const neVal = mapNE(getValueByKeys(r, ['niveldeexposicion', 'niveldeexposicionne', 'ne', 'niveldeexposicion']));
-              const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
-              const npVal = ndVal * neVal;
-              const nrVal = npVal * ncVal;
-              
-              // Clean up legal requirement value: map "si"/"sí" to "Sí", "no" to "No", otherwise empty
-              const rawReq = String(getValueByKeys(r, ['existenciarequisitolegal', 'requisitolegal', 'requisitolegalasociado']) || '').trim().toLowerCase();
-              let mappedReq: 'Sí' | 'No' | '' = '';
-              if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
-              else if (rawReq.includes('no')) mappedReq = 'No';
+          const preCleaned = allSheetRows.map((r: any) => {
+            const pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            const zVal = getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
+            const copy = { ...r };
+            if (pVal) copy['Proceso'] = toSentenceCase(pVal);
+            if (zVal) copy['Zona'] = toSentenceCase(zVal);
+            return copy;
+          });
 
-              return {
-                proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos'])),
-                zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta'])),
-                actividad: getValueByKeys(r, ['actividad', 'actividades', 'cargo', 'cargos', 'tarea', 'tareas']),
-                tareas: getValueByKeys(r, ['tareas', 'tarea', 'actividad', 'actividades']),
-                rutinaria: getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
-                peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
-                peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
-                efectos_posibles: getValueByKeys(r, ['efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo']),
-                controles_fuente: getValueByKeys(r, ['fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
-                controles_medio: getValueByKeys(r, ['mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
-                controles_individuo: getValueByKeys(r, ['personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
-                nd: ndVal,
-                ne: neVal,
-                np: npVal,
-                interpretacion_np: getInterpretacionNP(npVal),
-                nc: ncVal,
-                nr: nrVal,
-                interpretacion_nr: getValueByKeys(r, ['interpretaciondelnr', 'interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo']),
-                aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
-                nro_expuestos: Number(getValueByKeys(r, ['numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
-                peor_consecuencia: getValueByKeys(r, ['peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
-                requisito_legal: mappedReq,
-                medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
-                medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
-                medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
-                medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
-                medida_eppu: getValueByKeys(r, ['equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
-                factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
-                nd_cualitativo: null,
-                id: Date.now().toString() + Math.random().toString(36).substring(7),
-              };
-            });
-
-            const combined = [...matrixRows, ...newRows] as MatrixRow[];
-            setMatrixRows(combined);
-            isDirtyRef.current = true;
-            saveMatrixData(combined);
-            alert(`Importados ${newRows.length} riesgos exitosamente.`);
-          } else {
-            const preCleaned = allSheetRows.map((r: any) => {
-              const pVal = getValueByKeys(r, ['proceso', 'cargo']);
-              const zVal = getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar']);
-              const copy = { ...r };
-              if (pVal) copy['Proceso'] = toSentenceCase(pVal);
-              if (zVal) copy['Zona'] = toSentenceCase(zVal);
-              return copy;
-            });
-            setPendingRawRows(preCleaned);
-            setIsConfirmModalOpen(true);
-          }
+          setPendingDirectRows(newRows as MatrixRow[]);
+          setPendingRawRows(preCleaned);
+          setIsConfirmModalOpen(true);
         }
       } catch (err) {
         console.error(err);
@@ -1498,42 +1482,96 @@ export default function MatrizIPEVARTable({
         </div>
       )}
 
-      {/* ── AI Confirm Adapt Modal ──────────────────────────────────────── */}
+      {/* ── Import Choice Modal (Direct vs AI) ────────────────────────────── */}
       {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
-            <div className="relative p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
-                <Sparkles className="h-6 w-6 animate-pulse" />
+        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-text-primary">
+                      Método de Importación
+                    </h3>
+                    <p className="text-xs text-text-secondary">
+                      Se detectaron {pendingDirectRows.length || pendingRawRows.length} filas en el archivo
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsConfirmModalOpen(false);
+                    setPendingRawRows([]);
+                    setPendingDirectRows([]);
+                  }}
+                  className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-text-primary">
-                ¿Reconstruir matriz con IA?
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                Hemos detectado que el archivo cargado no coincide con el formato estándar de Wappy.
+
+              <p className="text-sm text-text-secondary mb-5 leading-relaxed">
+                ¿Cómo deseas cargar los datos de tu matriz a Wappy?
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
-                ¿Deseas que la IA de Wappy analice y adapte automáticamente tu matriz para que encaje perfectamente con nuestro formato de columnas GTC-45?
-              </p>
+
+              <div className="grid grid-cols-1 gap-3">
+                {/* Opción 1: Reconstrucción Inteligente con IA */}
+                <button
+                  type="button"
+                  onClick={handleAiImport}
+                  className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500/40 bg-teal-500/5 p-4 text-left transition-all hover:border-teal-500 hover:bg-teal-500/10 shadow-sm"
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-400 text-sm">
+                      <Sparkles className="h-4 w-4 text-teal-600 animate-pulse" />
+                      Reconstrucción Inteligente con IA (Recomendado)
+                    </div>
+                    <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                      Completo
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Desglosa y separa automáticamente textos combinados (como procesos y zonas juntos), infiere campos faltantes y normaliza los peligros y controles según la metodología técnica GTC-45.
+                  </p>
+                </button>
+
+                {/* Opción 2: Carga Directa / Rápida */}
+                <button
+                  type="button"
+                  onClick={handleDirectImport}
+                  className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/50 p-4 text-left transition-all hover:border-border-heavy hover:bg-surface-hover"
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-text-primary text-sm">
+                      <Zap className="h-4 w-4 text-amber-500" />
+                      Carga Directa e Inmediata (1 a 1)
+                    </div>
+                    <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-medium text-text-secondary">
+                      Rápido
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA.
+                  </p>
+                </button>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
+
+            <div className="flex items-center justify-end bg-surface-secondary px-6 py-3 border-t border-border-light">
               <button
                 type="button"
                 onClick={() => {
                   setIsConfirmModalOpen(false);
                   setPendingRawRows([]);
+                  setPendingDirectRows([]);
                 }}
-                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-hover"
+                className="rounded-xl px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleAiImport}
-                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-teal-700"
-              >
-                Sí, usar IA
               </button>
             </div>
           </div>
