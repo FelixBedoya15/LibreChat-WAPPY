@@ -26,7 +26,6 @@ import { Search } from 'lucide-react';
 const PlansButton = lazy(() => import('./PlansButton'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
-const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
@@ -195,9 +194,6 @@ const Nav = memo(
               <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
-          <Suspense fallback={null}>
-            <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
-          </Suspense>
           {hasAccessToSGSST && (
             <Suspense fallback={null}>
               <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
@@ -316,10 +312,6 @@ const Nav = memo(
                             <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Editor Archivos */}
-                        <Suspense fallback={null}>
-                          <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
                         {/* Auditoría */}
                         <Suspense fallback={null}>
                           <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -410,9 +402,6 @@ const Nav = memo(
                                     <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                <Suspense fallback={null}>
-                                  <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
                                 <Suspense fallback={null}>
                                   <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>

@@ -52,10 +52,8 @@ import ChatSSTView from '~/components/ChatSST/ChatSSTView';
 import EventsMeetDashboard from '~/components/EventsMeet/EventsMeetDashboard';
 import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDashboard';
 
-import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosDashboard';
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import InspeccionDashboard from '~/components/InspeccionMinTrabajo/InspeccionDashboard';
-import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
@@ -423,10 +421,6 @@ export const router = createBrowserRouter(
               element: <BlogPostEditor />,
             },
             {
-              path: 'editor-archivos',
-              element: <EditorArchivosDashboard />,
-            },
-            {
               path: 'auditoria',
               element: <AuditoriaDashboard />,
             },
@@ -445,10 +439,6 @@ export const router = createBrowserRouter(
             {
               path: 'embajadores',
               element: <AmbassadorDashboard />,
-            },
-            {
-              path: 'editor-archivos/:id',
-              element: <DocumentEditorView />,
             },
             {
               path: 'agents',
