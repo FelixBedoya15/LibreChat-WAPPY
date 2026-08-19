@@ -113,9 +113,11 @@ router.put('/:id', async (req, res) => {
       automation.status = status;
     }
 
-    if (scheduleType !== undefined || scheduleConfig !== undefined || status === 'active') {
-      automation.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
-    } else if (status === 'inactive') {
+    if (automation.status === 'active') {
+      if (scheduleType !== undefined || scheduleConfig !== undefined || status === 'active' || !automation.nextRunAt) {
+        automation.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
+      }
+    } else {
       automation.nextRunAt = null;
     }
 
@@ -163,6 +165,10 @@ router.post('/:id/run', async (req, res) => {
     const automation = await Automation.findOne({ _id: id, companyId });
     if (!automation) {
       return res.status(404).json({ error: 'Automatización no encontrada.' });
+    }
+
+    if (automation.lastRunStatus === 'running') {
+      return res.status(400).json({ error: 'Esta automatización ya se encuentra ejecutándose en segundo plano.' });
     }
 
     // Marcar como corriendo
