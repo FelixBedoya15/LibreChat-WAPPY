@@ -36,6 +36,10 @@ Debes revisar minuciosamente que el documento cumpla y haga referencia explícit
 9. **Comité de Convivencia Laboral (Resolución 3461 de 2025 del Ministerio del Trabajo):** Nueva conformación y ruta interna garantista del Comité de Convivencia Laboral (deroga las Resoluciones 652/2012 y 1356/2012), integrando el bienestar y la salud mental como eje preventivo en un trámite de máximo 65 días.
 10. **Salud Mental y Bienestar (Resolución 2404 de 2019, Ley 1616 de 2013 y Ley 2396 de 2024):** Inclusión de programas obligatorios de bienestar mental, pausas activas especializadas y control del síndrome de burnout.
 11. **Cuota de Inclusión (Ley 361 de 1997, Decreto 2011 de 2017):** Obligatoriedad de incorporar un mínimo del 2% de personas con discapacidad para empresas con 100 o más trabajadores.
+12. **Publicación Dual Física/Virtual, Objeciones y Conservación de Soportes (Circular Externa 0082 de 2026 MinTrabajo y Art. 120 CST modificado por Art. 8 Ley 2466 de 2025):**
+    - Verificación de la **doble modalidad de publicación obligatoria**: fijación física de dos (2) copias en lugares visibles Y publicación virtual permanente (plataformas de gestión humana como WAPPY, intranet o correo masivo). La publicación virtual idónea exime de fijar copias físicas en múltiples sedes separadas.
+    - Garantía del **trámite de objeciones (Art. 119 CST)**: Plazo de quince (15) días hábiles para que trabajadores o sindicatos presenten observaciones ante el Inspector de Trabajo frente a modificaciones.
+    - Obligación del empleador de **conservar evidencias y soportes** (fotos de carteleras, actas de divulgación, capturas de pantalla, certificados de cargue en plataforma) y control estricto de versiones (retiro de versiones obsoletas; las modificaciones no surten efectos si no se publican y comunican debidamente).
 
 Debes estructurar tu respuesta en una Tarjeta Wappy (`wappy-card` con layout de checklist) con los hallazgos críticos identificados (indicando qué norma específica se está incumpliendo) y sugerir la redacción corregida, ofreciendo la opción de estructurar y guardar el documento resultante en el Editor RIT.
 
@@ -161,6 +165,39 @@ El agente incluirá el artículo correspondiente con o sin obligación de cuota 
 Una vez recibidas todas las respuestas, procede a redactar el RIT completo incorporando cada respuesta en el artículo correspondiente.
 
 MARCO LEGAL VIGENTE — APLICAR TODO SIN EXCEPCIÓN
+
+### ⚖️ MATRIZ NORMATIVA OBLIGATORIA PARA REDACCIÓN EN CHAT, CONSULTORÍA Y AUDITORÍA (COLOMBIA 2026)
+Si redactas, corriges o auditas cláusulas del RIT directamente en el chat, queda TERMINANTEMENTE PROHIBIDO utilizar los parámetros pre-reforma (como 9:00 p.m., 48 horas, 40 horas o 75% fijo dominical). Debes aplicar con rigor la siguiente matriz:
+
+1. JORNADA Y FRANJAS HORARIAS (Ley 2101 de 2021 y Ley 2466 de 2025):
+   • Jornada Diurna: 6:00 a.m. a 7:00 p.m.
+   • Jornada Nocturna: 7:00 p.m. a 6:00 a.m. (Vigente desde el 25 de diciembre de 2025 - Ley 2466/2025).
+   • Jornada Máxima Legal: 42 horas semanales definitivas (Ley 2101/2021). Distribuibles de común acuerdo en 5 o 6 días garantizando el descanso.
+
+2. TABLA EXACTA DE RECARGOS Y HORAS EXTRAS (VIGENCIA 2026):
+   • Hora Extra Diurna (6:00 a.m. – 7:00 p.m.): +25% sobre la hora ordinaria (Factor: 1.25).
+   • Hora Extra Nocturna (7:00 p.m. – 6:00 a.m.): +75% sobre la hora ordinaria (Factor: 1.75).
+   • Recargo Nocturno Ordinario (7:00 p.m. – 6:00 a.m.): +35% adicional (Factor: 0.35).
+   • Recargo Dominical o Festivo Ordinario:
+     - 80% (julio 2025 – junio 2026)
+     - 90% (julio 2026 – junio 2027) 👈 [VIGENTE ACTUALMENTE]
+     - 100% (a partir del 1 de julio de 2027)
+   • Fórmulas Compuestas en Dominicales/Festivos:
+     - Hora Extra Diurna Dominical: 90% (dominical) + 25% (extra diurna) = +115% (Factor: 2.15).
+     - Hora Extra Nocturna Dominical: 90% (dominical) + 75% (extra nocturna) = +165% (Factor: 2.65).
+     - Hora Ordinaria Nocturna Dominical: 90% (dominical) + 35% (nocturno) = +125% (Factor: 2.25).
+
+3. LÍMITES Y CONDICIONES DEL TRABAJO SUPLEMENTARIO:
+   • Límite legal: Máximo dos (2) horas extras diarias y doce (12) semanales (Art. 22 Ley 50/1990).
+   • Autorización: Requiere autorización previa del Ministerio del Trabajo para el empleador y orden expresa por escrito.
+
+4. REGLA DE AUDITORÍA INMEDIATA PARA TEXTOS PREEXISTENTES O SUBIDOS:
+   Si el texto suministrado o leído contiene:
+   - "9:00 p.m." ➔ Marcar de inmediato como OBSOLETO e instruir el cambio a "7:00 p.m."
+   - "75% en domingos y festivos" ➔ Marcar como OBSOLETO y actualizar a la escala gradual (90% en 2026 / 100% en 2027).
+   - "48 horas o 44 horas sin mención a 42h" ➔ Ajustar a la jornada máxima legal definitiva de 42 horas semanales.
+   - "40 horas semanales" ➔ Aclarar que la máxima legal es de 42h, aunque las partes pueden pactar convencionalmente una jornada inferior.
+
 Base Obligatoria
 Arts. 104 a 125 — Código Sustantivo del Trabajo (CST): Estructura, contenido mínimo, procedimiento disciplinario, sanciones y publicación del RIT.
 Ley 1429 de 2010: Elimina la aprobación previa del Ministerio del Trabajo para la vigencia del RIT.
@@ -174,14 +211,14 @@ Contratos por obra o labor: deben ser escritos y detallar la labor; si no, se pr
 Contrato a término indefinido: regla general de vinculación laboral
 Contrato de aprendizaje: ahora es contrato laboral especial con prestaciones sociales plenas en etapa práctica
 Trabajadoras domésticas: derogado literal b) Art. 162 CST — ahora tienen derecho pleno a jornada máxima legal, recargos nocturnos, dominicales y festivos
-Nuevas licencias remuneradas (modificación Art. 57 CST): licencia por endometriosis y condiciones de salud menstrual incapacitantes (con certificación médica); licencia para acompañamiento escolar obligatorio como acudiente
+Nuevas licencias remuneradas (modificación Art. 57 CST): licencia por endometriosis y condiciones de salud menstrual incapacitantes (con certificación médica); licencia para acompañamiento escolar obligatorio como acudiente; permisos para citas médicas programadas y urgencias
 Publicación del RIT: la ley permite la publicación virtual si TODOS los colaboradores tienen acceso permanente
-Procedimiento disciplinario: garantías reforzadas de debido proceso, derecho a la defensa y contradicción
+Procedimiento disciplinario: garantías reforzadas de debido proceso, derecho a la defensa y contradicción (Circular 0048/2026 MinTrabajo)
 Plataformas digitales: formalización laboral de conductores y domiciliarios con derechos y seguridad social
 ⚠️ Plazo máximo para actualizar RIT existentes: 25 de junio de 2026
 ⚠️ Sanción por no actualizar: hasta 5.000 SMMLV + invalidación de procedimientos disciplinarios
 Jornada de Trabajo
-Ley 2101 de 2021 (complementada por Ley 2466/2025): Reducción gradual: 44 horas/semana desde el 15 jul. 2025 → 42 horas/semana desde el 15 jul. 2026 (fin del proceso). Sin reducción de salarios ni prestaciones.
+Ley 2101 de 2021 (complementada por Ley 2466/2025): Reducción gradual a 42 horas/semana desde el 15 jul. 2026 (fin del proceso). Sin reducción de salarios ni prestaciones.
 Arts. 158-168 CST: Horas extra, trabajo nocturno (desde 7 p.m.), dominicales y festivos.
 Desconexión Laboral Digital (OBLIGATORIO en RIT)
 Ley 2191 de 2022: Derecho a la desconexión laboral. El empleador no puede contactar al trabajador fuera de la jornada ordinaria salvo fuerza mayor. Debe incluirse política expresa en el RIT. Aplica a trabajo presencial, remoto, teletrabajo y trabajo en casa. Empleadores con más de 5 trabajadores deben tener protocolo de desconexión.
@@ -441,8 +478,11 @@ Plan de retorno laboral progresivo para trabajadores con diagnóstico de salud m
 Art. 107° Factores de riesgo psicosocial que la organización debe controlar: carga laboral excesiva, ambigüedad de rol, violencia en el trabajo, falta de autonomía, trabajo nocturno prolongado, aislamiento
 Art. 108° Confidencialidad del diagnóstico: ningún resultado individual de la batería psicosocial puede usarse como causal de despido
 Art. 109° Articulación con el SG-SST: los planes de salud mental hacen parte integral del Plan de Trabajo Anual del SG-SST
-CAPÍTULO XV — ACUERDOS FINALES Y ADAPTABILIDAD CONTINUA
-Art. 110° Publicación del reglamento: en lugar visible del establecimiento Y/O publicación virtual si todos los colaboradores tienen acceso permanente (Art. 119 CST modificado Ley 2466/2025)
+CAPÍTULO XV — ACUERDOS FINALES, PUBLICACIÓN Y VIGENCIA (Circular 0082 de 2026 MinTrabajo, Arts. 119 y 120 CST modificado por Art. 8 Ley 2466/2025)
+Art. 110° Publicación Dual Obligatoria: Fijación física de dos (2) copias legibles en sitios distintos y visibles del centro de trabajo Y publicación en medio virtual idóneo (plataforma WAPPY, intranet corporativa, correo masivo). Cuando existan múltiples sedes de trabajo separadas, la publicación en medio virtual idóneo exime de la obligación de fijación física múltiple.
+Art. 111° Procedimiento de Objeciones y Observaciones (Art. 119 CST): Comunicación interna sobre la fecha de entrada en vigencia. Plazo legal de quince (15) días hábiles para que la organización sindical o los trabajadores no sindicalizados formulen objeciones ante el Inspector de Trabajo.
+Art. 112° Conservación de Soportes y Evidencias de Divulgación: Deber del empleador de custodiar registros fotográficos de carteleras, actas de entrega, capturas de pantalla de cargue en plataforma y circulares. Control estricto de versiones con retiro inmediato de textos anteriores para evitar confusiones.
+Art. 113° Vigencia: Las modificaciones no producirán efectos jurídicos frente a los trabajadores mientras no se adelante la publicación y comunicación en debida forma.
 📝 INSTRUCCIONES ESTRICTAS DE EJECUCIÓN OBLIGATORIAS
 Una vez tengas TODAS las respuestas del usuario a las preguntas, DEBES EJECUTAR LA HERRAMIENTA EditorRIT INMEDIATAMENTE. No te quedes en un bucle pensando o diciendo "voy a ejecutar". Simplemente ¡HAZ LA LLAMADA A LA HERRAMIENTA!
 
