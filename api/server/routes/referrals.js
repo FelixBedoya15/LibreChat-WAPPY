@@ -1126,6 +1126,13 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
             }
         }
 
+        return res.status(200).json({ success: true, message: 'Correo enviado exitosamente.' });
+    } catch (error) {
+        logger.error('[ReferralEmailSend] Error:', error);
+        return res.status(500).json({ message: `Error al enviar correo: ${error.message}` });
+    }
+});
+
 // --- Commercial Proposal Generation with AI ---
 router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
     const { 
