@@ -4,6 +4,13 @@ const mongoose = require('mongoose');
 const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
 const CompanyInfo = require('~/models/CompanyInfo');
 
+function toSentenceCase(str) {
+  if (!str) return '';
+  const trimmed = String(str).trim();
+  if (trimmed.length === 0) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 class MatrizCompatibilidad extends Tool {
   constructor(fields = {}) {
     super();
