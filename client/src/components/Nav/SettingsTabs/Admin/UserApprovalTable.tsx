@@ -58,9 +58,15 @@ export default function UserManagementTable() {
     // ── Filtered list (client-side) ───────────────────────────────────────────
     const filteredUsers = useMemo(() => {
         return users.filter((user: any) => {
-            // Text search: name or email
+            // Text search: name, email, phone, departamento, ciudad
             const q = searchQuery.toLowerCase();
-            if (q && !((user.name || '').toLowerCase().includes(q) || (user.email || '').toLowerCase().includes(q))) {
+            if (q && !(
+                (user.name || '').toLowerCase().includes(q) || 
+                (user.email || '').toLowerCase().includes(q) ||
+                (user.phoneNumber || '').toLowerCase().includes(q) ||
+                (user.departamento || user.department || '').toLowerCase().includes(q) ||
+                (user.ciudad || user.city || '').toLowerCase().includes(q)
+            )) {
                 return false;
             }
             // Role filter
@@ -129,11 +135,13 @@ export default function UserManagementTable() {
     const handleEdit = (user) => { setSelectedUser(user); setIsEditModalOpen(true); };
 
     const handleExportUsers = () => {
-        const header = ['Nombre', 'Correo', 'Número Telefónico', 'Usuario', 'Rol', 'Estado', 'Fecha de Creación', 'Activo Desde', 'Inactivo Desde', 'Última Actividad'];
+        const header = ['Nombre', 'Correo', 'Número Telefónico', 'Departamento', 'Ciudad', 'Usuario', 'Rol', 'Estado', 'Fecha de Creación', 'Activo Desde', 'Inactivo Desde', 'Última Actividad'];
         const rows = users.map((u: any) => [
             u.name || u.username || '',
             u.email || '',
             u.phoneNumber || '',
+            u.departamento || u.department || '',
+            u.ciudad || u.city || '',
             u.username || '',
             u.role || '',
             u.accountStatus || '',

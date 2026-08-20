@@ -354,6 +354,20 @@ export default function AmbassadorDashboard() {
     }
   };
 
+  const totalLeadsCount = referredUsers.length;
+  const contactedLeadsCount = referredUsers.filter(u => {
+    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+    return st !== 'nuevo' && st !== 'invalido';
+  }).length;
+  const interestedLeadsCount = referredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
+  const proposalsSentCount = referredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
+  const wonLeadsCount = referredUsers.filter(u => {
+    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+    return st === 'ganado' || u.role === 'USER_PRO' || u.paymentStatus === 'paid';
+  }).length;
+  const contactRate = totalLeadsCount > 0 ? Math.round((contactedLeadsCount / totalLeadsCount) * 100) : 0;
+  const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
+
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 relative min-h-screen h-auto overflow-y-auto pb-12 w-full max-w-full">
       {/* Header section - exact same style as Centro de Control ACPM */}
@@ -650,23 +664,8 @@ export default function AmbassadorDashboard() {
         )}
 
         {/* Tab 2: Users Table & Kanban CRM */}
-        {activeTab === 'users' && (() => {
-          const totalLeadsCount = referredUsers.length;
-          const contactedLeadsCount = referredUsers.filter(u => {
-            const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
-            return st !== 'nuevo' && st !== 'invalido';
-          }).length;
-          const interestedLeadsCount = referredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
-          const proposalsSentCount = referredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
-          const wonLeadsCount = referredUsers.filter(u => {
-            const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
-            return st === 'ganado' || u.role === 'USER_PRO' || u.paymentStatus === 'paid';
-          }).length;
-          const contactRate = totalLeadsCount > 0 ? Math.round((contactedLeadsCount / totalLeadsCount) * 100) : 0;
-          const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
-
-          return (
-            <div className="space-y-4">
+        {activeTab === 'users' && (
+          <div className="space-y-4">
               {/* CRM Metrics Summary Banner */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
                 <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
@@ -787,8 +786,9 @@ export default function AmbassadorDashboard() {
                 </select>
               </div>
             </div>
+          </div>
 
-            {/* View Switching: Kanban vs Table */}
+          {/* View Switching: Kanban vs Table */}
             {viewMode === 'kanban' ? (
               <AmbassadorKanbanBoard
                 users={filteredUsers as any}
@@ -797,7 +797,6 @@ export default function AmbassadorDashboard() {
                 myReferralLink={myReferralLink}
               />
             ) : (
-              /* Users Table Container with responsive horizontal scroll */
               <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs min-w-[950px]">
@@ -958,8 +957,7 @@ export default function AmbassadorDashboard() {
               </div>
             )}
           </div>
-        );
-      })()}
+        )}
 
         {/* Tab 3: Commissions */}
         {activeTab === 'commissions' && (

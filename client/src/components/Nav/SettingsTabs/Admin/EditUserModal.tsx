@@ -67,6 +67,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 inactiveAt: formatDateForInput(user.inactiveAt),
                 activeAt: formatDateForInput(user.activeAt),
                 phoneNumber: user.phoneNumber || '',
+                departamento: user.departamento || user.department || '',
+                ciudad: user.ciudad || user.city || '',
                 companyLimit: '',
             });
             setCreatedCompaniesCount(0);
@@ -292,6 +294,56 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     onChange={handleChange}
                                                     className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
                                                 />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <MapPin className="w-3.5 h-3.5" /> Departamento
+                                                </label>
+                                                <select
+                                                    name="departamento"
+                                                    value={formData.departamento}
+                                                    onChange={(e) => {
+                                                        const newDept = e.target.value;
+                                                        setFormData(prev => ({ ...prev, departamento: newDept, ciudad: '' }));
+                                                    }}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none cursor-pointer"
+                                                >
+                                                    <option value="">-- Seleccionar Departamento --</option>
+                                                    {DEPARTAMENTOS_LIST.map((dept) => (
+                                                        <option key={dept} value={dept}>
+                                                            {dept}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Building2 className="w-3.5 h-3.5" /> Ciudad / Municipio
+                                                </label>
+                                                {formData.departamento && getCitiesForDepartment(formData.departamento).length > 0 ? (
+                                                    <select
+                                                        name="ciudad"
+                                                        value={formData.ciudad}
+                                                        onChange={handleChange}
+                                                        className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none cursor-pointer"
+                                                    >
+                                                        <option value="">-- Seleccionar Ciudad --</option>
+                                                        {getCitiesForDepartment(formData.departamento).map((c) => (
+                                                            <option key={c} value={c}>
+                                                                {c}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        name="ciudad"
+                                                        placeholder="Escribe la ciudad o municipio"
+                                                        value={formData.ciudad}
+                                                        onChange={handleChange}
+                                                        className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
+                                                    />
+                                                )}
                                             </div>
 
                                             <div className="flex flex-col gap-1.5">

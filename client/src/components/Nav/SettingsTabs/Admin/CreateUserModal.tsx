@@ -4,6 +4,8 @@ import { useToastContext } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import axios from 'axios';
 
+import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/data/colombiaLocations';
+
 export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
     const localize = useLocalize();
     const { showToast } = useToastContext();
@@ -14,6 +16,9 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
         password: '',
         role: 'USER',
         accountStatus: 'active',
+        phoneNumber: '',
+        departamento: '',
+        ciudad: '',
     });
 
     const handleChange = (e) => {
@@ -107,6 +112,63 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                             required
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Teléfono / Contacto</label>
+                                        <input
+                                            type="text"
+                                            name="phoneNumber"
+                                            placeholder="Ej: +57 3123456789"
+                                            value={formData.phoneNumber}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Departamento</label>
+                                        <select
+                                            name="departamento"
+                                            value={formData.departamento}
+                                            onChange={(e) => {
+                                                const newDept = e.target.value;
+                                                setFormData(prev => ({ ...prev, departamento: newDept, ciudad: '' }));
+                                            }}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        >
+                                            <option value="">-- Seleccionar Departamento --</option>
+                                            {DEPARTAMENTOS_LIST.map((dept) => (
+                                                <option key={dept} value={dept}>
+                                                    {dept}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ciudad / Municipio</label>
+                                        {formData.departamento && getCitiesForDepartment(formData.departamento).length > 0 ? (
+                                            <select
+                                                name="ciudad"
+                                                value={formData.ciudad}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            >
+                                                <option value="">-- Seleccionar Ciudad --</option>
+                                                {getCitiesForDepartment(formData.departamento).map((c) => (
+                                                    <option key={c} value={c}>
+                                                        {c}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                name="ciudad"
+                                                placeholder="Escribe la ciudad o municipio"
+                                                value={formData.ciudad}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_role')}</label>
