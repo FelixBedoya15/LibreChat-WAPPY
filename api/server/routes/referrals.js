@@ -559,12 +559,14 @@ router.get('/dashboard', async (req, res) => {
         // Optional phone fallback from purchases
         let purchasePhoneMap = new Map();
         try {
-            const userEmails = users.map(u => u.email).filter(Boolean);
-            const ComunidadPurchase = mongoose.model('ComunidadPurchase');
-            const purchases = await ComunidadPurchase.find({ email: { $in: userEmails } }, 'email phone').lean();
-            purchasePhoneMap = new Map(purchases.filter(p => p.phone).map(p => [(p.email || '').toLowerCase(), p.phone]));
+            const ComunidadPurchase = mongoose.models.ComunidadPurchase || (mongoose.modelNames().includes('ComunidadPurchase') ? mongoose.model('ComunidadPurchase') : null);
+            if (ComunidadPurchase) {
+                const userEmails = users.map(u => u.email).filter(Boolean);
+                const purchases = await ComunidadPurchase.find({ email: { $in: userEmails } }, 'email phone').lean();
+                purchasePhoneMap = new Map(purchases.filter(p => p.phone).map(p => [(p.email || '').toLowerCase(), p.phone]));
+            }
         } catch (err) {
-            // ignore if model not registered
+            // safe fallback
         }
 
         const partnerIdsInRefs = allReferrals.map(r => r.referredByPartner).filter(Boolean);
@@ -685,6 +687,14 @@ router.get('/dashboard', async (req, res) => {
             } else if (planType === 'free' || planType === 'freemium' || planType === 'vital' || planType === 'vitalicio') {
                 planInterval = null; // Free & Vital plans are lifetime (vitalicio), no monthly/annual intervals
             }
+
+            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : null;
+            let daysToExpiry = null;
+            if (expiresAt) {
+                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+            const lastActivity = refUser.updatedAt || refUser.createdAt || c.createdAt;
+            const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
 
             const refEmailNorm = (refUser.email || '').toLowerCase();
             const resolvedRefPhone = refUser.phoneNumber || refUser.phone || purchasePhoneMap.get(refEmailNorm) || '';
