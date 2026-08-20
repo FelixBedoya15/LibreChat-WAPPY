@@ -705,28 +705,27 @@ export default function AmbassadorDashboard() {
                 </div>
               </div>
 
-              {/* Search & View Switcher Bar */}
-              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
-                {/* Search box */}
-                <div className="relative w-full lg:w-72 xl:w-80">
-                  <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Buscar usuario, correo, WhatsApp..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-teal-500 transition-colors"
-                  />
-                </div>
+              {/* Search & View Switcher Bar (100% Responsive) */}
+              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  {/* Search box */}
+                  <div className="relative flex-1 min-w-[240px]">
+                    <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre, correo, WhatsApp..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-surface-primary border border-border-medium/40 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-teal-500 transition-colors"
+                    />
+                  </div>
 
-                {/* View Switcher + Filters */}
-                <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
                   {/* Toggle Table vs Kanban */}
-                  <div className="flex items-center bg-surface-primary border border-border-medium/40 p-1 rounded-xl w-full sm:w-auto">
+                  <div className="flex items-center bg-surface-primary border border-border-medium/40 p-1 rounded-xl shrink-0">
                     <button
                       type="button"
                       onClick={() => setViewMode('table')}
-                      className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         viewMode === 'table'
                           ? 'bg-teal-600 text-white shadow-xs'
                           : 'text-text-secondary hover:text-text-primary'
@@ -738,7 +737,7 @@ export default function AmbassadorDashboard() {
                     <button
                       type="button"
                       onClick={() => setViewMode('kanban')}
-                      className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         viewMode === 'kanban'
                           ? 'bg-teal-600 text-white shadow-xs'
                           : 'text-text-secondary hover:text-text-primary'
@@ -748,45 +747,45 @@ export default function AmbassadorDashboard() {
                       <span>Tablero Kanban</span>
                     </button>
                   </div>
+                </div>
 
-              {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-2.5 py-1.5 sm:py-2 text-[11px] sm:text-xs outline-none focus:border-teal-500"
-                >
-                  <option value="all">Todos los Roles</option>
-                  <option value="USER">USER (Invitado)</option>
-                  <option value="USER_PRO">USER_PRO (Wappy Pro)</option>
-                  <option value="ADMIN">ADMIN</option>
-                </select>
+                {/* Filters Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-border-medium/20">
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 text-text-secondary font-medium cursor-pointer"
+                  >
+                    <option value="all">Todos los Roles</option>
+                    <option value="USER">USER (Invitado)</option>
+                    <option value="USER_PRO">USER_PRO (Wappy Pro)</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-2.5 py-1.5 sm:py-2 text-[11px] sm:text-xs outline-none focus:border-teal-500"
-                >
-                  <option value="all">Estado Cuenta</option>
-                  <option value="active">Activo</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 text-text-secondary font-medium cursor-pointer"
+                  >
+                    <option value="all">Estado Cuenta</option>
+                    <option value="active">Activo</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="inactive">Inactivo</option>
+                  </select>
 
-                <select
-                  value={lightFilter}
-                  onChange={(e) => setLightFilter(e.target.value)}
-                  className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-2.5 py-1.5 sm:py-2 text-[11px] sm:text-xs outline-none focus:border-teal-500"
-                >
-                  <option value="all">Todos los Semáforos</option>
-                  <option value="green">🟢 Verde (Activo / Al día)</option>
-                  <option value="yellow">🟡 Amarillo (Próximo vencer)</option>
-                  <option value="red">🔴 Rojo (Vencido / Alerta)</option>
-                  <option value="gray">⚪ Gris (Freemium)</option>
-                </select>
+                  <select
+                    value={lightFilter}
+                    onChange={(e) => setLightFilter(e.target.value)}
+                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 text-text-secondary font-medium cursor-pointer"
+                  >
+                    <option value="all">Todos los Semáforos</option>
+                    <option value="green">🟢 Verde (Activo / Al día)</option>
+                    <option value="yellow">🟡 Amarillo (Próximo vencer)</option>
+                    <option value="red">🔴 Rojo (Vencido / Alerta)</option>
+                    <option value="gray">⚪ Gris (Freemium)</option>
+                  </select>
+                </div>
               </div>
-            </div>
-          </div>
 
           {/* View Switching: Kanban vs Table */}
             {viewMode === 'kanban' ? (
