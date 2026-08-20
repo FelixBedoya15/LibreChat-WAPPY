@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import AmbassadorContactModal, { TargetFollowUpUser } from './AmbassadorContactModal';
+import AmbassadorContactModal, { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
 
 interface ReferredUser {
   id: string;
@@ -672,8 +672,15 @@ export default function AmbassadorDashboard() {
                           </td>
 
                           <td className="px-4 py-3.5 align-middle">
-                            <div className="font-bold uppercase text-text-primary text-xs">{u.subscriptionType}</div>
-                            <div className="text-[11px] mt-0.5 font-semibold">
+                            {(() => {
+                              const p = formatPlanBadge(u.subscriptionType);
+                              return (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase whitespace-nowrap ${p.className}`}>
+                                  {p.label}
+                                </span>
+                              );
+                            })()}
+                            <div className="text-[11px] mt-1 font-semibold">
                               {u.paymentStatus === 'paid' ? (
                                 <span className="text-emerald-600 dark:text-emerald-400">Pagado</span>
                               ) : u.paymentStatus === 'expired' ? (
@@ -686,11 +693,21 @@ export default function AmbassadorDashboard() {
 
                           <td className="px-4 py-3.5 align-middle">
                             <div className="whitespace-nowrap">{getTrafficLightBadge(u.trafficLight)}</div>
-                            {u.daysToExpiry !== null && (
-                              <div className="text-[11px] font-semibold text-text-tertiary mt-1 whitespace-nowrap">
-                                {u.daysToExpiry < 0 ? 'Expiró hace ' + Math.abs(u.daysToExpiry) + 'd' : `${u.daysToExpiry}d restantes`}
-                              </div>
-                            )}
+                            {(() => {
+                              const p = formatPlanBadge(u.subscriptionType);
+                              if (p.isLifetime || u.daysToExpiry === null || u.daysToExpiry === undefined) {
+                                return (
+                                  <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 whitespace-nowrap">
+                                    ♾️ Vitalicio
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="text-[11px] font-semibold text-text-tertiary mt-1 whitespace-nowrap">
+                                  {u.daysToExpiry < 0 ? 'Expiró hace ' + Math.abs(u.daysToExpiry) + 'd' : `${u.daysToExpiry}d restantes`}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td className="px-4 py-3.5 align-middle">
@@ -790,7 +807,7 @@ export default function AmbassadorDashboard() {
                               <span className="text-xs text-text-tertiary font-normal truncate max-w-[180px] mt-0.5">{c.referredUserEmail}</span>
                               {c.phone && (
                                 <a
-                                  href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`}
+                                  href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '').length === 10 && c.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${c.phone.replace(/[^0-9]/g, '')}` : c.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold mt-1"
@@ -803,9 +820,14 @@ export default function AmbassadorDashboard() {
                           </td>
 
                           <td className="px-4 py-3.5 align-middle">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 uppercase whitespace-nowrap">
-                              {c.subscriptionType || 'PRO'} {c.planInterval ? `(${c.planInterval})` : ''}
-                            </span>
+                            {(() => {
+                              const p = formatPlanBadge(c.subscriptionType, c.planInterval);
+                              return (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase whitespace-nowrap ${p.className}`}>
+                                  {p.label}
+                                </span>
+                              );
+                            })()}
                           </td>
 
                           <td className="px-4 py-3.5 align-middle">
@@ -815,19 +837,27 @@ export default function AmbassadorDashboard() {
                           </td>
 
                           <td className="px-4 py-3.5 align-middle">
-                            {c.daysToExpiry !== null && c.daysToExpiry !== undefined ? (
-                              <div className="text-xs font-semibold whitespace-nowrap">
-                                {c.daysToExpiry < 0 ? (
-                                  <span className="text-rose-600 dark:text-rose-400">🔴 Venció hace {Math.abs(c.daysToExpiry)}d</span>
-                                ) : c.daysToExpiry <= 30 ? (
-                                  <span className="text-amber-600 dark:text-amber-400">🟡 {c.daysToExpiry}d restantes</span>
-                                ) : (
-                                  <span className="text-emerald-600 dark:text-emerald-400">🟢 {c.daysToExpiry}d restantes</span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-text-tertiary text-xs">Vigente</span>
-                            )}
+                            {(() => {
+                              const p = formatPlanBadge(c.subscriptionType, c.planInterval);
+                              if (p.isLifetime || c.daysToExpiry === null || c.daysToExpiry === undefined) {
+                                return (
+                                  <span className="text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 whitespace-nowrap">
+                                    ♾️ Vitalicio
+                                  </span>
+                                );
+                              }
+                              return (
+                                <div className="text-xs font-semibold whitespace-nowrap">
+                                  {c.daysToExpiry < 0 ? (
+                                    <span className="text-rose-600 dark:text-rose-400">🔴 Venció hace {Math.abs(c.daysToExpiry)}d</span>
+                                  ) : c.daysToExpiry <= 30 ? (
+                                    <span className="text-amber-600 dark:text-amber-400">🟡 {c.daysToExpiry}d restantes</span>
+                                  ) : (
+                                    <span className="text-emerald-600 dark:text-emerald-400">🟢 {c.daysToExpiry}d restantes</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td className="px-4 py-3.5 align-middle font-medium text-xs whitespace-nowrap">${(c.amount / 100).toLocaleString('es-CO')} COP</td>

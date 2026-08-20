@@ -74,14 +74,45 @@ const QUICK_WA_PROMPTS = [
   },
 ];
 
+export const formatPlanBadge = (subType?: string, interval?: string) => {
+  const type = (subType || '').toLowerCase();
+  if (type === 'free' || type === 'freemium' || type === 'gratis' || type === 'sin plan' || type === '') {
+    return {
+      label: 'FREE (VITALICIO)',
+      className: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20',
+      isLifetime: true,
+    };
+  }
+  if (type === 'vital' || type === 'vitalicio' || type === 'lifetime') {
+    return {
+      label: 'VITAL (VITALICIO)',
+      className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
+      isLifetime: true,
+    };
+  }
+  if (type === 'pro') {
+    const label = interval ? `PRO (${interval.toUpperCase()})` : 'PRO (ANUAL)';
+    return {
+      label,
+      className: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20',
+      isLifetime: false,
+    };
+  }
+  return {
+    label: interval ? `${type.toUpperCase()} (${interval.toUpperCase()})` : type.toUpperCase(),
+    className: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20',
+    isLifetime: false,
+  };
+};
+
 export default function AmbassadorContactModal({ user, referralLink, onClose }: AmbassadorContactModalProps) {
   const { showToast } = useToastContext();
 
   const [activeChannel, setActiveChannel] = useState<'email' | 'whatsapp'>('email');
   const [emailSubTab, setEmailSubTab] = useState<'edit' | 'preview'>('edit');
 
-  // Email State
-  const [model, setModel] = useState('gemini-3.5-flash');
+  // Email State (Default to 3.5 Lite)
+  const [model, setModel] = useState('gemini-3.1-flash-lite');
   const [emailPrompt, setEmailPrompt] = useState('');
   const [subject, setSubject] = useState(`¡Hola ${user.name.split(' ')[0]}! Novedades exclusivas en tu cuenta de Wappy IA`);
   const [bodyHtml, setBodyHtml] = useState(
@@ -94,6 +125,7 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // WhatsApp State
+  const [phoneInput, setPhoneInput] = useState(user.phone || '');
   const [waPrompt, setWaPrompt] = useState('');
   const [waMessage, setWaMessage] = useState(
     `Hola ${user.name.split(' ')[0]} 👋 ¿Cómo estás? Te saluda tu asesor de WAPPY IA. Te escribo para saber cómo te ha ido con la plataforma y compartirte las nuevas herramientas de SST que acabamos de lanzar 🚀. Puedes ingresar y revisarlas aquí 👇\n${referralLink || 'https://wappy.club'}\n\n¿Tienes alguna duda o te gustaría que te apoye con algo? Quedo muy atento 🙌`
@@ -101,8 +133,21 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
   const [isGeneratingWa, setIsGeneratingWa] = useState(false);
   const [copiedWa, setCopiedWa] = useState(false);
 
-  // Clean phone number for WhatsApp URL
-  const cleanPhone = user.phone ? user.phone.replace(/[^0-9]/g, '') : '';
+  // Clean & Normalize phone number for WhatsApp URL (e.g. Colombia 57 prefix)
+  const getNormalizedWaPhone = (rawPhone?: string) => {
+    if (!rawPhone) return '';
+    let digits = rawPhone.replace(/[^0-9]/g, '');
+    if (digits.startsWith('00')) digits = digits.substring(2);
+    if (digits.length === 10 && digits.startsWith('3')) {
+      return `57${digits}`;
+    }
+    if (digits.startsWith('57') && digits.length === 12) {
+      return digits;
+    }
+    return digits;
+  };
+
+  const cleanPhone = getNormalizedWaPhone(phoneInput);
   const waUrl = cleanPhone
     ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
     : `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
@@ -263,9 +308,14 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base sm:text-lg font-extrabold text-text-primary">{user.name}</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 uppercase">
-                    {user.subscriptionType || 'Freemium'} {user.planInterval ? `(${user.planInterval})` : ''}
-                  </span>
+                  {(() => {
+                    const p = formatPlanBadge(user.subscriptionType, user.planInterval);
+                    return (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border uppercase ${p.className}`}>
+                        {p.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-text-tertiary mt-0.5 flex-wrap">
                   <span>{user.email}</span>
@@ -274,11 +324,21 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
                       <MessageSquare className="w-3 h-3" /> {user.phone}
                     </span>
                   )}
-                  {user.daysToExpiry !== null && user.daysToExpiry !== undefined && (
-                    <span className="font-semibold text-amber-600 dark:text-amber-400">
-                      ⏱️ {user.daysToExpiry < 0 ? `Venció hace ${Math.abs(user.daysToExpiry)}d` : `${user.daysToExpiry}d restantes`}
-                    </span>
-                  )}
+                  {(() => {
+                    const p = formatPlanBadge(user.subscriptionType, user.planInterval);
+                    if (p.isLifetime || user.daysToExpiry === null || user.daysToExpiry === undefined) {
+                      return (
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          ♾️ Plan Vitalicio
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">
+                        ⏱️ {user.daysToExpiry < 0 ? `Venció hace ${Math.abs(user.daysToExpiry)}d` : `${user.daysToExpiry}d restantes`}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -375,10 +435,10 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
                       <select
                         value={model}
                         onChange={(e) => setModel(e.target.value)}
-                        className="bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1 text-xs text-text-secondary outline-none focus:border-teal-500"
+                        className="bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1 text-xs text-text-secondary outline-none focus:border-teal-500 font-semibold"
                       >
+                        <option value="gemini-3.1-flash-lite">Gemini 3.5 Lite (Por defecto)</option>
                         <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                       </select>
                     </div>
@@ -670,17 +730,31 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
                 <textarea
                   value={waMessage}
                   onChange={(e) => setWaMessage(e.target.value)}
-                  rows={6}
+                  rows={5}
                   className="w-full bg-surface-primary border border-border-medium/40 rounded-xl p-3 text-xs text-text-primary outline-none focus:border-emerald-500 resize-y font-sans leading-relaxed"
                 />
               </div>
 
-              {/* Phone Alert if missing */}
-              {!user.phone && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 font-medium">
-                  ⚠️ El usuario no tiene número de teléfono registrado en el sistema. Al hacer clic en <strong>Abrir en WhatsApp</strong>, se abrirá WhatsApp con el mensaje precargado para que selecciones el contacto manualmente.
+              {/* Phone Input with direct WhatsApp indication */}
+              <div>
+                <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1 flex items-center justify-between">
+                  <span>Número de Teléfono / WhatsApp Destinatario</span>
+                  {cleanPhone && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold lowercase">
+                      Chat directo: +{cleanPhone}
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="Ej: 3101234567 o 573101234567"
+                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs text-text-primary outline-none focus:border-emerald-500 font-mono"
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Direct WhatsApp Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -700,7 +774,7 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
                   className="py-3 px-4 rounded-xl text-xs font-extrabold bg-[#25D366] hover:bg-[#1EBE5D] text-black shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4 fill-black" />
-                  <span>Abrir en WhatsApp (wa.me)</span>
+                  <span>Abrir en WhatsApp {cleanPhone ? `(+${cleanPhone})` : ''}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

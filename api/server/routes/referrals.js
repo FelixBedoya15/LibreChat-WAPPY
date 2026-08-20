@@ -537,9 +537,20 @@ router.get('/dashboard', async (req, res) => {
         const referredUserIds = allReferrals.map(r => r.referredUserId);
 
         // Fetch user data & plans
-        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone role accountStatus createdAt updatedAt').lean();
+        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone phoneNumber role accountStatus createdAt updatedAt').lean();
         const userPlans = await UserPlan.find({ userId: { $in: referredUserIds } }).lean();
         const partnersMap = new Map();
+
+        // Optional phone fallback from purchases
+        let purchasePhoneMap = new Map();
+        try {
+            const userEmails = users.map(u => u.email).filter(Boolean);
+            const ComunidadPurchase = mongoose.model('ComunidadPurchase');
+            const purchases = await ComunidadPurchase.find({ email: { $in: userEmails } }, 'email phone').lean();
+            purchasePhoneMap = new Map(purchases.filter(p => p.phone).map(p => [(p.email || '').toLowerCase(), p.phone]));
+        } catch (err) {
+            // ignore if model not registered
+        }
 
         const partnerIdsInRefs = allReferrals.map(r => r.referredByPartner).filter(Boolean);
         if (partnerIdsInRefs.length > 0) {
@@ -565,6 +576,9 @@ router.get('/dashboard', async (req, res) => {
             const lastActivity = u.updatedAt || regDate;
             const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
 
+            const userEmailNorm = (u.email || '').toLowerCase();
+            const resolvedPhone = u.phoneNumber || u.phone || purchasePhoneMap.get(userEmailNorm) || '';
+
             const isPro = u.role === 'USER_PRO' || (plan && plan.plan === 'pro');
             const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : null;
             let daysToExpiry = null;
@@ -575,7 +589,7 @@ router.get('/dashboard', async (req, res) => {
 
             if (isPro) activeProCount++;
             if (daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30) expiringSoonCount++;
-            if (!u.phone || u.phone.trim() === '') missingPhoneCount++;
+            if (!resolvedPhone || resolvedPhone.trim() === '') missingPhoneCount++;
             if (daysInactive > 30) inactiveCount++;
 
             // Traffic light determination
@@ -606,7 +620,7 @@ router.get('/dashboard', async (req, res) => {
                 userId: u._id,
                 name: u.name || u.username || 'Usuario Wappy',
                 email: u.email || 'Sin correo',
-                phone: u.phone || '',
+                phone: resolvedPhone,
                 role: u.role || 'USER',
                 accountStatus: u.accountStatus || 'active',
                 registrationDate: regDate,
@@ -637,14 +651,28 @@ router.get('/dashboard', async (req, res) => {
         const commissionsList = rawCommissions.map(c => {
             const refUser = usersMap.get(String(c.referredUserId)) || {};
             const refPlan = plansMap.get(String(c.referredUserId));
-            const isPro = refUser.role === 'USER_PRO' || (refPlan && refPlan.plan === 'pro');
-            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : null;
-            let daysToExpiry = null;
-            if (expiresAt) {
-                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const rawPlan = refPlan?.plan;
+            const isPro = refUser.role === 'USER_PRO' || rawPlan === 'pro';
+            let planType = rawPlan;
+            if (!planType || planType === 'freemium' || planType === 'free') {
+                if (isPro || c.amount >= 50000000) {
+                    planType = 'pro';
+                } else if (c.amount > 0) {
+                    planType = 'vital';
+                } else {
+                    planType = 'free';
+                }
             }
-            const lastActivity = refUser.updatedAt || refUser.createdAt || c.createdAt;
-            const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
+
+            let planInterval = null;
+            if (planType === 'pro') {
+                planInterval = refPlan?.interval || (c.amount >= 50000000 ? 'anual' : c.amount >= 25000000 ? 'semestral' : 'mensual');
+            } else if (planType === 'free' || planType === 'freemium' || planType === 'vital' || planType === 'vitalicio') {
+                planInterval = null; // Free & Vital plans are lifetime (vitalicio), no monthly/annual intervals
+            }
+
+            const refEmailNorm = (refUser.email || '').toLowerCase();
+            const resolvedRefPhone = refUser.phoneNumber || refUser.phone || purchasePhoneMap.get(refEmailNorm) || '';
 
             if (c.status !== 'cancelled') totalCommissionsEarned += c.commissionAmount || 0;
             if (c.status === 'pending') totalCommissionsPending += c.commissionAmount || 0;
@@ -655,13 +683,13 @@ router.get('/dashboard', async (req, res) => {
                 userId: refUser._id || c.referredUserId,
                 referredUserName: refUser.name || refUser.username || 'Usuario',
                 referredUserEmail: refUser.email || '',
-                phone: refUser.phone || '',
+                phone: resolvedRefPhone,
                 role: refUser.role || 'USER',
                 accountStatus: refUser.accountStatus || 'active',
-                subscriptionType: refPlan?.plan || (isPro ? 'pro' : 'freemium'),
-                planInterval: refPlan?.interval || (c.amount >= 50000000 ? 'anual' : c.amount >= 25000000 ? 'semestral' : 'mensual'),
-                planExpiresAt: expiresAt,
-                daysToExpiry,
+                subscriptionType: planType,
+                planInterval,
+                planExpiresAt: (planType === 'free' || planType === 'vital') ? null : expiresAt,
+                daysToExpiry: (planType === 'free' || planType === 'vital') ? null : daysToExpiry,
                 lastActivity,
                 daysInactive,
                 amount: c.amount,
