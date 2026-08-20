@@ -9,7 +9,7 @@ import {
     Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare,
     Building2, MapPin
 } from 'lucide-react';
-import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/data/colombiaLocations';
+import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {
     const localize = useLocalize();

@@ -2,8 +2,8 @@
 
 # Logs
 data-node
-meili_data*
-data/
+/data/
+!client/src/data/
 logs
 *.log
 

@@ -4,7 +4,7 @@ import { useToastContext } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import axios from 'axios';
 
-import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/data/colombiaLocations';
+import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
 
 export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
     const localize = useLocalize();

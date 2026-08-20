@@ -3,7 +3,7 @@ import { useAuthContext, useLocalize } from '~/hooks';
 import { OGDialog, OGDialogContent, Input, Label, Button, useToastContext } from '@librechat/client';
 import axios from 'axios';
 import { Phone, MapPin, Building, Sparkles } from 'lucide-react';
-import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/data/colombiaLocations';
+import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
 
 const RequiredInfoModal: React.FC = () => {
   const localize = useLocalize();
