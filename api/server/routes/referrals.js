@@ -696,6 +696,10 @@ router.get('/dashboard', async (req, res) => {
                 planExpiresAt: expiresAt,
                 daysToExpiry,
                 trafficLight,
+                crmStage: rec.crmStage || (isPro ? 'ganado' : 'nuevo'),
+                crmNotes: rec.crmNotes || [],
+                lastContactedAt: rec.lastContactedAt || null,
+                nextFollowUpDate: rec.nextFollowUpDate || null,
                 ambassadorName: partnerDoc ? (partnerDoc.userId?.name || partnerDoc.slug) : 'Sin embajador',
                 ambassadorSlug: partnerDoc?.slug || null,
                 ambassadorId: partnerDoc?._id || null,
@@ -1096,13 +1100,300 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
 
         logger.info(`[ReferralEmailSend] Correo enviado por ${req.user.email} a ${targetEmail} (${recipientName})`);
 
+        // Automatically log interaction in CRM
+        if (targetUserId || recipientUser) {
+            try {
+                const searchUid = targetUserId || recipientUser._id;
+                await ReferralRecord.findOneAndUpdate(
+                    { referredUserId: searchUid },
+                    {
+                        $set: { 
+                            lastContactedAt: new Date(),
+                            crmStage: 'contactado'
+                        },
+                        $push: {
+                            crmNotes: {
+                                author: req.user.name || 'Asesor Comercial',
+                                text: `📧 Correo de campaña enviado: "${subject}"`,
+                                type: 'email',
+                                createdAt: new Date()
+                            }
+                        }
+                    }
+                );
+            } catch (crmErr) {
+                logger.warn('[ReferralEmailSend] Non-fatal CRM log error:', crmErr);
+            }
+        }
+
+// --- Commercial Proposal Generation with AI ---
+router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
+    const { 
+        companyName, 
+        companyNit, 
+        sector = 'Servicios / General', 
+        employeeCount = '11-50', 
+        proposalScope = 'Implementación y Automatización SG-SST con IA',
+        selectedPlans = ['anual'],
+        customDiscount = 0,
+        customObservations = '',
+        ambassadorName,
+        ambassadorPhone,
+        ambassadorEmail,
+        referralLink
+    } = req.body;
+
+    if (!companyName || !companyName.trim()) {
+        return res.status(400).json({ message: 'El nombre de la empresa cliente es requerido.' });
+    }
+
+    try {
+        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+        const apiKey = await getSystemGoogleKey();
+        if (!apiKey) {
+            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelInstance = genAI.getGenerativeModel({
+            model: 'gemini-3.1-flash-lite',
+            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club / wappy-ia.com), la plataforma SaaS líder en Colombia y Latinoamérica para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial.
+Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, ALTAMENTE PERSUASIVA, TÉCNICAMENTE IMPECABLE Y TOTALMENTE PERSONALIZADA para la empresa cliente.
+
+La propuesta debe reflejar estricto cumplimiento normativo en Colombia (Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012, Resolución 20223040040595 para PESV y Sistema Globalmente Armonizado SGA).
+
+Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
+{
+  "title": "Propuesta Comercial: Transformación y Automatización del SG-SST con Inteligencia Artificial",
+  "proposalCode": "WAP-PROP-2026-XXXX",
+  "executiveSummary": "Párrafo ejecutivo de alto impacto explicando cómo WAPPY IA revolucionará la gestión SST de la empresa, ahorrando tiempo y garantizando cumplimiento total.",
+  "sectorDiagnosis": "Análisis específico para el sector de la empresa, identificando sus desafíos críticos de SST y riesgos principales.",
+  "includedModules": [
+    {
+      "title": "Nombre del Módulo o Agente Especializado (ej: Matriz IPEVAR Live, Coordinador PESV, Ingeniero Químico SGA, Auditor SST)",
+      "description": "Descripción clara del alcance y funcionalidad técnica.",
+      "benefits": "Beneficio directo y ahorro operativo para la empresa."
+    }
+  ],
+  "roiAnalysis": {
+    "timeSavedHoursPerMonth": "45-60 horas/mes",
+    "estimatedSavingsCop": "$2.800.000 COP / mes en consultoría y horas operativas",
+    "qualitativeBenefits": [
+      "Auditorías listas en minutos",
+      "Cero sanciones ante visitas del Ministerio del Trabajo",
+      "Actualizaciones normativas automáticas en tiempo real"
+    ]
+  },
+  "implementationTimeline": [
+    { "phase": "Fase 1: Configuración & Acceso", "time": "Día 1", "description": "Creación de cuentas, perfil de empresa y diagnóstico inicial." },
+    { "phase": "Fase 2: Adopción & Matrices", "time": "Semana 1", "description": "Generación y sincronización de IPEVAR, PESV y formatos corporativos." },
+    { "phase": "Fase 3: Auditorías & Autonomía", "time": "Semana 2 en adelante", "description": "Acompañamiento continuo y simulacros de auditoría con IA." }
+  ],
+  "termsAndConditions": [
+    "Vigencia de la propuesta: 15 días calendario a partir de la fecha de emisión.",
+    "Acceso inmediato a la plataforma 24/7 en la nube tras la confirmación del pago.",
+    "Actualizaciones ilimitadas de agentes y modelos de IA incluidos durante el periodo de suscripción.",
+    "Soporte comercial y técnico prioritario por parte del embajador asignado."
+  ],
+  "closingMessage": "Mensaje final persuasivo invitando a la toma de decisión y activación del servicio."
+}
+Solo entrega el JSON parseable sin explicaciones adicionales.`,
+        });
+
+        const promptText = `
+Datos de la Empresa Cliente:
+- Razón Social: ${companyName}
+- NIT: ${companyNit || 'En trámite / No especificado'}
+- Sector Económico: ${sector}
+- Tamaño / Trabajadores: ${employeeCount}
+- Alcance Solicitado: ${proposalScope}
+- Planes de Interés: ${selectedPlans.join(', ')}
+- Descuento Especial: ${customDiscount}%
+- Observaciones Adicionales: ${customObservations || 'Ninguna'}
+- Asesor Comercial Wappy: ${ambassadorName || req.user.name || 'Asesor WAPPY'}
+- Link de Activación: ${referralLink || 'https://wappy.club'}
+`;
+
+        const result = await modelInstance.generateContent({
+            contents: [{ role: 'user', parts: [{ text: promptText }] }],
+            generationConfig: {
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const responseText = result.response.text();
+        const parsedData = JSON.parse(responseText);
+
+        // Calculate investment table with prices
+        const PRICING_CATALOG = {
+            anual: {
+                name: 'Plan Wappy PRO Anual',
+                intervalLabel: '12 Meses (Anual)',
+                regularPrice: 600000,
+                pricePerMonth: 50000,
+                features: ['Acceso total a todos los Agentes SST', 'Matrices IPEVAR & PESV Ilimitadas', 'Gestión de Sustancias Químicas SGA', 'Auditorías en Vivo con IA', 'Aula de Estudio LMS y Certificaciones', 'Soporte Prioritario VIP'],
+                isRecommended: true
+            },
+            semestral: {
+                name: 'Plan Wappy PRO Semestral',
+                intervalLabel: '6 Meses (Semestral)',
+                regularPrice: 350000,
+                pricePerMonth: 58333,
+                features: ['Acceso total a Agentes SST', 'Matrices IPEVAR & PESV', 'SGA Químico y RIT', 'Auditorías en Vivo con IA', 'Soporte Asignado'],
+                isRecommended: false
+            },
+            mensual: {
+                name: 'Plan Wappy PRO Mensual',
+                intervalLabel: '1 Mes (Mensual)',
+                regularPrice: 97180,
+                pricePerMonth: 97180,
+                features: ['Acceso a Agentes SST', 'Generación de Matrices y Formatos', 'Soporte Estándar'],
+                isRecommended: false
+            }
+        };
+
+        const discount = Math.min(100, Math.max(0, Number(customDiscount) || 0));
+        const investmentPlans = (selectedPlans.length > 0 ? selectedPlans : ['anual']).map(pKey => {
+            const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
+            const finalPrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
+            const finalPerMonth = pKey === 'anual' ? Math.round(finalPrice / 12) : pKey === 'semestral' ? Math.round(finalPrice / 6) : finalPrice;
+            return {
+                key: pKey,
+                planName: p.name,
+                interval: p.intervalLabel,
+                regularPrice: p.regularPrice,
+                discountPercentage: discount,
+                finalPrice: finalPrice,
+                pricePerMonth: finalPerMonth,
+                features: p.features,
+                isRecommended: p.isRecommended,
+                paymentUrl: referralLink || 'https://wappy.club/planes'
+            };
+        });
+
+        const proposalCode = `WAP-PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
         return res.status(200).json({
-            success: true,
-            message: `Correo de campaña enviado exitosamente a ${targetEmail}.`
+            ...parsedData,
+            proposalCode: parsedData.proposalCode || proposalCode,
+            companyName,
+            companyNit: companyNit || '',
+            sector,
+            employeeCount,
+            investmentPlans,
+            ambassadorData: {
+                name: ambassadorName || req.user.name || 'Asesor Comercial Wappy',
+                phone: ambassadorPhone || '',
+                email: ambassadorEmail || req.user.email || 'contacto@wappy.club',
+                referralLink: referralLink || 'https://wappy.club'
+            },
+            generatedAt: new Date().toISOString()
         });
     } catch (error) {
-        logger.error('[ReferralEmailSend] Error sending email:', error);
-        return res.status(500).json({ message: `Error al enviar correo: ${error.message}` });
+        logger.error('[ReferralProposalGenerate] Error generating commercial proposal:', error);
+        return res.status(500).json({ message: `Error al generar la propuesta comercial: ${error.message}` });
+    }
+});
+
+// --- CRM: Update Stage in Pipeline (Kanban) ---
+router.post('/crm/update-stage', requireJwtAuth, async (req, res) => {
+    const { targetUserId, newStage, stageLabel } = req.body;
+
+    const validStages = ['nuevo', 'contactado', 'interesado', 'propuesta', 'ganado', 'frio', 'invalido'];
+    if (!targetUserId || !validStages.includes(newStage)) {
+        return res.status(400).json({ message: 'ID de usuario o etapa inválida.' });
+    }
+
+    try {
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const STAGE_NAMES = {
+            nuevo: 'Sin Contactar',
+            contactado: 'Contactado',
+            interesado: 'Interesado / En Negociación',
+            propuesta: 'Propuesta Enviada',
+            ganado: 'Cerrado PRO',
+            frio: 'No Interesado / Frío',
+            invalido: 'Contacto Inválido'
+        };
+
+        const noteText = `🏷️ Etapa cambiada a: "${stageLabel || STAGE_NAMES[newStage] || newStage}"`;
+
+        const updatedRecord = await ReferralRecord.findOneAndUpdate(
+            { referredUserId: targetUserId },
+            {
+                $set: { crmStage: newStage },
+                $push: {
+                    crmNotes: {
+                        author: req.user.name || 'Asesor Comercial',
+                        text: noteText,
+                        type: 'status_change',
+                        createdAt: new Date()
+                    }
+                }
+            },
+            { new: true }
+        );
+
+        if (!updatedRecord) {
+            return res.status(404).json({ message: 'Registro de referido no encontrado.' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            crmStage: updatedRecord.crmStage,
+            crmNotes: updatedRecord.crmNotes,
+            message: `Etapa actualizada a ${STAGE_NAMES[newStage]}.`
+        });
+    } catch (error) {
+        logger.error('[ReferralCrmUpdateStage] Error:', error);
+        return res.status(500).json({ message: `Error al actualizar la etapa: ${error.message}` });
+    }
+});
+
+// --- CRM: Add Follow-up Note / Task ---
+router.post('/crm/add-note', requireJwtAuth, async (req, res) => {
+    const { targetUserId, text, type = 'note' } = req.body;
+
+    if (!targetUserId || !text || !text.trim()) {
+        return res.status(400).json({ message: 'Usuario y texto de la nota son requeridos.' });
+    }
+
+    try {
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const validTypes = ['whatsapp', 'email', 'call', 'note', 'proposal', 'status_change'];
+        const noteType = validTypes.includes(type) ? type : 'note';
+
+        const updatedRecord = await ReferralRecord.findOneAndUpdate(
+            { referredUserId: targetUserId },
+            {
+                $set: { lastContactedAt: new Date() },
+                $push: {
+                    crmNotes: {
+                        author: req.user.name || 'Asesor Comercial',
+                        text: text.trim(),
+                        type: noteType,
+                        createdAt: new Date()
+                    }
+                }
+            },
+            { new: true }
+        );
+
+        if (!updatedRecord) {
+            return res.status(404).json({ message: 'Registro de referido no encontrado.' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            crmNotes: updatedRecord.crmNotes,
+            lastContactedAt: updatedRecord.lastContactedAt,
+            message: 'Nota de seguimiento guardada exitosamente.'
+        });
+    } catch (error) {
+        logger.error('[ReferralCrmAddNote] Error:', error);
+        return res.status(500).json({ message: `Error al agregar nota: ${error.message}` });
     }
 });
 

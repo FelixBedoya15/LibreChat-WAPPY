@@ -22,11 +22,18 @@ import {
   ExternalLink,
   ChevronRight,
   Mail,
-  Send
+  Send,
+  FileText,
+  LayoutGrid,
+  List,
+  Flame,
+  Layers
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import AmbassadorContactModal, { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
+import CommercialProposalGenerator from './CommercialProposalGenerator';
+import AmbassadorKanbanBoard, { KanbanUser, CRM_STAGES } from './AmbassadorKanbanBoard';
 
 interface ReferredUser {
   id: string;
@@ -45,6 +52,10 @@ interface ReferredUser {
   planExpiresAt: string | null;
   daysToExpiry: number | null;
   trafficLight: 'green' | 'yellow' | 'red' | 'gray' | 'purple';
+  crmStage?: string;
+  crmNotes?: any[];
+  lastContactedAt?: string | null;
+  nextFollowUpDate?: string | null;
   ambassadorName: string;
   ambassadorSlug: string | null;
   ambassadorId: string | null;
@@ -110,7 +121,7 @@ export default function AmbassadorDashboard() {
     return true;
   });
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'commissions' | 'network'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'commissions' | 'network' | 'proposals'>('overview');
 
   // Data states
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
@@ -126,6 +137,31 @@ export default function AmbassadorDashboard() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [lightFilter, setLightFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+
+  // CRM Update Stage Handler
+  const handleUpdateCrmStage = async (userId: string, newStage: string, stageLabel?: string) => {
+    try {
+      const resp = await axios.post('/api/referrals/crm/update-stage', {
+        targetUserId: userId,
+        newStage,
+        stageLabel
+      });
+      setReferredUsers(prev => prev.map(u => {
+        if (u.userId === userId) {
+          return {
+            ...u,
+            crmStage: newStage,
+            crmNotes: resp.data?.crmNotes || u.crmNotes
+          };
+        }
+        return u;
+      }));
+      showToast({ message: `Etapa actualizada a ${stageLabel || newStage}.`, status: 'success' });
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.message || 'Error al actualizar etapa.', status: 'error' });
+    }
+  };
 
   // Admin attribution modal state
   const [selectedUserForAttr, setSelectedUserForAttr] = useState<ReferredUser | null>(null);
@@ -536,6 +572,18 @@ export default function AmbassadorDashboard() {
               <span>Panel de Red</span>
             </button>
           )}
+
+          <button
+            onClick={() => setActiveTab('proposals')}
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'proposals'
+                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
+                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
+            <span>Propuesta Comercial</span>
+          </button>
         </div>
 
         {/* Tab 1: Overview & Alerts */}
@@ -601,22 +649,106 @@ export default function AmbassadorDashboard() {
           </div>
         )}
 
-        {/* Tab 2: Users Table */}
-        {activeTab === 'users' && (
-          <div className="space-y-3 sm:space-y-4">
-            {/* Search & Filters Bar */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
-              {/* Search box */}
-              <div className="relative w-full lg:w-72 xl:w-80">
-                <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuario, correo, WhatsApp..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-surface-primary border border-border-medium/40 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-teal-500 transition-colors"
-                />
+        {/* Tab 2: Users Table & Kanban CRM */}
+        {activeTab === 'users' && (() => {
+          const totalLeadsCount = referredUsers.length;
+          const contactedLeadsCount = referredUsers.filter(u => {
+            const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+            return st !== 'nuevo' && st !== 'invalido';
+          }).length;
+          const interestedLeadsCount = referredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
+          const proposalsSentCount = referredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
+          const wonLeadsCount = referredUsers.filter(u => {
+            const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+            return st === 'ganado' || u.role === 'USER_PRO' || u.paymentStatus === 'paid';
+          }).length;
+          const contactRate = totalLeadsCount > 0 ? Math.round((contactedLeadsCount / totalLeadsCount) * 100) : 0;
+          const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
+
+          return (
+            <div className="space-y-4">
+              {/* CRM Metrics Summary Banner */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-text-tertiary uppercase">Total Leads</div>
+                  <div className="text-lg font-black text-text-primary mt-0.5">{totalLeadsCount}</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">Contactos en tu red</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">Tasa Contacto</div>
+                  <div className="text-lg font-black text-blue-700 dark:text-blue-300 mt-0.5">{contactRate}%</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">{contactedLeadsCount} de {totalLeadsCount} contactados</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase flex items-center gap-1">
+                    <span>🔥 En Negociación</span>
+                  </div>
+                  <div className="text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5">{interestedLeadsCount}</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">Leads con alto interés</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase flex items-center gap-1">
+                    <span>📄 Propuestas</span>
+                  </div>
+                  <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">{proposalsSentCount}</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">Cotizaciones activas</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs col-span-2 sm:col-span-1">
+                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase flex items-center gap-1">
+                    <span>✅ Conversión PRO</span>
+                  </div>
+                  <div className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{conversionRate}%</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">{wonLeadsCount} suscritos activos</div>
+                </div>
               </div>
+
+              {/* Search & View Switcher Bar */}
+              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
+                {/* Search box */}
+                <div className="relative w-full lg:w-72 xl:w-80">
+                  <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Buscar usuario, correo, WhatsApp..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-surface-primary border border-border-medium/40 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-teal-500 transition-colors"
+                  />
+                </div>
+
+                {/* View Switcher + Filters */}
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+                  {/* Toggle Table vs Kanban */}
+                  <div className="flex items-center bg-surface-primary border border-border-medium/40 p-1 rounded-xl w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('table')}
+                      className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        viewMode === 'table'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <List className="w-3.5 h-3.5" />
+                      <span>Vista Tabla</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('kanban')}
+                      className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        viewMode === 'kanban'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      <span>Tablero Kanban</span>
+                    </button>
+                  </div>
 
               {/* Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto">
@@ -656,150 +788,178 @@ export default function AmbassadorDashboard() {
               </div>
             </div>
 
-            {/* Users Table Container with responsive horizontal scroll */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[900px]">
-                  <thead className="bg-surface-secondary/60 border-b border-border-medium/40 font-bold uppercase text-[11px] text-text-tertiary">
-                    <tr>
-                      <th className="px-4 py-3.5 min-w-[220px]">Usuario & Contacto</th>
-                      <th className="px-4 py-3.5 min-w-[130px]">Rol & Cuenta</th>
-                      <th className="px-4 py-3.5 min-w-[150px]">Registro & Inactividad</th>
-                      <th className="px-4 py-3.5 min-w-[140px]">Suscripción & Pago</th>
-                      <th className="px-4 py-3.5 min-w-[160px]">Vencimiento & Semáforo</th>
-                      <th className="px-4 py-3.5 min-w-[160px]">Embajador</th>
-                      <th className="px-4 py-3.5 text-right min-w-[150px]">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-medium/20">
-                    {filteredUsers.length === 0 ? (
+            {/* View Switching: Kanban vs Table */}
+            {viewMode === 'kanban' ? (
+              <AmbassadorKanbanBoard
+                users={filteredUsers as any}
+                onSelectUser={(u) => setContactUser(u as any)}
+                onUpdateStage={handleUpdateCrmStage}
+                myReferralLink={myReferralLink}
+              />
+            ) : (
+              /* Users Table Container with responsive horizontal scroll */
+              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[950px]">
+                    <thead className="bg-surface-secondary/60 border-b border-border-medium/40 font-bold uppercase text-[11px] text-text-tertiary">
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-text-tertiary text-sm">
-                          No se encontraron usuarios referidos que coincidan con la búsqueda.
-                        </td>
+                        <th className="px-4 py-3.5 min-w-[220px]">Usuario & Contacto</th>
+                        <th className="px-4 py-3.5 min-w-[140px]">Etapa CRM</th>
+                        <th className="px-4 py-3.5 min-w-[120px]">Rol & Cuenta</th>
+                        <th className="px-4 py-3.5 min-w-[140px]">Registro & Inactividad</th>
+                        <th className="px-4 py-3.5 min-w-[140px]">Suscripción & Pago</th>
+                        <th className="px-4 py-3.5 min-w-[150px]">Vencimiento & Semáforo</th>
+                        <th className="px-4 py-3.5 min-w-[150px]">Embajador</th>
+                        <th className="px-4 py-3.5 text-right min-w-[140px]">Acciones</th>
                       </tr>
-                    ) : (
-                      filteredUsers.map((u) => (
-                        <tr key={u.id} className="hover:bg-surface-hover/50 transition-colors">
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="flex flex-col min-w-0">
-                              <span
-                                onClick={() => setContactUser(u)}
-                                className="font-bold text-text-primary text-sm leading-snug hover:text-teal-600 cursor-pointer transition-colors"
-                              >
-                                {u.name}
-                              </span>
-                              <span className="text-text-tertiary text-xs truncate max-w-[200px] mt-0.5">{u.email}</span>
-                              {u.phone ? (
-                                <a
-                                  href={`https://api.whatsapp.com/send?phone=${u.phone.replace(/[^0-9]/g, '').length === 10 && u.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${u.phone.replace(/[^0-9]/g, '')}` : u.phone.replace(/[^0-9]/g, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold mt-1"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                                  <span>{u.phone}</span>
-                                </a>
-                              ) : (
-                                <span className="text-[11px] text-rose-500 font-semibold mt-1">Sin teléfono</span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 align-middle">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 whitespace-nowrap">
-                              {u.role}
-                            </span>
-                            <div className="text-[10px] text-text-tertiary uppercase font-bold mt-1 tracking-wider">
-                              {u.accountStatus}
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="text-xs font-medium text-text-primary">{new Date(u.registrationDate).toLocaleDateString()}</div>
-                            <div className="text-[11px] text-text-tertiary mt-0.5">
-                              {u.daysInactive === 0 ? '🟢 Activo hoy' : `Hace ${u.daysInactive} días`}
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 align-middle">
-                            {(() => {
-                              const p = formatPlanBadge(u.subscriptionType, u.planInterval);
-                              return (
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase whitespace-nowrap ${p.className}`}>
-                                  {p.label}
-                                </span>
-                              );
-                            })()}
-                            <div className="text-[11px] mt-1 font-semibold">
-                              {u.paymentStatus === 'paid' ? (
-                                <span className="text-emerald-600 dark:text-emerald-400">Pagado</span>
-                              ) : u.paymentStatus === 'trial' ? (
-                                <span className="text-amber-600 dark:text-amber-400">En Prueba</span>
-                              ) : u.paymentStatus === 'expired' ? (
-                                <span className="text-rose-600 dark:text-rose-400">Vencido</span>
-                              ) : (
-                                <span className="text-gray-500">Sin pago</span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="whitespace-nowrap">{getTrafficLightBadge(u.trafficLight)}</div>
-                            {(() => {
-                              const p = formatPlanBadge(u.subscriptionType, u.planInterval);
-                              if (p.isLifetime || u.daysToExpiry === null || u.daysToExpiry === undefined) {
-                                return (
-                                  <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 whitespace-nowrap">
-                                    ♾️ Vitalicio
-                                  </div>
-                                );
-                              }
-                              return (
-                                <div className="text-[11px] font-semibold text-text-tertiary mt-1 whitespace-nowrap">
-                                  {u.daysToExpiry < 0 ? 'Expiró hace ' + Math.abs(u.daysToExpiry) + 'd' : `${u.daysToExpiry}d restantes`}
-                                </div>
-                              );
-                            })()}
-                          </td>
-
-                          <td className="px-4 py-3.5 align-middle">
-                            <span className="font-semibold text-text-secondary text-xs">{u.ambassadorName}</span>
-                          </td>
-
-                          <td className="px-4 py-3.5 text-right align-middle">
-                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                              <button
-                                onClick={() => setContactUser({
-                                  ...u,
-                                  planInterval: u.planInterval,
-                                })}
-                                className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
-                                title="Enviar Correo de Campaña o Mensaje WhatsApp"
-                              >
-                                <Mail className="w-3.5 h-3.5" />
-                                <span>Contactar</span>
-                              </button>
-
-                              {isAdmin && (
-                                <button
-                                  onClick={() => openAttributionModal(u)}
-                                  className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-surface-secondary border border-border-medium/40 hover:bg-surface-hover transition-colors shadow-sm cursor-pointer"
-                                >
-                                  Atribuir
-                                </button>
-                              )}
-                            </div>
+                    </thead>
+                    <tbody className="divide-y divide-border-medium/20">
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-text-tertiary text-sm">
+                            No se encontraron usuarios referidos que coincidan con la búsqueda.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        filteredUsers.map((u) => (
+                          <tr key={u.id} className="hover:bg-surface-hover/50 transition-colors">
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="flex flex-col min-w-0">
+                                <span
+                                  onClick={() => setContactUser(u as any)}
+                                  className="font-bold text-text-primary text-sm leading-snug hover:text-teal-600 cursor-pointer transition-colors flex items-center gap-1 group"
+                                >
+                                  <span>{u.name}</span>
+                                  <ChevronRight className="w-3.5 h-3.5 text-text-tertiary group-hover:text-teal-600 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                                <span className="text-text-tertiary text-xs truncate max-w-[200px] mt-0.5">{u.email}</span>
+                                {u.phone ? (
+                                  <a
+                                    href={`https://api.whatsapp.com/send?phone=${u.phone.replace(/[^0-9]/g, '').length === 10 && u.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${u.phone.replace(/[^0-9]/g, '')}` : u.phone.replace(/[^0-9]/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold mt-1"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{u.phone}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-[11px] text-rose-500 font-semibold mt-1">Sin teléfono</span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* CRM Stage Badge */}
+                            <td className="px-4 py-3.5 align-middle">
+                              {(() => {
+                                const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+                                const stObj = CRM_STAGES.find(s => s.key === uStage);
+                                return (
+                                  <button
+                                    onClick={() => setContactUser(u as any)}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer shadow-xs ${stObj?.badgeColor || 'bg-slate-500/10 text-slate-700'}`}
+                                    title="Clic para ver seguimiento CRM o cambiar etapa"
+                                  >
+                                    <span>{stObj?.icon || '🔘'}</span>
+                                    <span>{stObj?.shortLabel || stObj?.label || 'Nuevo'}</span>
+                                  </button>
+                                );
+                              })()}
+                            </td>
+
+                            <td className="px-4 py-3.5 align-middle">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 whitespace-nowrap">
+                                {u.role}
+                              </span>
+                              <div className="text-[10px] text-text-tertiary uppercase font-bold mt-1 tracking-wider">
+                                {u.accountStatus}
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="text-xs font-medium text-text-primary">{new Date(u.registrationDate).toLocaleDateString()}</div>
+                              <div className="text-[11px] text-text-tertiary mt-0.5">
+                                {u.daysInactive === 0 ? '🟢 Activo hoy' : `Hace ${u.daysInactive} días`}
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 align-middle">
+                              {(() => {
+                                const p = formatPlanBadge(u.subscriptionType, u.planInterval);
+                                return (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase whitespace-nowrap ${p.className}`}>
+                                    {p.label}
+                                  </span>
+                                );
+                              })()}
+                              <div className="text-[11px] mt-1 font-semibold">
+                                {u.paymentStatus === 'paid' ? (
+                                  <span className="text-emerald-600 dark:text-emerald-400">Pagado</span>
+                                ) : u.paymentStatus === 'trial' ? (
+                                  <span className="text-amber-600 dark:text-amber-400">En Prueba</span>
+                                ) : u.paymentStatus === 'expired' ? (
+                                  <span className="text-rose-600 dark:text-rose-400">Vencido</span>
+                                ) : (
+                                  <span className="text-gray-500">Sin pago</span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="whitespace-nowrap">{getTrafficLightBadge(u.trafficLight)}</div>
+                              {(() => {
+                                const p = formatPlanBadge(u.subscriptionType, u.planInterval);
+                                if (p.isLifetime || u.daysToExpiry === null || u.daysToExpiry === undefined) {
+                                  return (
+                                    <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 whitespace-nowrap">
+                                      ♾️ Vitalicio
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div className="text-[11px] font-semibold text-text-tertiary mt-1 whitespace-nowrap">
+                                    {u.daysToExpiry < 0 ? 'Expiró hace ' + Math.abs(u.daysToExpiry) + 'd' : `${u.daysToExpiry}d restantes`}
+                                  </div>
+                                );
+                              })()}
+                            </td>
+
+                            <td className="px-4 py-3.5 align-middle">
+                              <span className="font-semibold text-text-secondary text-xs">{u.ambassadorName}</span>
+                            </td>
+
+                            <td className="px-4 py-3.5 text-right align-middle">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => setContactUser(u as any)}
+                                  className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+                                  title="Seguimiento CRM, WhatsApp o Campaña de Correo"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>CRM</span>
+                                </button>
+
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => openAttributionModal(u)}
+                                    className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-surface-secondary border border-border-medium/40 hover:bg-surface-hover transition-colors shadow-sm cursor-pointer"
+                                  >
+                                    Atribuir
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        );
+      })()}
 
         {/* Tab 3: Commissions */}
         {activeTab === 'commissions' && (
@@ -1023,6 +1183,16 @@ export default function AmbassadorDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Tab 5: Commercial Proposals with AI */}
+        {activeTab === 'proposals' && (
+          <CommercialProposalGenerator
+            ambassadorName={user?.name || 'Asesor Comercial WAPPY'}
+            ambassadorPhone={user?.phoneNumber || (user as any)?.phone || ''}
+            ambassadorEmail={user?.email || 'contacto@wappy.club'}
+            referralLink={myReferralLink || 'https://wappy.club'}
+          />
         )}
       </div>
 

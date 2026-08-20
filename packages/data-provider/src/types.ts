@@ -218,6 +218,10 @@ export type TUser = {
   createdAt: string;
   updatedAt: string;
   phoneNumber?: string;
+  departamento?: string;
+  ciudad?: string;
+  department?: string;
+  city?: string;
   inactiveAt?: string;
   emailNotifications?: boolean;
 };
@@ -394,6 +398,10 @@ export type TRegisterUser = {
   confirm_password?: string;
   token?: string;
   phoneNumber?: string;
+  departamento?: string;
+  ciudad?: string;
+  department?: string;
+  city?: string;
 };
 
 export type TLoginUser = {

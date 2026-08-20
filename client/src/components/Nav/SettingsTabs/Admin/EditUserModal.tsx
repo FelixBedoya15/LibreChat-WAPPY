@@ -7,8 +7,9 @@ import axios from 'axios';
 import { 
     Award, Users, DollarSign, Landmark, Shield, 
     Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare,
-    Building2
+    Building2, MapPin
 } from 'lucide-react';
+import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/data/colombiaLocations';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {
     const localize = useLocalize();
@@ -26,6 +27,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         inactiveAt: '',
         activeAt: '',
         phoneNumber: '',
+        departamento: '',
+        ciudad: '',
         companyLimit: '' as any,
     });
 

@@ -231,13 +231,17 @@ const updateUserPluginsController = async (req, res) => {
 
 const updateUserProfileController = async (req, res) => {
   try {
-    const { name, username, password, inactiveAt, phoneNumber, emailNotifications } = req.body;
+    const { name, username, password, inactiveAt, phoneNumber, departamento, ciudad, department, city, emailNotifications } = req.body;
     const userId = req.user.id || req.user._id;
 
     const updateData = {};
     if (name) updateData.name = name;
     if (username) updateData.username = username;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (departamento !== undefined) updateData.departamento = departamento;
+    if (department !== undefined && !updateData.departamento) updateData.departamento = department;
+    if (ciudad !== undefined) updateData.ciudad = ciudad;
+    if (city !== undefined && !updateData.ciudad) updateData.ciudad = city;
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
     // inactiveAt is now restricted to Admin updates only
     if (password) {

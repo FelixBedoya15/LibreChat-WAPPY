@@ -201,7 +201,24 @@ export default function Root() {
               user.phoneNumber.trim() === '' ||
               user.phoneNumber === 'No registrado' ||
               user.phoneNumber === 'N/A';
-            return isAuthenticated && user && isPhoneMissing ? (
+
+            const userDept = (user as any)?.departamento || (user as any)?.department;
+            const isDeptMissing =
+              !userDept ||
+              userDept.trim() === '' ||
+              userDept === 'No registrado' ||
+              userDept === 'N/A';
+
+            const userCity = (user as any)?.ciudad || (user as any)?.city;
+            const isCityMissing =
+              !userCity ||
+              userCity.trim() === '' ||
+              userCity === 'No registrado' ||
+              userCity === 'N/A';
+
+            const isInfoMissing = isPhoneMissing || isDeptMissing || isCityMissing;
+
+            return isAuthenticated && user && isInfoMissing ? (
               <RequiredInfoModal />
             ) : null;
           })()}

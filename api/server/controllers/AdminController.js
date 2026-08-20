@@ -8,7 +8,7 @@ const { getMessages } = require('~/models');
 
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt phoneNumber');
+        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt phoneNumber departamento ciudad department city');
 
         // Get last activity (most recent conversation updatedAt) for all users in one aggregation
         const lastActivities = await Conversation.aggregate([
@@ -38,7 +38,7 @@ const getAllUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
     try {
-        const { email, password, name, username, role, accountStatus, phoneNumber } = req.body;
+        const { email, password, name, username, role, accountStatus, phoneNumber, departamento, ciudad, department, city } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -58,6 +58,10 @@ const createUser = async (req, res) => {
             provider: 'local',
             emailVerified: true, // Admin created users are verified
             phoneNumber,
+            departamento: departamento || department,
+            ciudad: ciudad || city,
+            department: department || departamento,
+            city: city || ciudad,
         });
 
         await newUser.save();
@@ -72,6 +76,7 @@ const updateUser = async (req, res) => {
     try {
         const { 
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
+            departamento, ciudad, department, city,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
             companyLimit, referredByPartner
         } = req.body;
@@ -92,6 +97,10 @@ const updateUser = async (req, res) => {
             updateData.password = bcrypt.hashSync(password, salt);
         }
         if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+        if (departamento !== undefined) updateData.departamento = departamento;
+        if (department !== undefined && !updateData.departamento) updateData.departamento = department;
+        if (ciudad !== undefined) updateData.ciudad = ciudad;
+        if (city !== undefined && !updateData.ciudad) updateData.ciudad = city;
 
         const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
         if (!user) {

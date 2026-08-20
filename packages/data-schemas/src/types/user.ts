@@ -39,6 +39,10 @@ export interface IUser extends Document {
   /** Field for external source identification (for consistency with TPrincipal schema) */
   idOnTheSource?: string;
   phoneNumber?: string;
+  departamento?: string;
+  ciudad?: string;
+  department?: string;
+  city?: string;
   downloadsToday?: number;
   lastDownloadDate?: Date;
   pushSubscriptions?: any[];
@@ -72,6 +76,10 @@ export interface UpdateUserRequest {
     memories?: boolean;
   };
   phoneNumber?: string;
+  departamento?: string;
+  ciudad?: string;
+  department?: string;
+  city?: string;
   emailNotifications?: boolean;
 }
 

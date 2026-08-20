@@ -1689,7 +1689,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
-        let agentRolePrompt = '';
+        let agentPersona = 'Especialista en Seguridad y Salud en el Trabajo (SST/HSE)';
         let isBiomechanics = false;
         if (agentId) {
             try {
@@ -1700,12 +1700,8 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
                     if (agentName.includes('fisioterapeuta') || agentName.includes('biomecánica') || agentName.includes('biomecanica')) {
                         isBiomechanics = true;
                     }
-                    if (agent.instructions) {
-                        // Extract concise persona prompt, stripping massive markdown tables/html templates (kept for chat)
-                        agentRolePrompt = `Eres el asistente "${agent.name || 'Especialista SST'}" de WAPPY IA.\n` +
-                            agent.instructions.substring(0, 1500).replace(/<[^>]*>/g, '').trim();
-                    }
-                    logger.info(`[VoiceSession] Extracted live prompt for Agent (${agent.name || agentId}) (isBiomechanics: ${isBiomechanics})`);
+                    agentPersona = agent.name || 'Especialista SST';
+                    logger.info(`[VoiceSession] Live session configured with Agent: ${agentPersona} (isBiomechanics: ${isBiomechanics})`);
                 }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
@@ -1716,22 +1712,31 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             isBiomechanics = true;
         }
 
-        // Clean, lightweight Live Voice & Video System Instruction
-        config.systemInstruction = `
-${agentRolePrompt || 'Eres un Experto Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA.'}
+        if (isBiomechanics) {
+            config.systemInstruction = `
+Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
+Estás en una videollamada interactiva en vivo observando la cámara del usuario en tiempo real.
 
-[DIRECTIVAS DE VOZ Y VIDEO EN VIVO]:
-- Estás en una videollamada interactiva en tiempo real viendo la cámara y escuchando la voz del usuario.
-- SALUDO INICIAL: Saluda en 1 sola frase breve y directa invitando a interactuar (ej: "Hola, te estoy viendo en cámara. Dime en qué te puedo colaborar hoy.").
-- Habla en español claro, fluido y natural.
-- Responde siempre de forma concisa (máximo 1 a 2 oraciones por intervención) para permitir un diálogo dinámico de ida y vuelta.
-- NUNCA uses etiquetas HTML, viñetas o monólogos largos.
-${isBiomechanics ? `
-[MODO BIOMECÁNICA Y ERGONOMÍA]:
-- Tienes capacidad visual activa en tiempo real: observa la postura del usuario y dale retroalimentación inmediata, amable y práctica (cuello, espalda, distancia y alineación).
-- PROHIBIDO realizar cuestionarios administrativos largos o pedir en voz alta tamaño de empresa, ARL o marco legal, a menos que el usuario lo pida.
-` : ''}
+REGLAS OBLIGATORIAS:
+1. SALUDO INICIAL: Saluda en una sola frase breve y directa invitando a la evaluación (ej: "Hola, te estoy viendo en cámara. Cuéntame qué postura o puesto de trabajo deseas que evaluemos juntos.").
+2. DIRECTIVA ESTRICTA (CERO FORMULARIOS): NUNCA pidas tamaño de empresa, nivel de riesgo ARL, número de trabajadores ni estado de implementación. Prohibido hacer preguntas administrativas.
+3. CONCISIÓN ORAL: Habla siempre en español natural, directo y en un máximo de 1 a 2 oraciones cortas por turno para permitir un diálogo dinámico.
+4. RETROALIMENTACIÓN BIOMECÁNICA: Observa la postura del usuario (cuello, espalda, distancia de pantalla, brazos) y dale sugerencias ergonómicas inmediatas y prácticas.
+5. GENERACIÓN DE INFORME: Si el usuario te pide generar el informe o resumen técnico, di brevemente: "Perfecto, procesando la telemetría y generando tu informe técnico."
+6. FORMATO: Prohibido usar etiquetas HTML, tablas, asteriscos o viñetas en tus respuestas habladas.
 `.trim();
+        } else {
+            config.systemInstruction = `
+Eres el asistente "${agentPersona}" de WAPPY IA.
+Estás en una llamada de voz en tiempo real con el usuario.
+
+REGLAS OBLIGATORIAS:
+1. SALUDO INICIAL: Saluda en una sola frase breve y amable.
+2. DIRECTIVA ESTRICTA (CERO FORMULARIOS): NUNCA pidas tamaño de empresa, nivel de riesgo ARL ni datos administrativos en voz alta a menos que el usuario lo consulte explícitamente.
+3. CONCISIÓN ORAL: Habla siempre en español natural y en un máximo de 1 a 2 oraciones cortas por turno.
+4. FORMATO: Prohibido usar etiquetas HTML, tablas, asteriscos o viñetas en tus respuestas habladas.
+`.trim();
+        }
         
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);

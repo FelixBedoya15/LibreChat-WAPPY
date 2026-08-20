@@ -166,6 +166,22 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
+    departamento: {
+      type: String,
+      trim: true,
+    },
+    ciudad: {
+      type: String,
+      trim: true,
+    },
+    department: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
     downloadsToday: {
       type: Number,
       default: 0,
