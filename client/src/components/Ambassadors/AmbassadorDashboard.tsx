@@ -906,7 +906,7 @@ export default function AmbassadorDashboard() {
         )}
 
         {/* Tab 4: Network Panel (Leader & Admin) */}
-        {activeTab === 'network' && isLeader && (
+        {activeTab === 'network' && (isAdmin || isLeader) && (
           <div className="space-y-4 sm:space-y-6">
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
               <h3 className="text-sm sm:text-base font-extrabold text-text-primary flex items-center gap-2 mb-3 sm:mb-4">

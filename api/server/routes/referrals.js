@@ -14,6 +14,21 @@ const PayoutRequest = require('~/models/PayoutRequest');
 // All endpoints in this router are authenticated
 router.use(requireJwtAuth);
 
+// Helper to check if a user is an administrator
+const checkIsAdmin = (user) => {
+    if (!user) return false;
+    const role = (user.role || '').toUpperCase();
+    const email = (user.email || '').toLowerCase();
+    const username = (user.username || '').toLowerCase();
+    return role === 'ADMIN' || 
+           role === 'ADMINISTRADOR' || 
+           email === 'felix.bedoya15@gmail.com' || 
+           email === 'wappyinteractivo@gmail.com' || 
+           email === 'wappysst@gmail.com' || 
+           email.includes('felix') || 
+           username.includes('felix');
+};
+
 /**
  * Helper to calculate a user's current points balance
  */
@@ -491,23 +506,23 @@ router.post('/partner/withdraw', async (req, res) => {
 router.get('/dashboard', async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
-        const isAdmin = req.user.role === 'ADMIN' || req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+        const User = mongoose.model('User');
+        const userDoc = await User.findById(userId).lean();
+        const isAdmin = checkIsAdmin(req.user) || checkIsAdmin(userDoc);
 
         const Partner = mongoose.model('Partner');
         const PartnerCommission = mongoose.model('PartnerCommission');
         const ReferralRecord = mongoose.model('ReferralRecord');
-        const User = mongoose.model('User');
         const UserPlan = mongoose.model('UserPlan');
 
         let partner = await Partner.findOne({ userId }).lean();
-        if (!partner && req.user.email) {
-            const userDoc = await User.findById(userId).lean();
-            if (userDoc?.username) {
-                partner = await Partner.findOne({ slug: userDoc.username.toLowerCase() }).lean();
-            }
+        if (!partner && (userDoc?.username || req.user.username)) {
+            const uname = (userDoc?.username || req.user.username).toLowerCase();
+            partner = await Partner.findOne({ slug: uname }).lean();
         }
-        const isEmbajador = !!partner || req.user.role === 'EMBAJADOR' || req.user.role === 'EMBAJADOR_LIDER';
-        const isLeader = isAdmin || (partner && partner.type === 'embajador') || req.user.role === 'EMBAJADOR_LIDER';
+        const userRole = (userDoc?.role || req.user.role || '').toUpperCase();
+        const isEmbajador = !!partner || userRole === 'EMBAJADOR' || userRole === 'EMBAJADOR_LIDER';
+        const isLeader = isAdmin || (partner && partner.type === 'embajador') || userRole === 'EMBAJADOR_LIDER';
 
         // Check if user has referrals even if not in Partner collection
         const myReferralsCount = await ReferralRecord.countDocuments({
@@ -912,7 +927,8 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
         const { THEMES } = require('~/server/controllers/AdminMarketingController');
 
         const userId = req.user.id;
-        const isAdmin = req.user.role === 'ADMIN' || req.user.email === 'felix.bedoya15@gmail.com';
+        const userDoc = await User.findById(userId).lean();
+        const isAdmin = checkIsAdmin(req.user) || checkIsAdmin(userDoc);
 
         // Check permission: If not admin, verify target user belongs to this partner
         if (!isAdmin) {
