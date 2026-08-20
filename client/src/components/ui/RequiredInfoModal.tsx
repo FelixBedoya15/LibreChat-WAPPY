@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthContext, useLocalize } from '~/hooks';
-import { OGDialog, OGDialogContent, Input, Label, Button, useToastContext } from '@librechat/client';
+import { OGDialog, OGDialogContent, Label, Button, useToastContext } from '@librechat/client';
 import axios from 'axios';
 import { Phone, MapPin, Building, Sparkles } from 'lucide-react';
 import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
@@ -80,7 +80,7 @@ const RequiredInfoModal: React.FC = () => {
     }
 
     if (!cleanDept) {
-      setError('Por favor, selecciona o ingresa tu departamento.');
+      setError('Por favor, selecciona tu departamento.');
       return;
     }
 
@@ -135,38 +135,34 @@ const RequiredInfoModal: React.FC = () => {
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="max-h-[95vh] w-11/12 max-w-md overflow-y-auto rounded-3xl border border-emerald-500/20 bg-surface-secondary/95 p-0 shadow-2xl backdrop-blur-xl dark:border-emerald-500/10"
+        className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-850 p-6 text-left align-middle shadow-2xl transition-all border border-gray-200 dark:border-gray-800"
       >
-        {/* Glow ambient background circles */}
-        <div className="pointer-events-none absolute -mr-16 -mt-16 right-0 top-0 h-48 w-48 rounded-full bg-emerald-500/15 blur-2xl transition-all duration-700" />
-        <div className="pointer-events-none absolute -mb-16 -ml-16 bottom-0 left-0 h-48 w-48 rounded-full bg-cyan-500/15 blur-2xl transition-all duration-700" />
-
-        <div className="flex flex-col items-center p-6 text-center relative z-10">
-          {/* Animated Header Icon */}
-          <div className="relative mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 text-emerald-500 shadow-inner">
+        <div className="flex flex-col items-center text-center">
+          {/* Animated Header Icon with Movement */}
+          <div className="relative mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-inner">
             <MapPin className="w-7 h-7 stroke-[2] animate-bounce" />
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400 absolute -top-1 -right-1 animate-pulse" />
+            <Sparkles className="w-3.5 h-3.5 text-teal-500 absolute -top-1 -right-1 animate-pulse" />
           </div>
 
           {/* Title */}
-          <h2 className="mb-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
+          <h2 className="mb-1 text-xl font-bold text-gray-900 dark:text-white">
             Completa tu Información
           </h2>
 
           {/* Subtitle */}
-          <p className="mb-5 text-xs leading-relaxed text-text-secondary px-2">
+          <p className="mb-5 text-xs leading-relaxed text-gray-500 dark:text-gray-400 px-1">
             Para brindarte una experiencia óptima y asegurar la validez de tu cuenta de acuerdo con las normativas vigentes, por favor registra tu teléfono celular, departamento y ciudad.
           </p>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="w-full text-left space-y-3.5">
+          <form onSubmit={handleSubmit} className="w-full text-left space-y-4">
             {/* Phone input */}
-            <div>
-              <Label htmlFor="phoneNumber" className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="phoneNumber" className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                 Teléfono Celular / WhatsApp *
               </Label>
-              <Input
+              <input
                 id="phoneNumber"
                 type="text"
                 value={phoneNumber}
@@ -175,16 +171,16 @@ const RequiredInfoModal: React.FC = () => {
                   if (error) setError('');
                 }}
                 placeholder="Ej: +57 3123456789"
-                className="mt-1 w-full rounded-xl border border-border-medium bg-surface-primary/70 px-3.5 py-2 text-xs text-text-primary backdrop-blur-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all"
                 autoFocus
                 disabled={loading}
               />
             </div>
 
             {/* Departamento Select */}
-            <div>
-              <Label htmlFor="departamento" className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="departamento" className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                 Departamento *
               </Label>
               <select
@@ -192,7 +188,7 @@ const RequiredInfoModal: React.FC = () => {
                 value={departamento}
                 onChange={handleDepartmentChange}
                 disabled={loading}
-                className="mt-1 w-full rounded-xl border border-border-medium bg-surface-primary/70 px-3.5 py-2 text-xs text-text-primary backdrop-blur-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-xs text-gray-900 dark:text-gray-100 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all cursor-pointer"
               >
                 <option value="">-- Selecciona un Departamento --</option>
                 {DEPARTAMENTOS_LIST.map((dept) => (
@@ -204,9 +200,9 @@ const RequiredInfoModal: React.FC = () => {
             </div>
 
             {/* Ciudad / Municipio Select or Input */}
-            <div>
-              <Label htmlFor="ciudad" className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                <Building className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ciudad" className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Building className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                 Ciudad / Municipio *
               </Label>
 
@@ -217,7 +213,7 @@ const RequiredInfoModal: React.FC = () => {
                     value={ciudad}
                     onChange={handleCityChange}
                     disabled={loading}
-                    className="mt-1 w-full rounded-xl border border-border-medium bg-surface-primary/70 px-3.5 py-2 text-xs text-text-primary backdrop-blur-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-xs text-gray-900 dark:text-gray-100 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all cursor-pointer"
                   >
                     <option value="">-- Selecciona una Ciudad / Municipio --</option>
                     {availableCities.map((c) => (
@@ -230,7 +226,7 @@ const RequiredInfoModal: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <Input
+                  <input
                     id="ciudad"
                     type="text"
                     value={ciudad}
@@ -240,7 +236,7 @@ const RequiredInfoModal: React.FC = () => {
                     }}
                     placeholder={departamento ? "Escribe el nombre de la ciudad o municipio" : "Primero selecciona un departamento"}
                     disabled={loading || !departamento}
-                    className="mt-1 w-full rounded-xl border border-border-medium bg-surface-primary/70 px-3.5 py-2 text-xs text-text-primary backdrop-blur-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all"
                   />
                   {customCiudad && availableCities.length > 0 && (
                     <button
@@ -249,7 +245,7 @@ const RequiredInfoModal: React.FC = () => {
                         setCustomCiudad(false);
                         setCiudad('');
                       }}
-                      className="text-[11px] text-emerald-500 hover:underline"
+                      className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
                     >
                       ← Volver a la lista de ciudades de {departamento}
                     </button>
@@ -259,7 +255,7 @@ const RequiredInfoModal: React.FC = () => {
             </div>
 
             {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-2.5 text-xs font-medium text-red-500 dark:text-red-400">
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-600 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -268,7 +264,7 @@ const RequiredInfoModal: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-semibold py-2.5 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm"
+                className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 shadow-md shadow-teal-600/20 hover:shadow-teal-600/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -284,7 +280,7 @@ const RequiredInfoModal: React.FC = () => {
                 type="button"
                 onClick={handleLogout}
                 disabled={loading}
-                className="w-full py-2 text-xs text-text-tertiary hover:text-text-primary transition-colors text-center font-medium border border-transparent rounded-xl hover:bg-surface-hover/50"
+                className="w-full py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors text-center font-medium border border-transparent rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer"
               >
                 Cerrar Sesión
               </button>
