@@ -235,4 +235,6 @@ const sendMarketingEmail = async (req, res) => {
 module.exports = {
   generateMarketingEmail,
   sendMarketingEmail,
+  getSystemGoogleKey,
+  THEMES,
 };

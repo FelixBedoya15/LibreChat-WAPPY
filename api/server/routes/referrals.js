@@ -390,7 +390,7 @@ router.post('/partner/apply-new', async (req, res) => {
             // If rejected, let them resubmit
             existingPartner.slug = normalizedSlug;
             existingPartner.type = type === 'embajador' ? 'embajador' : 'partner';
-            existingPartner.commissionRate = type === 'embajador' ? 0.25 : 0.20;
+            existingPartner.commissionRate = type === 'embajador' ? 0.30 : 0.20;
             existingPartner.paymentDetails = paymentDetails ? paymentDetails.trim() : '';
             existingPartner.supportContact = supportContact ? supportContact.trim() : '';
             existingPartner.status = 'pending';
@@ -404,7 +404,7 @@ router.post('/partner/apply-new', async (req, res) => {
             userId,
             slug: normalizedSlug,
             type: type === 'embajador' ? 'embajador' : 'partner',
-            commissionRate: type === 'embajador' ? 0.25 : 0.20,
+            commissionRate: type === 'embajador' ? 0.30 : 0.20,
             active: false,
             status: 'pending',
             paymentDetails: paymentDetails ? paymentDetails.trim() : '',
@@ -635,15 +635,35 @@ router.get('/dashboard', async (req, res) => {
         let totalCommissionsPaid = 0;
 
         const commissionsList = rawCommissions.map(c => {
-            const refUser = usersMap.get(String(c.referredUserId));
+            const refUser = usersMap.get(String(c.referredUserId)) || {};
+            const refPlan = plansMap.get(String(c.referredUserId));
+            const isPro = refUser.role === 'USER_PRO' || (refPlan && refPlan.plan === 'pro');
+            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : null;
+            let daysToExpiry = null;
+            if (expiresAt) {
+                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+            const lastActivity = refUser.updatedAt || refUser.createdAt || c.createdAt;
+            const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
+
             if (c.status !== 'cancelled') totalCommissionsEarned += c.commissionAmount || 0;
             if (c.status === 'pending') totalCommissionsPending += c.commissionAmount || 0;
             if (c.status === 'paid') totalCommissionsPaid += c.commissionAmount || 0;
 
             return {
                 id: c._id,
-                referredUserName: refUser?.name || 'Usuario',
-                referredUserEmail: refUser?.email || '',
+                userId: refUser._id || c.referredUserId,
+                referredUserName: refUser.name || refUser.username || 'Usuario',
+                referredUserEmail: refUser.email || '',
+                phone: refUser.phone || '',
+                role: refUser.role || 'USER',
+                accountStatus: refUser.accountStatus || 'active',
+                subscriptionType: refPlan?.plan || (isPro ? 'pro' : 'freemium'),
+                planInterval: refPlan?.interval || (c.amount >= 50000000 ? 'anual' : c.amount >= 25000000 ? 'semestral' : 'mensual'),
+                planExpiresAt: expiresAt,
+                daysToExpiry,
+                lastActivity,
+                daysInactive,
                 amount: c.amount,
                 commissionRate: c.commissionRate,
                 commissionAmount: c.commissionAmount,
@@ -782,6 +802,138 @@ router.post('/attribute', async (req, res) => {
     } catch (err) {
         logger.error('[ReferralsAttribute] Error:', err);
         return res.status(500).json({ error: 'Error al actualizar la atribución del usuario' });
+    }
+});
+
+// --- Campaign Email & WhatsApp Generation with AI ---
+router.post('/email/generate', requireJwtAuth, async (req, res) => {
+    const { prompt, model, targetUserName, targetUserPlan, channel = 'email' } = req.body;
+
+    if (!prompt) {
+        return res.status(400).json({ message: 'La instrucción o prompt es requerido.' });
+    }
+
+    try {
+        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+        const apiKey = await getSystemGoogleKey();
+        if (!apiKey) {
+            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const chosenModel = model || 'gemini-3.1-flash-lite';
+        const modelInstance = genAI.getGenerativeModel({
+            model: chosenModel,
+            systemInstruction: `Eres un asistente de redacción y ventas de WAPPY IA especializado en Seguridad y Salud en el Trabajo (SST).
+Tu objetivo es redactar un mensaje ${channel === 'whatsapp' ? 'de WhatsApp corto, cercano, persuasivo y con emojis' : 'de correo electrónico profesional, claro y persuasivo'} dirigido a un usuario específico (${targetUserName || 'Usuario'}) de la plataforma Wappy.
+El plan actual del usuario es: ${targetUserPlan || 'Plan Activo'}.
+
+${channel === 'whatsapp' ? `
+Devuelve un JSON válido con la estructura:
+{
+  "whatsappText": "Texto completo del mensaje de WhatsApp para enviar al usuario, usando emojis adecuados, saludo cordial y tono humano y profesional."
+}
+` : `
+Devuelve un JSON válido con la estructura:
+{
+  "subject": "Asunto atractivo y claro del correo",
+  "bodyHtml": "Cuerpo en formato HTML seguro (<p>, <strong>, <ul>, <li>, <br>, <h2>). NO incluyas <html> ni <body> tags.",
+  "buttonText": "Texto sugerido para el botón CTA (ej: Renovar mi Plan PRO, Descubrir Nuevos Agentes)",
+  "buttonUrl": "https://wappy.club/planes"
+}
+`}
+Asegúrate de retornar únicamente el JSON parseable sin bloques de código markdown fuera del JSON.`,
+        });
+
+        const promptText = `Instrucción: "${prompt}". Canal: ${channel}. Usuario: ${targetUserName || 'Usuario'}. Plan: ${targetUserPlan || 'Activo'}.`;
+        const result = await modelInstance.generateContent({
+            contents: [{ role: 'user', parts: [{ text: promptText }] }],
+            generationConfig: {
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const responseText = result.response.text();
+        const parsedData = JSON.parse(responseText);
+
+        return res.status(200).json(parsedData);
+    } catch (error) {
+        logger.error('[ReferralEmailGenerate] Error generating message with Gemini:', error);
+        return res.status(500).json({ message: `Error al generar contenido con la IA: ${error.message}` });
+    }
+});
+
+// --- Send Campaign Email to Referred User ---
+router.post('/email/send', requireJwtAuth, async (req, res) => {
+    const { targetUserId, targetEmail, subject, bodyHtml, buttonText, buttonUrl, theme = 'slate' } = req.body;
+
+    if (!subject || !bodyHtml) {
+        return res.status(400).json({ message: 'El asunto y el cuerpo del correo son requeridos.' });
+    }
+    if (!targetEmail) {
+        return res.status(400).json({ message: 'El correo electrónico destinatario es requerido.' });
+    }
+
+    try {
+        const User = mongoose.model('User');
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const Partner = mongoose.model('Partner');
+        const sendEmail = require('~/server/utils/sendEmail');
+        const { THEMES } = require('~/server/controllers/AdminMarketingController');
+
+        const userId = req.user.id;
+        const isAdmin = req.user.role === 'ADMIN' || req.user.email === 'felix.bedoya15@gmail.com';
+
+        // Check permission: If not admin, verify target user belongs to this partner
+        if (!isAdmin) {
+            const partner = await Partner.findOne({ userId });
+            if (!partner) {
+                return res.status(403).json({ message: 'No tienes permisos de embajador comercial para enviar correos.' });
+            }
+
+            if (targetUserId) {
+                const isReferred = await ReferralRecord.findOne({
+                    referredUserId: targetUserId,
+                    referredByPartner: partner._id,
+                });
+                if (!isReferred) {
+                    return res.status(403).json({ message: 'Solo puedes enviar correos a tus propios usuarios referidos.' });
+                }
+            }
+        }
+
+        const recipientUser = targetUserId ? await User.findById(targetUserId).lean() : await User.findOne({ email: targetEmail }).lean();
+        const recipientName = recipientUser?.name || recipientUser?.username || 'Usuario';
+
+        const themeConfig = THEMES[theme] || THEMES.slate;
+        const year = new Date().getFullYear();
+
+        await sendEmail({
+            email: targetEmail,
+            subject: subject,
+            template: 'marketingEmail.handlebars',
+            payload: {
+                name: recipientName,
+                title: subject,
+                body: bodyHtml,
+                buttonText: buttonText || 'Ver más',
+                buttonUrl: buttonUrl || '',
+                year,
+                ...themeConfig,
+            }
+        });
+
+        logger.info(`[ReferralEmailSend] Correo enviado por ${req.user.email} a ${targetEmail} (${recipientName})`);
+
+        return res.status(200).json({
+            success: true,
+            message: `Correo de campaña enviado exitosamente a ${targetEmail}.`
+        });
+    } catch (error) {
+        logger.error('[ReferralEmailSend] Error sending email:', error);
+        return res.status(500).json({ message: `Error al enviar correo: ${error.message}` });
     }
 });
 

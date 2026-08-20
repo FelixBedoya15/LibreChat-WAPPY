@@ -129,7 +129,7 @@ const updateUser = async (req, res) => {
                     {
                         slug: normalizedSlug,
                         type: commercialTier,
-                        commissionRate: commercialTier === 'embajador' ? 0.25 : 0.20,
+                        commissionRate: commercialTier === 'embajador' ? 0.30 : 0.20,
                         active: true,
                         status: 'approved',
                         paymentDetails: partnerPaymentDetails ? partnerPaymentDetails.trim() : '',

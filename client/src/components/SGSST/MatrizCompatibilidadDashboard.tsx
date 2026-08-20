@@ -138,9 +138,9 @@ export default function MatrizCompatibilidadDashboard({
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-4">
       {/* ── SECCIÓN 1: Tarjetas Métricas de Vidrio (Glassmorphism) ── */}
-      <div className={`grid gap-4 ${isMaximized ? 'grid-cols-4' : 'grid-cols-2'}`}>
+      <div className={`grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 ${isMaximized ? 'xl:grid-cols-4' : ''}`}>
         {/* Total Productos */}
         <div className="flex flex-col justify-between rounded-2xl border border-teal-500/10 bg-teal-500/5 p-4 shadow-sm backdrop-blur-md">
           <div className="flex items-center justify-between text-teal-600 dark:text-teal-400">
@@ -195,7 +195,7 @@ export default function MatrizCompatibilidadDashboard({
       </div>
 
       {/* ── SECCIÓN 2: Gráficos y Conclusiones de IA ── */}
-      <div className={`grid gap-6 ${isMaximized ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={`grid gap-4 sm:gap-6 grid-cols-1 ${isMaximized ? 'xl:grid-cols-2' : ''}`}>
         
         {/* Gráfico 1: Clases de Peligro ONU */}
         <div className="flex flex-col rounded-2xl border border-border-medium bg-surface-primary p-5 shadow-sm">

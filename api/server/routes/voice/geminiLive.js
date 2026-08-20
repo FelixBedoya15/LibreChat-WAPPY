@@ -257,9 +257,6 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     },
                 },
-                realtimeInputConfig: {
-                    activityHandling: 'START_OF_ACTIVITY_INTERRUPTS',
-                },
                 systemInstruction: {
                     parts: [
                         {

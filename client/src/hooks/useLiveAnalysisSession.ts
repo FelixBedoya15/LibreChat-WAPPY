@@ -143,7 +143,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             analyser.connect(workletNode);
 
             workletNode.port.onmessage = (event) => {
-                if (isMutedRef.current) return; // Do not send audio if muted
+                if (isMutedRef.current || isAutoMutedRef.current || statusRef.current === 'speaking') return; // Do not send audio if muted or AI is speaking
 
                 if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                     const bytes = new Uint8Array(event.data);

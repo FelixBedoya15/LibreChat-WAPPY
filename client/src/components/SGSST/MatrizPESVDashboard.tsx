@@ -21,13 +21,13 @@ const getPESVColor = (calificacion: number) => {
   return { bg: 'bg-green-500', text: 'text-green-500' };
 };
 
-const Bar = ({ label, value, max, color, labelWidth = 'w-44' }: {
+const Bar = ({ label, value, max, color, labelWidth = 'w-28 sm:w-44' }: {
   label: string; value: number; max: number; color: string; labelWidth?: string;
 }) => {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
-    <div className="flex items-center gap-3">
-      <span className={`text-[11px] font-semibold text-text-secondary shrink-0 text-right ${labelWidth}`}
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className={`text-[11px] font-semibold text-text-secondary shrink-0 text-right truncate ${labelWidth}`}
         >{label.length > 28 ? label.slice(0, 28) + '…' : label}</span>
       <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
         <div className={`absolute inset-y-0 left-0 ${color} rounded-full flex items-center justify-end pr-2 transition-all duration-700 ease-out`}

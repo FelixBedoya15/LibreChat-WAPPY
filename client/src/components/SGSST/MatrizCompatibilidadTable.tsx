@@ -452,10 +452,10 @@ export default function MatrizCompatibilidadTable({
     <div className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl' : 'w-full h-full bg-surface-primary text-text-primary'}`}>
       {/* ── BARRA SUPERIOR DE ACCIONES ── */}
       <div
-        className="relative z-[300] flex min-w-0 shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-4"
+        className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"
         style={{ minHeight: '4rem' }}
       >
-        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-3 overflow-hidden text-ellipsis">
+        <div className="flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden text-ellipsis">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
             <Beaker className="h-5 w-5 animate-pulse" />
           </div>
@@ -469,7 +469,7 @@ export default function MatrizCompatibilidadTable({
         </div>
 
         {/* Controles de Acción */}
-        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
           <ModelSelector
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}

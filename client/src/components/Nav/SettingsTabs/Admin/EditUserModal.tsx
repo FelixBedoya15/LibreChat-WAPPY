@@ -505,7 +505,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                                         : 'border-border-light bg-white dark:bg-gray-800/40 text-text-secondary hover:bg-gray-50'
                                                                 }`}
                                                             >
-                                                                Embajador Líder (25% + 5% Red)
+                                                                Embajador Líder (30% + 5% Red)
                                                             </button>
                                                         </div>
 
@@ -517,7 +517,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                         )}
                                                         {commercialTier === 'embajador' && (
                                                             <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[11px] text-purple-800 dark:text-purple-300 font-medium animate-fadeIn">
-                                                                <span className="font-bold">👑 Comisión Líder:</span> 25% base en ventas directas + <span className="font-bold">5% adicional</span> sobre ventas de su red cuando el embajador estándar cumple la meta del mes.
+                                                                <span className="font-bold">👑 Comisión Líder:</span> 30% base en ventas directas + <span className="font-bold">5% adicional</span> sobre ventas de su red cuando el embajador estándar cumple la meta del mes.
                                                             </div>
                                                         )}
 

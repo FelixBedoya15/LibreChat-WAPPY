@@ -248,6 +248,7 @@ class VoiceSession {
 
         // Listen for AUDIO from Gemini (AI voice response)
         this.geminiClient.on('audio', (audioData) => {
+            this.isAiSpeaking = true;
             // Forward audio to client for playback
             this.sendToClient({ type: 'audio', data: { audioData } });
 
@@ -320,6 +321,7 @@ class VoiceSession {
         // Listen for turn complete
         this.geminiClient.on('turnComplete', async () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
+            this.isAiSpeaking = false;
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
             await this.saveCurrentTurn('TurnComplete');
             logger.info('[VoiceSession] ========== END TURN ==========');
@@ -328,6 +330,7 @@ class VoiceSession {
         // Listen for Interrupted (User Barge-In)
         this.geminiClient.on('interrupted', () => {
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
+            this.isAiSpeaking = false;
             this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
             this.sendToClient({ type: 'interrupted', data: {} });
             // Reset temporary AI response buffers for this turn
@@ -374,6 +377,10 @@ class VoiceSession {
 
         switch (type) {
             case 'audio':
+                // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
+                if (this.isAiSpeaking) {
+                    break;
+                }
                 // Forward audio to Gemini
                 if (data && data.audioData) {
                     // DIAGNÓSTICO: confirmar que el audio del cliente llega al servidor
@@ -560,6 +567,7 @@ class VoiceSession {
             case 'interrupt':
                 // User interrupted, stop current Gemini response
                 logger.info('[VoiceSession] Manual interrupt command received from client');
+                this.isAiSpeaking = false;
                 if (this.geminiClient) {
                     this.geminiClient.interrupt();
                 }

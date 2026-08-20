@@ -106,7 +106,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             // 3. Helper: enviar PCM int16 al servidor via WebSocket
             let sendCount = 0;
             const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current || isAutoMutedRef.current) return;
+                if (isHardwareMutedRef.current || isAutoMutedRef.current || isPlayingAudioRef.current || statusRef.current === 'speaking') return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 const int16Data = new Int16Array(float32Array.length);

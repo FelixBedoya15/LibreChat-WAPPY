@@ -1645,10 +1645,10 @@ export default function MatrizIPEVARTable({
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div
-        className="relative z-[300] flex min-w-0 shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-4"
+        className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"
         style={{ minHeight: '4rem' }}
       >
-        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-3 overflow-hidden text-ellipsis">
+        <div className="flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden text-ellipsis">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
             <ShieldAlert className="h-5 w-5" />
           </div>
@@ -1661,7 +1661,7 @@ export default function MatrizIPEVARTable({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           <ModelSelector

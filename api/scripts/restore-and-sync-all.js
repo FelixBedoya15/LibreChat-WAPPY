@@ -326,6 +326,16 @@ ${cleanContent}
       tools.push('consultar_analitica_actos_condiciones');
     }
 
+    const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+    if (PESV_AGENTS.includes(key)) {
+      tools.push('matriz_pesv');
+    }
+
+    const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'ingeniero_ambiental'];
+    if (COMPATIBILIDAD_AGENTS.includes(key)) {
+      tools.push('matriz_compatibilidad');
+    }
+
     tools = [...new Set(tools)];
 
     const defaultModel = 'gemini-3.6-flash';

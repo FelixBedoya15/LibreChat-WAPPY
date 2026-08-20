@@ -32,9 +32,9 @@ const processSuccessfulPurchase = async ({ userId, transactionId, planId, interv
             const partner = await Partner.findById(referral.referredByPartner);
             if (partner && partner.active) {
                 // Determine rate based on rules:
-                // Embajador Líder: 25% base
+                // Embajador Líder: 30% base
                 // Embajador Estándar: 20% base, sube a 25% si tiene más de 3 ventas en el mes de semestral o anual
-                let commissionRate = partner.type === 'embajador' ? 0.25 : 0.20;
+                let commissionRate = partner.type === 'embajador' ? 0.30 : 0.20;
 
                 if (partner.type !== 'embajador') {
                     // Check monthly sales in current calendar month of semiannual / annual
