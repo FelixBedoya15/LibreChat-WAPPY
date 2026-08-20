@@ -40,6 +40,7 @@ interface ReferredUser {
   lastActivity: string;
   daysInactive: number;
   subscriptionType: string;
+  planInterval?: string;
   paymentStatus: string;
   planExpiresAt: string | null;
   daysToExpiry: number | null;
@@ -641,7 +642,7 @@ export default function AmbassadorDashboard() {
                               <span className="text-text-tertiary text-xs truncate max-w-[200px] mt-0.5">{u.email}</span>
                               {u.phone ? (
                                 <a
-                                  href={`https://wa.me/${u.phone.replace(/[^0-9]/g, '')}`}
+                                  href={`https://api.whatsapp.com/send?phone=${u.phone.replace(/[^0-9]/g, '').length === 10 && u.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${u.phone.replace(/[^0-9]/g, '')}` : u.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold mt-1"
@@ -673,7 +674,7 @@ export default function AmbassadorDashboard() {
 
                           <td className="px-4 py-3.5 align-middle">
                             {(() => {
-                              const p = formatPlanBadge(u.subscriptionType);
+                              const p = formatPlanBadge(u.subscriptionType, u.planInterval);
                               return (
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase whitespace-nowrap ${p.className}`}>
                                   {p.label}
@@ -683,6 +684,8 @@ export default function AmbassadorDashboard() {
                             <div className="text-[11px] mt-1 font-semibold">
                               {u.paymentStatus === 'paid' ? (
                                 <span className="text-emerald-600 dark:text-emerald-400">Pagado</span>
+                              ) : u.paymentStatus === 'trial' ? (
+                                <span className="text-amber-600 dark:text-amber-400">En Prueba</span>
                               ) : u.paymentStatus === 'expired' ? (
                                 <span className="text-rose-600 dark:text-rose-400">Vencido</span>
                               ) : (
@@ -694,7 +697,7 @@ export default function AmbassadorDashboard() {
                           <td className="px-4 py-3.5 align-middle">
                             <div className="whitespace-nowrap">{getTrafficLightBadge(u.trafficLight)}</div>
                             {(() => {
-                              const p = formatPlanBadge(u.subscriptionType);
+                              const p = formatPlanBadge(u.subscriptionType, u.planInterval);
                               if (p.isLifetime || u.daysToExpiry === null || u.daysToExpiry === undefined) {
                                 return (
                                   <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 whitespace-nowrap">
@@ -717,7 +720,10 @@ export default function AmbassadorDashboard() {
                           <td className="px-4 py-3.5 text-right align-middle">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <button
-                                onClick={() => setContactUser(u)}
+                                onClick={() => setContactUser({
+                                  ...u,
+                                  planInterval: u.planInterval,
+                                })}
                                 className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
                                 title="Enviar Correo de Campaña o Mensaje WhatsApp"
                               >
@@ -807,7 +813,7 @@ export default function AmbassadorDashboard() {
                               <span className="text-xs text-text-tertiary font-normal truncate max-w-[180px] mt-0.5">{c.referredUserEmail}</span>
                               {c.phone && (
                                 <a
-                                  href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '').length === 10 && c.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${c.phone.replace(/[^0-9]/g, '')}` : c.phone.replace(/[^0-9]/g, '')}`}
+                                  href={`https://api.whatsapp.com/send?phone=${c.phone.replace(/[^0-9]/g, '').length === 10 && c.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${c.phone.replace(/[^0-9]/g, '')}` : c.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold mt-1"

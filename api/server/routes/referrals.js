@@ -552,7 +552,7 @@ router.get('/dashboard', async (req, res) => {
         const referredUserIds = allReferrals.map(r => r.referredUserId);
 
         // Fetch user data & plans
-        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone phoneNumber role accountStatus createdAt updatedAt').lean();
+        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone phoneNumber role accountStatus createdAt updatedAt inactiveAt activeAt').lean();
         const userPlans = await UserPlan.find({ userId: { $in: referredUserIds } }).lean();
         const partnersMap = new Map();
 
@@ -596,12 +596,57 @@ router.get('/dashboard', async (req, res) => {
             const userEmailNorm = (u.email || '').toLowerCase();
             const resolvedPhone = u.phoneNumber || u.phone || purchasePhoneMap.get(userEmailNorm) || '';
 
-            const isPro = u.role === 'USER_PRO' || (plan && plan.plan === 'pro');
-            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : null;
+            const userRole = (u.role || '').toUpperCase();
+            const isPro = userRole === 'USER_PRO' || userRole === 'PRO' || (plan && plan.plan === 'pro') || !!u.inactiveAt;
+            let planType = 'free';
+            let planInterval = null;
+
+            if (isPro) {
+                planType = 'pro';
+                const rawInt = (plan?.planInterval || plan?.interval || '').toLowerCase();
+                if (rawInt === 'referral' || rawInt === 'trial' || rawInt === 'prueba' || rawInt === '15d') {
+                    planInterval = 'prueba';
+                } else if (plan?.interval && plan.interval !== 'referral') {
+                    planInterval = plan.interval;
+                } else if (u.inactiveAt) {
+                    const start = u.activeAt ? new Date(u.activeAt) : (u.createdAt ? new Date(u.createdAt) : now);
+                    const end = new Date(u.inactiveAt);
+                    const durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                    if (durationDays >= 300) {
+                        planInterval = 'anual';
+                    } else if (durationDays >= 140) {
+                        planInterval = 'semestral';
+                    } else if (durationDays >= 25) {
+                        planInterval = 'mensual';
+                    } else {
+                        // Trial / Prueba 15 días (e.g. 15d registration trial)
+                        planInterval = 'prueba';
+                    }
+                } else {
+                    planInterval = 'anual';
+                }
+            } else if (plan?.plan === 'vital' || plan?.plan === 'vitalicio') {
+                planType = 'vital';
+                planInterval = null;
+            }
+
+            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : (u.inactiveAt ? new Date(u.inactiveAt) : null);
             let daysToExpiry = null;
 
-            if (expiresAt) {
+            if (expiresAt && !isNaN(expiresAt.getTime())) {
                 daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+
+            const isTrial = planInterval === 'prueba';
+            let paymentStatus = 'unpaid';
+            if (isPro) {
+                if (daysToExpiry !== null && daysToExpiry < 0) {
+                    paymentStatus = 'expired';
+                } else if (isTrial) {
+                    paymentStatus = 'trial';
+                } else {
+                    paymentStatus = 'paid';
+                }
             }
 
             if (isPro) activeProCount++;
@@ -611,7 +656,7 @@ router.get('/dashboard', async (req, res) => {
 
             // Traffic light determination
             // 🟢 Verde: Usuario activo, pago al día, actividad reciente (<= 30 días)
-            // 🟡 Amarillo: Vencimiento 8-30 días / sin actividad 30-90 días
+            // 🟡 Amarillo: Vencimiento 8-30 días / sin actividad 30-90 días / En Prueba
             // 🔴 Rojo: Vencido / sin actividad > 90 días / pending > 7 días
             // ⚪ Gris: Freemium sin pago registrado
             // 🟣 Morado: Comisión pendiente de pago
@@ -620,6 +665,8 @@ router.get('/dashboard', async (req, res) => {
                 if (daysToExpiry !== null && daysToExpiry <= 7) {
                     trafficLight = 'red';
                 } else if (daysToExpiry !== null && daysToExpiry <= 30) {
+                    trafficLight = 'yellow';
+                } else if (isTrial) {
                     trafficLight = 'yellow';
                 } else if (daysInactive <= 30) {
                     trafficLight = 'green';
@@ -643,8 +690,9 @@ router.get('/dashboard', async (req, res) => {
                 registrationDate: regDate,
                 lastActivity,
                 daysInactive,
-                subscriptionType: plan?.plan || (isPro ? 'pro' : 'freemium'),
-                paymentStatus: isPro ? (daysToExpiry !== null && daysToExpiry < 0 ? 'expired' : 'paid') : 'unpaid',
+                subscriptionType: planType,
+                planInterval,
+                paymentStatus,
                 planExpiresAt: expiresAt,
                 daysToExpiry,
                 trafficLight,
@@ -670,6 +718,12 @@ router.get('/dashboard', async (req, res) => {
             const refPlan = plansMap.get(String(c.referredUserId));
             const rawPlan = refPlan?.plan;
             const isPro = refUser.role === 'USER_PRO' || rawPlan === 'pro';
+            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : (refUser.inactiveAt ? new Date(refUser.inactiveAt) : null);
+            let daysToExpiry = null;
+            if (expiresAt && !isNaN(expiresAt.getTime())) {
+                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+
             let planType = rawPlan;
             if (!planType || planType === 'freemium' || planType === 'free') {
                 if (isPro || c.amount >= 50000000) {
@@ -688,11 +742,6 @@ router.get('/dashboard', async (req, res) => {
                 planInterval = null; // Free & Vital plans are lifetime (vitalicio), no monthly/annual intervals
             }
 
-            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : null;
-            let daysToExpiry = null;
-            if (expiresAt) {
-                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            }
             const lastActivity = refUser.updatedAt || refUser.createdAt || c.createdAt;
             const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -713,8 +762,8 @@ router.get('/dashboard', async (req, res) => {
                 accountStatus: refUser.accountStatus || 'active',
                 subscriptionType: planType,
                 planInterval,
-                planExpiresAt: (planType === 'free' || planType === 'vital') ? null : expiresAt,
-                daysToExpiry: (planType === 'free' || planType === 'vital') ? null : daysToExpiry,
+                planExpiresAt: expiresAt,
+                daysToExpiry: daysToExpiry,
                 lastActivity,
                 daysInactive,
                 amount: c.amount,

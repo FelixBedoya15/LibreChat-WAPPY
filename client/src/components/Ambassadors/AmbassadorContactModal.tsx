@@ -76,6 +76,7 @@ const QUICK_WA_PROMPTS = [
 
 export const formatPlanBadge = (subType?: string, interval?: string) => {
   const type = (subType || '').toLowerCase();
+  const rawInt = (interval || '').toLowerCase();
   if (type === 'free' || type === 'freemium' || type === 'gratis' || type === 'sin plan' || type === '') {
     return {
       label: 'FREE (VITALICIO)',
@@ -91,6 +92,13 @@ export const formatPlanBadge = (subType?: string, interval?: string) => {
     };
   }
   if (type === 'pro') {
+    if (rawInt === 'prueba' || rawInt === 'trial' || rawInt === 'referral' || rawInt === '15d') {
+      return {
+        label: 'PRO (PRUEBA 15D)',
+        className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
+        isLifetime: false,
+      };
+    }
     const label = interval ? `PRO (${interval.toUpperCase()})` : 'PRO (ANUAL)';
     return {
       label,
@@ -149,8 +157,8 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
 
   const cleanPhone = getNormalizedWaPhone(phoneInput);
   const waUrl = cleanPhone
-    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
-    : `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waMessage)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(waMessage)}`;
 
   // Generate Email Content with AI
   const handleGenerateEmail = async (customPrompt?: string) => {
