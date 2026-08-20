@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import RutaExamEditorModal, { Exam } from './RutaExamEditorModal';
 import ModelSelector from '../SGSST/ModelSelector';
+import { AttachmentManager, Attachment } from '~/components/Common/Attachments';
 
 export default function RutaAprendizajeCourseEditor() {
     const { id } = useParams();
@@ -25,6 +26,7 @@ export default function RutaAprendizajeCourseEditor() {
     const [description, setDescription] = useState('');
     const [thumbnail, setThumbnail] = useState('');
     const [tagsText, setTagsText] = useState('');
+    const [courseAttachments, setCourseAttachments] = useState<Attachment[]>([]);
     const [isPublished, setIsPublished] = useState(false);
     const [lessons, setLessons] = useState<any[]>([]);
 
@@ -45,7 +47,7 @@ export default function RutaAprendizajeCourseEditor() {
 
     // Lesson Editor State
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-    const [lessonForm, setLessonForm] = useState<{ title: string; videoUrl: string; content: string; exam?: Exam }>({ title: '', videoUrl: '', content: '' });
+    const [lessonForm, setLessonForm] = useState<{ title: string; videoUrl: string; content: string; attachments?: Attachment[]; exam?: Exam }>({ title: '', videoUrl: '', content: '', attachments: [] });
 
     // AI States
     const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
@@ -152,6 +154,7 @@ export default function RutaAprendizajeCourseEditor() {
             setDescription(data.description || '');
             setThumbnail(data.thumbnail || '');
             setTagsText((data.tags || []).join(', '));
+            setCourseAttachments(data.attachments || []);
             setIsPublished(data.isPublished || false);
             setCourseExam(data.exam || null);
             setAssignmentType(data.assignmentType || 'all');
@@ -182,6 +185,7 @@ export default function RutaAprendizajeCourseEditor() {
                 description,
                 thumbnail,
                 tags: tagsText.split(',').map(t => t.trim()).filter(Boolean),
+                attachments: courseAttachments,
                 isPublished,
                 exam: courseExam,
                 assignmentType,
@@ -224,7 +228,7 @@ export default function RutaAprendizajeCourseEditor() {
             }
             fetchCourse();
             setEditingLessonId(null);
-            setLessonForm({ title: '', videoUrl: '', content: '', exam: undefined });
+            setLessonForm({ title: '', videoUrl: '', content: '', attachments: [], exam: undefined });
         } catch (error) {
             console.error('Error saving lesson:', error);
             showToast({ message: 'Error al guardar la lección.', status: 'error' });
@@ -251,11 +255,12 @@ export default function RutaAprendizajeCourseEditor() {
                 title: lesson.title || '',
                 videoUrl: lesson.videoUrl || '',
                 content: lesson.content || '',
+                attachments: lesson.attachments || [],
                 exam: lesson.exam || undefined
             });
         } else {
             setEditingLessonId('new');
-            setLessonForm({ title: '', videoUrl: '', content: '', exam: undefined });
+            setLessonForm({ title: '', videoUrl: '', content: '', attachments: [], exam: undefined });
         }
     };
 
@@ -424,6 +429,17 @@ export default function RutaAprendizajeCourseEditor() {
                                         placeholder="Seguridad, Ergonomía, Normativo"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Course Attachments */}
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <AttachmentManager
+                                    attachments={courseAttachments}
+                                    onChange={setCourseAttachments}
+                                    uploadEndpoint="/api/ruta-aprendizaje/admin/upload"
+                                    title="Archivos y Recursos Generales del Curso"
+                                    description="Formatos, guías generales, o material de apoyo descargable para todo el curso."
+                                />
                             </div>
 
                             {/* Course Assignment Targeting */}
@@ -702,6 +718,17 @@ export default function RutaAprendizajeCourseEditor() {
                                         )}
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Lesson Attachments */}
+                            <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <AttachmentManager
+                                    attachments={lessonForm.attachments || []}
+                                    onChange={(newAtt) => setLessonForm(prev => ({ ...prev, attachments: newAtt }))}
+                                    uploadEndpoint="/api/ruta-aprendizaje/admin/upload"
+                                    title="Archivos y Recursos de esta Lección"
+                                    description="Documentos específicos, ejercicios o plantillas descargables para esta lección."
+                                />
                             </div>
 
                             {/* Lesson Exam */}

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { AttachmentViewer } from '~/components/Common/Attachments';
 
 export default function CourseViewer() {
     const { courseId } = useParams();
@@ -297,6 +298,28 @@ export default function CourseViewer() {
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                             {activeLesson.content}
                                         </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {/* Lesson Downloadable Attachments */}
+                                {activeLesson.attachments && activeLesson.attachments.length > 0 && (
+                                    <div className="mt-8">
+                                        <AttachmentViewer
+                                            attachments={activeLesson.attachments}
+                                            title="Recursos y Archivos de esta Lección"
+                                            subtitle="Descarga los documentos de apoyo, guías o plantillas adjuntas a esta lección."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Course General Downloadable Attachments */}
+                                {course.attachments && course.attachments.length > 0 && (
+                                    <div className="mt-6">
+                                        <AttachmentViewer
+                                            attachments={course.attachments}
+                                            title="Recursos Generales del Curso"
+                                            subtitle="Material global y formatos de consulta para todo el curso."
+                                        />
                                     </div>
                                 )}
 

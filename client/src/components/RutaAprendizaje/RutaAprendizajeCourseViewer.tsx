@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { AttachmentViewer } from '~/components/Common/Attachments';
 
 export default function RutaAprendizajeCourseViewer() {
     const { courseId } = useParams();
@@ -198,6 +199,28 @@ export default function RutaAprendizajeCourseViewer() {
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                             {activeLesson.content}
                                         </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {/* Lesson Attachments */}
+                                {activeLesson.attachments && activeLesson.attachments.length > 0 && (
+                                    <div className="mt-8">
+                                        <AttachmentViewer
+                                            attachments={activeLesson.attachments}
+                                            title="Recursos y Archivos de esta Lección"
+                                            subtitle="Formatos, guías y documentos específicos de esta lección."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Course General Attachments */}
+                                {course.attachments && course.attachments.length > 0 && (
+                                    <div className="mt-6">
+                                        <AttachmentViewer
+                                            attachments={course.attachments}
+                                            title="Recursos Generales del Curso"
+                                            subtitle="Material y documentos de consulta para todo el curso."
+                                        />
                                     </div>
                                 )}
 

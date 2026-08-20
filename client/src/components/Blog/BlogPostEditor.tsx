@@ -6,6 +6,7 @@ import { useUploadFileMutation } from '~/data-provider';
 import { ArrowLeft, Save, Sparkles, Loader2, Link as LinkIcon, FileText, Plus, Trash2, Image as ImageIcon, XCircle } from 'lucide-react';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ModelSelector from '~/components/SGSST/ModelSelector';
+import { AttachmentManager, Attachment } from '~/components/Common/Attachments';
 
 export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: string; onClose?: () => void; onSaved?: () => void }) {
     const { id: paramId } = useParams();
@@ -19,6 +20,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
     const [generatedContent, setGeneratedContent] = useState('');  // content from AI, used as LiveEditor initialContent
     const [thumbnail, setThumbnail] = useState('');
     const [tagsText, setTagsText] = useState('');
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isPublished, setIsPublished] = useState(false);
 
     const [loading, setLoading] = useState(!isNew);
@@ -87,6 +89,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                     contentRef.current = loaded;  // sync ref too
                     setThumbnail(post.thumbnail || '');
                     setTagsText(post.tags ? post.tags.join(', ') : '');
+                    setAttachments(post.attachments || []);
                     setIsPublished(post.isPublished || false);
                 } catch (error) {
                     console.error('Error fetching post:', error);
@@ -115,6 +118,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                 content: contentRef.current || content,  // use ref first (live value), fallback to state
                 thumbnail,
                 tags,
+                attachments,
                 isPublished: publish
             };
 
@@ -331,6 +335,17 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                                     <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Seguridad Vial</span>
                                 </p>
                             </div>
+                        </div>
+
+                        {/* Attachments Section */}
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <AttachmentManager
+                                attachments={attachments}
+                                onChange={setAttachments}
+                                uploadEndpoint="/api/blog/admin/upload"
+                                title="Archivos y Recursos Descargables del Artículo"
+                                description="Adjunta guías en PDF, formatos de inspección en Excel, plantillas o infografías descargables para este artículo."
+                            />
                         </div>
                     </div>
 

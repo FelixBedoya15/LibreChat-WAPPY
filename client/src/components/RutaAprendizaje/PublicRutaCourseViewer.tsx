@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import RutaCertificate from './RutaCertificate';
 import SignaturePad from '~/components/SGSST/SignaturePad';
+import { AttachmentViewer } from '~/components/Common/Attachments';
 
 interface WorkerSession {
     companyId: string;
@@ -554,6 +555,28 @@ export default function PublicRutaCourseViewer() {
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                             {activeLesson.content}
                                         </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {/* Lesson Attachments */}
+                                {activeLesson.attachments && activeLesson.attachments.length > 0 && (
+                                    <div className="mt-6">
+                                        <AttachmentViewer
+                                            attachments={activeLesson.attachments}
+                                            title="Recursos y Archivos de esta Lección"
+                                            subtitle="Descarga los documentos de apoyo, guías o plantillas adjuntas a esta lección."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Course General Attachments */}
+                                {course.attachments && course.attachments.length > 0 && (
+                                    <div className="mt-6">
+                                        <AttachmentViewer
+                                            attachments={course.attachments}
+                                            title="Recursos Generales del Curso"
+                                            subtitle="Material global y formatos de consulta para todo el curso."
+                                        />
                                     </div>
                                 )}
 

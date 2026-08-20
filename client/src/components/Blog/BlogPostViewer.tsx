@@ -5,6 +5,7 @@ import { useToastContext } from '@librechat/client';
 import { ArrowLeft, Clock, User, Share2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import { AttachmentViewer } from '~/components/Common/Attachments';
 
 export default function BlogPostViewer() {
     const { postId } = useParams();
@@ -139,6 +140,17 @@ export default function BlogPostViewer() {
                         className="prose prose-lg dark:prose-invert prose-indigo max-w-none text-gray-800 dark:text-gray-200 leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: post.content }}
                     />
+
+                    {/* Downloadable Attachments */}
+                    {post.attachments && post.attachments.length > 0 && (
+                        <div className="mt-10">
+                            <AttachmentViewer
+                                attachments={post.attachments}
+                                title="Archivos y Recursos Descargables"
+                                subtitle="Descarga el material de apoyo, plantillas y documentos adjuntos a este artículo."
+                            />
+                        </div>
+                    )}
 
                     {/* Footer Tags */}
                     {post.tags && post.tags.length > 0 && (
