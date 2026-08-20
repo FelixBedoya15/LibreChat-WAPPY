@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
 
+const attachmentSchema = mongoose.Schema({
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    filename: { type: String },
+    size: { type: Number },
+    fileType: { type: String }
+});
+
 const blogPostSchema = mongoose.Schema({
     title: {
         type: String,
@@ -18,6 +26,7 @@ const blogPostSchema = mongoose.Schema({
     tags: [{
         type: String
     }],
+    attachments: [attachmentSchema],
     isPublished: {
         type: Boolean,
         default: false,
@@ -35,3 +44,4 @@ const blogPostSchema = mongoose.Schema({
 const BlogPost = mongoose.models.BlogPost || mongoose.model('BlogPost', blogPostSchema);
 
 module.exports = { BlogPost };
+

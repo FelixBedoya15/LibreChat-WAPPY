@@ -15,6 +15,14 @@ const examSchema = mongoose.Schema({
     isEnabled: { type: Boolean, default: false }
 });
 
+const attachmentSchema = mongoose.Schema({
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    filename: { type: String },
+    size: { type: Number },
+    fileType: { type: String }
+});
+
 const lessonSchema = mongoose.Schema({
     title: {
         type: String,
@@ -30,6 +38,7 @@ const lessonSchema = mongoose.Schema({
         type: Number,
         default: 0,
     },
+    attachments: [attachmentSchema],
     exam: examSchema
 });
 
@@ -47,6 +56,7 @@ const courseSchema = mongoose.Schema({
     tags: [{
         type: String
     }],
+    attachments: [attachmentSchema],
     lessons: [lessonSchema],
     exam: examSchema,
     isPublished: {
@@ -84,3 +94,4 @@ const courseSchema = mongoose.Schema({
 const Course = mongoose.models.Course || mongoose.model('Course', courseSchema);
 
 module.exports = { Course };
+

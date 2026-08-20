@@ -22,7 +22,7 @@ const createCourse = async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
-        const { title, description, thumbnail, tags, isPublished } = req.body;
+        const { title, description, thumbnail, tags, attachments, exam, isPublished } = req.body;
 
         if (!title) {
             return res.status(400).json({ message: 'Title is required' });
@@ -33,6 +33,8 @@ const createCourse = async (req, res) => {
             description,
             thumbnail,
             tags: tags || [],
+            attachments: attachments || [],
+            exam: exam || null,
             isPublished: isPublished || false,
             lessons: []
         });
@@ -121,7 +123,7 @@ const addLesson = async (req, res) => {
         if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { courseId } = req.params;
-        const { title, content, videoUrl, order } = req.body;
+        const { title, content, videoUrl, order, attachments, exam } = req.body;
 
         if (!title) {
             return res.status(400).json({ message: 'Lesson title is required' });
@@ -132,7 +134,7 @@ const addLesson = async (req, res) => {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        const newLesson = { title, content, videoUrl, order: order || course.lessons.length + 1 };
+        const newLesson = { title, content, videoUrl, order: order || course.lessons.length + 1, attachments: attachments || [], exam };
         course.lessons.push(newLesson);
 
         await course.save();

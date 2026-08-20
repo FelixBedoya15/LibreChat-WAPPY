@@ -30,7 +30,7 @@ const getBlogPostById = async (req, res) => {
 
 const createBlogPost = async (req, res) => {
     try {
-        const { title, content, thumbnail, tags, isPublished } = req.body;
+        const { title, content, thumbnail, tags, attachments, isPublished } = req.body;
         const userId = req.user._id || req.user.id;
 
         const newPost = new BlogPost({
@@ -38,6 +38,7 @@ const createBlogPost = async (req, res) => {
             content: content || '',
             thumbnail,
             tags: tags || [],
+            attachments: attachments || [],
             isPublished: isPublished || false,
             author: userId
         });
@@ -65,11 +66,11 @@ const createBlogPost = async (req, res) => {
 const updateBlogPost = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, content, thumbnail, tags, isPublished } = req.body;
+        const { title, content, thumbnail, tags, attachments, isPublished } = req.body;
 
         const post = await BlogPost.findByIdAndUpdate(
             id,
-            { title, content, thumbnail, tags, isPublished },
+            { title, content, thumbnail, tags, attachments, isPublished },
             { new: true, runValidators: true }
         );
 

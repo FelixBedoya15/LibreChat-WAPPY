@@ -1,5 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { Course } = require('../../models/Course');
 const { UserProgress } = require('../../models/UserProgress');
 const CompanyInfo = require('../../models/CompanyInfo');
@@ -7,10 +10,57 @@ const { requireJwtAuth } = require('../middleware');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
+const { getAppConfig } = require('../../server/services/Config');
 const { logger } = require('~/config');
 
 const router = express.Router();
 
+const storage = multer.diskStorage({
+    destination: async function (req, file, cb) {
+        try {
+            const appConfig = await getAppConfig();
+            const baseUploads = appConfig?.paths?.uploads || path.resolve(__dirname, '../../../uploads');
+            const dir = path.join(baseUploads, 'ruta-aprendizaje');
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            cb(null, dir);
+        } catch (err) {
+            cb(err);
+        }
+    },
+    filename: function (req, file, cb) {
+        const cleanName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const finalName = `${Date.now()}-${cleanName}`;
+        cb(null, finalName);
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+});
+
+// Download endpoint
+router.get('/download/:filename', async (req, res) => {
+    try {
+        const appConfig = await getAppConfig();
+        const baseUploads = appConfig?.paths?.uploads || path.resolve(__dirname, '../../../uploads');
+        const filename = decodeURIComponent(req.params.filename);
+        const filePath = path.resolve(baseUploads, 'ruta-aprendizaje', filename);
+        const safeDir = path.resolve(baseUploads, 'ruta-aprendizaje');
+
+        if (!filePath.startsWith(safeDir) || !fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'El archivo solicitado no existe.' });
+        }
+
+        const originalName = filename.includes('-') ? filename.substring(filename.indexOf('-') + 1) : filename;
+        return res.download(filePath, originalName);
+    } catch (err) {
+        logger.error('[RutaAprendizajeRouter] Download error:', err);
+        return res.status(500).json({ error: 'Error interno al descargar el archivo.' });
+    }
+});
 
 // Helper: Get active company of a user
 async function getActiveCompanyId(userId) {
@@ -23,6 +73,7 @@ async function getActiveCompanyId(userId) {
 async function getSisterCompanyIds(companyId) {
     let companyIds = [companyId];
     if (mongoose.Types.ObjectId.isValid(companyId)) {
+
         companyIds.push(new mongoose.Types.ObjectId(companyId));
     }
     try {
@@ -132,6 +183,35 @@ router.get('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res
     }
 });
 
+// Upload endpoint for admin
+router.post('/admin/upload', requireJwtAuth, checkAdminRole, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
+        }
+
+        const filename = req.file.filename;
+        const originalName = req.file.originalname;
+        const size = req.file.size;
+        const fileType = path.extname(originalName).replace('.', '').toLowerCase();
+        const url = `/api/ruta-aprendizaje/download/${encodeURIComponent(filename)}`;
+
+        return res.json({
+            success: true,
+            file: {
+                name: originalName,
+                url,
+                filename,
+                size,
+                fileType
+            }
+        });
+    } catch (err) {
+        logger.error('[RutaAprendizajeRouter] Upload error:', err);
+        return res.status(500).json({ error: 'Error al subir el archivo.' });
+    }
+});
+
 // Create course
 router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) => {
     try {
@@ -142,7 +222,7 @@ router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =
             return res.status(400).json({ message: 'No active company found for this user' });
         }
 
-        const { title, description, thumbnail, tags, isPublished, assignmentType, assignedCargos, assignedWorkers } = req.body;
+        const { title, description, thumbnail, tags, attachments, isPublished, assignmentType, assignedCargos, assignedWorkers } = req.body;
         if (!title) {
             return res.status(400).json({ message: 'Title is required' });
         }
@@ -152,6 +232,7 @@ router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =
             description,
             thumbnail,
             tags: tags || [],
+            attachments: attachments || [],
             isPublished: isPublished || false,
             isLearningPath: true,
             companyId,
@@ -217,7 +298,7 @@ router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminRole, 
         const userId = req.user.id || req.user._id;
         const companyId = await getActiveCompanyId(userId);
         const { courseId } = req.params;
-        const { title, content, videoUrl, order, exam } = req.body;
+        const { title, content, videoUrl, order, attachments, exam } = req.body;
 
         if (!title) {
             return res.status(400).json({ message: 'Lesson title is required' });
@@ -228,7 +309,7 @@ router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminRole, 
             return res.status(404).json({ message: 'Course not found or unauthorized' });
         }
 
-        const newLesson = { title, content, videoUrl, order: order || course.lessons.length + 1, exam };
+        const newLesson = { title, content, videoUrl, order: order || course.lessons.length + 1, attachments: attachments || [], exam };
         course.lessons.push(newLesson);
         await course.save();
 
