@@ -856,6 +856,7 @@ router.get('/dashboard', async (req, res) => {
 /**
  * POST /api/referrals/attribute
  * Assign or update ambassador attribution for a user (Admin only)
+ * Optionally generates a retroactive commission for previous purchases
  */
 router.post('/attribute', async (req, res) => {
     try {
@@ -863,13 +864,26 @@ router.post('/attribute', async (req, res) => {
             return res.status(403).json({ error: 'Solo los administradores pueden cambiar la atribución de embajadores.' });
         }
 
-        const { targetUserId, partnerId } = req.body;
+        const { 
+            targetUserId, 
+            partnerId, 
+            createCommission, 
+            transactionAmount, 
+            commissionRate, 
+            commissionAmount, 
+            commissionStatus = 'pending',
+            reassignExistingCommissions = true 
+        } = req.body;
+
         if (!targetUserId) {
             return res.status(400).json({ error: 'El ID de usuario objetivo es requerido.' });
         }
 
         const ReferralRecord = mongoose.model('ReferralRecord');
         const Partner = mongoose.model('Partner');
+        const PartnerCommission = mongoose.model('PartnerCommission');
+        const Notification = mongoose.models.Notification ? mongoose.model('Notification') : null;
+        const User = mongoose.model('User');
 
         let partnerObj = null;
         if (partnerId) {
@@ -885,21 +899,73 @@ router.post('/attribute', async (req, res) => {
                 referredUserId: targetUserId,
                 referredByPartner: partnerObj ? partnerObj._id : null,
                 referredByUser: partnerObj ? partnerObj.userId : null,
-                status: 'registered'
+                status: createCommission ? 'subscribed' : 'registered'
             });
         } else {
             refRecord.referredByPartner = partnerObj ? partnerObj._id : null;
             refRecord.referredByUser = partnerObj ? partnerObj.userId : null;
+            if (createCommission) {
+                refRecord.status = 'subscribed';
+            }
         }
 
         await refRecord.save();
+
+        let generatedCommission = null;
+
+        // 1. Reassign existing commissions if requested and partnerId exists
+        if (partnerObj && reassignExistingCommissions) {
+            await PartnerCommission.updateMany(
+                { referredUserId: targetUserId },
+                { $set: { partnerId: partnerObj._id } }
+            );
+        }
+
+        // 2. Create retroactive commission if selected
+        if (partnerObj && createCommission) {
+            const rawTxAmount = Number(transactionAmount) || 600000;
+            const rate = Number(commissionRate) || (partnerObj.type === 'embajador' ? 0.30 : 0.20);
+            const calculatedComm = Number(commissionAmount) || Math.round(rawTxAmount * rate);
+            const status = ['pending', 'paid', 'approved'].includes(commissionStatus) ? commissionStatus : 'pending';
+
+            const targetUser = await User.findById(targetUserId, 'name email').lean();
+
+            generatedCommission = await PartnerCommission.create({
+                partnerId: partnerObj._id,
+                referredUserId: targetUserId,
+                transactionId: `MANUAL_ATTR_${Date.now()}`,
+                amount: rawTxAmount,
+                commissionRate: rate,
+                commissionAmount: calculatedComm,
+                status: status,
+                payoutDate: status === 'paid' ? new Date() : null
+            });
+
+            logger.info(`[ReferralsAttribute] Created retroactive commission of $${calculatedComm} COP for partner ${partnerObj.slug} on user ${targetUserId}`);
+
+            if (Notification && partnerObj.userId) {
+                try {
+                    await Notification.create({
+                        user: partnerObj.userId,
+                        type: 'partner_commission_pending',
+                        title: 'Comisión Asignada por Administrador',
+                        body: `Se ha registrado una comisión de $${calculatedComm.toLocaleString('es-CO')} COP por la vinculación comercial del usuario ${targetUser?.name || 'Cliente'}.`,
+                    });
+                } catch (notifErr) {
+                    // non-fatal
+                }
+            }
+        }
 
         logger.info(`[ReferralsAttribute] Admin ${req.user.email} assigned User ${targetUserId} to Partner ${partnerObj ? partnerObj.slug : 'None'}`);
 
         return res.json({
             success: true,
-            message: 'Atribución actualizada exitosamente.',
-            refRecord
+            message: createCommission 
+                ? 'Atribución actualizada y comisión retroactiva registrada correctamente.' 
+                : 'Atribución de embajador actualizada correctamente.',
+            refRecord,
+            generatedCommission
         });
     } catch (err) {
         logger.error('[ReferralsAttribute] Error:', err);

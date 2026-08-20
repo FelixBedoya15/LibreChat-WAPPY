@@ -131,6 +131,30 @@ export default function AmbassadorDashboard() {
   const [selectedUserForAttr, setSelectedUserForAttr] = useState<ReferredUser | null>(null);
   const [targetPartnerId, setTargetPartnerId] = useState<string>('');
   const [isAttributing, setIsAttributing] = useState<boolean>(false);
+  const [createCommission, setCreateCommission] = useState<boolean>(true);
+  const [commissionPreset, setCommissionPreset] = useState<'anual' | 'semestral' | 'mensual' | 'custom'>('anual');
+  const [customTxAmount, setCustomTxAmount] = useState<number>(600000);
+  const [customCommRate, setCustomCommRate] = useState<number>(0.30);
+  const [commissionStatus, setCommissionStatus] = useState<'pending' | 'paid'>('pending');
+
+  const openAttributionModal = (u: ReferredUser) => {
+    setSelectedUserForAttr(u);
+    setTargetPartnerId(u.ambassadorId || '');
+    const isProPaid = u.role === 'USER_PRO' || u.paymentStatus === 'paid';
+    setCreateCommission(isProPaid);
+    if (u.planInterval === 'semestral') {
+      setCommissionPreset('semestral');
+      setCustomTxAmount(350000);
+    } else if (u.planInterval === 'mensual') {
+      setCommissionPreset('mensual');
+      setCustomTxAmount(97180);
+    } else {
+      setCommissionPreset('anual');
+      setCustomTxAmount(600000);
+    }
+    setCustomCommRate(0.30);
+    setCommissionStatus('pending');
+  };
 
   // User Follow-up & Campaign Modal (Email & WhatsApp)
   const [contactUser, setContactUser] = useState<TargetFollowUpUser | null>(null);
@@ -224,11 +248,37 @@ export default function AmbassadorDashboard() {
     if (!selectedUserForAttr) return;
     try {
       setIsAttributing(true);
+      let txAmount = customTxAmount;
+      let rate = customCommRate;
+      if (commissionPreset === 'anual') {
+        txAmount = 600000;
+        rate = 0.30;
+      } else if (commissionPreset === 'semestral') {
+        txAmount = 350000;
+        rate = 0.30;
+      } else if (commissionPreset === 'mensual') {
+        txAmount = 97180;
+        rate = 0.30;
+      }
+      const calculatedComm = Math.round(txAmount * rate);
+
       await axios.post('/api/referrals/attribute', {
         targetUserId: selectedUserForAttr.userId,
         partnerId: targetPartnerId || null,
+        createCommission: createCommission && !!targetPartnerId,
+        transactionAmount: txAmount,
+        commissionRate: rate,
+        commissionAmount: calculatedComm,
+        commissionStatus: commissionStatus,
+        reassignExistingCommissions: true,
       });
-      showToast({ message: 'Atribución de embajador actualizada correctamente.', status: 'success' });
+
+      showToast({ 
+        message: createCommission && targetPartnerId 
+          ? 'Atribución y comisión retroactiva guardadas con éxito.' 
+          : 'Atribución de embajador actualizada correctamente.', 
+        status: 'success' 
+      });
       setSelectedUserForAttr(null);
       fetchDashboardData();
     } catch (err: any) {
@@ -733,10 +783,7 @@ export default function AmbassadorDashboard() {
 
                               {isAdmin && (
                                 <button
-                                  onClick={() => {
-                                    setSelectedUserForAttr(u);
-                                    setTargetPartnerId(u.ambassadorId || '');
-                                  }}
+                                  onClick={() => openAttributionModal(u)}
                                   className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-surface-secondary border border-border-medium/40 hover:bg-surface-hover transition-colors shadow-sm cursor-pointer"
                                 >
                                   Atribuir
@@ -981,42 +1028,231 @@ export default function AmbassadorDashboard() {
 
       {/* Admin Attribution Change Modal */}
       {selectedUserForAttr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-3 sm:space-y-4">
-            <h3 className="text-base sm:text-lg font-bold text-text-primary">Asignar Atribución de Embajador</h3>
-            <p className="text-[11px] sm:text-xs text-text-secondary">
-              Selecciona el embajador al cual se le atribuirá comercialmente el usuario <span className="font-bold text-teal-600">{selectedUserForAttr.name}</span>.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-2 border-b border-border-medium/30 pb-3">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-text-primary flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-teal-600" />
+                  <span>Atribuir Embajador & Comisión</span>
+                </h3>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Gestiona la asignación comercial y comisiones del usuario.
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedUserForAttr(null)}
+                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-surface-hover"
+              >
+                ✕
+              </button>
+            </div>
 
+            {/* Target User Info Card */}
+            <div className="bg-surface-secondary/70 border border-border-medium/40 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="font-bold text-xs text-text-primary">{selectedUserForAttr.name}</div>
+                <div className="text-[11px] text-text-tertiary">{selectedUserForAttr.email}</div>
+                {selectedUserForAttr.phone && (
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{selectedUserForAttr.phone}</div>
+                )}
+              </div>
+              <div className="text-right flex flex-col items-end gap-1">
+                {(() => {
+                  const p = formatPlanBadge(selectedUserForAttr.subscriptionType, selectedUserForAttr.planInterval);
+                  return (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border uppercase ${p.className}`}>
+                      {p.label}
+                    </span>
+                  );
+                })()}
+                <span className="text-[10px] font-semibold text-text-secondary">
+                  {selectedUserForAttr.paymentStatus === 'paid' ? '✅ Pago Activo' : selectedUserForAttr.paymentStatus === 'trial' ? '⏳ En Prueba' : '⚪ Sin Pago'}
+                </span>
+              </div>
+            </div>
+
+            {/* Select Partner */}
             <div>
-              <label className="block text-[10px] sm:text-xs font-bold text-text-tertiary mb-1 uppercase">Embajador Propietario</label>
+              <label className="block text-[11px] font-bold text-text-secondary mb-1.5 uppercase">
+                Embajador Propietario <span className="text-rose-500">*</span>
+              </label>
               <select
                 value={targetPartnerId}
                 onChange={(e) => setTargetPartnerId(e.target.value)}
-                className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500"
+                className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 font-medium"
               >
-                <option value="">-- Sin Embajador --</option>
+                <option value="">-- Sin Embajador (Desvincular) --</option>
                 {networkStats.map(p => (
                   <option key={p.partnerId} value={p.partnerId}>
-                    {p.name} ({p.slug})
+                    {p.name} ({p.slug}) {p.isLeader ? '🌟 Líder (30%)' : '💼 Estándar (20-25%)'}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            {/* Commission Handling Section */}
+            {targetPartnerId && (
+              <div className="space-y-3 pt-2 border-t border-border-medium/30">
+                <label className="block text-[11px] font-bold text-text-secondary uppercase">
+                  Manejo de Comisión Retroactiva
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateCommission(true)}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      createCommission
+                        ? 'border-teal-500 bg-teal-500/10 dark:bg-teal-900/20 shadow-sm'
+                        : 'border-border-medium/40 bg-surface-primary hover:bg-surface-hover opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-text-primary">
+                      <span>💰</span>
+                      <span>Generar Comisión</span>
+                    </div>
+                    <p className="text-[10px] text-text-tertiary mt-1">
+                      Acredita la comisión al embajador por el pago ya realizado.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCreateCommission(false)}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      !createCommission
+                        ? 'border-teal-500 bg-teal-500/10 dark:bg-teal-900/20 shadow-sm'
+                        : 'border-border-medium/40 bg-surface-primary hover:bg-surface-hover opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-text-primary">
+                      <span>🚫</span>
+                      <span>Sin Comisión</span>
+                    </div>
+                    <p className="text-[10px] text-text-tertiary mt-1">
+                      Solo vincula el usuario a su red (seguimiento y futuras ventas).
+                    </p>
+                  </button>
+                </div>
+
+                {createCommission && (
+                  <div className="bg-surface-secondary/50 border border-border-medium/40 rounded-xl p-3.5 space-y-3 animate-in fade-in">
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
+                        Plan Pagado por el Usuario
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCommissionPreset('anual');
+                            setCustomTxAmount(600000);
+                          }}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            commissionPreset === 'anual'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Anual</div>
+                          <div className="text-[10px] opacity-85">$600.000 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCommissionPreset('semestral');
+                            setCustomTxAmount(350000);
+                          }}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            commissionPreset === 'semestral'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Semestral</div>
+                          <div className="text-[10px] opacity-85">$350.000 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCommissionPreset('mensual');
+                            setCustomTxAmount(97180);
+                          }}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            commissionPreset === 'mensual'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Mensual</div>
+                          <div className="text-[10px] opacity-85">$97.180 COP</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
+                          Porcentaje de Comisión
+                        </label>
+                        <select
+                          value={customCommRate}
+                          onChange={(e) => setCustomCommRate(Number(e.target.value))}
+                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500"
+                        >
+                          <option value={0.30}>30% (Líder / Estándar)</option>
+                          <option value={0.25}>25% (Avanzado)</option>
+                          <option value={0.20}>20% (Base)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
+                          Estado de la Comisión
+                        </label>
+                        <select
+                          value={commissionStatus}
+                          onChange={(e) => setCommissionStatus(e.target.value as 'pending' | 'paid')}
+                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500"
+                        >
+                          <option value="pending">⏳ Pendiente de Pago</option>
+                          <option value="paid">✅ Ya Pagada (Liquidada)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Calculated Summary Box */}
+                    <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-2.5 flex items-center justify-between">
+                      <div className="text-[11px] text-teal-800 dark:text-teal-200 font-medium">
+                        Comisión devengada a registrar:
+                      </div>
+                      <div className="text-sm font-extrabold text-teal-700 dark:text-teal-300">
+                        ${Math.round(
+                          (commissionPreset === 'anual' ? 600000 : commissionPreset === 'semestral' ? 350000 : commissionPreset === 'mensual' ? 97180 : customTxAmount) * customCommRate
+                        ).toLocaleString('es-CO')} COP
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-medium/30">
               <button
                 onClick={() => setSelectedUserForAttr(null)}
-                className="px-3 sm:px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-hover"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-hover cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleAdminAttribute}
                 disabled={isAttributing}
-                className="px-3 sm:px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
-                {isAttributing ? 'Guardando...' : 'Guardar Atribución'}
+                {isAttributing ? 'Guardando...' : 'Confirmar y Guardar'}
               </button>
             </div>
           </div>
