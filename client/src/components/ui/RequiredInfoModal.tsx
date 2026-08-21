@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { OGDialog, OGDialogContent, Label, Button, useToastContext } from '@librechat/client';
 import axios from 'axios';
@@ -7,6 +9,7 @@ import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLoca
 
 const RequiredInfoModal: React.FC = () => {
   const localize = useLocalize();
+  const queryClient = useQueryClient();
   const { user, setUser, logout } = useAuthContext();
   const { showToast } = useToastContext();
 
@@ -106,6 +109,8 @@ const RequiredInfoModal: React.FC = () => {
       const response = await axios.post('/api/user/update', payload);
       if (response.data?.user) {
         setUser(response.data.user);
+        queryClient.setQueryData([QueryKeys.user], response.data.user);
+        queryClient.invalidateQueries([QueryKeys.user]);
         showToast({ message: '¡Información guardada correctamente!', status: 'success' });
       } else {
         throw new Error('Formato de respuesta inválido.');

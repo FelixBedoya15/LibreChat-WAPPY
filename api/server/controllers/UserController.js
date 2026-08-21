@@ -238,10 +238,16 @@ const updateUserProfileController = async (req, res) => {
     if (name) updateData.name = name;
     if (username) updateData.username = username;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
-    if (departamento !== undefined) updateData.departamento = departamento;
-    if (department !== undefined && !updateData.departamento) updateData.departamento = department;
-    if (ciudad !== undefined) updateData.ciudad = ciudad;
-    if (city !== undefined && !updateData.ciudad) updateData.ciudad = city;
+    if (departamento !== undefined || department !== undefined) {
+      const deptVal = (departamento || department || '').trim();
+      updateData.departamento = deptVal;
+      updateData.department = deptVal;
+    }
+    if (ciudad !== undefined || city !== undefined) {
+      const cityVal = (ciudad || city || '').trim();
+      updateData.ciudad = cityVal;
+      updateData.city = cityVal;
+    }
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
     // inactiveAt is now restricted to Admin updates only
     if (password) {
