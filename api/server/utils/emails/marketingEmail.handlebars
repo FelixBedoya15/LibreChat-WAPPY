@@ -163,9 +163,37 @@
             </div>
             {{/if}}
             
+            {{#if ambassador}}
+            <!-- Ambassador Contact Card -->
+            <div style="margin-top: 28px; padding: 18px 20px; background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 14px; text-align: left;">
+              <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                Tu Consultor Comercial Asignado
+              </div>
+              <div style="font-size: 15px; font-weight: 800; color: #ffffff;">
+                {{ambassador.name}}
+              </div>
+              <div style="font-size: 13px; color: {{primaryColor}}; margin-top: 6px; line-height: 1.6;">
+                {{#if ambassador.phone}}
+                📱 WhatsApp: <a href="https://api.whatsapp.com/send?phone={{ambassador.phoneClean}}&text=Hola%20{{ambassador.name}},%20recib%C3%AD%20tu%20correo" style="color: {{primaryColor}}; text-decoration: none; font-weight: bold;">{{ambassador.phone}}</a><br>
+                {{/if}}
+                ✉️ Correo: <a href="mailto:{{ambassador.email}}" style="color: {{primaryColor}}; text-decoration: none;">{{ambassador.email}}</a>
+                {{#if ambassador.referralLink}}
+                <br>🔗 Enlace de Activación: <a href="{{ambassador.referralLink}}" style="color: {{primaryColor}}; text-decoration: none;">{{ambassador.referralLink}}</a>
+                {{/if}}
+              </div>
+            </div>
+            {{/if}}
+
             <div class="footer-signature">
               Un abrazo,<br>
-              <span class="signature-team">El equipo de WAPPY IA</span>
+              <span class="signature-team">
+                {{#if ambassador}}
+                  {{ambassador.name}}<br>
+                  <span style="font-size: 12px; color: #94a3b8; font-weight: normal;">Consultor Comercial WAPPY IA</span>
+                {{else}}
+                  El equipo de WAPPY IA
+                {{/if}}
+              </span>
             </div>
           </div>
         </td>

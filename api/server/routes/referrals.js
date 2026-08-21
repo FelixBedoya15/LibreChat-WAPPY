@@ -1123,6 +1123,16 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
         const recipientUser = targetUserId ? await User.findById(targetUserId).lean() : await User.findOne({ email: targetEmail }).lean();
         const recipientName = recipientUser?.name || recipientUser?.username || 'Usuario';
 
+        const partner = await Partner.findOne({ userId }).lean();
+        const ambassadorName = req.body.ambassadorName || partner?.name || req.user.name || 'Asesor Comercial WAPPY';
+        const ambassadorEmail = partner?.email || req.user.email || 'soporte@wappy.club';
+        const ambassadorPhone = req.body.ambassadorPhone || partner?.phone || req.user.phoneNumber || req.user.phone || '';
+        let cleanPhone = (ambassadorPhone || '').replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+            cleanPhone = `57${cleanPhone}`;
+        }
+        const refLink = req.body.referralLink || (partner ? `https://wappy-ia.com/?ref=${partner.slug}` : 'https://wappy.club');
+
         const themeConfig = THEMES[theme] || THEMES.slate;
         const year = new Date().getFullYear();
 
@@ -1137,6 +1147,13 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
                 buttonText: buttonText || 'Ver más',
                 buttonUrl: buttonUrl || '',
                 year,
+                ambassador: {
+                    name: ambassadorName,
+                    email: ambassadorEmail,
+                    phone: ambassadorPhone,
+                    phoneClean: cleanPhone,
+                    referralLink: refLink,
+                },
                 ...themeConfig,
             }
         });

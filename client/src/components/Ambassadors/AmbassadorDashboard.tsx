@@ -1431,6 +1431,9 @@ export default function AmbassadorDashboard() {
         <AmbassadorContactModal
           user={contactUser}
           referralLink={myReferralLink || `https://wappy.club`}
+          ambassadorName={user?.name || 'Asesor Comercial WAPPY'}
+          ambassadorPhone={user?.phoneNumber || (user as any)?.phone || ''}
+          ambassadorEmail={user?.email || 'contacto@wappy.club'}
           onClose={() => setContactUser(null)}
         />
       )}

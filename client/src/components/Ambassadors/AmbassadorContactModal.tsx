@@ -38,6 +38,9 @@ interface AmbassadorContactModalProps {
   user: TargetFollowUpUser;
   referralLink: string;
   onClose: () => void;
+  ambassadorName?: string;
+  ambassadorPhone?: string;
+  ambassadorEmail?: string;
 }
 
 const getQuickEmailPrompts = (u: TargetFollowUpUser) => [
@@ -124,7 +127,14 @@ export const formatPlanBadge = (subType?: string, interval?: string) => {
   };
 };
 
-export default function AmbassadorContactModal({ user, referralLink, onClose }: AmbassadorContactModalProps) {
+export default function AmbassadorContactModal({ 
+  user, 
+  referralLink, 
+  onClose,
+  ambassadorName = 'Asesor Comercial WAPPY',
+  ambassadorPhone = '',
+  ambassadorEmail = 'contacto@wappy.club'
+}: AmbassadorContactModalProps) {
   const { showToast } = useToastContext();
 
   const [activeChannel, setActiveChannel] = useState<'email' | 'whatsapp'>('email');
@@ -269,6 +279,10 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
         buttonText,
         buttonUrl,
         theme,
+        ambassadorName: user.ambassadorName || ambassadorName,
+        ambassadorPhone: ambassadorPhone || user.phone || '',
+        ambassadorEmail: ambassadorEmail || '',
+        referralLink: referralLink || 'https://wappy.club',
       });
 
       showToast({
@@ -641,11 +655,28 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
                         </div>
                       )}
 
+                      {/* Ambassador Contact Box in Preview */}
+                      <div className="mt-5 p-3.5 bg-[#0f172a]/90 border border-slate-700/80 rounded-xl text-left">
+                        <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                          Tu Consultor Comercial Asignado
+                        </div>
+                        <div className="text-xs font-extrabold text-white">
+                          {user.ambassadorName || ambassadorName}
+                        </div>
+                        <div className="text-[11px] mt-1 space-y-0.5" style={{ color: currentTheme.primaryColor }}>
+                          {ambassadorPhone && (
+                            <div>📱 WhatsApp: <span className="underline font-bold">{ambassadorPhone}</span></div>
+                          )}
+                          <div>✉️ Correo: <span className="underline">{ambassadorEmail}</span></div>
+                        </div>
+                      </div>
+
                       <div className="border-t border-slate-700/60 pt-3 mt-4 text-[11px] text-slate-400">
                         Un abrazo cordial,<br />
                         <span style={{ color: currentTheme.primaryColor }} className="font-bold">
-                          El equipo de WAPPY IA & Tu Embajador Comercial
-                        </span>
+                          {user.ambassadorName || ambassadorName}
+                        </span><br />
+                        <span className="text-[10px] text-slate-400">Consultor Comercial WAPPY IA</span>
                       </div>
                     </div>
                   </div>
