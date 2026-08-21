@@ -116,7 +116,10 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
 
   const isDocx =
     file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-    originalName.endsWith('.docx');
+    file.mimetype === 'application/msword' ||
+    file.mimetype === 'application/vnd.ms-word' ||
+    originalName.endsWith('.docx') ||
+    originalName.endsWith('.doc');
 
   const isPdf =
     file.mimetype === 'application/pdf' ||
@@ -150,10 +153,13 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
       const result = await mammoth.extractRawText({ path: file.path });
       text = result.value || '';
       if (!text.trim()) {
-        text = 'Empty Document';
+        const { content } = await readFileAsString(file.path, {
+          fileSize: file.size,
+        });
+        text = content;
       }
     } catch (docxError) {
-      logger.error(`[parseTextNative] Error parsing DOCX file ${file.path}:`, docxError);
+      logger.warn(`[parseTextNative] Mammoth parsing for ${file.path} failed, falling back to string reading:`, docxError);
       const { content } = await readFileAsString(file.path, {
         fileSize: file.size,
       });
