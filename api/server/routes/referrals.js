@@ -999,7 +999,17 @@ router.post('/attribute', async (req, res) => {
 
 // --- Campaign Email & WhatsApp Generation with AI ---
 router.post('/email/generate', requireJwtAuth, async (req, res) => {
-    const { prompt, model, targetUserName, targetUserPlan, channel = 'email' } = req.body;
+    const { 
+        prompt, 
+        model, 
+        targetUserName, 
+        targetUserPlan, 
+        daysInactive = 0, 
+        daysToExpiry = null, 
+        subscriptionType = 'free', 
+        planInterval = null,
+        channel = 'email' 
+    } = req.body;
 
     if (!prompt) {
         return res.status(400).json({ message: 'La instrucción o prompt es requerido.' });
@@ -1018,28 +1028,41 @@ router.post('/email/generate', requireJwtAuth, async (req, res) => {
         const chosenModel = model || 'gemini-3.1-flash-lite';
         const modelInstance = genAI.getGenerativeModel({
             model: chosenModel,
-            systemInstruction: `Eres un asistente de redacción y ventas de WAPPY IA especializado en Seguridad y Salud en el Trabajo (SST).
-Tu objetivo es redactar un mensaje ${channel === 'whatsapp' ? 'de WhatsApp corto, cercano, persuasivo y con emojis' : 'de correo electrónico profesional, claro y persuasivo'} dirigido a un usuario específico (${targetUserName || 'Usuario'}) de la plataforma Wappy.
-El plan actual del usuario es: ${targetUserPlan || 'Plan Activo'}.
+            systemInstruction: `Eres un consultor comercial y especialista de éxito del cliente en WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
+Tu objetivo es redactar un mensaje ${channel === 'whatsapp' ? 'de WhatsApp cercano, empático, altamente persuasivo y con emojis adecuados' : 'de correo electrónico profesional, claro, personalizado y con alto impacto'} dirigido a un usuario específico (${targetUserName || 'Usuario'}).
+
+Contexto del usuario en la plataforma:
+- Nombre: ${targetUserName || 'Usuario'}
+- Plan / Rol: ${targetUserPlan || 'Free / Invitado'}
+- Tipo de Suscripción: ${subscriptionType} (${planInterval || 'Estándar'})
+- Inactividad en plataforma: ${daysInactive === 0 ? 'Activo hoy' : `Hace ${daysInactive} días sin actividad`}
+- Estado de vigencia / vencimiento: ${daysToExpiry === null ? 'Vitalicio / Sin vencimiento' : daysToExpiry < 0 ? `Vencido hace ${Math.abs(daysToExpiry)} días` : `Quedan ${daysToExpiry} días de vigencia`}
+
+Pautas clave según la intención:
+1. Si el usuario tuvo 15 días de prueba gratis y vencieron (pero estuvo activo): Pregúntale cómo le fue automatizando sus matrices y evaluaciones SST, destaca el tiempo que ahorró e invítalo a continuar con Wappy Pro mes a mes o anual.
+2. Si el usuario se registró pero nunca utilizó la plataforma o tiene muchos días inactivo: Sé empático, pregúntale si tuvo dudas técnicas o falta de tiempo, y ofrécele una breve asesoría/demo para apoyarlo a crear su primera matriz IPEVAR o PESV.
+3. Si el usuario ya adquirió un plan: Dale una bienvenida cálida, ofrécele soporte prioritario y enséñale las mejores prácticas para sacarle el 100% de provecho a los agentes SST.
+4. Si es aviso de novedades: Destaca las últimas innovaciones disponibles en Wappy (ej: Matrices IPEVAR interactivas, Coordinador PESV Res. 40595, Ingeniero Químico SGA, Auditorías en Vivo y Aula de Estudio LMS).
+5. Si es aviso de vencimiento: Recuérdale con sentido de urgencia y cortesía los días restantes para que no interrumpa sus matrices y auditorías normativas.
 
 ${channel === 'whatsapp' ? `
 Devuelve un JSON válido con la estructura:
 {
-  "whatsappText": "Texto completo del mensaje de WhatsApp para enviar al usuario, usando emojis adecuados, saludo cordial y tono humano y profesional."
+  "whatsappText": "Texto completo del mensaje de WhatsApp para enviar al usuario, usando emojis adecuados, saludo cordial, preguntas abiertas y tono humano y profesional."
 }
 ` : `
 Devuelve un JSON válido con la estructura:
 {
-  "subject": "Asunto atractivo y claro del correo",
+  "subject": "Asunto atractivo, claro y no genérico para el correo",
   "bodyHtml": "Cuerpo en formato HTML seguro (<p>, <strong>, <ul>, <li>, <br>, <h2>). NO incluyas <html> ni <body> tags.",
-  "buttonText": "Texto sugerido para el botón CTA (ej: Renovar mi Plan PRO, Descubrir Nuevos Agentes)",
+  "buttonText": "Texto sugerido para el botón CTA (ej: Renovar mi Plan PRO, Probar Nuevos Agentes)",
   "buttonUrl": "https://wappy.club/planes"
 }
 `}
 Asegúrate de retornar únicamente el JSON parseable sin bloques de código markdown fuera del JSON.`,
         });
 
-        const promptText = `Instrucción: "${prompt}". Canal: ${channel}. Usuario: ${targetUserName || 'Usuario'}. Plan: ${targetUserPlan || 'Activo'}.`;
+        const promptText = `Instrucción: "${prompt}". Canal: ${channel}. Usuario: ${targetUserName || 'Usuario'}. Estado: ${targetUserPlan}. Días Inactivo: ${daysInactive}. Días a Expirar: ${daysToExpiry}.`;
         const result = await modelInstance.generateContent({
             contents: [{ role: 'user', parts: [{ text: promptText }] }],
             generationConfig: {
@@ -1150,6 +1173,99 @@ router.post('/email/send', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[ReferralEmailSend] Error:', error);
         return res.status(500).json({ message: `Error al enviar correo: ${error.message}` });
+    }
+});
+
+// --- Send Official Commercial Proposal by Email ---
+router.post('/proposal/send-email', requireJwtAuth, async (req, res) => {
+    const { clientEmail, proposal } = req.body;
+
+    if (!clientEmail || !clientEmail.trim() || !clientEmail.includes('@')) {
+        return res.status(400).json({ message: 'Ingresa un correo electrónico válido para enviar la propuesta comercial.' });
+    }
+    if (!proposal || !proposal.companyName || !proposal.proposalCode) {
+        return res.status(400).json({ message: 'Los datos de la propuesta comercial son incompletos.' });
+    }
+
+    try {
+        const sendEmail = require('~/server/utils/sendEmail');
+        const User = mongoose.model('User');
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const year = new Date().getFullYear();
+
+        const formattedPlans = (proposal.investmentPlans || []).map(p => ({
+            ...p,
+            finalPriceFormatted: (p.finalPrice || 0).toLocaleString('es-CO'),
+            pricePerMonthFormatted: (p.pricePerMonth || 0).toLocaleString('es-CO'),
+        }));
+
+        const advisorPhone = proposal.ambassadorData?.phone || '';
+        let cleanPhone = advisorPhone.replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+            cleanPhone = `57${cleanPhone}`;
+        }
+
+        const subject = `📄 Propuesta Comercial Oficial WAPPY IA - ${proposal.companyName} (${proposal.proposalCode})`;
+
+        await sendEmail({
+            email: clientEmail.trim(),
+            subject: subject,
+            template: 'commercialProposalEmail.handlebars',
+            payload: {
+                title: proposal.title || 'Propuesta Comercial: Transformación y Automatización SG-SST',
+                proposalCode: proposal.proposalCode,
+                companyName: proposal.companyName,
+                companyNit: proposal.companyNit || '',
+                sector: proposal.sector || 'Servicios / General',
+                employeeCount: proposal.employeeCount || '11-50',
+                executiveSummary: proposal.executiveSummary || '',
+                sectorDiagnosis: proposal.sectorDiagnosis || '',
+                includedModules: proposal.includedModules || [],
+                investmentPlans: formattedPlans,
+                roiAnalysis: proposal.roiAnalysis || null,
+                ambassadorName: proposal.ambassadorData?.name || req.user.name || 'Asesor Comercial Wappy',
+                ambassadorPhone: advisorPhone,
+                ambassadorPhoneClean: cleanPhone,
+                ambassadorEmail: proposal.ambassadorData?.email || req.user.email || 'contacto@wappy.club',
+                year,
+            }
+        });
+
+        logger.info(`[ProposalEmailSend] Propuesta ${proposal.proposalCode} enviada a ${clientEmail} por ${req.user.email}`);
+
+        // Automatically record proposal event in CRM if this email is a user or in referrals
+        try {
+            const clientUser = await User.findOne({ email: clientEmail.trim().toLowerCase() }).lean();
+            if (clientUser) {
+                await ReferralRecord.findOneAndUpdate(
+                    { referredUserId: clientUser._id },
+                    {
+                        $set: { 
+                            lastContactedAt: new Date(),
+                            crmStage: 'propuesta'
+                        },
+                        $push: {
+                            crmNotes: {
+                                author: req.user.name || 'Asesor Comercial',
+                                text: `📄 Propuesta Comercial Oficial (${proposal.proposalCode}) enviada por correo electrónico a ${clientEmail}.`,
+                                type: 'proposal',
+                                createdAt: new Date()
+                            }
+                        }
+                    }
+                );
+            }
+        } catch (crmErr) {
+            logger.warn('[ProposalEmailSend] Non-fatal CRM log error:', crmErr);
+        }
+
+        return res.status(200).json({ 
+            success: true, 
+            message: `Propuesta comercial ${proposal.proposalCode} enviada exitosamente a ${clientEmail}.` 
+        });
+    } catch (error) {
+        logger.error('[ProposalEmailSend] Error sending proposal email:', error);
+        return res.status(500).json({ message: `Error al enviar el correo de propuesta: ${error.message}` });
     }
 });
 

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 30px 0;
+    }
+    .main-table {
+      max-width: 620px;
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+    .header-logo {
+      padding: 10px 0 20px 0;
+      text-align: center;
+    }
+    .logo-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 900;
+      padding: 10px 22px;
+      border-radius: 12px;
+      letter-spacing: -0.5px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+    }
+    .logo-badge span {
+      color: #5eead4;
+    }
+    .card {
+      background-color: #ffffff;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      padding: 36px 30px;
+      margin: 0 15px;
+      overflow: hidden;
+    }
+    .top-meta {
+      border-bottom: 2px solid #0d9488;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    .prop-tag {
+      display: inline-block;
+      background: #ccfbf1;
+      color: #0f766e;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .prop-code {
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      float: right;
+      margin-top: 4px;
+    }
+    .company-box {
+      background: linear-gradient(to right, #f0fdfa, #f8fafc);
+      border: 1px solid #ccfbf1;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .company-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 4px 0 2px 0;
+    }
+    .company-sub {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f766e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-top: 24px;
+      margin-bottom: 14px;
+    }
+    .summary-text {
+      font-size: 14px;
+      line-height: 1.65;
+      color: #334155;
+      background: #f8fafc;
+      border-left: 3px solid #0d9488;
+      padding: 14px 16px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 20px;
+    }
+    .module-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .module-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .module-desc {
+      font-size: 12px;
+      color: #64748b;
+      margin: 4px 0 6px 0;
+      line-height: 1.5;
+    }
+    .module-badge {
+      display: inline-block;
+      background: #f0fdfa;
+      color: #0d9488;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .plan-card {
+      background: #ffffff;
+      border: 2px solid #0d9488;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .plan-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .plan-price {
+      font-size: 26px;
+      font-weight: 900;
+      color: #0f766e;
+      margin: 10px 0 4px 0;
+    }
+    .plan-discount {
+      font-size: 11px;
+      color: #e11d48;
+      font-weight: 800;
+      background: #ffe4e6;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .plan-per-month {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 14px;
+    }
+    .btn-cta {
+      display: inline-block;
+      background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
+      color: #ffffff !important;
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+      padding: 12px 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+      margin-top: 8px;
+    }
+    .roi-box {
+      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #065f46;
+    }
+    .advisor-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-top: 24px;
+    }
+    .advisor-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .advisor-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .advisor-contact {
+      font-size: 13px;
+      color: #0d9488;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .advisor-contact a {
+      color: #0d9488;
+      text-decoration: none;
+    }
+    .no-reply-warning {
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-top: 24px;
+      text-align: left;
+    }
+    .no-reply-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #be123c;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .no-reply-text {
+      font-size: 12px;
+      color: #881337;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 24px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .footer a {
+      color: #0d9488;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table class="main-table" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td class="header-logo">
+          <div class="logo-badge">WAPPY <span>IA</span></div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card">
+            <!-- Top Header Meta -->
+            <div class="top-meta">
+              <span class="prop-tag">Propuesta Comercial Oficial</span>
+              <span class="prop-code">{{proposalCode}}</span>
+            </div>
+
+            <!-- Target Company Box -->
+            <div class="company-box">
+              <div class="company-sub">PROPUESTA PREPARADA PARA:</div>
+              <div class="company-title">{{companyName}}</div>
+              <div class="company-sub">
+                {{#if companyNit}}NIT: {{companyNit}} • {{/if}}
+                Sector: {{sector}} • Alcance: {{employeeCount}} Trabajadores
+              </div>
+            </div>
+
+            <!-- Title -->
+            <h1 style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 16px; line-height: 1.35;">
+              {{title}}
+            </h1>
+
+            <!-- 1. Executive Summary -->
+            <div class="section-title">1. Resumen Ejecutivo & Diagnóstico</div>
+            <div class="summary-text">
+              <p style="margin: 0 0 8px 0;"><strong>{{executiveSummary}}</strong></p>
+              <p style="margin: 0; color: #475569; font-size: 13px;"><strong>Diagnóstico para el sector {{sector}}:</strong> {{sectorDiagnosis}}</p>
+            </div>
+
+            <!-- 2. Included Modules & SST Agents -->
+            <div class="section-title">2. Módulos y Agentes de IA Incluidos</div>
+            {{#each includedModules}}
+            <div class="module-item">
+              <div class="module-title">✓ {{this.title}}</div>
+              <div class="module-desc">{{this.description}}</div>
+              <div class="module-badge">Beneficio: {{this.benefits}}</div>
+            </div>
+            {{/each}}
+
+            <!-- 3. Investment Options -->
+            <div class="section-title">3. Opciones de Inversión Cotizadas</div>
+            {{#each investmentPlans}}
+            <div class="plan-card">
+              <div class="plan-name">{{this.planName}} ({{this.interval}})</div>
+              {{#if this.discountPercentage}}
+              <div style="margin-top: 6px;"><span class="plan-discount">{{this.discountPercentage}}% DESCUENTO ESPECIAL</span></div>
+              {{/if}}
+              <div class="plan-price">${{this.finalPriceFormatted}} COP</div>
+              <div class="plan-per-month">Equivalente a ~${{this.pricePerMonthFormatted}} COP / mes</div>
+              <a href="{{this.paymentUrl}}" class="btn-cta">Aceptar Propuesta y Activar Cuenta →</a>
+            </div>
+            {{/each}}
+
+            <!-- 4. ROI Box -->
+            {{#if roiAnalysis}}
+            <div class="roi-box">
+              <strong style="font-size: 14px;">📈 Retorno de Inversión (ROI Estimado):</strong><br>
+              • Ahorro operativo estimado: <strong>{{roiAnalysis.timeSavedHoursPerMonth}}</strong>.<br>
+              • Ahorro financiero estimado: <strong>{{roiAnalysis.estimatedSavingsCop}}</strong>.<br>
+              • Auditorías listas en minutos y estricto cumplimiento ante Ministerio del Trabajo y ARL.
+            </div>
+            {{/if}}
+
+            <!-- 5. Assigned Commercial Advisor -->
+            <div class="advisor-box">
+              <div class="advisor-title">Tu Consultor Comercial Asignado</div>
+              <div class="advisor-name">{{ambassadorName}}</div>
+              <div class="advisor-contact">
+                {{#if ambassadorPhone}}
+                📱 WhatsApp: <a href="https://api.whatsapp.com/send?phone={{ambassadorPhoneClean}}&text=Hola%20{{ambassadorName}},%20recib%C3%AD%20la%20propuesta%20comercial%20{{proposalCode}}%20para%20{{companyName}}">{{ambassadorPhone}}</a><br>
+                {{/if}}
+                ✉️ Correo: <a href="mailto:{{ambassadorEmail}}">{{ambassadorEmail}}</a>
+              </div>
+            </div>
+
+            <!-- 6. Mandatory NO-REPLY / Direct Contact Notice -->
+            <div class="no-reply-warning">
+              <div class="no-reply-title">⚠️ Aviso Importante sobre este correo:</div>
+              <p class="no-reply-text">
+                Por favor, <strong>no respondas directamente a este correo automático</strong>. Si deseas aceptar, realizar ajustes, consultar dudas o rechazar esta propuesta comercial, ponte en contacto directo con tu consultor comercial asignado: <strong>{{ambassadorName}}</strong> a través de WhatsApp al <strong>{{ambassadorPhone}}</strong> o al correo <strong>{{ambassadorEmail}}</strong>.
+              </p>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer">
+          <p>© {{year}} WAPPY IA — Tecnología Inteligente Aplicada a SG-SST.<br>
+          <a href="https://wappy.club">wappy.club</a> • <a href="https://wappy-ia.com">wappy-ia.com</a></p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

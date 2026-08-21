@@ -40,37 +40,41 @@ interface AmbassadorContactModalProps {
   onClose: () => void;
 }
 
-const QUICK_EMAIL_PROMPTS = [
+const getQuickEmailPrompts = (u: TargetFollowUpUser) => [
   {
     label: '🎯 Renovar Wappy PRO',
-    text: 'Escribe un correo persuasivo invitando al usuario a renovar su suscripción a Wappy PRO, destacando las nuevas actualizaciones de la suite Somos SST y ofreciendo asesoría personalizada.',
+    text: `Redacta un correo personalizado para ${u.name}. Si utilizó su prueba de 15 días gratis, pregúntale cómo le fue automatizando matrices SST e invítalo a continuar con Wappy PRO mes a mes o anual. Si se registró y nunca lo utilizó, pregúntale de manera cercana si tuvo dificultades o dudas y ofrécele una demo o asesoría personalizada para activar su cuenta.`,
   },
   {
     label: '👋 Bienvenida y Soporte',
-    text: 'Escribe un correo de bienvenida cálido como su embajador comercial asignado, presentándome para resolver dudas y ayudarle a aprovechar al máximo los agentes de WAPPY IA.',
+    text: `Redacta un correo de bienvenida cálido y soporte para ${u.name} como su consultor comercial asignado, tomando en cuenta su perfil actual (${u.subscriptionType || 'Free'}) para guiarlo paso a paso a probar los agentes de SST e invitarlo a conocer los planes Wappy PRO.`,
   },
   {
-    label: '🚀 Nuevos Agentes SST',
-    text: 'Escribe un correo informativo sobre los nuevos agentes especializados: Coordinador PESV, Ingeniero Químico SST y Matriz IPEVAR para optimizar sus auditorías.',
+    label: '✨ Novedades de Wappy',
+    text: `Redacta un correo interactivo para ${u.name} destacando las últimas novedades y herramientas lanzadas en WAPPY IA: Matriz IPEVAR Live interactiva, Coordinador PESV bajo Resolución 40595, Ingeniero Químico SGA, Auditorías en Vivo y Aula de Estudio LMS.`,
   },
   {
     label: '⏰ Aviso de Vencimiento',
-    text: 'Escribe un correo cortés pero con sentido de urgencia recordando que su suscripción está próxima a vencer o ha vencido, para evitar la interrupción de sus auditorías SST.',
+    text: `Redacta un correo cortés y oportuno recordando a ${u.name} la vigencia de su cuenta para evitar que se interrumpa su acceso a las matrices y herramientas de SST.`,
   },
 ];
 
-const QUICK_WA_PROMPTS = [
+const getQuickWaPrompts = (u: TargetFollowUpUser) => [
   {
-    label: '🎯 Oferta PRO',
-    text: 'Mensaje corto y directo invitándolo a renovar Wappy PRO con beneficio exclusivo.',
+    label: '🎯 Renovar PRO',
+    text: `Escribe un mensaje de WhatsApp corto y persuasivo para ${u.name}. Si usó la prueba de 15 días, pregúntale cómo le fue y motívalo a continuar con Wappy PRO. Si no la usó, pregúntale si necesita apoyo o una breve demo.`,
   },
   {
-    label: '👋 Saludo Embajador',
-    text: 'Saludo cordial como su asesor asignado en Wappy para ponerme a su disposición.',
+    label: '👋 Bienvenida & Asesoría',
+    text: `Saludo cordial como su consultor asignado en Wappy para ponerme a disposición de ${u.name} y guiarlo en sus primeras matrices.`,
   },
   {
-    label: '⏰ Recordatorio Plan',
-    text: 'Recordatorio rápido y amistoso sobre la vigencia de su plan en Wappy.',
+    label: '✨ Novedades Wappy',
+    text: `Mensaje de WhatsApp compartiendo las nuevas matrices y agentes de SST disponibles en Wappy.`,
+  },
+  {
+    label: '⏰ Recordatorio Vigencia',
+    text: `Recordatorio amistoso sobre la vigencia del plan en Wappy para renovar a tiempo.`,
   },
 ];
 
@@ -182,6 +186,10 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
         model,
         targetUserName: user.name,
         targetUserPlan: user.subscriptionType || 'Plan Activo',
+        daysInactive: user.daysInactive || 0,
+        daysToExpiry: user.daysToExpiry ?? null,
+        subscriptionType: user.subscriptionType || 'free',
+        planInterval: user.planInterval || null,
         channel: 'email',
       });
 
@@ -218,12 +226,16 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
         model,
         targetUserName: user.name,
         targetUserPlan: user.subscriptionType || 'Plan Activo',
+        daysInactive: user.daysInactive || 0,
+        daysToExpiry: user.daysToExpiry ?? null,
+        subscriptionType: user.subscriptionType || 'free',
+        planInterval: user.planInterval || null,
         channel: 'whatsapp',
       });
 
       if (response.data && response.data.whatsappText) {
         setWaMessage(response.data.whatsappText);
-        showToast({ message: 'Mensaje de WhatsApp redactado con éxito.', status: 'success' });
+        showToast({ message: 'Mensaje de WhatsApp generado con éxito.', status: 'success' });
       }
     } catch (err: any) {
       console.error(err);
@@ -460,7 +472,7 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
 
                     {/* Quick Prompt Chips */}
                     <div className="flex flex-wrap gap-1.5">
-                      {QUICK_EMAIL_PROMPTS.map((qp, idx) => (
+                      {getQuickEmailPrompts(user).map((qp, idx) => (
                         <button
                           key={idx}
                           type="button"
@@ -689,7 +701,7 @@ export default function AmbassadorContactModal({ user, referralLink, onClose }: 
 
                 {/* Quick Chips for WA */}
                 <div className="flex flex-wrap gap-1.5">
-                  {QUICK_WA_PROMPTS.map((qp, idx) => (
+                  {getQuickWaPrompts(user).map((qp, idx) => (
                     <button
                       key={idx}
                       type="button"

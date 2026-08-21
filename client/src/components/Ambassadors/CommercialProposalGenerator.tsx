@@ -112,6 +112,7 @@ export default function CommercialProposalGenerator({
   const [companyName, setCompanyName] = useState('');
   const [companyNit, setCompanyNit] = useState('');
   const [contactPerson, setContactPerson] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
   const [sector, setSector] = useState(SECTORS[0]);
   const [employeeCount, setEmployeeCount] = useState('11-50');
   const [proposalScope, setProposalScope] = useState('Automatización Integral SG-SST, Matrices IPEVAR, PESV y Asistentes IA');
@@ -127,6 +128,7 @@ export default function CommercialProposalGenerator({
 
   // Proposal State
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [proposal, setProposal] = useState<GeneratedProposal | null>(null);
   const [isEditable, setIsEditable] = useState(false);
 
@@ -174,6 +176,7 @@ export default function CommercialProposalGenerator({
         companyName,
         companyNit,
         contactPerson,
+        clientEmail,
         sector,
         employeeCount,
         proposalScope,
@@ -192,6 +195,36 @@ export default function CommercialProposalGenerator({
       showToast({ message: err.response?.data?.message || 'Error al generar la propuesta con IA.', status: 'error' });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Send official proposal email via Wappy backend
+  const handleSendEmail = async () => {
+    if (!proposal) return;
+    const targetMail = (clientEmail || '').trim();
+    if (!targetMail || !targetMail.includes('@')) {
+      showToast({ message: 'Ingresa un correo electrónico válido para enviar la propuesta oficial.', status: 'warning' });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await axios.post('/api/referrals/proposal/send-email', {
+        clientEmail: targetMail,
+        proposal,
+      });
+
+      showToast({ 
+        message: response.data?.message || `¡Propuesta comercial enviada con éxito a ${targetMail}!`, 
+        status: 'success' 
+      });
+    } catch (err: any) {
+      showToast({ 
+        message: err.response?.data?.message || 'Error al enviar el correo de la propuesta comercial.', 
+        status: 'error' 
+      });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -223,28 +256,36 @@ export default function CommercialProposalGenerator({
             <span>Generador de Propuestas Comerciales con IA (Gemini 3.5)</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-text-primary">
-            Crea Propuestas Ejecutivas en PDF con Diagnóstico y ROI
+            Crea Propuestas Ejecutivas en PDF & Envíalas por Correo Oficial
           </h2>
           <p className="text-xs sm:text-sm text-text-secondary mt-1 max-w-2xl">
-            Ingresa los datos de tu cliente corporativo, carga su logo institucional y la Inteligencia Artificial redactará en segundos una propuesta personalizada con diagnóstico sectorial, catálogo de agentes SST, tablas de inversión y análisis de retorno de inversión lista para descargar en PDF o compartir por WhatsApp.
+            Ingresa los datos de tu cliente corporativo, carga su logo institucional y la IA redactará una propuesta personalizada con diagnóstico sectorial, tablas de inversión y análisis de ROI, lista para enviar por correo corporativo desde Wappy, descargar en PDF o compartir por WhatsApp.
           </p>
         </div>
 
         {proposal && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={handleSendEmail}
+              disabled={isSendingEmail}
+              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSendingEmail ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              <span>{isSendingEmail ? 'Enviando...' : 'Enviar por Correo Oficial'}</span>
+            </button>
             <button
               onClick={handlePrintPdf}
-              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Descargar / Imprimir PDF</span>
+              <span>PDF</span>
             </button>
             <button
               onClick={handleShareWhatsApp}
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <Share2 className="w-4 h-4" />
-              <span>Enviar por WhatsApp</span>
+              <span>WhatsApp</span>
             </button>
           </div>
         )}
@@ -301,6 +342,24 @@ export default function CommercialProposalGenerator({
                 placeholder="Ej. Ing. Carlos Pérez (Gerente SST)"
                 className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 text-text-primary"
               />
+            </div>
+
+            {/* Client Email for Official Proposal Sending */}
+            <div>
+              <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1 flex items-center justify-between">
+                <span>Correo del Cliente / Destinatario</span>
+                <span className="text-[10px] text-teal-600 font-bold lowercase">para envío oficial</span>
+              </label>
+              <div className="relative">
+                <Mail className="w-3.5 h-3.5 text-text-tertiary absolute left-3 top-2.5" />
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="ejemplo@empresa.com"
+                  className="w-full bg-surface-primary border border-border-medium/40 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-teal-500 text-text-primary"
+                />
+              </div>
             </div>
 
             {/* Sector */}
@@ -499,7 +558,15 @@ export default function CommercialProposalGenerator({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={isSendingEmail}
+                    className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isSendingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                    <span>{isSendingEmail ? 'Enviando Correo...' : 'Enviar por Correo'}</span>
+                  </button>
                   <button
                     onClick={() => setIsEditable(!isEditable)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
@@ -513,10 +580,10 @@ export default function CommercialProposalGenerator({
                   </button>
                   <button
                     onClick={handlePrintPdf}
-                    className="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    <span>Descargar PDF</span>
+                    <span>PDF</span>
                   </button>
                   <button
                     onClick={handleShareWhatsApp}
@@ -571,6 +638,7 @@ export default function CommercialProposalGenerator({
                     <h1 className="text-lg sm:text-xl font-black text-gray-900 mt-0.5">{proposal.companyName}</h1>
                     <div className="text-xs text-gray-600 font-medium mt-0.5">
                       {proposal.companyNit && <span>NIT: {proposal.companyNit} • </span>}
+                      {clientEmail && <span>Correo: {clientEmail} • </span>}
                       <span>Sector: {proposal.sector}</span>
                       <span> • Alcance: {proposal.employeeCount} trabajadores</span>
                     </div>
