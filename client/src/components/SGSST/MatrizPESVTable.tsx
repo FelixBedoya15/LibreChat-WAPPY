@@ -42,6 +42,7 @@ import {
   getInterpretacionPESV,
   normalizeControlTipo,
 } from './MatrizPESVConstants';
+import { exportMatrizPESVToExcel } from './exportPESV';
 import MatrizPESVDashboard from './MatrizPESVDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -1013,40 +1014,14 @@ export default function MatrizPESVTable({
     }
   };
 
-  const handleExportExcel = () => {
-    const dataToExport = matrixRows.map((r) => ({
-      'Grupo de Trabajo': r.grupo_trabajo,
-      'Cargo': r.cargo,
-      'Tipo de Desplazamiento': r.tipo_desplazamiento,
-      'Rol en la Vía': r.rol_via,
-      'Factor de Riesgo': r.factor_riesgo,
-      'Descripción del Peligro': r.peligro_descripcion,
-      'Controles Existentes': r.controles_existentes_descripcion,
-      'Tipo de Controles': r.controles_existentes_tipo,
-      'NP Cualitativo': r.np_cualitativo,
-      'NP Cuantitativo': r.np_cuantitativo,
-      'NE Cualitativo': r.ne_cualitativo,
-      'NE Cuantitativo': r.ne_cuantitativo,
-      'NC Cualitativo': r.nc_cualitativo,
-      'NC Cuantitativo': r.nc_cuantitativo,
-      'Calificación': r.calificacion,
-      'Nivel de Riesgo': r.nivel_riesgo,
-      'Aceptabilidad': r.aceptabilidad,
-      'Tratamiento / Acción': r.tratamiento_accion,
-      'Plan Acción (Medio)': r.plan_accion_medio,
-      'Plan Acción (Vehículo)': r.plan_accion_vehiculo,
-      'Plan Acción (Individuo)': r.plan_accion_individuo,
-      'Plan Acción (Infraestructura)': r.plan_accion_infraestructura,
-      'Responsable': r.responsable,
-      'Fecha / Periodicidad': r.fecha_programacion,
-      'Estado': r.estado,
-      'Observaciones': r.observaciones
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'PESV Matrix');
-    XLSX.writeFile(wb, `Matriz_PESV_Wappy_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const handleExportExcel = async () => {
+    try {
+      await exportMatrizPESVToExcel(matrixRows);
+      showToast({ message: 'Matriz PESV exportada a Excel exitosamente', status: 'success' });
+    } catch (e: any) {
+      console.error('Error al exportar Matriz PESV:', e);
+      showToast({ message: `Error al exportar a Excel: ${e?.message || e}`, status: 'error' });
+    }
   };
 
   const handleExportTemplate = () => {

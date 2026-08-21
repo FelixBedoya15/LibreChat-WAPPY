@@ -429,10 +429,6 @@ export default function MatrizCompatibilidadTable({
 
   // Manejo de Excel Export
   const handleExportExcel = async () => {
-    if (matrixRows.length === 0) {
-      showToast({ message: 'El inventario está vacío.', status: 'warning' });
-      return;
-    }
     try {
       await exportCompatibilidadToExcel(matrixRows);
       showToast({ message: 'Excel exportado exitosamente.', status: 'success' });

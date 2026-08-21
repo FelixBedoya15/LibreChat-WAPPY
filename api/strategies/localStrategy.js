@@ -49,8 +49,13 @@ async function passportLogin(req, email, password, done) {
     const now = new Date();
     const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
     if (!freeRoles.includes(user.role) && user.inactiveAt && now >= new Date(user.inactiveAt)) {
-      logger.info(`[Login] [Login denied] User ${identifier} account is inactive since ${user.inactiveAt}`);
-      return done(null, false, { message: 'Account is inactive.' });
+      logger.info(`[Login] Auto-downgrading expired user ${identifier} (expired on ${user.inactiveAt}) to free tier.`);
+      const { downgradeUserIfExpired } = require('../server/services/planExpirationJob');
+      const resDowngrade = await downgradeUserIfExpired(user._id);
+      if (resDowngrade.downgraded) {
+        user.role = resDowngrade.role;
+        user.inactiveAt = null;
+      }
     }
     if (user.activeAt && now < new Date(user.activeAt)) {
       logger.info(`[Login] [Login denied] User ${identifier} account is soon to be active on ${user.activeAt}`);

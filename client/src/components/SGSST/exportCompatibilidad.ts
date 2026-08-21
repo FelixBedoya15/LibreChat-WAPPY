@@ -204,6 +204,9 @@ export const exportCompatibilidadToExcel = async (matrixRows: MatrixRow[]) => {
     const l3 = wsCross.addRow(['❌ INCOMPATIBLE', 'No deben almacenarse juntos. Requiere separación de 5 metros o mediante muros corta-fuego de 2 horas.']);
     l3.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
     l3.getCell(1).font = { bold: true, color: { argb: 'FF991B1B' }, size: 9, name: 'Segoe UI' };
+  } else {
+    wsCross.getCell('A4').value = 'No hay sustancias registradas en el inventario. Ingrese productos en la Hoja 1 para visualizar la matriz cruzada.';
+    wsCross.getCell('A4').font = { italic: true, size: 10, color: { argb: 'FF64748B' }, name: 'Segoe UI' };
   }
 
   // Generar y Guardar Archivo

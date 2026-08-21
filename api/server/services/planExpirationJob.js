@@ -1,8 +1,8 @@
 /**
  * planExpirationJob.js
  * ────────────────────
- * Background job that runs every 6 hours to automatically downgrade
- * users whose plan has expired (planExpiresAt <= now).
+ * Background job and on-the-fly helper to automatically downgrade
+ * users whose plan or trial has expired (planExpiresAt <= now or inactiveAt <= now).
  *
  * Downgrade rules (per business requirements):
  *
@@ -11,18 +11,15 @@
  *   interval === 'referral' (free trial)   → Invitado    (plan: 'free',   role: USER)
  *   Any other / null interval              → Invitado    (plan: 'free',   role: USER) [safe default]
  *
- * Note: Plans like 'go', 'plus' are currently inactive so in practice only
- *       'pro' plans need handling, but the job is generic for all plan types.
- *
  * The job intentionally ignores:
- *   - Users with planExpiresAt === null (lifetime / no expiry, e.g. Wappy Vital)
- *   - Users with plan === 'free' (already at free tier)
- *   - Users with plan === 'admin' (admins never expire)
+ *   - Users with planExpiresAt === null and inactiveAt === null (lifetime / no expiry)
+ *   - Users with plan === 'free' and role === 'USER' (already at free tier)
+ *   - Users with role === 'ADMIN' (admins never expire)
  */
 
 const mongoose = require('mongoose');
 
-const JOB_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const JOB_INTERVAL_MS = 60 * 60 * 1000; // Run every 1 hour (faster cleanup)
 
 let expirationTimer = null;
 
@@ -42,37 +39,36 @@ const getDowngradeTarget = (planInterval) => {
     return { plan: 'free', role: 'USER' };
 };
 
-const runExpirationCycle = async () => {
+/**
+ * Downgrades a single user immediately if expired.
+ * Can be called on-the-fly during login, middleware, or referrals dashboard.
+ *
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<{ downgraded: boolean, plan: string, role: string }>}
+ */
+const downgradeUserIfExpired = async (userId) => {
     try {
         const UserPlan = require('~/db/models/UserPlan');
         const User = mongoose.model('User');
-
         const now = new Date();
 
-        // Find all active non-free plans whose expiry has passed
-        // planExpiresAt: null means lifetime/no expiry → skip those
-        const expiredPlans = await UserPlan.find({
-            plan: { $nin: ['free', 'admin'] },
-            planExpiresAt: { $lte: now, $ne: null },
-        }).lean();
+        const [user, userPlan] = await Promise.all([
+            User.findById(userId),
+            UserPlan.findOne({ userId }),
+        ]);
 
-        if (expiredPlans.length === 0) {
-            return; // Nothing to do
-        }
+        if (!user) return { downgraded: false };
 
-        console.log(`[PlanExpirationJob] Processing ${expiredPlans.length} expired plan(s)...`);
+        const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+        const isUserExpired = user.inactiveAt && new Date(user.inactiveAt) <= now;
+        const isPlanExpired = userPlan && userPlan.planExpiresAt && new Date(userPlan.planExpiresAt) <= now && userPlan.plan !== 'free';
 
-        let downgradedToVital = 0;
-        let downgradedToFree = 0;
-        let errors = 0;
+        if ((isUserExpired && !freeRoles.includes(user.role)) || isPlanExpired) {
+            const { plan, role } = getDowngradeTarget(userPlan?.planInterval || null);
 
-        for (const userPlan of expiredPlans) {
-            try {
-                const { plan, role } = getDowngradeTarget(userPlan.planInterval);
-
-                // Update UserPlan — clear expiry and interval
-                await UserPlan.updateOne(
-                    { _id: userPlan._id },
+            await Promise.all([
+                UserPlan.updateOne(
+                    { userId: user._id },
                     {
                         $set: {
                             plan,
@@ -82,12 +78,11 @@ const runExpirationCycle = async () => {
                             customTools: [],
                             customInterval: null,
                         },
-                    }
-                );
-
-                // Update User role and clear inactiveAt
-                await User.updateOne(
-                    { _id: userPlan.userId },
+                    },
+                    { upsert: true }
+                ),
+                User.updateOne(
+                    { _id: user._id },
                     {
                         $set: {
                             role,
@@ -95,28 +90,64 @@ const runExpirationCycle = async () => {
                             inactiveAt: null,
                         },
                     }
-                );
+                ),
+            ]);
 
-                if (plan === 'ipevar') {
-                    downgradedToVital++;
-                    console.log(
-                        `[PlanExpirationJob] ✅ User ${userPlan.userId} (was: ${userPlan.plan}/${userPlan.planInterval}) → Wappy Vital (USER_IPEVAR)`
-                    );
-                } else {
-                    downgradedToFree++;
-                    console.log(
-                        `[PlanExpirationJob] ✅ User ${userPlan.userId} (was: ${userPlan.plan}/${userPlan.planInterval || 'unknown'}) → Invitado (USER)`
-                    );
-                }
+            console.log(`[PlanExpiration] ✅ User ${user.email || user._id} automatically downgraded to ${role} (${plan})`);
+            return { downgraded: true, plan, role };
+        }
+
+        return { downgraded: false };
+    } catch (err) {
+        console.error(`[PlanExpiration] Error checking/downgrading user ${userId}:`, err.message);
+        return { downgraded: false };
+    }
+};
+
+const runExpirationCycle = async () => {
+    try {
+        const UserPlan = require('~/db/models/UserPlan');
+        const User = mongoose.model('User');
+        const now = new Date();
+
+        // 1. Find all expired plans in UserPlan
+        const expiredPlans = await UserPlan.find({
+            plan: { $nin: ['free', 'admin'] },
+            planExpiresAt: { $lte: now, $ne: null },
+        }).lean();
+
+        // 2. Find all users in User whose inactiveAt has passed and are still non-free roles
+        const expiredUsers = await User.find({
+            role: { $nin: ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'] },
+            inactiveAt: { $lte: now, $ne: null },
+        }).lean();
+
+        const userIdsToProcess = new Set([
+            ...expiredPlans.map(p => p.userId?.toString()).filter(Boolean),
+            ...expiredUsers.map(u => u._id?.toString()).filter(Boolean),
+        ]);
+
+        if (userIdsToProcess.size === 0) {
+            return; // Nothing to do
+        }
+
+        console.log(`[PlanExpirationJob] Processing ${userIdsToProcess.size} expired user(s)/trial(s)...`);
+
+        let downgradedCount = 0;
+        let errors = 0;
+
+        for (const userId of userIdsToProcess) {
+            try {
+                const res = await downgradeUserIfExpired(userId);
+                if (res.downgraded) downgradedCount++;
             } catch (userErr) {
                 errors++;
-                console.error(`[PlanExpirationJob] ❌ Error processing userId ${userPlan.userId}:`, userErr.message);
+                console.error(`[PlanExpirationJob] ❌ Error processing userId ${userId}:`, userErr.message);
             }
         }
 
         console.log(
-            `[PlanExpirationJob] Cycle complete. ` +
-            `→ Wappy Vital: ${downgradedToVital}, → Invitado: ${downgradedToFree}, Errors: ${errors}`
+            `[PlanExpirationJob] Cycle complete. Downgraded to Free/Vital: ${downgradedCount}, Errors: ${errors}`
         );
 
     } catch (err) {
@@ -126,17 +157,17 @@ const runExpirationCycle = async () => {
 
 /**
  * Start the plan expiration job. Called once from server startup (index.js).
- * Runs immediately on startup (15s delay to let DB connect), then every 6 hours.
+ * Runs immediately on startup (10s delay to let DB connect), then every 1 hour.
  */
 const startPlanExpirationJob = () => {
     if (expirationTimer) return; // Already running
 
-    console.log(`[PlanExpirationJob] Started. Will check expired plans every ${JOB_INTERVAL_MS / 3600000} hours.`);
+    console.log(`[PlanExpirationJob] Started. Will check expired plans every ${JOB_INTERVAL_MS / 3600000} hour(s).`);
 
     // Run after a small delay to let the DB fully connect
-    setTimeout(runExpirationCycle, 15_000);
+    setTimeout(runExpirationCycle, 10_000);
 
-    // Repeat every 6 hours
+    // Repeat every hour
     expirationTimer = setInterval(runExpirationCycle, JOB_INTERVAL_MS);
 };
 
@@ -148,4 +179,5 @@ const stopPlanExpirationJob = () => {
     }
 };
 
-module.exports = { startPlanExpirationJob, stopPlanExpirationJob, runExpirationCycle };
+module.exports = { startPlanExpirationJob, stopPlanExpirationJob, runExpirationCycle, downgradeUserIfExpired };
+

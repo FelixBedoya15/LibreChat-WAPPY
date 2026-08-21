@@ -78,6 +78,13 @@ export const formatPlanBadge = (subType?: string, interval?: string) => {
   const type = (subType || '').toLowerCase();
   const rawInt = (interval || '').toLowerCase();
   if (type === 'free' || type === 'freemium' || type === 'gratis' || type === 'sin plan' || type === '') {
+    if (rawInt === 'prueba_vencida') {
+      return {
+        label: 'FREE (PRUEBA VENCIDA)',
+        className: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
+        isLifetime: true,
+      };
+    }
     return {
       label: 'FREE (VITALICIO)',
       className: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20',

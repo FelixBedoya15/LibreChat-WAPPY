@@ -44,6 +44,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
+import { exportPerfilSociodemograficoToExcel } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
 
@@ -314,67 +315,14 @@ const CondicionesSalud = () => {
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
-    const handleExportExcel = () => {
-        const dataToExport = trabajadores.map(w => ({
-            'Nombre': w.nombre,
-            'Identificación': w.identificacion,
-            'Edad': w.edad,
-            'Género': w.genero,
-            'Estado Civil': w.estadoCivil,
-            'Nivel Escolaridad': w.nivelEscolaridad,
-            'Dirección': w.direccion,
-            'Teléfono': w.telefono,
-            'Cargo': w.cargo,
-                        'Fecha de Nacimiento': w.fechaNacimiento,
-            'Lugar de Nacimiento': w.lugarNacimiento,
-            'Barrio': w.barrio,
-            'Municipio': w.municipioDomicilio,
-            'Correo Electrónico': w.correoElectronico,
-            'Deporte / Actividad Física': w.deporte,
-            'Calidad de Alimentación': w.alimentacion,
-            'Riesgo Cardiovascular': w.riesgoCardiovascular,
-            'Contacto de Emergencia': w.emergenciaContacto,
-            'Tipo de Sangre': w.tipoSangre,
-            'Personas a Cargo': w.personasCargo,
-            'Estrato': w.estrato,
-            'Tipo de Vivienda': w.vivienda,
-            'Fecha Examen Médico': w.fechaExamenMedico,
-            'Curso Alturas Autorizado': w.fechaCursoAlturasAutorizado,
-            'Curso Alturas Coordinador': w.fechaCursoAlturasCoordinador,
-            'Diagnóstico Médico': w.diagnosticoMedico,
-            'Recomendaciones Medicas': w.recomendacionesMedicas,
-            'Enfermedades Actuales': w.enfermedades,
-            'Medicamentos': w.medicamentos,
-            'Fuma': w.fuma,
-            'Alcohol': w.alcohol,
-            'Terapia Psicológica': w.terapiaPsicologica,
-            'Fecha Seguimiento': w.fechaSeguimiento,
-            'Vencimiento SOAT': w.soatVencimiento,
-            'Vencimiento Tecnicomecánica': w.tecnicomecanicaVencimiento,
-            'Licencia Conducción': w.licenciaConduccion,
-            'Vencimiento Licencia Cond': w.licenciaConduccionVencimiento,
-            'N° Licencia SGSST': w.licenciaSST,
-            'Venc. Licencia SGSST': w.licenciaVencimiento,
-            'Curso 50h': w.curso50h,
-            'Curso 20h': w.curso20h,
-            'COPASST': w.esCopasst,
-            'Comité Convivencia': w.esComiteConvivencia,
-            'Brigadista': w.esBrigadista,
-            'Comité Seg. Vial': w.esComiteSeguridadVial,
-            'Peso (kg)': w.peso,
-            'Talla (m)': w.talla,
-            'IMC': w.imc,
-            'Presión Arterial': w.presionArterial,
-            'Frecuencia Cardíaca': w.frecuenciaCardiaca,
-            'Limitaciones Biomecánicas': w.limitacionesBiomecanicas,
-            'Alergias / Sensibilidad Química': w.alergiasQuimicas,
-            'Consentimiento Firma': w.consentimientoFirmaDigital
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Trabajadores");
-        XLSX.writeFile(workbook, "Perfil_Sociodemografico.xlsx");
-        showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
+    const handleExportExcel = async () => {
+        try {
+            await exportPerfilSociodemograficoToExcel(trabajadores);
+            showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
+        } catch (error: any) {
+            console.error('Error exportando Excel:', error);
+            showToast({ message: `Error al exportar Excel: ${error?.message || error}`, severity: NotificationSeverity.ERROR });
+        }
     };
 
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {

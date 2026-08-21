@@ -597,11 +597,28 @@ router.get('/dashboard', async (req, res) => {
             const resolvedPhone = u.phoneNumber || u.phone || purchasePhoneMap.get(userEmailNorm) || '';
 
             const userRole = (u.role || '').toUpperCase();
-            const isPro = userRole === 'USER_PRO' || userRole === 'PRO' || (plan && plan.plan === 'pro') || !!u.inactiveAt;
+            const rawPlan = plan?.plan;
+            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : (u.inactiveAt ? new Date(u.inactiveAt) : null);
+            let daysToExpiry = null;
+
+            if (expiresAt && !isNaN(expiresAt.getTime())) {
+                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            }
+
+            const isExpired = daysToExpiry !== null && daysToExpiry < 0;
+
+            // Trigger auto-downgrade in background if expired and still in non-free role
+            if (isExpired && userRole !== 'USER' && userRole !== 'ADMIN' && userRole !== 'USER_IPEVAR') {
+                const { downgradeUserIfExpired } = require('../services/planExpirationJob');
+                downgradeUserIfExpired(u._id).catch(() => {});
+            }
+
+            let isPro = false;
             let planType = 'free';
             let planInterval = null;
 
-            if (isPro) {
+            if (!isExpired && (userRole === 'USER_PRO' || userRole === 'PRO' || rawPlan === 'pro')) {
+                isPro = true;
                 planType = 'pro';
                 const rawInt = (plan?.planInterval || plan?.interval || '').toLowerCase();
                 if (rawInt === 'referral' || rawInt === 'trial' || rawInt === 'prueba' || rawInt === '15d') {
@@ -619,34 +636,35 @@ router.get('/dashboard', async (req, res) => {
                     } else if (durationDays >= 25) {
                         planInterval = 'mensual';
                     } else {
-                        // Trial / Prueba 15 días (e.g. 15d registration trial)
                         planInterval = 'prueba';
                     }
                 } else {
                     planInterval = 'anual';
                 }
-            } else if (plan?.plan === 'vital' || plan?.plan === 'vitalicio') {
+            } else if (isExpired && (userRole === 'USER_PRO' || rawPlan === 'pro')) {
+                // Expired PRO or Trial → Now Free
+                planType = 'free';
+                const rawInt = (plan?.planInterval || plan?.interval || '').toLowerCase();
+                if (rawInt === 'referral' || rawInt === 'trial' || rawInt === 'prueba' || rawInt === '15d' || (u.inactiveAt && Math.round((new Date(u.inactiveAt).getTime() - new Date(u.createdAt || now).getTime()) / (1000 * 60 * 60 * 24)) <= 20)) {
+                    planInterval = 'prueba_vencida';
+                } else {
+                    planInterval = 'vencido';
+                }
+            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR') {
                 planType = 'vital';
                 planInterval = null;
-            }
-
-            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : (u.inactiveAt ? new Date(u.inactiveAt) : null);
-            let daysToExpiry = null;
-
-            if (expiresAt && !isNaN(expiresAt.getTime())) {
-                daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             }
 
             const isTrial = planInterval === 'prueba';
             let paymentStatus = 'unpaid';
             if (isPro) {
-                if (daysToExpiry !== null && daysToExpiry < 0) {
-                    paymentStatus = 'expired';
-                } else if (isTrial) {
+                if (isTrial) {
                     paymentStatus = 'trial';
                 } else {
                     paymentStatus = 'paid';
                 }
+            } else if (isExpired) {
+                paymentStatus = 'expired';
             }
 
             if (isPro) activeProCount++;
@@ -673,6 +691,8 @@ router.get('/dashboard', async (req, res) => {
                 } else {
                     trafficLight = 'yellow';
                 }
+            } else if (isExpired) {
+                trafficLight = 'red';
             } else if (daysInactive > 90 || u.accountStatus === 'pending') {
                 trafficLight = 'red';
             } else if (daysInactive > 30) {
@@ -685,7 +705,7 @@ router.get('/dashboard', async (req, res) => {
                 name: u.name || u.username || 'Usuario Wappy',
                 email: u.email || 'Sin correo',
                 phone: resolvedPhone,
-                role: u.role || 'USER',
+                role: isExpired && userRole === 'USER_PRO' ? 'USER' : (u.role || 'USER'),
                 accountStatus: u.accountStatus || 'active',
                 registrationDate: regDate,
                 lastActivity,
@@ -696,7 +716,7 @@ router.get('/dashboard', async (req, res) => {
                 planExpiresAt: expiresAt,
                 daysToExpiry,
                 trafficLight,
-                crmStage: rec.crmStage || (isPro ? 'ganado' : 'nuevo'),
+                crmStage: rec.crmStage || (isPro ? 'ganado' : isExpired ? 'frio' : 'nuevo'),
                 crmNotes: rec.crmNotes || [],
                 lastContactedAt: rec.lastContactedAt || null,
                 nextFollowUpDate: rec.nextFollowUpDate || null,

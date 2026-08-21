@@ -391,15 +391,20 @@ export default function AppBuilder() {
 
     // ─── EXPORT UTILITIES ───
     const handleExportExcel = () => {
-        if (!excelRows || excelRows.length === 0) {
-            showToast({ message: 'No hay datos en la matriz para exportar.', status: 'warning' });
-            return;
-        }
         try {
-            const worksheet = XLSX.utils.json_to_sheet(excelRows);
+            let worksheet;
+            if (excelRows && excelRows.length > 0) {
+                worksheet = XLSX.utils.json_to_sheet(excelRows);
+            } else if (excelColumns && excelColumns.length > 0) {
+                const headers = excelColumns.map((c: any) => c.label || c.name || c.key || '');
+                worksheet = XLSX.utils.aoa_to_sheet([headers]);
+            } else {
+                showToast({ message: 'No hay columnas ni datos para exportar.', status: 'warning' });
+                return;
+            }
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, excelTitle || 'Matriz');
-            XLSX.writeFile(workbook, `${excelTitle}.xlsx`);
+            XLSX.writeFile(workbook, `${excelTitle || 'Matriz'}.xlsx`);
             showToast({ message: '¡Matriz exportada a Excel (.xlsx) con éxito!', status: 'success' });
         } catch (err: any) {
             console.error('Excel Export Failed:', err);

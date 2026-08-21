@@ -45,6 +45,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import { exportPerfilesCargoToExcel } from './exportPerfilesCargo';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import WorkersProfileList from './WorkersProfileList';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
@@ -664,55 +665,9 @@ const PerfilesCargo = () => {
         return str;
     };
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         try {
-            if (!perfiles || perfiles.length === 0) {
-                showToast({ message: 'No hay perfiles de cargo para exportar', severity: NotificationSeverity.WARNING });
-                return;
-            }
-            const dataToExport = perfiles.map(p => ({
-                'Nombre del Cargo': safeText(p.nombreCargo),
-                'Área': safeText(p.area),
-                'Nivel del Cargo': safeText(p.nivelCargo),
-                'Tipo de Contrato': safeText(p.tipoContrato),
-                'Jornada': safeText(p.jornada),
-                'Jefe Inmediato': safeText(p.jefeInmediato),
-                'Escala Salarial': safeText(p.escalasSalarial),
-                'Número de Vacantes': safeText(p.numVacantes),
-                'Exigencia Física': safeText(p.exigenciaFisica),
-                'Exigencia Mental': safeText(p.exigenciaMental),
-                'Opera Maquinaria': safeText(p.operaMaquinaria),
-                'Descripción Detallada': safeText(p.contextoAdicional),
-                'EPP Requeridos': safeText(safeJoin(p.eppSeleccionados)),
-                'Entrenamientos Requeridos': safeText(safeJoin(p.entrenamientosSeleccionados)),
-                'Controles en la Fuente': safeText(safeJoin(p.controlesFuenteSeleccionados)),
-                'Controles en el Medio': safeText(safeJoin(p.controlesMedioSeleccionados))
-            }));
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-            
-            // Adjust column widths to avoid Excel clipping headers (e.g. clipping "Descripción Detallada" to "Descripción")
-            worksheet['!cols'] = [
-                { wch: 25 }, // Nombre del Cargo
-                { wch: 20 }, // Área
-                { wch: 20 }, // Nivel del Cargo
-                { wch: 20 }, // Tipo de Contrato
-                { wch: 25 }, // Jornada
-                { wch: 20 }, // Jefe Inmediato
-                { wch: 18 }, // Escala Salarial
-                { wch: 18 }, // Número de Vacantes
-                { wch: 18 }, // Exigencia Física
-                { wch: 18 }, // Exigencia Mental
-                { wch: 18 }, // Opera Maquinaria
-                { wch: 50 }, // Descripción Detallada
-                { wch: 30 }, // EPP Requeridos
-                { wch: 30 }, // Entrenamientos Requeridos
-                { wch: 30 }, // Controles en la Fuente
-                { wch: 30 }  // Controles en el Medio
-            ];
-
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Perfiles de Cargo");
-            XLSX.writeFile(workbook, "Perfiles_de_Cargo.xlsx");
+            await exportPerfilesCargoToExcel(perfiles);
             showToast({ message: 'Archivo Excel exportado exitosamente', severity: NotificationSeverity.SUCCESS });
         } catch (error: any) {
             console.error('Error al exportar Excel:', error);
