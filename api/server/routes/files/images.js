@@ -8,10 +8,21 @@ const {
   processImageFile,
   processAgentFileUpload,
 } = require('~/server/services/Files/process');
+const { countUserFilesToday } = require('~/models/File');
 
 const router = express.Router();
 
 router.post('/', async (req, res) => {
+  if (req.user && req.user.role === 'USER') {
+    const count = await countUserFilesToday(req.user.id);
+    if (count >= 3) {
+      return res.status(403).json({
+        error: 'upload_limit_reached',
+        message: 'Has alcanzado el límite de 3 archivos diarios del plan Gratis. Adquiere el plan Wappy Vital para subidas ilimitadas.',
+      });
+    }
+  }
+
   const metadata = req.body;
   const appConfig = req.config;
 

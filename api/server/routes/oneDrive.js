@@ -259,6 +259,17 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
   const companyId = company ? String(company._id) : null;
   let tempFilePath = '';
 
+  if (req.user && req.user.role === 'USER') {
+    const { countUserFilesToday } = require('~/models/File');
+    const count = await countUserFilesToday(userId);
+    if (count >= 3) {
+      return res.status(403).json({
+        error: 'upload_limit_reached',
+        message: 'Has alcanzado el límite de 3 archivos diarios del plan Gratis. Adquiere el plan Wappy Vital para subidas ilimitadas.',
+      });
+    }
+  }
+
   try {
     let accessToken = await getScopedAuthValue(userId, companyId, 'ONEDRIVE_ACCESS_TOKEN', false);
     const refreshToken = await getScopedAuthValue(userId, companyId, 'ONEDRIVE_REFRESH_TOKEN', false);

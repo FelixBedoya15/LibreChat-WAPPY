@@ -33,6 +33,7 @@ import {
   useLocalize,
   useAuthContext,
 } from '~/hooks';
+import { useDailyUploadLimit } from '~/hooks/Files';
 import useSharePointFileHandling from '~/hooks/Files/useSharePointFileHandling';
 import { SharePointPickerDialog } from '~/components/SharePoint';
 import { useGetStartupConfig } from '~/data-provider';
@@ -122,6 +123,9 @@ const AttachFileMenu = ({
 }: AttachFileMenuProps) => {
   const localize = useLocalize();
   const { user } = useAuthContext();
+  const { isFree, isLimitReached, remaining } = useDailyUploadLimit();
+  const isLocked = isFree && isLimitReached;
+
   const isUploadDisabled = disabled ?? false;
   const inputRef = useRef<HTMLInputElement>(null);
   const [isPopoverActive, setIsPopoverActive] = useState(false);
@@ -409,7 +413,7 @@ const AttachFileMenu = ({
 
   const dropdownItems = useMemo(() => {
     const wrapClick = (originalClick: () => void) => {
-      if (user?.role === 'USER') {
+      if (isLocked) {
         return (e: any) => {
           e.preventDefault();
           e.stopPropagation();
@@ -575,9 +579,15 @@ const AttachFileMenu = ({
     codeAllowedByAgent,
     fileSearchAllowedByAgent,
     setIsSharePointDialogOpen,
-    user?.role,
+    isLocked,
     handleGooglePickerOpen,
   ]);
+
+  const tooltipDescription = isFree
+    ? isLimitReached
+      ? 'Límite diario alcanzado (3/3 archivos)'
+      : `Adjuntar archivo (${remaining} de 3 hoy)`
+    : localize('com_sidepanel_attach_files');
 
   const menuTrigger = (
     <TooltipAnchor
@@ -596,7 +606,7 @@ const AttachFileMenu = ({
         </Ariakit.MenuButton>
       }
       id="attach-file-menu-button"
-      description={localize('com_sidepanel_attach_files')}
+      description={tooltipDescription}
       disabled={disabled ?? false}
     />
   );
@@ -649,8 +659,8 @@ const AttachFileMenu = ({
             </button>
             <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
               <UpgradeWall
-                title="Carga de Archivos Exclusiva"
-                description="La carga de archivos y herramientas de análisis avanzadas en el chat están reservadas para usuarios de los planes Wappy Vital y Wappy Pro."
+                title="Límite Diario Alcanzado"
+                description="Has alcanzado el límite de 3 archivos diarios del plan Gratis. Para cargas ilimitadas y análisis avanzados en el chat, adquiere Wappy Vital o Wappy Pro."
                 plan="USER"
                 isPopup={true}
               />

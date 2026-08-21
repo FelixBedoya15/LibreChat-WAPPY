@@ -39,6 +39,7 @@ const PLANS = [
     iconBg: 'bg-surface-tertiary',
     features: [
       'Chat con IA',
+      'Carga de hasta 3 archivos al día',
       'Máximo 4 conversaciones abiertas',
       '+ de 15 Agentes Expertos en SST',
       'Aula de estudio',

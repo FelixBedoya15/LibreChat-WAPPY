@@ -45,12 +45,13 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
         badge: 'Adquirir Wappy Vital',
         included: [
             'Chat con IA (10 mensajes al día)',
+            'Hasta 3 archivos al día',
             'Hasta 4 conversaciones abiertas',
             'Sandbox interactivo de Canvas e IPEVAR',
             '1 descarga al día (Word/Excel/HTML)',
             'Aula de estudio',
         ],
-        excluded: ['Subida de archivos al chat', 'Descargas ilimitadas', 'Blog WAPPY', 'Somos SST', 'Crear Agentes personalizados'],
+        excluded: ['Subida ilimitada de archivos', 'Descargas ilimitadas', 'Blog WAPPY', 'Somos SST', 'Crear Agentes personalizados'],
     },
     USER_IPEVAR: {
         badge: 'Adquirir Wappy Pro',

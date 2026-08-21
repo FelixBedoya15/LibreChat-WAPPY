@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FileUpload, TooltipAnchor, AttachmentIcon } from '@librechat/client';
 import { useLocalize, useFileHandling, useAuthContext } from '~/hooks';
+import { useDailyUploadLimit } from '~/hooks/Files';
 import { cn } from '~/utils';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
@@ -11,7 +12,9 @@ const AttachFile = ({ disabled }: { disabled?: boolean | null }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const isUploadDisabled = disabled ?? false;
-  const isLocked = user?.role === 'USER';
+  
+  const { isFree, isLimitReached, remaining } = useDailyUploadLimit();
+  const isLocked = isFree && isLimitReached;
 
   const { handleFileChange } = useFileHandling();
 
@@ -29,11 +32,17 @@ const AttachFile = ({ disabled }: { disabled?: boolean | null }) => {
     inputRef.current.click();
   };
 
+  const tooltipDescription = isFree
+    ? isLimitReached
+      ? 'Límite diario alcanzado (3/3 archivos)'
+      : `Adjuntar archivo (${remaining} de 3 hoy)`
+    : localize('com_sidepanel_attach_files');
+
   return (
     <>
       <FileUpload ref={inputRef} handleFileChange={handleFileChange}>
         <TooltipAnchor
-          description={localize('com_sidepanel_attach_files')}
+          description={tooltipDescription}
           id="attach-file"
           disabled={disabled ?? false}
           render={
@@ -71,8 +80,8 @@ const AttachFile = ({ disabled }: { disabled?: boolean | null }) => {
             </button>
             <div className="overflow-hidden rounded-3xl bg-surface-primary shadow-2xl">
               <UpgradeWall
-                title="Carga de Archivos Exclusiva"
-                description="La carga de archivos y herramientas de análisis avanzadas en el chat están reservadas para usuarios de los planes Wappy Vital y Wappy Pro."
+                title="Límite Diario Alcanzado"
+                description="Has alcanzado el límite de 3 archivos diarios del plan Gratis. Para cargas ilimitadas y análisis avanzados en el chat, adquiere Wappy Vital o Wappy Pro."
                 plan="USER"
                 isPopup={true}
               />

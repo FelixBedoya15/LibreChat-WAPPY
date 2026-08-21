@@ -165,6 +165,25 @@ async function batchUpdateFiles(updates) {
   logger.info(`Updated ${result.modifiedCount} files with new S3 URLs`);
 }
 
+/**
+ * Counts the files uploaded by a user today (since 00:00:00 local server time).
+ *
+ * @param {string} userId - The user ID
+ * @returns {Promise<number>}
+ */
+async function countUserFilesToday(userId) {
+  if (!userId) {
+    return 0;
+  }
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  return await File.countDocuments({
+    user: userId,
+    createdAt: { $gte: startOfDay },
+  });
+}
+
 module.exports = {
   findFileById,
   getFiles,
@@ -176,4 +195,5 @@ module.exports = {
   deleteFiles,
   deleteFileByFilter,
   batchUpdateFiles,
+  countUserFilesToday,
 };

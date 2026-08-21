@@ -104,6 +104,7 @@ const useFileHandling = (params?: UseFileHandling) => {
       onSuccess: (data) => {
         clearUploadTimer(data.temp_file_id);
         console.log('upload success', data);
+        queryClient.invalidateQueries(['dailyUploadStatus']);
         if (agent_id) {
           queryClient.refetchQueries([QueryKeys.agent, agent_id]);
           return;

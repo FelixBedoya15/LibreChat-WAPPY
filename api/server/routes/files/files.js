@@ -27,7 +27,7 @@ const { checkPermission } = require('~/server/services/PermissionService');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
 const { refreshS3FileUrls } = require('~/server/services/Files/S3/crud');
 const { hasAccessToFilesViaAgent } = require('~/server/services/Files');
-const { getFiles, batchUpdateFiles } = require('~/models/File');
+const { getFiles, batchUpdateFiles, countUserFilesToday } = require('~/models/File');
 const { cleanFileName } = require('~/server/utils/files');
 const { getAssistant } = require('~/models/Assistant');
 const { getAgent } = require('~/models/Agent');
@@ -35,6 +35,36 @@ const { getLogStores } = require('~/cache');
 const { Readable } = require('stream');
 
 const router = express.Router();
+
+router.get('/daily-status', async (req, res) => {
+  try {
+    const isFree = req.user?.role === 'USER';
+    if (!isFree) {
+      return res.status(200).json({
+        isFree: false,
+        count: 0,
+        limit: null,
+        remaining: null,
+        isLimitReached: false,
+      });
+    }
+
+    const count = await countUserFilesToday(req.user.id);
+    const limit = 3;
+    const remaining = Math.max(0, limit - count);
+
+    res.status(200).json({
+      isFree: true,
+      count,
+      limit,
+      remaining,
+      isLimitReached: count >= limit,
+    });
+  } catch (error) {
+    logger.error('[/files/daily-status] Error checking daily status:', error);
+    res.status(500).json({ message: 'Error checking daily file status', error: error.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -369,7 +399,13 @@ router.get('/download/:userId/:file_id', fileAccess, checkDownloadLimits, async 
 
 router.post('/', async (req, res) => {
   if (req.user && req.user.role === 'USER') {
-    return res.status(403).json({ error: 'upload_blocked', message: 'La subida de archivos está bloqueada en el plan Gratis. Adquiere el plan Wappy Vital.' });
+    const count = await countUserFilesToday(req.user.id);
+    if (count >= 3) {
+      return res.status(403).json({
+        error: 'upload_limit_reached',
+        message: 'Has alcanzado el límite de 3 archivos diarios del plan Gratis. Adquiere el plan Wappy Vital para subidas ilimitadas.',
+      });
+    }
   }
 
   const metadata = req.body;
