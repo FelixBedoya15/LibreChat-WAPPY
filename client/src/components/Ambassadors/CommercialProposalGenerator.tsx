@@ -229,7 +229,454 @@ export default function CommercialProposalGenerator({
   };
 
   const handlePrintPdf = () => {
-    window.print();
+    if (!proposal) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast({ message: 'Por favor permite las ventanas emergentes (popups) en tu navegador para generar el PDF.', status: 'warning' });
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>Propuesta Comercial - ${proposal.companyName} (${proposal.proposalCode})</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #0f172a;
+            background: #ffffff;
+            font-size: 11.5px;
+            line-height: 1.5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          @page {
+            size: letter;
+            margin: 12mm 15mm 15mm 15mm;
+          }
+          @media print {
+            body { margin: 0; padding: 0; background: #ffffff !important; }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            .keep-together { page-break-inside: avoid !important; break-inside: avoid !important; }
+          }
+          .doc-container {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 24px 28px;
+            background: #ffffff;
+          }
+          .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #0d9488;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+          }
+          .logo-wappy {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .logo-badge {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: #0d9488;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .logo-text {
+            font-size: 22px;
+            font-weight: 900;
+            color: #0f172a;
+            line-height: 1;
+          }
+          .logo-text span { color: #0d9488; }
+          .logo-sub {
+            font-size: 8.5px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 3px;
+          }
+          .client-logo-img {
+            max-height: 44px;
+            max-width: 130px;
+            object-fit: contain;
+          }
+          .prop-badge {
+            display: inline-block;
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            color: #0f766e;
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+          }
+          .meta-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #0d9488;
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+          }
+          .section-title {
+            font-size: 11.5px;
+            font-weight: 900;
+            color: #0f766e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1.5px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .summary-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #334155;
+            margin-bottom: 14px;
+          }
+          .modules-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+          }
+          .module-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            padding: 10px 12px;
+            background: #ffffff;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .module-num {
+            display: inline-block;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            background: #ccfbf1;
+            color: #0f766e;
+            font-weight: 900;
+            font-size: 9.5px;
+            text-align: center;
+            line-height: 17px;
+            margin-right: 5px;
+          }
+          .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+          }
+          .plan-card {
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 14px;
+            background: #ffffff;
+            text-align: center;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .plan-card.recommended {
+            border: 2px solid #0d9488;
+            background: #f0fdfa;
+          }
+          .plan-rec-badge {
+            background: #0d9488;
+            color: #ffffff;
+            font-size: 8.5px;
+            font-weight: 900;
+            padding: 2px 8px;
+            border-radius: 15px;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 4px;
+          }
+          .plan-price {
+            font-size: 19px;
+            font-weight: 900;
+            color: #0f766e;
+            margin: 4px 0 2px 0;
+          }
+          .plan-monthly {
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 600;
+          }
+          .discount-tag {
+            display: inline-block;
+            background: #ffe4e6;
+            color: #e11d48;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+          }
+          .roi-card {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .timeline-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .timeline-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            padding: 10px 12px;
+          }
+          .signatures-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 26px;
+            padding-top: 16px;
+            border-top: 1.5px solid #cbd5e1;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .sig-box {
+            width: 44%;
+          }
+          .sig-line {
+            border-bottom: 1.5px solid #475569;
+            margin-top: 36px;
+            margin-bottom: 6px;
+          }
+          .doc-footer {
+            text-align: center;
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 24px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 8px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="doc-container">
+          <!-- Header -->
+          <div class="header-row">
+            <div class="logo-wappy">
+              <div class="logo-badge">W</div>
+              <div>
+                <div class="logo-text">WAPPY <span>IA</span></div>
+                <div class="logo-sub">Plataforma Líder de IA para SG-SST</div>
+              </div>
+            </div>
+            <div style="text-align: right; display: flex; align-items: center; gap: 14px;">
+              ${clientLogo ? `<img src="${clientLogo}" class="client-logo-img" alt="Logo Cliente" />` : ''}
+              <div>
+                <span class="prop-badge">Propuesta Comercial Oficial</span>
+                <div style="font-weight: 800; font-size: 11px; color: #1e293b; margin-top: 3px;">${proposal.proposalCode}</div>
+                <div style="font-size: 9.5px; color: #64748b;">${new Date(proposal.generatedAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meta Box -->
+          <div class="meta-box">
+            <div>
+              <div style="font-size: 9px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">Propuesta Preparada Para:</div>
+              <div style="font-size: 16px; font-weight: 900; color: #0f172a; margin-top: 2px;">${proposal.companyName}</div>
+              <div style="font-size: 10.5px; color: #475569; margin-top: 2px;">
+                ${proposal.companyNit ? `NIT: ${proposal.companyNit} • ` : ''}
+                ${clientEmail ? `Correo: ${clientEmail} • ` : ''}
+                Sector: ${proposal.sector} • Alcance: ${proposal.employeeCount} trabajadores
+              </div>
+            </div>
+            <div style="text-align: right; border-left: 1px solid #cbd5e1; padding-left: 14px;">
+              <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">Consultor Líder Asignado:</div>
+              <div style="font-size: 12px; font-weight: 800; color: #0f172a; margin-top: 2px;">${proposal.ambassadorData.name}</div>
+              <div style="font-size: 10.5px; color: #0d9488; font-weight: 700; margin-top: 2px;">${proposal.ambassadorData.phone ? `📱 ${proposal.ambassadorData.phone}` : ''}</div>
+              <div style="font-size: 9.5px; color: #64748b;">✉️ ${proposal.ambassadorData.email}</div>
+            </div>
+          </div>
+
+          <!-- Proposal Title -->
+          <h1 style="font-size: 15px; font-weight: 900; color: #0f172a; margin-bottom: 12px; line-height: 1.35;">
+            ${proposal.title}
+          </h1>
+
+          <!-- Section 1: Executive Summary -->
+          <div class="keep-together">
+            <div class="section-title">1. Resumen Ejecutivo & Diagnóstico Sectorial</div>
+            <div class="summary-card">
+              <p style="margin: 0 0 6px 0; font-weight: 700; color: #0f172a;">${proposal.executiveSummary}</p>
+              <p style="margin: 0; color: #475569;"><strong>Diagnóstico para el sector ${proposal.sector}:</strong> ${proposal.sectorDiagnosis}</p>
+            </div>
+          </div>
+
+          <!-- Section 2: Included Modules -->
+          <div class="keep-together">
+            <div class="section-title">2. Ecosistema de Agentes y Módulos de IA Incluidos</div>
+            <div class="modules-grid">
+              ${proposal.includedModules.map((m, idx) => `
+                <div class="module-card">
+                  <div style="font-weight: 800; font-size: 11px; color: #0f172a; margin-bottom: 3px;">
+                    <span class="module-num">${idx + 1}</span> ${m.title}
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-bottom: 4px; line-height: 1.4;">${m.description}</div>
+                  <div style="font-size: 9px; font-weight: 700; color: #0f766e; background: #f0fdfa; padding: 2px 5px; border-radius: 4px; display: inline-block;">
+                    ✓ Beneficio: ${m.benefits}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section 3: Investment Table -->
+          <div class="keep-together">
+            <div class="section-title">3. Opciones de Inversión y Cotización Económica</div>
+            <div class="plans-grid">
+              ${proposal.investmentPlans.map(p => `
+                <div class="plan-card ${p.isRecommended ? 'recommended' : ''}">
+                  ${p.isRecommended ? '<div class="plan-rec-badge">Plan Más Recomendado</div>' : ''}
+                  <div style="font-weight: 800; font-size: 12px; color: #0f172a;">${p.planName}</div>
+                  <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase;">${p.interval}</div>
+                  <div style="margin: 8px 0 4px 0;">
+                    ${p.discountPercentage > 0 ? `
+                      <div style="font-size: 10px; color: #94a3b8; text-decoration: line-through;">
+                        $${p.regularPrice.toLocaleString('es-CO')} COP <span class="discount-tag">${p.discountPercentage}% OFF</span>
+                      </div>
+                    ` : ''}
+                    <div class="plan-price">$${p.finalPrice.toLocaleString('es-CO')} <span style="font-size: 10px; font-weight: 700; color: #64748b;">COP</span></div>
+                    <div class="plan-monthly">${p.pricePerMonth > 0 ? `Equivalente a ~$${p.pricePerMonth.toLocaleString('es-CO')} COP / mes` : 'Acceso Vitalicio'}</div>
+                  </div>
+                  <ul style="text-align: left; font-size: 9.5px; color: #475569; padding-left: 14px; margin: 8px 0 0 0; line-height: 1.45;">
+                    ${p.features.map(f => `<li>${f}</li>`).join('')}
+                  </ul>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section 4: ROI -->
+          ${proposal.roiAnalysis ? `
+          <div class="keep-together">
+            <div class="section-title">4. Retorno de Inversión (ROI Estimado)</div>
+            <div class="roi-card">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #065f46; text-transform: uppercase;">Ahorro Mensual Estimado</div>
+                <div style="font-size: 15px; font-weight: 900; color: #064e3b; margin: 2px 0;">${proposal.roiAnalysis.timeSavedHoursPerMonth}</div>
+                <div style="font-size: 10.5px; color: #047857;">Ahorro financiero directo: <strong>${proposal.roiAnalysis.estimatedSavingsCop}</strong></div>
+              </div>
+              <div style="font-size: 10px; color: #065f46; line-height: 1.5;">
+                ${proposal.roiAnalysis.qualitativeBenefits.map(b => `<div>✓ ${b}</div>`).join('')}
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Section 5: Implementation Timeline -->
+          <div class="keep-together">
+            <div class="section-title">5. Cronograma de Adopción e Implementación</div>
+            <div class="timeline-grid">
+              ${proposal.implementationTimeline.map(t => `
+                <div class="timeline-card">
+                  <div style="font-size: 9px; font-weight: 900; color: #0d9488; text-transform: uppercase;">${t.time}</div>
+                  <div style="font-weight: 800; font-size: 11px; color: #0f172a; margin: 2px 0;">${t.phase}</div>
+                  <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">${t.description}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section 6: Terms & Acceptance -->
+          <div class="keep-together" style="margin-top: 16px;">
+            <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px;">Términos Comerciales & Validez:</div>
+            <ul style="font-size: 9px; color: #64748b; padding-left: 14px; margin: 0 0 10px 0; line-height: 1.45;">
+              ${proposal.termsAndConditions.map(tc => `<li>${tc}</li>`).join('')}
+            </ul>
+
+            <div style="font-size: 10.5px; font-style: italic; color: #334155; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px;">
+              "${proposal.closingMessage}"
+            </div>
+
+            <!-- Signatures -->
+            <div class="signatures-row">
+              <div class="sig-box">
+                <div class="sig-line"></div>
+                <div style="font-weight: 800; font-size: 11px; color: #0f172a;">${proposal.ambassadorData.name}</div>
+                <div style="font-size: 9.5px; color: #0d9488; font-weight: 700;">Consultor Comercial & Especialista SST</div>
+                <div style="font-size: 9px; color: #64748b;">WAPPY IA — Tecnología Inteligente</div>
+              </div>
+              <div class="sig-box" style="text-align: right;">
+                <div class="sig-line"></div>
+                <div style="font-weight: 800; font-size: 11px; color: #0f172a;">Aceptación del Cliente</div>
+                <div style="font-size: 9.5px; color: #64748b;">Representante Legal / Gerente SST</div>
+                <div style="font-size: 9px; color: #64748b;">${proposal.companyName}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="doc-footer">
+            Documento emitido formalmente por WAPPY IA (wappy.club / wappy-ia.com) • Todos los derechos reservados © ${new Date().getFullYear()}
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleShareWhatsApp = () => {
@@ -278,7 +725,7 @@ export default function CommercialProposalGenerator({
               className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>PDF</span>
+              <span>Descargar PDF</span>
             </button>
             <button
               onClick={handleShareWhatsApp}
@@ -591,7 +1038,7 @@ export default function CommercialProposalGenerator({
                     className="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    <span>PDF</span>
+                    <span>Descargar PDF</span>
                   </button>
                   <button
                     onClick={handleShareWhatsApp}
