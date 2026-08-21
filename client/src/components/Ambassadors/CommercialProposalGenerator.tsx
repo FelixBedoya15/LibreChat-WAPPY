@@ -253,7 +253,7 @@ export default function CommercialProposalGenerator({
         <div>
           <div className="flex items-center gap-2 text-teal-400 font-extrabold text-xs uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
-            <span>Generador de Propuestas Comerciales con IA (Gemini 3.5)</span>
+            <span>Generador de Propuestas Comerciales con IA</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-text-primary">
             Crea Propuestas Ejecutivas en PDF & Envíalas por Correo Oficial
@@ -427,14 +427,19 @@ export default function CommercialProposalGenerator({
 
             {/* Plans to Quote */}
             <div>
-              <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1.5">
-                Planes a Cotizar en la Propuesta
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-text-secondary uppercase">
+                  Planes a Cotizar en la Propuesta
+                </label>
+                <span className="text-[10px] text-teal-600 font-bold">Desde $100.000 COP/mes</span>
+              </div>
               <div className="space-y-1.5">
                 {[
-                  { key: 'anual', label: 'Plan Pro Anual ($600.000 COP)', badge: 'Recomendado' },
-                  { key: 'semestral', label: 'Plan Pro Semestral ($350.000 COP)', badge: '6 Meses' },
-                  { key: 'mensual', label: 'Plan Pro Mensual ($97.180 COP)', badge: 'Mensual' },
+                  { key: 'anual', label: 'Plan Pro Anual ($1.200.000 COP)', sub: 'Desde $100.000/mes', badge: 'Recomendado' },
+                  { key: 'semestral', label: 'Plan Pro Semestral ($641.960 COP)', sub: '$106.993/mes', badge: '6 Meses' },
+                  { key: 'trimestral', label: 'Plan Pro Trimestral ($331.270 COP)', sub: '$110.423/mes', badge: '3 Meses' },
+                  { key: 'mensual', label: 'Plan Pro Mensual ($114.330 COP)', sub: '$114.330/mes', badge: 'Mensual' },
+                  { key: 'vital', label: 'Plan Wappy Vital ($350.000 COP)', sub: 'Pago Único Vitalicio', badge: 'Vitalicio' },
                 ].map((p) => {
                   const isChecked = selectedPlans.includes(p.key);
                   return (
@@ -451,7 +456,10 @@ export default function CommercialProposalGenerator({
                         <div className={`w-4 h-4 rounded flex items-center justify-center border ${isChecked ? 'bg-teal-600 border-teal-600 text-white' : 'border-border-medium/60'}`}>
                           {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
                         </div>
-                        <span>{p.label}</span>
+                        <div>
+                          <div>{p.label}</div>
+                          <div className="text-[10px] font-normal text-text-tertiary">{p.sub}</div>
+                        </div>
                       </div>
                       <span className="text-[10px] uppercase font-bold text-teal-600 dark:text-teal-400">{p.badge}</span>
                     </div>
@@ -460,16 +468,16 @@ export default function CommercialProposalGenerator({
               </div>
             </div>
 
-            {/* Discount Percentage */}
+            {/* Discount Percentage (Max 20%) */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-[11px] font-bold text-text-secondary uppercase">
-                  Descuento Comercial de Embajador
+                  Descuento Comercial de Embajador (Máx. 20%)
                 </label>
                 <span className="text-xs font-black text-teal-600">{customDiscount}% OFF</span>
               </div>
               <div className="grid grid-cols-5 gap-1.5">
-                {[0, 10, 15, 20, 30].map((d) => (
+                {[0, 5, 10, 15, 20].map((d) => (
                   <button
                     key={d}
                     type="button"
@@ -533,12 +541,12 @@ export default function CommercialProposalGenerator({
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Redactando Propuesta Ejecutiva con IA...</span>
+                  <span>Generando Propuesta con IA...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Generar Propuesta con IA (Gemini 3.5)</span>
+                  <span>Generar Propuesta con IA</span>
                 </>
               )}
             </button>

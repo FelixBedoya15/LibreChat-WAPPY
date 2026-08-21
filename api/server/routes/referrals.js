@@ -1387,38 +1387,89 @@ Datos de la Empresa Cliente:
         const parsedData = JSON.parse(responseText);
 
         // Calculate investment table with prices
+        // Calculate investment table with official platform prices
         const PRICING_CATALOG = {
             anual: {
                 name: 'Plan Wappy PRO Anual',
                 intervalLabel: '12 Meses (Anual)',
-                regularPrice: 600000,
-                pricePerMonth: 50000,
-                features: ['Acceso total a todos los Agentes SST', 'Matrices IPEVAR & PESV Ilimitadas', 'Gestión de Sustancias Químicas SGA', 'Auditorías en Vivo con IA', 'Aula de Estudio LMS y Certificaciones', 'Soporte Prioritario VIP'],
+                regularPrice: 1200000,
+                pricePerMonth: 100000,
+                features: [
+                    'Acceso total a todos los Agentes y Asistentes SST',
+                    'Matrices IPEVAR & PESV Ilimitadas con IA',
+                    'Gestión de Sustancias Químicas SGA y RIT',
+                    'Auditorías en Vivo con IA y Generación de Formatos',
+                    'Aula de Estudio LMS y Certificaciones Oficiales',
+                    'Soporte Prioritario VIP y Asesoría Continuada'
+                ],
                 isRecommended: true
             },
             semestral: {
                 name: 'Plan Wappy PRO Semestral',
                 intervalLabel: '6 Meses (Semestral)',
-                regularPrice: 350000,
-                pricePerMonth: 58333,
-                features: ['Acceso total a Agentes SST', 'Matrices IPEVAR & PESV', 'SGA Químico y RIT', 'Auditorías en Vivo con IA', 'Soporte Asignado'],
+                regularPrice: 641960,
+                pricePerMonth: 106993,
+                features: [
+                    'Acceso a todos los Agentes SST',
+                    'Matrices IPEVAR & PESV con IA',
+                    'SGA Químico y RIT',
+                    'Auditorías en Vivo con IA',
+                    'Soporte Asignado'
+                ],
+                isRecommended: false
+            },
+            trimestral: {
+                name: 'Plan Wappy PRO Trimestral',
+                intervalLabel: '3 Meses (Trimestral)',
+                regularPrice: 331270,
+                pricePerMonth: 110423,
+                features: [
+                    'Acceso a Agentes SST',
+                    'Matrices IPEVAR & Formatos',
+                    'Auditorías en Vivo con IA',
+                    'Soporte Estándar'
+                ],
                 isRecommended: false
             },
             mensual: {
                 name: 'Plan Wappy PRO Mensual',
                 intervalLabel: '1 Mes (Mensual)',
-                regularPrice: 97180,
-                pricePerMonth: 97180,
-                features: ['Acceso a Agentes SST', 'Generación de Matrices y Formatos', 'Soporte Estándar'],
+                regularPrice: 114330,
+                pricePerMonth: 114330,
+                features: [
+                    'Acceso a Agentes SST',
+                    'Generación de Matrices y Formatos',
+                    'Soporte Estándar'
+                ],
+                isRecommended: false
+            },
+            vital: {
+                name: 'Plan Wappy Vital (Acceso de Por Vida)',
+                intervalLabel: 'Pago Único Vitalicio',
+                regularPrice: 350000,
+                pricePerMonth: 0,
+                features: [
+                    'Pago único de por vida (Sin mensualidades)',
+                    'Hasta 20 chats diarios con Agentes SST',
+                    'Acceso a Comunidad y Soporte Básico'
+                ],
                 isRecommended: false
             }
         };
 
-        const discount = Math.min(100, Math.max(0, Number(customDiscount) || 0));
+        const discount = Math.min(20, Math.max(0, Number(customDiscount) || 0));
         const investmentPlans = (selectedPlans.length > 0 ? selectedPlans : ['anual']).map(pKey => {
             const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
             const finalPrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
-            const finalPerMonth = pKey === 'anual' ? Math.round(finalPrice / 12) : pKey === 'semestral' ? Math.round(finalPrice / 6) : finalPrice;
+            const finalPerMonth = pKey === 'anual' 
+                ? Math.round(finalPrice / 12) 
+                : pKey === 'semestral' 
+                    ? Math.round(finalPrice / 6) 
+                    : pKey === 'trimestral' 
+                        ? Math.round(finalPrice / 3) 
+                        : pKey === 'vital' 
+                            ? 0 
+                            : finalPrice;
             return {
                 key: pKey,
                 planName: p.name,
