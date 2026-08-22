@@ -516,35 +516,49 @@ const toSentenceCase = (str: string): string => {
 
 const cleanKey = (k: any): string => {
   return String(k || '')
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/^\s*\([a-z0-9]+\)\s*/i, '') // Remove prefixes like (a), (b), (c), (1), etc.
+    .replace(/^\s*[a-z0-9]+[\.\-\)]\s*/i, '') // Remove prefixes like a., 1., a-, etc.
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
 };
 
 const getValueByKeys = (obj: any, aliases: string[]): string => {
-  if (obj && obj.__normalizedMap) {
-    for (const alias of aliases) {
-      const normalizedAlias = cleanKey(alias);
-      if (obj.__normalizedMap[normalizedAlias] !== undefined && obj.__normalizedMap[normalizedAlias] !== null) {
-        const val = String(obj.__normalizedMap[normalizedAlias]).trim();
-        if (val) return val;
-      }
+  if (!obj) return '';
+  const normMap = obj.__normalizedMap || {};
+
+  // 1. Exact match in normalizedMap
+  for (const alias of aliases) {
+    const cleanA = cleanKey(alias);
+    if (normMap[cleanA] !== undefined && normMap[cleanA] !== null) {
+      const val = String(normMap[cleanA]).trim();
+      if (val) return val;
     }
   }
+
+  // 2. Exact match in raw object keys
   for (const alias of aliases) {
     if (obj[alias] !== undefined && obj[alias] !== null) {
       const val = String(obj[alias]).trim();
       if (val) return val;
     }
-    const foundKey = Object.keys(obj).find(
-      (k) => cleanKey(k) === cleanKey(alias)
-    );
-    if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
-      const val = String(obj[foundKey]).trim();
-      if (val) return val;
+  }
+
+  // 3. Suffix or prefix match in normalizedMap (e.g. 'areadetrabajo', 'areadeproceso')
+  for (const alias of aliases) {
+    const cleanA = cleanKey(alias);
+    if (cleanA.length < 3) continue;
+    for (const [normKey, rawVal] of Object.entries(normMap)) {
+      if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+        if (normKey === cleanA || normKey.endsWith(cleanA) || normKey.startsWith(cleanA)) {
+          return String(rawVal).trim();
+        }
+      }
     }
   }
+
   return '';
 };
 
@@ -756,33 +770,50 @@ export default function MatrizIPEVARTable({
             const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
             if (rawRows.length === 0) continue;
             
-            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 keywords
+            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 headers
             let headerRowIdx = -1;
-            for (let r = 0; r < Math.min(20, rawRows.length); r++) {
+            for (let r = 0; r < Math.min(30, rawRows.length); r++) {
               const row = rawRows[r];
-              if (Array.isArray(row) && row.some(cell => {
-                const str = String(cell || '').toLowerCase().trim();
-                return str === 'proceso' || str === 'actividad' || str === 'actividades' || str === 'peligro';
-              })) {
+              if (!Array.isArray(row)) continue;
+              const nonEmpties = row.filter(c => c !== null && c !== undefined && String(c).trim() !== '');
+              if (nonEmpties.length < 7) continue;
+              const uniqueClean = new Set(nonEmpties.map(c => cleanKey(c)));
+              if (uniqueClean.size < 6) continue;
+
+              let hasProcessOrTask = false;
+              let hasHazard = false;
+              let hasEvalOrControl = false;
+
+              for (const k of uniqueClean) {
+                if (k.includes('proceso') || k.includes('cargo') || k.includes('actividad') || k.includes('tarea') || k.includes('zona') || k.includes('lugar') || k.includes('areadetrabajo')) {
+                  hasProcessOrTask = true;
+                }
+                if (k.includes('peligro') || k.includes('clasificacion') || k.includes('descripcion') || k.includes('factor') || k.includes('riesgo')) {
+                  hasHazard = true;
+                }
+                if (k.includes('rutinaria') || k.includes('deficiencia') || k.includes('exposicion') || k.includes('consecuencia') || k.includes('probabilidad') || k.includes('control') || k.includes('fuente') || k.includes('medio') || k.includes('individuo') || k.includes('eliminacion') || k.includes('sustitucion') || k.includes('ingenieria') || k.includes('epp') || k.includes('nd') || k.includes('nr') || k.includes('nc') || k.includes('np')) {
+                  hasEvalOrControl = true;
+                }
+              }
+
+              if (hasProcessOrTask && hasHazard && hasEvalOrControl) {
                 headerRowIdx = r;
                 break;
               }
             }
             
-            // If no matrix keywords found in the first 20 rows, skip this sheet (it's a reference sheet)
+            // If no matrix headers found, skip this sheet (it's a reference sheet)
             if (headerRowIdx === -1) continue;
             
             // 4. Extract and combine headers, trim only truly empty trailing columns
-            // (Do NOT trim based on index position to avoid cutting valid columns)
             const rawHeaders = rawRows[headerRowIdx];
             let lastHeaderIdx = rawHeaders.length - 1;
-            // Only trim trailing cells that are null/undefined/empty string (not valid content) or beyond column 60
             while (lastHeaderIdx >= 0 && (rawHeaders[lastHeaderIdx] === null || rawHeaders[lastHeaderIdx] === undefined || String(rawHeaders[lastHeaderIdx] || '').trim() === '' || lastHeaderIdx > 60)) {
               lastHeaderIdx--;
             }
             const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
             
-            // Matrix should have at least 8 columns (flexible for external matrices)
+            // Matrix should have at least 8 columns
             if (sliceLen < 8) continue;
 
             hasMatrixSheet = true;
@@ -872,6 +903,11 @@ export default function MatrizIPEVARTable({
             return 0;
           };
 
+          let lastProceso = '';
+          let lastZona = '';
+          let lastCargo = '';
+          let lastTarea = '';
+
           const newRows = allSheetRows.map((r: any) => {
             const ndVal = mapND(getValueByKeys(r, ['niveldeficiencia', 'niveldedeficienciand', 'nd', 'niveldedeficiencia']));
             const neVal = mapNE(getValueByKeys(r, ['niveldeexposicion', 'niveldeexposicionne', 'ne', 'niveldeexposicion']));
@@ -885,15 +921,26 @@ export default function MatrizIPEVARTable({
             if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
             else if (rawReq.includes('no')) mappedReq = 'No';
 
+            let proc = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let zona = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
+            let cargo = getValueByKeys(r, ['cargo', 'cargos', 'actividad', 'actividades']);
+            let tarea = getValueByKeys(r, ['tarea', 'tareas']);
+
+            // Forward fill hierarchy if blank (for merged cells or grouped rows)
+            if (proc) lastProceso = proc; else proc = lastProceso;
+            if (zona) lastZona = zona; else zona = lastZona;
+            if (cargo) lastCargo = cargo; else cargo = lastCargo;
+            if (tarea) lastTarea = tarea; else tarea = lastTarea;
+
             return {
-              proceso: toSentenceCase(getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos'])),
-              zona: toSentenceCase(getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta'])),
-              actividad: getValueByKeys(r, ['actividad', 'actividades', 'cargo', 'cargos', 'tarea', 'tareas']),
-              tareas: getValueByKeys(r, ['tareas', 'tarea', 'actividad', 'actividades']),
+              proceso: toSentenceCase(proc),
+              zona: toSentenceCase(zona),
+              actividad: cargo || tarea,
+              tareas: tarea || cargo,
               rutinaria: getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
               peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
               peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
-              efectos_posibles: getValueByKeys(r, ['efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo']),
+              efectos_posibles: getValueByKeys(r, ['posiblesconsecuencias', 'efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo', 'efectoslesionesdanos']),
               controles_fuente: getValueByKeys(r, ['fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
               controles_medio: getValueByKeys(r, ['mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
               controles_individuo: getValueByKeys(r, ['personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
@@ -919,9 +966,13 @@ export default function MatrizIPEVARTable({
             };
           });
 
+          let rawLastProceso = '';
+          let rawLastZona = '';
           const preCleaned = allSheetRows.map((r: any) => {
-            const pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
-            const zVal = getValueByKeys(r, ['zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
+            let pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let zVal = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
+            if (pVal) rawLastProceso = pVal; else pVal = rawLastProceso;
+            if (zVal) rawLastZona = zVal; else zVal = rawLastZona;
             const copy = { ...r };
             if (pVal) copy['Proceso'] = toSentenceCase(pVal);
             if (zVal) copy['Zona'] = toSentenceCase(zVal);
