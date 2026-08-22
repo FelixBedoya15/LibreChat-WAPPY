@@ -711,38 +711,55 @@ export default function CommercialProposalGenerator({
         </div>
 
         {proposal && (
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap sm:flex-nowrap">
             <button
               onClick={handleSendEmail}
               disabled={isSendingEmail}
-              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-teal-600 hover:bg-teal-700 text-white sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+              title="Enviar Propuesta por Correo Oficial"
             >
-              {isSendingEmail ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              <span>{isSendingEmail ? 'Enviando...' : 'Enviar por Correo Oficial'}</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                {isSendingEmail ? <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Mail className="w-4 h-4 sm:w-5 sm:h-5" />}
+              </div>
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-bold tracking-wide">{isSendingEmail ? 'Enviando...' : 'Enviar por Correo'}</span>
+              </div>
             </button>
+
             <button
               onClick={handlePrintPdf}
-              className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+              className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-slate-500/10 hover:shadow-slate-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-slate-700 hover:bg-slate-800 text-white sm:hover:scale-105 active:scale-95"
+              title="Descargar Propuesta en PDF"
             >
-              <Printer className="w-4 h-4" />
-              <span>Descargar PDF</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-bold tracking-wide">Descargar PDF</span>
+              </div>
             </button>
+
             <button
               onClick={handleShareWhatsApp}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+              className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+              title="Compartir por WhatsApp"
             >
-              <Share2 className="w-4 h-4" />
-              <span>WhatsApp</span>
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-bold tracking-wide">WhatsApp</span>
+              </div>
             </button>
           </div>
         )}
       </div>
 
       {/* Main Grid: Form Controls Left / Executive Document Preview Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 lg:grid-cols-12 gap-5 sm:gap-6 w-full min-w-0">
         
         {/* Left Column: Form & Options */}
-        <div className="lg:col-span-4 space-y-4 print:hidden">
+        <div className="xl:col-span-4 lg:col-span-5 col-span-1 space-y-4 print:hidden w-full min-w-0">
           <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
             <h3 className="text-sm font-extrabold text-text-primary flex items-center gap-2 pb-2 border-b border-border-medium/30">
               <Building2 className="w-4 h-4 text-teal-500" />
@@ -983,69 +1000,92 @@ export default function CommercialProposalGenerator({
               type="button"
               onClick={handleGenerateProposal}
               disabled={isGenerating || !companyName.trim()}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all cursor-pointer"
+              className="group relative w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:scale-[1.01] active:scale-95 disabled:opacity-50 transition-all duration-300 cursor-pointer overflow-hidden"
             >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Generando Propuesta con IA...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generar Propuesta con IA</span>
-                </>
-              )}
+              <div className="relative flex-shrink-0 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
+                {isGenerating ? (
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-teal-200 group-hover:text-white" />
+                )}
+              </div>
+              <span className="tracking-wide">
+                {isGenerating ? 'Generando Propuesta con IA...' : 'Generar Propuesta con IA'}
+              </span>
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
             </button>
           </div>
         </div>
 
         {/* Right Column: Live Executive Document Preview & Printable PDF */}
-        <div className="lg:col-span-8">
+        <div className="xl:col-span-8 lg:col-span-7 col-span-1 min-w-0 w-full">
           {proposal ? (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0 w-full">
               {/* Document Action Toolbar */}
-              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-sm flex items-center justify-between gap-3 print:hidden">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-bold text-text-primary">
+              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden min-w-0 w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-xs font-bold text-text-primary truncate">
                     Propuesta: <span className="text-teal-600">{proposal.proposalCode}</span>
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap sm:flex-nowrap">
                   <button
                     onClick={handleSendEmail}
                     disabled={isSendingEmail}
-                    className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shadow-md shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-teal-600 hover:bg-teal-700 text-white sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+                    title="Enviar por Correo Oficial"
                   >
-                    {isSendingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
-                    <span>{isSendingEmail ? 'Enviando Correo...' : 'Enviar por Correo'}</span>
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
+                      {isSendingEmail ? <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                    </div>
+                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide">{isSendingEmail ? 'Enviando...' : 'Enviar por Correo'}</span>
+                    </div>
                   </button>
+
                   <button
                     onClick={() => setIsEditable(!isEditable)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    className={`group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 active:scale-95 ${
                       isEditable
-                        ? 'bg-teal-600 text-white border-teal-600'
-                        : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/20'
+                        : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                     }`}
+                    title={isEditable ? 'Guardar Cambios' : 'Editar Texto de la Propuesta'}
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>{isEditable ? 'Guardar Cambios' : 'Editar Texto'}</span>
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
+                      <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </div>
+                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide">{isEditable ? 'Guardar Cambios' : 'Editar Texto'}</span>
+                    </div>
                   </button>
+
                   <button
                     onClick={handlePrintPdf}
-                    className="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shadow-md shadow-slate-500/10 hover:shadow-slate-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-slate-700 hover:bg-slate-800 text-white sm:hover:scale-105 active:scale-95"
+                    title="Descargar PDF"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Descargar PDF</span>
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
+                      <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </div>
+                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide">Descargar PDF</span>
+                    </div>
                   </button>
+
                   <button
                     onClick={handleShareWhatsApp}
-                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                    title="Compartir por WhatsApp"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>WhatsApp</span>
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
+                      <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </div>
+                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide">WhatsApp</span>
+                    </div>
                   </button>
                 </div>
               </div>

@@ -493,11 +493,11 @@ export default function AmbassadorDashboard() {
   const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 relative min-h-screen h-auto overflow-y-auto pb-12 w-full max-w-full">
+    <div className="flex-1 flex flex-col bg-surface-secondary/30 relative min-h-screen h-auto overflow-y-auto pb-12 w-full max-w-full overflow-x-hidden">
       {/* Header section - exact same style as Centro de Control ACPM */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center p-3 sm:p-4 md:p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4">
-        <div className="w-full lg:w-auto">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-2 sm:gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center p-3.5 sm:p-4 md:p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4 w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base sm:text-xl md:text-2xl font-extrabold flex items-center gap-2 sm:gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
             <Award className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-teal-500 shrink-0" />
             <span className="truncate">
               {isAdmin 
@@ -507,18 +507,18 @@ export default function AmbassadorDashboard() {
                   : 'Dashboard de Embajador WAPPY — Mis Métricas y Referidos'}
             </span>
           </h1>
-          <p className="text-[11px] sm:text-xs text-text-secondary mt-0.5 sm:mt-1">
+          <p className="text-[11px] sm:text-xs text-text-secondary mt-0.5 sm:mt-1 truncate">
             {isAdmin 
               ? 'Control general de usuarios referidos, atribución de registros, estado de pagos y comisiones en tiempo real.'
               : 'Haz seguimiento a tus usuarios registrados, estado de sus planes PRO y comisiones devengadas.'}
           </p>
         </div>
 
-        {/* Button bar matching Centro de Control ACPM */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 w-full sm:w-auto justify-start sm:justify-end flex-wrap sm:flex-nowrap">
+        {/* Button bar matching Centro de Control ACPM expanding button effect */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 w-full sm:w-auto justify-start sm:justify-end flex-wrap sm:flex-nowrap">
           <button
             onClick={toggleDashboard}
-            className={`group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 rounded-xl border border-border-medium/40 text-[11px] sm:text-xs font-bold transition-all duration-300 gap-1.5 sm:gap-2 cursor-pointer shadow-sm ${
+            className={`group flex items-center justify-center h-9 px-3 sm:h-10 sm:px-3.5 rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 gap-1.5 sm:gap-2 cursor-pointer shadow-sm ${
               showDashboard 
                 ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400' 
                 : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
@@ -527,53 +527,58 @@ export default function AmbassadorDashboard() {
           >
             {showDashboard ? (
               <>
-                <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-current shrink-0" />
-                <span className="hidden md:inline">Ocultar Analíticas</span>
-                <span className="md:hidden">Ocultar</span>
+                <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
+                <span className="hidden sm:inline">Ocultar Analíticas</span>
+                <span className="sm:hidden">Ocultar</span>
               </>
             ) : (
               <>
-                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-current shrink-0" />
-                <span className="hidden md:inline">Ver Analíticas</span>
-                <span className="md:hidden">Analíticas</span>
+                <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
+                <span className="hidden sm:inline">Ver Analíticas</span>
+                <span className="sm:hidden">Analíticas</span>
               </>
             )}
           </button>
 
           <button
             onClick={exportToCSV}
-            className="group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95 gap-1.5 sm:gap-2"
-            title="Exportar Reporte CSV"
+            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+            title="Exportar Reporte Comercial (Excel / CSV)"
           >
-            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="text-[11px] sm:text-xs md:text-sm font-bold tracking-wide">
-              <span className="hidden sm:inline">Exportar Reporte</span>
-              <span className="sm:hidden">Exportar</span>
-            </span>
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar Reporte</span>
+            </div>
           </button>
 
           <a
             href={`/portafolio?ref=${(networkStats.find(p => p.email === user?.email)?.slug) || user?.username || ''}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 text-[11px] sm:text-xs font-bold transition-all gap-1.5 sm:gap-2 cursor-pointer shadow-sm"
-            title="Abrir mi Landing Page de Portafolio"
+            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-teal-600/15 hover:bg-teal-600/25 text-teal-700 dark:text-teal-300 border-teal-500/30 sm:hover:scale-105 active:scale-95"
+            title="Abrir Mi Landing Page de Portafolio"
           >
-            <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="hidden sm:inline">Ver Mi Landing</span>
-            <span className="sm:hidden">Landing</span>
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Ver Mi Landing</span>
+            </div>
           </a>
 
           <button
             onClick={copyReferralLink}
-            className="group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:scale-105 active:scale-95 gap-1.5 sm:gap-2"
+            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:scale-105 active:scale-95"
             title="Copiar mi Link de Referido"
           >
-            <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="text-[11px] sm:text-xs md:text-sm font-bold tracking-wide">
-              <span className="hidden sm:inline">Copiar Mi Link</span>
-              <span className="sm:hidden">Mi Link</span>
-            </span>
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Copiar Mi Link</span>
+            </div>
           </button>
         </div>
       </div>
