@@ -932,12 +932,21 @@ export default function MatrizIPEVARTable({
             if (cargo) lastCargo = cargo; else cargo = lastCargo;
             if (tarea) lastTarea = tarea; else tarea = lastTarea;
 
+            // Clean up rutinaria value: map 'x', 'si', '1' to 'Sí', 'no' to 'No'
+            const rawRut = String(getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || '').trim().toLowerCase();
+            let mappedRut = 'Sí';
+            if (rawRut === 'x' || rawRut === 'si' || rawRut === 'sí' || rawRut.includes('rutinari') || rawRut === '1' || rawRut === 'true') {
+              mappedRut = 'Sí';
+            } else if (rawRut.includes('no') || rawRut === '0' || rawRut === 'false') {
+              mappedRut = 'No';
+            }
+
             return {
               proceso: toSentenceCase(proc),
               zona: toSentenceCase(zona),
               actividad: cargo || tarea,
               tareas: tarea || cargo,
-              rutinaria: getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || 'Sí',
+              rutinaria: mappedRut,
               peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
               peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
               efectos_posibles: getValueByKeys(r, ['posiblesconsecuencias', 'efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo', 'efectoslesionesdanos']),
