@@ -11,7 +11,58 @@ const ReferralRecord = require('~/models/ReferralRecord');
 const PointTransaction = require('~/models/PointTransaction');
 const PayoutRequest = require('~/models/PayoutRequest');
 
-// All endpoints in this router are authenticated
+/**
+ * GET /api/referrals/public/ambassador-info/:slug
+ * Public endpoint to fetch ambassador information for the landing/registration welcome banner
+ */
+router.get('/public/ambassador-info/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        if (!slug) {
+            return res.status(400).json({ error: 'Slug requerido' });
+        }
+        const cleanSlug = slug.toLowerCase().trim();
+        const Partner = mongoose.model('Partner');
+        const User = mongoose.model('User');
+
+        let partner = await Partner.findOne({ slug: cleanSlug }).lean();
+        if (!partner) {
+            const user = await User.findOne({ username: new RegExp(`^${cleanSlug}$`, 'i') }).lean();
+            if (user) {
+                partner = await Partner.findOne({ userId: user._id }).lean() || {
+                    name: user.name,
+                    slug: user.username,
+                    email: user.email,
+                    phone: user.phoneNumber || user.phone || '',
+                    type: 'embajador'
+                };
+            }
+        }
+
+        if (!partner) {
+            return res.status(404).json({ error: 'Embajador no encontrado' });
+        }
+
+        let phoneClean = (partner.phone || '').replace(/[^0-9]/g, '');
+        if (phoneClean.length === 10 && phoneClean.startsWith('3')) {
+            phoneClean = `57${phoneClean}`;
+        }
+
+        return res.json({
+            name: partner.name || 'Asesor Comercial WAPPY',
+            slug: partner.slug || cleanSlug,
+            email: partner.email || '',
+            phone: partner.phone || '',
+            phoneClean,
+            type: partner.type || 'embajador'
+        });
+    } catch (error) {
+        logger.error('[PublicAmbassadorInfo] Error:', error);
+        return res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
+// All following endpoints in this router require authentication
 router.use(requireJwtAuth);
 
 // Helper to check if a user is an administrator

@@ -7,8 +7,8 @@ import { ErrorMessage } from '~/components/Auth/ErrorMessage';
 import SocialButton from '~/components/Auth/SocialButton';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { getLoginError } from '~/utils';
-import { useLocalize } from '~/hooks';
 import LoginForm from './LoginForm';
+import AmbassadorLandingBanner from './AmbassadorLandingBanner';
 
 function Login() {
   const localize = useLocalize();
@@ -133,6 +133,7 @@ function Login() {
 
   return (
     <>
+      <AmbassadorLandingBanner />
       {error != null && <ErrorMessage>{localize(getLoginError(error))}</ErrorMessage>}
       {startupConfig?.emailLoginEnabled === true && (
         <LoginForm

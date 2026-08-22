@@ -226,6 +226,58 @@ export default function AmbassadorDashboard() {
     });
   };
 
+  const [selectedAmbassadorFilter, setSelectedAmbassadorFilter] = useState<string>('all');
+
+  // Filter users by selected ambassador (for Admins / Leaders)
+  const ambassadorFilteredUsers = React.useMemo(() => {
+    if (selectedAmbassadorFilter === 'all') return referredUsers;
+    const partner = networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter);
+    return referredUsers.filter(u => 
+      u.ambassadorId === selectedAmbassadorFilter || 
+      (partner && (u.ambassadorSlug === partner.slug || u.ambassadorName.toLowerCase() === partner.name.toLowerCase()))
+    );
+  }, [referredUsers, selectedAmbassadorFilter, networkStats]);
+
+  // Filter commissions by selected ambassador
+  const ambassadorFilteredCommissions = React.useMemo(() => {
+    if (selectedAmbassadorFilter === 'all') return commissions;
+    const userEmails = new Set(ambassadorFilteredUsers.map(u => u.email.toLowerCase()));
+    return commissions.filter(c => userEmails.has(c.referredUserEmail.toLowerCase()));
+  }, [commissions, selectedAmbassadorFilter, ambassadorFilteredUsers]);
+
+  // Dynamically recalculated KPIs based on selected ambassador
+  const activeKpis = React.useMemo(() => {
+    if (!kpis) return null;
+    if (selectedAmbassadorFilter === 'all') return kpis;
+
+    const totalReferred = ambassadorFilteredUsers.length;
+    const activeProCount = ambassadorFilteredUsers.filter(u => u.role === 'USER_PRO' || u.subscriptionType === 'pro' || u.subscriptionType === 'vital' || u.paymentStatus === 'paid').length;
+    const expiringSoonCount = ambassadorFilteredUsers.filter(u => u.trafficLight === 'yellow' && u.daysToExpiry !== null && u.daysToExpiry <= 30).length;
+    const missingPhoneCount = ambassadorFilteredUsers.filter(u => !u.phone || u.phone.trim() === '').length;
+    const inactiveCount = ambassadorFilteredUsers.filter(u => u.daysInactive >= 30).length;
+    const totalGrowth7Days = ambassadorFilteredUsers.filter(u => (new Date().getTime() - new Date(u.registrationDate).getTime()) <= 7 * 24 * 60 * 60 * 1000).length;
+
+    const totalCommissionsEarned = ambassadorFilteredCommissions.reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+    const totalCommissionsPending = ambassadorFilteredCommissions.filter(c => c.status === 'pending').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+    const totalCommissionsPaid = ambassadorFilteredCommissions.filter(c => c.status === 'paid').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+
+    const partner = networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter);
+
+    return {
+      ...kpis,
+      totalReferred,
+      activeProCount,
+      expiringSoonCount,
+      missingPhoneCount,
+      inactiveCount,
+      totalGrowth7Days,
+      totalCommissionsEarned,
+      totalCommissionsPending,
+      totalCommissionsPaid,
+      topAmbassadorName: partner?.name || 'Asesor Seleccionado',
+    };
+  }, [kpis, selectedAmbassadorFilter, ambassadorFilteredUsers, ambassadorFilteredCommissions, networkStats]);
+
   const copyReferralLink = () => {
     if (!myReferralLink) return;
     navigator.clipboard.writeText(myReferralLink);
@@ -238,46 +290,118 @@ export default function AmbassadorDashboard() {
       return;
     }
 
-    const headers = [
-      'Nombre',
+    const exportUsers = selectedAmbassadorFilter === 'all' ? referredUsers : ambassadorFilteredUsers;
+    const isFiltered = selectedAmbassadorFilter !== 'all';
+    const filterPartner = networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter);
+
+    let csv = '\uFEFF'; // UTF-8 BOM for Excel to recognize accents
+    csv += 'sep=;\n'; // Explicit delimiter directive for Excel
+
+    // SECTION 1: CONSOLIDADO DE EMBAJADORES Y KPIS
+    csv += '========================================================================================\n';
+    csv += `REPORTE DE GESTIÓN COMERCIAL Y KPIS - WAPPY IA (${new Date().toLocaleDateString('es-CO')})\n`;
+    csv += `ÁMBITO DEL REPORTE:;${isFiltered ? `Embajador Específico: ${filterPartner?.name || selectedAmbassadorFilter}` : 'Toda la Red de Embajadores (Consolidado General)'}\n`;
+    csv += `GENERADO POR:;${user?.name || 'Administrador WAPPY'}\n`;
+    csv += '========================================================================================\n\n';
+
+    csv += '--- 1. RESUMEN EJECUTIVO Y RENDICIÓN DE CUENTAS POR ASESOR ---\n';
+    csv += [
+      'Embajador / Asesor',
+      'Código / Slug',
       'Correo',
-      'Telefono',
-      'Rol',
-      'Estado Cuenta',
-      'Fecha Registro',
-      'Dias Inactivo',
-      'Tipo Suscripcion',
-      'Estado Pago',
-      'Dias para Vencimiento',
-      'Semaforo',
-      'Embajador Asignado'
+      'Total Prospectos',
+      'Activos PRO / Vital',
+      'En Prueba (15 Días)',
+      'Tasa de Conversión (%)',
+      'Contactados en CRM',
+      'Propuestas Enviadas',
+      'Comisiones Totales COP',
+      'Comisiones Pendientes COP',
+      'Comisiones Pagadas COP'
+    ].join(';') + '\n';
+
+    // Aggregate partners
+    const partnersToReport = isFiltered && filterPartner ? [filterPartner] : networkStats;
+    partnersToReport.forEach(p => {
+      const pUsers = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || u.ambassadorName.toLowerCase() === p.name.toLowerCase());
+      const proCount = pUsers.filter(u => u.role === 'USER_PRO' || u.subscriptionType === 'pro' || u.subscriptionType === 'vital' || u.paymentStatus === 'paid').length;
+      const trialCount = pUsers.filter(u => u.role !== 'USER_PRO' && u.daysToExpiry !== null && u.daysToExpiry > 0).length;
+      const contactCount = pUsers.filter(u => u.crmStage && u.crmStage !== 'nuevo').length;
+      const proposalCount = pUsers.filter(u => u.crmStage === 'propuesta' || (u.crmNotes && u.crmNotes.some((n: any) => n.type === 'proposal'))).length;
+      const convRate = pUsers.length > 0 ? ((proCount / pUsers.length) * 100).toFixed(1) : '0.0';
+
+      const pComms = commissions.filter(c => pUsers.some(u => u.email.toLowerCase() === c.referredUserEmail.toLowerCase()));
+      const pendingComm = pComms.filter(c => c.status === 'pending').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+      const paidComm = pComms.filter(c => c.status === 'paid').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+      const totalComm = pendingComm + paidComm;
+
+      csv += [
+        `"${p.name.replace(/"/g, '""')}"`,
+        `"${p.slug}"`,
+        `"${p.email}"`,
+        pUsers.length,
+        proCount,
+        trialCount,
+        `"${convRate}%"`,
+        contactCount,
+        proposalCount,
+        `"${totalComm.toLocaleString('es-CO')}"`,
+        `"${pendingComm.toLocaleString('es-CO')}"`,
+        `"${paidComm.toLocaleString('es-CO')}"`
+      ].join(';') + '\n';
+    });
+
+    csv += '\n--- 2. DETALLE DE PROSPECTOS REGISTRADOS Y SEGUIMIENTO CRM ---\n';
+    const detailHeaders = [
+      'Nombre del Cliente',
+      'Correo Electrónico',
+      'WhatsApp / Teléfono',
+      'Embajador Asignado',
+      'Etapa CRM',
+      'Rol / Cuenta',
+      'Plan / Suscripción',
+      'Estado de Pago',
+      'Fecha de Registro',
+      'Días para Vencimiento',
+      'Días Inactivo',
+      'Semáforo',
+      'Último Contacto'
     ];
+    csv += detailHeaders.join(';') + '\n';
 
-    const rows = referredUsers.map(u => [
-      `"${u.name.replace(/"/g, '""')}"`,
-      `"${u.email}"`,
-      `"${u.phone || ''}"`,
-      `"${u.role}"`,
-      `"${u.accountStatus}"`,
-      `"${new Date(u.registrationDate).toLocaleDateString()}"`,
-      u.daysInactive,
-      `"${u.subscriptionType}"`,
-      `"${u.paymentStatus}"`,
-      u.daysToExpiry !== null ? u.daysToExpiry : 'N/A',
-      `"${u.trafficLight}"`,
-      `"${u.ambassadorName.replace(/"/g, '""')}"`
-    ]);
+    exportUsers.forEach(u => {
+      const crmStageLabel = CRM_STAGES.find(s => s.id === (u.crmStage || 'nuevo'))?.label || u.crmStage || 'Sin Contactar';
+      csv += [
+        `"${u.name.replace(/"/g, '""')}"`,
+        `"${u.email}"`,
+        `"${u.phone || ''}"`,
+        `"${u.ambassadorName.replace(/"/g, '""')}"`,
+        `"${crmStageLabel}"`,
+        `"${u.role}"`,
+        `"${u.subscriptionType}${u.planInterval ? ` (${u.planInterval})` : ''}"`,
+        `"${u.paymentStatus}"`,
+        `"${new Date(u.registrationDate).toLocaleDateString('es-CO')}"`,
+        u.daysToExpiry !== null ? u.daysToExpiry : 'N/A',
+        u.daysInactive,
+        `"${u.trafficLight}"`,
+        u.lastContactedAt ? `"${new Date(u.lastContactedAt).toLocaleDateString('es-CO')}"` : 'Nunca'
+      ].join(';') + '\n';
+    });
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Wappy_Métricas_Embajadores_${new Date().toISOString().slice(0,10)}.csv`);
+    const fileName = isFiltered 
+      ? `Wappy_Reporte_${filterPartner?.slug || 'embajador'}_${new Date().toISOString().slice(0, 10)}.csv`
+      : `Wappy_Reporte_General_Red_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-    showToast({ message: 'Reporte CSV generado y descargado.', status: 'success' });
+    showToast({ message: '¡Reporte comercial exportado exitosamente con formato Excel multisección!', status: 'success' });
   };
 
   const handleAdminAttribute = async () => {
@@ -325,7 +449,7 @@ export default function AmbassadorDashboard() {
   };
 
   // Filter logic for referred users
-  const filteredUsers = referredUsers.filter(u => {
+  const filteredUsers = ambassadorFilteredUsers.filter(u => {
     const matchesSearch = 
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -354,14 +478,14 @@ export default function AmbassadorDashboard() {
     }
   };
 
-  const totalLeadsCount = referredUsers.length;
-  const contactedLeadsCount = referredUsers.filter(u => {
+  const totalLeadsCount = ambassadorFilteredUsers.length;
+  const contactedLeadsCount = ambassadorFilteredUsers.filter(u => {
     const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
     return st !== 'nuevo' && st !== 'invalido';
   }).length;
-  const interestedLeadsCount = referredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
-  const proposalsSentCount = referredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
-  const wonLeadsCount = referredUsers.filter(u => {
+  const interestedLeadsCount = ambassadorFilteredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
+  const proposalsSentCount = ambassadorFilteredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
+  const wonLeadsCount = ambassadorFilteredUsers.filter(u => {
     const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
     return st === 'ganado' || u.role === 'USER_PRO' || u.paymentStatus === 'paid';
   }).length;
@@ -428,6 +552,18 @@ export default function AmbassadorDashboard() {
             </span>
           </button>
 
+          <a
+            href={`/portafolio?ref=${(networkStats.find(p => p.email === user?.email)?.slug) || user?.username || ''}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 text-[11px] sm:text-xs font-bold transition-all gap-1.5 sm:gap-2 cursor-pointer shadow-sm"
+            title="Abrir mi Landing Page de Portafolio"
+          >
+            <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="hidden sm:inline">Ver Mi Landing</span>
+            <span className="sm:hidden">Landing</span>
+          </a>
+
           <button
             onClick={copyReferralLink}
             className="group flex items-center justify-center flex-1 sm:flex-none h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:scale-105 active:scale-95 gap-1.5 sm:gap-2"
@@ -444,8 +580,58 @@ export default function AmbassadorDashboard() {
 
       {/* Main Content */}
       <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 w-full max-w-full">
+        {/* Admin / Leader Ambassador Filter Selector */}
+        {(isAdmin || isLeader) && (
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/60 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black uppercase text-teal-600 tracking-wider block">
+                  Filtrar por Embajador / Asesor
+                </span>
+                <span className="text-xs font-bold text-text-primary">
+                  {selectedAmbassadorFilter === 'all' 
+                    ? `Visualizando: Toda la Red (${referredUsers.length} registros totales)` 
+                    : `Visualizando Asesor: ${networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter)?.name || selectedAmbassadorFilter} (${ambassadorFilteredUsers.length} registros)`}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedAmbassadorFilter}
+                onChange={(e) => setSelectedAmbassadorFilter(e.target.value)}
+                className="bg-surface-primary border border-border-medium/80 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-teal-500 shadow-sm cursor-pointer"
+              >
+                <option value="all">🌐 Toda la Red ({referredUsers.length} registros totales)</option>
+                {networkStats.map((p) => {
+                  const count = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || u.ambassadorName.toLowerCase() === p.name.toLowerCase()).length;
+                  return (
+                    <option key={p.partnerId} value={p.partnerId}>
+                      👤 {p.name} ({count} registros) — {p.slug}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {selectedAmbassadorFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedAmbassadorFilter('all')}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-surface-secondary hover:bg-surface-hover text-rose-500 border border-border-medium/60 transition-colors cursor-pointer"
+                  title="Restablecer filtro a Toda la Red"
+                >
+                  ✕ Ver Todos
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Upper Dashboard KPI Cards (Collapsible) */}
-        {showDashboard && kpis && (
+        {showDashboard && activeKpis && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in zoom-in-95 duration-300">
             {/* KPI Card 1 */}
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
@@ -458,10 +644,10 @@ export default function AmbassadorDashboard() {
                   <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{kpis.totalReferred}</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{activeKpis.totalReferred}</div>
               <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>+{kpis.totalGrowth7Days} en 7 días</span>
+                <span>+{activeKpis.totalGrowth7Days} en 7 días</span>
               </div>
             </div>
 
@@ -474,10 +660,10 @@ export default function AmbassadorDashboard() {
                   <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{kpis.activeProCount}</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{activeKpis.activeProCount}</div>
               <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>{kpis.expiringSoonCount} por vencer (≤ 30d)</span>
+                <span>{activeKpis.expiringSoonCount} por vencer (≤ 30d)</span>
               </div>
             </div>
 
@@ -491,11 +677,11 @@ export default function AmbassadorDashboard() {
                 </div>
               </div>
               <div className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight truncate">
-                ${(kpis.totalCommissionsEarned / 100).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
+                ${(activeKpis.totalCommissionsEarned / 100).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
               </div>
               <div className="flex items-center justify-between mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
-                <span>Pend: ${(kpis.totalCommissionsPending / 100).toLocaleString('es-CO')}</span>
-                <span className="text-emerald-600 font-bold">Pag: ${(kpis.totalCommissionsPaid / 100).toLocaleString('es-CO')}</span>
+                <span>Pend: ${(activeKpis.totalCommissionsPending / 100).toLocaleString('es-CO')}</span>
+                <span className="text-emerald-600 font-bold">Pag: ${(activeKpis.totalCommissionsPaid / 100).toLocaleString('es-CO')}</span>
               </div>
             </div>
 
@@ -513,11 +699,11 @@ export default function AmbassadorDashboard() {
               {isAdmin || isLeader ? (
                 <>
                   <div className="text-base sm:text-lg font-extrabold text-text-primary truncate">
-                    TOP: {kpis.topAmbassadorName}
+                    TOP: {activeKpis.topAmbassadorName}
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
                     <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 shrink-0" />
-                    <span>{kpis.inactiveAmbassadorsCount} sin registros &gt; 30d</span>
+                    <span>{activeKpis.inactiveAmbassadorsCount} sin registros &gt; 30d</span>
                   </div>
                 </>
               ) : (
@@ -526,7 +712,7 @@ export default function AmbassadorDashboard() {
                     20% Comisión Directa
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                     <span>Embajador Activo</span>
                   </div>
                 </>
@@ -558,7 +744,7 @@ export default function AmbassadorDashboard() {
             }`}
           >
             <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>{isAdmin ? `Usuarios Referidos (${referredUsers.length})` : `Mis Referidos (${referredUsers.length})`}</span>
+            <span>{isAdmin ? `Usuarios Referidos (${ambassadorFilteredUsers.length})` : `Mis Referidos (${ambassadorFilteredUsers.length})`}</span>
           </button>
 
           <button
