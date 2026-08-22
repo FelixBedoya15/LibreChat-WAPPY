@@ -96,7 +96,8 @@ const GLOBAL_SKILLS = [
   'skill-analitica-bigquery-stats',
   'skill-vision-ocr-gemini',
   'skill-google-sheets-sync',
-  'skill-google-docs-slides'
+  'skill-google-docs-slides',
+  'skill-automatizaciones-agentes'
 ];
 
 // Asignación de Skills específicas adicionales a los agentes maestros
@@ -293,8 +294,9 @@ ${cleanContent}
 - **Tarjetas Interactivas (wappy-card):** Para checklists, cuadrículas, listas y métricas, utiliza exclusivamente el bloque de código \`wappy-card\` (con el JSON exacto en su interior como se indica en su regla de oro). NUNCA utilices el lenguaje de código \`json\` para englobar una tarjeta wappy-card.
 - **Documentos y Cartas Formales:** Cuando la respuesta requiera redactar actas, reglamentos, contratos, citaciones a descargos o cartas extensas, está terminantemente PROHIBIDO escribir el documento extenso directamente en el chat de texto. En su lugar, DEBES llamar de manera autónoma a la herramienta \`canvas\` para crear o actualizar el documento en el editor lateral derecho. En el chat del usuario, limítate a resumir brevemente la acción realizada y los puntos clave.`;
     const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
+    const automationToolRule = `\n\n⚠️ REGLA DE ORO DE AUTOMATIZACIONES (gestor_automatizaciones): Si el usuario te pide automatizar, programar una tarea periódica, revisar periódicamente carpetas de Google Drive, monitorear indicadores, inspecciones o auditorías recurrentes, NO te limites a dar explicaciones teóricas ni a redactar scripts de Apps Script en Canvas si la herramienta \`gestor_automatizaciones\` está disponible o activa. DEBES llamar a \`gestor_automatizaciones\` con \`accion: "crear"\` para registrar y programar la tarea en el sistema de WAPPY (/sgsst/automatizaciones). Si no se indica hora o frecuencia, asume valores óptimos (ej. diario a las 8:00 AM) y confírmalos al usuario.`;
     
-    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule;
+    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + automationToolRule;
     
     let tools = [...DEFAULT_TOOLS];
     
