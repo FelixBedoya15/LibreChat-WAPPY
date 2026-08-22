@@ -8,6 +8,7 @@ import type { TRegisterUser, TError } from 'librechat-data-provider';
 import type { TLoginLayoutContext } from '~/common';
 import { useLocalize, TranslationKeys } from '~/hooks';
 import { ErrorMessage } from './ErrorMessage';
+import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import AmbassadorLandingBanner from './AmbassadorLandingBanner';
 

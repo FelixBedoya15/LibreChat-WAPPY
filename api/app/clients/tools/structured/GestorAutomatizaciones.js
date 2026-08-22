@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { runAutomation, calculateNextRun } = require('~/server/services/automationScheduler');
 
 class GestorAutomatizaciones extends Tool {
   constructor(fields = {}) {
@@ -79,6 +78,7 @@ class GestorAutomatizaciones extends Tool {
 
   async _call(input) {
     try {
+      const { runAutomation, calculateNextRun } = require('~/server/services/automationScheduler');
       const userId = this.req?.user?.id;
       if (!userId) {
         return JSON.stringify({
