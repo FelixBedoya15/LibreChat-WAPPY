@@ -340,5 +340,12 @@
         "description": "Ingresa tu Auth Token de Puter obtenido desde tu <a href=\"https://puter.com/dashboard\" target=\"_blank\">Puter Dashboard</a>."
       }
     ]
+  },
+  {
+    "name": "Gestor de Automatizaciones",
+    "pluginKey": "gestor_automatizaciones",
+    "description": "Permite al agente programar, listar, editar, pausar, activar y ejecutar tareas autónomas periódicas en el sistema de Automatizaciones de Wappy (/sgsst/automatizaciones).",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
+    "authConfig": []
   }
 ]

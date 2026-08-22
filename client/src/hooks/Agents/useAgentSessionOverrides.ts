@@ -111,7 +111,7 @@ export default function useAgentSessionOverrides({
               'somos_sst', 'editor_rit', 'canvas', 'consultar_analitica_psicosocial',
               'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
               'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
-              'consultar_agente_especializado', 'context'
+              'consultar_agente_especializado', 'context', 'gestor_automatizaciones'
             ]);
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
             
@@ -124,7 +124,7 @@ export default function useAgentSessionOverrides({
               'matriz_pesv', 'somos_sst', 'consultar_analitica_psicosocial',
               'consultar_analitica_actos_condiciones', 'google_drive', 'google_calendar',
               'google_gmail', 'google_slides', 'google_docs', 'google_sheets',
-              'consultar_agente_especializado', 'context'
+              'consultar_agente_especializado', 'context', 'gestor_automatizaciones'
             ]);
             const prevTools = (prevExt?.tools ?? []).filter((t) => {
               if (!PANEL_TOOLS_SET.has(t)) return true; // Always keep non-panel tools

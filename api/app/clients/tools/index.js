@@ -33,6 +33,7 @@ const GoogleDocs = require('./structured/GoogleDocs');
 const GoogleSlides = require('./structured/GoogleSlides');
 const OneDrive = require('./structured/OneDrive');
 const PuterImageGen = require('./structured/PuterImageGen');
+const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 
 
 module.exports = {
@@ -70,4 +71,5 @@ module.exports = {
   GoogleSlides,
   OneDrive,
   PuterImageGen,
+  GestorAutomatizaciones,
 };

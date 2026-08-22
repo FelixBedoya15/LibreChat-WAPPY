@@ -56,6 +56,7 @@ const {
   GoogleSlides,
   OneDrive,
   PuterImageGen,
+  GestorAutomatizaciones,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -301,6 +302,9 @@ const loadTools = async ({
     },
     google_slides: async (_toolContextMap) => {
       return new GoogleSlides({ req: options.req });
+    },
+    gestor_automatizaciones: async (_toolContextMap) => {
+      return new GestorAutomatizaciones({ req: options.req });
     },
   };
 

@@ -43,7 +43,6 @@ import PerfilSociodemografico from './PerfilSociodemografico';
 import CondicionesSalud from './CondicionesSalud';
 import OraculoPredictivoH1 from './OraculoPredictivoH1';
 import AppBuilder from './AppBuilder';
-import InspeccionTrabajoH1 from './InspeccionTrabajoH1';
 import HtmlSandboxApp from './HtmlSandboxApp';
 import { UpgradeWall } from './UpgradeWall';
 import MoodAnalyticsDashboard from './MoodAnalyticsDashboard';
@@ -640,13 +639,6 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'app_builder' && (
                                                     <div className="mb-6">
                                                         <AppBuilder />
-                                                    </div>
-                                                )}
-
-                                                {/* Show InspeccionTrabajoH1 for inspeccion_trabajo category */}
-                                                {category.id === 'inspeccion_trabajo' && (
-                                                    <div className="mb-6">
-                                                        <InspeccionTrabajoH1 />
                                                     </div>
                                                 )}
 

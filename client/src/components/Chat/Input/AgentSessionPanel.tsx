@@ -128,6 +128,8 @@ const getToolIcon = (toolId: string) => {
             return <Heart className="h-4 w-4 text-pink-500" />;
         case 'consultar_analitica_actos_condiciones':
             return <Activity className="h-4 w-4 text-cyan-500" />;
+        case 'gestor_automatizaciones':
+            return <Cpu className="h-4 w-4 text-purple-500" />;
 
         // --- Google Suite ---
         case 'google_drive':
@@ -233,6 +235,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         consultar_agente_especializado: 'Consultar Especialista',
         consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
         consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
+        gestor_automatizaciones: 'Automatizaciones',
         google_drive: 'Google Drive',
         google_calendar: 'Google Calendar',
         google_gmail: 'Google Gmail',

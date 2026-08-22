@@ -119,7 +119,8 @@ const DEFAULT_TOOLS = [
   'somos_sst',
   'canvas',
   'web_search',
-  'consultar_agente_especializado'
+  'consultar_agente_especializado',
+  'gestor_automatizaciones'
 ];
 
 async function main() {

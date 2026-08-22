@@ -96,7 +96,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   const tools = [
     'google_slides', 'google_docs', 'google_sheets', 'google_gmail',
     'google_calendar', 'google_drive', 'somos_sst', 'canvas', 'web_search',
-    'consultar_agente_especializado'
+    'consultar_agente_especializado', 'gestor_automatizaciones'
   ];
 
   const IPEVAR_AGENTS = [

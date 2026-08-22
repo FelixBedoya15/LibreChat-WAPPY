@@ -31,7 +31,6 @@ const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
 const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
-const InspeccionButton = lazy(() => import('./InspeccionButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const KanbanButton = lazy(() => import('./KanbanButton'));
@@ -316,12 +315,6 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
-                        {/* Inspección MinTrabajo */}
-                        <Suspense fallback={null}>
-                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                          <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        )}
-                        </Suspense>
                         {/* Aula Estudio */}
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
@@ -404,11 +397,6 @@ const Nav = memo(
                                 )}
                                 <Suspense fallback={null}>
                                   <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-                                <Suspense fallback={null}>
-                                {user?.role === 'ADMIN' && (
-                                  <InspeccionButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                )}
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />

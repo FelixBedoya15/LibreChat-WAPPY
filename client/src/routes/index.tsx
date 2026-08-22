@@ -53,7 +53,6 @@ import EventsMeetDashboard from '~/components/EventsMeet/EventsMeetDashboard';
 import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDashboard';
 
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
-import InspeccionDashboard from '~/components/InspeccionMinTrabajo/InspeccionDashboard';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
@@ -423,10 +422,6 @@ export const router = createBrowserRouter(
             {
               path: 'auditoria',
               element: <AuditoriaDashboard />,
-            },
-            {
-              path: 'inspeccion',
-              element: <InspeccionDashboard />,
             },
             {
               path: 'kanban',
