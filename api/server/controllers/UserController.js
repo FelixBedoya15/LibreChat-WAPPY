@@ -231,7 +231,26 @@ const updateUserPluginsController = async (req, res) => {
 
 const updateUserProfileController = async (req, res) => {
   try {
-    const { name, username, password, inactiveAt, phoneNumber, departamento, ciudad, department, city, emailNotifications } = req.body;
+    const { 
+      name, 
+      username, 
+      password, 
+      inactiveAt, 
+      phoneNumber, 
+      departamento, 
+      ciudad, 
+      department, 
+      city, 
+      emailNotifications,
+      bio,
+      sstExperience,
+      profession,
+      yearsExperience,
+      specialties,
+      quote,
+      storyParagraph1,
+      storyParagraph2
+    } = req.body;
     const userId = req.user.id || req.user._id;
 
     const updateData = {};
@@ -249,6 +268,15 @@ const updateUserProfileController = async (req, res) => {
       updateData.city = cityVal;
     }
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
+    if (bio !== undefined) updateData.bio = bio;
+    if (sstExperience !== undefined) updateData.sstExperience = sstExperience;
+    if (profession !== undefined) updateData.profession = profession;
+    if (yearsExperience !== undefined) updateData.yearsExperience = yearsExperience;
+    if (specialties !== undefined) updateData.specialties = Array.isArray(specialties) ? specialties : [];
+    if (quote !== undefined) updateData.quote = quote;
+    if (storyParagraph1 !== undefined) updateData.storyParagraph1 = storyParagraph1;
+    if (storyParagraph2 !== undefined) updateData.storyParagraph2 = storyParagraph2;
+
     // inactiveAt is now restricted to Admin updates only
     if (password) {
       const salt = bcrypt.genSaltSync(10);

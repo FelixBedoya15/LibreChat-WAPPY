@@ -221,9 +221,16 @@ export type TUser = {
   departamento?: string;
   ciudad?: string;
   department?: string;
-  city?: string;
   inactiveAt?: string;
   emailNotifications?: boolean;
+  bio?: string;
+  sstExperience?: string;
+  profession?: string;
+  yearsExperience?: string;
+  specialties?: string[];
+  quote?: string;
+  storyParagraph1?: string;
+  storyParagraph2?: string;
 };
 
 export type TGetConversationsResponse = {

@@ -2561,41 +2561,41 @@
     </div>
   </section>
 
-  <!-- EL CREADOR (Founder Profile Section) -->
+  <!-- EL CREADOR (Founder / Ambassador Profile Section) -->
   <section id="creador">
     <div class="container creador-grid">
       <div class="creador-avatar-container reveal">
-        <!-- Render avatar3 as requested by the user -->
+        <!-- Render avatar -->
         <div class="creador-avatar-ring">
-          <img src="Agentes/Miniaturas/Avatar%20/Avatar1.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix1'">
+          <img id="creador-img" src="Agentes/Miniaturas/Avatar%20/Avatar1.png" alt="Felix Bedoya" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix1'">
         </div>
       </div>
 
       <div class="creador-story reveal" style="transition-delay: 0.15s;">
-        <span class="section-label">Detrás de WAPPY</span>
-        <h2>Mucho gusto, soy <span class="gradient-text">Felix Bedoya</span></h2>
+        <span class="section-label" id="creador-label">Detrás de WAPPY</span>
+        <h2>Mucho gusto, soy <span class="gradient-text" id="creador-name">Felix Bedoya</span></h2>
         
-        <div class="creador-tag-grid">
+        <div class="creador-tag-grid" id="creador-tags">
           <span class="tag-badge active-green">Psicólogo Especialista SST</span>
           <span class="tag-badge active-cyan">Desarrollador Senior</span>
           <span class="tag-badge">+8 Años de Experiencia</span>
           <span class="tag-badge">Fundador</span>
         </div>
         
-        <div class="creador-quote" style="margin-top: 1.5rem;">
+        <div class="creador-quote" id="creador-quote" style="margin-top: 1.5rem;">
           "Al unir la tecnología y la inteligencia artificial con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió asegurar mayor calidad técnica y escalar drásticamente mis ingresos."
         </div>
 
-        <p class="creador-p">
+        <p class="creador-p" id="creador-p1">
           Como especialista en Seguridad y Salud en el Trabajo, conozco de primera mano la frustración de pasar fines de semana enteros armando matrices de riesgos y redactando reglamentos para cumplir con la ley y los estándares de las ARLs más grandes de Colombia.
         </p>
 
-        <p class="creador-p">
+        <p class="creador-p" id="creador-p2">
           Por eso decidí programar WAPPY. No es solo un software; es el copiloto tecnológico que yo mismo utilizo todos los días para resolver informes complejos en minutos con calidad certificada, ganando libertad y rentabilidad en mi consultoría.
         </p>
 
         <div style="margin-top: 2rem;">
-          <a href="https://wa.me/573102913651?text=Hola%20Felix,%20quiero%20más%20información%20sobre%20WAPPY%20IA" target="_blank" rel="noopener noreferrer" class="btn" style="background: linear-gradient(135deg, #25D366, #128C7E); color: #ffffff; border-radius: 50px; font-weight: 700; gap: 0.75rem; box-shadow: 0 4px 20px rgba(37, 211, 102, 0.35); padding: 0.85rem 2rem; display: inline-flex; align-items: center; text-decoration: none;">
+          <a id="creador-wa-btn" href="https://wa.me/573102913651?text=Hola%20Felix,%20quiero%20más%20información%20sobre%20WAPPY%20IA" target="_blank" rel="noopener noreferrer" class="btn" style="background: linear-gradient(135deg, #25D366, #128C7E); color: #ffffff; border-radius: 50px; font-weight: 700; gap: 0.75rem; box-shadow: 0 4px 20px rgba(37, 211, 102, 0.35); padding: 0.85rem 2rem; display: inline-flex; align-items: center; text-decoration: none;">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             Contactar por WhatsApp
           </a>
@@ -2757,6 +2757,87 @@
           sunIcon.style.display = 'block';
           moonIcon.style.display = 'none';
         }
+      }
+
+      // 7. Dynamic Ambassador Profile Loader (Only when visited via a referral link / ?ref=slug)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refSlug = urlParams.get('ref') || urlParams.get('r');
+
+        // If NO referral slug or if it's the CEO's original landing page, leave Felix Bedoya 100% untouched!
+        if (refSlug && !['felix-bedoya', 'felix', 'admin'].includes(refSlug.toLowerCase())) {
+          fetch(`/api/referrals/public/ambassador-info/${encodeURIComponent(refSlug)}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              if (!data || !data.name) return;
+
+              // Update Section Label
+              const labelEl = document.getElementById('creador-label');
+              if (labelEl) labelEl.textContent = data.typeLabel || 'Embajador Oficial WAPPY';
+
+              // Update Name
+              const nameEl = document.getElementById('creador-name');
+              if (nameEl) nameEl.textContent = data.name;
+
+              // Update Avatar
+              const imgEl = document.getElementById('creador-img');
+              if (imgEl) {
+                if (data.avatar) {
+                  imgEl.src = data.avatar;
+                } else {
+                  imgEl.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.name)}`;
+                }
+                imgEl.alt = data.name;
+              }
+
+              // Update Tags
+              const tagsEl = document.getElementById('creador-tags');
+              if (tagsEl && Array.isArray(data.specialties) && data.specialties.length > 0) {
+                tagsEl.innerHTML = data.specialties.map((tag, i) => {
+                  const cls = i === 0 ? 'tag-badge active-green' : i === 1 ? 'tag-badge active-cyan' : 'tag-badge';
+                  return `<span class="${cls}">${tag}</span>`;
+                }).join('');
+              }
+
+              // Update Quote
+              const quoteEl = document.getElementById('creador-quote');
+              if (quoteEl && data.quote) {
+                quoteEl.textContent = `"${data.quote.replace(/^["']|["']$/g, '')}"`;
+              }
+
+              // Update Paragraphs
+              const p1El = document.getElementById('creador-p1');
+              if (p1El && data.storyParagraph1) {
+                p1El.textContent = data.storyParagraph1;
+              }
+              const p2El = document.getElementById('creador-p2');
+              if (p2El && data.storyParagraph2) {
+                p2El.textContent = data.storyParagraph2;
+              }
+
+              // Update WhatsApp Contact Button
+              const waBtn = document.getElementById('creador-wa-btn');
+              if (waBtn && (data.phoneClean || data.phone)) {
+                const pNum = data.phoneClean || data.phone.replace(/[^0-9]/g, '');
+                const waMsg = encodeURIComponent(`Hola ${data.name}, quiero más información sobre WAPPY IA`);
+                waBtn.href = `https://wa.me/${pNum}?text=${waMsg}`;
+              }
+
+              // Update registration / login links with ref code
+              document.querySelectorAll('a[href*="/register"], a[href*="#planes"]').forEach(a => {
+                const href = a.getAttribute('href') || '';
+                if (href.startsWith('/register') || href.includes('login') || href.includes('signup')) {
+                  const separator = href.includes('?') ? '&' : '?';
+                  a.href = `${href}${separator}ref=${encodeURIComponent(data.slug || refSlug)}`;
+                }
+              });
+            })
+            .catch(err => {
+              console.log('Public ambassador info fetch:', err);
+            });
+        }
+      } catch (e) {
+        console.error('Error loading ambassador dynamic profile:', e);
       }
     });
   </script>

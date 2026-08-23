@@ -47,6 +47,14 @@ export interface IUser extends Document {
   lastDownloadDate?: Date;
   pushSubscriptions?: any[];
   emailNotifications?: boolean;
+  bio?: string;
+  sstExperience?: string;
+  profession?: string;
+  yearsExperience?: string;
+  specialties?: string[];
+  quote?: string;
+  storyParagraph1?: string;
+  storyParagraph2?: string;
 }
 
 export interface BalanceConfig {
@@ -81,6 +89,14 @@ export interface UpdateUserRequest {
   department?: string;
   city?: string;
   emailNotifications?: boolean;
+  bio?: string;
+  sstExperience?: string;
+  profession?: string;
+  yearsExperience?: string;
+  specialties?: string[];
+  quote?: string;
+  storyParagraph1?: string;
+  storyParagraph2?: string;
 }
 
 export interface UserDeleteResult {

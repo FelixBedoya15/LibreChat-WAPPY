@@ -197,6 +197,38 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    sstExperience: {
+      type: String,
+      trim: true,
+    },
+    profession: {
+      type: String,
+      trim: true,
+    },
+    yearsExperience: {
+      type: String,
+      trim: true,
+    },
+    specialties: {
+      type: [String],
+      default: [],
+    },
+    quote: {
+      type: String,
+      trim: true,
+    },
+    storyParagraph1: {
+      type: String,
+      trim: true,
+    },
+    storyParagraph2: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true },
 );

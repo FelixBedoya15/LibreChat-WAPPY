@@ -25,22 +25,25 @@ router.get('/public/ambassador-info/:slug', async (req, res) => {
         const Partner = mongoose.model('Partner');
         const User = mongoose.model('User');
 
-        let partner = await Partner.findOne({ slug: cleanSlug }).populate('userId', 'name username email phoneNumber phone').lean();
+        let partner = await Partner.findOne({ slug: cleanSlug }).populate('userId', 'name username email phoneNumber phone avatar bio sstExperience profession yearsExperience specialties quote storyParagraph1 storyParagraph2 role').lean();
         let name = '';
         let email = '';
         let phone = '';
         let type = 'embajador';
         let foundSlug = cleanSlug;
+        let userObj = {};
 
         if (partner) {
-            name = partner.userId?.name || partner.userId?.username || '';
-            email = partner.userId?.email || '';
-            phone = partner.supportContact || partner.userId?.phoneNumber || partner.userId?.phone || '';
+            userObj = partner.userId || {};
+            name = userObj.name || userObj.username || '';
+            email = userObj.email || '';
+            phone = partner.supportContact || userObj.phoneNumber || userObj.phone || '';
             type = partner.type || 'embajador';
             foundSlug = partner.slug;
         } else {
             const user = await User.findOne({ username: new RegExp(`^${cleanSlug}$`, 'i') }).lean();
             if (user) {
+                userObj = user;
                 const partnerDoc = await Partner.findOne({ userId: user._id }).lean();
                 name = user.name || user.username;
                 email = user.email || '';
@@ -61,13 +64,34 @@ router.get('/public/ambassador-info/:slug', async (req, res) => {
             phoneClean = `57${phoneClean}`;
         }
 
+        const resolvedProfession = userObj.profession || 'Especialista en Seguridad y Salud en el Trabajo';
+        const resolvedYears = userObj.yearsExperience || '+5 Años de Experiencia';
+        const resolvedTypeLabel = type === 'embajador' ? 'Embajador Líder' : 'Embajador Oficial';
+        const resolvedSpecialties = (Array.isArray(userObj.specialties) && userObj.specialties.length > 0)
+            ? userObj.specialties
+            : [resolvedTypeLabel, resolvedProfession, resolvedYears, 'Asesor IA en SST'];
+
+        const resolvedQuote = userObj.quote || `Al unir la tecnología y la inteligencia artificial con la SST, optimizamos la gestión preventiva y transformamos los entregables normativos en prevención activa de alto impacto.`;
+        const resolvedStory1 = userObj.storyParagraph1 || userObj.sstExperience || userObj.bio || `${name} es especialista y consultor en Seguridad y Salud en el Trabajo con amplia trayectoria en el sector. Conoce de primera mano los desafíos del cumplimiento normativo y la gestión de riesgos laborales en Colombia.`;
+        const resolvedStory2 = userObj.storyParagraph2 || `Como ${resolvedTypeLabel} de WAPPY IA, acompaña a empresas y profesionales a multiplicar su productividad, automatizando matrices IPEVAR, planes PESV y auditorías con calidad certificada e Inteligencia Artificial.`;
+
         return res.json({
             name,
             slug: foundSlug,
             email,
             phone,
             phoneClean,
-            type
+            type,
+            typeLabel: resolvedTypeLabel,
+            avatar: userObj.avatar || null,
+            profession: resolvedProfession,
+            yearsExperience: resolvedYears,
+            specialties: resolvedSpecialties,
+            quote: resolvedQuote,
+            storyParagraph1: resolvedStory1,
+            storyParagraph2: resolvedStory2,
+            bio: userObj.bio || '',
+            sstExperience: userObj.sstExperience || ''
         });
     } catch (error) {
         logger.error('[PublicAmbassadorInfo] Error:', error);
@@ -1213,6 +1237,81 @@ Asegúrate de retornar únicamente el JSON parseable sin bloques de código mark
     } catch (error) {
         logger.error('[ReferralEmailGenerate] Error generating message with Gemini:', error);
         return res.status(500).json({ message: `Error al generar contenido con la IA: ${error.message}` });
+    }
+});
+
+/**
+ * POST /api/referrals/profile/generate-bio
+ * Generates/polishes Ambassador professional SST bio using Gemini (Flash Lite / 3.5 lite)
+ */
+router.post('/profile/generate-bio', requireJwtAuth, async (req, res) => {
+    const { 
+        name,
+        profession, 
+        yearsExperience, 
+        sstExperience, 
+        rawBio,
+        model = 'gemini-3.1-flash-lite' 
+    } = req.body;
+
+    try {
+        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+        const apiKey = await getSystemGoogleKey();
+        if (!apiKey) {
+            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelInstance = genAI.getGenerativeModel({
+            model: model || 'gemini-3.1-flash-lite',
+            systemInstruction: `Eres un redactor ejecutivo y estratega de posicionamiento profesional para consultores y embajadores de WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
+
+Tu misión es transformar los datos y la experiencia laboral en SST de un embajador en una presentación personal de ALTO IMPACTO que aparecerá en su Landing Page de referidos en la sección:
+"Mucho gusto, soy [Nombre]".
+
+Pautas de redacción:
+1. "profession": Un título profesional claro, elegante y formal en SST (ej. "Psicólogo Especialista en SST", "Ingeniero Especialista en SST", "Profesional en Seguridad y Salud en el Trabajo", "Consultor y Auditor SG-SST").
+2. "yearsExperience": Formato conciso (ej. "+8 Años de Experiencia", "+10 Años de Experiencia", "+5 Años en el Sector").
+3. "specialties": Array de 3 a 4 etiquetas breves destacadas (ej. ["Especialista SG-SST", "Auditor de Riesgos", "Asesor IA en SST", "Embajador Oficial"]).
+4. "quote": Una cita personal breve e inspiradora (1-2 frases) que refleje su visión sobre la tecnología, la prevención de riesgos y la calidad técnica.
+5. "storyParagraph1": Primer párrafo (3-4 líneas) que narre en tercera persona (o primera persona cercana) su trayectoria laboral, especialidades, sectores de experiencia (ej. construcción, salud, manufactura, servicios) y su conocimiento práctico de las normas colombianas (Decreto 1072, Res. 0312, Res. 40595 PESV).
+6. "storyParagraph2": Segundo párrafo (3-4 líneas) que explique cómo, como Embajador de WAPPY IA, apoya a colegas, prevencionistas y empresas a automatizar su trabajo técnico con Inteligencia Artificial para ganar tiempo, rentabilidad y máxima calidad en sus entregables.
+
+DEBES responder EXCLUSIVAMENTE en formato JSON válido con la siguiente estructura:
+{
+  "profession": string,
+  "yearsExperience": string,
+  "specialties": string[],
+  "quote": string,
+  "storyParagraph1": string,
+  "storyParagraph2": string
+}`
+        });
+
+        const promptInput = `Nombre del Embajador: ${name || req.user.name || 'Embajador'}
+Profesión declarada: ${profession || 'Profesional SST'}
+Años de experiencia: ${yearsExperience || 'Varios años'}
+Experiencia / Trayectoria redactada por el usuario: ${sstExperience || rawBio || 'Especialista en Seguridad y Salud en el Trabajo asesorando empresas en Colombia.'}`;
+
+        const result = await modelInstance.generateContent({
+            contents: [{ role: 'user', parts: [{ text: promptInput }] }],
+            generationConfig: {
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const responseText = result.response.text();
+        const parsedData = JSON.parse(responseText);
+
+        return res.status(200).json({
+            success: true,
+            data: parsedData
+        });
+    } catch (error) {
+        logger.error('[GenerateAmbassadorBio] Error:', error);
+        return res.status(500).json({ message: `Error al generar la biografía con IA: ${error.message}` });
     }
 });
 
