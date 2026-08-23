@@ -195,23 +195,23 @@ export default function AmbassadorDashboard() {
     switch (preset) {
       case 'anual':
         basePlanPrice = 1200000;
-        extraCompanyUnit = 33350 * 12; // 400.200 COP
+        extraCompanyUnit = 350000; // $350.000 COP anual
         break;
       case 'semestral':
         basePlanPrice = 641960;
-        extraCompanyUnit = 33350 * 6; // 200.100 COP
+        extraCompanyUnit = 187240; // $187.240 COP semestral
         break;
       case 'trimestral':
         basePlanPrice = 331270;
-        extraCompanyUnit = 33350 * 3; // 100.050 COP
+        extraCompanyUnit = 96620; // $96.620 COP trimestral
         break;
       case 'mensual':
         basePlanPrice = 114330;
-        extraCompanyUnit = 33350; // 33.350 COP
+        extraCompanyUnit = 33350; // $33.350 COP mensual
         break;
       case 'vital':
         basePlanPrice = 350000;
-        extraCompanyUnit = 33350;
+        extraCompanyUnit = 350000;
         break;
       default:
         basePlanPrice = 114330;
@@ -1707,7 +1707,7 @@ export default function AmbassadorDashboard() {
                         </div>
                         <span className="text-[10px] font-semibold text-text-tertiary">
                           {(() => {
-                            const unit = planPreset === 'anual' ? 33350 * 12 : planPreset === 'semestral' ? 33350 * 6 : planPreset === 'trimestral' ? 33350 * 3 : 33350;
+                            const unit = planPreset === 'anual' ? 350000 : planPreset === 'semestral' ? 187240 : planPreset === 'trimestral' ? 96620 : 33350;
                             return `+$${unit.toLocaleString('es-CO')} COP c/u`;
                           })()}
                         </span>
@@ -1749,7 +1749,7 @@ export default function AmbassadorDashboard() {
 
                         <div className="text-right text-xs font-extrabold text-teal-600 dark:text-teal-400">
                           {(() => {
-                            const unit = planPreset === 'anual' ? 33350 * 12 : planPreset === 'semestral' ? 33350 * 6 : planPreset === 'trimestral' ? 33350 * 3 : 33350;
+                            const unit = planPreset === 'anual' ? 350000 : planPreset === 'semestral' ? 187240 : planPreset === 'trimestral' ? 96620 : 33350;
                             const totalExtras = extraCompanies * unit;
                             return totalExtras > 0 ? `+ $${totalExtras.toLocaleString('es-CO')} COP` : '$0 COP';
                           })()}
