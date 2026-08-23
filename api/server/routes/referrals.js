@@ -904,11 +904,12 @@ router.get('/dashboard', async (req, res) => {
 
             networkStats = await Promise.all(allPartners.map(async p => {
                 const pRefs = await ReferralRecord.countDocuments({ referredByPartner: p._id });
-                const pComms = await PartnerCommission.aggregate([
-                    { $match: { partnerId: p._id, status: { $ne: 'cancelled' } } },
-                    { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
-                ]);
-                const totalComm = pComms.length > 0 ? pComms[0].total : 0;
+                const partnerCommsList = await PartnerCommission.find({ partnerId: p._id, status: { $ne: 'cancelled' } }).lean();
+                let totalComm = 0;
+                partnerCommsList.forEach(c => {
+                    const raw = Number(c.commissionAmount) || 0;
+                    totalComm += raw > 2000000 ? Math.round(raw / 100) : Math.round(raw);
+                });
 
                 const lastRef = await ReferralRecord.findOne({ referredByPartner: p._id }).sort({ createdAt: -1 }).lean();
                 const daysSinceLastRef = lastRef ? Math.floor((now.getTime() - new Date(lastRef.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;

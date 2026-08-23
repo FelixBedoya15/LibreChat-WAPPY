@@ -809,11 +809,11 @@ export default function AmbassadorDashboard() {
                 </div>
               </div>
               <div className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight truncate">
-                ${(activeKpis.totalCommissionsEarned / 100).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
+                ${activeKpis.totalCommissionsEarned.toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
               </div>
               <div className="flex items-center justify-between mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
-                <span>Pend: ${(activeKpis.totalCommissionsPending / 100).toLocaleString('es-CO')}</span>
-                <span className="text-emerald-600 font-bold">Pag: ${(activeKpis.totalCommissionsPaid / 100).toLocaleString('es-CO')}</span>
+                <span>Pend: ${activeKpis.totalCommissionsPending.toLocaleString('es-CO')}</span>
+                <span className="text-emerald-600 font-bold">Pag: ${activeKpis.totalCommissionsPaid.toLocaleString('es-CO')}</span>
               </div>
             </div>
 
@@ -1539,7 +1539,7 @@ export default function AmbassadorDashboard() {
                           </td>
                           <td className="px-4 py-3.5 align-middle font-bold text-text-primary text-sm whitespace-nowrap">{p.totalReferrals}</td>
                           <td className="px-4 py-3.5 align-middle font-extrabold text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
-                            ${(p.totalCommission / 100).toLocaleString('es-CO')} COP
+                            ${p.totalCommission.toLocaleString('es-CO')} COP
                           </td>
                           <td className="px-4 py-3.5 align-middle text-text-tertiary text-xs whitespace-nowrap">{p.daysSinceLastReferral}</td>
                         </tr>
