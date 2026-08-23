@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Sparkles, MessageCircle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Sparkles, MessageCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 interface AmbassadorPublicData {
   name: string;
@@ -13,7 +13,6 @@ interface AmbassadorPublicData {
 
 export default function AmbassadorLandingBanner() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [ambassador, setAmbassador] = useState<AmbassadorPublicData | null>(null);
 
   useEffect(() => {
@@ -29,15 +28,28 @@ export default function AmbassadorLandingBanner() {
         localStorage.setItem('wappy_ref', urlRef);
       }
 
-      axios.get(`/api/referrals/public/ambassador-info/${encodeURIComponent(activeRef)}`)
+      const formatSlugName = (slugStr: string) => {
+        return slugStr
+          .split('-')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+      };
+
+      axios
+        .get(`/api/referrals/public/ambassador-info/${encodeURIComponent(activeRef)}`)
         .then((res) => {
           if (res.data && res.data.name) {
             setAmbassador(res.data);
+          } else {
+            setAmbassador({
+              name: formatSlugName(activeRef),
+              slug: activeRef,
+            });
           }
         })
         .catch(() => {
           setAmbassador({
-            name: activeRef.charAt(0).toUpperCase() + activeRef.slice(1),
+            name: formatSlugName(activeRef),
             slug: activeRef,
           });
         });
@@ -51,71 +63,62 @@ export default function AmbassadorLandingBanner() {
   const isRegisterPage = location.pathname.includes('/register');
 
   const waUrl = ambassador.phoneClean
-    ? `https://api.whatsapp.com/send?phone=${ambassador.phoneClean}&text=${encodeURIComponent(`Hola ${ambassador.name} 👋 Estoy conociendo WAPPY IA a través de tu enlace y me gustaría hacerte unas preguntas.`)}`
+    ? `https://api.whatsapp.com/send?phone=${ambassador.phoneClean}&text=${encodeURIComponent(
+        `Hola ${ambassador.name} 👋 Estoy conociendo WAPPY IA a través de tu enlace y me gustaría hacerte unas preguntas.`,
+      )}`
     : null;
 
   return (
-    <div className="w-full max-w-md mx-auto mb-5 animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="bg-gradient-to-br from-teal-950/90 via-slate-900/90 to-teal-900/90 border-2 border-teal-500/50 rounded-2xl p-4 sm:p-5 shadow-2xl text-white backdrop-blur-md relative overflow-hidden">
-        {/* Decorative ambient glow */}
-        <div className="absolute -top-10 -right-10 w-28 h-28 bg-teal-500/20 rounded-full blur-2xl pointer-events-none" />
-        
+    <div className="mb-5 w-full max-w-md mx-auto animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-text-primary shadow-sm backdrop-blur-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 sm:p-4.5">
+        {/* Subtle decorative glow */}
+        <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-500/10 blur-xl dark:bg-emerald-500/20" />
+
         {/* Header Tag */}
-        <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-teal-500/30">
-          <div className="flex items-center gap-1.5 text-teal-400 font-extrabold text-[11px] uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Invitación Especial WAPPY SST</span>
+        <div className="mb-2.5 flex items-center justify-between gap-2 border-b border-emerald-500/15 pb-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Invitación Especial Wappy IA</span>
           </div>
-          <span className="bg-teal-500/20 text-teal-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-teal-500/30">
+          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
             15 Días Gratis
           </span>
         </div>
 
         {/* Content */}
-        <div className="space-y-2">
-          <div className="text-xs text-slate-300">
+        <div className="space-y-1.5">
+          <div className="text-xs text-text-secondary">
             Estás navegando por invitación de tu asesor comercial:
           </div>
-          <div className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-base font-bold text-text-primary">
             <span>{ambassador.name}</span>
-            <ShieldCheck className="w-4 h-4 text-teal-400 shrink-0" />
+            <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
 
-          <div className="text-[11px] text-teal-200/90 flex items-start gap-1.5 pt-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-teal-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-1.5 pt-1 text-xs text-text-secondary">
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>
-              {isRegisterPage 
-                ? 'Tu registro activará de inmediato los 15 días de prueba PRO con acceso total a Agentes y Matrices.' 
+              {isRegisterPage
+                ? 'Tu registro activará de inmediato los 15 días de prueba PRO con acceso total a Agentes y Herramientas.'
                 : 'Crea tu cuenta gratuita hoy y recibe 15 días de prueba PRO con acompañamiento directo.'}
             </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 mt-3 pt-3 border-t border-teal-500/20">
-          {!isRegisterPage && (
-            <button
-              type="button"
-              onClick={() => navigate(`/register?ref=${ambassador.slug}`)}
-              className="w-full sm:flex-1 py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
-            >
-              <span>Crear Cuenta Gratis</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {waUrl && (
+        {/* WhatsApp Chat Button (Only if phone is available) */}
+        {waUrl && (
+          <div className="mt-3 border-t border-emerald-500/15 pt-2.5">
             <a
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={`w-full ${!isRegisterPage ? 'sm:w-auto' : 'w-full'} py-2 px-3 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95`}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
+              <MessageCircle className="h-3.5 w-3.5" />
               <span>Chatear con mi Asesor</span>
             </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

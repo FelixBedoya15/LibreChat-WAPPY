@@ -25,36 +25,49 @@ router.get('/public/ambassador-info/:slug', async (req, res) => {
         const Partner = mongoose.model('Partner');
         const User = mongoose.model('User');
 
-        let partner = await Partner.findOne({ slug: cleanSlug }).lean();
-        if (!partner) {
+        let partner = await Partner.findOne({ slug: cleanSlug }).populate('userId', 'name username email phoneNumber phone').lean();
+        let name = '';
+        let email = '';
+        let phone = '';
+        let type = 'embajador';
+        let foundSlug = cleanSlug;
+
+        if (partner) {
+            name = partner.userId?.name || partner.userId?.username || '';
+            email = partner.userId?.email || '';
+            phone = partner.supportContact || partner.userId?.phoneNumber || partner.userId?.phone || '';
+            type = partner.type || 'embajador';
+            foundSlug = partner.slug;
+        } else {
             const user = await User.findOne({ username: new RegExp(`^${cleanSlug}$`, 'i') }).lean();
             if (user) {
-                partner = await Partner.findOne({ userId: user._id }).lean() || {
-                    name: user.name,
-                    slug: user.username,
-                    email: user.email,
-                    phone: user.phoneNumber || user.phone || '',
-                    type: 'embajador'
-                };
+                const partnerDoc = await Partner.findOne({ userId: user._id }).lean();
+                name = user.name || user.username;
+                email = user.email || '';
+                phone = partnerDoc?.supportContact || user.phoneNumber || user.phone || '';
+                type = partnerDoc?.type || 'embajador';
+                foundSlug = partnerDoc?.slug || user.username;
             }
         }
 
-        if (!partner) {
-            return res.status(404).json({ error: 'Embajador no encontrado' });
+        if (!name) {
+            // Check if slug is formatted like "nombre-apellido" -> "Nombre Apellido"
+            const formatted = cleanSlug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+            name = formatted || cleanSlug;
         }
 
-        let phoneClean = (partner.phone || '').replace(/[^0-9]/g, '');
+        let phoneClean = (phone || '').replace(/[^0-9]/g, '');
         if (phoneClean.length === 10 && phoneClean.startsWith('3')) {
             phoneClean = `57${phoneClean}`;
         }
 
         return res.json({
-            name: partner.name || 'Asesor Comercial WAPPY',
-            slug: partner.slug || cleanSlug,
-            email: partner.email || '',
-            phone: partner.phone || '',
+            name,
+            slug: foundSlug,
+            email,
+            phone,
             phoneClean,
-            type: partner.type || 'embajador'
+            type
         });
     } catch (error) {
         logger.error('[PublicAmbassadorInfo] Error:', error);
