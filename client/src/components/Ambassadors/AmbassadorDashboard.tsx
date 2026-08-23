@@ -27,7 +27,13 @@ import {
   LayoutGrid,
   List,
   Flame,
-  Layers
+  Layers,
+  MapPin,
+  Plus,
+  Minus,
+  Percent,
+  Calculator,
+  Building
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -41,6 +47,8 @@ interface ReferredUser {
   name: string;
   email: string;
   phone: string;
+  city?: string;
+  department?: string;
   role: string;
   accountStatus: string;
   registrationDate: string;
@@ -168,26 +176,98 @@ export default function AmbassadorDashboard() {
   const [targetPartnerId, setTargetPartnerId] = useState<string>('');
   const [isAttributing, setIsAttributing] = useState<boolean>(false);
   const [createCommission, setCreateCommission] = useState<boolean>(true);
-  const [commissionPreset, setCommissionPreset] = useState<'anual' | 'semestral' | 'mensual' | 'custom'>('anual');
-  const [customTxAmount, setCustomTxAmount] = useState<number>(600000);
+  const [planPreset, setPlanPreset] = useState<'anual' | 'semestral' | 'trimestral' | 'mensual' | 'vital' | 'custom'>('mensual');
+  const [extraCompanies, setExtraCompanies] = useState<number>(0);
+  const [paymentDiscount, setPaymentDiscount] = useState<number>(0); // 0 = 0%, 5 = 5% Nequi, etc.
+  const [customNetPaidAmount, setCustomNetPaidAmount] = useState<number>(114330);
+  const [isManualAmount, setIsManualAmount] = useState<boolean>(false);
   const [customCommRate, setCustomCommRate] = useState<number>(0.30);
   const [commissionStatus, setCommissionStatus] = useState<'pending' | 'paid'>('pending');
+
+  const calculateDerivedAmounts = (
+    preset: string,
+    extras: number,
+    discountPct: number
+  ) => {
+    let basePlanPrice = 0;
+    let extraCompanyUnit = 33350;
+
+    switch (preset) {
+      case 'anual':
+        basePlanPrice = 1200000;
+        extraCompanyUnit = 33350 * 12; // 400.200 COP
+        break;
+      case 'semestral':
+        basePlanPrice = 641960;
+        extraCompanyUnit = 33350 * 6; // 200.100 COP
+        break;
+      case 'trimestral':
+        basePlanPrice = 331270;
+        extraCompanyUnit = 33350 * 3; // 100.050 COP
+        break;
+      case 'mensual':
+        basePlanPrice = 114330;
+        extraCompanyUnit = 33350; // 33.350 COP
+        break;
+      case 'vital':
+        basePlanPrice = 350000;
+        extraCompanyUnit = 33350;
+        break;
+      default:
+        basePlanPrice = 114330;
+        extraCompanyUnit = 33350;
+    }
+
+    const subtotalBruto = basePlanPrice + (extras * extraCompanyUnit);
+    const discountAmount = Math.round(subtotalBruto * (discountPct / 100));
+    const netoPagado = Math.max(0, subtotalBruto - discountAmount);
+
+    return {
+      basePlanPrice,
+      extraCompanyUnit,
+      subtotalBruto,
+      discountAmount,
+      netoPagado
+    };
+  };
+
+  const updateCalculatedPrice = (
+    newPreset = planPreset,
+    newExtras = extraCompanies,
+    newDiscount = paymentDiscount
+  ) => {
+    const calc = calculateDerivedAmounts(newPreset, newExtras, newDiscount);
+    if (!isManualAmount) {
+      setCustomNetPaidAmount(calc.netoPagado);
+    }
+  };
 
   const openAttributionModal = (u: ReferredUser) => {
     setSelectedUserForAttr(u);
     setTargetPartnerId(u.ambassadorId || '');
     const isProPaid = u.role === 'USER_PRO' || u.paymentStatus === 'paid';
     setCreateCommission(isProPaid);
-    if (u.planInterval === 'semestral') {
-      setCommissionPreset('semestral');
-      setCustomTxAmount(350000);
-    } else if (u.planInterval === 'mensual') {
-      setCommissionPreset('mensual');
-      setCustomTxAmount(97180);
+
+    let initialPreset: 'anual' | 'semestral' | 'trimestral' | 'mensual' | 'vital' | 'custom' = 'mensual';
+    if (u.planInterval === 'anual') {
+      initialPreset = 'anual';
+    } else if (u.planInterval === 'semestral') {
+      initialPreset = 'semestral';
+    } else if (u.planInterval === 'trimestral') {
+      initialPreset = 'trimestral';
+    } else if (u.subscriptionType === 'vital') {
+      initialPreset = 'vital';
     } else {
-      setCommissionPreset('anual');
-      setCustomTxAmount(600000);
+      initialPreset = 'mensual';
     }
+
+    setPlanPreset(initialPreset);
+    setExtraCompanies(0);
+    setPaymentDiscount(0);
+    setIsManualAmount(false);
+
+    const calc = calculateDerivedAmounts(initialPreset, 0, 0);
+    setCustomNetPaidAmount(calc.netoPagado);
     setCustomCommRate(0.30);
     setCommissionStatus('pending');
   };
@@ -356,6 +436,8 @@ export default function AmbassadorDashboard() {
       'Nombre del Cliente',
       'Correo Electrónico',
       'WhatsApp / Teléfono',
+      'Ciudad',
+      'Departamento',
       'Embajador Asignado',
       'Etapa CRM',
       'Rol / Cuenta',
@@ -375,6 +457,8 @@ export default function AmbassadorDashboard() {
         `"${u.name.replace(/"/g, '""')}"`,
         `"${u.email}"`,
         `"${u.phone || ''}"`,
+        `"${(u.city || '').replace(/"/g, '""')}"`,
+        `"${(u.department || '').replace(/"/g, '""')}"`,
         `"${u.ambassadorName.replace(/"/g, '""')}"`,
         `"${crmStageLabel}"`,
         `"${u.role}"`,
@@ -408,18 +492,8 @@ export default function AmbassadorDashboard() {
     if (!selectedUserForAttr) return;
     try {
       setIsAttributing(true);
-      let txAmount = customTxAmount;
-      let rate = customCommRate;
-      if (commissionPreset === 'anual') {
-        txAmount = 600000;
-        rate = 0.30;
-      } else if (commissionPreset === 'semestral') {
-        txAmount = 350000;
-        rate = 0.30;
-      } else if (commissionPreset === 'mensual') {
-        txAmount = 97180;
-        rate = 0.30;
-      }
+      const txAmount = Math.round(Number(customNetPaidAmount) || 0);
+      const rate = Number(customCommRate) || 0.30;
       const calculatedComm = Math.round(txAmount * rate);
 
       await axios.post('/api/referrals/attribute', {
@@ -435,7 +509,7 @@ export default function AmbassadorDashboard() {
 
       showToast({ 
         message: createCommission && targetPartnerId 
-          ? 'Atribución y comisión retroactiva guardadas con éxito.' 
+          ? `Atribución y comisión de $${calculatedComm.toLocaleString('es-CO')} COP guardadas con éxito.` 
           : 'Atribución de embajador actualizada correctamente.', 
         status: 'success' 
       });
@@ -454,6 +528,8 @@ export default function AmbassadorDashboard() {
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.phone.includes(searchTerm) ||
+      (u.city && u.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.department && u.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
       u.ambassadorName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
@@ -1035,6 +1111,12 @@ export default function AmbassadorDashboard() {
                                 ) : (
                                   <span className="text-[11px] text-rose-500 font-semibold mt-1">Sin teléfono</span>
                                 )}
+                                {(u.city || u.department) && (
+                                  <div className="inline-flex items-center gap-1 text-[11px] text-teal-700 dark:text-teal-300 font-semibold mt-1">
+                                    <MapPin className="w-3 h-3 text-teal-500 shrink-0" />
+                                    <span className="truncate max-w-[200px]">{[u.city, u.department].filter(Boolean).join(', ')}</span>
+                                  </div>
+                                )}
                               </div>
                             </td>
 
@@ -1411,9 +1493,17 @@ export default function AmbassadorDashboard() {
               <div>
                 <div className="font-bold text-xs text-text-primary">{selectedUserForAttr.name}</div>
                 <div className="text-[11px] text-text-tertiary">{selectedUserForAttr.email}</div>
-                {selectedUserForAttr.phone && (
-                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{selectedUserForAttr.phone}</div>
-                )}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {selectedUserForAttr.phone && (
+                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{selectedUserForAttr.phone}</div>
+                  )}
+                  {(selectedUserForAttr.city || selectedUserForAttr.department) && (
+                    <div className="inline-flex items-center gap-1 text-[11px] text-teal-700 dark:text-teal-300 font-semibold">
+                      <MapPin className="w-3 h-3 text-teal-500 shrink-0" />
+                      <span>{[selectedUserForAttr.city, selectedUserForAttr.department].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="text-right flex flex-col items-end gap-1">
                 {(() => {
@@ -1495,62 +1585,294 @@ export default function AmbassadorDashboard() {
                 </div>
 
                 {createCommission && (
-                  <div className="bg-surface-secondary/50 border border-border-medium/40 rounded-xl p-3.5 space-y-3 animate-in fade-in">
+                  <div className="bg-surface-secondary/50 border border-border-medium/40 rounded-xl p-3.5 space-y-3.5 animate-in fade-in">
+                    
+                    {/* 1. Plan Preset Selection */}
                     <div>
-                      <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
-                        Plan Pagado por el Usuario
+                      <label className="block text-[10px] font-bold text-text-tertiary mb-1.5 uppercase">
+                        1. Plan Base Adquirido por el Cliente
                       </label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                         <button
                           type="button"
                           onClick={() => {
-                            setCommissionPreset('anual');
-                            setCustomTxAmount(600000);
+                            setPlanPreset('mensual');
+                            setIsManualAmount(false);
+                            updateCalculatedPrice('mensual', extraCompanies, paymentDiscount);
                           }}
-                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            commissionPreset === 'anual'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Anual</div>
-                          <div className="text-[10px] opacity-85">$600.000 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCommissionPreset('semestral');
-                            setCustomTxAmount(350000);
-                          }}
-                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            commissionPreset === 'semestral'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Semestral</div>
-                          <div className="text-[10px] opacity-85">$350.000 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCommissionPreset('mensual');
-                            setCustomTxAmount(97180);
-                          }}
-                          className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            commissionPreset === 'mensual'
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'mensual'
                               ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
                               : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
                           }`}
                         >
                           <div>Pro Mensual</div>
-                          <div className="text-[10px] opacity-85">$97.180 COP</div>
+                          <div className="text-[10px] opacity-85 font-mono">$114.330 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanPreset('trimestral');
+                            setIsManualAmount(false);
+                            updateCalculatedPrice('trimestral', extraCompanies, paymentDiscount);
+                          }}
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'trimestral'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Trimestral</div>
+                          <div className="text-[10px] opacity-85 font-mono">$331.270 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanPreset('semestral');
+                            setIsManualAmount(false);
+                            updateCalculatedPrice('semestral', extraCompanies, paymentDiscount);
+                          }}
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'semestral'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Semestral</div>
+                          <div className="text-[10px] opacity-85 font-mono">$641.960 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanPreset('anual');
+                            setIsManualAmount(false);
+                            updateCalculatedPrice('anual', extraCompanies, paymentDiscount);
+                          }}
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'anual'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Pro Anual</div>
+                          <div className="text-[10px] opacity-85 font-mono">$1.200.000 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanPreset('vital');
+                            setIsManualAmount(false);
+                            updateCalculatedPrice('vital', extraCompanies, paymentDiscount);
+                          }}
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'vital'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Wappy Vital</div>
+                          <div className="text-[10px] opacity-85 font-mono">$350.000 COP</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanPreset('custom');
+                            setIsManualAmount(true);
+                          }}
+                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            planPreset === 'custom'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Personalizado</div>
+                          <div className="text-[10px] opacity-85">Valor Libre</div>
                         </button>
                       </div>
                     </div>
 
+                    {/* 2. Extra Companies (Add-ons) according to periodicity */}
+                    <div className="bg-surface-primary border border-border-medium/40 rounded-xl p-2.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Building className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                          <span className="text-[11px] font-bold text-text-primary">
+                            Empresas Adicionales (Add-ons)
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-text-tertiary">
+                          {(() => {
+                            const unit = planPreset === 'anual' ? 33350 * 12 : planPreset === 'semestral' ? 33350 * 6 : planPreset === 'trimestral' ? 33350 * 3 : 33350;
+                            return `+$${unit.toLocaleString('es-CO')} COP c/u`;
+                          })()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newE = Math.max(0, extraCompanies - 1);
+                              setExtraCompanies(newE);
+                              setIsManualAmount(false);
+                              updateCalculatedPrice(planPreset, newE, paymentDiscount);
+                            }}
+                            disabled={extraCompanies <= 0}
+                            className="w-7 h-7 rounded-lg bg-surface-secondary hover:bg-surface-hover border border-border-medium/40 flex items-center justify-center font-bold text-xs disabled:opacity-40 cursor-pointer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          <span className="w-8 text-center font-black text-sm text-text-primary">
+                            {extraCompanies}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newE = extraCompanies + 1;
+                              setExtraCompanies(newE);
+                              setIsManualAmount(false);
+                              updateCalculatedPrice(planPreset, newE, paymentDiscount);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-sm"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="text-right text-xs font-extrabold text-teal-600 dark:text-teal-400">
+                          {(() => {
+                            const unit = planPreset === 'anual' ? 33350 * 12 : planPreset === 'semestral' ? 33350 * 6 : planPreset === 'trimestral' ? 33350 * 3 : 33350;
+                            const totalExtras = extraCompanies * unit;
+                            return totalExtras > 0 ? `+ $${totalExtras.toLocaleString('es-CO')} COP` : '$0 COP';
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Payment Method Discount */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
+                        3. Descuento por Medio de Pago / Pasarela
+                      </label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentDiscount(0);
+                            setIsManualAmount(false);
+                            updateCalculatedPrice(planPreset, extraCompanies, 0);
+                          }}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            paymentDiscount === 0
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Sin Descuento (0%)</div>
+                          <div className="text-[9px] opacity-80">Tarjeta / PSE</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentDiscount(5);
+                            setIsManualAmount(false);
+                            updateCalculatedPrice(planPreset, extraCompanies, 5);
+                          }}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            paymentDiscount === 5
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>QR Nequi (-5%)</div>
+                          <div className="text-[9px] opacity-80">Transferencia Directa</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentDiscount(10);
+                            setIsManualAmount(false);
+                            updateCalculatedPrice(planPreset, extraCompanies, 10);
+                          }}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                            paymentDiscount === 10
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                          }`}
+                        >
+                          <div>Promocional (-10%)</div>
+                          <div className="text-[9px] opacity-80">Cupón Especial</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 4. Net Paid Amount (Dynamic & Editable by Admin) */}
+                    <div className="bg-surface-primary border border-border-medium/40 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+                          <Calculator className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Monto Neto Pagado Comisionable ($ COP)</span>
+                        </label>
+                        {isManualAmount ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsManualAmount(false);
+                              updateCalculatedPrice(planPreset, extraCompanies, paymentDiscount);
+                            }}
+                            className="text-[10px] text-teal-600 dark:text-teal-400 font-bold hover:underline cursor-pointer"
+                          >
+                            ↺ Recalcular Automático
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-bold">
+                            ✓ Cálculo Automático
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-text-tertiary">
+                          $ COP
+                        </span>
+                        <input
+                          type="number"
+                          value={customNetPaidAmount}
+                          onChange={(e) => {
+                            setIsManualAmount(true);
+                            setCustomNetPaidAmount(Number(e.target.value) || 0);
+                          }}
+                          className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl pl-16 pr-3 py-2 text-sm font-black text-text-primary outline-none focus:border-teal-500"
+                        />
+                      </div>
+
+                      {/* Formula breakdown */}
+                      <div className="text-[10px] text-text-tertiary flex items-center justify-between pt-1 border-t border-border-medium/20">
+                        {(() => {
+                          const calc = calculateDerivedAmounts(planPreset, extraCompanies, paymentDiscount);
+                          return (
+                            <>
+                              <span>Base: ${calc.basePlanPrice.toLocaleString('es-CO')}</span>
+                              <span>+ Extras: ${((extraCompanies * calc.extraCompanyUnit)).toLocaleString('es-CO')}</span>
+                              <span>- Dcto: ${calc.discountAmount.toLocaleString('es-CO')}</span>
+                              <span className="font-extrabold text-teal-600">= ${calc.netoPagado.toLocaleString('es-CO')} COP</span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* 5. Commission Rate & Status */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] font-bold text-text-tertiary mb-1 uppercase">
@@ -1559,11 +1881,12 @@ export default function AmbassadorDashboard() {
                         <select
                           value={customCommRate}
                           onChange={(e) => setCustomCommRate(Number(e.target.value))}
-                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500"
+                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-bold"
                         >
-                          <option value={0.30}>30% (Líder / Estándar)</option>
+                          <option value={0.30}>30% (Líder / Estándar Wappy)</option>
                           <option value={0.25}>25% (Avanzado)</option>
                           <option value={0.20}>20% (Base)</option>
+                          <option value={0.15}>15% (Especial)</option>
                         </select>
                       </div>
 
@@ -1574,7 +1897,7 @@ export default function AmbassadorDashboard() {
                         <select
                           value={commissionStatus}
                           onChange={(e) => setCommissionStatus(e.target.value as 'pending' | 'paid')}
-                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500"
+                          className="w-full bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-bold"
                         >
                           <option value="pending">⏳ Pendiente de Pago</option>
                           <option value="paid">✅ Ya Pagada (Liquidada)</option>
@@ -1582,15 +1905,18 @@ export default function AmbassadorDashboard() {
                       </div>
                     </div>
 
-                    {/* Calculated Summary Box */}
-                    <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-2.5 flex items-center justify-between">
-                      <div className="text-[11px] text-teal-800 dark:text-teal-200 font-medium">
-                        Comisión devengada a registrar:
+                    {/* Final Calculated Summary Box */}
+                    <div className="bg-gradient-to-r from-teal-500/15 via-emerald-500/15 to-teal-500/10 border border-teal-500/30 rounded-xl p-3 flex items-center justify-between shadow-xs">
+                      <div>
+                        <div className="text-[11px] text-teal-900 dark:text-teal-200 font-bold">
+                          Comisión Real a Acreditar:
+                        </div>
+                        <div className="text-[10px] text-teal-700 dark:text-teal-400 font-medium">
+                          {(customCommRate * 100)}% sobre ${customNetPaidAmount.toLocaleString('es-CO')} COP
+                        </div>
                       </div>
-                      <div className="text-sm font-extrabold text-teal-700 dark:text-teal-300">
-                        ${Math.round(
-                          (commissionPreset === 'anual' ? 600000 : commissionPreset === 'semestral' ? 350000 : commissionPreset === 'mensual' ? 97180 : customTxAmount) * customCommRate
-                        ).toLocaleString('es-CO')} COP
+                      <div className="text-base font-black text-teal-700 dark:text-teal-300 font-mono">
+                        ${Math.round(customNetPaidAmount * customCommRate).toLocaleString('es-CO')} COP
                       </div>
                     </div>
                   </div>

@@ -603,7 +603,7 @@ router.get('/dashboard', async (req, res) => {
         const referredUserIds = allReferrals.map(r => r.referredUserId);
 
         // Fetch user data & plans
-        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone phoneNumber role accountStatus createdAt updatedAt inactiveAt activeAt').lean();
+        const users = await User.find({ _id: { $in: referredUserIds } }, 'name email username phone phoneNumber role accountStatus createdAt updatedAt inactiveAt activeAt departamento ciudad department city').lean();
         const userPlans = await UserPlan.find({ userId: { $in: referredUserIds } }).lean();
         const partnersMap = new Map();
 
@@ -771,6 +771,8 @@ router.get('/dashboard', async (req, res) => {
                 crmNotes: rec.crmNotes || [],
                 lastContactedAt: rec.lastContactedAt || null,
                 nextFollowUpDate: rec.nextFollowUpDate || null,
+                city: u.ciudad || u.city || '',
+                department: u.departamento || u.department || '',
                 ambassadorName: partnerDoc ? (partnerDoc.userId?.name || partnerDoc.slug) : 'Sin embajador',
                 ambassadorSlug: partnerDoc?.slug || null,
                 ambassadorId: partnerDoc?._id || null,

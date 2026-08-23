@@ -14,7 +14,8 @@ import {
   Calendar,
   Mail,
   Flame,
-  Tag
+  Tag,
+  MapPin
 } from 'lucide-react';
 import { formatPlanBadge } from './AmbassadorContactModal';
 
@@ -24,6 +25,8 @@ export interface KanbanUser {
   name: string;
   email: string;
   phone?: string;
+  city?: string;
+  department?: string;
   role?: string;
   accountStatus?: string;
   registrationDate: string;
@@ -277,6 +280,12 @@ export default function AmbassadorKanbanBoard({
                             <p className="text-[10px] text-text-tertiary truncate mt-0.5">
                               {u.email}
                             </p>
+                            {(u.city || u.department) && (
+                              <div className="flex items-center gap-1 text-[10px] text-teal-700 dark:text-teal-300 font-semibold truncate mt-0.5">
+                                <MapPin className="w-2.5 h-2.5 text-teal-500 shrink-0" />
+                                <span className="truncate">{[u.city, u.department].filter(Boolean).join(', ')}</span>
+                              </div>
+                            )}
                           </div>
 
                           <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase border shrink-0 ${plan.className}`}>

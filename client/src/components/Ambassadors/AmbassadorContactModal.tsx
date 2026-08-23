@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Loader2,
   ArrowRight,
-  Palette
+  Palette,
+  MapPin
 } from 'lucide-react';
 
 export interface TargetFollowUpUser {
@@ -23,6 +24,8 @@ export interface TargetFollowUpUser {
   name: string;
   email: string;
   phone?: string;
+  city?: string;
+  department?: string;
   role?: string;
   subscriptionType?: string;
   planInterval?: string;
@@ -363,6 +366,12 @@ export default function AmbassadorContactModal({
                   {user.phone && (
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                       <MessageSquare className="w-3 h-3" /> {user.phone}
+                    </span>
+                  )}
+                  {(user.city || user.department) && (
+                    <span className="text-teal-700 dark:text-teal-300 font-semibold flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-teal-500" />
+                      <span>{[user.city, user.department].filter(Boolean).join(', ')}</span>
                     </span>
                   )}
                   {(() => {
