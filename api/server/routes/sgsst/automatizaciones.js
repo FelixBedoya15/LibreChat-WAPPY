@@ -35,11 +35,11 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar tareas bloqueadas en 'running' por más de 4 minutos
-    const fourMinAgo = new Date(Date.now() - 4 * 60 * 1000);
+    // Auto-recuperar tareas bloqueadas en 'running' por más de 8.5 minutos
+    const eightMinAgo = new Date(Date.now() - 8.5 * 60 * 1000);
     await Automation.updateMany(
-      { companyId, lastRunStatus: 'running', updatedAt: { $lt: fourMinAgo } },
-      { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado (4 minutos).' } }
+      { companyId, lastRunStatus: 'running', updatedAt: { $lt: eightMinAgo } },
+      { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado.' } }
     );
 
     const automations = await Automation.find({ companyId }).sort({ createdAt: -1 });
@@ -204,11 +204,11 @@ router.get('/logs', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar logs bloqueados en 'running' por más de 4 minutos
-    const fourMinAgo = new Date(Date.now() - 4 * 60 * 1000);
+    // Auto-recuperar logs bloqueados en 'running' por más de 8.5 minutos
+    const eightMinAgo = new Date(Date.now() - 8.5 * 60 * 1000);
     await AutomationLog.updateMany(
-      { companyId, status: 'running', createdAt: { $lt: fourMinAgo } },
-      { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado (4 minutos).' } }
+      { companyId, status: 'running', createdAt: { $lt: eightMinAgo } },
+      { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado.' } }
     );
 
     const logs = await AutomationLog.find({ companyId })

@@ -260,11 +260,11 @@ async function runAutomation(automation, isManual = false) {
       userMCPAuthMap
     };
 
-    // 8. Execute agent call with strict 4-minute execution limit
+    // 8. Execute agent call with safety limit of 8 minutes
     const response = await Promise.race([
       client.sendMessage(automation.prompt, messageOptions),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (4 minutos).')), 240000)
+        setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (8 minutos).')), 480000)
       )
     ]);
 
@@ -393,13 +393,13 @@ async function checkAndRunAutomations() {
   try {
     const now = new Date();
 
-    // 1. Zombie / Crash Recovery: Reset tasks and logs stuck in 'running' for more than 5 minutes
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    // 1. Zombie / Crash Recovery: Reset tasks and logs stuck in 'running' for more than 9 minutes
+    const nineMinutesAgo = new Date(Date.now() - 9 * 60 * 1000);
     await Promise.all([
       Automation.updateMany(
         {
           lastRunStatus: 'running',
-          updatedAt: { $lt: fiveMinutesAgo }
+          updatedAt: { $lt: nineMinutesAgo }
         },
         {
           $set: {
@@ -411,7 +411,7 @@ async function checkAndRunAutomations() {
       AutomationLog.updateMany(
         {
           status: 'running',
-          createdAt: { $lt: fiveMinutesAgo }
+          createdAt: { $lt: nineMinutesAgo }
         },
         {
           $set: {
