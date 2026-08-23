@@ -33,7 +33,10 @@ import {
   Minus,
   Percent,
   Calculator,
-  Building
+  Building,
+  Edit3,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -270,6 +273,54 @@ export default function AmbassadorDashboard() {
     setCustomNetPaidAmount(calc.netoPagado);
     setCustomCommRate(0.30);
     setCommissionStatus('pending');
+  };
+
+  // Admin Direct Commission Edit & Delete State
+  const [selectedCommForEdit, setSelectedCommForEdit] = useState<CommissionItem | null>(null);
+  const [editCommAmount, setEditCommAmount] = useState<number>(0);
+  const [editCommRate, setEditCommRate] = useState<number>(0.30);
+  const [editCommStatus, setEditCommStatus] = useState<string>('pending');
+  const [isUpdatingComm, setIsUpdatingComm] = useState<boolean>(false);
+
+  const openCommissionEditModal = (c: CommissionItem) => {
+    setSelectedCommForEdit(c);
+    setEditCommAmount(c.amount);
+    setEditCommRate(c.commissionRate);
+    setEditCommStatus(c.status);
+  };
+
+  const handleUpdateCommission = async () => {
+    if (!selectedCommForEdit) return;
+    try {
+      setIsUpdatingComm(true);
+      const calculatedComm = Math.round(editCommAmount * editCommRate);
+      await axios.put(`/api/referrals/commissions/${selectedCommForEdit.id}`, {
+        amount: editCommAmount,
+        commissionRate: editCommRate,
+        commissionAmount: calculatedComm,
+        status: editCommStatus
+      });
+      showToast({ message: '¡Comisión actualizada exitosamente!', status: 'success' });
+      setSelectedCommForEdit(null);
+      fetchDashboardData();
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.error || 'Error al actualizar comisión.', status: 'error' });
+    } finally {
+      setIsUpdatingComm(false);
+    }
+  };
+
+  const handleDeleteCommission = async (commId: string, clientName: string) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la comisión de ${clientName}? Esta acción borrará el registro de la base de datos.`)) {
+      return;
+    }
+    try {
+      await axios.delete(`/api/referrals/commissions/${commId}`);
+      showToast({ message: 'Comisión eliminada correctamente.', status: 'success' });
+      fetchDashboardData();
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.error || 'Error al eliminar la comisión.', status: 'error' });
+    }
   };
 
   // User Follow-up & Campaign Modal (Email & WhatsApp)
@@ -1213,9 +1264,11 @@ export default function AmbassadorDashboard() {
                                 {isAdmin && (
                                   <button
                                     onClick={() => openAttributionModal(u)}
-                                    className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-surface-secondary border border-border-medium/40 hover:bg-surface-hover transition-colors shadow-sm cursor-pointer"
+                                    className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                                    title="Editar Cobro, Plan, Add-ons y Comisión de este usuario"
                                   >
-                                    Atribuir
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <span>Editar Cobro / Atribuir</span>
                                   </button>
                                 )}
                               </div>
@@ -1343,9 +1396,9 @@ export default function AmbassadorDashboard() {
                             })()}
                           </td>
 
-                          <td className="px-4 py-3.5 align-middle font-medium text-xs whitespace-nowrap">${(c.amount / 100).toLocaleString('es-CO')} COP</td>
-                          <td className="px-4 py-3.5 align-middle font-extrabold text-teal-600 dark:text-teal-400 text-xs whitespace-nowrap">{c.commissionRate * 100}%</td>
-                          <td className="px-4 py-3.5 align-middle font-bold text-emerald-600 dark:text-emerald-400 text-xs whitespace-nowrap">${(c.commissionAmount / 100).toLocaleString('es-CO')} COP</td>
+                          <td className="px-4 py-3.5 align-middle font-medium text-xs whitespace-nowrap">${c.amount.toLocaleString('es-CO')} COP</td>
+                          <td className="px-4 py-3.5 align-middle font-extrabold text-teal-600 dark:text-teal-400 text-xs whitespace-nowrap">{Math.round(c.commissionRate * 100)}%</td>
+                          <td className="px-4 py-3.5 align-middle font-bold text-emerald-600 dark:text-emerald-400 text-xs whitespace-nowrap">${c.commissionAmount.toLocaleString('es-CO')} COP</td>
                           <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
                               c.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
@@ -1356,27 +1409,48 @@ export default function AmbassadorDashboard() {
                           <td className="px-4 py-3.5 align-middle text-text-tertiary text-xs whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
                           
                           <td className="px-4 py-3.5 text-right align-middle">
-                            <button
-                              onClick={() => setContactUser({
-                                id: c.userId || c.id,
-                                userId: c.userId,
-                                name: c.referredUserName,
-                                email: c.referredUserEmail,
-                                phone: c.phone,
-                                role: c.role || 'USER',
-                                subscriptionType: c.subscriptionType || 'pro',
-                                planInterval: c.planInterval,
-                                planExpiresAt: c.planExpiresAt,
-                                daysToExpiry: c.daysToExpiry,
-                                daysInactive: c.daysInactive,
-                                accountStatus: c.accountStatus || 'active',
-                              })}
-                              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
-                              title="Enviar Correo de Campaña o Mensaje WhatsApp"
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                              <span>Contactar</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => openCommissionEditModal(c)}
+                                    className="px-2 py-1 text-xs font-bold rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+                                    title="Editar monto o estado de esta comisión"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>Editar</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteCommission(c.id, c.referredUserName)}
+                                    className="p-1 text-xs font-bold rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition-colors flex items-center justify-center cursor-pointer"
+                                    title="Eliminar comisión duplicada o incorrecta"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => setContactUser({
+                                  id: c.userId || c.id,
+                                  userId: c.userId,
+                                  name: c.referredUserName,
+                                  email: c.referredUserEmail,
+                                  phone: c.phone,
+                                  role: c.role || 'USER',
+                                  subscriptionType: c.subscriptionType || 'pro',
+                                  planInterval: c.planInterval,
+                                  planExpiresAt: c.planExpiresAt,
+                                  daysToExpiry: c.daysToExpiry,
+                                  daysInactive: c.daysInactive,
+                                  accountStatus: c.accountStatus || 'active',
+                                })}
+                                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-700 hover:bg-slate-800 text-white transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+                                title="Enviar Correo de Campaña o Mensaje WhatsApp"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Contactar</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1937,6 +2011,116 @@ export default function AmbassadorDashboard() {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 {isAttributing ? 'Guardando...' : 'Confirmar y Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Edit Modal (Admin Only) */}
+      {selectedCommForEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface-primary border border-border-medium/40 rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border-medium/30 pb-3">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-text-primary flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-teal-600" />
+                  <span>Editar Comisión Directa</span>
+                </h3>
+                <p className="text-xs text-text-tertiary">
+                  Cliente: <span className="font-bold text-text-secondary">{selectedCommForEdit.referredUserName}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCommForEdit(null)}
+                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-surface-hover cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              {/* 1. Transaction Amount */}
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                  Monto Real de la Transacción ($ COP)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-text-tertiary text-xs">
+                    $ COP
+                  </span>
+                  <input
+                    type="number"
+                    value={editCommAmount}
+                    onChange={(e) => setEditCommAmount(Number(e.target.value) || 0)}
+                    className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl pl-16 pr-3 py-2 text-sm font-black text-text-primary outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              {/* 2. Commission Rate */}
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                  Porcentaje de Comisión
+                </label>
+                <select
+                  value={editCommRate}
+                  onChange={(e) => setEditCommRate(Number(e.target.value))}
+                  className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-teal-500"
+                >
+                  <option value={0.30}>30% (Líder / Estándar)</option>
+                  <option value={0.25}>25% (Avanzado)</option>
+                  <option value={0.20}>20% (Base)</option>
+                  <option value={0.15}>15% (Especial)</option>
+                </select>
+              </div>
+
+              {/* 3. Status */}
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                  Estado de la Comisión
+                </label>
+                <select
+                  value={editCommStatus}
+                  onChange={(e) => setEditCommStatus(e.target.value)}
+                  className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-teal-500"
+                >
+                  <option value="pending">⏳ Pendiente de Pago</option>
+                  <option value="approved">✓ Aprobada para Liquidación</option>
+                  <option value="paid">✅ Pagada (Liquidada)</option>
+                  <option value="cancelled">🚫 Cancelada / Anulada</option>
+                </select>
+              </div>
+
+              {/* Summary Box */}
+              <div className="bg-gradient-to-r from-teal-500/15 via-emerald-500/15 to-teal-500/10 border border-teal-500/30 rounded-xl p-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-teal-900 dark:text-teal-200">
+                    Comisión Calculada:
+                  </div>
+                  <div className="text-[10px] text-teal-700 dark:text-teal-400">
+                    {Math.round(editCommRate * 100)}% de ${editCommAmount.toLocaleString('es-CO')}
+                  </div>
+                </div>
+                <div className="text-base font-black text-teal-700 dark:text-teal-300 font-mono">
+                  ${Math.round(editCommAmount * editCommRate).toLocaleString('es-CO')} COP
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-medium/30">
+              <button
+                onClick={() => setSelectedCommForEdit(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-hover cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdateCommission}
+                disabled={isUpdatingComm}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isUpdatingComm ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </div>

@@ -825,9 +825,15 @@ router.get('/dashboard', async (req, res) => {
             const refEmailNorm = (refUser.email || '').toLowerCase();
             const resolvedRefPhone = refUser.phoneNumber || refUser.phone || purchasePhoneMap.get(refEmailNorm) || '';
 
-            if (c.status !== 'cancelled') totalCommissionsEarned += c.commissionAmount || 0;
-            if (c.status === 'pending') totalCommissionsPending += c.commissionAmount || 0;
-            if (c.status === 'paid') totalCommissionsPaid += c.commissionAmount || 0;
+            const rawAmount = Number(c.amount) || 0;
+            const normAmount = rawAmount > 5000000 ? Math.round(rawAmount / 100) : Math.round(rawAmount);
+
+            const rawComm = Number(c.commissionAmount) || 0;
+            const normComm = rawComm > 2000000 ? Math.round(rawComm / 100) : Math.round(rawComm);
+
+            if (c.status !== 'cancelled') totalCommissionsEarned += normComm;
+            if (c.status === 'pending') totalCommissionsPending += normComm;
+            if (c.status === 'paid') totalCommissionsPaid += normComm;
 
             return {
                 id: c._id,
@@ -843,9 +849,9 @@ router.get('/dashboard', async (req, res) => {
                 daysToExpiry: daysToExpiry,
                 lastActivity,
                 daysInactive,
-                amount: c.amount,
+                amount: normAmount,
                 commissionRate: c.commissionRate,
-                commissionAmount: c.commissionAmount,
+                commissionAmount: normComm,
                 status: c.status, // pending, approved, requested, paid, cancelled
                 createdAt: c.createdAt,
             };
@@ -1047,6 +1053,70 @@ router.post('/attribute', async (req, res) => {
     } catch (err) {
         logger.error('[ReferralsAttribute] Error:', err);
         return res.status(500).json({ error: 'Error al actualizar la atribución del usuario' });
+    }
+});
+
+/**
+ * PUT /api/referrals/commissions/:id
+ * Edit commission details (Admin only)
+ */
+router.put('/commissions/:id', async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo los administradores pueden editar comisiones.' });
+        }
+
+        const { id } = req.params;
+        const { amount, commissionRate, commissionAmount, status } = req.body;
+
+        const PartnerCommission = mongoose.model('PartnerCommission');
+        const comm = await PartnerCommission.findById(id);
+        if (!comm) {
+            return res.status(404).json({ error: 'Comisión no encontrada.' });
+        }
+
+        if (amount !== undefined) comm.amount = Math.round(Number(amount));
+        if (commissionRate !== undefined) comm.commissionRate = Number(commissionRate);
+        if (commissionAmount !== undefined) comm.commissionAmount = Math.round(Number(commissionAmount));
+        if (status && ['pending', 'approved', 'paid', 'cancelled'].includes(status)) {
+            comm.status = status;
+            if (status === 'paid' && !comm.payoutDate) {
+                comm.payoutDate = new Date();
+            }
+        }
+
+        await comm.save();
+        logger.info(`[Referrals] Admin ${req.user.email} updated commission ${id}`);
+
+        return res.json({ success: true, message: 'Comisión actualizada exitosamente.', commission: comm });
+    } catch (err) {
+        logger.error('[EditCommission] Error:', err);
+        return res.status(500).json({ error: 'Error al actualizar la comisión.' });
+    }
+});
+
+/**
+ * DELETE /api/referrals/commissions/:id
+ * Delete commission (Admin only)
+ */
+router.delete('/commissions/:id', async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo los administradores pueden eliminar comisiones.' });
+        }
+
+        const { id } = req.params;
+        const PartnerCommission = mongoose.model('PartnerCommission');
+        const comm = await PartnerCommission.findByIdAndDelete(id);
+        if (!comm) {
+            return res.status(404).json({ error: 'Comisión no encontrada.' });
+        }
+
+        logger.info(`[Referrals] Admin ${req.user.email} deleted commission ${id}`);
+        return res.json({ success: true, message: 'Comisión eliminada correctamente.' });
+    } catch (err) {
+        logger.error('[DeleteCommission] Error:', err);
+        return res.status(500).json({ error: 'Error al eliminar la comisión.' });
     }
 });
 
