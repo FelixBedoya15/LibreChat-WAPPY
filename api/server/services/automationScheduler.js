@@ -260,8 +260,13 @@ async function runAutomation(automation, isManual = false) {
       userMCPAuthMap
     };
 
-    // 8. Execute agent call
-    const response = await client.sendMessage(automation.prompt, messageOptions);
+    // 8. Execute agent call with strict 4-minute execution limit
+    const response = await Promise.race([
+      client.sendMessage(automation.prompt, messageOptions),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (4 minutos).')), 240000)
+      )
+    ]);
 
     if (response?.databasePromise) {
       await response.databasePromise;
@@ -275,7 +280,18 @@ async function runAutomation(automation, isManual = false) {
       );
     }
 
-    const resultText = (response?.text || '').trim() || '(Sin respuesta del agente)';
+    let resultText = (response?.text || '').trim();
+    if (!resultText && Array.isArray(response?.content)) {
+      resultText = response.content
+        .filter(part => part && part.type === 'text' && typeof part.text === 'string')
+        .map(part => part.text.trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
+    }
+    if (!resultText) {
+      resultText = '(Ejecución completada por el agente sin reporte de texto adicional)';
+    }
 
     // 10. Update Log to success
     log.status = 'success';
@@ -377,20 +393,34 @@ async function checkAndRunAutomations() {
   try {
     const now = new Date();
 
-    // 1. Zombie / Crash Recovery: Reset tasks stuck in 'running' for more than 15 minutes
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-    await Automation.updateMany(
-      {
-        lastRunStatus: 'running',
-        updatedAt: { $lt: fifteenMinutesAgo }
-      },
-      {
-        $set: {
-          lastRunStatus: 'failed',
-          lastRunResult: 'Ejecución anterior interrumpida por reinicio del sistema.'
+    // 1. Zombie / Crash Recovery: Reset tasks and logs stuck in 'running' for more than 5 minutes
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    await Promise.all([
+      Automation.updateMany(
+        {
+          lastRunStatus: 'running',
+          updatedAt: { $lt: fiveMinutesAgo }
+        },
+        {
+          $set: {
+            lastRunStatus: 'failed',
+            lastRunResult: 'Ejecución anterior cancelada por tiempo de espera o reinicio.'
+          }
         }
-      }
-    );
+      ),
+      AutomationLog.updateMany(
+        {
+          status: 'running',
+          createdAt: { $lt: fiveMinutesAgo }
+        },
+        {
+          $set: {
+            status: 'failed',
+            error: 'Tiempo límite de ejecución superado (cancelada por el sistema).'
+          }
+        }
+      )
+    ]);
 
     // 2. Query pending active automations
     const pendingAutomations = await Automation.find({

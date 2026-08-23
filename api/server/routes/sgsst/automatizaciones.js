@@ -35,6 +35,13 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
+    // Auto-recuperar tareas bloqueadas en 'running' por más de 4 minutos
+    const fourMinAgo = new Date(Date.now() - 4 * 60 * 1000);
+    await Automation.updateMany(
+      { companyId, lastRunStatus: 'running', updatedAt: { $lt: fourMinAgo } },
+      { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado (4 minutos).' } }
+    );
+
     const automations = await Automation.find({ companyId }).sort({ createdAt: -1 });
     res.json(automations);
   } catch (error) {
@@ -196,6 +203,13 @@ router.get('/logs', async (req, res) => {
     if (!companyId) {
       return res.json([]);
     }
+
+    // Auto-recuperar logs bloqueados en 'running' por más de 4 minutos
+    const fourMinAgo = new Date(Date.now() - 4 * 60 * 1000);
+    await AutomationLog.updateMany(
+      { companyId, status: 'running', createdAt: { $lt: fourMinAgo } },
+      { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado (4 minutos).' } }
+    );
 
     const logs = await AutomationLog.find({ companyId })
       .sort({ runAt: -1 })
