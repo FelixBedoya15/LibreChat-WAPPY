@@ -696,16 +696,17 @@ export default function CommercialProposalGenerator({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-teal-900/40 via-teal-800/20 to-surface-secondary border border-teal-500/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-teal-400 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <Sparkles className="w-4 h-4" />
+      <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-teal-500/10 via-emerald-500/5 to-transparent pointer-events-none" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 mb-2 uppercase tracking-wide">
+            <Sparkles className="w-3.5 h-3.5 text-teal-500 animate-pulse" />
             <span>Generador de Propuestas Comerciales con IA</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-text-primary">
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
             Crea Propuestas Ejecutivas en PDF & Envíalas por Correo Oficial
           </h2>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed max-w-2xl font-normal">
             Ingresa los datos de tu cliente corporativo, carga su logo institucional y la IA redactará una propuesta personalizada con diagnóstico sectorial, tablas de inversión y análisis de ROI, lista para enviar por correo corporativo desde Wappy, descargar en PDF o compartir por WhatsApp.
           </p>
         </div>
