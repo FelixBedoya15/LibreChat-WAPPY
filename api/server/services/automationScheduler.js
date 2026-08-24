@@ -540,6 +540,22 @@ function startAutomationScheduler() {
 
   console.log('[AutomationScheduler] Starting automation background scheduler (interval: 1 minute, America/Bogota timezone aware)...');
   
+  // Limpiar cualquier tarea zombie previa que haya quedado en 'running' por reinicio del contenedor
+  setTimeout(async () => {
+    try {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+      await Automation.updateMany(
+        { lastRunStatus: 'running', updatedAt: { $lt: twoMinAgo } },
+        { $set: { lastRunStatus: 'failed', lastRunResult: 'Reinicio del servidor detectado.' } }
+      );
+      await AutomationLog.updateMany(
+        { status: 'running', createdAt: { $lt: twoMinAgo } },
+        { $set: { status: 'failed', error: 'Reinicio del servidor detectado.' } }
+      );
+      console.log('[AutomationScheduler] Zombie tasks from previous container restarts cleaned up.');
+    } catch (e) {}
+  }, 2000);
+
   // Quick initial check 15 seconds after boot
   setTimeout(checkAndRunAutomations, 15000);
 

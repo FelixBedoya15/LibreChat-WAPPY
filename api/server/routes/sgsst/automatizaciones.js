@@ -35,10 +35,10 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar tareas bloqueadas en 'running' por más de 8.5 minutos
-    const eightMinAgo = new Date(Date.now() - 8.5 * 60 * 1000);
+    // Auto-recuperar tareas bloqueadas en 'running' por más de 3 minutos
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000);
     await Automation.updateMany(
-      { companyId, lastRunStatus: 'running', updatedAt: { $lt: eightMinAgo } },
+      { companyId, lastRunStatus: 'running', updatedAt: { $lt: threeMinAgo } },
       { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado.' } }
     );
 
@@ -175,7 +175,11 @@ router.post('/:id/run', async (req, res) => {
     }
 
     if (automation.lastRunStatus === 'running') {
-      return res.status(400).json({ error: 'Esta automatización ya se encuentra ejecutándose en segundo plano.' });
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+      if (automation.updatedAt && automation.updatedAt > twoMinAgo) {
+        return res.status(400).json({ error: 'Esta automatización ya se encuentra ejecutándose en segundo plano.' });
+      }
+      console.log(`[API Run Manual] Forzando ejecución para "${automation.name}" tras detectar estado previo no concluido.`);
     }
 
     // Marcar como corriendo
@@ -204,10 +208,10 @@ router.get('/logs', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar logs bloqueados en 'running' por más de 8.5 minutos
-    const eightMinAgo = new Date(Date.now() - 8.5 * 60 * 1000);
+    // Auto-recuperar logs bloqueados en 'running' por más de 3 minutos
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000);
     await AutomationLog.updateMany(
-      { companyId, status: 'running', createdAt: { $lt: eightMinAgo } },
+      { companyId, status: 'running', createdAt: { $lt: threeMinAgo } },
       { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado.' } }
     );
 
