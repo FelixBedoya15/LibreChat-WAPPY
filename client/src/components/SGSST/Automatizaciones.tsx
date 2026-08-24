@@ -169,7 +169,7 @@ export default function Automatizaciones() {
 
   // Auto-polling cuando hay tareas en estado 'running'
   useEffect(() => {
-    const hasRunning = automations.some(a => a.lastRunStatus === 'running');
+    const hasRunning = automations.some(a => a.lastRunStatus === 'running') || logs.some(l => l.status === 'running');
     if (!hasRunning) return;
 
     const interval = setInterval(async () => {
@@ -181,10 +181,10 @@ export default function Automatizaciones() {
           setLogs(logsRes.data || []);
         }
       } catch (err) {}
-    }, 4000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [automations, activeTab]);
+  }, [automations, logs, activeTab]);
 
   // Calculate dynamic stats
   const stats = useMemo(() => {

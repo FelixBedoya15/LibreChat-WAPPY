@@ -154,6 +154,12 @@ function calculateNextRun(scheduleType, config) {
 async function runAutomation(automation, isManual = false) {
   console.log(`[AutomationScheduler] Starting execution for automation "${automation.name}" (${automation._id})`);
   
+  // Update Automation state to running
+  await Automation.updateOne(
+    { _id: automation._id },
+    { $set: { lastRunStatus: 'running', lastRunAt: new Date() } }
+  );
+
   // Create log entry
   const log = await AutomationLog.create({
     automation: automation._id,
