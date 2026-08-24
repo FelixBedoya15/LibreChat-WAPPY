@@ -1327,10 +1327,10 @@ class AgentClient extends BaseClient {
               }
             }
 
+            lastErr = err;
+            const isDailyQuotaExceeded = err?.message?.includes('GenerateRequestsPerDay') || err?.message?.includes('limit: 20');
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
-            // NOTE: Do NOT include `err?.status === 400` here — a 400 can mean many things
-            // (e.g., "Duplicate function declaration") and should NOT be retried as a key error.
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') ||
@@ -1343,7 +1343,7 @@ class AgentClient extends BaseClient {
               err?.message?.includes('socket hang up') ||
               err?.message?.includes('undici');
 
-            const isRetryable = isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError;
+            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError;
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
 
@@ -1360,7 +1360,11 @@ class AgentClient extends BaseClient {
               logger.error('Failed to send clear_step_maps event', e);
             }
 
-            if (isRetryable && i < keys.length - 1) {
+            if (isDailyQuotaExceeded) {
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}". Rotating immediately to next model...`);
+              rotateToNextModel = true;
+              break;
+            } else if (isRetryable && i < keys.length - 1) {
               logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
               continue; // Try next key, same model
             } else if (isRetryable) {

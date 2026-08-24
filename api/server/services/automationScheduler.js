@@ -267,15 +267,24 @@ async function runAutomation(automation, isManual = false) {
     };
 
     // 8. Execute agent call with safety limit of 8 minutes
+    console.log(`[AutomationScheduler] Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}"...`);
     const response = await Promise.race([
       client.sendMessage(automation.prompt, messageOptions),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (8 minutos).')), 480000)
       )
     ]);
+    console.log(`[AutomationScheduler] Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
 
     if (response?.databasePromise) {
-      await response.databasePromise;
+      try {
+        await Promise.race([
+          response.databasePromise,
+          new Promise((r) => setTimeout(r, 8000))
+        ]);
+      } catch (dbErr) {
+        console.warn('[AutomationScheduler] databasePromise non-blocking notice:', dbErr.message);
+      }
     }
 
     // 9. Tag generated conversation to isolate from regular chats
