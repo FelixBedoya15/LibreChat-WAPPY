@@ -273,13 +273,16 @@ async function runAutomation(automation, isManual = false) {
         setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (8 minutos).')), 480000)
       )
     ]);
+    
+    // Desactivar el temporizador de 10 minutos de inmediato
+    clearTimeout(timeoutId);
     console.log(`[AutomationScheduler] Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
 
     if (response?.databasePromise) {
       try {
         await Promise.race([
           response.databasePromise,
-          new Promise((r) => setTimeout(r, 8000))
+          new Promise((r) => setTimeout(r, 5000))
         ]);
       } catch (dbErr) {
         console.warn('[AutomationScheduler] databasePromise non-blocking notice:', dbErr.message);
@@ -361,61 +364,69 @@ async function runAutomation(automation, isManual = false) {
 
     console.log(`[AutomationScheduler] Successfully completed execution for "${automation.name}"`);
 
-    // 12. Send Email Notification to configured recipients
+    // 12. Send Email Notification to configured recipients (Completely Non-blocking)
     if (Array.isArray(automation.emails) && automation.emails.length > 0) {
-      try {
-        let companyName = 'Mi Empresa';
-        if (automation.companyId) {
-          const comp = await CompanyInfo.findById(automation.companyId).select('companyName').lean();
-          if (comp?.companyName) companyName = comp.companyName;
-        }
-
-        const validEmails = automation.emails
-          .map(e => (typeof e === 'string' ? e.trim() : ''))
-          .filter(e => e.includes('@'));
-
-        if (validEmails.length > 0) {
-          const bogotaDateStr = new Intl.DateTimeFormat('es-CO', {
-            timeZone: 'America/Bogota',
-            dateStyle: 'full',
-            timeStyle: 'medium'
-          }).format(new Date());
-
-          const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
-
-          for (const recipient of validEmails) {
-            console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}"`);
-            await sendEmail({
-              email: recipient,
-              from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-              subject: `📊 Reporte Automático SGSST: ${automation.name} - ${companyName}`,
-              payload: {
-                taskName: automation.name,
-                agentName: automation.agentName || agent.name || 'Agente Experto',
-                companyName,
-                executionDate: bogotaDateStr,
-                prompt: automation.prompt,
-                result: resultText,
-                chatUrl,
-                year: new Date().getFullYear()
-              },
-              template: 'agentAutomationReport.handlebars',
-              throwError: false
-            });
+      setImmediate(async () => {
+        try {
+          let companyName = 'Mi Empresa';
+          if (automation.companyId) {
+            const comp = await CompanyInfo.findById(automation.companyId).select('companyName').lean();
+            if (comp?.companyName) companyName = comp.companyName;
           }
+
+          const validEmails = automation.emails
+            .map(e => (typeof e === 'string' ? e.trim() : ''))
+            .filter(e => e.includes('@'));
+
+          if (validEmails.length > 0) {
+            const bogotaDateStr = new Intl.DateTimeFormat('es-CO', {
+              timeZone: 'America/Bogota',
+              dateStyle: 'full',
+              timeStyle: 'medium'
+            }).format(new Date());
+
+            const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
+
+            for (const recipient of validEmails) {
+              console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}"`);
+              sendEmail({
+                email: recipient,
+                from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+                subject: `📊 Reporte Automático SGSST: ${automation.name} - ${companyName}`,
+                payload: {
+                  taskName: automation.name,
+                  agentName: automation.agentName || agent.name || 'Agente Experto',
+                  companyName,
+                  executionDate: bogotaDateStr,
+                  prompt: automation.prompt,
+                  result: resultText,
+                  chatUrl,
+                  year: new Date().getFullYear()
+                },
+                template: 'agentAutomationReport.handlebars',
+                throwError: false
+              }).catch(e => console.warn(`[AutomationScheduler] Non-blocking email error for ${recipient}:`, e.message));
+            }
+          }
+        } catch (emailErr) {
+          console.error(`[AutomationScheduler] Error in non-blocking email task:`, emailErr.message);
         }
-      } catch (emailErr) {
-        console.error(`[AutomationScheduler] Error sending automation report emails:`, emailErr.message);
-      }
+      });
     }
 
   } catch (err) {
     console.error(`[AutomationScheduler] Error executing automation "${automation.name}":`, err);
     
     // Update Log to failed
-    log.status = 'failed';
-    log.error = err.message || 'Error desconocido';
-    await log.save();
+    await AutomationLog.updateOne(
+      { _id: log._id },
+      {
+        $set: {
+          status: 'failed',
+          error: err.message || 'Error desconocido'
+        }
+      }
+    );
 
     // Update Automation last run stats
     const updateDoc = {
